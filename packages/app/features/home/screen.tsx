@@ -23,7 +23,7 @@ export function HomeScreen({ pagesMode = false }: { pagesMode?: boolean }) {
   })
 
   return (
-    <YStack flex={1} justify="center" items="center" gap="$8" p="$4" bg="$background">      
+    <YStack testID="home-screen" flex={1} justify="center" items="center" gap="$8" p="$4" bg="$background">      
       <XStack
         position="absolute"
         width="100%"

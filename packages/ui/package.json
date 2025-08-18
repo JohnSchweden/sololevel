@@ -19,8 +19,7 @@
   "dependencies": {
     "@my/config": "0.0.1",
     "@tamagui/toast": "^1.132.18",
-    "react-native-svg": "^15.12.1",
-    "tamagui": "^1.132.18"
+    "tamagui": "1.132.20"
   },
   "devDependencies": {
     "@tamagui/build": "^1.132.18"

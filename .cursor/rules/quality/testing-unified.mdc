@@ -6,33 +6,129 @@ alwaysApply: false
 
 # Testing Strategy
 
-## Unit/Integration Tests (Vitest)
+## CRITICAL: Use Correct Test Runner
+- **React Native/Expo: Jest with jest-expo preset**
+- **Web/Node.js: Vitest**
+- **NEVER use Vitest for React Native testing**
+
+## Environment-Specific Testing
+
+### React Native/Expo (Jest)
+- Use `jest-expo` preset
+- Test with `@testing-library/react-native`
+- Mock React Native modules properly
+- Use `jsdom` environment for component tests
+- Test user interactions, not implementation details
+
+### Web/Node.js (Vitest)
+- Use `jsdom` environment for React components
+- Use `node` environment for utilities
+- Mock browser APIs when needed
+- Test business logic and utilities
+
+## Unit/Integration Tests
+
+### Jest (React Native)
+```typescript
+// apps/expo/__tests__/component.test.tsx
+import React from "react";
+
+describe("MyComponent", () => {
+  it("passes basic tests", () => {
+    expect(1 + 1).toBe(2);
+  });
+
+  it("can import React", () => {
+    expect(React).toBeDefined();
+  });
+});
+```
+
+### Vitest (Web/Node)
+```typescript
+// apps/next/__tests__/utils.test.ts
+import { describe, it, expect } from 'vitest'
+import { formatDate } from '../utils/date'
+
+describe('formatDate', () => {
+  it('formats date correctly', () => {
+    expect(formatDate(new Date('2024-01-01'))).toBe('Jan 1, 2024')
+  })
+})
+```
+
+## Component Tests
 - Colocate tests with source files
-- Use .test.ts or .spec.ts extensions
-- Mock Supabase client for unit tests
-- Test business logic, not implementation
+- Use `.test.tsx` or `.spec.tsx` extensions
+- Test user interactions, not implementation
+- Mock external dependencies (Supabase, etc.)
+- Test accessibility where applicable
 
-## Component Tests (React/React Native)
-- Use React Testing Library
-- Test user interactions
-- Mock Tamagui providers
-- Test accessibility
-
-## E2E Tests (Detox for Native, Playwright for Web)
+## E2E Tests
 ### Detox (React Native)
-- Use testID props consistently
-- waitFor elements before interactions
+- Use `testID` props consistently
+- `waitFor` elements before interactions
 - Independent test suites
-- Collect artifacts on failure
+- Test on actual device/simulator
 
 ### Playwright (Web)
 - Test critical user flows
 - Use page object pattern
 - Run against preview deployments
 
+## Setup Requirements
+
+### Jest Setup (React Native)
+```typescript
+// apps/expo/__tests__/setup.ts
+import "@testing-library/jest-dom";
+
+// Mock React Native modules
+jest.mock("react-native", () => {
+  const RN = jest.requireActual("react-native-web");
+  return {
+    ...RN,
+    Platform: { OS: "web", select: jest.fn((obj) => obj.web) },
+  };
+});
+
+// Mock Expo modules
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useLocalSearchParams: () => ({}),
+  Link: "Link",
+}));
+
+jest.mock("expo-constants", () => ({
+  expoConfig: { extra: {} },
+}));
+```
+
+### Vitest Setup (Web)
+```typescript
+// apps/next/__tests__/setup.ts
+import '@testing-library/jest-dom'
+import { vi } from 'vitest'
+
+// Mock browser APIs
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+```
+
 ## Supabase Testing
 - Use Supabase local development
-- Test migrations with supabase db reset
+- Test migrations with `supabase db reset`
 - Test Edge Functions locally
 - Mock auth for protected routes
 
@@ -40,3 +136,23 @@ alwaysApply: false
 - Unit: 80% for business logic
 - Integration: Key user flows
 - E2E: Critical paths only
+
+## Anti-Patterns (NEVER DO)
+- ❌ Using Vitest for React Native testing
+- ❌ Testing React Native modules with Node.js require()
+- ❌ Testing implementation details instead of user interactions
+- ❌ Ignoring established testing patterns
+
+## Validation Checklist
+Before declaring something "broken":
+□ Test in the correct runtime environment
+□ Use Jest for React Native, Vitest for web/Node
+□ Verify the app actually works (not just imports)
+□ Check if user can reproduce the issue
+□ Follow established testing patterns
+□ Test user interactions, not implementation details
+□ Test in the correct runtime environment
+□ Verify the app actually works (not just imports)
+□ Check if user can reproduce the issue
+□ Follow established testing patterns
+□ Test user interactions, not implementation details

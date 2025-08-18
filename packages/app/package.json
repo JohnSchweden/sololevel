@@ -6,9 +6,13 @@
   "sideEffects": [
     "*.css"
   ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@my/ui": "0.0.1",
-    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/native": "^7.1.6",
     "@tamagui/animations-react-native": "^1.132.18",
     "@tamagui/colors": "^1.132.18",
     "@tamagui/font-inter": "^1.132.18",
@@ -16,14 +20,13 @@
     "@tamagui/shorthands": "^1.132.18",
     "@tamagui/themes": "^1.132.18",
     "burnt": "^0.12.2",
-    "expo-constants": "~17.1.6",
-    "expo-linking": "~7.1.4",
     "react-native-safe-area-context": "5.4.0",
-    "react-native-svg": "^15.12.1",
     "solito": "^4.2.2"
   },
   "devDependencies": {
-    "@types/react": "~19.0.10",
-    "@types/react-native": "^0.73.0"
+    "@types/react": "^19",
+    "@types/react-native": "^0.73.0",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
   }
 }

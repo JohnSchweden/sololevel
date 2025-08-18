@@ -1,0 +1,139 @@
+---
+description: Automatic rule discovery and application index for monorepo
+globs: ["**/*"]
+alwaysApply: true
+priority: 1
+---
+
+# Cursor Rules Index
+
+**AUTOMATICALLY** discover and apply relevant rules based on context, file patterns, and task type.
+
+## Rule Discovery Patterns
+
+### Core Rules (Always Apply)
+- **master-monorepo-config**: Base configuration for all monorepo work
+- **cursor-rule-analytics**: Track rule usage automatically
+- **package-management**: Dependency and workspace management
+
+### Context-Specific Rules
+
+#### Package Management Context
+**Triggers**: `package.json`, `yarn.lock`, `turbo.json`, dependency analysis
+**Rules to Apply**:
+- `package-management`: Dependency validation and workspace operations
+- `master-monorepo-config`: Core monorepo patterns
+
+#### UI Development Context  
+**Triggers**: `packages/ui/**/*`, `**/components/**/*`, UI-related files
+**Rules to Apply**:
+- `ui/ui-styling-tamagui`: Tamagui component guidelines
+- `ui/platform-specific`: Platform-specific UI patterns
+- `master-monorepo-config`: Base configuration
+
+#### Backend Development Context
+**Triggers**: `packages/api/**/*`, `supabase/**/*`, backend files
+**Rules to Apply**:
+- `backend/supabase-backend`: Supabase architecture patterns
+- `backend/supabase-database`: Database conventions
+- `master-monorepo-config`: Base configuration
+
+#### Feature Development Context
+**Triggers**: `packages/app/**/*`, `apps/**/*`, feature files
+**Rules to Apply**:
+- `features/navigation-solito`: Navigation patterns
+- `features/data-state-management`: State management
+- `master-monorepo-config`: Base configuration
+
+#### Quality Assurance Context
+**Triggers**: `**/*.{test,spec}.*`, testing files, error handling
+**Rules to Apply**:
+- `quality/testing-unified`: Testing strategies
+- `quality/error-handling`: Error handling patterns
+- `quality/performance`: Performance optimization
+- `master-monorepo-config`: Base configuration
+
+#### Development Workflow Context
+**Triggers**: `**/*.{ts,tsx}`, development files
+**Rules to Apply**:
+- `core/development-workflow`: Development patterns
+- `core/typescript-standards`: TypeScript guidelines
+- `core/platform-architecture`: Architecture decisions
+- `master-monorepo-config`: Base configuration
+
+## Auto-Application Logic
+
+### File Pattern Matching
+```yaml
+# Package management
+- package.json, yarn.lock, turbo.json → package-management + master-monorepo-config
+
+# UI components  
+- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + master-monorepo-config
+
+# Backend/API
+- packages/api/**/*, supabase/**/* → supabase-backend + supabase-database + master-monorepo-config
+
+# Features/apps
+- packages/app/**/*, apps/**/* → navigation-solito + data-state-management + master-monorepo-config
+
+# Testing
+- **/*.{test,spec}.* → testing-unified + error-handling + performance + master-monorepo-config
+
+# Development
+- **/*.{ts,tsx} → development-workflow + typescript-standards + platform-architecture + master-monorepo-config
+```
+
+### Task Context Detection
+```yaml
+# Dependency analysis
+- "dependency", "package", "yarn", "install" → package-management
+
+# UI development
+- "component", "ui", "tamagui", "styling" → ui-styling-tamagui
+
+# Backend development  
+- "supabase", "database", "api", "backend" → supabase-backend + supabase-database
+
+# Navigation
+- "navigation", "routing", "solito" → navigation-solito
+
+# State management
+- "zustand", "query", "state" → data-state-management
+
+# Testing
+- "test", "spec", "vitest" → testing-unified
+
+# Performance
+- "performance", "optimization" → performance
+```
+
+## Rule Precedence
+
+1. **master-monorepo-config**: Base layer (always first)
+2. **cursor-rule-analytics**: Analytics tracking (always second)
+3. **Context-specific rules**: Applied based on file/task context
+4. **Specialized rules**: Applied for specific patterns
+
+## Conflict Resolution
+
+- **Always apply** `master-monorepo-config` as base
+- **Context-specific rules** override base patterns when applicable
+- **More specific globs** take precedence over broader patterns
+- **Task context** determines rule priority
+
+## Implementation Notes
+
+- Auto-discover rules based on file patterns and task context
+- Apply `alwaysApply: true` rules automatically
+- Track rule usage via `cursor-rule-analytics`
+- Maintain rule precedence and conflict resolution
+- Update analytics.md with each rule application
+
+## Chat Integration
+
+**CRITICAL**: Always fetch relevant rules when user asks questions in chat:
+- Use `fetch_rules` tool to get context-specific rules
+- Apply rules based on user query keywords and file context
+- Update analytics.md with rule usage tracking
+- Ensure all applicable rules are loaded before responding

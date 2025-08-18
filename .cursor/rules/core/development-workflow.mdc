@@ -9,8 +9,8 @@ alwaysApply: true
 ## Building and Running
 - Use Turbo for build orchestration: `yarn build`
 - Dev server: `yarn dev`
-- Mobile: `yarn workspace @repo/mobile start`
-- Web: `yarn workspace @repo/web dev`
+- Mobile: `yarn workspace expo-app start`
+- Web: `yarn workspace next-app dev`
 
 ## Code Quality
 - Always run TypeScript checks: `yarn type-check`

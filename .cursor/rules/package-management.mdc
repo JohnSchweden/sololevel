@@ -1,6 +1,6 @@
 ---
 description: Package Management with yarn and Project Dependencies
-globs: ["package.json", "**/package.json", "yarn.lock", "turbo.json"]
+globs: ["**/*", "package.json", "**/package.json", "yarn.lock", "turbo.json"]
 alwaysApply: true
 ---
 
@@ -14,10 +14,10 @@ alwaysApply: true
 - Use `yarn remove` to uninstall packages
 
 ## Workspace Operations
-- Add packages to specific workspaces: `yarn workspace @repo/app add package-name`
+- Add packages to specific workspaces: `yarn workspace app add package-name`
 - Install all dependencies: `yarn install`
-- Run scripts in workspaces: `yarn workspace @repo/app run script-name`
-- Use workspace protocols for internal dependencies: `"@repo/ui": "workspace:*"`
+- Run scripts in workspaces: `yarn workspace app run script-name`
+- Use workspace protocols for internal dependencies: `"@my/ui": "workspace:*"`
 
 ## Project Dependencies Strategy
 
@@ -48,16 +48,16 @@ alwaysApply: true
 ### Cross-Platform Dependency Patterns
 ```bash
 # Shared UI components (both platforms)
-yarn workspace @repo/ui add dependency-name
+yarn workspace @my/ui add dependency-name
 
 # Web-specific (Next.js app)
-yarn workspace @repo/web add web-only-package
+yarn workspace next-app add web-only-package
 
 # Native-specific (Expo app)  
-yarn workspace @repo/mobile add react-native-package
+yarn workspace expo-app add react-native-package
 
 # Shared business logic (both platforms)
-yarn workspace @repo/app add shared-utility
+yarn workspace app add shared-utility
 
 # Development tools (root level)
 yarn add -D -W development-tool

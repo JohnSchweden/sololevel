@@ -1,0 +1,25 @@
+import { defineConfig } from 'vitest/config'
+import { resolve } from 'path'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./vitest.setup.ts'],
+    deps: {
+      inline: ['expo-router', 'expo-constants', 'expo-linking']
+    },
+  },
+  resolve: {
+    alias: [
+      { find: 'react-native', replacement: 'react-native-web' },
+      { find: /^react-native-svg(\/.*)?$/, replacement: resolve(__dirname, './__mocks__/react-native-svg.ts') },
+      { find: '@my/ui', replacement: resolve(__dirname, '../ui/src') },
+      { find: '@my/config', replacement: resolve(__dirname, '../config/src') },
+      { find: 'app', replacement: resolve(__dirname, '.') },
+    ],
+  },
+  define: {
+    global: 'globalThis',
+  },
+})

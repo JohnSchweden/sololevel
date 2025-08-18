@@ -1,28 +1,41 @@
 ---
 description: This rule explains how to create and update an analytics.md file to track how often .mdc rules is being used.
-globs: .cursor/analytics.md
+globs: [".cursor/analytics.md"]
 alwaysApply: true
 ---
 
 # Cursor Rules Analytics
 
-Each time you use a Cursor rule, update the analytics tracking file.
+**AUTOMATICALLY** track and update rule usage in the analytics file each time you reference or apply a Cursor rule.
 
 File location:
 ```
 PROJECT_ROOT/.cursor/analytics.md
 ```
 
+## Auto-Update Behavior
+
+When you use any `.mdc` rule:
+1. **Increment** the usage count for that rule
+2. **Update** the last-used timestamp (YYYY-MM-DD format)
+3. **Record** the current task/feature context
+4. **Save** changes to analytics.md immediately
+
 ## Format
 
-The analytics file contains a count of how many times each rule has been used:
-
 ```
-rule-name.mdc: 5 [last-used: 2024-01-20, context: video-upload-feature]
-another-rule.mdc: 2
+rule-name: <count> [last-used: <date>, context: <brief-description>]
 ```
 
-Add new rules as needed.
+Examples:
+```
+ui/ui-styling-tamagui: 12 [last-used: 2024-12-19, context: component-styling-updates]
+features/data-state-management: 3 [last-used: 2024-12-18, context: zustand-setup]
+backend/supabase-database: 8 [last-used: 2024-12-17, context: schema-migrations]
+```
 
-# Create a .cursor/rules/features/ directory
-# Group related rules for specific features
+## Implementation Notes
+- Track rule usage by file path relative to `.cursor/rules/`
+- Remove `.mdc` extension from tracking entries
+- Context should be 2-4 words describing current work
+- Always update analytics.md as part of rule application, not as separate step

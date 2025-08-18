@@ -5,13 +5,13 @@ import { createParam } from 'solito'
 const { useParam } = createParam<{ id: string }>()
 
 export default function Page() {
-  const [id] = useParam('id') as unknown as string
+  const [id] = useParam('id')
   return (
     <>
       <Head>
         <title>User</title>
       </Head>
-      <UserDetailScreen id={id} />
+      <UserDetailScreen id={id || ''} />
     </>
   )
 }
