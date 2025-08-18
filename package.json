@@ -26,7 +26,7 @@
     "upgrade:tamagui": "yarn up '*tamagui*'@latest '@tamagui/*'@latest",
     "upgrade:tamagui:canary": "yarn up '*tamagui*'@canary '@tamagui/*'@canary",
     "check-tamagui": "tamagui check",
-    "test": "yarn workspaces foreach --all --exclude app run test",
+    "test": "yarn workspaces foreach --all --exclude expo run test",
     "test:watch": "yarn workspaces foreach --all run test:watch",
     "deps:check": "check-dependency-version-consistency",
     "prepare": "husky"

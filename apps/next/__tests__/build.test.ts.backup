@@ -18,8 +18,8 @@ afterAll(() => {
 
 test('Next.js build completes', async () => {
   try {
-    buildProcess = exec('yarn workspace next-app build', {
-      cwd: path.resolve(__dirname, '../../..'),
+    buildProcess = exec('yarn build', {
+      cwd: path.resolve(__dirname, '..'),
     })
 
     const buildOutput = new Promise<string>((resolve, reject) => {
@@ -41,7 +41,7 @@ test('Next.js build completes', async () => {
 
     const result = await buildOutput
 
-    // Check for yarn workspace next-app build output
+    // Check for yarn build output
     expect(result).toContain('built @my/config')
     expect(result).toContain('built @my/ui')
 
@@ -73,4 +73,4 @@ test('Next.js build completes', async () => {
   } finally {
     // The process kill check has been moved to the afterAll block
   }
-}, 120_000)
+}, 60_000)

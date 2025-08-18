@@ -7,5 +7,7 @@ export default defineConfig({
         singleThread: true,
       },
     },
+    testTimeout: 120000, // 2 minutes
+    hookTimeout: 120000,
   },
 })
