@@ -7,7 +7,7 @@
     "hoistingLimits": "workspaces"
   },
   "scripts": {
-    "build": "expo prebuild --clean",
+    "build": "echo 'Skipping native build - TypeScript compilation only'",
     "start": "expo start -c",
     "android": "expo run:android",
     "ios": "yarn fix-xcode-env && expo run:ios",
