@@ -1,0 +1,73 @@
+---
+description: GitHub Integration and Git Workflow
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# GitHub Integration Rules
+
+## Pre-Development Workflow
+
+### Branch Strategy
+- Create feature branches: `feature/PRD-123-description`
+- Use descriptive branch names with issue numbers
+- Reference GitHub issues in branch names when applicable
+
+### Issue Management
+- Link GitHub issues in commits and PRs
+- Apply appropriate labels: `platform`, `component`, `priority`
+- Update issue status as work progresses
+
+## Development Workflow
+
+### Commit Standards
+- Use conventional commits: `feat(web):`, `fix(native):`, `chore(shared):`
+- Reference issues: `Closes #123` or `Fixes #456`
+- Scope to specific packages: `apps/web`, `packages/ui`, etc.
+- Keep commits atomic and focused
+
+### Pull Request Workflow
+- Use Draft PRs for work-in-progress
+- Request reviews from relevant team members
+- Link to related PRDs/issues
+- Include testing instructions
+- Document breaking changes
+- Add appropriate labels and assignees
+
+### CI/CD Awareness
+- Check Turborepo cache hits/misses
+- Monitor build times across apps
+- Validate cross-platform builds (web + native)
+- Ensure all checks pass before merging
+
+## Post-Development Workflow
+
+### Documentation Updates
+- Update READMEs, changelogs, and package docs
+- Document API changes and new features
+- Update component documentation if UI changes
+
+### Release Planning
+- Coordinate releases across apps (web deploy, app store)
+- Update version numbers in package.json files
+- Create release notes and changelog entries
+
+### Issue Cleanup
+- Close related issues and update project boards
+- Update issue status and add resolution notes
+- Archive completed project boards
+
+## Emergency Hotfixes
+
+### Hotfix Process
+- Create hotfix branch from `main`
+- Keep changes to minimal scope
+- Fast-track the review process
+- Coordinate immediate deployment
+- Follow up with proper documentation
+
+### Hotfix Standards
+- Use `hotfix/` prefix for branch names
+- Prioritize security and critical functionality
+- Test thoroughly before deployment
+- Document the hotfix in release notes

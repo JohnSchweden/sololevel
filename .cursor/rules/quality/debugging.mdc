@@ -1,0 +1,138 @@
+---
+description: Systematic debugging workflow and stack-specific debugging techniques for the monorepo tech stack
+globs: ["**/*.{ts,tsx}", "**/*.{test,spec}.*", "**/debug/**/*", "**/logs/**/*"]
+alwaysApply: false
+---
+
+# Debugging Rules
+
+## Debugger Mode Workflow
+
+1. **Identify Scope**: List 5–7 possible sources (UI, navigation, state, queries, API, build tooling, schema) → narrow to top 1–2
+2. **Add Targeted Logs**: Console, Zustand snapshots, TanStack query lifecycle, Zod validation errors
+3. **Collect Logs**: `getConsoleLogs`, `getConsoleErrors`, `getNetworkLogs`, `getNetworkErrors`
+4. **Check Supabase**: Edge/DB logs when needed
+5. **Analyze**: Provide analysis + next log/trace suggestions if root cause unclear
+6. **Cleanup**: Remove temporary debugging artifacts (logs, test hooks, debug flags) after fix
+
+## Stack-Specific Debugging
+
+### Expo / Metro
+- `expo start --clear`
+- Device logs: `npx react-native log-ios` / `npx react-native log-android`
+- Use `Platform.OS` logs for iOS vs Android issues
+
+### Next.js
+- Check API routes separately from React components
+- Debug SSR/SSG/hydration differences
+
+### Zustand
+- Add middleware for state change logs
+- Log store snapshots to debug mutations
+
+### Supabase
+- Use Supabase dashboard for Edge + DB logs
+- Test RLS with different auth states
+- Log realtime subscription lifecycle
+
+### Tamagui
+- Log current theme + tokens
+- Check style compilation/debug props
+
+### Solito
+- Log route params across Next + Expo
+- Validate navigation stack consistency
+
+### Zod
+- Use `safeParse` and log validation errors
+
+### TanStack Query
+- Log query/mutation lifecycle (`onSuccess`, `onError`)
+- Inspect caching and retries
+
+### Tooling
+- Yarn: `yarn why <package>` for dependency issues
+- Turborepo: run builds with `--filter`
+- TypeScript: `tsc --noEmit` across repo
+
+## Debugging Best Practices
+
+### Error Boundaries
+- Implement proper error boundaries for React components
+- Use early returns, log errors, don't throw in components
+- Handle async errors with TanStack Query
+
+### Validation
+- Use Zod for runtime validation
+- Provide meaningful error messages across platforms
+- Log validation errors with context
+
+### Performance Debugging
+- Monitor bundle analyzer reports
+- Check React.memo usage for expensive components
+- Validate virtual list implementations
+- Track image optimization with SolitoImage
+
+### Cross-Platform Issues
+- Test on both iOS and Android for native issues
+- Validate web vs native behavior differences
+- Check platform-specific code paths
+- Verify Solito navigation consistency
+
+### State Management Debugging
+- Log Zustand state changes with middleware
+- Track TanStack Query cache state
+- Monitor realtime subscription lifecycle
+- Validate form state with react-hook-form
+
+### API Debugging
+- Check Supabase RLS policies
+- Validate Edge Function logs
+- Monitor realtime subscription errors
+- Test authentication states
+
+## Debugging Tools
+
+### Console Logging
+```typescript
+// Development-only logging
+if (__DEV__) {
+  console.log('Debug info:', { state, props, context })
+}
+
+// Error logging with context
+console.error('Operation failed:', { error, context, user })
+```
+
+### Zustand Debugging
+```typescript
+// Add middleware for state logging
+const useStore = create<State>()(
+  devtools(
+    (set, get) => ({
+      // store implementation
+    }),
+    { name: 'Store Name' }
+  )
+)
+```
+
+### TanStack Query Debugging
+```typescript
+// Log query lifecycle
+const query = useQuery({
+  queryKey: ['data'],
+  queryFn: fetchData,
+  onSuccess: (data) => console.log('Query success:', data),
+  onError: (error) => console.error('Query error:', error),
+})
+```
+
+### Zod Validation Debugging
+```typescript
+// Safe parsing with error logging
+const result = schema.safeParse(data)
+if (!result.success) {
+  console.error('Validation failed:', result.error.issues)
+}
+```
