@@ -18,7 +18,8 @@ afterAll(() => {
 
 test('Next.js build completes', async () => {
   try {
-    buildProcess = exec('yarn workspace next-app build', {
+    // Use turbo build to ensure dependencies are built first
+    buildProcess = exec('yarn build', {
       cwd: path.resolve(__dirname, '../../..'),
     })
 
@@ -41,7 +42,7 @@ test('Next.js build completes', async () => {
 
     const result = await buildOutput
 
-    // Check for yarn workspace next-app build output
+    // Check for yarn build output
     expect(result).toContain('built @my/config')
     expect(result).toContain('built @my/ui')
 

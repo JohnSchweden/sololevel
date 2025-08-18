@@ -45,8 +45,8 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }))
 // Mock react-native-svg to prevent syntax errors
-// Mock react-native-svg to prevent React 19 compatibility issues
 vi.mock("react-native-svg", () => ({ Svg: "Svg", Circle: "Circle", Rect: "Rect", Path: "Path", G: "G", Defs: "Defs", LinearGradient: "LinearGradient", Stop: "Stop", ClipPath: "ClipPath", Mask: "Mask", Use: "Use", Image: "Image", Text: "Text", TSpan: "TSpan", TextPath: "TextPath", ForeignObject: "ForeignObject", Line: "Line", Polyline: "Polyline", Polygon: "Polygon", Ellipse: "Ellipse" }))
-// Prevent react-native-svg from loading at all during tests
+console.log("🔍 VITEST SETUP: Starting setup...")
+console.log("🔍 VITEST SETUP: Mocking react-native-svg...")
+// Prevent react-native-svg from loading at all
 vi.doMock("react-native-svg", () => ({ Svg: "Svg", Circle: "Circle", Rect: "Rect", Path: "Path", G: "G", Defs: "Defs", LinearGradient: "LinearGradient", Stop: "Stop", ClipPath: "ClipPath", Mask: "Mask", Use: "Use", Image: "Image", Text: "Text", TSpan: "TSpan", TextPath: "TextPath", ForeignObject: "ForeignObject", Line: "Line", Polyline: "Polyline", Polygon: "Polygon", Ellipse: "Ellipse" }))
-// TEMPORARY: react-native-svg excluded from test processing due to React 19 incompatibility

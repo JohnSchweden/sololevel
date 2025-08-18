@@ -9153,15 +9153,15 @@ __metadata:
   linkType: hard
 
 "css-select@npm:^5.1.0":
-  version: 5.1.0
-  resolution: "css-select@npm:5.1.0"
+  version: 5.2.2
+  resolution: "css-select@npm:5.2.2"
   dependencies:
     boolbase: "npm:^1.0.0"
     css-what: "npm:^6.1.0"
     domhandler: "npm:^5.0.2"
     domutils: "npm:^3.0.1"
     nth-check: "npm:^2.0.1"
-  checksum: 10/d486b1e7eb140468218a5ab5af53257e01f937d2173ac46981f6b7de9c5283d55427a36715dc8decfc0c079cf89259ac5b41ef58f6e1a422eee44ab8bfdc78da
+  checksum: 10/ebb6a88446433312d1a16301afd1c5f75090805b730dbbdccb0338b0d6ca7922410375f16dde06673ef7da086e2cf3b9ad91afe9a8e0d2ee3625795cb5e0170d
   languageName: node
   linkType: hard
 
@@ -9175,10 +9175,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"css-what@npm:^6.0.1, css-what@npm:^6.1.0":
+"css-what@npm:^6.0.1":
   version: 6.1.0
   resolution: "css-what@npm:6.1.0"
   checksum: 10/c67a3a2d0d81843af87f8bf0a4d0845b0f952377714abbb2884e48942409d57a2110eabee003609d02ee487b054614bdfcfc59ee265728ff105bd5aa221c1d0e
+  languageName: node
+  linkType: hard
+
+"css-what@npm:^6.1.0":
+  version: 6.2.2
+  resolution: "css-what@npm:6.2.2"
+  checksum: 10/3c5a53be94728089bd1716f915f7f96adde5dd8bf374610eb03982266f3d860bf1ebaf108cda30509d02ef748fe33eaa59aa75911e2c49ee05a85ef1f9fb5223
   languageName: node
   linkType: hard
 
