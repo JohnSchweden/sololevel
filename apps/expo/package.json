@@ -7,6 +7,7 @@
     "hoistingLimits": "workspaces"
   },
   "scripts": {
+    "build": "expo prebuild --clean",
     "start": "expo start -c",
     "android": "expo run:android",
     "ios": "yarn fix-xcode-env && expo run:ios",

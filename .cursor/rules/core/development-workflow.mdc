@@ -7,10 +7,10 @@ alwaysApply: true
 # Development Workflow Rules
 
 ## Building and Running
-- Use Turbo for build orchestration: `yarn build`
-- Dev server: `yarn dev`
-- Mobile: `yarn workspace expo-app start`
-- Web: `yarn workspace next-app dev`
+- Use Turbo for build orchestration: `yarn build` (runs `turbo build`)
+- Dev server: `yarn dev` (runs `turbo dev`)
+- Mobile: `yarn workspace expo start` or `yarn native`
+- Web: `yarn workspace next dev` or `yarn web`
 
 ## Code Quality
 - Always run TypeScript checks: `yarn type-check`
@@ -19,8 +19,10 @@ alwaysApply: true
 
 # Common Commands
 - `yarn install` - Install dependencies
-- `yarn dev` - Start development servers
-- `yarn build` - Build all packages
+- `yarn dev` - Start development servers (Turbo)
+- `yarn build` - Build all packages (Turbo)
 - `yarn type-check` - Run TypeScript checks
 - `yarn workspace <name> add <package>` - Add package to specific workspace
 - `yarn workspace <name> run <script>` - Run script in specific workspace
+- `turbo build` - Direct Turbo build command
+- `turbo dev` - Direct Turbo dev command

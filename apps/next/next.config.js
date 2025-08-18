@@ -45,6 +45,9 @@ module.exports = () => {
     experimental: {
       scrollRestoration: true,
     },
+    compiler: {
+      styledJsx: false,
+    },
   }
 
   for (const plugin of plugins) {
