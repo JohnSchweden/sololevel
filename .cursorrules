@@ -1,0 +1,9 @@
+{
+  "rules": [
+    {
+      "description": "ADD docs to Cursor indexing.",
+      "patterns": ["**/*.js", "**/*.ts"],
+      "content": "See README.md → Cursor Setup section."
+    }
+  ]
+}

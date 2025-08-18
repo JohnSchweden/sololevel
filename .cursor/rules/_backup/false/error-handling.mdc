@@ -1,0 +1,71 @@
+---
+description: Consistent, typed error handling; user-safe messages; actionable logs.
+globs: ["packages/utils/**/*error*", "apps/**/components/ErrorBoundary*", "**/*error.tsx"]
+alwaysApply: false
+---
+
+# Error Handling Standards
+
+## Error Model
+```ts
+// packages/utils/src/error.ts
+export type AppErrorCode =
+  | 'NETWORK'
+  | 'TIMEOUT'
+  | 'AUTH'
+  | 'RLS_DENIED'
+  | 'VALIDATION'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'UNKNOWN';
+
+export class AppError extends Error {
+  code: AppErrorCode;
+  cause?: unknown;
+  extras?: Record<string, any>;
+  constructor(code: AppErrorCode, message: string, cause?: unknown, extras?: Record<string, any>) {
+    super(message);
+    this.code = code;
+    this.cause = cause;
+    this.extras = extras;
+  }
+}
+export const toAppError = (e: unknown, fallback: AppErrorCode = 'UNKNOWN') =>
+  e instanceof AppError ? e : new AppError(fallback, String((e as any)?.message ?? e));
+```
+
+## Retry/Backoff
+```ts
+// packages/utils/src/retry.ts
+export async function retry<T>(fn: () => Promise<T>, attempts = 3, baseMs = 300): Promise<T> {
+  let last: any;
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) { last = e; await new Promise(r => setTimeout(r, baseMs * 2 ** i)); }
+  }
+  throw last;
+}
+```
+
+## UI Boundaries
+- Web (Next.js App Router): use route-level `app/error.tsx`.
+- Mobile: wrap root with `react-error-boundary`.
+
+```tsx
+// apps/mobile/app/components/ErrorBoundary.tsx
+import { ErrorBoundary } from 'react-error-boundary';
+export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary fallbackRender={() => null /* render a Tamagui sheet/toast */}>
+      {children}
+    </ErrorBoundary>
+  );
+}
+```
+
+## Validation
+- Use Zod at boundaries (API payloads, Edge Functions, hooks).
+- Map Zod errors to `VALIDATION` AppError and display inline.
+
+## Logging
+- Sanitize PII; attach codes, correlation IDs, and stages.
+

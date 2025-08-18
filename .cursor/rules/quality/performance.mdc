@@ -1,0 +1,12 @@
+---
+description: Performance optimization for fast MVP iteration
+globs: ["**/components/**/*", "**/*.tsx", "**/hooks/**/*", "**/screens/**/*"]
+alwaysApply: false
+---
+
+# Performance Rules
+
+## React Optimization
+- Use React.memo for expensive components ONLY
+- PREFER useMemo for expensive computations
+- AVOID premature optimization, focus on functionality first

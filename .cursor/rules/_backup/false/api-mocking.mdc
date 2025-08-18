@@ -1,0 +1,87 @@
+---
+description: Deterministic offline/dev flows without touching server/RLS. Web uses MSW; Native uses typed mock clients via DI; tests use MSW Node.
+globs: ["packages/api-client/**/*", "apps/*/mocks/**/*", "**/jest-setup.js"]
+alwaysApply: false
+---
+
+# API Mocking Strategy
+
+### Principles
+- Don't bypass RLS in production. Mocks are for local dev and tests.
+- Toggle via `NEXT_PUBLIC_USE_MOCKS` (web) and `EXPO_PUBLIC_USE_MOCKS` (native).
+- Prefer interface-based clients (DI) so mocks swap cleanly.
+
+## Web (Next.js, App Router) — MSW
+```ts
+// apps/web/app/providers/msw.ts
+'use client';
+import { setupWorker } from 'msw/browser';
+import { handlers } from '../mocks/handlers';
+
+export async function initMSW() {
+  if (process.env.NEXT_PUBLIC_USE_MOCKS !== 'true') return;
+  const worker = setupWorker(...handlers);
+  await worker.start({ onUnhandledRequest: 'bypass' });
+}
+```
+
+```ts
+// apps/web/app/mocks/handlers.ts
+import { http, HttpResponse } from 'msw';
+
+export const handlers = [
+  http.get('/api/video/jobs', () =>
+    HttpResponse.json([{ id: 'job_1', status: 'queued' }])
+  ),
+  http.post('/api/video/analyze', async ({ request }) => {
+    const payload = await request.json();
+    return HttpResponse.json({ ok: true, id: 'analysis_1', payload });
+  }),
+];
+```
+
+Usage: call `initMSW()` from a client-only provider loaded in `app/layout.tsx` (guarded by the env flag).
+
+## Native (Expo/React Native) — Mock Client Injection
+```ts
+// packages/api-client/src/mock.ts
+export const mockApi = {
+  listJobs: async () => [{ id: 'job_1', status: 'queued' }] as const,
+  analyzeVideo: async (_: { videoUrl: string }) =>
+    ({ ok: true, id: 'analysis_1' } as const),
+};
+```
+
+```ts
+// packages/api-client/src/index.ts
+import { mockApi } from './mock';
+import { realApi } from './video'; // your real client
+
+const useMocks =
+  process.env.EXPO_PUBLIC_USE_MOCKS === 'true' ||
+  process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
+
+export const api = useMocks ? mockApi : realApi;
+```
+
+## Tests (Vitest/Jest) — MSW Node
+```ts
+// apps/mobile/jest-setup.js
+const { setupServer } = require('msw/node');
+const { http, HttpResponse } = require('msw');
+
+const server = setupServer(
+  http.get('http://localhost/api/video/jobs', () => HttpResponse.json([{ id: 'job_1' }]))
+);
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+module.exports = { server };
+```
+
+## Supabase Notes
+- Don't mock RLS. Use local Supabase for server behavior.
+- For client-level mocks, only stub your wrappers (e.g., `packages/api-client`), not the Supabase SDK.
+

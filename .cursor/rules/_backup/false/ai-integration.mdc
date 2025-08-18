@@ -1,0 +1,89 @@
+---
+description: AI Coach specific integrations for video analysis, pose detection, and voice processing
+globs: ["packages/ai/**/*", "packages/media/**/*", "supabase/functions/ai-*"]
+alwaysApply: false
+---
+
+# AI Model Integration
+
+## API Clients (packages/ai/clients)
+- Create typed clients for each AI provider
+- Use environment variables for API keys
+- Implement retry logic with exponential backoff
+- Rate limiting per provider
+- Cost tracking and usage limits
+
+## Video Processing Pipeline
+- Upload videos to Supabase Storage
+- Process via Edge Functions for frame extraction
+- Use signed URLs for secure access
+- Implement chunked upload for large files
+- Generate thumbnails and previews
+
+## Pose Detection
+### Web Platform
+- Use MediaPipe or TensorFlow.js
+- Process client-side when possible
+- Fallback to server processing for mobile
+
+### Native Platform
+- React Native Vision Camera for capture
+- Frame processing with native modules
+- Consider expo-gl for TensorFlow Lite
+
+## Voice Analysis
+- Web Audio API for web platform
+- expo-av for native recording
+- Process audio in Edge Functions
+- Store analysis results in PostgreSQL
+
+## SSML & Audio Generation
+- Generate SSML in Edge Functions
+- Use TTS services (Google Cloud TTS, Amazon Polly)
+- Cache generated audio in Supabase Storage
+- Stream audio playback with buffering
+
+## Data Models
+```typescript
+// packages/ai/types/analysis.ts
+interface VideoAnalysis {
+  id: string;
+  video_url: string;
+  pose_data: PoseFrame[];
+  voice_analysis: VoiceMetrics;
+  ai_feedback: {
+    text: string;
+    ssml: string;
+    audio_url?: string;
+    structured_data: Record<string, any>;
+  };
+  created_at: string;
+}
+
+interface PoseFrame {
+  timestamp: number;
+  keypoints: Keypoint[];
+  confidence: number;
+}
+```
+
+## Edge Function Structure
+```typescript
+// supabase/functions/ai-analyze-video/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req) => {
+  // 1. Extract frames from video
+  // 2. Run pose detection
+  // 3. Analyze voice/audio
+  // 4. Generate AI feedback
+  // 5. Create SSML and TTS
+  // 6. Store results
+})
+```
+
+## Performance Considerations
+- Queue long-running tasks with pg_cron
+- Use webhooks for async processing
+- Implement progress tracking
+- Cache AI responses when appropriate

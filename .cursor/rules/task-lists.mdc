@@ -1,0 +1,78 @@
+---
+description: Task list management for cross-platform development
+globs: ["docs/TASKS.md", "docs/tasks/**/*.md"]
+alwaysApply: false
+---
+
+# Task List Management
+
+Enhanced guidelines for cross-platform development task tracking.
+
+## General Principles
+- **Atomic tasks only**: Split compound actions into individual checkboxes
+- **Single source of truth**: Each task appears in exactly one section
+- **Immediate transitions**: Move tasks between sections when status changes
+- **Platform awareness**: Tag platform-specific tasks with [Web], [Native], or [Both]
+- **Zero ambiguity**: Parent items are headings, not checkboxes
+
+## Structure Requirements
+
+### Completed Tasks
+- Only fully verified and tested items
+- Include platform tags for reference
+- Keep for sprint/milestone retrospectives
+
+### In Progress Tasks  
+- **Maximum 2-3 items** for focus
+- Must be actively worked on (not just planned)
+- Include current blocker/next step if stalled
+
+### Future Tasks
+- **Zero checked items** (move completed ones immediately)
+- Prioritized order (most important first)
+- Group related platform work together
+- Include effort estimates: [S/M/L]
+
+### Testing Pipeline
+- Separate section for test-dependent tasks
+- Link to specific test files or suites
+- Track both unit and E2E test coverage
+
+## Cross-Platform Considerations
+- Tag platform scope: [Web], [Native], [Both]
+- Dependencies between platforms clearly marked
+- Shared package changes affect both platforms
+- Database changes impact all clients
+
+## Enhanced Template
+
+```markdown
+# [Feature/Component] Tasks
+
+## Completed Tasks
+- [x] Setup Tamagui component structure [Both]
+- [x] Implement core logic with TypeScript [Both] 
+- [x] Add unit tests with Vitest [Both]
+
+## In Progress Tasks
+- [ ] Implement native-specific gestures [Native]
+  - Next: Add pan gesture handlers
+  - Blocker: Need to test on iOS device
+
+## Future Tasks
+- [ ] Add web-specific keyboard shortcuts [Web] [S]
+- [ ] Implement Supabase realtime sync [Both] [M]
+- [ ] Add E2E tests for critical flows [Both] [L]
+- [ ] Performance optimization with React.memo [Both] [S]
+
+## Testing Pipeline
+- [ ] Unit tests passing (packages/ui/components/Feature.test.tsx)
+- [ ] Component tests with RTL (packages/app/features/Feature.test.tsx) 
+- [ ] E2E Native (e2e/Feature.test.ts)
+- [ ] E2E Web (tests/Feature.spec.ts)
+
+## Relevant Files
+- `packages/ui/components/Feature.tsx` — Main component [x]
+- `packages/app/features/Feature/FeatureScreen.tsx` — Screen implementation [ ]
+- `packages/api/hooks/useFeature.ts` — Data layer [ ]
+- `supabase/migrations/001_feature_tables.sql` — Database schema [x]

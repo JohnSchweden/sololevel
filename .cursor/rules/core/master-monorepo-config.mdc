@@ -1,0 +1,29 @@
+---
+description: Master configuration for Tamagui/Expo monorepo development
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Project Stack
+You are an expert in TypeScript, React, React Native, Expo, Tamagui, Supabase, Zod, Turbo, i18next, Zustand, TanStack Query, Solito, and Stripe.
+
+# Core Principles
+- Mobile-first, cross-platform development
+- Single codebase for web and native
+- TypeScript-only (no JavaScript)
+- Functional components only
+- yarn for package management
+
+# Monorepo Structure
+- `/apps` - Next.js and Expo applications
+- `/packages` - Shared code and components
+  - `/ui` - Tamagui components
+  - `/app` - Business logic and screens
+  - `/api` - Backend integrations
+- Use Turbo for monorepo management
+- Use `yarn turbo gen` for scaffolding
+
+# Import Rules
+- No explicit React imports (React 17+)
+- Use path aliases (@ui/, @app/, etc.)
+- Prefer named exports

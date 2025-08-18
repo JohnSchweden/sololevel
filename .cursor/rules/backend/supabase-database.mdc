@@ -1,0 +1,68 @@
+---
+description: PostgreSQL and Supabase database conventions
+globs: ["**/*.sql", "supabase/migrations/**/*.sql"]
+alwaysApply: false
+---
+
+# Supabase Database Standards
+
+## Migration Files
+- Location: `supabase/migrations/`
+- Naming: `YYYYMMDDHHmmss_description.sql` (UTC time)
+- Include header comments explaining purpose
+- Always lowercase SQL keywords
+- Enable RLS on all tables, even public ones
+
+## SQL Conventions
+- Use snake_case for tables (plural) and columns (singular)
+- Tables: plural names (e.g., `users`, `posts`)
+- Foreign keys: singular_table_id (e.g., `user_id`)
+- Always include `id bigint generated always as identity primary key`
+- Add comments to tables: `comment on table users is 'User accounts';`
+- Use `public` schema unless specified otherwise
+- Always qualify with schema: `public.users`
+
+## Row Level Security (RLS)
+- One policy per operation (select, insert, update, delete)
+- Separate policies per role (anon, authenticated)
+- Use descriptive policy names in quotes
+- Performance optimizations:
+  - Add indexes on policy columns
+  - Use `(select auth.uid())` instead of `auth.uid()`
+  - Minimize joins in policies
+  - Always specify TO role
+
+## Example Migration
+\`\`\`sql
+-- Create users table with RLS
+create table public.profiles (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  username text unique not null,
+  created_at timestamptz default now()
+);
+
+comment on table public.profiles is 'User profile information';
+
+-- Enable RLS
+alter table public.profiles enable row level security;
+
+-- Policies
+create policy "Users can view all profiles"
+  on public.profiles for select
+  to authenticated, anon
+  using (true);
+
+create policy "Users can update own profile"
+  on public.profiles for update
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+\`\`\`
+
+## Database Functions
+- Default to SECURITY INVOKER
+- Set search_path = ''
+- Use fully qualified names
+- Include error handling
+- Mark as IMMUTABLE/STABLE when possible

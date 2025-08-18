@@ -1,3 +1,89 @@
+## Cursor Setup
+
+To get better AI code suggestions in Cursor, please add the Metro docs to your Cursor indexing:
+
+1. Open **Cursor → Settings → Cursor Settings → Indexing & Docs**.
+2. Click **Add Doc**.
+3. Paste this URL:  
+
+---
+
+## **Essential Docs to Add** (High Priority)
+
+1. **Tamagui** - https://tamagui.dev/docs
+   - Your primary UI framework, constantly evolving
+   - Critical for styling, theming, and responsive design
+   - Not well-represented in training data
+
+2. **Solito** - https://solito.dev/docs  
+   - Core navigation library for your cross-platform setup
+   - Relatively new, likely minimal training data
+   - Essential for routing patterns
+
+3. **Supabase** - https://supabase.com/docs
+   - Backend-as-a-service with frequent updates
+   - Edge Functions, RLS, and auth patterns change regularly
+   - Critical for your data layer
+
+4. **Expo SDK** - https://docs.expo.dev/
+   - Expo updates frequently with new APIs
+   - Platform-specific features and workflows
+   - Essential for native development
+
+5. **Turbo** - https://turbo.build/repo/docs
+    - Central pipeline configuration for monorepo workflow (`development-workflow.mdc`)
+    - Caching strategies for development speed
+    - Build orchestration patterns for cross-platform apps
+    - Remote caching setup and optimization
+
+    **Critical for:**
+      - Optimizing your `yarn build` and `yarn dev` workflows
+      - Debugging pipeline dependencies
+      - Setting up efficient CI/CD
+      - Handling incremental builds correctly
+
+## **Recommended Docs** (Medium Priority)
+
+6. **Metro** - https://metrobundler.dev/docs
+    - Metro configuration for monorepos
+    - Platform-specific bundling rules (.native.tsx handling)
+    - Asset resolution across workspace packages
+    - Performance optimization settings for large monorepos
+    
+    **Especially important for:**
+      - Debugging bundle issues between web/native
+      - Optimizing build performance in monorepo
+      - Handling Tamagui's compilation requirements
+
+5. **TanStack Query** - https://tanstack.com/query/latest/docs/framework/react/overview
+   - Server state management patterns
+   - Relatively new compared to training data
+   - Core to your data fetching strategy
+
+6. **Zustand** - https://docs.pmnd.rs/zustand/getting-started/introduction
+   - Simple but your global state solution
+   - Best practices for cross-platform state
+
+## **Consider Adding** (Lower Priority)
+
+7. **Zod** - https://zod.dev/
+   - Runtime validation patterns
+   - Integration with forms and APIs
+
+---
+
+4. Click **Add Docs**.
+
+This ensures Cursor can reference documentation directly while coding.
+
+
+
+
+
+
+
+
+
 # Tamagui + Solito + Next + Expo Monorepo
 
 ```sh

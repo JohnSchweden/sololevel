@@ -1,0 +1,97 @@
+---
+description: State management for AI coaching features
+globs: ["packages/app/stores/**/*", "packages/ai/hooks/**/*"]
+alwaysApply: false
+---
+
+# AI Coach State Management
+
+## Zustand Stores
+
+### Analysis Store (packages/app/stores/analysis.ts)
+```typescript
+interface AnalysisStore {
+  // Current analysis
+  currentAnalysis: VideoAnalysis | null;
+  analysisProgress: number;
+  isAnalyzing: boolean;
+  
+  // Pose detection
+  poseFrames: PoseFrame[];
+  isPoseDetecting: boolean;
+  
+  // Voice analysis
+  voiceMetrics: VoiceMetrics | null;
+  isRecording: boolean;
+  
+  // Actions
+  startAnalysis: (videoUrl: string) => Promise<void>;
+  updateProgress: (progress: number) => void;
+  cancelAnalysis: () => void;
+}
+```
+
+### Media Store (packages/app/stores/media.ts)
+```typescript
+interface MediaStore {
+  // Recording state
+  isRecording: boolean;
+  recordingDuration: number;
+  videoBlob: Blob | null;
+  
+  // Playback state
+  isPlaying: boolean;
+  currentTime: number;
+  
+  // Upload state
+  uploadProgress: number;
+  uploadError: Error | null;
+}
+```
+
+## TanStack Query Hooks
+
+### AI Analysis Hooks
+```typescript
+// packages/ai/hooks/useAnalyzeVideo.ts
+export const useAnalyzeVideo = () => {
+  return useMutation({
+    mutationFn: analyzeVideo,
+    onSuccess: (data) => {
+      // Update Zustand store
+      // Invalidate relevant queries
+    },
+  });
+};
+
+// packages/ai/hooks/useAnalysisHistory.ts
+export const useAnalysisHistory = (userId: string) => {
+  return useQuery({
+    queryKey: ['analysis', 'history', userId],
+    queryFn: () => fetchAnalysisHistory(userId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+```
+
+## Real-time Subscriptions
+```typescript
+// packages/ai/hooks/useAnalysisSubscription.ts
+export const useAnalysisSubscription = (analysisId: string) => {
+  useEffect(() => {
+    const subscription = supabase
+      .channel(`analysis:${analysisId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'analyses',
+        filter: `id=eq.${analysisId}`,
+      }, (payload) => {
+        // Update local state
+      })
+      .subscribe();
+      
+    return () => subscription.unsubscribe();
+  }, [analysisId]);
+};
+```

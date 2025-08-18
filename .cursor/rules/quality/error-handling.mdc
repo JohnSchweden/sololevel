@@ -1,0 +1,14 @@
+---
+description: Error handling patterns for fast MVP development
+globs: ["**/hooks/**/*", "**/api/**/*", "**/components/**/*", "**/*query*", "**/*mutation*"]
+alwaysApply: true
+---
+
+# Error Handling Rules
+
+## Error Handling
+- Use early returns, log errors, don't throw in components
+- Use Zod for runtime validation
+- Implement proper error boundaries
+- Handle async errors with TanStack Query
+- Provide meaningful error messages across platforms

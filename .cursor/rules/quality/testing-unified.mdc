@@ -1,0 +1,42 @@
+---
+description: Unified testing strategy for monorepo
+globs: ["**/*.test.*", "**/*.spec.*", "e2e/**/*"]
+alwaysApply: false
+---
+
+# Testing Strategy
+
+## Unit/Integration Tests (Vitest)
+- Colocate tests with source files
+- Use .test.ts or .spec.ts extensions
+- Mock Supabase client for unit tests
+- Test business logic, not implementation
+
+## Component Tests (React/React Native)
+- Use React Testing Library
+- Test user interactions
+- Mock Tamagui providers
+- Test accessibility
+
+## E2E Tests (Detox for Native, Playwright for Web)
+### Detox (React Native)
+- Use testID props consistently
+- waitFor elements before interactions
+- Independent test suites
+- Collect artifacts on failure
+
+### Playwright (Web)
+- Test critical user flows
+- Use page object pattern
+- Run against preview deployments
+
+## Supabase Testing
+- Use Supabase local development
+- Test migrations with supabase db reset
+- Test Edge Functions locally
+- Mock auth for protected routes
+
+## Coverage Requirements
+- Unit: 80% for business logic
+- Integration: Key user flows
+- E2E: Critical paths only

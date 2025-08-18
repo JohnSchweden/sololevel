@@ -1,0 +1,47 @@
+---
+description: TypeScript configuration and standards for cross-platform development
+globs: ["**/*.ts", "**/*.tsx", "tsconfig.json", "**/*.d.ts"]
+alwaysApply: true
+---
+
+# TypeScript Standards
+
+## Core Principles
+- Strict mode always enabled
+- No `any` or `unknown` without explicit justification
+- Explicit return types for all exported functions
+- Prefer `type` for unions/intersections, `interface` for objects
+- Use const assertions over enums: `const Status = ['pending', 'completed'] as const`
+
+## Cross-Platform Types
+- Use conditional types for platform-specific APIs
+- Define shared interfaces in `packages/app/types`
+- Platform-specific types in `*.native.ts` or `*.web.ts`
+- Use Tamagui's `GetProps<typeof Component>` for component prop types
+
+## Supabase Integration
+- Generate types: `yarn supabase gen types typescript --local > packages/api/types/database.ts`
+- Use generated `Database` type for all queries
+- Type Supabase client: `SupabaseClient<Database>`
+- Row types: `Database['public']['Tables']['table_name']['Row']`
+
+## Zod Integration
+- Runtime validation for all external data
+- API responses: `const UserSchema = z.object({...})`
+- Form inputs: use Zod with react-hook-form
+- Navigation params: `const ParamsSchema = z.object({...})`
+- Database schemas: mirror Zod schemas to SQL
+
+## Tamagui Types
+- Use `styled()` for custom components
+- Leverage `GetProps<>` utility for prop extraction
+- Theme types: extend `TamaguiConfig` for custom tokens
+- Responsive props: use `ResponsiveValue<T>` type
+
+## Error Handling Types
+- Custom error classes extending `Error`
+- Use discriminated unions for result types:
+  ```typescript
+  type Result<T, E = Error> = 
+    | { success: true; data: T }
+    | { success: false; error: E }

@@ -1,0 +1,47 @@
+---
+description: Platform-specific media capture and processing
+globs: ["packages/app/features/**/*camera*", "packages/app/features/**/*video*", "packages/media/**/*"]
+alwaysApply: false
+---
+
+# Media Capture Strategy
+
+## Camera & Video Capture
+### Web Platform
+```typescript
+// packages/media/capture/index.web.tsx
+export const useVideoCapture = () => {
+  // Use getUserMedia API
+  // WebRTC for streaming
+  // MediaRecorder for recording
+}
+```
+
+### Native Platform  
+```typescript
+// packages/media/capture/index.native.tsx
+import { Camera } from 'expo-camera';
+import { Audio } from 'expo-av';
+
+export const useVideoCapture = () => {
+  // Use expo-camera for video
+  // expo-av for audio recording
+  // Handle permissions properly
+}
+```
+
+## Pose Detection Implementation
+### Web
+- Load TensorFlow.js models dynamically
+- Use Web Workers for processing
+- Canvas API for overlay rendering
+
+### Native
+- Consider React Native Vision Camera
+- Use native modules for performance
+- Expo GL for rendering overlays
+
+## File Handling
+- Web: File API and Blob handling
+- Native: expo-file-system for local storage
+- Both: Upload to Supabase Storage

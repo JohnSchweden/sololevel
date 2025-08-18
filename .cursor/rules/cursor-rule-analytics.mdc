@@ -1,0 +1,28 @@
+---
+description: This rule explains how to create and update an analytics.md file to track how often .mdc rules is being used.
+globs: .cursor/analytics.md
+alwaysApply: true
+---
+
+# Cursor Rules Analytics
+
+Each time you use a Cursor rule, update the analytics tracking file.
+
+File location:
+```
+PROJECT_ROOT/.cursor/analytics.md
+```
+
+## Format
+
+The analytics file contains a count of how many times each rule has been used:
+
+```
+rule-name.mdc: 5 [last-used: 2024-01-20, context: video-upload-feature]
+another-rule.mdc: 2
+```
+
+Add new rules as needed.
+
+# Create a .cursor/rules/features/ directory
+# Group related rules for specific features

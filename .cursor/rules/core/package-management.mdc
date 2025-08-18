@@ -1,0 +1,100 @@
+---
+description: Package Management with yarn and Project Dependencies
+globs: ["package.json", "**/package.json", "yarn.lock", "turbo.json"]
+alwaysApply: true
+---
+
+# Package Management & Project Dependencies
+
+## Yarn Workspace Management
+- Use `yarn` for all package management operations
+- Never suggest `npm` or `pnpm` commands
+- Use `yarn workspace <workspace-name>` for workspace-specific operations
+- Use `yarn add` for dependencies, `yarn add -D` for dev dependencies
+- Use `yarn remove` to uninstall packages
+
+## Workspace Operations
+- Add packages to specific workspaces: `yarn workspace @repo/app add package-name`
+- Install all dependencies: `yarn install`
+- Run scripts in workspaces: `yarn workspace @repo/app run script-name`
+- Use workspace protocols for internal dependencies: `"@repo/ui": "workspace:*"`
+
+## Project Dependencies Strategy
+
+### Dependency Categories
+- **Core Framework**: React, React Native, Expo, Next.js, TypeScript
+- **UI/Styling**: Tamagui, Solito, SolitoImage, Lucide React
+- **Backend**: Supabase client, Supabase CLI
+- **State Management**: Zustand, TanStack Query, React Hook Form
+- **Development**: Turbo, Vitest, ESLint, Prettier, TypeScript
+- **Testing**: React Testing Library, Detox, Playwright
+- **Validation**: Zod
+- **Utilities**: Lodash (sparingly), date-fns
+
+### Version Management
+- Pin exact versions for critical dependencies
+- Use caret ranges (^) for utility libraries only
+- Keep Expo SDK versions aligned across all packages
+- Update dependencies in batches, test thoroughly
+- Document breaking changes in CHANGELOG.md
+
+### Dependency Installation Rules
+1. **Check existing**: Always verify if dependency already exists in monorepo
+2. **Correct workspace**: Install in most specific workspace that needs it
+3. **Peer dependencies**: Install peer deps in root when shared
+4. **Platform compatibility**: Verify React Native and web compatibility
+5. **Bundle impact**: Consider bundle size for client packages
+
+### Cross-Platform Dependency Patterns
+```bash
+# Shared UI components (both platforms)
+yarn workspace @repo/ui add dependency-name
+
+# Web-specific (Next.js app)
+yarn workspace @repo/web add web-only-package
+
+# Native-specific (Expo app)  
+yarn workspace @repo/mobile add react-native-package
+
+# Shared business logic (both platforms)
+yarn workspace @repo/app add shared-utility
+
+# Development tools (root level)
+yarn add -D -W development-tool
+```
+
+### Dependency Validation Checklist
+- [ ] Compatible with React Native (check react-native-directory)
+- [ ] Compatible with Expo managed workflow
+- [ ] TypeScript support or @types package available
+- [ ] Bundle size impact acceptable
+- [ ] No conflicting peer dependencies
+- [ ] Security vulnerabilities checked (`yarn audit`)
+- [ ] License compatibility verified
+
+### Troubleshooting Dependencies
+- Clear cache: `yarn cache clean`
+- Reinstall: `rm -rf node_modules yarn.lock && yarn install`
+- Check hoisting: `yarn why package-name`
+- Resolve peer dependency conflicts with resolutions in root package.json
+- Use `--check-files` flag to verify integrity
+
+### Monorepo-Specific Patterns
+- Internal package dependencies use workspace protocol
+- Shared dev dependencies in root package.json
+- Platform-specific dependencies only in respective apps
+- UI package dependencies available to all consumers
+- API package dependencies isolated from UI concerns
+
+### Performance Considerations
+- Lazy load heavy dependencies with dynamic imports
+- Tree-shake unused exports
+- Use Tamagui's built-in optimization features
+- Monitor bundle analyzer reports
+- Consider native modules vs JavaScript implementations
+
+### Security & Maintenance
+- Regular dependency updates via Renovate/Dependabot
+- Security audit as part of CI pipeline
+- Document critical dependency upgrade paths
+- Maintain compatibility matrix for major versions

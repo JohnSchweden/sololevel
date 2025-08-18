@@ -1,0 +1,23 @@
+---
+description: Tamagui styling and component rules
+globs: ["packages/ui/**/*", "**/components/**/*"]
+alwaysApply: false
+---
+
+# Tamagui Styling Rules
+- ALWAYS use Tamagui components and styling
+- NEVER use React Native StyleSheet
+- NEVER use inline styles except for dynamic values
+- Use Tamagui's theming system for consistency
+- Use tokens for spacing, colors, and typography
+
+# Component Patterns
+- Export from packages/ui for shared components
+- Use composition over inheritance
+- Include accessibility props (accessible, accessibilityLabel)
+- Use Tamagui's animation APIs for transitions
+
+# Cross-Platform Images
+- Use SolitoImage for all images
+- Include width/height props
+- Implement lazy loading

@@ -1,0 +1,21 @@
+---
+description: Handling platform differences
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: false
+---
+
+# Platform-Specific Code
+- Use .native.tsx ONLY for platform-specific implementations
+- Use Platform.select for small differences
+- Prefer Tamagui's built-in responsive APIs
+- Test on both platforms regularly
+
+# Web-Only Features
+- SSR/SSG considerations
+- SEO meta tags
+- Web-specific performance optimizations
+
+# Native-Only Features
+- Push notifications
+- Native modules
+- Platform-specific permissions

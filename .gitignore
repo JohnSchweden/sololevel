@@ -8,6 +8,9 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
+# cursor rules
+.cursor/analytics.md
+
 # expo
 **/.expo/*
 

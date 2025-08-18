@@ -1,0 +1,26 @@
+---
+description: Development Workflow with yarn
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Development Workflow Rules
+
+## Building and Running
+- Use Turbo for build orchestration: `yarn build`
+- Dev server: `yarn dev`
+- Mobile: `yarn workspace @repo/mobile start`
+- Web: `yarn workspace @repo/web dev`
+
+## Code Quality
+- Always run TypeScript checks: `yarn type-check`
+- Use ESLint and Prettier configurations
+- Validate commits with lint-staged if configured
+
+# Common Commands
+- `yarn install` - Install dependencies
+- `yarn dev` - Start development servers
+- `yarn build` - Build all packages
+- `yarn type-check` - Run TypeScript checks
+- `yarn workspace <name> add <package>` - Add package to specific workspace
+- `yarn workspace <name> run <script>` - Run script in specific workspace

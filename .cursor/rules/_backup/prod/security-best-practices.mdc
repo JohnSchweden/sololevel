@@ -1,0 +1,33 @@
+---
+description: Security guidelines covering client, API/Edge, data-at-rest, and review processes for Supabase apps.
+globs: ["supabase/**/*", "packages/utils/**/*", "**/*.env*", "apps/**/*"]
+alwaysApply: false
+---
+
+# Security Best Practices
+
+## Fundamentals
+- RLS on every table; never rely on client-side checks.
+- Secrets in env (Supabase keys, provider keys); never in code.
+- Edge Functions: SECURITY INVOKER by default; fully qualified names; write only to `/tmp`.
+
+## Client
+- Don't store JWTs in AsyncStorage; rely on Supabase client's secure storage; on native, prefer `expo-secure-store`.
+- Avoid logging PII; scrub before sending to analytics.
+- Use allowlists for URLs; avoid dynamic eval and injection sinks.
+- Sanitize user-provided text rendered in web contexts.
+
+## API/Edge
+- Validate inputs with Zod; set `content-type` explicitly.
+- Timeouts and retries for upstream calls; circuit-breaker for flaky providers.
+- Signed URLs for storage access; short TTLs.
+- Enforce CORS correctly in web contexts.
+
+## Data-at-rest
+- Storage buckets: least privilege; distinct buckets per domain (raw, processed, artifacts).
+- Client uploads go to "raw" bucket; processing writes derived artifacts.
+
+## Reviews
+- Keep migrations versioned; policies reviewed per operation.
+- Run dependency audits; pin versions for Edge (Deno/npm specifiers).
+

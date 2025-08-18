@@ -1,0 +1,38 @@
+---
+description: Supabase backend architecture and Edge Functions
+globs: ["supabase/**/*.ts", "packages/api/**/*.ts"]
+alwaysApply: false
+---
+
+# Supabase Backend Architecture
+
+## Client SDK Usage (packages/api)
+- Initialize Supabase client with environment variables
+- Use TypeScript types generated from database
+- Implement proper error handling
+- Use RLS for security, not API middleware
+- Handle auth state changes appropriately
+
+## Edge Functions (supabase/functions)
+- Use Deno runtime with TypeScript
+- Prefer Web APIs over external dependencies
+- Import with npm: or jsr: specifiers with versions
+- Use Deno.serve() not the old serve import
+- Shared utilities in `supabase/functions/_shared`
+- Handle multiple routes with Express/Hono
+- File writes only to /tmp directory
+- Use EdgeRuntime.waitUntil() for background tasks
+
+## Environment Variables
+Pre-populated in Supabase:
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- SUPABASE_DB_URL
+
+## API Integration (packages/api)
+- Use TanStack Query for data fetching
+- Create typed hooks for Supabase queries
+- Implement optimistic updates
+- Handle realtime subscriptions properly
+- Cache strategies per data type
