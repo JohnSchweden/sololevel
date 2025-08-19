@@ -49,7 +49,7 @@
   "devDependencies": {
     "@babel/core": "^7.24.6",
     "@expo/metro-config": "~0.20.0",
-    "@tamagui/babel-plugin": "^1.132.18",
+    "@tamagui/babel-plugin": "1.132.20",
     "@types/jest": "^30.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

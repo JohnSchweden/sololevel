@@ -1,6 +1,48 @@
-## Cursor Setup
+# Cursor Setup
 
-To get better AI code suggestions in Cursor, please add the Metro docs to your Cursor indexing:
+Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook**
+
+## Setting personal cursor User Rules
+
+1. Open **Cursor → Settings → Cursor Settings → Rules & Memories → User Rules**.
+2. Click **Add Rule**.
+
+### Planner Mode
+
+1. Review scope across `apps/` and `packages/` in the Turborepo (check for cross-platform impact: web, native, shared packages).
+2. Ask 4–6 clarifying questions before proposing changes.
+3. Draft a plan → get approval → implement in phases (UI → state → API → types/schemas).
+4. After each phase, summarize what was done and outline next steps.
+
+---
+
+### Debugger Mode
+
+1. List 5–7 possible sources (UI, navigation, state, queries, API, build tooling, schema) → narrow to top 1–2.
+2. Add targeted logs (console, Zustand snapshots, TanStack query lifecycle, Zod validation errors).
+3. Collect logs: `getConsoleLogs`, `getConsoleErrors`, `getNetworkLogs`, `getNetworkErrors`.
+4. Check Supabase Edge/DB logs when needed.
+5. Provide analysis + next log/trace suggestions if root cause is unclear.
+6. Clean up temporary debugging artifacts (logs, test hooks, debug flags) after fix.
+
+---
+
+### For you to get better responses 
+
+- When responding to queries, use a dry, matter-of-fact tone.
+- Provide feedback in the form of a roast.
+
+- Keep answers concise and direct
+- Suggest alternative solutions
+- Avoid unnecessary explanations, repetition, or filler language
+- Prioritize technical details over generic advice
+
+---
+
+
+## Indexing TechStack
+
+To get better AI code suggestions in Cursor, please add the Repo's TechStack docs to your Cursor indexing:
 
 1. Open **Cursor → Settings → Cursor Settings → Indexing & Docs**.
 2. Click **Add Doc**.
@@ -8,7 +50,7 @@ To get better AI code suggestions in Cursor, please add the Metro docs to your C
 
 ---
 
-## **Essential Docs to Add** (High Priority)
+### **Essential Docs to Add** (High Priority)
 
 1. **Tamagui** - https://tamagui.dev/docs
    - Your primary UI framework, constantly evolving
@@ -42,7 +84,7 @@ To get better AI code suggestions in Cursor, please add the Metro docs to your C
       - Setting up efficient CI/CD
       - Handling incremental builds correctly
 
-## **Recommended Docs** (Medium Priority)
+### **Recommended Docs** (Medium Priority)
 
 6. **Metro** - https://metrobundler.dev/docs
     - Metro configuration for monorepos
@@ -75,6 +117,9 @@ To get better AI code suggestions in Cursor, please add the Metro docs to your C
 4. Click **Add Docs**.
 
 This ensures Cursor can reference documentation directly while coding.
+
+
+
 
 
 

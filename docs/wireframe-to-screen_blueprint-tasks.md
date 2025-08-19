@@ -10,7 +10,7 @@ I need to implement [feature/screen/component] based on [wireframe/requirements]
 Please:
 1. Analyze the requirements and existing code to map the full scope
 2. Ask 4-6 clarifying questions based on your findings
-3. Create a comprehensive plan following our monorepo rules
+3. Create a comprehensive plan following our project rules
 4. Generate a detailed task list in docs/tasks/[feature-name].md following our task-lists.mdc format and the feature-implementation.md template
 
 The task list should include:
@@ -26,55 +26,9 @@ After creating the plan and task list, ask for approval before implementing.
 ## Task List Integration Patterns
 
 ### Pattern 1: Feature Development
-```markdown
-# [Feature] Implementation Tasks
 
-## Completed Tasks
-- [x] Requirements analysis and planning [Both]
-- [x] Create task breakdown in docs/tasks/feature-name.md [Both]
+./templates/feature-implementation.md
 
-## In Progress Tasks
-- [ ] Implement core Tamagui component structure [Both] [M]
-  - Next: Define component props interface
-  - File: packages/ui/components/FeatureName.tsx
-
-## Future Tasks
-
-### Phase 1: Foundation [Both]
-- [ ] Setup TypeScript interfaces and types [Both] [S]
-- [ ] Create Zod validation schemas [Both] [S]  
-- [ ] Implement basic Tamagui component layout [Both] [M]
-
-### Phase 2: Data Integration [Both]
-- [ ] Create TanStack Query hooks [Both] [M]
-- [ ] Setup Supabase database tables/RLS [Both] [L]
-- [ ] Implement Zustand store updates [Both] [S]
-
-### Phase 3: Platform Optimization
-- [ ] Add web-specific keyboard navigation [Web] [S]
-- [ ] Implement native gesture handling [Native] [M]
-- [ ] Optimize performance with React.memo [Both] [S]
-
-### Phase 4: Quality Assurance
-- [ ] Unit tests with Vitest [Both] [M]
-- [ ] Component tests with RTL [Both] [M]
-- [ ] E2E tests (Detox + Playwright) [Both] [L]
-
-## Testing Pipeline
-- [ ] TypeScript checks passing
-- [ ] Unit tests passing (packages/ui/components/Feature.test.tsx)
-- [ ] Component integration tests (packages/app/features/Feature.test.tsx)
-- [ ] E2E Native (e2e/Feature.test.ts) 
-- [ ] E2E Web (tests/Feature.spec.ts)
-- [ ] Cross-platform visual regression tests
-
-## Relevant Files
-- `docs/tasks/feature-name.md` — This task list [x]
-- `packages/ui/components/FeatureName.tsx` — UI component [ ]
-- `packages/app/features/Feature/FeatureScreen.tsx` — Screen implementation [ ]
-- `packages/api/hooks/useFeature.ts` — Data hooks [ ]
-- `supabase/migrations/xxx_feature_tables.sql` — Database schema [ ]
-```
 
 ## Execution Workflow Commands
 

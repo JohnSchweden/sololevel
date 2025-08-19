@@ -15,6 +15,7 @@
 - [ ] Setup TypeScript interfaces and types [Both] [S]
 - [ ] Create Zod validation schemas [Both] [S]  
 - [ ] Implement basic Tamagui component layout [Both] [M]
+- [ ] Create Storybook stories for component states [Both] [S]
 
 ### Phase 2: Data Integration [Both]
 - [ ] Create TanStack Query hooks [Both] [M]
@@ -38,6 +39,17 @@
 - [ ] E2E Native (e2e/Feature.test.ts) 
 - [ ] E2E Web (tests/Feature.spec.ts)
 - [ ] Cross-platform visual regression tests
+
+## Acceptance Criteria
+- [ ] [Measurable success criterion]
+- [ ] [Measurable success criterion]
+- [ ] [Performance/quality requirement]
+
+## QUALITY GATES
+- [ ] All acceptance criteria validated
+- [ ] Code follows established conventions
+- [ ] Minimalistic approach maintained
+- [ ] Expert-level implementation standards met
 
 ## Relevant Files
 - `docs/tasks/feature-name.md` — This task list [x]

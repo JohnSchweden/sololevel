@@ -1,0 +1,310 @@
+---
+description: Storybook patterns and story structure for cross-platform components
+globs: ["**/*.stories.tsx", "**/*.stories.ts", "stories/**/*"]
+alwaysApply: false
+---
+
+# Storybook Rules
+
+## Story File Organization
+
+### Component Stories
+- **Location**: Co-locate with components: `packages/ui/components/ComponentName.stories.tsx`
+- **Screen Stories**: `packages/app/features/FeatureName/FeatureScreen.stories.tsx`
+- **Legacy Stories**: `stories/` directory for examples and documentation
+
+### File Naming Convention
+- Component stories: `ComponentName.stories.tsx`
+- Screen stories: `FeatureScreen.stories.tsx`
+- Story utilities: `*.story.ts` (shared story utilities)
+
+## Story Structure Template
+
+### Basic Component Story
+```typescript
+import type { Meta, StoryObj } from '@storybook/react'
+import { ComponentName } from './ComponentName'
+import { TamaguiProvider, config } from '@my/ui'
+
+const meta: Meta<typeof ComponentName> = {
+  title: 'Components/ComponentName',
+  component: ComponentName,
+  parameters: {
+    layout: 'centered',
+    docs: {
+      description: {
+        component: 'Component description for documentation',
+      },
+    },
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    // Define controls for component props
+    variant: {
+      control: 'select',
+      options: ['primary', 'secondary', 'tertiary'],
+      description: 'Visual variant of the component',
+    },
+    size: {
+      control: 'select',
+      options: ['small', 'medium', 'large'],
+      description: 'Size of the component',
+    },
+  },
+  decorators: [
+    (Story) => (
+      <TamaguiProvider config={config}>
+        <Story />
+      </TamaguiProvider>
+    ),
+  ],
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    // Default props
+  },
+}
+
+export const Primary: Story = {
+  args: {
+    variant: 'primary',
+  },
+}
+
+export const Large: Story = {
+  args: {
+    size: 'large',
+  },
+}
+```
+
+### Screen Story Template
+```typescript
+import type { Meta, StoryObj } from '@storybook/react'
+import { FeatureScreen } from './FeatureScreen'
+import { TamaguiProvider, config } from '@my/ui'
+
+const meta: Meta<typeof FeatureScreen> = {
+  title: 'Features/FeatureName/FeatureScreen',
+  component: FeatureScreen,
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        component: 'Screen description and usage guidelines',
+      },
+    },
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    // Screen-specific props
+    isLoading: {
+      control: 'boolean',
+      description: 'Loading state for the screen',
+    },
+    hasError: {
+      control: 'boolean',
+      description: 'Error state for the screen',
+    },
+  },
+  decorators: [
+    (Story) => (
+      <TamaguiProvider config={config}>
+        <Story />
+      </TamaguiProvider>
+    ),
+  ],
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    // Default screen props
+  },
+}
+
+export const Loading: Story = {
+  args: {
+    isLoading: true,
+  },
+}
+
+export const Error: Story = {
+  args: {
+    hasError: true,
+  },
+}
+```
+
+## Story Patterns
+
+### State Variations
+```typescript
+// Always include these common states
+export const Default: Story = { args: {} }
+export const Loading: Story = { args: { isLoading: true } }
+export const Error: Story = { args: { error: 'Error message' } }
+export const Empty: Story = { args: { items: [] } }
+export const Disabled: Story = { args: { disabled: true } }
+```
+
+### Interactive Stories
+```typescript
+import { fn } from '@storybook/test'
+
+export const WithActions: Story = {
+  args: {
+    onPress: fn(),
+    onSubmit: fn(),
+  },
+}
+```
+
+### Responsive Stories
+```typescript
+export const Mobile: Story = {
+  parameters: {
+    viewport: { defaultViewport: 'mobile1' },
+  },
+}
+
+export const Tablet: Story = {
+  parameters: {
+    viewport: { defaultViewport: 'tablet' },
+  },
+}
+```
+
+## Story Configuration
+
+### Meta Configuration
+```typescript
+const meta: Meta<typeof Component> = {
+  title: 'Category/Subcategory/ComponentName', // Hierarchical organization
+  component: Component,
+  parameters: {
+    layout: 'centered' | 'fullscreen' | 'padded',
+    docs: {
+      description: { component: 'Description' },
+    },
+    // Platform-specific parameters
+    ...(process.env.STORYBOOK_PLATFORM === 'native' && {
+      // Native-specific config
+    }),
+  },
+  tags: ['autodocs', 'component'], // Enable auto-documentation
+  argTypes: {
+    // Define all interactive controls
+  },
+  decorators: [
+    // Always wrap with TamaguiProvider
+    (Story) => (
+      <TamaguiProvider config={config}>
+        <Story />
+      </TamaguiProvider>
+    ),
+  ],
+}
+```
+
+### Cross-Platform Considerations
+```typescript
+// Platform-specific decorators
+decorators: [
+  (Story) => (
+    <TamaguiProvider config={config}>
+      {process.env.STORYBOOK_PLATFORM === 'native' ? (
+        <SafeAreaProvider>
+          <Story />
+        </SafeAreaProvider>
+      ) : (
+        <Story />
+      )}
+    </TamaguiProvider>
+  ),
+]
+```
+
+## Story Development Workflow
+
+### 1. Create Story with Component
+- Always create story file alongside component
+- Start with basic Default story
+- Add state variations as component evolves
+
+### 2. Document with ArgTypes
+- Define controls for all interactive props
+- Use descriptive control types (select, boolean, text)
+- Add component descriptions
+
+### 3. Test Interactions
+- Use `fn()` for action handlers
+- Test different prop combinations
+- Verify cross-platform behavior
+
+### 4. Visual Regression
+- Screenshot stories for visual testing
+- Test on both web and native platforms
+- Document visual changes
+
+## Quality Standards
+
+### Required Elements
+- [ ] TamaguiProvider wrapper in decorators
+- [ ] Proper title hierarchy (Category/Subcategory/Name)
+- [ ] Autodocs tag for documentation
+- [ ] ArgTypes for all interactive props
+- [ ] Default story with minimal props
+- [ ] State variations (loading, error, empty)
+
+### Best Practices
+- Keep stories focused on one component/screen
+- Use descriptive story names
+- Include accessibility considerations
+- Test cross-platform compatibility
+- Document component usage patterns
+
+### Anti-Patterns
+- ❌ Don't create stories without TamaguiProvider
+- ❌ Don't skip state variations
+- ❌ Don't use generic story names
+- ❌ Don't forget cross-platform testing
+- ❌ Don't create stories for internal utilities
+
+## Story Commands
+
+```bash
+# Start Storybook
+yarn storybook
+
+# Build Storybook
+yarn build-storybook
+
+# Generate stories (if using sb-rn-get-stories)
+yarn storybook-generate
+```
+
+## Integration with Testing
+
+### Story Testing
+```typescript
+// Test stories render correctly
+import { render, screen } from '@testing-library/react'
+import { Default } from './ComponentName.stories'
+
+test('renders default story', () => {
+  render(<Default />)
+  expect(screen.getByText('Expected Text')).toBeInTheDocument()
+})
+```
+
+### Visual Regression
+- Use Storybook's built-in visual testing
+- Configure Chromatic or similar service
+- Test on multiple viewports and platforms

@@ -14,12 +14,12 @@
   "dependencies": {
     "@my/ui": "0.0.1",
     "@react-navigation/native": "^7.1.6",
-    "@tamagui/animations-react-native": "^1.132.18",
-    "@tamagui/colors": "^1.132.18",
-    "@tamagui/font-inter": "^1.132.18",
-    "@tamagui/lucide-icons": "^1.132.18",
-    "@tamagui/shorthands": "^1.132.18",
-    "@tamagui/themes": "^1.132.18",
+    "@tamagui/animations-react-native": "1.132.20",
+    "@tamagui/colors": "1.132.20",
+    "@tamagui/font-inter": "1.132.20",
+    "@tamagui/lucide-icons": "1.132.20",
+    "@tamagui/shorthands": "1.132.20",
+    "@tamagui/themes": "1.132.20",
     "burnt": "^0.12.2",
     "react-native-safe-area-context": "5.4.0",
     "solito": "^4.2.2"

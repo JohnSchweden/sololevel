@@ -24,4 +24,5 @@ config.resolver.disableHierarchicalLookup = true
 config.transformer = { ...config.transformer, unstable_allowRequireContext: true }
 config.transformer.minifierPath = require.resolve('metro-minify-terser')
 
-module.exports = config
+const withStorybook = require('@storybook/react-native/metro/withStorybook')
+module.exports = withStorybook(config)
