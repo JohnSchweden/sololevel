@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tamagui/animations-css": "1.132.20",
     "@tamagui/config": "1.132.20",
     "@tamagui/next-theme": "1.132.20",
     "app": "0.0.0",

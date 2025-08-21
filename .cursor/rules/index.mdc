@@ -137,3 +137,8 @@ priority: 1
 - Apply rules based on user query keywords and file context
 - Update analytics.md with rule usage tracking
 - Ensure all applicable rules are loaded before responding
+
+## Canonical Task Lists
+- Master task index: `docs/TASKS.md`
+- Feature-scoped task lists: `docs/tasks/feature-name.md`
+- Platform-scoped lists: `docs/tasks/web.md`, `docs/tasks/native.md`

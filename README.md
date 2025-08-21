@@ -1,6 +1,8 @@
-# Cursor Setup
+# Tech Stack
 
-Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook**
+Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook, Playwright**
+
+# Cursor SETUP / TO DO / FOLLOW / OR YOU EXPERIENCE A LOT OF PAIN :D 
 
 ## Setting personal cursor User Rules
 
@@ -39,6 +41,42 @@ Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScrip
 
 ---
 
+
+## Setting Project Memories
+
+1. Open **Cursor Chat**.
+2. Write **/remember**.
+
+### Example
+
+/remember
+
+when working on task-lists, work on one task at a time and regularly update the task list until all task are completed. All while following the rule task-lists.mdc.
+
+==> Output should be something like: 
+
+Memory created....
+
+You can approve the memory...
+
+And see it here **Cursor → Settings → Cursor Settings → Rules & Memories → Saved Memories**.
+
+PS: "when - then" format worked best while others failed.
+Note: Some memories are created by Cursor in differen formats.
+
+### Add these memories
+
+When processing my requests, read defined guidelines .mdc-files in .cursor.
+When planning, analyzing, and debugging, crawl the indexed docs for relevant information.
+The project uses yarn for package management; always use yarn rather than npm.
+In this project, CLI commands 'yarn audit', 'yarn list', and '--check-files' do not exist and should not be used.
+
+---
+
+
+
+
+---
 
 ## Indexing TechStack
 
@@ -112,7 +150,11 @@ To get better AI code suggestions in Cursor, please add the Repo's TechStack doc
    - Runtime validation patterns
    - Integration with forms and APIs
 
+https://storybook.js.org/docs
+https://playwright.dev/docs/intro
+
 ---
+
 
 4. Click **Add Docs**.
 
