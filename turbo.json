@@ -5,7 +5,14 @@
     "build": {
       "env": ["DISABLE_EXTRACTION", "NODE_ENV", "EAS_BUILD_PLATFORM"],
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "build/**", "node_modules/.cache/metro/**", "ios/**", "android/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "build/**",
+        "node_modules/.cache/metro/**",
+        "ios/**",
+        "android/**"
+      ]
     },
     "dev": {
       "cache": false,

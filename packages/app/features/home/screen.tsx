@@ -8,7 +8,7 @@ import {
   SwitchThemeButton,
   useToastController,
   XStack,
-  YStack
+  YStack,
 } from '@my/ui'
 import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons'
 import { useState } from 'react'
@@ -21,7 +21,15 @@ export function HomeScreen() {
   })
 
   return (
-    <YStack testID="home-screen" flex={1} justify="center" items="center" gap="$8" p="$4" bg="$background">      
+    <YStack
+      testID="home-screen"
+      flex={1}
+      justify="center"
+      items="center"
+      gap="$8"
+      p="$4"
+      bg="$background"
+    >
       <XStack
         position="absolute"
         width="100%"
@@ -39,10 +47,16 @@ export function HomeScreen() {
       </XStack>
 
       <YStack gap="$4">
-        <H1 text="center" color="$color12">
+        <H1
+          text="center"
+          color="$color12"
+        >
           Welcome to Tamagui.
         </H1>
-        <Paragraph color="$color10" text="center">
+        <Paragraph
+          color="$color10"
+          text="center"
+        >
           Here's a basic starter to show navigating from one screen to another.
         </Paragraph>
         <Separator />
@@ -90,13 +104,24 @@ function SheetDemo() {
           exitStyle={{ opacity: 0 }}
         />
         <Sheet.Handle bg="$color8" />
-        <Sheet.Frame items="center" justify="center" gap="$10" bg="$color2">
+        <Sheet.Frame
+          items="center"
+          justify="center"
+          gap="$10"
+          bg="$color2"
+        >
           <XStack gap="$2">
             <Paragraph text="center">Made by</Paragraph>
-            <Anchor color="$blue10" href="https://twitter.com/natebirdman" target="_blank">
+            <Anchor
+              key="twitter"
+              color="$blue10"
+              href="https://twitter.com/natebirdman"
+              target="_blank"
+            >
               @natebirdman,
             </Anchor>
             <Anchor
+              key="github"
               color="$blue10"
               href="https://github.com/tamagui/tamagui"
               target="_blank"

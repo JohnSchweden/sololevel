@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState } from 'react'
 
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native'
 
-import { Header } from './Header';
+import { Header } from './Header'
 
 export const Page = () => {
-  const [user, setUser] = useState<{ name: string } | undefined>();
+  const [user, setUser] = useState<{ name: string } | undefined>()
 
   return (
     <View>
@@ -17,7 +17,10 @@ export const Page = () => {
       />
 
       <View style={styles.section}>
-        <Text role="heading" style={styles.h2}>
+        <Text
+          role="heading"
+          style={styles.h2}
+        >
           Pages in Storybook
         </Text>
         <Text style={styles.p}>
@@ -26,7 +29,7 @@ export const Page = () => {
             style={[styles.a, { fontWeight: 'bold' }]}
             role="link"
             onPress={() => {
-              Linking.openURL('https://componentdriven.org');
+              Linking.openURL('https://componentdriven.org')
             }}
           >
             <Text>component-driven</Text>
@@ -54,7 +57,7 @@ export const Page = () => {
             style={styles.a}
             role="link"
             onPress={() => {
-              Linking.openURL('https://storybook.js.org/tutorials/');
+              Linking.openURL('https://storybook.js.org/tutorials/')
             }}
           >
             Storybook tutorials
@@ -64,7 +67,7 @@ export const Page = () => {
             style={styles.a}
             role="link"
             onPress={() => {
-              Linking.openURL('https://storybook.js.org/docs');
+              Linking.openURL('https://storybook.js.org/docs')
             }}
           >
             docs
@@ -73,8 +76,8 @@ export const Page = () => {
         </Text>
       </View>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   section: {
@@ -144,4 +147,4 @@ const styles = StyleSheet.create({
     marginRight: 4,
     marginTop: 3,
   },
-});
+})

@@ -19,7 +19,7 @@ vi.mock('react-native', () => ({
 // Mock browser APIs that jsdom doesn't provide
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -46,7 +46,49 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }))
 // Mock react-native-svg to prevent syntax errors
 // Mock react-native-svg to prevent React 19 compatibility issues
-vi.mock("react-native-svg", () => ({ Svg: "Svg", Circle: "Circle", Rect: "Rect", Path: "Path", G: "G", Defs: "Defs", LinearGradient: "LinearGradient", Stop: "Stop", ClipPath: "ClipPath", Mask: "Mask", Use: "Use", Image: "Image", Text: "Text", TSpan: "TSpan", TextPath: "TextPath", ForeignObject: "ForeignObject", Line: "Line", Polyline: "Polyline", Polygon: "Polygon", Ellipse: "Ellipse" }))
+vi.mock('react-native-svg', () => ({
+  Svg: 'Svg',
+  Circle: 'Circle',
+  Rect: 'Rect',
+  Path: 'Path',
+  G: 'G',
+  Defs: 'Defs',
+  LinearGradient: 'LinearGradient',
+  Stop: 'Stop',
+  ClipPath: 'ClipPath',
+  Mask: 'Mask',
+  Use: 'Use',
+  Image: 'Image',
+  Text: 'Text',
+  TSpan: 'TSpan',
+  TextPath: 'TextPath',
+  ForeignObject: 'ForeignObject',
+  Line: 'Line',
+  Polyline: 'Polyline',
+  Polygon: 'Polygon',
+  Ellipse: 'Ellipse',
+}))
 // Prevent react-native-svg from loading at all during tests
-vi.doMock("react-native-svg", () => ({ Svg: "Svg", Circle: "Circle", Rect: "Rect", Path: "Path", G: "G", Defs: "Defs", LinearGradient: "LinearGradient", Stop: "Stop", ClipPath: "ClipPath", Mask: "Mask", Use: "Use", Image: "Image", Text: "Text", TSpan: "TSpan", TextPath: "TextPath", ForeignObject: "ForeignObject", Line: "Line", Polyline: "Polyline", Polygon: "Polygon", Ellipse: "Ellipse" }))
+vi.doMock('react-native-svg', () => ({
+  Svg: 'Svg',
+  Circle: 'Circle',
+  Rect: 'Rect',
+  Path: 'Path',
+  G: 'G',
+  Defs: 'Defs',
+  LinearGradient: 'LinearGradient',
+  Stop: 'Stop',
+  ClipPath: 'ClipPath',
+  Mask: 'Mask',
+  Use: 'Use',
+  Image: 'Image',
+  Text: 'Text',
+  TSpan: 'TSpan',
+  TextPath: 'TextPath',
+  ForeignObject: 'ForeignObject',
+  Line: 'Line',
+  Polyline: 'Polyline',
+  Polygon: 'Polygon',
+  Ellipse: 'Ellipse',
+}))
 // TEMPORARY: react-native-svg excluded from test processing due to React 19 incompatibility

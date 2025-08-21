@@ -1,4 +1,4 @@
-import { Children } from 'react'
+import React, { Children } from 'react'
 import { AppRegistry } from 'react-native'
 import NextDocument, {
   type DocumentContext,
@@ -23,9 +23,9 @@ export default class Document extends NextDocument {
      * So Tamagui styles can override the react-native-web styles.
      */
     const styles = [
-      getStyleElement(),
+      React.cloneElement(getStyleElement(), { key: "react-native-web-styles" }),
       <style
-        key="tamagui-css"
+        key="tamagui-config-css"
         dangerouslySetInnerHTML={{
           __html: config.getCSS({
             exclude: process.env.NODE_ENV === 'development' ? null : 'design-system',
@@ -35,7 +35,7 @@ export default class Document extends NextDocument {
       <style
         jsx
         global
-        key="tamagui-css"
+        key="tamagui-global-css"
       >{`
         html {
           font-family: 'Inter';

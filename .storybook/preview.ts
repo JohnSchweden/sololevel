@@ -10,8 +10,8 @@ const preview: Preview = {
   parameters: {
     controls: {
       matchers: {
-       color: /(background|color)$/i,
-       date: /Date$/i,
+        color: /(background|color)$/i,
+        date: /Date$/i,
       },
     },
   },
@@ -29,11 +29,13 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => {
-      return React.createElement(TamaguiProvider, { config, defaultTheme: "light" }, 
+      return React.createElement(
+        TamaguiProvider,
+        { config, defaultTheme: 'light' },
         React.createElement(Story)
       )
     },
   ],
-};
+}
 
-export default preview;
+export default preview

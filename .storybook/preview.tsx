@@ -5,8 +5,8 @@ const preview: Preview = {
   parameters: {
     controls: {
       matchers: {
-       color: /(background|color)$/i,
-       date: /Date$/i,
+        color: /(background|color)$/i,
+        date: /Date$/i,
       },
     },
   },
@@ -15,12 +15,12 @@ const preview: Preview = {
       try {
         const uiModule = require('@my/ui')
         const { TamaguiProvider, config } = uiModule
-        
-        console.log('🔧 TamaguiProvider loaded:', !!TamaguiProvider)
-        console.log('🔧 Config loaded:', !!config)
-        
+
         return (
-          <TamaguiProvider config={config} defaultTheme="light">
+          <TamaguiProvider
+            config={config}
+            defaultTheme="light"
+          >
             <Story />
           </TamaguiProvider>
         )
@@ -30,6 +30,6 @@ const preview: Preview = {
       }
     },
   ],
-};
+}
 
-export default preview;
+export default preview

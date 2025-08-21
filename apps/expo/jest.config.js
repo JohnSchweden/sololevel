@@ -9,16 +9,17 @@ module.exports = {
     '^react-native$': 'react-native-web',
   },
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        types: ['jest', 'node']
-      }
-    }],
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          types: ['jest', 'node'],
+        },
+      },
+    ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-web|@react-native-community|expo|@expo|@tamagui)/)'
+    'node_modules/(?!(react-native|@react-native|react-native-web|@react-native-community|expo|@expo|@tamagui)/)',
   ],
-  testMatch: [
-    '<rootDir>/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'
-  ]
+  testMatch: ['<rootDir>/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
 }

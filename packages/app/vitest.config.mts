@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { resolve } from 'path'
+import { resolve } from 'node:path'
 
 export default defineConfig({
   test: {
@@ -9,13 +9,22 @@ export default defineConfig({
   },
   server: {
     deps: {
-      inline: ['expo-router', 'expo-constants', 'expo-linking', 'react-native-svg', 'react-native-svg/*']
+      inline: [
+        'expo-router',
+        'expo-constants',
+        'expo-linking',
+        'react-native-svg',
+        'react-native-svg/*',
+      ],
     },
   },
   resolve: {
     alias: [
       { find: 'react-native', replacement: 'react-native-web' },
-      { find: 'react-native-svg', replacement: resolve(__dirname, './__mocks__/react-native-svg.ts') },
+      {
+        find: 'react-native-svg',
+        replacement: resolve(__dirname, './__mocks__/react-native-svg.ts'),
+      },
       { find: '@my/ui', replacement: resolve(__dirname, '../ui/src') },
       { find: '@my/config', replacement: resolve(__dirname, '../config/src') },
       { find: 'app', replacement: resolve(__dirname, '.') },
