@@ -7822,7 +7822,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^8.0.0, ajv@npm:^8.0.1, ajv@npm:^8.9.0":
+"ajv@npm:^8.0.0, ajv@npm:^8.0.1, ajv@npm:^8.11.0, ajv@npm:^8.9.0":
   version: 8.17.1
   resolution: "ajv@npm:8.17.1"
   dependencies:
@@ -7964,7 +7964,6 @@ __metadata:
     "@tamagui/themes": "npm:1.132.20"
     "@types/react": "npm:^19"
     "@types/react-native": "npm:^0.73.0"
-    burnt: "npm:^0.12.2"
     jsdom: "npm:^26.1.0"
     react-native-safe-area-context: "npm:5.4.0"
     solito: "npm:^4.2.2"
@@ -8680,17 +8679,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"burnt@npm:^0.12.2":
-  version: 0.12.2
-  resolution: "burnt@npm:0.12.2"
+"burnt@npm:^0.13.0":
+  version: 0.13.0
+  resolution: "burnt@npm:0.13.0"
   dependencies:
     sf-symbols-typescript: "npm:^1.0.0"
-    sonner: "npm:^0.3.5"
+    sonner: "npm:^2.0.1"
   peerDependencies:
     expo: "*"
     react: "*"
     react-native: "*"
-  checksum: 10/8ecaaa22f6e365640ba247aabfb56311eca4f7199cb07519dffd4fe9fd30d173b5cd9ab4e1ecede1e538d613c5eb9820eb752ba0ac220a468b046ed2d5c060f6
+  checksum: 10/19c9cab5b48655c0737b68fae69a73d5f8ec18323a23d6f2e0d9336d0aa9e38d0c5fe08716767b9371550f0dd10a8bdb1e707b0e06959289d1c4ad0486f82cbd
   languageName: node
   linkType: hard
 
@@ -11373,8 +11372,9 @@ __metadata:
     "@types/react-test-renderer": "npm:^19"
     app: "npm:0.0.0"
     babel-plugin-module-resolver: "npm:^5.0.2"
-    burnt: "npm:^0.12.2"
+    burnt: "npm:^0.13.0"
     expo: "npm:53.0.20"
+    expo-build-properties: "npm:^0.14.8"
     expo-constants: "npm:~17.1.7"
     expo-dev-client: "npm:~5.2.4"
     expo-doctor: "npm:1.13.5"
@@ -11396,7 +11396,7 @@ __metadata:
     react-native-reanimated: "npm:~3.17.4"
     react-native-safe-area-context: "npm:5.4.0"
     react-native-screens: "npm:~4.11.1"
-    react-native-svg: "npm:^15.12.1"
+    react-native-svg: "npm:15.11.2"
     react-test-renderer: "npm:19.0.0"
     ts-jest: "npm:^29.4.1"
     typescript: "npm:~5.8.3"
@@ -11414,6 +11414,18 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/c7851f3cf69ad2d8075908f719baf3a96660f262109374a563418912b7588a126f425225bc2126eca005873aa719c4683b99a467984e244d1931e6f1ba68655a
+  languageName: node
+  linkType: hard
+
+"expo-build-properties@npm:^0.14.8":
+  version: 0.14.8
+  resolution: "expo-build-properties@npm:0.14.8"
+  dependencies:
+    ajv: "npm:^8.11.0"
+    semver: "npm:^7.6.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10/6506f63542acd370eb2e4c850a39592229bc8ac236daa0915045890833052d7b2dfdc0c6cb1253e724241f91ec02716cdd94bb96df05ecfd8bc642a5101d4180
   languageName: node
   linkType: hard
 
@@ -18724,13 +18736,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sonner@npm:^0.3.5":
-  version: 0.3.5
-  resolution: "sonner@npm:0.3.5"
+"sonner@npm:^2.0.1":
+  version: 2.0.7
+  resolution: "sonner@npm:2.0.7"
   peerDependencies:
-    react: ^18.0.0
-    react-dom: ^18.0.0
-  checksum: 10/ad42c64bf372b5659c07ed0ce615487f6b8ccb5c4a0eb69d113dd00da34a43129c17bf7cbf9ab0e7354910282a0030064f42e7443013d3d9dc9b06b7f4c5af53
+    react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+  checksum: 10/c80321646f7fe06f92f4c16da9d72a27aec34abbf41438f8d8e8292ba8546d6bb620c54a113928f049948db1ad29d0b2ad3e9cb29dd5802c30951b41c99f12c4
   languageName: node
   linkType: hard
 

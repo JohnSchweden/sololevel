@@ -26,8 +26,9 @@
     "@react-navigation/native": "^7.1.6",
     "app": "0.0.0",
     "babel-plugin-module-resolver": "^5.0.2",
-    "burnt": "^0.12.2",
+    "burnt": "^0.13.0",
     "expo": "53.0.20",
+    "expo-build-properties": "^0.14.8",
     "expo-constants": "~17.1.7",
     "expo-dev-client": "~5.2.4",
     "expo-font": "~13.3.2",
@@ -44,7 +45,7 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-svg": "^15.12.1"
+    "react-native-svg": "15.11.2"
   },
   "devDependencies": {
     "@babel/core": "^7.24.6",

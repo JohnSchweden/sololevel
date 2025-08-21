@@ -10,12 +10,7 @@ const meta: Meta<typeof HomeScreen> = {
     layout: 'fullscreen',
   },
   tags: ['autodocs'],
-  argTypes: {
-    pagesMode: {
-      control: 'boolean',
-      description: 'Whether to use pages mode for navigation',
-    },
-  },
+
   decorators: [
     (Story) => (
       <TamaguiProvider config={config}>
@@ -28,14 +23,4 @@ const meta: Meta<typeof HomeScreen> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {
-  args: {
-    pagesMode: true,
-  },
-}
-
-export const PagesMode: Story = {
-  args: {
-    pagesMode: true,
-  },
-}
+export const Default: Story = {}
