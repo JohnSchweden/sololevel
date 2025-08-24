@@ -2,6 +2,9 @@
 const { withTamagui } = require('@tamagui/next-plugin')
 const { join } = require('node:path')
 const { i18n } = require('./next-i18next.config')
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
 
 const boolVals = {
   true: true,
@@ -12,6 +15,7 @@ const disableExtraction =
   boolVals[process.env.DISABLE_EXTRACTION] ?? process.env.NODE_ENV === 'development'
 
 const plugins = [
+  withBundleAnalyzer,
   withTamagui({
     config: '../../packages/config/src/tamagui.config.ts',
     components: ['tamagui', '@my/ui'],

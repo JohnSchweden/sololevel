@@ -148,7 +148,7 @@ jobs:
         run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:8151
 
       - name: Run Playwright tests
-        run: yarn dlx playwright test
+        run: yarn playwright test
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -252,7 +252,7 @@ jobs:
         with:
           api-level: 33
           target: google_apis
-          arch: arm64-v8a
+          arch: x86_64
           avd-name: Pixel_7_API_33
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           emulator-boot-timeout: 600
@@ -311,7 +311,7 @@ jobs:
 
       - name: Analyze bundle size
         run: |
-          yarn workspace next-app dlx @next/bundle-analyzer
+          ANALYZE=true yarn workspace next-app build
           
       - name: Upload bundle analysis
         uses: actions/upload-artifact@v4
