@@ -129,6 +129,9 @@ jobs:
       - name: Wait for server
         run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:3000
 
+      - name: Start web server
+        run: yarn web:prod:serve &
+
       - name: Run Playwright tests
         run: yarn dlx playwright test
 
