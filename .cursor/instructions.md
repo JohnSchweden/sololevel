@@ -2,14 +2,19 @@
 
 ### Platform-Specific Rules
 - Native-specific rules apply to `**/*.native.{ts,tsx}` files
-- Web-specific rules apply to `apps/web/**/*.{ts,tsx}` 
+- Web-specific rules apply to `apps/next/**/*.{ts,tsx}` 
 - Cross-platform rules apply to `packages/app/**/*.{ts,tsx}` and `packages/ui/**/*.{ts,tsx}`
 
 ### Framework-Specific Scoping
 - Tamagui UI rules target `packages/ui/**/*.{ts,tsx}` and `**/components/**/*.{ts,tsx}`
-- Solito navigation rules apply to `**/navigation/**/*.{ts,tsx}` and `**/screens/**/*.{ts,tsx}`
-- Expo rules are scoped to `apps/mobile/**/*.{ts,tsx}` and `**/*.native.{ts,tsx}`
-- Next.js rules apply to `apps/web/**/*.{ts,tsx}` and take precedence for web-specific code
+- Expo Router navigation rules apply to `apps/expo/app/**/*.{ts,tsx}` and `packages/app/features/**/*.{ts,tsx}`
+- Expo rules are scoped to `apps/expo/**/*.{ts,tsx}` and `**/*.native.{ts,tsx}`
+- Next.js rules apply to `apps/next/**/*.{ts,tsx}` and take precedence for web-specific code
+
+### AI Integration Scoping
+- AI Coach integrations: `**/ai/**/*.{ts,tsx}` and files with "ai", "coach", "video", "pose" patterns
+- Media capture platform: `**/media/**/*.{ts,tsx}` and platform-specific media handling
+- AI state management: `**/stores/**/*ai*.{ts,tsx}` and AI-related Zustand stores
 
 ### Backend and API Rules
 - Supabase Edge Functions: `supabase/functions/**/*.ts`
@@ -27,12 +32,25 @@
 - TanStack Query: `**/hooks/**/*.{ts,tsx}` and `**/*query*.{ts,tsx}`
 - API layer: `packages/api/**/*.{ts,tsx}`
 
+### Quality and Development Scoping
+- Component stories: `**/*.stories.{ts,tsx}` (Storybook patterns)
+- Testing files: `**/*.{test,spec}.{ts,tsx}` (Vitest, RTL, Playwright, Detox)
+- Security-sensitive: `**/auth/**/*.{ts,tsx}`, `**/api/**/*.{ts,tsx}`, `supabase/**/*`
+- Performance-critical: `**/components/**/*.{ts,tsx}`, large data processing files
+- Debugging artifacts: Temporary logs, test hooks, debug flags
+
+### Documentation and Template Scoping
+- Code generation templates: `**/templates/**/*`, scaffolding patterns
+- Task management: `docs/tasks/**/*.md`, `docs/TASKS.md`
+- API mocking: `**/mocks/**/*.{ts,tsx}`, MSW configurations
+
 When adding new rules, always:
 - Include frontmatter with `description`, `globs`, and `alwaysApply: true`
 - Use specific globs that align with monorepo structure
 - Consider platform-specific variations (.native.tsx)
 - Exclude conflicting patterns with `!pattern` when necessary
 - Prioritize cross-platform compatibility
+- Map to the organized directory structure: `core/`, `ai/`, `backend/`, `features/`, `quality/`, `ui/`
 
 ## Canonical Task Lists
 - Master task index: `docs/TASKS.md`

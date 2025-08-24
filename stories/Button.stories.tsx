@@ -8,6 +8,25 @@ import { Button } from './Button'
 const meta = {
   title: 'Example/Button',
   component: Button,
+  argTypes: {
+    label: {
+      control: 'text',
+      description: 'Button label text',
+      table: { category: 'content' },
+    },
+    primary: {
+      control: 'boolean',
+      description: 'Primary button style',
+      table: { category: 'style' },
+    },
+    size: {
+      control: { type: 'select' },
+      options: ['small', 'medium', 'large'],
+      description: 'Button size',
+      table: { category: 'style' },
+    },
+    onPress: { action: 'pressed', table: { category: 'events' } },
+  },
   decorators: [
     (Story) => (
       <View style={{ flex: 1, alignItems: 'flex-start' }}>
@@ -49,5 +68,15 @@ export const Small: Story = {
   args: {
     size: 'small',
     label: 'Button',
+  },
+}
+
+export const Disabled: Story = {
+  args: {
+    label: 'Disabled',
+    primary: false,
+  },
+  parameters: {
+    controls: { include: ['label', 'size', 'primary'] },
   },
 }

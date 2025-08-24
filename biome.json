@@ -9,6 +9,8 @@
       ".tamagui",
       "*/ios/**",
       ".vscode",
+      "**/node_modules/**",
+      "**/coverage/**",
       "**/tamagui.css",
       "**/*.d.ts",
       "packages/vendor/**",
@@ -17,7 +19,8 @@
       "**/dist/**",
       "**/package.json",
       ".codesandbox",
-      "tsconfig.base.json"
+      "tsconfig.base.json",
+      "**/types/database.ts"
     ],
 
     "rules": {
@@ -86,6 +89,8 @@
       ".tamagui",
       "**/ios/**",
       ".vscode",
+      "**/node_modules/**",
+      "**/coverage/**",
       "**/tamagui.css",
       "**/*.d.ts",
       "packages/vendor/**",
@@ -94,7 +99,8 @@
       "**/dist/**",
       "**/package.json",
       ".codesandbox",
-      "tsconfig.base.json"
+      "tsconfig.base.json",
+      "**/types/database.ts"
     ]
   },
   "javascript": {

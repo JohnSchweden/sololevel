@@ -9,8 +9,8 @@ alwaysApply: true
 ## Building and Running
 - Use Turbo for build orchestration: `yarn build` (runs `turbo build`)
 - Dev server: `yarn dev` (runs `turbo dev`)
-- Mobile: `yarn workspace expo start` or `yarn native`
-- Web: `yarn workspace next dev` or `yarn web`
+- Mobile: `yarn workspace expo-app start` or `yarn native`
+- Web: `yarn workspace next-app dev` or `yarn web`
 
 ## Code Quality
 - Always run TypeScript checks: `yarn type-check`
@@ -26,3 +26,4 @@ alwaysApply: true
 - `yarn workspace <name> run <script>` - Run script in specific workspace
 - `turbo build` - Direct Turbo build command
 - `turbo dev` - Direct Turbo dev command
+- `yarn workspaces list` - Shows all workspaces in your monorepo

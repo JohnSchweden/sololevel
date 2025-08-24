@@ -1,0 +1,115 @@
+---
+description: Authentication patterns with Supabase for MVP
+globs: ["**/auth/**/*", "**/hooks/**/*", "**/api/**/*", "**/middleware/**/*"]
+alwaysApply: false
+---
+
+# Authentication Rules
+
+## Supabase Auth Integration
+- Use Supabase Auth for ALL authentication
+- Handle auth state globally with Zustand
+- NEVER store tokens manually
+
+```typescript
+// ✅ Good - auth store
+interface AuthState {
+  user: User | null
+  session: Session | null
+  loading: boolean
+}
+
+const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  session: null,
+  loading: true
+}))
+```
+
+## Route Protection
+- Use Expo Router navigation guards
+- Redirect to login for protected routes
+- Handle auth loading states
+
+```typescript
+// ✅ Good - protected screen
+export function ProfileScreen() {
+  const { user, loading } = useAuthStore()
+  
+  if (loading) return <Spinner />
+  if (!user) {
+    router.push('/login')
+    return null
+  }
+  
+  return <ProfileContent user={user} />
+}
+```
+
+## Auth Hooks Pattern
+- Create reusable auth hooks
+- Handle error states consistently
+- Use TanStack Query for auth data
+
+```typescript
+// ✅ Good - auth hook
+export function useAuth() {
+  return useQuery({
+    queryKey: ['auth'],
+    queryFn: () => supabase.auth.getSession(),
+    staleTime: Infinity
+  })
+}
+
+// ✅ Good - login mutation
+export function useLogin() {
+  return useMutation({
+    mutationFn: ({ email, password }: LoginData) => 
+      supabase.auth.signInWithPassword({ email, password }),
+    onSuccess: (data) => {
+      if (data.error) throw data.error
+      router.push('/dashboard')
+    }
+  })
+}
+```
+
+## RLS Security
+- ALWAYS enable RLS on tables with user data
+- Use auth.uid() in policies
+- Test policies thoroughly
+
+```sql
+-- ✅ Good - secure user data
+create policy "Users can only see own data"
+  on profiles for select
+  to authenticated
+  using (user_id = (select auth.uid()));
+```
+
+## Social Auth (MVP)
+- Implement email/password first
+- Add social providers only if needed
+- Use Supabase's built-in providers
+
+```typescript
+// ✅ Good - simple social auth
+const signInWithGoogle = () => 
+  supabase.auth.signInWithOAuth({ provider: 'google' })
+```
+
+## Auth State Management
+- Listen to auth changes globally
+- Update Zustand store on auth events
+- Handle session refresh automatically
+
+```typescript
+// ✅ Good - auth listener
+supabase.auth.onAuthStateChange((event, session) => {
+  useAuthStore.setState({
+    user: session?.user ?? null,
+    session,
+    loading: false
+  })
+})
+```

@@ -1,0 +1,72 @@
+---
+description: Expo Router navigation for cross-platform routing
+globs: ["**/navigation/**/*", "**/screens/**/*", "packages/app/**/*", "**/app/**/*"]
+alwaysApply: false
+---
+
+# Navigation Rules
+- Use Expo Router for ALL navigation (web + native)
+- NEVER use React Navigation directly
+- Use Expo Router Link component with asChild pattern
+- File-based routing in apps/expo/app/ directory
+- Use typed navigation params with TypeScript
+
+# Screen Structure
+- Screens live in packages/app/features (business logic)
+- App routes live in apps/expo/app/ (routing layer)
+- Use .tsx extension for all screens
+- Use useLocalSearchParams() for dynamic route params
+
+# Hooks and Components
+- Link from 'expo-router' with asChild for custom components
+- useRouter() from 'expo-router' for programmatic navigation
+- useLocalSearchParams() for accessing route parameters
+- Stack.Screen for configuring route options
+
+# Cross-Platform Integration
+- Shared screens in packages/app/features are platform-agnostic
+- Use dependency injection for navigation components via props
+- Platform-specific implementation in app route files
+- Next.js pages use Next.js router, Expo uses Expo Router
+
+# Platform-Specific Implementation
+```typescript
+// ✅ Good - Shared screen with navigation injection
+export function HomeScreen({ 
+  linkComponent 
+}: { 
+  linkComponent?: React.ReactNode 
+}) {
+  return (
+    <YStack>
+      {/* shared UI logic */}
+      {linkComponent || <Button>Default Link</Button>}
+    </YStack>
+  )
+}
+
+// ✅ Good - Expo Router implementation
+// apps/expo/app/index.tsx
+<HomeScreen 
+  linkComponent={
+    <Link href="/user/nate" asChild>
+      <Button>Link to user</Button>
+    </Link>
+  }
+/>
+
+// ✅ Good - Next.js implementation  
+// apps/next/pages/index.tsx
+<HomeScreen 
+  linkComponent={
+    <Link href="/user/nate" passHref legacyBehavior>
+      <Button>Link to user</Button>
+    </Link>
+  }
+/>
+```
+
+# Navigation Props Pattern
+- Pass navigation callbacks and components as props
+- Keep shared screens platform-agnostic
+- Handle navigation in platform-specific route files

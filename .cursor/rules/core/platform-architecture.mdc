@@ -11,7 +11,7 @@ alwaysApply: true
 - UI: Tamagui (cross-platform)
 - Backend: Supabase (PostgreSQL + Edge Functions)
 - State: Zustand (client) + TanStack Query (server)
-- Navigation: Solito (unified routing)
+- Navigation: Expo Router (file-based routing)
 - Language: TypeScript only
 
 ## Data Flow
@@ -28,7 +28,7 @@ alwaysApply: true
 ## Performance Strategies
 - React.memo for expensive components
 - Virtual lists for large datasets
-- Image optimization with SolitoImage
+- Image optimization with optimized images
 - Code splitting with dynamic imports
 - Edge caching for static content
 

@@ -1,15 +1,4 @@
-import '@testing-library/jest-dom'
-
-// Mock React Native modules
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native-web')
-  return {
-    ...RN,
-    Platform: { OS: 'web', select: jest.fn((obj) => obj.web) },
-  }
-})
-
-// Mock Expo modules
+// Mock Expo modules for testing
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
   useLocalSearchParams: () => ({}),

@@ -31,12 +31,12 @@ const config: StorybookConfig = {
       },
     }
 
-    // Mock Solito navigation for Storybook
+    // Mock Expo Router for Storybook
     config.resolve = {
       ...config.resolve,
       alias: {
         ...config.resolve?.alias,
-        'solito/navigation': join(__dirname, './mocks/solito-navigation.ts'),
+        'expo-router': join(__dirname, './mocks/expo-router.ts'),
       },
     }
 

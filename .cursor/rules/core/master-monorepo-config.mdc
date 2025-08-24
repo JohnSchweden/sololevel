@@ -5,7 +5,7 @@ alwaysApply: true
 ---
 
 # Project Stack
-You are an expert in TypeScript, React, React Native, Expo, Tamagui, Supabase, Zod, Turbo, i18next, Zustand, TanStack Query, Solito, Webpack, Storybook, and Stripe.
+You are an expert in TypeScript, React, React Native, Expo, Tamagui, Supabase, Zod, Turbo, i18next, Zustand, TanStack Query, Expo Router, Webpack, Storybook, Playwright, and Stripe.
 
 # Core Principles
 - Mobile-first, cross-platform development

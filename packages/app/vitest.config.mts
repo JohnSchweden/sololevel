@@ -6,17 +6,34 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
-  },
-  server: {
-    deps: {
-      inline: [
-        'expo-router',
-        'expo-constants',
-        'expo-linking',
-        'react-native-svg',
-        'react-native-svg/*',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'dist/',
+        '**/*.d.ts',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        '**/test-utils/**',
+        '**/__tests__/**',
+        '**/__mocks__/**',
+        'vitest.config.mts',
+        'vitest.setup.ts',
       ],
+      thresholds: {
+        global: {
+          branches: 80,
+          functions: 80,
+          lines: 80,
+          statements: 80,
+        },
+      },
     },
+  },
+  optimizeDeps: {
+    exclude: ['react-native-svg', '@testing-library/react-native'],
+    include: ['expo-router', 'expo-constants', 'expo-linking', '@my/api'],
   },
   resolve: {
     alias: [

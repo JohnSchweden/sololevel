@@ -1,14 +1,71 @@
 ---
 description: Error handling patterns for fast MVP development
 globs: ["**/hooks/**/*", "**/api/**/*", "**/components/**/*", "**/*query*", "**/*mutation*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Error Handling Rules
 
-## Error Handling
-- Use early returns, log errors, don't throw in components
-- Use Zod for runtime validation
-- Implement proper error boundaries
-- Handle async errors with TanStack Query
-- Provide meaningful error messages across platforms
+## API Calls (TanStack Query)
+- ALWAYS use error boundaries for query errors
+- NEVER throw unhandled errors in components
+- Use toast notifications for user-facing errors
+
+```typescript
+// ✅ Good
+const { data, error, isLoading } = useQuery({
+  queryKey: ['posts'],
+  queryFn: fetchPosts,
+  throwOnError: false
+})
+
+if (error) return <ErrorBanner error={error} />
+
+// ❌ Bad - unhandled error
+const { data } = useQuery({ queryKey: ['posts'], queryFn: fetchPosts })
+```
+
+## Supabase Errors
+- Check `.error` property on all Supabase responses
+- Use early returns for error states
+- Log errors but don't expose internal details
+
+```typescript
+// ✅ Good
+const { data, error } = await supabase.from('posts').select()
+if (error) {
+  console.error('Failed to fetch posts:', error)
+  return { success: false, message: 'Failed to load posts' }
+}
+
+// ❌ Bad - no error checking
+const { data } = await supabase.from('posts').select()
+return data
+```
+
+## Component Error States
+- Graceful degradation over crashes
+- Show fallback UI for errors
+- Retry mechanisms for transient failures
+
+```typescript
+// ✅ Good
+if (isError) return <Text>Something went wrong. <Button onPress={refetch}>Retry</Button></Text>
+
+// ❌ Bad
+if (isError) throw new Error('Failed to load')
+```
+
+## Form Validation
+- Use Zod for schema validation
+- Handle validation errors gracefully
+- Show field-level errors
+
+```typescript
+// ✅ Good
+const result = schema.safeParse(formData)
+if (!result.success) {
+  setErrors(result.error.flatten().fieldErrors)
+  return
+}
+```

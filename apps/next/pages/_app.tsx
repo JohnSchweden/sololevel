@@ -1,10 +1,13 @@
 import type { AppProps } from 'next/app'
 import { NextTamaguiProvider } from 'app/provider/NextTamaguiProvider'
+import { appWithTranslation } from 'next-i18next'
 
-export default function App({ Component, pageProps }: AppProps) {
+function App({ Component, pageProps }: AppProps) {
   return (
-    <NextTamaguiProvider>
+    <NextTamaguiProvider locale={pageProps.locale}>
       <Component {...pageProps} />
     </NextTamaguiProvider>
   )
 }
+
+export default appWithTranslation(App)

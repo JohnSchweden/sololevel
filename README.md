@@ -1,6 +1,6 @@
 # Tech Stack
 
-Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook, Playwright**
+Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook, Playwright**
 
 # Cursor SETUP / TO DO / FOLLOW / OR YOU EXPERIENCE A LOT OF PAIN :D 
 
@@ -15,6 +15,16 @@ Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScrip
 2. Ask 4–6 clarifying questions before proposing changes.
 3. Draft a plan → get approval → implement in phases (UI → state → API → types/schemas).
 4. After each phase, summarize what was done and outline next steps.
+
+### Planner Mode General
+
+When entering Planner Mode, follow these steps:
+
+1. Deeply reflect upon the changes being asked and analyze existing code to map the full scope of changes needed.
+2. Ask Clarifying Questions: Before proposing a plan, ask 4-6 clarifying questions based on your findings.
+3. Draft a Plan: Once questions are answered, draft a comprehensive plan of action and ask for approval on that plan.
+4. Implement in Phases: After approval, implement all steps in that plan.
+5. Communicate Progress: After completing each phase/step, mention what was just completed and outline the next steps, including phases remaining after these steps.
 
 ---
 
@@ -46,12 +56,31 @@ Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScrip
 
 1. Open **Cursor Chat**.
 2. Write **/remember**.
+3. Use claude sonnet.
 
-### Example
+### Prompt
+
+/remember
+
+When processing my requests, read defined guidelines .mdc-files in .cursor.
 
 /remember
 
 when working on task-lists, work on one task at a time and regularly update the task list until all task are completed. All while following the rule task-lists.mdc.
+
+/remember
+
+When planning, analyzing, and debugging, crawl the indexed docs for relevant information.
+
+/remember
+
+The project uses yarn for package management; always use yarn rather than npm.
+
+/remember
+
+In this project, CLI commands `yarn start`, `yarn list` do not exist and should not be used.
+
+
 
 ==> Output should be something like: 
 
@@ -63,13 +92,6 @@ And see it here **Cursor → Settings → Cursor Settings → Rules & Memories �
 
 PS: "when - then" format worked best while others failed.
 Note: Some memories are created by Cursor in differen formats.
-
-### Add these memories
-
-When processing my requests, read defined guidelines .mdc-files in .cursor.
-When planning, analyzing, and debugging, crawl the indexed docs for relevant information.
-The project uses yarn for package management; always use yarn rather than npm.
-In this project, CLI commands 'yarn audit', 'yarn list', and '--check-files' do not exist and should not be used.
 
 ---
 
@@ -95,10 +117,10 @@ To get better AI code suggestions in Cursor, please add the Repo's TechStack doc
    - Critical for styling, theming, and responsive design
    - Not well-represented in training data
 
-2. **Solito** - https://solito.dev/docs  
+2. **Expo Router** - https://docs.expo.dev/router/introduction/
    - Core navigation library for your cross-platform setup
-   - Relatively new, likely minimal training data
-   - Essential for routing patterns
+   - File-based routing patterns and API reference
+   - Essential for navigation patterns
 
 3. **Supabase** - https://supabase.com/docs
    - Backend-as-a-service with frequent updates
@@ -171,7 +193,7 @@ This ensures Cursor can reference documentation directly while coding.
 
 
 
-# Tamagui + Solito + Next + Expo Monorepo
+# Tamagui + Expo Router + Next + Expo Monorepo
 
 ```sh
 npm create tamagui
@@ -179,17 +201,16 @@ npm create tamagui
 
 ## 🔦 About
 
-This monorepo is a starter for an Expo + Next.js + Tamagui + Solito app.
+This monorepo is a starter for an Expo + Next.js + Tamagui + Expo Router app.
 
-Many thanks to [@FernandoTheRojo](https://twitter.com/fernandotherojo) for the Solito starter monorepo which this was forked from. Check out his [talk about using expo + next together at Next.js Conf 2021](https://www.youtube.com/watch?v=0lnbdRweJtA).
+Many thanks to [@FernandoTheRojo](https://twitter.com/fernandotherojo) for the original Solito starter monorepo which this was forked from. This version has been updated to use Expo Router. Check out his [talk about using expo + next together at Next.js Conf 2021](https://www.youtube.com/watch?v=0lnbdRweJtA).
 
 ## 📦 Included packages
 
 - [Tamagui](https://tamagui.dev) 🪄
-- [solito](https://solito.dev) for cross-platform navigation
+- [Expo Router](https://docs.expo.dev/router/) for cross-platform navigation
 - Expo SDK
 - Next.js
-- Expo Router
 
 ## 🗂 Folder layout
 

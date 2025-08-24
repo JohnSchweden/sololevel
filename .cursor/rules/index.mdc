@@ -22,28 +22,40 @@ priority: 1
 **Triggers**: `package.json`, `yarn.lock`, `turbo.json`, dependency analysis
 **Rules to Apply**:
 - `package-management`: Dependency validation and workspace operations
-- `master-monorepo-config`: Core monorepo patterns
+- `core/master-monorepo-config`: Core monorepo patterns
 
 #### UI Development Context  
 **Triggers**: `packages/ui/**/*`, `**/components/**/*`, UI-related files
 **Rules to Apply**:
 - `ui/ui-styling-tamagui`: Tamagui component guidelines
 - `ui/platform-specific`: Platform-specific UI patterns
-- `master-monorepo-config`: Base configuration
+- `quality/storybook`: Component documentation
+- `core/master-monorepo-config`: Base configuration
+
+#### AI Integration Context
+**Triggers**: AI features, video analysis, pose detection, voice processing
+**Rules to Apply**:
+- `ai/ai-integration`: AI Coach specific integrations
+- `ai/ai-state-management`: AI coaching state management
+- `ai/media-capture-platform`: Platform-specific media capture
+- `core/master-monorepo-config`: Base configuration
 
 #### Backend Development Context
 **Triggers**: `packages/api/**/*`, `supabase/**/*`, backend files
 **Rules to Apply**:
 - `backend/supabase-backend`: Supabase architecture patterns
 - `backend/supabase-database`: Database conventions
-- `master-monorepo-config`: Base configuration
+- `quality/security-best-practices`: Security guidelines
+- `core/master-monorepo-config`: Base configuration
 
 #### Feature Development Context
 **Triggers**: `packages/app/**/*`, `apps/**/*`, feature files
 **Rules to Apply**:
-- `features/navigation-solito`: Navigation patterns
+- `features/navigation-expo-router`: Navigation patterns
 - `features/data-state-management`: State management
-- `master-monorepo-config`: Base configuration
+- `features/authentication`: Auth patterns with Supabase
+- `features/api-mocking`: Offline/dev flows
+- `core/master-monorepo-config`: Base configuration
 
 #### Quality Assurance Context
 **Triggers**: `**/*.{test,spec}.*`, testing files, error handling
@@ -51,7 +63,9 @@ priority: 1
 - `quality/testing-unified`: Testing strategies
 - `quality/error-handling`: Error handling patterns
 - `quality/performance`: Performance optimization
-- `master-monorepo-config`: Base configuration
+- `quality/debugging`: Systematic debugging workflow
+- `quality/codegen-templates`: Standard scaffolds
+- `core/master-monorepo-config`: Base configuration
 
 #### Development Workflow Context
 **Triggers**: `**/*.{ts,tsx}`, development files
@@ -59,29 +73,37 @@ priority: 1
 - `core/development-workflow`: Development patterns
 - `core/typescript-standards`: TypeScript guidelines
 - `core/platform-architecture`: Architecture decisions
-- `master-monorepo-config`: Base configuration
+- `core/github-integration`: GitHub workflow
+- `task-lists`: Task management
+- `core/master-monorepo-config`: Base configuration
 
 ## Auto-Application Logic
 
 ### File Pattern Matching
 ```yaml
 # Package management
-- package.json, yarn.lock, turbo.json → package-management + master-monorepo-config
+- package.json, yarn.lock, turbo.json → package-management + core/master-monorepo-config
 
 # UI components  
-- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + master-monorepo-config
+- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + storybook + core/master-monorepo-config
+
+# AI features
+- **/ai/**/* → ai-integration + ai-state-management + media-capture-platform + core/master-monorepo-config
 
 # Backend/API
-- packages/api/**/*, supabase/**/* → supabase-backend + supabase-database + master-monorepo-config
+- packages/api/**/*, supabase/**/* → supabase-backend + supabase-database + security-best-practices + core/master-monorepo-config
 
 # Features/apps
-- packages/app/**/*, apps/**/* → navigation-solito + data-state-management + master-monorepo-config
+- packages/app/**/*, apps/**/* → navigation-expo-router + data-state-management + authentication + core/master-monorepo-config
 
 # Testing
-- **/*.{test,spec}.* → testing-unified + error-handling + performance + master-monorepo-config
+- **/*.{test,spec}.* → testing-unified + error-handling + performance + debugging + core/master-monorepo-config
+
+# Stories/documentation
+- **/*.stories.* → storybook + ui-styling-tamagui + core/master-monorepo-config
 
 # Development
-- **/*.{ts,tsx} → development-workflow + typescript-standards + platform-architecture + master-monorepo-config
+- **/*.{ts,tsx} → development-workflow + typescript-standards + platform-architecture + github-integration + core/master-monorepo-config
 ```
 
 ### Task Context Detection
@@ -90,22 +112,37 @@ priority: 1
 - "dependency", "package", "yarn", "install" → package-management
 
 # UI development
-- "component", "ui", "tamagui", "styling" → ui-styling-tamagui
+- "component", "ui", "tamagui", "styling" → ui-styling-tamagui + storybook
+
+# AI integration
+- "ai", "video", "pose", "voice", "coaching" → ai-integration + ai-state-management + media-capture-platform
 
 # Backend development  
-- "supabase", "database", "api", "backend" → supabase-backend + supabase-database
+- "supabase", "database", "api", "backend" → supabase-backend + supabase-database + security-best-practices
+
+# Authentication
+- "auth", "login", "signup", "session" → authentication
 
 # Navigation
-- "navigation", "routing", "solito" → navigation-solito
+- "navigation", "routing", "expo-router" → navigation-expo-router
 
 # State management
 - "zustand", "query", "state" → data-state-management
 
 # Testing
-- "test", "spec", "vitest" → testing-unified
+- "test", "spec", "vitest" → testing-unified + debugging
 
 # Performance
 - "performance", "optimization" → performance
+
+# Development workflow
+- "github", "commit", "pr", "workflow" → github-integration
+
+# Task management
+- "task", "todo", "plan" → task-lists
+
+# Mocking
+- "mock", "offline", "dev" → api-mocking
 ```
 
 ## Rule Precedence

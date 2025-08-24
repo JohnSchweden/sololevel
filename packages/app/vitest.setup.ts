@@ -1,20 +1,7 @@
 import { vi } from 'vitest'
 import '@testing-library/jest-dom'
 
-// Mock React Native APIs
-vi.mock('react-native', () => ({
-  Platform: { OS: 'web', select: vi.fn((obj) => obj.web) },
-  Dimensions: { get: vi.fn(() => ({ width: 375, height: 812 })) },
-  StyleSheet: {
-    create: vi.fn((styles) => styles),
-    hairlineWidth: 1,
-  },
-  View: 'div',
-  Text: 'span',
-  TouchableOpacity: 'button',
-  ScrollView: 'div',
-  SafeAreaView: 'div',
-}))
+// React Native is aliased to react-native-web via vitest.config.mts
 
 // Mock browser APIs that jsdom doesn't provide
 Object.defineProperty(window, 'matchMedia', {
@@ -44,51 +31,30 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
-// Mock react-native-svg to prevent syntax errors
-// Mock react-native-svg to prevent React 19 compatibility issues
-vi.mock('react-native-svg', () => ({
-  Svg: 'Svg',
-  Circle: 'Circle',
-  Rect: 'Rect',
-  Path: 'Path',
-  G: 'G',
-  Defs: 'Defs',
-  LinearGradient: 'LinearGradient',
-  Stop: 'Stop',
-  ClipPath: 'ClipPath',
-  Mask: 'Mask',
-  Use: 'Use',
-  Image: 'Image',
-  Text: 'Text',
-  TSpan: 'TSpan',
-  TextPath: 'TextPath',
-  ForeignObject: 'ForeignObject',
-  Line: 'Line',
-  Polyline: 'Polyline',
-  Polygon: 'Polygon',
-  Ellipse: 'Ellipse',
+// react-native-svg is aliased to mock via vitest.config.mts
+
+// Mock Expo Router for testing
+vi.mock('expo-router', () => ({
+  Link: ({ children }: any) => children,
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    canGoBack: () => false,
+  }),
+  useLocalSearchParams: () => ({ id: 'mock-id' }),
+  Stack: {
+    Screen: ({ children }: any) => children,
+  },
 }))
-// Prevent react-native-svg from loading at all during tests
-vi.doMock('react-native-svg', () => ({
-  Svg: 'Svg',
-  Circle: 'Circle',
-  Rect: 'Rect',
-  Path: 'Path',
-  G: 'G',
-  Defs: 'Defs',
-  LinearGradient: 'LinearGradient',
-  Stop: 'Stop',
-  ClipPath: 'ClipPath',
-  Mask: 'Mask',
-  Use: 'Use',
-  Image: 'Image',
-  Text: 'Text',
-  TSpan: 'TSpan',
-  TextPath: 'TextPath',
-  ForeignObject: 'ForeignObject',
-  Line: 'Line',
-  Polyline: 'Polyline',
-  Polygon: 'Polygon',
-  Ellipse: 'Ellipse',
+
+// Mock Tamagui Lucide Icons to prevent react-native-svg issues
+vi.mock('@tamagui/lucide-icons', () => ({
+  RefreshCw: () => 'RefreshCw',
+  ChevronLeft: () => 'ChevronLeft',
+  AlertCircle: () => 'AlertCircle',
+  AlertTriangle: () => 'AlertTriangle',
+  CheckCircle: () => 'CheckCircle',
+  X: () => 'X',
+  // Add other icons as needed
 }))
-// TEMPORARY: react-native-svg excluded from test processing due to React 19 incompatibility

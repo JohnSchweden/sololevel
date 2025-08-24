@@ -2,7 +2,7 @@
 
 See also: [instructions.md](./instructions.md) for rule precedence, scoping, and file globs.
 
-Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query**
+Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query**
 
 ---
 
@@ -55,10 +55,11 @@ Tech stack: **Tamagui, Solito, Expo, Zustand, Next.js, Supabase, Yarn, TypeScrip
 * Log current theme + tokens
 * Check style compilation/debug props
 
-### Solito
+### Expo Router
 
-* Log route params across Next + Expo
-* Validate navigation stack consistency
+* Log route params and navigation state
+* Validate navigation stack consistency across platforms
+* Check useLocalSearchParams() vs router.query differences
 
 ### Zod
 

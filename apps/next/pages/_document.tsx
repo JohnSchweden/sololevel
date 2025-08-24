@@ -23,7 +23,7 @@ export default class Document extends NextDocument {
      * So Tamagui styles can override the react-native-web styles.
      */
     const styles = [
-      React.cloneElement(getStyleElement(), { key: "react-native-web-styles" }),
+      React.cloneElement(getStyleElement(), { key: 'react-native-web-styles' }),
       <style
         key="tamagui-config-css"
         dangerouslySetInnerHTML={{

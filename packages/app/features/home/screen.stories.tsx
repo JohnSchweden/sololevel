@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { HomeScreen } from './screen'
 import { TamaguiProvider, config } from '@my/ui'
-import React from 'react'
 
 const meta: Meta<typeof HomeScreen> = {
   title: 'Features/Home/HomeScreen',
   component: HomeScreen,
+  argTypes: {
+    // example of state toggles if HomeScreen accepted props
+  },
   parameters: {
     layout: 'fullscreen',
   },
@@ -24,3 +26,9 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
+
+export const DarkTheme: Story = {
+  parameters: {
+    backgrounds: { default: 'dark' },
+  },
+}

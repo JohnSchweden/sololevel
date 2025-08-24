@@ -23,7 +23,7 @@ alwaysApply: true
 
 ### Dependency Categories
 - **Core Framework**: React, React Native, Expo, Next.js, TypeScript
-- **UI/Styling**: Tamagui, Solito, SolitoImage, Lucide React
+- **UI/Styling**: Tamagui, Expo Router, Lucide React
 - **Backend**: Supabase client, Supabase CLI
 - **State Management**: Zustand, TanStack Query, React Hook Form
 - **Development**: Turbo, Vitest, ESLint, Prettier, TypeScript
@@ -69,7 +69,7 @@ yarn add -D -W development-tool
 - [ ] TypeScript support or @types package available
 - [ ] Bundle size impact acceptable
 - [ ] No conflicting peer dependencies
-- [ ] Security vulnerabilities checked (`yarn audit`)
+- [ ] Security vulnerabilities checked (`yarn npm audit`)
 - [ ] License compatibility verified
 
 ### Troubleshooting Dependencies
@@ -77,7 +77,8 @@ yarn add -D -W development-tool
 - Reinstall: `rm -rf node_modules yarn.lock && yarn install`
 - Check hoisting: `yarn why package-name`
 - Resolve peer dependency conflicts with resolutions in root package.json
-- Use `--check-files` flag to verify integrity
+- Use `--check-cache` flag to verify package integrity
+- Use `--check-resolutions` flag to verify resolution coherence
 
 ### Monorepo-Specific Patterns
 - Internal package dependencies use workspace protocol

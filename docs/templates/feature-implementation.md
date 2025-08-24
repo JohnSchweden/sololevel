@@ -28,7 +28,8 @@
 - [ ] Optimize performance with React.memo [Both] [S]
 
 ### Phase 4: Quality Assurance
-- [ ] Unit tests with Vitest [Both] [M]
+- [ ] Unit tests for Native (Jest) [Native] [M]
+- [ ] Unit tests for Web (Vitest) [Web] [M]
 - [ ] Component tests with RTL [Both] [M]
 - [ ] E2E tests (Detox + Playwright) [Both] [L]
 

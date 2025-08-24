@@ -1,9 +1,11 @@
 import { UserDetailScreen } from 'app/features/user/detail-screen'
-import { Stack } from 'expo-router'
-import { useParams } from 'solito/navigation'
+import { Stack, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 
 export default function Screen() {
-  const { id } = useParams()
+  const { id } = useLocalSearchParams()
+  const router = useRouter()
+
   return (
     <>
       <Stack.Screen
@@ -15,7 +17,10 @@ export default function Screen() {
           gestureDirection: 'horizontal',
         }}
       />
-      <UserDetailScreen id={id as string} />
+      <UserDetailScreen
+        id={id as string}
+        onGoBack={() => router.back()}
+      />
     </>
   )
 }

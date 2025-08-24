@@ -17,17 +17,11 @@ export const Page = () => {
       />
 
       <View style={styles.section}>
-        <Text
-          role="heading"
-          style={styles.h2}
-        >
-          Pages in Storybook
-        </Text>
+        <Text style={styles.h2}>Pages in Storybook</Text>
         <Text style={styles.p}>
           We recommend building UIs with a{' '}
           <Text
             style={[styles.a, { fontWeight: 'bold' }]}
-            role="link"
             onPress={() => {
               Linking.openURL('https://componentdriven.org')
             }}
@@ -55,7 +49,6 @@ export const Page = () => {
           Get a guided tutorial on component-driven development at{' '}
           <Text
             style={styles.a}
-            role="link"
             onPress={() => {
               Linking.openURL('https://storybook.js.org/tutorials/')
             }}
@@ -65,7 +58,6 @@ export const Page = () => {
           . Read more in the{' '}
           <Text
             style={styles.a}
-            role="link"
             onPress={() => {
               Linking.openURL('https://storybook.js.org/docs')
             }}

@@ -1,6 +1,3 @@
-# Ignore rules with "_"
-*_*
-
 # Ignore all rules in _backup folder
 _backup/
 _backup/**/*

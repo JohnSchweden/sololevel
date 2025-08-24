@@ -1,9 +1,21 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "globalEnv": ["DISABLE_EXTRACTION", "NODE_ENV", "EAS_BUILD_PLATFORM"],
+  "globalEnv": [
+    "DISABLE_EXTRACTION",
+    "NODE_ENV",
+    "EAS_BUILD_PLATFORM",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
+  ],
   "pipeline": {
     "build": {
-      "env": ["DISABLE_EXTRACTION", "NODE_ENV", "EAS_BUILD_PLATFORM"],
+      "env": [
+        "DISABLE_EXTRACTION",
+        "NODE_ENV",
+        "EAS_BUILD_PLATFORM",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
+      ],
       "dependsOn": ["^build"],
       "outputs": [
         ".next/**",
@@ -13,6 +25,9 @@
         "ios/**",
         "android/**"
       ]
+    },
+    "type-check": {
+      "dependsOn": ["^build"]
     },
     "dev": {
       "cache": false,

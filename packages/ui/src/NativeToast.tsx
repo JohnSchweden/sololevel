@@ -21,8 +21,8 @@ export const NativeToast = () => {
       animation="quick"
     >
       <YStack
-        py="$1.5"
-        px="$2"
+        paddingVertical="$1.5"
+        paddingHorizontal="$2"
       >
         <Toast.Title lineHeight="$1">{currentToast.title}</Toast.Title>
         {!!currentToast.message && <Toast.Description>{currentToast.message}</Toast.Description>}

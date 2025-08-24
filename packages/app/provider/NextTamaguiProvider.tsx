@@ -12,7 +12,13 @@ import { config } from '@my/ui'
 import { Provider } from 'app/provider'
 import { StyleSheet } from 'react-native'
 
-export const NextTamaguiProvider = ({ children }: { children: ReactNode }) => {
+export const NextTamaguiProvider = ({
+  children,
+  locale,
+}: {
+  children: ReactNode
+  locale?: string
+}) => {
   const [theme, setTheme] = useRootTheme()
 
   useServerInsertedHTML(() => {
@@ -65,6 +71,7 @@ export const NextTamaguiProvider = ({ children }: { children: ReactNode }) => {
       <Provider
         disableRootThemeClass
         defaultTheme={theme || 'light'}
+        locale={locale}
       >
         {children}
       </Provider>

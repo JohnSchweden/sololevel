@@ -39,9 +39,10 @@ alwaysApply: false
 - Log current theme + tokens
 - Check style compilation/debug props
 
-### Solito
-- Log route params across Next + Expo
-- Validate navigation stack consistency
+### Expo Router
+- Log route params and navigation state
+- Check useLocalSearchParams() vs router.query differences
+- Validate navigation stack consistency across platforms
 
 ### Zod
 - Use `safeParse` and log validation errors
@@ -71,13 +72,13 @@ alwaysApply: false
 - Monitor bundle analyzer reports
 - Check React.memo usage for expensive components
 - Validate virtual list implementations
-- Track image optimization with SolitoImage
+- Track image optimization with platform-appropriate Image components
 
 ### Cross-Platform Issues
 - Test on both iOS and Android for native issues
 - Validate web vs native behavior differences
 - Check platform-specific code paths
-- Verify Solito navigation consistency
+- Verify Expo Router navigation consistency (native) and Next.js router consistency (web)
 
 ### State Management Debugging
 - Log Zustand state changes with middleware

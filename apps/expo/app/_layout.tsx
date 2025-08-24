@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
 import { Provider } from 'app/provider'
-import { NativeToast } from '@my/ui/src/NativeToast'
+import { NativeToast } from '@my/ui'
 
 export const unstable_settings = {
   // Ensure that reloading on `/user` keeps a back button present.

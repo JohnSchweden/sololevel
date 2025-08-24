@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const { withTamagui } = require('@tamagui/next-plugin')
 const { join } = require('node:path')
+const { i18n } = require('./next-i18next.config')
 
 const boolVals = {
   true: true,
@@ -32,16 +33,8 @@ const plugins = [
 module.exports = () => {
   /** @type {import('next').NextConfig} */
   let config = {
-    typescript: {
-      ignoreBuildErrors: true,
-    },
-    transpilePackages: [
-      'solito',
-      'react-native-web',
-      'expo-linking',
-      'expo-constants',
-      'expo-modules-core',
-    ],
+    i18n,
+    transpilePackages: ['react-native-web', 'expo-linking', 'expo-constants', 'expo-modules-core'],
     experimental: {
       scrollRestoration: true,
     },

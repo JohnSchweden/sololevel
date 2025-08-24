@@ -1,5 +1,6 @@
 import { HomeScreen } from 'app/features/home/screen'
-import { Stack } from 'expo-router'
+import { Stack, Link } from 'expo-router'
+import { Button } from '@my/ui'
 
 export default function Screen() {
   return (
@@ -9,7 +10,24 @@ export default function Screen() {
           title: 'Home',
         }}
       />
-      <HomeScreen />
+      <HomeScreen
+        linkComponent={
+          <Link
+            href="/user/nate"
+            asChild
+          >
+            <Button>Link to user</Button>
+          </Link>
+        }
+        demoLinkComponent={
+          <Link
+            href="/demo"
+            asChild
+          >
+            <Button theme="blue">🧪 Demo & Test</Button>
+          </Link>
+        }
+      />
     </>
   )
 }

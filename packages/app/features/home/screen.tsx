@@ -13,13 +13,31 @@ import {
 import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { Platform } from 'react-native'
-import { useLink } from 'solito/navigation'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
+export function HomeScreen({
+  linkComponent,
+  demoLinkComponent,
+}: {
+  linkComponent?: React.ReactNode
+  demoLinkComponent?: React.ReactNode
+}) {
+  return (
+    <ErrorBoundary>
+      <HomeScreenContent
+        linkComponent={linkComponent}
+        demoLinkComponent={demoLinkComponent}
+      />
+    </ErrorBoundary>
+  )
+}
 
-export function HomeScreen() {
-  const linkProps = useLink({
-    href: '/user/nate',
-  })
-
+function HomeScreenContent({
+  linkComponent,
+  demoLinkComponent,
+}: {
+  linkComponent?: React.ReactNode
+  demoLinkComponent?: React.ReactNode
+}) {
   return (
     <YStack
       testID="home-screen"
@@ -51,7 +69,7 @@ export function HomeScreen() {
           text="center"
           color="$color12"
         >
-          Welcome to Tamagui.
+          Welcome to Tamagui
         </H1>
         <Paragraph
           color="$color10"
@@ -66,7 +84,14 @@ export function HomeScreen() {
         <Separator />
       </YStack>
 
-      <Button {...linkProps}>Link to user</Button>
+      <XStack
+        gap="$4"
+        flexWrap="wrap"
+        justifyContent="center"
+      >
+        {linkComponent || <Button>Link to user</Button>}
+        {demoLinkComponent}
+      </XStack>
 
       <SheetDemo />
     </YStack>
@@ -78,6 +103,11 @@ function SheetDemo() {
 
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState(0)
+
+  // Handle sheet state changes
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+  }
 
   return (
     <>
@@ -91,7 +121,7 @@ function SheetDemo() {
         modal
         animation="medium"
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
         snapPoints={[80]}
         position={position}
         onPositionChange={setPosition}
