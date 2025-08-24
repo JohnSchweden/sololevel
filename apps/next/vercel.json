@@ -1,4 +1,4 @@
 {
-  "installCommand": "yarn install --immutable",
+  "installCommand": "yarn install --immutable --mode=skip-build",
   "buildCommand": "cd ../../ && yarn turbo run build --filter=next-app"
 }
