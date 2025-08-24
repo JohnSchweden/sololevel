@@ -1,3 +1,4 @@
 {
-  "installCommand": "yarn install --immutable"
+  "installCommand": "yarn install --immutable",
+  "buildCommand": "cd ../../ && yarn turbo run build --filter=next-app"
 }
