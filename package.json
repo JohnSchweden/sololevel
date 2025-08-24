@@ -69,7 +69,7 @@
   },
   "packageManager": "yarn@4.9.3",
   "engines": {
-    "node": "22"
+    "node": "20"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.3",

@@ -25,8 +25,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
+
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -77,8 +83,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
+
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -111,8 +123,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
+
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -127,10 +145,7 @@ jobs:
         run: yarn web:prod:serve &
         
       - name: Wait for server
-        run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:3000
-
-      - name: Start web server
-        run: yarn web:prod:serve &
+        run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:8151
 
       - name: Run Playwright tests
         run: yarn dlx playwright test
@@ -162,13 +177,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -211,7 +229,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Setup Java
@@ -219,6 +237,12 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -230,7 +254,12 @@ jobs:
           target: google_apis
           arch: x86_64
           avd-name: Pixel_7_API_33
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
           script: |
+            adb devices
+            adb wait-for-device
+            adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 3; done'
             yarn build:e2e:android
             yarn test:e2e:android
 
@@ -264,8 +293,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
+
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
+
+      - name: Clean Yarn cache
+        run: yarn cache clean
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -302,13 +337,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install native build tools
-        run: |
-            sudo apt-get update
-            sudo apt-get install -y build-essential python3 libvips-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 libvips-dev
       
       - name: Clean Yarn cache
         run: yarn cache clean

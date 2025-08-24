@@ -29,6 +29,7 @@
     "tamagui": "1.132.20"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.0",
     "@tamagui/next-plugin": "1.132.20",
     "@types/node": "^20.14.1",
     "@types/react": "^19.1.11",
