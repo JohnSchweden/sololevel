@@ -310,8 +310,7 @@ jobs:
 
       - name: Analyze bundle size
         run: |
-          cd apps/next
-          yarn dlx @next/bundle-analyzer
+          yarn workspace next-app dlx @next/bundle-analyzer
           
       - name: Upload bundle analysis
         uses: actions/upload-artifact@v4

@@ -74,7 +74,7 @@ export default defineConfig({
   webServer: {
     command: 'yarn workspace next-app run serve',
     url: 'http://localhost:8151',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 })
