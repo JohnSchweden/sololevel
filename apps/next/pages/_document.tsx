@@ -15,7 +15,7 @@ export default class Document extends NextDocument {
     AppRegistry.registerComponent('Main', () => Main)
     const page = await ctx.renderPage()
 
-    // @ts-ignore
+    // @ts-expect-error react-native-web types don't declare getApplication correctly here
     const { getStyleElement } = AppRegistry.getApplication('Main')
 
     /**
@@ -33,14 +33,11 @@ export default class Document extends NextDocument {
         }}
       />,
       <style
-        jsx
-        global
-        key="tamagui-global-css"
-      >{`
-        html {
-          font-family: 'Inter';
-        }
-      `}</style>,
+        key="global-font-css"
+        dangerouslySetInnerHTML={{
+          __html: `html { font-family: 'Inter'; }`,
+        }}
+      />,
     ]
 
     return { ...page, styles: Children.toArray(styles) }

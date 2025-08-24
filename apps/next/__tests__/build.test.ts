@@ -46,7 +46,7 @@ test('Next.js build completes', async () => {
     const result = await buildOutput
 
     // Core build signals
-    expect(result).toContain('Next.js 14')
+    expect(result).toContain('Next.js 15.5.0')
     expect(result).toContain('Creating an optimized production build')
     expect(result).toContain('Compiled successfully')
     expect(result).toContain('[build-exit-code:0]')

@@ -66,7 +66,7 @@ jobs:
     steps:
       - name: Debug env vars
         run: env | grep SUPABASE
-        
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -121,7 +121,7 @@ jobs:
         run: yarn web:prod:serve &
         
       - name: Wait for server
-        run: npx wait-on http://localhost:3000
+        run: yarn workspace next-app run wait-on 30000 http://localhost:3000
 
       - name: Run Playwright tests
         run: npx playwright test
@@ -207,27 +207,19 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Create Android Emulator
-        run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-33;google_apis;x86_64"
-          echo "no" | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd --force --name Pixel_7_API_33 --abi google_apis/x86_64 --package "system-images;android-33;google_apis;x86_64"
-
-      - name: Start Android Emulator
-        run: |
-          $ANDROID_HOME/emulator/emulator -avd Pixel_7_API_33 -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim &
-          adb wait-for-device
-
-      - name: Build Android app for Detox
-        run: yarn build:e2e:android
-
-      - name: Run Android Detox tests
-        run: yarn test:e2e:android
+      - name: Run Android E2E Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          avd-name: Pixel_7_API_33
+          script: |
+            yarn build:e2e:android
+            yarn test:e2e:android
 
       - name: Upload Android test results
         uses: actions/upload-artifact@v4
@@ -248,7 +240,10 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
-    
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      # Add this to force yarn usage
+      npm_config_user_agent: "yarn"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -295,6 +290,11 @@ jobs:
           node-version: '22'
           cache: 'yarn'
 
+      - name: Install native build tools
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y build-essential python3
+      
       - name: Install dependencies
         run: yarn install --immutable
 

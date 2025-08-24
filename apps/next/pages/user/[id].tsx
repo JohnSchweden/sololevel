@@ -2,6 +2,10 @@ import { UserDetailScreen } from 'app/features/user/detail-screen'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 
+export async function getServerSideProps() {
+  return { props: {} }
+}
+
 export default function Page() {
   const router = useRouter()
   const { id } = router.query

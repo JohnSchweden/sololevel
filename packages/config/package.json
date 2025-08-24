@@ -20,10 +20,24 @@
     "@tamagui/create-theme": "1.132.20",
     "@tamagui/font-inter": "1.132.20",
     "@tamagui/shorthands": "1.132.20",
-    "@tamagui/themes": "1.132.20",
-    "tamagui": "1.132.20"
+    "@tamagui/themes": "1.132.20"
   },
   "devDependencies": {
-    "@tamagui/build": "1.132.20"
+    "@tamagui/build": "1.132.20",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5",
+    "tamagui": "1.132.20"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "react-native": ">=0.72",
+    "tamagui": "1.132.20"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
   }
 }
