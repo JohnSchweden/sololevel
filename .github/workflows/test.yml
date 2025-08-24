@@ -15,6 +15,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Checkout code
@@ -62,6 +64,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Debug env vars
@@ -97,6 +101,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Checkout code
@@ -112,7 +118,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: yarn dlx playwright install --with-deps
 
       - name: Build web app
         run: yarn build:web
@@ -121,10 +127,10 @@ jobs:
         run: yarn web:prod:serve &
         
       - name: Wait for server
-        run: yarn workspace next-app run wait-on 30000 http://localhost:3000
+        run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:3000
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: yarn dlx playwright test
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -143,6 +149,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Checkout code
@@ -190,6 +198,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Checkout code
@@ -263,7 +273,7 @@ jobs:
       - name: Analyze bundle size
         run: |
           cd apps/next
-          npx @next/bundle-analyzer
+          yarn dlx @next/bundle-analyzer
           
       - name: Upload bundle analysis
         uses: actions/upload-artifact@v4
@@ -279,6 +289,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+      npm_config_user_agent: "yarn"
     
     steps:
       - name: Checkout code
@@ -293,8 +305,11 @@ jobs:
       - name: Install native build tools
         run: |
             sudo apt-get update
-            sudo apt-get install -y build-essential python3
+            sudo apt-get install -y build-essential python3 libvips-dev
       
+      - name: Clean Yarn cache
+        run: yarn cache clean
+        
       - name: Install dependencies
         run: yarn install --immutable
 
