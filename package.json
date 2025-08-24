@@ -67,7 +67,7 @@
     "typescript": "~5.8.3",
     "ultra-runner": "^3.10.5"
   },
-  "packageManager": "yarn@4.5.0",
+  "packageManager": "yarn@4.9.3",
   "engines": {
     "node": "22"
   },
