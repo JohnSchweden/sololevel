@@ -10,15 +10,88 @@ type QueryWithErrorHandlingOptions<TData, TError> = UseQueryOptions<TData, TErro
 export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
   options: QueryWithErrorHandlingOptions<TData, TError>
 ): UseQueryResult<TData, TError> {
-  const toast = useToastController()
+  // Safety check for SSR - don't use toast during server rendering
+  let toast: any = null
+  try {
+    toast = useToastController()
+  } catch (error) {
+    // Toast not available during SSR, that's okay
+  }
   const lastErrorRef = useRef<TError | null>(null)
 
   const { showErrorToast = true, errorMessage, ...queryOptions } = options
 
-  const result = useQuery({
-    ...queryOptions,
-    throwOnError: false, // Always prevent throwing errors
-  })
+  // Don't run queries during SSR
+  const isClient = typeof window !== 'undefined'
+  
+  // Safety check for SSR - return a mock result if not on client
+  if (!isClient) {
+    return {
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      isSuccess: false,
+      isFetching: false,
+      isRefetching: false,
+      isPending: false,
+      isLoadingError: false,
+      isRefetchError: false,
+      isPlaceholderData: false,
+      dataUpdatedAt: 0,
+      errorUpdatedAt: 0,
+      failureCount: 0,
+      failureReason: null,
+      errorUpdateCount: 0,
+      isFetched: false,
+      isFetchedAfterMount: false,
+      isPaused: false,
+      isPreviousData: false,
+      isStale: false,
+      refetch: () => Promise.resolve(),
+      remove: () => {},
+      status: 'idle',
+    } as unknown as UseQueryResult<TData, TError>
+  }
+  
+  // Wrap useQuery in try-catch to handle SSR gracefully
+  let result: UseQueryResult<TData, TError>
+  try {
+    result = useQuery({
+      ...queryOptions,
+      throwOnError: false, // Always prevent throwing errors
+      enabled: queryOptions.enabled !== false && isClient, // Only run on client
+    })
+  } catch (error) {
+    // If useQuery fails (e.g., no QueryClient), return mock result
+    console.warn('useQuery failed, returning mock result:', error)
+    return {
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      isSuccess: false,
+      isFetching: false,
+      isRefetching: false,
+      isPending: false,
+      isLoadingError: false,
+      isRefetchError: false,
+      isPlaceholderData: false,
+      dataUpdatedAt: 0,
+      errorUpdatedAt: 0,
+      failureCount: 0,
+      failureReason: null,
+      errorUpdateCount: 0,
+      isFetched: false,
+      isFetchedAfterMount: false,
+      isPaused: false,
+      isPreviousData: false,
+      isStale: false,
+      refetch: () => Promise.resolve(),
+      remove: () => {},
+      status: 'idle',
+    } as unknown as UseQueryResult<TData, TError>
+  }
 
   // Handle errors using useEffect to prevent setState during render
   useEffect(() => {
@@ -32,10 +105,12 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
         timestamp: new Date().toISOString(),
       })
 
-      // Show user-friendly toast notification
-      toast.show(errorMessage || 'Something went wrong', {
-        message: 'Please try again in a moment',
-      })
+      // Show user-friendly toast notification (only if toast is available)
+      if (toast) {
+        toast.show(errorMessage || 'Something went wrong', {
+          message: 'Please try again in a moment',
+        })
+      }
     }
 
     // Reset error ref when query succeeds

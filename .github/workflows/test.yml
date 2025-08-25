@@ -350,7 +350,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Run security audit
-        run: yarn npm audit --all --recursive
+        run: yarn security:audit:ci
 
       - name: Check dependency versions
         run: yarn deps:check

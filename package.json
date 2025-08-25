@@ -4,7 +4,8 @@
   "workspaces": {
     "packages": [
       "./apps/*",
-      "./packages/*"
+      "./packages/*",
+      "./packages/types/*"
     ]
   },
   "installConfig": {
@@ -41,6 +42,9 @@
     "build:e2e:ios": "detox build --configuration ios.sim.debug",
     "build:e2e:android": "detox build --configuration android.emu.debug",
     "deps:check": "check-dependency-version-consistency",
+    "security:audit": "yarn npm audit --all --recursive",
+    "security:audit:ci": "node scripts/ci-security-audit.mjs",
+    "security:fix": "node scripts/fix-security-vulnerabilities.mjs",
     "prepare": "husky",
     "storybook-generate": "sb-rn-get-stories",
     "storybook": "storybook dev -p 6006",
@@ -52,7 +56,14 @@
     "react-refresh": "^0.14.0",
     "react-native-svg": "^15.12.1",
     "react-native-web": "^0.20.0",
-    "react-native": "0.79.5"
+    "react-native": "0.79.5",
+    "path-to-regexp": "^6.3.0",
+    "undici": "^5.29.0",
+    "esbuild": "^0.19.5",
+    "@types/react-native": "npm:@types/react-native-empty@1.0.0",
+    "glob": "^9.0.0",
+    "rimraf": "^5.0.0",
+    "@xmldom/xmldom": "^0.8.0"
   },
   "dependencies": {
     "@babel/core": "^7.26.9",

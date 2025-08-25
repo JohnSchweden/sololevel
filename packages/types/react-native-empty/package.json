@@ -1,0 +1,8 @@
+{
+  "name": "@types/react-native-empty",
+  "version": "1.0.0",
+  "description": "Empty types package to replace @types/react-native",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "private": true
+}

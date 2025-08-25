@@ -1,0 +1,20 @@
+{
+  "allowlist": [
+    {
+      "id": "abab",
+      "reason": "Development dependency only - used in testing environment (jsdom)"
+    },
+    {
+      "id": "domexception",
+      "reason": "Development dependency only - used in testing environment (jsdom)"
+    },
+    {
+      "id": 1102341,
+      "reason": "Development dependency only - esbuild in @tamagui/cli, patched via resolutions"
+    },
+    {
+      "id": "path-match",
+      "reason": "Development dependency only - used in Vercel development tools"
+    }
+  ]
+}

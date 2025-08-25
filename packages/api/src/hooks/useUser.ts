@@ -32,7 +32,7 @@ export function useUser(userId: string | undefined, options?: { retry?: number |
       // Validate response with Zod
       return validateApiResponse(ProfileSchema, result.data, 'useUser')
     },
-    enabled: !!userId,
+    enabled: !!userId && typeof window !== 'undefined', // Only run on client
     showErrorToast: true,
     errorMessage: 'Failed to load user profile',
     staleTime: 5 * 60 * 1000, // 5 minutes
