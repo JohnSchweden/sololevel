@@ -1,7 +1,7 @@
 module.exports = (api) => {
   api.cache(true)
   return {
-    presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
+    presets: [['babel-preset-expo', { jsxRuntime: 'automatic', reanimated: false }]],
     plugins: [
       [
         require.resolve('babel-plugin-module-resolver'),
@@ -17,7 +17,7 @@ module.exports = (api) => {
         },
       ],
       // if you want reanimated support
-      // 'react-native-reanimated/plugin',
+      'react-native-worklets/plugin',
       [
         '@tamagui/babel-plugin',
         {

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "echo 'Skipping native build - TypeScript compilation only'",
-    "start": "expo start -c",
+    "start": "EXPO_NO_TELEMETRY=1 expo start -c",
     "android": "expo run:android",
     "ios": "yarn fix-xcode-env && expo run:ios",
     "eject": "expo eject",
@@ -27,7 +27,7 @@
     "app": "0.0.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "burnt": "^0.13.0",
-    "expo": "53.0.20",
+    "expo": "53.0.22",
     "expo-build-properties": "^0.14.8",
     "expo-constants": "~17.1.7",
     "expo-dev-client": "~5.2.4",
@@ -39,14 +39,17 @@
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
     "expo-updates": "~0.28.17",
+    "i18next": "^25.4.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-native": "0.79.5",
+    "react-i18next": "^15.7.2",
+    "react-native": "0.79.6",
     "react-native-gesture-handler": "^2.28.0",
     "react-native-reanimated": "^4.0.2",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "~4.11.1",
-    "react-native-svg": "^15.12.1"
+    "react-native-svg": "^15.12.1",
+    "react-native-worklets": "^0.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.9",
