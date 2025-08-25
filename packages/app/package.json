@@ -34,19 +34,19 @@
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-native": "npm:@types/react-native-empty@1.0.0",
-    "expo": "53.0.20",
+    "expo": "53.0.22",
     "jsdom": "^26.1.0",
     "react": "19.0.0",
-    "react-native": "0.79.5",
+    "react-native": "0.79.6",
     "react-native-svg": "^15.12.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "@my/ui": "workspace:*",
-    "expo": "*",
+    "expo": "53.0.22",
     "react": "^18 || ^19",
-    "react-native": ">=0.72",
+    "react-native": "0.79.6",
     "react-native-svg": ">=13"
   },
   "peerDependenciesMeta": {

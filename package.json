@@ -75,9 +75,9 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "turbo": "^1.13.4",
-    "typescript": "~5.8.3",
+    "typescript": "^5.9.2",
     "ultra-runner": "^3.10.5",
-    "undici": "5.28.3"
+    "undici": "^5.29.0"
   },
   "packageManager": "yarn@4.9.3",
   "engines": {
