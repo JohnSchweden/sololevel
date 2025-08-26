@@ -1,0 +1,330 @@
+---
+description: Mobile-first screen patterns and responsive design for cross-platform Tamagui screens
+globs: ["packages/app/features/**/*", "packages/ui/components/**/*", "**/screens/**/*"]
+alwaysApply: false
+---
+
+# Mobile Screen Patterns
+
+## Mobile-First Design Principles
+- Design for smallest screen first (320px width minimum)  
+- Touch targets minimum 44px × 44px
+- One-handed usage considerations
+- Thumb-friendly navigation zones
+
+## Safe Area Handling
+```typescript
+// ✅ Good - proper safe area handling
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+export function MobileScreen() {
+  const insets = useSafeAreaInsets()
+  
+  return (
+    <YStack 
+      flex={1} 
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+      backgroundColor="$background"
+    >
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
+        {/* Screen content */}
+      </ScrollView>
+    </YStack>
+  )
+}
+```
+
+## Responsive Layout Patterns
+```typescript
+// ✅ Good - mobile-first responsive design
+import { useMedia } from 'tamagui'
+
+export function ResponsiveCard() {
+  const media = useMedia()
+  
+  return (
+    <YStack
+      padding="$4"
+      $xs={{ padding: "$2" }}
+      $sm={{ padding: "$3" }}  
+      $md={{ padding: "$4" }}
+      $lg={{ padding: "$5" }}
+      gap="$3"
+      $xs={{ gap: "$2" }}
+    >
+      <XStack
+        flexDirection={media.xs ? "column" : "row"}
+        gap="$3"
+        alignItems={media.xs ? "stretch" : "center"}
+      >
+        <Text fontSize="$6" $xs={{ fontSize: "$4" }}>
+          Responsive Title
+        </Text>
+      </XStack>
+    </YStack>
+  )
+}
+```
+
+## Touch Interaction Patterns  
+```typescript
+// ✅ Good - mobile touch patterns
+export function MobileTouchCard({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}>
+      <YStack
+        backgroundColor="$background"
+        padding="$4"
+        borderRadius="$4" 
+        // Touch feedback
+        hoverStyle={{ backgroundColor: "$backgroundHover" }}
+        pressStyle={{ 
+          scale: 0.98,
+          backgroundColor: "$backgroundPress"
+        }}
+        // Minimum touch target
+        minHeight={44}
+        minWidth={44}
+        justifyContent="center"
+        alignItems="center"
+      >
+        <Text>Touch Target</Text>
+      </YStack>
+    </Pressable>
+  )
+}
+```
+
+## Keyboard Avoidance
+```typescript
+// ✅ Good - keyboard avoidance on mobile
+import { KeyboardAvoidingView, Platform } from 'react-native'
+
+export function FormScreen() {
+  return (
+    <KeyboardAvoidingView
+      flex={1}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <YStack flex={1} padding="$4" gap="$4">
+        <Input placeholder="Username" />
+        <Input placeholder="Password" secureTextEntry />
+        <Button size="$5" minHeight={44}>
+          Login
+        </Button>
+      </YStack>
+    </KeyboardAvoidingView>
+  )
+}
+```
+
+## Gesture Handling
+```typescript  
+// ✅ Good - mobile gestures with react-native-gesture-handler
+import { PanGestureHandler, State } from 'react-native-gesture-handler'
+import Animated, { 
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring 
+} from 'react-native-reanimated'
+
+export function SwipeableCard() {
+  const translateX = useSharedValue(0)
+  
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: (_, context) => {
+      context.startX = translateX.value
+    },
+    onActive: (event, context) => {
+      translateX.value = context.startX + event.translationX
+    },
+    onEnd: (event) => {
+      if (event.translationX > 100) {
+        translateX.value = withSpring(300) // Swipe right success
+      } else if (event.translationX < -100) {
+        translateX.value = withSpring(-300) // Swipe left success  
+      } else {
+        translateX.value = withSpring(0) // Snap back
+      }
+    }
+  })
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }]
+  }))
+
+  return (
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={animatedStyle}>
+        <YStack backgroundColor="$background" padding="$4" borderRadius="$4">
+          <Text>Swipe me left or right</Text>
+        </YStack>
+      </Animated.View>
+    </PanGestureHandler>
+  )
+}
+```
+
+## Loading States for Mobile
+```typescript
+// ✅ Good - mobile-optimized loading states
+export function MobileLoadingScreen({ isLoading, error, children }) {
+  if (error) {
+    return (
+      <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+        <Text color="$red10" fontSize="$5" textAlign="center" marginBottom="$4">
+          Something went wrong
+        </Text>
+        <Button variant="outlined" onPress={onRetry}>
+          Try Again
+        </Button>
+      </YStack>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <YStack flex={1} justifyContent="center" alignItems="center">
+        <Spinner size="large" color="$blue10" />
+        <Text marginTop="$4" color="$gray10">
+          Loading...
+        </Text>
+      </YStack>
+    )
+  }
+
+  return children
+}
+```
+
+## Navigation Patterns
+```typescript
+// ✅ Good - mobile navigation with Expo Router
+import { Link, useRouter } from 'expo-router'
+
+export function MobileNavigation() {
+  const router = useRouter()
+  
+  return (
+    <XStack 
+      backgroundColor="$background"
+      paddingHorizontal="$4"
+      paddingVertical="$3"
+      justifyContent="space-between"
+      alignItems="center"
+      borderBottomWidth={1}
+      borderBottomColor="$borderColor"
+    >
+      <Button
+        variant="ghost" 
+        size="$3"
+        onPress={() => router.back()}
+        icon={<ChevronLeft />}
+      >
+        Back  
+      </Button>
+      
+      <Text fontSize="$6" fontWeight="600">
+        Screen Title
+      </Text>
+      
+      <Link href="/settings" asChild>
+        <Button variant="ghost" size="$3" icon={<Settings />} />
+      </Link>
+    </XStack>
+  )
+}
+```
+
+## List Optimization for Mobile
+```typescript
+// ✅ Good - virtualized lists for performance
+import { FlashList } from '@shopify/flash-list'
+
+export function OptimizedMobileList({ data }: { data: Item[] }) {
+  const renderItem = useCallback(({ item }: { item: Item }) => (
+    <YStack
+      padding="$3"
+      borderBottomWidth={1}
+      borderBottomColor="$borderColor"  
+      minHeight={60}
+    >
+      <Text fontSize="$4" fontWeight="600">{item.title}</Text>
+      <Text fontSize="$3" color="$gray10">{item.subtitle}</Text>
+    </YStack>
+  ), [])
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={60}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{ padding: 16 }}
+    />
+  )
+}
+```
+
+## Form Patterns for Mobile
+```typescript
+// ✅ Good - mobile-optimized forms
+export function MobileForm() {
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <YStack padding="$4" gap="$4">
+        <YStack gap="$2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            size="$5"
+            minHeight={44}
+          />
+        </YStack>
+        
+        <YStack gap="$2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"  
+            placeholder="(555) 123-4567"
+            keyboardType="phone-pad"
+            size="$5"
+            minHeight={44}
+          />
+        </YStack>
+
+        <Button size="$5" minHeight={44} marginTop="$4">
+          Submit
+        </Button>
+      </YStack>
+    </ScrollView>
+  )
+}
+```
+
+## Platform-Specific Adaptations
+```typescript
+// ✅ Good - platform-specific mobile adaptations
+import { Platform } from 'react-native'
+
+export const mobileTheme = {
+  // iOS-specific
+  ...(Platform.OS === 'ios' && {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  }),
+  
+  // Android-specific  
+  ...(Platform.OS === 'android' && {
+    elevation: 2,
+  }),
+}
+```

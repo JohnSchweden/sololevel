@@ -1,0 +1,455 @@
+---
+description: Systematic wireframe analysis and code generation patterns for mobile-first screens
+globs: ["docs/tasks/**/*", "packages/app/features/**/*", "packages/ui/components/**/*"]
+alwaysApply: false
+---
+
+# Wireframe-to-Code Patterns
+
+## Wireframe Analysis Workflow
+
+### Step 1: Visual Element Mapping
+```typescript
+// ✅ Good - systematic component mapping
+/* 
+WIREFRAME ELEMENT → TAMAGUI COMPONENT MAPPING:
+
+Header Section:
+- Title text → <H1 fontSize="$8" fontWeight="bold">
+- Subtitle → <Text fontSize="$4" color="$gray10">  
+- Back button → <Button variant="ghost" icon={ChevronLeft}>
+- Menu button → <Button variant="ghost" icon={Menu}>
+
+Content Area:
+- Card container → <YStack backgroundColor="$background" borderRadius="$4">
+- Image placeholder → <Image /> or <Avatar />
+- Action button → <Button size="$5" variant="primary">
+- Text input → <Input size="$4" placeholder="">
+
+Navigation:
+- Bottom tabs → <XStack justifyContent="space-between">
+- Tab item → <Button variant="ghost" icon={Icon}>
+*/
+
+export function WireframeScreen() {
+  return (
+    <YStack flex={1} backgroundColor="$background">
+      {/* Header Section */}
+      <XStack padding="$4" alignItems="center" justifyContent="space-between">
+        <Button variant="ghost" icon={ChevronLeft} />
+        <H1 fontSize="$8" fontWeight="bold">Screen Title</H1>
+        <Button variant="ghost" icon={Menu} />
+      </XStack>
+      
+      {/* Content Area */}
+      <ScrollView flex={1} padding="$4">
+        <YStack gap="$4">
+          <YStack backgroundColor="$backgroundSubtle" padding="$4" borderRadius="$4">
+            <Image width="100%" height={200} borderRadius="$3" />
+            <Text fontSize="$4" marginTop="$3">Card Content</Text>
+            <Button marginTop="$3" size="$4">Action Button</Button>
+          </YStack>
+        </YStack>
+      </ScrollView>
+    </YStack>
+  )
+}
+```
+
+### Step 2: Layout Structure Analysis
+```typescript
+// ✅ Good - layout structure breakdown
+/*
+WIREFRAME LAYOUT ANALYSIS:
+
+Root Container: YStack flex={1}
+├── Header: XStack (fixed height ~60px)
+│   ├── Back Button (44x44 touch target)  
+│   ├── Title (centered, flex: 1)
+│   └── Menu Button (44x44 touch target)
+├── Content: ScrollView (flex: 1)
+│   └── Content Container: YStack gap="$4" padding="$4"
+│       ├── Card 1: YStack (rounded, padded)
+│       ├── Card 2: YStack (rounded, padded)  
+│       └── Card N: YStack (rounded, padded)
+└── Footer/Navigation: XStack (fixed height ~80px)
+    ├── Tab 1: Button (flex: 1)
+    ├── Tab 2: Button (flex: 1)
+    └── Tab N: Button (flex: 1)
+*/
+
+export function LayoutStructure() {
+  return (
+    <YStack flex={1}>
+      {/* Fixed header - 60px */}
+      <XStack height={60} paddingHorizontal="$4" alignItems="center">
+        {/* Header content */}
+      </XStack>
+      
+      {/* Scrollable content */}
+      <ScrollView flex={1}>
+        <YStack padding="$4" gap="$4">
+          {/* Dynamic content */}
+        </YStack>
+      </ScrollView>
+      
+      {/* Fixed footer navigation - 80px */}
+      <XStack height={80} borderTopWidth={1} borderTopColor="$borderColor">
+        {/* Navigation tabs */}
+      </XStack>
+    </YStack>
+  )
+}
+```
+
+### Step 3: Interactive Element Specification
+```typescript
+// ✅ Good - interaction specification
+/*
+WIREFRAME INTERACTIONS ANALYSIS:
+
+1. Touch Targets:
+   - Buttons: minimum 44x44px
+   - List items: minimum 44px height
+   - Input fields: minimum 44px height
+
+2. Gestures:
+   - Swipe gestures for navigation
+   - Pull-to-refresh on lists
+   - Pinch-to-zoom on images
+
+3. Navigation:
+   - Tap back button → router.back()
+   - Tap menu → open drawer/modal
+   - Tap list item → navigate to detail
+
+4. Form Interactions:  
+   - Input focus → keyboard appears
+   - Form validation → real-time feedback
+   - Submit button → loading state
+*/
+
+export function InteractiveElements() {
+  const router = useRouter()
+  
+  return (
+    <YStack>
+      {/* Touch-optimized button */}
+      <Button
+        minHeight={44}
+        minWidth={44}
+        onPress={() => router.back()}
+        hoverStyle={{ opacity: 0.8 }}
+        pressStyle={{ scale: 0.98 }}
+      >
+        Back
+      </Button>
+      
+      {/* Touch-optimized list item */}
+      <Pressable
+        onPress={handleItemPress}
+        style={({ pressed }) => ({
+          opacity: pressed ? 0.8 : 1,
+          minHeight: 44
+        })}
+      >
+        <YStack padding="$3">
+          <Text>List Item Content</Text>
+        </YStack>
+      </Pressable>
+    </YStack>
+  )
+}
+```
+
+### Step 4: Responsive Behavior Definition
+```typescript
+// ✅ Good - responsive design specification
+/*
+RESPONSIVE BREAKPOINTS:
+
+Mobile (xs): 0-428px
+- Single column layout
+- Bottom navigation
+- Large touch targets
+- Simplified UI
+
+Tablet (sm): 429-768px  
+- Two column layout possible
+- Side navigation option
+- Larger content areas
+
+Desktop (md+): 769px+
+- Multi-column layouts
+- Hover states active
+- Keyboard navigation
+*/
+
+export function ResponsiveLayout() {
+  const media = useMedia()
+  
+  return (
+    <YStack flex={1}>
+      {/* Responsive navigation */}
+      {media.gtSm ? (
+        // Desktop/tablet: side navigation
+        <XStack flex={1}>
+          <YStack width={250} backgroundColor="$backgroundSubtle">
+            {/* Side navigation */}
+          </YStack>
+          <YStack flex={1}>
+            {/* Main content */}
+          </YStack>
+        </XStack>
+      ) : (
+        // Mobile: bottom navigation
+        <YStack flex={1}>
+          <YStack flex={1}>
+            {/* Main content */}  
+          </YStack>
+          <XStack height={80} backgroundColor="$backgroundSubtle">
+            {/* Bottom navigation */}
+          </XStack>
+        </YStack>
+      )}
+    </YStack>
+  )
+}
+```
+
+## Component Generation Patterns
+
+### Atomic Component Creation
+```typescript
+// ✅ Good - atomic component from wireframe element
+/*
+WIREFRAME ELEMENT: Profile card with avatar, name, role, action button
+
+COMPONENT BREAKDOWN:
+- Container: Card component  
+- Avatar: Image/Avatar component
+- Text: Name (H3) + Role (Text)
+- Action: Button component
+*/
+
+export interface ProfileCardProps {
+  avatar: string
+  name: string  
+  role: string
+  onAction: () => void
+  actionLabel?: string
+}
+
+export function ProfileCard({ 
+  avatar, 
+  name, 
+  role, 
+  onAction, 
+  actionLabel = "View Profile" 
+}: ProfileCardProps) {
+  return (
+    <YStack 
+      backgroundColor="$background"
+      borderRadius="$4" 
+      padding="$4"
+      gap="$3"
+      borderWidth={1}
+      borderColor="$borderColor"
+    >
+      <XStack alignItems="center" gap="$3">
+        <Avatar size="$6">
+          <Avatar.Image source={{ uri: avatar }} />
+          <Avatar.Fallback backgroundColor="$blue5">
+            <Text fontSize="$5">{name.charAt(0)}</Text>
+          </Avatar.Fallback>
+        </Avatar>
+        
+        <YStack flex={1}>
+          <H3 fontSize="$5" fontWeight="600">{name}</H3>
+          <Text fontSize="$3" color="$gray10">{role}</Text>
+        </YStack>
+      </XStack>
+      
+      <Button 
+        variant="outlined" 
+        size="$3" 
+        onPress={onAction}
+        minHeight={44}
+      >
+        {actionLabel}
+      </Button>
+    </YStack>
+  )
+}
+```
+
+### Screen Composition Pattern
+```typescript
+// ✅ Good - screen composition from wireframe
+/*
+WIREFRAME: User Profile Screen
+- Header with back button and title
+- Profile card section  
+- Settings list section
+- Logout button at bottom
+*/
+
+export function UserProfileScreen({ userId }: { userId: string }) {
+  const { data: user, isLoading } = useUser(userId)
+  const router = useRouter()
+  
+  if (isLoading) {
+    return <LoadingScreen />
+  }
+  
+  return (
+    <YStack flex={1} backgroundColor="$background">
+      {/* Header Section */}
+      <XStack 
+        padding="$4" 
+        alignItems="center" 
+        borderBottomWidth={1} 
+        borderBottomColor="$borderColor"
+      >
+        <Button 
+          variant="ghost" 
+          size="$3" 
+          icon={<ChevronLeft />}
+          onPress={() => router.back()}
+        >
+          Back
+        </Button>
+        <H1 flex={1} textAlign="center" fontSize="$6">
+          Profile
+        </H1>
+        <YStack width="$5" /> {/* Spacer for centering */}
+      </XStack>
+      
+      <ScrollView flex={1} padding="$4">
+        <YStack gap="$6">
+          {/* Profile Card Section */}
+          <ProfileCard 
+            avatar={user.avatar}
+            name={user.name}
+            role={user.role}
+            onAction={() => router.push(`/profile/edit/${userId}`)}
+          />
+          
+          {/* Settings Section */}
+          <YStack gap="$3">
+            <H2 fontSize="$5">Settings</H2>
+            <SettingsList items={settingsItems} />
+          </YStack>
+          
+          {/* Logout Section */}
+          <Button 
+            variant="destructive" 
+            size="$4"
+            marginTop="$4"
+            onPress={handleLogout}
+          >
+            Logout
+          </Button>
+        </YStack>
+      </ScrollView>
+    </YStack>
+  )
+}
+```
+
+## Testing Pattern Generation
+
+### Component Testing from Wireframe
+```typescript
+// ✅ Good - tests based on wireframe requirements
+/*
+WIREFRAME TESTING CHECKLIST:
+- Visual elements render correctly
+- Touch interactions work on mobile sizes  
+- Navigation flows work as specified
+- Loading/error states handled
+- Responsive behavior verified
+*/
+
+describe('ProfileCard Component', () => {
+  const mockProps = {
+    avatar: 'https://example.com/avatar.jpg',
+    name: 'John Doe',
+    role: 'Software Engineer',
+    onAction: jest.fn(),
+  }
+
+  it('renders profile information from wireframe', () => {
+    render(<ProfileCard {...mockProps} />)
+    
+    expect(screen.getByText('John Doe')).toBeInTheDocument()
+    expect(screen.getByText('Software Engineer')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /view profile/i })).toBeInTheDocument()
+  })
+
+  it('handles touch interactions on mobile', () => {
+    render(<ProfileCard {...mockProps} />)
+    
+    const actionButton = screen.getByRole('button', { name: /view profile/i })
+    fireEvent.press(actionButton)
+    
+    expect(mockProps.onAction).toHaveBeenCalled()
+  })
+
+  it('meets touch target size requirements', () => {
+    render(<ProfileCard {...mockProps} />)
+    
+    const actionButton = screen.getByRole('button')
+    // Button should meet 44px minimum touch target
+    expect(actionButton).toHaveStyle({ minHeight: 44 })
+  })
+})
+```
+
+## Quality Assurance Patterns
+
+### Wireframe Compliance Checklist
+```typescript
+// ✅ Good - systematic wireframe validation
+/*
+WIREFRAME COMPLIANCE VALIDATION:
+
+✓ Layout Structure:
+  - All major sections implemented
+  - Proper spacing and alignment
+  - Responsive behavior matches design
+
+✓ Interactive Elements:
+  - Touch targets meet 44px minimum
+  - Hover/press states implemented  
+  - Navigation flows work correctly
+
+✓ Visual Design:
+  - Typography hierarchy matches
+  - Color usage follows design system
+  - Icons and imagery properly sized
+
+✓ Mobile Optimization:
+  - Safe area handling
+  - Keyboard avoidance
+  - Gesture support where specified
+
+✓ Cross-Platform Parity:
+  - Web and native render identically
+  - Platform-specific optimizations applied
+  - Performance meets targets
+*/
+
+export function validateWireframeCompliance(component: ReactElement) {
+  const results = {
+    layoutStructure: false,
+    interactiveElements: false, 
+    visualDesign: false,
+    mobileOptimization: false,
+    crossPlatformParity: false,
+  }
+  
+  // Implementation would validate each aspect
+  return results
+}
+```

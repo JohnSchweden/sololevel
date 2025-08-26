@@ -231,3 +231,330 @@ describe('{{name}}', () => {
 });
 ```
 
+### Mobile Screen Template (Cross-Platform)
+```tsx
+// packages/app/features/{{Feature}}/{{Feature}}Screen.tsx
+import { YStack, H1, Text, Button, ScrollView } from '@ui/index';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMedia } from 'tamagui';
+
+export interface {{Feature}}ScreenProps {
+  onNavigateBack?: () => void;
+  linkComponent?: React.ReactNode;
+}
+
+export function {{Feature}}Screen({ onNavigateBack, linkComponent }: {{Feature}}ScreenProps) {
+  const insets = useSafeAreaInsets();
+  const media = useMedia();
+  
+  return (
+    <YStack 
+      flex={1} 
+      backgroundColor="$background"
+      paddingTop={insets.top}
+    >
+      {/* Mobile Header */}
+      <XStack 
+        padding="$4" 
+        alignItems="center" 
+        justifyContent="space-between"
+        borderBottomWidth={1}
+        borderBottomColor="$borderColor"
+      >
+        <Button 
+          variant="ghost" 
+          size="$3"
+          onPress={onNavigateBack}
+          icon={<ChevronLeft />}
+        >
+          Back
+        </Button>
+        
+        <H1 fontSize="$6" fontWeight="600">
+          {{Feature}}
+        </H1>
+        
+        <YStack width="$5" /> {/* Centering spacer */}
+      </XStack>
+      
+      {/* Scrollable Content */}
+      <ScrollView 
+        flex={1} 
+        contentContainerStyle={{ 
+          padding: 16,
+          paddingBottom: insets.bottom + 16
+        }}
+      >
+        <YStack gap="$4">
+          <Text fontSize="$4" color="$gray10">
+            {{Feature}} screen content goes here
+          </Text>
+          
+          {linkComponent}
+        </YStack>
+      </ScrollView>
+    </YStack>
+  );
+}
+```
+
+### Mobile Card Component Template
+```tsx
+// packages/ui/src/components/{{Name}}Card.tsx
+import { YStack, XStack, Text, H3, Button, Image, Avatar } from 'tamagui';
+import { Pressable } from 'react-native';
+
+export interface {{Name}}CardProps {
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  onPress?: () => void;
+  onActionPress?: () => void;
+  actionLabel?: string;
+}
+
+export function {{Name}}Card({
+  title,
+  subtitle,
+  imageUrl,
+  onPress,
+  onActionPress,
+  actionLabel = "View Details"
+}: {{Name}}CardProps) {
+  return (
+    <Pressable onPress={onPress} disabled={!onPress}>
+      <YStack
+        backgroundColor="$background"
+        borderRadius="$4"
+        padding="$4"
+        gap="$3"
+        borderWidth={1}
+        borderColor="$borderColor"
+        // Mobile-optimized touch feedback
+        hoverStyle={{ backgroundColor: "$backgroundHover" }}
+        pressStyle={{ scale: 0.98 }}
+        minHeight={onPress ? 44 : undefined} // Touch target
+      >
+        {imageUrl && (
+          <Image 
+            source={{ uri: imageUrl }}
+            width="100%"
+            height={160}
+            borderRadius="$3"
+            resizeMode="cover"
+          />
+        )}
+        
+        <YStack gap="$2">
+          <H3 fontSize="$5" fontWeight="600" numberOfLines={2}>
+            {title}
+          </H3>
+          
+          {subtitle && (
+            <Text fontSize="$3" color="$gray10" numberOfLines={3}>
+              {subtitle}
+            </Text>
+          )}
+        </YStack>
+        
+        {onActionPress && (
+          <Button
+            variant="outlined"
+            size="$3"
+            onPress={onActionPress}
+            minHeight={44} // Touch target
+          >
+            {actionLabel}
+          </Button>
+        )}
+      </YStack>
+    </Pressable>
+  );
+}
+```
+
+### Mobile Form Template  
+```tsx
+// packages/ui/src/components/{{Name}}Form.tsx
+import { YStack, XStack, Input, Button, Text, Label } from 'tamagui';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const {{name}}Schema = z.object({
+  // Define form fields
+  email: z.string().email('Invalid email address'),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+});
+
+type {{Name}}FormData = z.infer<typeof {{name}}Schema>;
+
+export interface {{Name}}FormProps {
+  onSubmit: (data: {{Name}}FormData) => void;
+  isLoading?: boolean;
+}
+
+export function {{Name}}Form({ onSubmit, isLoading }: {{Name}}FormProps) {
+  const { control, handleSubmit, formState: { errors } } = useForm<{{Name}}FormData>({
+    resolver: zodResolver({{name}}Schema),
+  });
+
+  return (
+    <KeyboardAvoidingView 
+      flex={1}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView keyboardShouldPersistTaps="handled">
+        <YStack padding="$4" gap="$4">
+          {/* Name Field */}
+          <YStack gap="$2">
+            <Label htmlFor="name" fontSize="$4" fontWeight="500">
+              Name
+            </Label>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  id="name"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Enter your name"
+                  size="$4"
+                  minHeight={44} // Touch target
+                  borderColor={errors.name ? '$red8' : '$borderColor'}
+                />
+              )}
+            />
+            {errors.name && (
+              <Text color="$red10" fontSize="$2">
+                {errors.name.message}
+              </Text>
+            )}
+          </YStack>
+
+          {/* Email Field */}
+          <YStack gap="$2">
+            <Label htmlFor="email" fontSize="$4" fontWeight="500">
+              Email
+            </Label>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  id="email"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  size="$4"
+                  minHeight={44} // Touch target
+                  borderColor={errors.email ? '$red8' : '$borderColor'}
+                />
+              )}
+            />
+            {errors.email && (
+              <Text color="$red10" fontSize="$2">
+                {errors.email.message}
+              </Text>
+            )}
+          </YStack>
+
+          {/* Submit Button */}
+          <Button
+            size="$5"
+            minHeight={44} // Touch target
+            marginTop="$4"
+            onPress={handleSubmit(onSubmit)}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Submitting...' : 'Submit'}
+          </Button>
+        </YStack>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+```
+
+### Mobile List Item Template
+```tsx
+// packages/ui/src/components/{{Name}}ListItem.tsx
+import { YStack, XStack, Text, H4, Button, Avatar } from 'tamagui';
+import { Pressable } from 'react-native';
+
+export interface {{Name}}ListItemProps {
+  title: string;
+  subtitle?: string;
+  avatarUrl?: string;
+  onPress?: () => void;
+  onActionPress?: () => void;
+  actionIcon?: React.ReactNode;
+  isLast?: boolean;
+}
+
+export function {{Name}}ListItem({
+  title,
+  subtitle,
+  avatarUrl,
+  onPress,
+  onActionPress,
+  actionIcon,
+  isLast = false
+}: {{Name}}ListItemProps) {
+  return (
+    <Pressable onPress={onPress} disabled={!onPress}>
+      <XStack
+        alignItems="center"
+        padding="$4"
+        minHeight={60} // Touch target + content
+        borderBottomWidth={isLast ? 0 : 1}
+        borderBottomColor="$borderColor"
+        hoverStyle={{ backgroundColor: "$backgroundHover" }}
+        pressStyle={{ backgroundColor: "$backgroundPress" }}
+        gap="$3"
+      >
+        {/* Avatar/Icon */}
+        {avatarUrl && (
+          <Avatar size="$5">
+            <Avatar.Image source={{ uri: avatarUrl }} />
+            <Avatar.Fallback backgroundColor="$blue5">
+              <Text fontSize="$4">{title.charAt(0)}</Text>
+            </Avatar.Fallback>
+          </Avatar>
+        )}
+        
+        {/* Content */}
+        <YStack flex={1} gap="$1">
+          <H4 fontSize="$4" fontWeight="500" numberOfLines={1}>
+            {title}
+          </H4>
+          {subtitle && (
+            <Text fontSize="$3" color="$gray10" numberOfLines={2}>
+              {subtitle}
+            </Text>
+          )}
+        </YStack>
+        
+        {/* Action */}
+        {onActionPress && (
+          <Button
+            variant="ghost"
+            size="$3"
+            onPress={onActionPress}
+            icon={actionIcon}
+            circular
+            minWidth={44}
+            minHeight={44} // Touch target
+          />
+        )}
+      </XStack>
+    </Pressable>
+  );
+}
+```
+

@@ -13,7 +13,7 @@ priority: 1
 
 ### Core Rules (Always Apply)
 - **master-monorepo-config**: Base configuration for all monorepo work
-- **cursor-rule-analytics**: Track rule usage automatically
+- **analytics-tracking**: Track rule usage automatically
 - **package-management**: Dependency and workspace management
 
 ### Context-Specific Rules
@@ -148,7 +148,7 @@ priority: 1
 ## Rule Precedence
 
 1. **master-monorepo-config**: Base layer (always first)
-2. **cursor-rule-analytics**: Analytics tracking (always second)
+2. **analytics-tracking**: Analytics tracking (always second)
 3. **Context-specific rules**: Applied based on file/task context
 4. **Specialized rules**: Applied for specific patterns
 
@@ -163,7 +163,7 @@ priority: 1
 
 - Auto-discover rules based on file patterns and task context
 - Apply `alwaysApply: true` rules automatically
-- Track rule usage via `cursor-rule-analytics`
+- Track rule usage via `analytics-tracking`
 - Maintain rule precedence and conflict resolution
 - Update analytics.md with each rule application
 

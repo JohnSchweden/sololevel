@@ -33,7 +33,7 @@ alwaysApply: false
 
 ## Voice Analysis
 - Web Audio API for web platform
-- expo-av for native recording
+- expo-video for native recording
 - Process audio in Edge Functions
 - Store analysis results in PostgreSQL
 
