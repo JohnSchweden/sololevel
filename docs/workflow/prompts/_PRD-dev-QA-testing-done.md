@@ -12,9 +12,10 @@ start at 30….
 Prompt:
 based on our current setup, we only support page level testing, meaning they have to create two pages, id like to support no-code element testing, meaning a single page, with element that swaps against a control and variant
 
+
+
 Summery output
-The PRD for "No-Code Element-Level A/B Testing* has been created at documentation/features/element-testing-prd.md with full executive summary, scope, user analysis, specifications, architecture, task breakdown,
-roadmap, KPis, and QA strategy.
+The PRD for "No-Code Element-Level A/B Testing* has been created at documentation/features/element-testing-prd.md with full executive summary, scope, user analysis, specifications, architecture, task breakdown, roadmap, KPis, and QA strategy.
 
 
 
@@ -25,9 +26,28 @@ Prompt:
 Create qa test plan for features
 @element-testing-prd.md based on this emulate what a qa test plan would look and add it to @features/ folder
 
+
 Prompt:
 Mermaid diagram visua
 show what the mermaid diagram would look like for this
+
+
+show what the component hierarchy and data-flow diagram rendered as Mermaid diagram would look like for this @analysis.md 
+save the mermaid diagram as component_data-flow_diagram.mmd and component_data-flow_diagram.png
+
+```bash
+# Command to start mermaid diagram creation:
+"
+Create a comprehensive mermaid diagram visualizing the component hierarchy, state management, and data flow from the analysis document @analysis.md. The diagram shows:
+1. Component Architecture - The full component tree starting with parent and its children
+2. State Management - Zustand stores with their key state properties
+3. Data Flow - The pipeline through Supabase Storage and Edge Functions
+4. Cross-connections - How UI components interact with state and trigger data flow
+This visualization helps clarify the relationships between UI components, state management, and backend integration as documented in the analysis.
+"
+```
+
+
 
 Prompt:
 @+page.svelte study the codebase, Id like to build out a simple test plan to ensure that when a user clicks on a website, it actually loads it.
@@ -45,7 +65,5 @@ update the test plan and let me know of your
 
 ## 57:14 – Automating QA in production with background agents and alerts
 
-
 - check how vite is used
 - check linear mcp
-- vercel

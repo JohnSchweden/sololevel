@@ -14,9 +14,15 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  "[markdown]": {
+    // "editor.wordWrap": "on",
+    // "editor.rulers": [100, 100],
+    "editor.formatOnSave": false
+  },
   "cSpell.words": [
     "Tamagui"
   ],
+  "deno.path": "/opt/homebrew/bin/deno",
   "deno.enablePaths": [
     "supabase/functions"
   ],

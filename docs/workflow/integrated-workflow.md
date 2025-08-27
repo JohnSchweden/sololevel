@@ -2,11 +2,13 @@
 
 ## 🎯 Complete Step-by-Step Implementation Process
 
-This document provides the comprehensive workflow for transforming wireframes into production-ready cross-platform Tamagui screens.
+This document provides the comprehensive workflow for transforming wireframes
+into production-ready cross-platform Tamagui screens.
 
 ## 📋 Phase 1: Initial Wireframe Analysis
 
 ### Step 1: Create Project-Specific Analysis
+
 ```bash
 # Command to start wireframe analysis:
 "New wireframe received for [FeatureName]. Before implementation:
@@ -23,6 +25,7 @@ Only proceed to task generation after analysis is complete and all sections chec
 ```
 
 ### Step 2: Systematic Analysis Process
+
 ```bash
 # Use this structured approach:
 "Complete wireframe analysis systematically:
@@ -50,6 +53,7 @@ Ask clarifying questions if any analysis section needs more information."
 ## 🏗️ Phase 2: Enhanced Task Generation
 
 ### Step 3: Create Comprehensive Task List
+
 ```bash
 # Command for task list generation:
 "Based on completed wireframe analysis in docs/features/[feature-name]/analysis.md:
@@ -73,9 +77,10 @@ Generate tasks with [Web], [Native], [Both] platform tags and [S/M/L] effort est
 ## 🚀 Phase 3: Implementation Execution
 
 ### Step 4: Phase-by-Phase Implementation
+
 ```bash
 # Command for each implementation phase:
-"Implement Phase [N] tasks from docs/tasks/[feature-name].md with mobile-first approach:
+"Implement Phase [N] tasks from docs/features/[feature-name]/tasks.md with mobile-first approach:
 
 **Apply These Rules:**
 - mobile-screen-patterns.mdc: Touch optimization, safe areas, gestures
@@ -99,6 +104,7 @@ Reference original analysis: docs/features/[feature-name]/analysis.md"
 ```
 
 ### Step 5: Cross-Platform Validation
+
 ```bash
 # Command for platform parity validation:
 "Validate cross-platform implementation:
@@ -127,6 +133,7 @@ Update task list with validation results."
 ## 📊 Phase 4: Quality Assurance Pipeline
 
 ### Step 6: Mobile-Specific Testing
+
 ```bash
 # Command for comprehensive mobile testing:
 "Execute mobile-focused quality assurance:
@@ -155,23 +162,28 @@ Document results and update task completion status."
 ## 🔗 Integration Points with .cursor/ Rules
 
 ### Automatic Rule Application
+
 The workflow automatically integrates these rules at specific phases:
 
-#### **Phase 1: Analysis** 
+#### **Phase 1: Analysis**
+
 - **`mobile-screen-patterns.mdc`** → Informs responsive/mobile analysis sections
 - **`wireframe-to-code.mdc`** → Provides systematic mapping approach
 - **`ui-styling-tamagui.mdc`** → Guides component mapping decisions
 
 #### **Phase 2: Task Generation**
+
 - **`task-lists.mdc`** → Feeds into enhanced task generation format
 - **`quality/codegen-templates.mdc`** → Provides mobile templates for planning
 
 #### **Phase 3: Implementation**
+
 - **`features/navigation-expo-router.mdc`** → Navigation implementation patterns
 - **`features/data-state-management.mdc`** → State management integration
 - **`backend/supabase-database.mdc`** → Database schema implementation
 
 #### **Phase 4: Quality Assurance**
+
 - **`quality/testing-unified.mdc`** → Testing strategy and execution
 - **`quality/performance.mdc`** → Performance optimization patterns
 - **`quality/storybook.mdc`** → Component documentation requirements
@@ -179,24 +191,27 @@ The workflow automatically integrates these rules at specific phases:
 ## 📁 File Structure Integration
 
 ### Analysis Files Reference Implementation Tasks
+
 ```markdown
 # Example task list header with analysis reference:
 
 # User Profile Screen Implementation
 
 ## Context & Analysis
+
 - **Wireframe Image**: docs/features/user-profile/wireframe.png ✅
 - **Wireframe Analysis**: docs/features/user-profile/analysis.md ✅
 - **Technical Requirements**: Documented and validated ✅
 - **Cross-Platform Considerations**: Mobile-first approach confirmed ✅
 
 ## Completed Tasks
+
 - [x] Complete systematic wireframe analysis [Both]
-- [x] Create comprehensive task breakdown [Both]
-...
+- [x] Create comprehensive task breakdown [Both] ...
 ```
 
 ### Directory Structure
+
 ```
 docs/
 ├── features/                          # Feature-based organization
@@ -224,21 +239,25 @@ docs/
 ## 🎯 Standardized Commands Reference
 
 ### **Initial Analysis Command**
+
 ```bash
 "New wireframe for [FeatureName]. Create feature directory: mkdir -p docs/features/[feature-name]/{components,testing}. Create systematic analysis using docs/templates/analysis-template.md, save as docs/features/[feature-name]/analysis.md. Apply mobile-screen-patterns.mdc and wireframe-to-code.mdc rules. Ask clarifying questions based on analysis gaps."
 ```
 
-### **Task Generation Command**  
+### **Task Generation Command**
+
 ```bash
 "Based on completed analysis docs/features/[feature-name]/analysis.md, create comprehensive task list using docs/templates/tasks-template.md template. Save as docs/features/[feature-name]/tasks.md with mobile-first 6-phase approach."
 ```
 
 ### **Implementation Command**
+
 ```bash
 "Implement Phase [N] from docs/features/[feature-name]/tasks.md. Apply mobile-screen-patterns.mdc, ui-styling-tamagui.mdc, and codegen-templates.mdc. Reference analysis docs/features/[feature-name]/analysis.md. Update task progress immediately."
 ```
 
 ### **Validation Command**
+
 ```bash
 "Validate implementation against docs/features/[feature-name]/analysis.md requirements. Check cross-platform parity, mobile optimization, accessibility compliance. Update task completion status."
 ```
@@ -248,13 +267,15 @@ docs/
 Before marking any phase complete:
 
 ### **Analysis Phase Complete**
+
 - [ ] All wireframe analysis sections completed
-- [ ] Technical requirements validated  
+- [ ] Technical requirements validated
 - [ ] Cross-platform considerations documented
 - [ ] Performance and accessibility requirements defined
 - [ ] Analysis file saved in docs/analysis/
 
 ### **Task Generation Complete**
+
 - [ ] Comprehensive task list created
 - [ ] Analysis file referenced in task context
 - [ ] Mobile-first 6-phase approach applied
@@ -262,6 +283,7 @@ Before marking any phase complete:
 - [ ] Testing pipeline defined
 
 ### **Implementation Phase Complete**
+
 - [ ] All phase tasks completed and marked
 - [ ] Code follows mobile-first principles
 - [ ] Cross-platform parity validated
@@ -269,6 +291,7 @@ Before marking any phase complete:
 - [ ] Accessibility requirements satisfied
 
 ### **Final Quality Assurance Complete**
+
 - [ ] Device testing completed across platforms
 - [ ] Performance testing passed
 - [ ] Accessibility audit passed
@@ -278,15 +301,19 @@ Before marking any phase complete:
 ## 🔄 Continuous Integration
 
 ### Analysis Updates
+
 ```bash
 # When requirements change:
 "Wireframe requirements updated. Update docs/features/[feature-name]/analysis.md with changes, then update corresponding task list docs/features/[feature-name]/tasks.md to reflect new requirements."
 ```
 
 ### Task List Maintenance
+
 ```bash
 # Regular progress updates:
 "Update task progress in docs/features/[feature-name]/tasks.md. Move completed items to 'Completed Tasks' section. Document any blockers or requirement changes. Reference analysis file for validation."
 ```
 
-This integrated workflow ensures systematic, mobile-first, cross-platform screen development with comprehensive quality assurance and proper documentation throughout the entire process.
+This integrated workflow ensures systematic, mobile-first, cross-platform screen
+development with comprehensive quality assurance and proper documentation
+throughout the entire process.

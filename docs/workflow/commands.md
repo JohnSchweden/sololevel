@@ -2,11 +2,13 @@
 
 ## 🎯 Copy-Paste Commands for Each Phase
 
-These standardized commands ensure consistent application of the wireframe-to-screen workflow with proper .cursor/ rule integration.
+These standardized commands ensure consistent application of the
+wireframe-to-screen workflow with proper .cursor/ rule integration.
 
 ## 📋 Phase 1: Initial Wireframe Analysis
 
 ### Command 1A: Start New Wireframe Analysis
+
 ```bash
 "New wireframe received for [FeatureName]. Before implementation:
 
@@ -22,6 +24,7 @@ Only proceed to task generation after analysis is complete and all sections chec
 ```
 
 ### Command 1B: Complete Systematic Analysis
+
 ```bash
 "Complete wireframe analysis systematically for [FeatureName]:
 
@@ -48,6 +51,7 @@ Ask clarifying questions if any analysis section needs more information."
 ## 🏗️ Phase 2: Enhanced Task Generation
 
 ### Command 2A: Generate Comprehensive Task List
+
 ```bash
 "Based on completed wireframe analysis in docs/features/[feature-name]/analysis.md:
 
@@ -68,8 +72,9 @@ Generate tasks with [Web], [Native], [Both] platform tags and [S/M/L] effort est
 ```
 
 ### Command 2B: Validate Task List Against Analysis
+
 ```bash
-"Validate generated task list docs/tasks/[feature-name].md against analysis:
+"Validate generated task list docs/features/[feature-name]/tasks.md against analysis:
 
 1. Ensure all wireframe elements from analysis are covered in tasks
 2. Verify technical requirements are addressed in implementation phases
@@ -83,8 +88,9 @@ Reference: docs/features/[feature-name]/analysis.md for validation."
 ## 🚀 Phase 3: Implementation Execution
 
 ### Command 3A: Implement Foundation Phase
+
 ```bash
-"Implement Phase 1 (Mobile Foundation) from docs/tasks/[feature-name].md:
+"Implement Phase 1 (Mobile Foundation) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - mobile-screen-patterns.mdc: Touch optimization, safe areas, gestures
@@ -103,12 +109,13 @@ Reference: docs/features/[feature-name]/analysis.md for validation."
 - Move completed tasks to 'Completed Tasks' section immediately
 - Document any blockers or changes needed
 
-Reference: docs/analysis/[feature-name]-wireframe-analysis.md for component mapping."
+Reference: docs/features/[feature-name]/analysis.md for component mapping."
 ```
 
 ### Command 3B: Implement Interactive Elements Phase
+
 ```bash
-"Implement Phase 2 (Interactive Elements) from docs/tasks/[feature-name].md:
+"Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - mobile-screen-patterns.mdc: Touch interactions, gesture handling
@@ -131,8 +138,9 @@ Update task progress and reference analysis for interaction requirements."
 ```
 
 ### Command 3C: Implement Data Integration Phase
+
 ```bash
-"Implement Phase 3 (Data Integration) from docs/tasks/[feature-name].md:
+"Implement Phase 3 (Data Integration) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - features/data-state-management.mdc: State management patterns
@@ -151,12 +159,13 @@ Update task progress and reference analysis for interaction requirements."
 - Test error states and loading states
 - Verify offline functionality where applicable
 
-Reference docs/analysis/[feature-name]-wireframe-analysis.md for data requirements."
+Reference docs/features/[feature-name]/analysis.md for data requirements."
 ```
 
 ### Command 3D: Implement Screen Integration Phase
+
 ```bash
-"Implement Phase 4 (Screen Integration) from docs/tasks/[feature-name].md:
+"Implement Phase 4 (Screen Integration) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - features/navigation-expo-router.mdc: Cross-platform routing
@@ -178,8 +187,9 @@ Update task progress and validate against analysis requirements."
 ```
 
 ### Command 3E: Implement Platform Optimization Phase
+
 ```bash
-"Implement Phase 5 (Platform Optimization) from docs/tasks/[feature-name].md:
+"Implement Phase 5 (Platform Optimization) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - quality/performance.mdc: Performance optimization
@@ -202,8 +212,9 @@ Reference analysis for performance and accessibility requirements."
 ```
 
 ### Command 3F: Execute Quality Assurance Phase
+
 ```bash
-"Implement Phase 6 (Quality Assurance) from docs/tasks/[feature-name].md:
+"Implement Phase 6 (Quality Assurance) from docs/features/[feature-name]/tasks.md:
 
 **Apply These Rules:**
 - quality/testing-unified.mdc: Testing strategy
@@ -222,12 +233,13 @@ Reference analysis for performance and accessibility requirements."
 - Update API documentation
 - Document accessibility testing results
 
-Final validation against docs/analysis/[feature-name]-wireframe-analysis.md requirements."
+Final validation against docs/features/[feature-name]/analysis.md requirements."
 ```
 
 ## 📊 Phase 4: Cross-Platform Validation
 
 ### Command 4A: Validate Visual Parity
+
 ```bash
 "Validate cross-platform visual parity for [FeatureName]:
 
@@ -243,11 +255,12 @@ Final validation against docs/analysis/[feature-name]-wireframe-analysis.md requ
 - Verify color contrast and accessibility compliance
 - Validate against original wireframe design
 
-Reference docs/analysis/[feature-name]-wireframe-analysis.md for visual requirements.
+Reference docs/features/[feature-name]/analysis.md for visual requirements.
 Update task list with validation results."
 ```
 
 ### Command 4B: Validate Interaction Parity
+
 ```bash
 "Validate cross-platform interaction parity for [FeatureName]:
 
@@ -268,6 +281,7 @@ Update task completion status with interaction validation results."
 ```
 
 ### Command 4C: Validate Performance Parity
+
 ```bash
 "Validate cross-platform performance parity for [FeatureName]:
 
@@ -290,6 +304,7 @@ Document performance metrics and update task list with results."
 ## 🔄 Phase 5: Quality Assurance Pipeline
 
 ### Command 5A: Execute Mobile-Specific Testing
+
 ```bash
 "Execute comprehensive mobile testing for [FeatureName]:
 
@@ -315,6 +330,7 @@ Document all test results and update task completion status."
 ```
 
 ### Command 5B: Final Quality Gate Validation
+
 ```bash
 "Execute final quality gate validation for [FeatureName]:
 
@@ -331,7 +347,7 @@ Document all test results and update task completion status."
 - [ ] Code review approval received
 
 **Final Validation:**
-- Compare implementation against docs/analysis/[feature-name]-wireframe-analysis.md
+- Compare implementation against docs/features/[feature-name]/analysis.md
 - Verify all acceptance criteria met
 - Confirm documentation is complete and accurate
 
@@ -341,12 +357,13 @@ Mark all tasks complete and archive analysis/task files for reference."
 ## 🔧 Maintenance & Updates Commands
 
 ### Command M1: Update Analysis for Requirement Changes
+
 ```bash
 "Wireframe requirements updated for [FeatureName]:
 
-1. Update docs/analysis/[feature-name]-wireframe-analysis.md with changes
+1. Update docs/features/[feature-name]/analysis.md with changes
 2. Document what changed and why in analysis notes
-3. Update corresponding task list docs/tasks/[feature-name].md to reflect new requirements
+3. Update corresponding task list docs/features/[feature-name]/tasks.md to reflect new requirements
 4. Identify implementation changes needed
 5. Update affected components and tests
 
@@ -354,14 +371,15 @@ Ensure analysis remains the single source of truth for requirements."
 ```
 
 ### Command M2: Progress Update and Task Maintenance
+
 ```bash
 "Update implementation progress for [FeatureName]:
 
-1. Review current task status in docs/tasks/[feature-name].md
+1. Review current task status in docs/features/[feature-name]/tasks.md
 2. Move completed items to 'Completed Tasks' section
 3. Update 'In Progress Tasks' with current status and next steps
 4. Document any blockers or requirement changes discovered
-5. Validate progress against docs/analysis/[feature-name]-wireframe-analysis.md
+5. Validate progress against docs/features/[feature-name]/analysis.md
 
 Maintain task list as accurate reflection of current implementation state."
 ```
@@ -369,23 +387,29 @@ Maintain task list as accurate reflection of current implementation state."
 ## 📋 Quick Reference Command Templates
 
 ### Analysis Phase
+
 ```bash
 "New wireframe for [FEATURE]. Create feature structure: mkdir -p docs/features/[feature]/{components,testing}. Create analysis: docs/features/[feature]/analysis.md using mobile-screen-patterns.mdc + wireframe-to-code.mdc + ui-styling-tamagui.mdc rules."
 ```
 
-### Task Generation Phase  
+### Task Generation Phase
+
 ```bash
 "Generate tasks: docs/features/[feature]/tasks.md from analysis docs/features/[feature]/analysis.md using tasks-template.md + task-lists.mdc format."
 ```
 
 ### Implementation Phase
+
 ```bash
 "Implement Phase [N] from docs/features/[feature]/tasks.md. Apply mobile-screen-patterns.mdc + ui-styling-tamagui.mdc + codegen-templates.mdc. Reference docs/features/[feature]/analysis.md."
 ```
 
 ### Validation Phase
+
 ```bash
 "Validate [feature] against docs/features/[feature]/analysis.md. Check cross-platform parity + mobile optimization + accessibility compliance. Update task status."
 ```
 
-These standardized commands ensure consistent application of your enhanced wireframe-to-screen workflow with proper integration of all .cursor/ rules and quality standards.
+These standardized commands ensure consistent application of your enhanced
+wireframe-to-screen workflow with proper integration of all .cursor/ rules and
+quality standards.
