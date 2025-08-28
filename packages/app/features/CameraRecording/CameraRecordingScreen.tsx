@@ -37,7 +37,7 @@ export function CameraRecordingScreen({
 
   const handleCameraReady = () => {}
 
-  const handleCameraError = (error: string) => {
+  const handleCameraError = (_error: string) => {
     // Phase 2: Implement proper error handling
   }
 

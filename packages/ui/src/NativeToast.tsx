@@ -1,5 +1,4 @@
 import { Toast, useToastState } from '@tamagui/toast'
-import React from 'react'
 import { YStack } from 'tamagui'
 
 export const NativeToast = () => {

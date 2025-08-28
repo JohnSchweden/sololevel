@@ -1,5 +1,4 @@
 import { Bell, Menu } from '@tamagui/lucide-icons'
-import React from 'react'
 import { Circle, Text, YStack } from 'tamagui'
 import { Button } from '../Button'
 

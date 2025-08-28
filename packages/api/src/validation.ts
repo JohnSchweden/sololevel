@@ -33,7 +33,7 @@ export interface ValidationResult<T> {
 export function safeParseWithDetails<T>(
   schema: z.ZodType<T>,
   data: unknown,
-  context: string
+  _context: string
 ): ValidationResult<T> {
   const result = schema.safeParse(data)
 

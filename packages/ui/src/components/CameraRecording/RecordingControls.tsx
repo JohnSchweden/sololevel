@@ -1,5 +1,5 @@
 import { Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'

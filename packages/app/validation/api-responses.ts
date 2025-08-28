@@ -63,7 +63,7 @@ export interface ValidationResult<T> {
 export function safeParseWithDetails<T>(
   schema: z.ZodType<T>,
   data: unknown,
-  context: string
+  _context: string
 ): ValidationResult<T> {
   const result = schema.safeParse(data)
 
@@ -105,7 +105,12 @@ export function validateApiResponse<T>(schema: z.ZodType<T>, data: unknown, cont
 export function validateFormData<T>(
   schema: z.ZodType<T>,
   data: unknown
-): { success: true; data: T } | { success: false; fieldErrors: Record<string, string[]> } {
+):
+  | { success: true; data: T }
+  | {
+      success: false
+      fieldErrors: Record<string, string[]>
+    } {
   const result = schema.safeParse(data)
 
   if (result.success) {

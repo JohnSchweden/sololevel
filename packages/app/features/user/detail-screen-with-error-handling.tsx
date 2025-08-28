@@ -123,7 +123,7 @@ function UserProfileContent({ user }: { user: any }) {
         >
           <Avatar.Image
             src={user.avatar_url}
-            onError={(error) => {
+            onError={(_error) => {
               // Avatar fallback will be shown automatically
             }}
           />

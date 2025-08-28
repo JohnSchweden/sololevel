@@ -16,7 +16,7 @@ export interface ApiResult<T> {
  * Handles Supabase query results with proper error checking
  * Always check .error property on Supabase responses
  */
-export function handleSupabaseResult<T>(result: SupabaseResult<T>, context: string): ApiResult<T> {
+export function handleSupabaseResult<T>(result: SupabaseResult<T>, _context: string): ApiResult<T> {
   const { data, error } = result
 
   if (error) {
@@ -93,7 +93,7 @@ export async function safeSupabaseOperation<T>(
 export function validateSupabaseData<T>(
   data: T | null,
   requiredFields: (keyof T)[],
-  context: string
+  _context: string
 ): ApiResult<T> {
   if (!data) {
     return {
