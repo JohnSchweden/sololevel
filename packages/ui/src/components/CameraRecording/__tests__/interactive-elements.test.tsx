@@ -18,8 +18,6 @@
  * New tests should be added to the appropriate focused test file.
  */
 
-import React from 'react'
-
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
 

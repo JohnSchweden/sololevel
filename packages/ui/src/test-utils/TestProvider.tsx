@@ -30,8 +30,8 @@ export interface RenderWithProviderOptions extends Omit<RenderOptions, 'wrapper'
 export function TestProvider({
   children,
   config: customConfig = config,
-  theme = 'light',
-  locale = 'en',
+  //theme = 'light',
+  //locale = 'en',
   disableAnimations = true,
 }: TestProviderProps) {
   // Create a test-friendly config
@@ -44,8 +44,6 @@ export function TestProvider({
           enabled: false,
         }
       : customConfig.animations,
-    // Override theme if specified
-    theme: theme !== 'light' ? theme : customConfig.theme,
   }
 
   return <TamaguiProvider config={testConfig}>{children}</TamaguiProvider>

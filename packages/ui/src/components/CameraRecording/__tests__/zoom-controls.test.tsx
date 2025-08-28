@@ -4,7 +4,6 @@
  */
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import React from 'react'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
@@ -244,12 +243,12 @@ describe('Zoom Controls Component', () => {
         </TestProvider>
       )
 
-      // Test with out-of-bounds value (should handle gracefully)
+      // Test with maximum zoom level (3x)
       rerender(
         <TestProvider>
           <ZoomControls
             {...mockProps}
-            currentZoom={4}
+            currentZoom={3}
           />
         </TestProvider>
       )

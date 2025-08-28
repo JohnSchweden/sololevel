@@ -6,26 +6,9 @@
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
-import { TamaguiProvider } from '@tamagui/core'
-import { fireEvent, render, screen } from '@testing-library/react'
-import config from '../../../config/tamagui.config'
+// Legacy file - minimal imports only
 
-// Import mock data
-import {
-  MOBILE_DEVICES,
-  TOUCH_TARGET_SPECS,
-  generateTouchTargetTestData,
-  generateViewportTestData,
-} from '../../../test-utils/mock-data'
-
-// Import components to test
-import { BottomNavigation } from '../BottomNavigation'
-import { CameraHeader } from '../CameraHeader'
-
-// Mock Tamagui provider for tests
-const TestProvider = ({ children }: { children: React.ReactNode }) => (
-  <TamaguiProvider config={config}>{children}</TamaguiProvider>
-)
+// Legacy file - imports removed as they are no longer used
 
 /**
  * Mobile Viewport Tests - LEGACY FILE

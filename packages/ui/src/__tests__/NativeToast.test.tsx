@@ -28,6 +28,7 @@ jest.mock('tamagui', () => {
         elevation,
         gap,
         paddingHorizontal,
+        paddingVertical,
         alignItems,
         justifyContent,
         size,

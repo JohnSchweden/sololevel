@@ -5,8 +5,7 @@
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import React from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { TestProvider } from '../../../test-utils'
 import { NAVIGATION_DIALOG_CONFIGS } from '../../../test-utils/mock-data'
 import { NavigationDialog } from '../NavigationDialog'
@@ -195,7 +194,9 @@ describe('Navigation Dialog Component', () => {
       const cancelButton = screen.getByRole('button', { name: /cancel/i })
 
       // Focus should be managed properly
-      discardButton.focus()
+      act(() => {
+        discardButton.focus()
+      })
       expect(document.activeElement).toBe(discardButton)
 
       // Tab navigation should work - focus should move to next focusable element

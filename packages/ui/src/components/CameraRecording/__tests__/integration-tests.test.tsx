@@ -4,7 +4,6 @@
  */
 
 import { act, render, renderHook, screen } from '@testing-library/react'
-import React from 'react'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
@@ -517,7 +516,7 @@ describe('Integration Tests', () => {
         })
       )
 
-      const { rerender } = render(
+      render(
         <TestProvider>
           <RecordingControls
             recordingState={recordingResult.current.recordingState}

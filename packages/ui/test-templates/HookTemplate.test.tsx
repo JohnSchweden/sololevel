@@ -6,12 +6,12 @@
 import React from 'react'
 
 // Import shared test utilities (includes all mocks and setup)
-import '../test-utils/setup'
+import '../src/test-utils/setup'
 // import { useHookName } from '../path/to/your/hook'
-import { act, renderHook, waitFor } from '../test-utils'
+import { act, renderHook, waitFor } from '../src/test-utils'
 
 // Mock hook for template purposes
-const useHookName = (config?: any) => {
+const useHookName = (_config?: any) => {
   return {
     isLoading: false,
     data: null,
@@ -224,11 +224,11 @@ describe('useHookName', () => {
 
     it('should not re-run when dependencies are the same', () => {
       const mockEffect = jest.fn()
-      const { result, rerender } = renderHook(
+      const { rerender } = renderHook(
         ({ dependency }: { dependency: string }) => {
-          useHookName({ dependency })
+          const hookResult = useHookName({ dependency })
           mockEffect()
-          return result
+          return hookResult
         },
         { initialProps: { dependency: 'same' } }
       )

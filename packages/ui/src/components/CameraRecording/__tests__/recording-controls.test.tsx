@@ -3,8 +3,7 @@
  * Tests the recording controls UI during active recording
  */
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import React from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
@@ -179,7 +178,7 @@ describe('Recording Controls Component', () => {
     })
 
     it('handles zoom change', () => {
-      const zoomedProps = { ...mockProps, zoomLevel: 2 }
+      const zoomedProps = { ...mockProps, zoomLevel: 2 as const }
 
       render(
         <TestProvider>
@@ -285,7 +284,9 @@ describe('Recording Controls Component', () => {
       )
 
       const pauseButton = screen.getByLabelText('Pause recording')
-      pauseButton.focus()
+      act(() => {
+        pauseButton.focus()
+      })
 
       expect(document.activeElement).toBe(pauseButton)
     })

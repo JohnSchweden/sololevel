@@ -267,6 +267,18 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
   'borderradius',
   'backgroundcolor',
   'lineheight',
+  'maxwidth',
+  'enterstyle',
+  'exitstyle',
+  'displaywhenadapted',
+  'borderradius',
+  'lineheight',
+  'backgroundcolor',
+  'maxwidth',
+  'paddingvertical',
+  'enterstyle',
+  'exitstyle',
+  'displaywhenadapted',
 ])
 
 /**
@@ -309,7 +321,9 @@ export function createMockComponent(name: string) {
         )
       }
 
-      finalChildren = children ? [iconElement, ...React.Children.toArray(children)] : [iconElement]
+      finalChildren = children
+        ? [iconElement, ...React.Children.toArray(children as React.ReactNode)]
+        : [iconElement]
     }
 
     return React.createElement(
@@ -321,7 +335,7 @@ export function createMockComponent(name: string) {
         'aria-label': props.accessibilityLabel,
         'aria-describedby': props.accessibilityHint,
         role: props.accessibilityRole,
-        'aria-selected': props.accessibilityState?.selected,
+        'aria-selected': (props.accessibilityState as { selected?: boolean })?.selected,
         'aria-disabled': props.disabled,
         onClick: props.onPress, // Convert onPress to onClick for web
         style: {
@@ -330,10 +344,10 @@ export function createMockComponent(name: string) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          ...domProps.style,
+          ...(domProps.style as Record<string, unknown>),
         },
       },
-      finalChildren
+      finalChildren as React.ReactNode
     )
   })
 }
@@ -357,21 +371,29 @@ export function createMockStyled(component?: string | React.ComponentType) {
 function createDialogMock() {
   // Base dialog component
   const Dialog = React.forwardRef<HTMLElement, DialogProps>(
-    ({ children, modal, open, onOpenChange, ...props }, ref) =>
-      open
+    ({ children, modal, open, onOpenChange, ...props }, ref) => {
+      // Filter out Tamagui-specific props
+      const domProps = Object.fromEntries(
+        Object.entries(props).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key))
+      )
+
+      return open
         ? React.createElement(
             'div',
             {
-              ...props,
+              ...domProps,
               ref,
               'data-testid': 'Dialog',
               'data-modal': modal,
               'data-open': open,
-              onClick: onOpenChange ? () => onOpenChange(false) : undefined,
+              onClick: onOpenChange
+                ? () => (onOpenChange as (open: boolean) => void)(false)
+                : undefined,
             },
-            children
+            children as React.ReactNode
           )
         : null
+    }
   )
 
   // Dialog component builder
@@ -383,22 +405,27 @@ function createDialogMock() {
   ) => {
     return React.forwardRef<HTMLElement, DialogComponentProps>(
       ({ children, asChild, ...props }, ref) => {
+        // Filter out Tamagui-specific props
+        const domProps = Object.fromEntries(
+          Object.entries(props).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key))
+        )
+
         const element = asChild ? 'span' : defaultElement
         const baseProps = {
           ...defaultProps,
-          ...props,
+          ...domProps,
           ref,
           'data-testid': `Dialog${componentName}`,
         }
 
         if (customStyle) {
-          baseProps.style = {
+          ;(baseProps as any).style = {
             ...customStyle,
-            ...props.style,
+            ...(props.style as Record<string, unknown>),
           }
         }
 
-        return React.createElement(element, baseProps, children)
+        return React.createElement(element, baseProps, children as React.ReactNode)
       }
     )
   }

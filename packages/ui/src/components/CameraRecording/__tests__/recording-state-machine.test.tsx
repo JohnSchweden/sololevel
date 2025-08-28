@@ -4,7 +4,6 @@
  */
 
 import { act, renderHook } from '@testing-library/react'
-import React from 'react'
 import { RECORDING_STATE_CONFIGS } from '../../../test-utils/mock-data'
 import { RecordingState } from './mocks'
 

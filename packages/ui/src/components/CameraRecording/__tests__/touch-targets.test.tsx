@@ -6,7 +6,6 @@
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
 import { render, screen } from '@testing-library/react'
-import React from 'react'
 import { TestProvider } from '../../../test-utils'
 import { TOUCH_TARGET_SPECS, generateTouchTargetTestData } from '../../../test-utils/mock-data'
 
@@ -15,7 +14,7 @@ describe('Touch Target Compliance', () => {
     'button size %dx%d (%s)',
     (width, height, description) => {
       it('meets accessibility guidelines', () => {
-        const { container } = render(
+        render(
           <TestProvider>
             <button
               data-testid={`button-${width}x${height}`}
@@ -53,7 +52,7 @@ describe('Touch Target Compliance', () => {
       const requiredTouchTargetSize = 44
 
       // Mock component with proper touch targets
-      const { container } = render(
+      render(
         <TestProvider>
           <div>
             <button
@@ -90,7 +89,7 @@ describe('Touch Target Compliance', () => {
     })
 
     it('ensures adequate spacing between touch targets', () => {
-      const { container } = render(
+      render(
         <TestProvider>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -130,7 +129,7 @@ describe('Touch Target Compliance', () => {
       ]
 
       wcagScenarios.forEach(({ size, compliant, level }) => {
-        const { container } = render(
+        render(
           <TestProvider>
             <button
               data-testid={`wcag-${size}`}
@@ -164,7 +163,7 @@ describe('Touch Target Compliance', () => {
       ]
 
       densities.forEach(({ name, scale, minSize }) => {
-        const { container } = render(
+        render(
           <TestProvider>
             <button
               data-testid={`density-${name}`}
@@ -192,7 +191,7 @@ describe('Touch Target Compliance', () => {
       // iOS requires 44pt minimum touch targets
       const iosMinSize = 44
 
-      const { container } = render(
+      render(
         <TestProvider>
           <button
             data-testid="ios-button"
@@ -217,7 +216,7 @@ describe('Touch Target Compliance', () => {
       // Android recommends 48dp minimum touch targets
       const androidMinSize = 48
 
-      const { container } = render(
+      render(
         <TestProvider>
           <button
             data-testid="android-button"
@@ -245,8 +244,8 @@ describe('Touch Target Compliance', () => {
         { name: 'Web', minSize: 44, source: 'WCAG' },
       ]
 
-      platforms.forEach(({ name, minSize, source }) => {
-        const { container } = render(
+      platforms.forEach(({ name, minSize }) => {
+        render(
           <TestProvider>
             <button
               data-testid={`platform-${name.toLowerCase()}`}

@@ -3,8 +3,8 @@
  * Tests the bottom navigation UI and tab functionality
  */
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import React from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
@@ -99,29 +99,26 @@ describe('Bottom Navigation Component', () => {
       expect(recordTab).toBeTruthy()
     })
 
-    describe.each(generateViewportTestData(MOBILE_DEVICES))(
-      'viewport size %dpx (%s)',
-      (width, deviceName) => {
-        it('maintains touch targets', () => {
-          render(
-            <TestProvider>
-              <BottomNavigation
-                activeTab="record"
-                onTabChange={mockTabChange}
-              />
-            </TestProvider>
-          )
+    describe.each(generateViewportTestData(MOBILE_DEVICES))('viewport size %dpx (%s)', () => {
+      it('maintains touch targets', () => {
+        render(
+          <TestProvider>
+            <BottomNavigation
+              activeTab="record"
+              onTabChange={mockTabChange}
+            />
+          </TestProvider>
+        )
 
-          const tabs = screen.getAllByRole('tab')
-          expect(tabs.length).toBe(3)
+        const tabs = screen.getAllByRole('tab')
+        expect(tabs.length).toBe(3)
 
-          tabs.forEach((tab) => {
-            // Check that the tab has proper accessibility attributes
-            expect(tab.getAttribute('aria-label')).toBeDefined()
-          })
+        tabs.forEach((tab) => {
+          // Check that the tab has proper accessibility attributes
+          expect(tab.getAttribute('aria-label')).toBeDefined()
         })
-      }
-    )
+      })
+    })
   })
 
   describe('State Management', () => {
@@ -250,7 +247,9 @@ describe('Bottom Navigation Component', () => {
       )
 
       const coachTab = screen.getByLabelText('Coach tab')
-      coachTab.focus()
+      act(() => {
+        coachTab.focus()
+      })
 
       expect(document.activeElement).toBe(coachTab)
 

@@ -4,7 +4,6 @@
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react'
-import React from 'react'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
