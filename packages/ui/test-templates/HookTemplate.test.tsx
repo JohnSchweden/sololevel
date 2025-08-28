@@ -3,10 +3,38 @@
  * Copy this template and customize for your hook
  */
 
+import React from 'react'
+
 // Import shared test utilities (includes all mocks and setup)
 import '../test-utils/setup'
-import { useHookName } from '../hooks/useHookName'
+// import { useHookName } from '../path/to/your/hook'
 import { act, renderHook, waitFor } from '../test-utils'
+
+// Mock hook for template purposes
+const useHookName = (config?: any) => {
+  return {
+    isLoading: false,
+    data: null,
+    error: null,
+    updateValue: jest.fn(),
+    setLoading: jest.fn(),
+    setData: jest.fn(),
+    reset: jest.fn(),
+    performAsyncOperation: jest.fn(),
+    startSideEffect: jest.fn(),
+    hasSideEffect: false,
+    windowWidth: 800,
+    isEscapePressed: false,
+    dependencyValue: '',
+    processInput: jest.fn(),
+    causeError: jest.fn(),
+    clearError: jest.fn(),
+    expensiveValue: '',
+    performOperation: jest.fn(),
+    completedOperations: [],
+    isEmpty: false,
+  }
+}
 
 describe('useHookName', () => {
   describe('Initialization', () => {
@@ -180,9 +208,12 @@ describe('useHookName', () => {
 
   describe('Dependencies', () => {
     it('should re-run when dependencies change', () => {
-      const { result, rerender } = renderHook(({ dependency }) => useHookName({ dependency }), {
-        initialProps: { dependency: 'initial' },
-      })
+      const { result, rerender } = renderHook(
+        ({ dependency }: { dependency: string }) => useHookName({ dependency }),
+        {
+          initialProps: { dependency: 'initial' },
+        }
+      )
 
       expect(result.current.dependencyValue).toBe('initial')
 
@@ -194,7 +225,7 @@ describe('useHookName', () => {
     it('should not re-run when dependencies are the same', () => {
       const mockEffect = jest.fn()
       const { result, rerender } = renderHook(
-        ({ dependency }) => {
+        ({ dependency }: { dependency: string }) => {
           useHookName({ dependency })
           mockEffect()
           return result

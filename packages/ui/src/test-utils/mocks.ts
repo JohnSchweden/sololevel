@@ -8,12 +8,51 @@ import React from 'react'
 // Types for better type safety
 export interface MockComponentProps {
   children?: React.ReactNode
-  [key: string]: any
+  icon?: React.ReactElement | React.ComponentType | string
+  onPress?: () => void
+  onPressIn?: () => void
+  onPressOut?: () => void
+  onLongPress?: () => void
+  onClick?: () => void
+  disabled?: boolean
+  accessibilityLabel?: string
+  accessibilityHint?: string
+  accessibilityRole?: string
+  accessibilityState?: {
+    selected?: boolean
+    disabled?: boolean
+  }
+  minWidth?: number
+  minHeight?: number
+  testID?: string
+  // Allow additional props for flexibility
+  [key: string]: unknown
 }
 
 export interface MockStyledOptions {
   component?: string | React.ComponentType
-  config?: Record<string, any>
+  config?: Record<string, unknown>
+}
+
+export interface IconProps {
+  size?: number
+  color?: string
+  className?: string
+  [key: string]: unknown
+}
+
+export interface DialogProps {
+  children?: React.ReactNode
+  modal?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  [key: string]: unknown
+}
+
+export interface DialogComponentProps {
+  children?: React.ReactNode
+  asChild?: boolean
+  [key: string]: unknown
 }
 
 // Comprehensive list of Tamagui props to filter out
@@ -147,7 +186,7 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
   'black',
   'white',
 
-  // Other
+  // Other common Tamagui props
   'icon',
   'testID',
   'key',
@@ -155,6 +194,79 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
   'space',
   'zIndex',
   'disabled',
+  'circular',
+  'unstyled',
+  'hoverTheme',
+  'pressTheme',
+  'focusTheme',
+
+  // Additional animation props
+  'animationDuration',
+  'animationDelay',
+  'animationTimingFunction',
+
+  // Responsive props
+  'responsive',
+  'mediaQueries',
+
+  // Interaction states
+  'hover',
+  'focus',
+  'press',
+  'active',
+
+  // Additional layout props
+  'overflow',
+  'overflowX',
+  'overflowY',
+  'cursor',
+
+  // Additional spacing props
+  'paddingBlock',
+  'paddingInline',
+  'marginBlock',
+  'marginInline',
+
+  // Additional border props
+  'borderBlock',
+  'borderInline',
+  'borderBlockStart',
+  'borderBlockEnd',
+  'borderInlineStart',
+  'borderInlineEnd',
+
+  // Additional background props
+  'backgroundImage',
+  'backgroundSize',
+  'backgroundPosition',
+  'backgroundRepeat',
+
+  // Additional typography props
+  'fontStyle',
+  'textDecoration',
+  'textTransform',
+  'letterSpacing',
+  'wordSpacing',
+  'textIndent',
+
+  // Additional interaction props
+  'onHoverIn',
+  'onHoverOut',
+  'onFocusIn',
+  'onFocusOut',
+  'onPressStart',
+  'onPressEnd',
+
+  // Additional accessibility props
+  'accessibilityValue',
+  'accessibilityActions',
+  'accessibilityRoleDescription',
+
+  // Missing props from navigation dialog
+  'paddingVertical',
+  'borderradius',
+  'backgroundcolor',
+  'lineheight',
 ])
 
 /**
@@ -179,7 +291,7 @@ export function createMockComponent(name: string) {
         iconElement = React.cloneElement(icon, { key: 'icon' })
       } else if (typeof icon === 'function') {
         // Icon is a component function, render it
-        const IconComponent = icon as React.ComponentType<any>
+        const IconComponent = icon as React.ComponentType<IconProps>
         iconElement = React.createElement(IconComponent, {
           key: 'icon',
           size: 24,
@@ -229,13 +341,112 @@ export function createMockComponent(name: string) {
 /**
  * Creates a mock styled function that works with Tamagui's styled API
  */
-export function createMockStyled(component?: any) {
-  return (componentOrConfig?: any) => {
+export function createMockStyled(component?: string | React.ComponentType) {
+  return (componentOrConfig?: string | React.ComponentType | MockStyledOptions) => {
     const targetComponent = component || componentOrConfig
     return createMockComponent(
       typeof targetComponent === 'string' ? targetComponent : 'StyledComponent'
     )
   }
+}
+
+/**
+ * Creates a comprehensive Dialog mock using a builder pattern
+ * This makes the Dialog mock more maintainable and easier to extend
+ */
+function createDialogMock() {
+  // Base dialog component
+  const Dialog = React.forwardRef<HTMLElement, DialogProps>(
+    ({ children, modal, open, onOpenChange, ...props }, ref) =>
+      open
+        ? React.createElement(
+            'div',
+            {
+              ...props,
+              ref,
+              'data-testid': 'Dialog',
+              'data-modal': modal,
+              'data-open': open,
+              onClick: onOpenChange ? () => onOpenChange(false) : undefined,
+            },
+            children
+          )
+        : null
+  )
+
+  // Dialog component builder
+  const createDialogComponent = (
+    componentName: string,
+    defaultElement = 'div',
+    defaultProps: Record<string, unknown> = {},
+    customStyle?: Record<string, unknown>
+  ) => {
+    return React.forwardRef<HTMLElement, DialogComponentProps>(
+      ({ children, asChild, ...props }, ref) => {
+        const element = asChild ? 'span' : defaultElement
+        const baseProps = {
+          ...defaultProps,
+          ...props,
+          ref,
+          'data-testid': `Dialog${componentName}`,
+        }
+
+        if (customStyle) {
+          baseProps.style = {
+            ...customStyle,
+            ...props.style,
+          }
+        }
+
+        return React.createElement(element, baseProps, children)
+      }
+    )
+  }
+
+  // Compose dialog with all sub-components
+  return Object.assign(Dialog, {
+    Root: createDialogComponent('Root'),
+    Portal: createDialogComponent('Portal'),
+    Overlay: createDialogComponent(
+      'Overlay',
+      'div',
+      {},
+      {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+      }
+    ),
+    Content: createDialogComponent(
+      'Content',
+      'div',
+      {},
+      {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: 'white',
+        borderRadius: 8,
+        padding: 20,
+        maxWidth: 400,
+      }
+    ),
+    Title: createDialogComponent('Title', 'h2'),
+    Description: createDialogComponent('Description', 'p'),
+    Close: createDialogComponent('Close', 'button', { type: 'button' }),
+    Trigger: createDialogComponent('Trigger'),
+    Header: createDialogComponent('Header'),
+    Footer: createDialogComponent('Footer'),
+    ScrollView: createDialogComponent('ScrollView'),
+  })
 }
 
 /**
@@ -276,78 +487,8 @@ export function createTamaguiMock() {
     Circle: mockComponent,
     Square: mockComponent,
 
-    // Overlay components
-    Dialog: {
-      Root: ({ children }: { children: React.ReactNode }) => children,
-      Portal: ({ children }: { children: React.ReactNode }) => children,
-      Overlay: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          'div',
-          {
-            'data-testid': 'DialogOverlay',
-            style: {
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-            },
-          },
-          children
-        ),
-      Content: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          'div',
-          {
-            'data-testid': 'DialogContent',
-            style: {
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'white',
-              borderRadius: 8,
-              padding: 20,
-              maxWidth: 400,
-            },
-          },
-          children
-        ),
-      Title: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          'h2',
-          {
-            'data-testid': 'DialogTitle',
-          },
-          children
-        ),
-      Description: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          'p',
-          {
-            'data-testid': 'DialogDescription',
-          },
-          children
-        ),
-      Close: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
-        React.createElement(
-          asChild ? 'span' : 'button',
-          {
-            'data-testid': 'DialogClose',
-            ...(asChild ? {} : { type: 'button' }),
-          },
-          children
-        ),
-      Trigger: mockComponent,
-      Header: mockComponent,
-      Footer: mockComponent,
-      ScrollView: mockComponent,
-    },
+    // Overlay components with improved composition
+    Dialog: createDialogMock(),
 
     // Theme and styling
     useTheme: jest.fn(() => ({ background: '#fff', color: '#000' })),
@@ -363,7 +504,7 @@ export function createTamaguiMock() {
  */
 export function createIconMocks() {
   const createIcon = (name: string) =>
-    React.forwardRef<SVGElement>((props, ref) =>
+    React.forwardRef<SVGElement, IconProps>((props, ref) =>
       React.createElement('svg', {
         ...props,
         ref,

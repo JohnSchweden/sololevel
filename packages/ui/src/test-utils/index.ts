@@ -18,3 +18,10 @@ export type { ReactElement, TamaguiConfig }
 export * from './mocks'
 export * from './TestProvider'
 export * from './setup'
+export * from './mock-data'
+
+// Re-export user event for advanced interactions
+export { default as userEvent } from '@testing-library/user-event'
+
+// Additional testing utilities
+export * from '@testing-library/jest-dom'

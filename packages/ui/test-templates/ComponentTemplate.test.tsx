@@ -3,10 +3,22 @@
  * Copy this template and customize for your component
  */
 
+import React from 'react'
+
 // Import shared test utilities (includes all mocks and setup)
 import '../test-utils/setup'
-import { ComponentName } from '../ComponentName'
+// import { ComponentName } from '../path/to/your/component'
 import { fireEvent, renderWithProvider, screen } from '../test-utils'
+
+// Mock component for template purposes
+const ComponentName = ({ children, ...props }: any) => (
+  <div
+    data-testid="ComponentName"
+    {...props}
+  >
+    {children}
+  </div>
+)
 
 describe('ComponentName', () => {
   describe('Rendering', () => {
