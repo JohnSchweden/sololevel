@@ -1,5 +1,5 @@
+import { Button, H3, Paragraph, YStack } from '@my/ui'
 import { Component, type ReactNode } from 'react'
-import { YStack, Paragraph, Button, H3 } from '@my/ui'
 
 interface Props {
   children: ReactNode
@@ -23,8 +23,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
-
     // Log error but don't expose internal details to users
     if (this.props.onError) {
       this.props.onError(error, errorInfo)

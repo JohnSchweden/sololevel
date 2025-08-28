@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RecordingState } from '../types'
 import { Alert } from 'react-native'
+import { RecordingState } from '../types'
 
 interface RecordingStateMachineConfig {
   maxDurationMs: number
@@ -105,7 +105,6 @@ export function useRecordingStateMachine(
       onStateChange?.(RecordingState.RECORDING, 0)
       requestRef.current = requestAnimationFrame(updateDuration)
     } catch (error) {
-      console.error('Failed to start recording:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to start recording')
     }
   }, [recordingState, onStateChange, onError, updateDuration])
@@ -133,7 +132,6 @@ export function useRecordingStateMachine(
         requestRef.current = null
       }
     } catch (error) {
-      console.error('Failed to pause recording:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to pause recording')
     }
   }, [recordingState, startTime, pausedDuration, duration, onStateChange, onError])
@@ -162,7 +160,6 @@ export function useRecordingStateMachine(
         requestRef.current = null
       }
     } catch (error) {
-      console.error('Failed to stop recording:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to stop recording')
     }
   }, [recordingState, startTime, pausedDuration, duration, maxDurationMs, onStateChange, onError])
@@ -191,7 +188,6 @@ export function useRecordingStateMachine(
       onStateChange?.(RecordingState.RECORDING, duration)
       requestRef.current = requestAnimationFrame(updateDuration)
     } catch (error) {
-      console.error('Failed to resume recording:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to resume recording')
     }
   }, [recordingState, duration, maxDurationMs, onStateChange, onError, updateDuration])
@@ -211,7 +207,6 @@ export function useRecordingStateMachine(
 
       onStateChange?.(RecordingState.IDLE, 0)
     } catch (error) {
-      console.error('Failed to reset recording:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to reset recording')
     }
   }, [onStateChange, onError])

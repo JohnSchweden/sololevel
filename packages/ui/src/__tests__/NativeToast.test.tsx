@@ -1,3 +1,5 @@
+import React from 'react'
+
 // Mock Tamagui components before imports
 jest.mock('tamagui', () => {
   const React = require('react')
@@ -5,11 +7,33 @@ jest.mock('tamagui', () => {
     React.forwardRef((props: any, ref: any) => {
       // Filter out Tamagui-specific props
       const {
-        backgroundColor, borderRadius, minHeight, minWidth, pressStyle, hoverStyle,
-        accessibilityRole, accessibilityLabel, accessibilityHint, accessibilityState,
-        scale, animation, borderWidth, borderColor, shadowColor, shadowOffset,
-        shadowOpacity, shadowRadius, elevation, gap, paddingHorizontal,
-        alignItems, justifyContent, size, opacity, onPress, ...domProps
+        backgroundColor,
+        borderRadius,
+        minHeight,
+        minWidth,
+        pressStyle,
+        hoverStyle,
+        accessibilityRole,
+        accessibilityLabel,
+        accessibilityHint,
+        accessibilityState,
+        scale,
+        animation,
+        borderWidth,
+        borderColor,
+        shadowColor,
+        shadowOffset,
+        shadowOpacity,
+        shadowRadius,
+        elevation,
+        gap,
+        paddingHorizontal,
+        alignItems,
+        justifyContent,
+        size,
+        opacity,
+        onPress,
+        ...domProps
       } = props
 
       return React.createElement('div', {
@@ -18,15 +42,15 @@ jest.mock('tamagui', () => {
         'data-testid': name,
         'aria-label': accessibilityLabel,
         'aria-describedby': accessibilityHint,
-        'role': accessibilityRole,
+        role: accessibilityRole,
         'aria-selected': accessibilityState?.selected,
         'aria-disabled': props.disabled,
         onClick: onPress, // Convert onPress to onClick for web
         style: {
           minHeight: minHeight || 44,
           minWidth: minWidth || 44,
-          ...domProps.style
-        }
+          ...domProps.style,
+        },
       })
     })
 
@@ -43,10 +67,10 @@ jest.mock('tamagui', () => {
   }
 })
 
-import React from 'react'
-import { render, screen } from '@testing-library/react'
-import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'
+import { render, renderWithProvider, screen } from '../test-utils'
+
+import { TamaguiProvider } from 'tamagui'
 
 // Mock Tamagui toast hook
 const mockUseToastState = jest.fn()
@@ -77,10 +101,6 @@ jest.mock('@tamagui/toast', () => {
 })
 
 import { NativeToast } from '../NativeToast'
-
-function renderWithProvider(component: React.ReactElement) {
-  return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
-}
 
 describe('NativeToast', () => {
   beforeEach(() => {

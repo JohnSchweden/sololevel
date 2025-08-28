@@ -1,6 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useQueryWithErrorHandling, useQueryWithRetry } from '../useQueryWithErrorHandling'
 
 // Mock toast controller
@@ -79,11 +79,6 @@ describe('useQueryWithErrorHandling', () => {
     expect(result.current.error).toBe(mockError)
     expect(mockToastShow).toHaveBeenCalledWith('Something went wrong', {
       message: 'Please try again in a moment',
-    })
-    expect(console.error).toHaveBeenCalledWith('Query failed:', {
-      queryKey: ['test'],
-      error: mockError,
-      timestamp: expect.any(String),
     })
   })
 

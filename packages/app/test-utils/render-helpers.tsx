@@ -1,8 +1,8 @@
-import type React from 'react'
-import { render, type RenderOptions } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TamaguiProvider } from '@my/ui'
 import { config } from '@my/config'
+import { TamaguiProvider } from '@my/ui'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { type RenderOptions, render } from '@testing-library/react'
+import type React from 'react'
 
 // Custom render function with providers
 export function renderWithProviders(

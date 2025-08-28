@@ -1,27 +1,12 @@
 /**
  * Custom Hook Test Template
  * Copy this template and customize for your hook
- *
- * USAGE INSTRUCTIONS:
- * 1. Copy this file to your hook's __tests__ directory
- * 2. Replace 'useHookName' with your actual hook name
- * 3. Uncomment and update the hook import path
- * 4. Customize the test descriptions and expectations
- * 5. Remove or modify tests that don't apply to your hook
- * 6. Add specific tests for your hook's unique functionality
- *
- * EXAMPLE:
- * - Copy to: src/hooks/__tests__/useCounter.test.tsx
- * - Change: useHookName → useCounter
- * - Import: import { useCounter } from '../useCounter'
  */
 
 // Import shared test utilities (includes all mocks and setup)
-import React from 'react'
 import '../test-utils/setup'
-import { renderHook, act, waitFor } from '../test-utils'
-// Replace this import with your actual hook import:
-// import { useHookName } from '../hooks/useHookName'
+import { useHookName } from '../hooks/useHookName'
+import { act, renderHook, waitFor } from '../test-utils'
 
 describe('useHookName', () => {
   describe('Initialization', () => {
@@ -33,7 +18,7 @@ describe('useHookName', () => {
           // Add your expected default values
           isLoading: false,
           data: null,
-          error: null
+          error: null,
         })
       )
     })
@@ -41,7 +26,7 @@ describe('useHookName', () => {
     it('should accept initial configuration', () => {
       const config = {
         initialValue: 'test',
-        enabled: true
+        enabled: true,
       }
 
       const { result } = renderHook(() => useHookName(config))
@@ -50,7 +35,7 @@ describe('useHookName', () => {
         expect.objectContaining({
           // Add your expected initialized values
           data: 'test',
-          isEnabled: true
+          isEnabled: true,
         })
       )
     })
@@ -195,10 +180,9 @@ describe('useHookName', () => {
 
   describe('Dependencies', () => {
     it('should re-run when dependencies change', () => {
-      const { result, rerender } = renderHook(
-        ({ dependency }: { dependency: string }) => useHookName({ dependency }),
-        { initialProps: { dependency: 'initial' } }
-      )
+      const { result, rerender } = renderHook(({ dependency }) => useHookName({ dependency }), {
+        initialProps: { dependency: 'initial' },
+      })
 
       expect(result.current.dependencyValue).toBe('initial')
 
@@ -210,7 +194,7 @@ describe('useHookName', () => {
     it('should not re-run when dependencies are the same', () => {
       const mockEffect = jest.fn()
       const { result, rerender } = renderHook(
-        ({ dependency }: { dependency: string }) => {
+        ({ dependency }) => {
           useHookName({ dependency })
           mockEffect()
           return result
@@ -293,9 +277,12 @@ describe('useHookName', () => {
       expect(mockUpdate).not.toHaveBeenCalled()
 
       // Wait for debounce
-      await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledTimes(1)
-      }, { timeout: 200 })
+      await waitFor(
+        () => {
+          expect(mockUpdate).toHaveBeenCalledTimes(1)
+        },
+        { timeout: 200 }
+      )
 
       // Should only call with latest value
       expect(mockUpdate).toHaveBeenCalledWith('value3')

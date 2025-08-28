@@ -1,5 +1,5 @@
-import { vi } from 'vitest'
 import type { User } from '@my/api'
+import { vi } from 'vitest'
 
 // Mock Supabase user data
 export const mockUser: User = {

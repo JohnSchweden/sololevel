@@ -137,10 +137,7 @@ Object.defineProperty(globalThis, 'expo', {
 jest.mock('expo-camera', () => ({
   CameraView: ({ children }) => children,
   Camera: ({ children }) => children,
-  useCameraPermissions: () => [
-    { granted: true, canAskAgain: true, status: 'granted' },
-    jest.fn(),
-  ],
+  useCameraPermissions: () => [{ granted: true, canAskAgain: true, status: 'granted' }, jest.fn()],
   useMicrophonePermissions: () => [
     { granted: true, canAskAgain: true, status: 'granted' },
     jest.fn(),
@@ -196,7 +193,7 @@ jest.mock('@tamagui/core', () => {
     React.forwardRef((props, ref) =>
       React.createElement('div', { ...props, ref, 'data-testid': name })
     )
-  
+
   return {
     TamaguiProvider: ({ children }) => children,
     styled: (component, config) => mockComponent,
@@ -220,7 +217,7 @@ jest.mock('tamagui', () => {
     React.forwardRef((props, ref) =>
       React.createElement('div', { ...props, ref, 'data-testid': name })
     )
-  
+
   return {
     TamaguiProvider: ({ children }) => children,
     styled: (component, config) => mockComponent,

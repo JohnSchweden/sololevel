@@ -1,6 +1,6 @@
 import { EnhancedCameraRecordingScreen } from '@app/features/CameraRecording/EnhancedCameraRecordingScreen'
-import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 
 export default function EnhancedCameraPage() {
   const router = useRouter()

@@ -6,15 +6,15 @@ import {
   Separator,
   Sheet,
   SwitchThemeButton,
-  useToastController,
   XStack,
   YStack,
+  useToastController,
 } from '@my/ui'
-import { ChevronDown, ChevronUp, Camera, Video } from '@tamagui/lucide-icons'
+import { Camera, ChevronDown, ChevronUp, Video } from '@tamagui/lucide-icons'
+import Link from 'next/link'
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
-import Link from 'next/link'
 
 export function HomeScreen({
   linkComponent,

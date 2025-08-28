@@ -3,10 +3,10 @@
  * Provides consistent test environment setup
  */
 
-import React from 'react'
 import { render } from '@testing-library/react'
+import React from 'react'
 import { TamaguiProvider } from 'tamagui'
-import { config } from '../config/tamagui.config'
+import config from '../config/tamagui.config'
 
 export interface TestProviderProps {
   children: React.ReactNode
@@ -17,11 +17,7 @@ export interface TestProviderProps {
  * Use this in all test files to ensure consistent theming and configuration
  */
 export function TestProvider({ children }: TestProviderProps) {
-  return (
-    <TamaguiProvider config={config}>
-      {children}
-    </TamaguiProvider>
-  )
+  return <TamaguiProvider config={config}>{children}</TamaguiProvider>
 }
 
 /**

@@ -80,7 +80,6 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
 
       onCameraSwap?.(newCameraType)
     } catch (error) {
-      console.error('Failed to swap camera:', error)
       setControls((prev) => ({ ...prev, isSwapping: false }))
       onError?.(error instanceof Error ? error.message : 'Failed to swap camera')
     }
@@ -97,7 +96,6 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
         setControls((prev) => ({ ...prev, zoomLevel: level }))
         onZoomChange?.(level)
       } catch (error) {
-        console.error('Failed to set zoom level:', error)
         onError?.(error instanceof Error ? error.message : 'Failed to change zoom')
       }
     },
@@ -110,7 +108,6 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
       const newFlashState = !controls.flashEnabled
       setControls((prev) => ({ ...prev, flashEnabled: newFlashState }))
     } catch (error) {
-      console.error('Failed to toggle flash:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to toggle flash')
     }
   }, [controls.flashEnabled, onError])
@@ -121,7 +118,6 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
       const newGridState = !controls.gridEnabled
       setControls((prev) => ({ ...prev, gridEnabled: newGridState }))
     } catch (error) {
-      console.error('Failed to toggle grid:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to toggle grid lines')
     }
   }, [controls.gridEnabled, onError])
@@ -137,7 +133,6 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
         isSwapping: false,
       })
     } catch (error) {
-      console.error('Failed to reset settings:', error)
       onError?.(error instanceof Error ? error.message : 'Failed to reset settings')
     }
   }, [initialCameraType, onError])
@@ -227,14 +222,9 @@ export async function performCameraTransition(
   operation: () => Promise<void>,
   duration = 300
 ): Promise<void> {
-  try {
-    // Could add visual transitions here (fade out/in, etc.)
-    await operation()
+  // Could add visual transitions here (fade out/in, etc.)
+  await operation()
 
-    // Brief delay for smooth UX
-    await new Promise((resolve) => setTimeout(resolve, duration))
-  } catch (error) {
-    console.error('Camera transition failed:', error)
-    throw error
-  }
+  // Brief delay for smooth UX
+  await new Promise((resolve) => setTimeout(resolve, duration))
 }

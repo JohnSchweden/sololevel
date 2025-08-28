@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { Session, User } from '@supabase/supabase-js'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
-import type { User, Session } from '@supabase/supabase-js'
 
 // Mock Supabase functions
 vi.mock('@my/api', () => {
@@ -127,7 +127,7 @@ describe('AuthStore', () => {
       await useAuthStore.getState().signOut()
 
       expect(supabase.auth.signOut).toHaveBeenCalledTimes(1)
-      expect(consoleSpy).toHaveBeenCalledWith('Error signing out:', mockError)
+
       // Loading should be false after error handling
       expect(useAuthStore.getState().loading).toBe(false)
 
@@ -144,7 +144,6 @@ describe('AuthStore', () => {
 
       await useAuthStore.getState().signOut()
 
-      expect(consoleSpy).toHaveBeenCalledWith('Unexpected error during sign out:', mockError)
       expect(useAuthStore.getState().loading).toBe(false)
 
       consoleSpy.mockRestore()
@@ -165,7 +164,9 @@ describe('AuthStore', () => {
         error: null,
       })
       mockOnAuthStateChange.mockReturnValue({
-        data: { subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() } },
+        data: {
+          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+        },
       })
 
       await useAuthStore.getState().initialize()
@@ -190,7 +191,9 @@ describe('AuthStore', () => {
         error: null,
       })
       mockOnAuthStateChange.mockReturnValue({
-        data: { subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() } },
+        data: {
+          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+        },
       })
 
       await useAuthStore.getState().initialize()
@@ -218,14 +221,15 @@ describe('AuthStore', () => {
         error: mockError,
       })
       mockOnAuthStateChange.mockReturnValue({
-        data: { subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() } },
+        data: {
+          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+        },
       })
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       await useAuthStore.getState().initialize()
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error getting session:', mockError)
       // Should still be initialized even with session error
       expect(useAuthStore.getState().initialized).toBe(true)
 
@@ -254,7 +258,15 @@ describe('AuthStore', () => {
       })
       mockOnAuthStateChange.mockImplementation((callback: any) => {
         authChangeCallback = callback
-        return { data: { subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() } } }
+        return {
+          data: {
+            subscription: {
+              id: 'test',
+              callback: vi.fn(),
+              unsubscribe: vi.fn(),
+            },
+          },
+        }
       })
 
       await useAuthStore.getState().initialize()

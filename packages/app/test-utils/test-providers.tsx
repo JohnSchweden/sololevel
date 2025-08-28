@@ -1,7 +1,7 @@
-import type React from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TamaguiProvider } from '@my/ui'
 import { config } from '@my/config'
+import { TamaguiProvider } from '@my/ui'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type React from 'react'
 import { I18nProvider } from '../provider/I18nProvider'
 
 interface TestProvidersProps {

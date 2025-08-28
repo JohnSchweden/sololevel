@@ -1,4 +1,4 @@
-import { YStack, Paragraph } from '@my/ui'
+import { Paragraph, YStack } from '@my/ui'
 
 interface LoadingSpinnerProps {
   message?: string

@@ -1,34 +1,28 @@
-import {
-  useQuery,
-  type UseQueryOptions,
-  type UseQueryResult,
-} from "@tanstack/react-query";
-import { useToastController } from "@my/ui";
-import { useEffect, useRef } from "react";
+import { useToastController } from '@my/ui'
+import { type UseQueryOptions, type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 
-type QueryWithErrorHandlingOptions<TData, TError> =
-  & UseQueryOptions<TData, TError>
-  & {
-    showErrorToast?: boolean;
-    errorMessage?: string;
-  };
+type QueryWithErrorHandlingOptions<TData, TError> = UseQueryOptions<TData, TError> & {
+  showErrorToast?: boolean
+  errorMessage?: string
+}
 
 export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
-  options: QueryWithErrorHandlingOptions<TData, TError>,
+  options: QueryWithErrorHandlingOptions<TData, TError>
 ): UseQueryResult<TData, TError> {
   // Safety check for SSR - don't use toast during server rendering
-  let toast: any = null;
+  let toast: any = null
   try {
-    toast = useToastController();
+    toast = useToastController()
   } catch (error) {
     // Toast not available during SSR, that's okay
   }
-  const lastErrorRef = useRef<TError | null>(null);
+  const lastErrorRef = useRef<TError | null>(null)
 
-  const { showErrorToast = true, errorMessage, ...queryOptions } = options;
+  const { showErrorToast = true, errorMessage, ...queryOptions } = options
 
   // Don't run queries during SSR
-  const isClient = typeof window !== "undefined";
+  const isClient = typeof window !== 'undefined'
 
   // Safety check for SSR - return a mock result if not on client
   if (!isClient) {
@@ -56,21 +50,19 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
       isStale: false,
       refetch: () => Promise.resolve(),
       remove: () => {},
-      status: "idle",
-    } as unknown as UseQueryResult<TData, TError>;
+      status: 'idle',
+    } as unknown as UseQueryResult<TData, TError>
   }
 
   // Wrap useQuery in try-catch to handle SSR gracefully
-  let result: UseQueryResult<TData, TError>;
+  let result: UseQueryResult<TData, TError>
   try {
     result = useQuery({
       ...queryOptions,
       throwOnError: false, // Always prevent throwing errors
       enabled: queryOptions.enabled !== false && isClient, // Only run on client
-    });
+    })
   } catch (error) {
-    // If useQuery fails (e.g., no QueryClient), return mock result
-    console.warn("useQuery failed, returning mock result:", error);
     return {
       data: undefined,
       error: null,
@@ -95,36 +87,26 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
       isStale: false,
       refetch: () => Promise.resolve(),
       remove: () => {},
-      status: "idle",
-    } as unknown as UseQueryResult<TData, TError>;
+      status: 'idle',
+    } as unknown as UseQueryResult<TData, TError>
   }
 
   // Handle errors using useEffect to prevent setState during render
   useEffect(() => {
-    if (
-      result.isError && result.error && showErrorToast &&
-      result.error !== lastErrorRef.current
-    ) {
-      lastErrorRef.current = result.error;
-
-      // Log error for debugging
-      console.error("Query failed:", {
-        queryKey: options.queryKey,
-        error: result.error,
-        timestamp: new Date().toISOString(),
-      });
+    if (result.isError && result.error && showErrorToast && result.error !== lastErrorRef.current) {
+      lastErrorRef.current = result.error
 
       // Show user-friendly toast notification (only if toast is available)
       if (toast) {
-        toast.show(errorMessage || "Something went wrong", {
-          message: "Please try again in a moment",
-        });
+        toast.show(errorMessage || 'Something went wrong', {
+          message: 'Please try again in a moment',
+        })
       }
     }
 
     // Reset error ref when query succeeds
     if (result.isSuccess && lastErrorRef.current) {
-      lastErrorRef.current = null;
+      lastErrorRef.current = null
     }
   }, [
     result.isError,
@@ -134,29 +116,29 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
     errorMessage,
     toast,
     options.queryKey,
-  ]);
+  ])
 
-  return result;
+  return result
 }
 
 // Convenience hook for common patterns
 export function useQueryWithRetry<TData = unknown, TError = Error>(
   options: QueryWithErrorHandlingOptions<TData, TError> & {
-    retryCount?: number;
-  },
+    retryCount?: number
+  }
 ) {
-  const { retryCount = 3, ...queryOptions } = options;
+  const { retryCount = 3, ...queryOptions } = options
 
   return useQueryWithErrorHandling({
     ...queryOptions,
     retry: (failureCount, error) => {
       // Don't retry on client errors (4xx)
-      if (error instanceof Error && error.message.includes("4")) {
-        return false;
+      if (error instanceof Error && error.message.includes('4')) {
+        return false
       }
 
-      return failureCount < retryCount;
+      return failureCount < retryCount
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
+  })
 }

@@ -5,8 +5,8 @@
 
 // Import shared test utilities (includes all mocks and setup)
 import '../test-utils/setup'
-import { renderWithProvider, screen, fireEvent } from '../test-utils'
 import { ComponentName } from '../ComponentName'
+import { fireEvent, renderWithProvider, screen } from '../test-utils'
 
 describe('ComponentName', () => {
   describe('Rendering', () => {
@@ -32,11 +32,7 @@ describe('ComponentName', () => {
   describe('User Interactions', () => {
     it('should handle click events', () => {
       const mockOnClick = jest.fn()
-      renderWithProvider(
-        <ComponentName onClick={mockOnClick}>
-          Click me
-        </ComponentName>
-      )
+      renderWithProvider(<ComponentName onClick={mockOnClick}>Click me</ComponentName>)
 
       const element = screen.getByRole('button')
       fireEvent.click(element)
@@ -46,16 +42,14 @@ describe('ComponentName', () => {
 
     it('should handle keyboard navigation', () => {
       const mockOnKeyDown = jest.fn()
-      renderWithProvider(
-        <ComponentName onKeyDown={mockOnKeyDown} />
-      )
+      renderWithProvider(<ComponentName onKeyDown={mockOnKeyDown} />)
 
       const element = screen.getByTestId('ComponentName')
       fireEvent.keyDown(element, { key: 'Enter' })
 
       expect(mockOnKeyDown).toHaveBeenCalledWith(
         expect.objectContaining({
-          key: 'Enter'
+          key: 'Enter',
         })
       )
     })
@@ -77,13 +71,16 @@ describe('ComponentName', () => {
 
     it('should support screen readers', () => {
       renderWithProvider(
-        <ComponentName role="button" ariaPressed="false">
-          Toggle
+        <ComponentName
+          asChild
+          ariaPressed="false"
+        >
+          <button>Toggle</button>
         </ComponentName>
       )
 
-      const element = screen.getByRole('button')
-      expect(element).toHaveAttribute('aria-pressed', 'false')
+      const button = screen.getByRole('button')
+      expect(button).toHaveAttribute('aria-pressed', 'false')
     })
   })
 
@@ -104,9 +101,7 @@ describe('ComponentName', () => {
     })
 
     it('should handle error state', () => {
-      renderWithProvider(
-        <ComponentName error="Something went wrong" />
-      )
+      renderWithProvider(<ComponentName error="Something went wrong" />)
 
       expect(screen.getByText('Something went wrong')).toBeInTheDocument()
       expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -133,7 +128,7 @@ describe('ComponentName', () => {
         <ComponentName
           style={{
             backgroundColor: 'red',
-            padding: '20px'
+            padding: '20px',
           }}
         />
       )
@@ -160,11 +155,7 @@ describe('ComponentName', () => {
     it('should render with custom content', () => {
       const customContent = <div data-testid="custom">Custom Content</div>
 
-      renderWithProvider(
-        <ComponentName>
-          {customContent}
-        </ComponentName>
-      )
+      renderWithProvider(<ComponentName>{customContent}</ComponentName>)
 
       expect(screen.getByTestId('custom')).toBeInTheDocument()
     })
@@ -193,11 +184,7 @@ describe('ComponentName', () => {
     it('should handle large content gracefully', () => {
       const largeContent = 'A'.repeat(1000)
 
-      renderWithProvider(
-        <ComponentName>
-          {largeContent}
-        </ComponentName>
-      )
+      renderWithProvider(<ComponentName>{largeContent}</ComponentName>)
 
       expect(screen.getByText(largeContent)).toBeInTheDocument()
     })
@@ -233,7 +220,7 @@ describe('ComponentName', () => {
 
       expect(mockOnChange).toHaveBeenCalledWith(
         expect.objectContaining({
-          target: { value: 'test' }
+          target: { value: 'test' },
         })
       )
     })

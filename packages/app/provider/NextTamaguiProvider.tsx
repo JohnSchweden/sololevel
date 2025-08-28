@@ -5,11 +5,11 @@ import '@tamagui/font-inter/css/400.css'
 import '@tamagui/font-inter/css/700.css'
 import '@tamagui/polyfill-dev'
 
-import type { ReactNode } from 'react'
-import { useServerInsertedHTML } from 'next/navigation'
-import { NextThemeProvider, useRootTheme } from '@tamagui/next-theme'
 import { config } from '@my/ui'
+import { NextThemeProvider, useRootTheme } from '@tamagui/next-theme'
 import { Provider } from 'app/provider'
+import { useServerInsertedHTML } from 'next/navigation'
+import type { ReactNode } from 'react'
 import { StyleSheet } from 'react-native'
 
 export const NextTamaguiProvider = ({

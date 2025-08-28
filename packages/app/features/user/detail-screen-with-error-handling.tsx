@@ -1,9 +1,9 @@
-import { YStack, XStack, H2, Paragraph, Button, Avatar } from '@my/ui'
-import { ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
-import { ErrorBoundary } from '../../components/ErrorBoundary'
-import { ErrorBanner } from '../../components/ErrorBanner'
-import { LoadingSpinner } from '../../components/LoadingSpinner'
 import { useUser } from '@my/api'
+import { Avatar, Button, H2, Paragraph, XStack, YStack } from '@my/ui'
+import { ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
+import { ErrorBanner } from '../../components/ErrorBanner'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
+import { LoadingSpinner } from '../../components/LoadingSpinner'
 
 interface UserDetailScreenProps {
   id: string
@@ -124,8 +124,6 @@ function UserProfileContent({ user }: { user: any }) {
           <Avatar.Image
             src={user.avatar_url}
             onError={(error) => {
-              // ✅ Good: Handle image load errors gracefully
-              console.error('Avatar failed to load:', error)
               // Avatar fallback will be shown automatically
             }}
           />

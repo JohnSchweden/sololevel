@@ -1,6 +1,6 @@
+import { TamaguiProvider, config } from '@my/ui'
 import type { Meta, StoryObj } from '@storybook/react'
 import { HomeScreen } from './screen'
-import { TamaguiProvider, config } from '@my/ui'
 
 const meta: Meta<typeof HomeScreen> = {
   title: 'Features/Home/HomeScreen',

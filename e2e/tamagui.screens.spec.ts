@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Tamagui Screens E2E', () => {
   test('home screen loads and displays welcome message', async ({ page }) => {

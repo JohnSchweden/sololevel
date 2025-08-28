@@ -1,9 +1,9 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
+import deCommon from '../locales/de/common.json'
 // Import locale files
 import enCommon from '../locales/en/common.json'
-import deCommon from '../locales/de/common.json'
 import frCommon from '../locales/fr/common.json'
 
 export const defaultNS = 'common'

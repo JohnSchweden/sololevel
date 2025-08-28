@@ -25,7 +25,6 @@ const preview: Preview = {
           </TamaguiProvider>
         )
       } catch (error) {
-        console.error('❌ Error in decorator:', error)
         return <Story />
       }
     },

@@ -80,13 +80,6 @@ export function safeParseWithDetails<T>(
     return `${path}: ${issue.message}`
   })
 
-  // Log validation errors for debugging
-  console.error(`Validation failed in ${context}:`, {
-    errors: result.error.issues,
-    data,
-    timestamp: new Date().toISOString(),
-  })
-
   return {
     success: false,
     errors,

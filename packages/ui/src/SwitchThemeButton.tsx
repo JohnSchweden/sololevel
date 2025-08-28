@@ -1,6 +1,6 @@
+import { useRootTheme, useThemeSetting } from '@tamagui/next-theme'
 import React, { useState } from 'react'
 import { Button, useIsomorphicLayoutEffect } from 'tamagui'
-import { useThemeSetting, useRootTheme } from '@tamagui/next-theme'
 
 export const SwitchThemeButton = () => {
   const themeSetting = useThemeSetting()

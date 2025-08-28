@@ -1,7 +1,7 @@
-import { YStack, Text } from 'tamagui'
-import { Platform } from 'react-native'
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { Platform } from 'react-native'
+import { Text, YStack } from 'tamagui'
 
 export interface CameraPreviewContainerProps {
   isRecording: boolean
@@ -54,7 +54,6 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             }
           }
         } catch (error) {
-          console.error('Permission request error:', error)
           onError?.('Failed to request camera permission')
         }
       }
@@ -138,7 +137,6 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         setIsCameraReady(true)
         onCameraReady?.()
       } catch (error) {
-        console.error('Web camera error:', error)
         setCameraPermission('denied')
         onError?.('Failed to access camera. Please check permissions.')
       }

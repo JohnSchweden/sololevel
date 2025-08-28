@@ -71,7 +71,6 @@ export function useCameraPermissions(): UseCameraPermissionsResult {
         })
       }
     } catch (error) {
-      console.error('Error checking camera permissions:', error)
       setPermissions((prev) => ({
         ...prev,
         isLoading: false,
@@ -106,7 +105,6 @@ export function useCameraPermissions(): UseCameraPermissionsResult {
 
       return permissionStatus === CameraPermissionStatus.GRANTED
     } catch (error) {
-      console.error('Error requesting camera permission:', error)
       setPermissions((prev) => ({
         ...prev,
         isLoading: false,
@@ -142,7 +140,6 @@ export function useCameraPermissions(): UseCameraPermissionsResult {
 
       return permissionStatus === CameraPermissionStatus.GRANTED
     } catch (error) {
-      console.error('Error requesting microphone permission:', error)
       setPermissions((prev) => ({
         ...prev,
         isLoading: false,

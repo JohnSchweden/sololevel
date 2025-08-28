@@ -1,5 +1,4 @@
-import React, { Children } from 'react'
-import { AppRegistry } from 'react-native'
+import { config } from '@my/ui'
 import NextDocument, {
   type DocumentContext,
   type DocumentInitialProps,
@@ -8,7 +7,8 @@ import NextDocument, {
   Main,
   NextScript,
 } from 'next/document'
-import { config } from '@my/ui'
+import React, { Children } from 'react'
+import { AppRegistry } from 'react-native'
 
 export default class Document extends NextDocument {
   static async getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {

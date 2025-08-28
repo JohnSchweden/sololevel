@@ -7,9 +7,9 @@
  * by patching specific dependencies in the yarn.lock file.
  */
 
+import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
 
 const log = console.log
 log('🔒 Starting security vulnerability fixes...')

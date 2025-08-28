@@ -1,5 +1,5 @@
 import React from 'react'
-import { XStack, YStack, Text, Button } from 'tamagui'
+import { Button, Text, XStack, YStack } from 'tamagui'
 
 export interface BottomNavigationProps {
   activeTab: 'coach' | 'record' | 'insights'

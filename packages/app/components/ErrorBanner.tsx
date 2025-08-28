@@ -1,4 +1,4 @@
-import { YStack, Paragraph, Button, XStack } from '@my/ui'
+import { Button, Paragraph, XStack, YStack } from '@my/ui'
 import { AlertTriangle, X } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 

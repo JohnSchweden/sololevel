@@ -1,12 +1,12 @@
-import type React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TamaguiProvider } from '@my/ui'
 import { config } from '@my/config'
+import { TamaguiProvider } from '@my/ui'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen } from '@testing-library/react'
+import type React from 'react'
 import { UserDetailScreen } from '../user/detail-screen'
 
-import { vi } from 'vitest'
 import { useUser } from '@my/api'
+import { vi } from 'vitest'
 
 // Mock the API hook
 vi.mock('@my/api', () => ({

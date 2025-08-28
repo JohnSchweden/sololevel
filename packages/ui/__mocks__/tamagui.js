@@ -5,28 +5,49 @@ console.log('Tamagui mock loaded!')
 const mockComponent = (name) =>
   React.forwardRef((props, ref) => {
     // Filter out Tamagui-specific props that React DOM doesn't recognize
-    const { 
-      backgroundColor, borderRadius, minHeight, minWidth, pressStyle, hoverStyle,
-      accessibilityRole, accessibilityLabel, accessibilityHint, accessibilityState,
-      scale, animation, borderWidth, borderColor, shadowColor, shadowOffset,
-      shadowOpacity, shadowRadius, elevation, gap, paddingHorizontal,
-      alignItems, justifyContent, size, opacity, ...domProps 
+    const {
+      backgroundColor,
+      borderRadius,
+      minHeight,
+      minWidth,
+      pressStyle,
+      hoverStyle,
+      accessibilityRole,
+      accessibilityLabel,
+      accessibilityHint,
+      accessibilityState,
+      scale,
+      animation,
+      borderWidth,
+      borderColor,
+      shadowColor,
+      shadowOffset,
+      shadowOpacity,
+      shadowRadius,
+      elevation,
+      gap,
+      paddingHorizontal,
+      alignItems,
+      justifyContent,
+      size,
+      opacity,
+      ...domProps
     } = props
-    
-    return React.createElement('div', { 
-      ...domProps, 
-      ref, 
+
+    return React.createElement('div', {
+      ...domProps,
+      ref,
       'data-testid': name,
       'aria-label': accessibilityLabel,
       'aria-describedby': accessibilityHint,
-      'role': accessibilityRole,
+      role: accessibilityRole,
       'aria-selected': accessibilityState?.selected,
       'aria-disabled': props.disabled,
       style: {
         minHeight: minHeight || 44,
         minWidth: minWidth || 44,
-        ...domProps.style
-      }
+        ...domProps.style,
+      },
     })
   })
 

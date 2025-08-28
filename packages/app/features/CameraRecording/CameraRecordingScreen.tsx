@@ -1,15 +1,15 @@
-import { useState } from 'react'
 import {
+  BottomNavigation,
   CameraContainer,
-  CameraPreviewArea,
   CameraHeader,
   CameraPreview,
-  BottomNavigation,
+  CameraPreviewArea,
 } from '@my/ui'
-import { useCameraPermissions } from './hooks/useCameraPermissions'
-import { RecordingState, type CameraRecordingScreenProps } from './types'
-import { YStack, Text, Button } from 'tamagui'
 import { Circle, SwitchCamera } from '@tamagui/lucide-icons'
+import { useState } from 'react'
+import { Button, Text, YStack } from 'tamagui'
+import { useCameraPermissions } from './hooks/useCameraPermissions'
+import { type CameraRecordingScreenProps, RecordingState } from './types'
 
 /**
  * Camera Recording Screen - Phase 1 Implementation
@@ -38,7 +38,6 @@ export function CameraRecordingScreen({
   const handleCameraReady = () => {}
 
   const handleCameraError = (error: string) => {
-    console.error('Camera error:', error)
     // Phase 2: Implement proper error handling
   }
 

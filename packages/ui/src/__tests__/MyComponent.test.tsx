@@ -4,10 +4,10 @@
  */
 
 // Import shared test utilities (includes all mocks and setup)
-import React from 'react'
 import '../test-utils/setup'
-import { renderWithProvider, screen } from '../test-utils'
+import React from 'react'
 import { MyComponent } from '../MyComponent'
+import { renderWithProvider, screen } from '../test-utils'
 
 describe('MyComponent', () => {
   it('renders without crashing', () => {

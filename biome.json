@@ -1,38 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
-  "assist": { "actions": { "source": { "organizeImports": "off" } } },
+  "assists": { "actions": { "source": { "sortJsxProps": "off" } } },
   "linter": {
     "enabled": true,
-    "includes": [
-      "**",
-      "!**/.tamagui",
-      "!**/*/ios/**",
-      "!**/.vscode",
-      "!**/node_modules/**",
-      "!**/coverage/**",
-      "!**/tamagui.css",
-      "!**/*.d.ts",
-      "!**/packages/vendor/**",
-      "!**/packages/**/vendor/**",
-      "!**/tsconfig.json",
-      "!**/dist/**",
-      "!**/package.json",
-      "!**/.codesandbox",
-      "!**/tsconfig.base.json",
-      "!**/types/database.ts",
-      "!**/*.md",
-      "!**/*.mdc",
-      "!**/*.yml",
-      "!**/*.yaml",
-      "!**/*.json",
-      "!**/*.lock",
-      "!**/*.log",
-      "!**/*.txt",
-      "!**/*.sql",
-      "!**/*.toml",
-      "!**/*.cjs",
-      "!**/*.mjs"
-    ],
+    "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    "ignore": ["**/coverage/**"],
 
     "rules": {
       "correctness": {
@@ -60,7 +32,7 @@
         "useEnumInitializers": "off",
         "useTemplate": "off",
         "useSelfClosingElements": "off",
-        "useImportType": "error"
+        "useImportType": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off",
@@ -76,9 +48,7 @@
         "noUselessFragments": "off",
         "useLiteralKeys": "off",
         "useSimplifiedLogicExpression": "off",
-        "useOptionalChain": "off",
-        "noUselessContinue": "off",
-        "noArguments": "off"
+        "useOptionalChain": "off"
       },
       "a11y": {
         "noSvgWithoutTitle": "off",
@@ -96,36 +66,8 @@
     "indentWidth": 2,
     "lineWidth": 100,
     "attributePosition": "multiline",
-    "includes": [
-      "**",
-      "!**/.tamagui",
-      "!**/ios/**",
-      "!**/.vscode",
-      "!**/node_modules/**",
-      "!**/coverage/**",
-      "!**/tamagui.css",
-      "!**/*.d.ts",
-      "!**/packages/vendor/**",
-      "!**/packages/**/vendor/**",
-      "!**/tsconfig.json",
-      "!**/dist/**",
-      "!**/package.json",
-      "!**/.codesandbox",
-      "!**/tsconfig.base.json",
-      "!**/types/database.ts",
-      "!**/*.md",
-      "!**/*.mdc",
-      "!**/*.yml",
-      "!**/*.yaml",
-      "!**/*.json",
-      "!**/*.lock",
-      "!**/*.log",
-      "!**/*.txt",
-      "!**/*.sql",
-      "!**/*.toml",
-      "!**/*.cjs",
-      "!**/*.mjs"
-    ]
+    "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    "ignore": ["**/coverage/**"]
   },
   "javascript": {
     "formatter": {

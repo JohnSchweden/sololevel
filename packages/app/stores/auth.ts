@@ -1,7 +1,7 @@
+import { supabase } from '@my/api'
+import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import type { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@my/api'
 
 export interface AuthState {
   user: User | null
@@ -46,13 +46,11 @@ export const useAuthStore = create<AuthStore>()(
       try {
         const { error } = await supabase.auth.signOut()
         if (error) {
-          console.error('Error signing out:', error)
           set({ loading: false })
         } else {
           set({ user: null, session: null, loading: false })
         }
       } catch (error) {
-        console.error('Unexpected error during sign out:', error)
         set({ loading: false })
       }
     },
@@ -70,7 +68,6 @@ export const useAuthStore = create<AuthStore>()(
         } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('Error getting session:', error)
           set({ loading: false, initialized: true })
         } else {
           set({
@@ -92,7 +89,6 @@ export const useAuthStore = create<AuthStore>()(
 
         // Note: subscription cleanup would be handled by the component using this store
       } catch (error) {
-        console.error('Error initializing auth:', error)
         set({ loading: false, initialized: true })
       }
     },

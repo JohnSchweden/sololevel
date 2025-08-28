@@ -1,6 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 // Create a stable query client instance
 let browserQueryClient: QueryClient | undefined

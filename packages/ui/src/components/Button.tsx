@@ -1,4 +1,4 @@
-import React from 'react'
+import type React from 'react'
 import { Button as TamaguiButton, styled } from 'tamagui'
 
 // Create a properly typed Button with our custom variants

@@ -1,5 +1,5 @@
-import type { StorybookConfig } from '@storybook/react-native-web-vite'
 import { join } from 'node:path'
+import type { StorybookConfig } from '@storybook/react-native-web-vite'
 
 const config: StorybookConfig = {
   stories: [

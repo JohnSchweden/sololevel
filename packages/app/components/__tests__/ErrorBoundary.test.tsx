@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ErrorBoundary, withErrorBoundary } from '../ErrorBoundary'
-import { Text, TamaguiProvider } from '@my/ui'
 import { config } from '@my/config'
+import { TamaguiProvider, Text } from '@my/ui'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { ErrorBoundary, withErrorBoundary } from '../ErrorBoundary'
 
 // Component that throws an error
 function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
@@ -11,7 +11,7 @@ function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
   return <Text testID="success">No error</Text>
 }
 
-import { vi, beforeAll, afterAll } from 'vitest'
+import { afterAll, beforeAll, vi } from 'vitest'
 
 // Test wrapper with theme provider
 function renderWithProvider(component: React.ReactElement) {

@@ -85,9 +85,7 @@ afterEach(async () => {
 })
 
 // Global error handling
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
-})
+process.on('unhandledRejection', (reason, promise) => {})
 
 module.exports = {
   waitForElement: global.waitForElement,

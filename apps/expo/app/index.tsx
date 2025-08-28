@@ -1,7 +1,7 @@
-import { HomeScreen } from 'app/features/home/screen'
-import { Stack, Link, useRouter } from 'expo-router'
 import { Button } from '@my/ui'
 import { Camera, Video } from '@tamagui/lucide-icons'
+import { HomeScreen } from 'app/features/home/screen'
+import { Link, Stack, useRouter } from 'expo-router'
 
 export default function Screen() {
   const router = useRouter()

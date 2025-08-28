@@ -1,21 +1,21 @@
-import { useState, useCallback } from 'react'
 import {
+  BottomNavigation,
   CameraContainer,
-  CameraPreviewArea,
+  CameraControlsOverlay,
   CameraHeader,
   CameraPreview,
-  BottomNavigation,
+  CameraPreviewArea,
   IdleControls,
-  RecordingControls,
   NavigationDialog,
-  CameraControlsOverlay,
+  RecordingControls,
 } from '@my/ui'
+import { useCallback, useState } from 'react'
+import { Alert } from 'react-native'
+import { Button, Text, YStack } from 'tamagui'
+import { useCameraControls } from './hooks/useCameraControls'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useRecordingStateMachine } from './hooks/useRecordingStateMachine'
-import { useCameraControls } from './hooks/useCameraControls'
-import { RecordingState, type CameraRecordingScreenProps } from './types'
-import { YStack, Text, Button } from 'tamagui'
-import { Alert } from 'react-native'
+import { type CameraRecordingScreenProps, RecordingState } from './types'
 
 /**
  * Enhanced Camera Recording Screen - Phase 2 Implementation
@@ -126,7 +126,6 @@ export function EnhancedCameraRecordingScreen({
   }, [])
 
   const handleCameraError = useCallback((error: string) => {
-    console.error('Camera error:', error)
     Alert.alert('Camera Error', error, [{ text: 'OK' }])
   }, [])
 

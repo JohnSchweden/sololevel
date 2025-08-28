@@ -1,9 +1,9 @@
-import { YStack, XStack, Button, Text, Separator } from '@my/ui'
-import { useAuthStore } from '../../stores/auth'
-import { useThemeStore } from '../../stores/theme'
-import { useFeatureFlagsStore } from '../../stores/feature-flags'
 import { supabase } from '@my/api'
+import { Button, Separator, Text, XStack, YStack } from '@my/ui'
 import { useState } from 'react'
+import { useAuthStore } from '../../stores/auth'
+import { useFeatureFlagsStore } from '../../stores/feature-flags'
+import { useThemeStore } from '../../stores/theme'
 
 export function DemoScreen() {
   const { user, session, loading: authLoading, initialized } = useAuthStore()

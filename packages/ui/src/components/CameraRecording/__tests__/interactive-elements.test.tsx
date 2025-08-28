@@ -4,6 +4,8 @@
  * Validates touch interactions and accessibility compliance
  */
 
+import React from 'react'
+
 // Mock Tamagui components before imports
 jest.mock('tamagui', () => {
   const React = require('react')
@@ -11,62 +13,142 @@ jest.mock('tamagui', () => {
     React.forwardRef((props: any, ref: any) => {
       // Filter out Tamagui-specific props
       const {
-        minHeight, minWidth, pressStyle, hoverStyle,
-        accessibilityRole, accessibilityLabel, accessibilityHint, accessibilityState,
-        scale, animation, borderWidth, borderColor, shadowColor, shadowOffset,
-        shadowOpacity, shadowRadius, elevation, gap, paddingHorizontal, paddingVertical,
-        paddingTop, paddingRight, paddingBottom, paddingLeft, marginLeft, marginRight,
-        marginTop, marginBottom, alignItems, justifyContent, size, opacity, onPress,
-        textAlign, numberOfLines, fontSize, fontWeight, color, icon, testID,
-        blue, red, green, yellow, purple, orange, pink, gray, black, white,
-        background, foreground, border, radius, space, zIndex, position,
-        top, right, bottom, left, width, height, maxWidth, maxHeight,
-        display, flexDirection, flexWrap, alignContent, alignSelf,
+        minHeight,
+        minWidth,
+        pressStyle,
+        hoverStyle,
+        accessibilityRole,
+        accessibilityLabel,
+        accessibilityHint,
+        accessibilityState,
+        scale,
+        animation,
+        borderWidth,
+        borderColor,
+        shadowColor,
+        shadowOffset,
+        shadowOpacity,
+        shadowRadius,
+        elevation,
+        gap,
+        paddingHorizontal,
+        paddingVertical,
+        paddingTop,
+        paddingRight,
+        paddingBottom,
+        paddingLeft,
+        marginLeft,
+        marginRight,
+        marginTop,
+        marginBottom,
+        alignItems,
+        justifyContent,
+        size,
+        opacity,
+        onPress,
+        textAlign,
+        numberOfLines,
+        fontSize,
+        fontWeight,
+        color,
+        icon,
+        testID,
+        blue,
+        red,
+        green,
+        yellow,
+        purple,
+        orange,
+        pink,
+        gray,
+        black,
+        white,
+        background,
+        foreground,
+        border,
+        radius,
+        space,
+        zIndex,
+        position,
+        top,
+        right,
+        bottom,
+        left,
+        width,
+        height,
+        maxWidth,
+        maxHeight,
+        display,
+        flexDirection,
+        flexWrap,
+        alignContent,
+        alignSelf,
         // Additional props causing warnings
-        enterStyle, exitStyle, animationStyle, modal, open, onOpenChange,
-        lineHeight, key, asChild, displayWhenAdapted,
-        flex, flexGrow, flexShrink, flexBasis, aspectRatio, ...domProps
+        enterStyle,
+        exitStyle,
+        animationStyle,
+        modal,
+        open,
+        onOpenChange,
+        lineHeight,
+        key,
+        asChild,
+        displayWhenAdapted,
+        flex,
+        flexGrow,
+        flexShrink,
+        flexBasis,
+        aspectRatio,
+        ...domProps
       } = props
-      
+
       // Handle icon prop by rendering it as a child if it exists
-      let children = domProps.children;
+      let children = domProps.children
       if (icon) {
-        let iconElement;
+        let iconElement
         if (React.isValidElement(icon)) {
-          iconElement = React.cloneElement(icon, { key: 'icon' });
+          iconElement = React.cloneElement(icon, { key: 'icon' })
         } else if (typeof icon === 'function') {
           // Icon is a component function, render it
           iconElement = React.createElement(icon, {
             key: 'icon',
             size: 24,
-            color: 'currentColor'
-          });
+            color: 'currentColor',
+          })
         } else {
           // Icon is a string or other primitive
-          iconElement = React.createElement('span', {
-            key: 'icon',
-            'data-testid': 'icon'
-          }, String(icon || 'icon'));
+          iconElement = React.createElement(
+            'span',
+            {
+              key: 'icon',
+              'data-testid': 'icon',
+            },
+            String(icon || 'icon')
+          )
         }
-        children = children ? [iconElement, ...React.Children.toArray(children)] : [iconElement];
+        children = children ? [iconElement, ...React.Children.toArray(children)] : [iconElement]
       }
 
-      return React.createElement(name === 'Button' ? 'button' : 'div', {
-        ...domProps,
-        ref,
-        'data-testid': name,
-        'aria-label': accessibilityLabel,
-        'aria-describedby': accessibilityHint,
-        'role': accessibilityRole,
-        'aria-selected': accessibilityState?.selected,
-        'aria-disabled': props.disabled,
-        onClick: onPress, // Convert onPress to onClick for web
-        style: {
-          minHeight: minHeight || 44,
-          minWidth: minWidth || 44,
-          ...domProps.style
-        }
-      }, children)
+      return React.createElement(
+        name === 'Button' ? 'button' : 'div',
+        {
+          ...domProps,
+          ref,
+          'data-testid': name,
+          'aria-label': accessibilityLabel,
+          'aria-describedby': accessibilityHint,
+          role: accessibilityRole,
+          'aria-selected': accessibilityState?.selected,
+          'aria-disabled': props.disabled,
+          onClick: onPress, // Convert onPress to onClick for web
+          style: {
+            minHeight: minHeight || 44,
+            minWidth: minWidth || 44,
+            ...domProps.style,
+          },
+        },
+        children
+      )
     })
 
   return {
@@ -81,61 +163,88 @@ jest.mock('tamagui', () => {
     View: mockComponent('View'),
     Circle: mockComponent('Circle'),
     Dialog: Object.assign(
-      ({ children, modal, open, onOpenChange, ...props }: any) => React.createElement('div', {
-        ...props,
-        'data-testid': 'Dialog',
-        'data-modal': modal,
-        'data-open': open,
-        onClick: onOpenChange
-      }, children),
+      ({ children, modal, open, onOpenChange, ...props }: any) =>
+        React.createElement(
+          'div',
+          {
+            ...props,
+            'data-testid': 'Dialog',
+            'data-modal': modal,
+            'data-open': open,
+            onClick: onOpenChange,
+          },
+          children
+        ),
       {
         Root: ({ children }: any) => children,
         Portal: ({ children }: any) => children,
         Overlay: ({ children, animation, opacity, enterStyle, exitStyle, ...props }: any) =>
-          React.createElement('div', {
-            ...props,
-            'data-testid': 'DialogOverlay',
-            style: {
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity,
-              ...props.style
-            }
-          }, children),
+          React.createElement(
+            'div',
+            {
+              ...props,
+              'data-testid': 'DialogOverlay',
+              style: {
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                opacity,
+                ...props.style,
+              },
+            },
+            children
+          ),
         Content: ({ children, bordered, elevate, ...props }: any) =>
-          React.createElement('div', {
-            ...props,
-            'data-testid': 'DialogContent',
-            style: {
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'white',
-              borderRadius: 8,
-              padding: 20,
-              maxWidth: 400,
-              ...props.style
-            }
-          }, children),
-        Title: ({ children, ...props }: any) => React.createElement('h2', {
-          ...props,
-          'data-testid': 'DialogTitle'
-        }, children),
-        Description: ({ children, ...props }: any) => React.createElement('p', {
-          ...props,
-          'data-testid': 'DialogDescription'
-        }, children),
+          React.createElement(
+            'div',
+            {
+              ...props,
+              'data-testid': 'DialogContent',
+              style: {
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'white',
+                borderRadius: 8,
+                padding: 20,
+                maxWidth: 400,
+                ...props.style,
+              },
+            },
+            children
+          ),
+        Title: ({ children, ...props }: any) =>
+          React.createElement(
+            'h2',
+            {
+              ...props,
+              'data-testid': 'DialogTitle',
+            },
+            children
+          ),
+        Description: ({ children, ...props }: any) =>
+          React.createElement(
+            'p',
+            {
+              ...props,
+              'data-testid': 'DialogDescription',
+            },
+            children
+          ),
         Close: ({ children, displayWhenAdapted, asChild, ...props }: any) =>
-          React.createElement(asChild ? 'span' : 'button', {
-            ...props,
-            'data-testid': 'DialogClose',
-            ...(asChild ? {} : { type: 'button' })
-          }, children),
+          React.createElement(
+            asChild ? 'span' : 'button',
+            {
+              ...props,
+              'data-testid': 'DialogClose',
+              ...(asChild ? {} : { type: 'button' }),
+            },
+            children
+          ),
         Trigger: mockComponent('DialogTrigger'),
         Header: mockComponent('DialogHeader'),
         Footer: mockComponent('DialogFooter'),
@@ -145,17 +254,23 @@ jest.mock('tamagui', () => {
   }
 })
 
-import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { renderHook, act } from '@testing-library/react'
 import { TamaguiProvider } from '@tamagui/core'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
+
 import config from '../../../config/tamagui.config' // Test config
 
 import { IdleControls } from '../IdleControls'
-import { RecordingControls, ZoomControls } from '../RecordingControls'
 import { NavigationDialog } from '../NavigationDialog'
+import { RecordingControls, ZoomControls } from '../RecordingControls'
 // Import mocks instead of actual implementations
-import { useRecordingStateMachine, useCameraControls, RecordingState, resetRecordingState, resetCameraControls } from './mocks'
+import {
+  RecordingState,
+  resetCameraControls,
+  resetRecordingState,
+  useCameraControls,
+  useRecordingStateMachine,
+} from './mocks'
 
 // Mock Tamagui provider for tests
 const TestProvider = ({ children }: { children: React.ReactNode }) => (
@@ -172,9 +287,9 @@ jest.mock('react-native', () => ({
 
 describe('Phase 2: Interactive Elements', () => {
   beforeEach(() => {
-    resetRecordingState();
-    resetCameraControls();
-  });
+    resetRecordingState()
+    resetCameraControls()
+  })
 
   describe('Recording State Machine', () => {
     const mockConfig = {

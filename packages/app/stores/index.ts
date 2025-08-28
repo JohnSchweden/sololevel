@@ -15,8 +15,8 @@ export type {
 
 // Import stores for use in selectors
 import { useAuthStore } from './auth'
+import { type FeatureFlags, useFeatureFlagsStore } from './feature-flags'
 import { useThemeStore } from './theme'
-import { useFeatureFlagsStore, type FeatureFlags } from './feature-flags'
 
 // Re-export commonly used selectors
 export const useAuth = () =>

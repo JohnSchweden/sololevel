@@ -1,9 +1,9 @@
-import { useQueryWithErrorHandling } from './useQueryWithErrorHandling'
-import { useMutationWithErrorHandling } from './useMutationWithErrorHandling'
+import type { TablesInsert, TablesUpdate } from '../../types/database'
 import { supabase } from '../supabase'
 import { safeSupabaseOperation } from '../supabase-errors'
-import { ProfileSchema, validateApiResponse, type User } from '../validation'
-import type { TablesInsert, TablesUpdate } from '../../types/database'
+import { ProfileSchema, type User, validateApiResponse } from '../validation'
+import { useMutationWithErrorHandling } from './useMutationWithErrorHandling'
+import { useQueryWithErrorHandling } from './useQueryWithErrorHandling'
 
 /**
  * Fetch user profile by user_id with proper error handling

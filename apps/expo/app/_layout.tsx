@@ -1,10 +1,10 @@
-import { useEffect } from 'react'
-import { useColorScheme } from 'react-native'
+import { NativeToast } from '@my/ui'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
+import { Provider } from 'app/provider'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
-import { Provider } from 'app/provider'
-import { NativeToast } from '@my/ui'
+import { useEffect } from 'react'
+import { useColorScheme } from 'react-native'
 
 export const unstable_settings = {
   // Ensure that reloading on `/user` keeps a back button present.

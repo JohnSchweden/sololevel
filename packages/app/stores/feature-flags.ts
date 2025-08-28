@@ -120,7 +120,6 @@ export const useFeatureFlagsStore = create<FeatureFlagsStore>()(
 
         set({ loading: false, lastUpdated: new Date() })
       } catch (error) {
-        console.error('Error loading feature flags:', error)
         set({ loading: false })
       }
     },

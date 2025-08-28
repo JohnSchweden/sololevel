@@ -1,7 +1,7 @@
-import { YStack, XStack } from 'tamagui'
-import type { GetProps } from 'tamagui'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ReactNode } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { XStack, YStack } from 'tamagui'
+import type { GetProps } from 'tamagui'
 
 export interface CameraContainerProps {
   children?: ReactNode

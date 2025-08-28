@@ -1,8 +1,8 @@
-import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useUser, useUpdateUser, useCurrentUser, useCreateUser } from '../useUser'
+import { renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { User } from '../../validation'
+import { useCreateUser, useCurrentUser, useUpdateUser, useUser } from '../useUser'
 
 // Mock dependencies
 vi.mock('../../supabase', () => {

@@ -1,9 +1,9 @@
-import { Button, Paragraph, YStack, XStack, H2, Avatar } from '@my/ui'
-import { ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
-import { ErrorBoundary } from '../../components/ErrorBoundary'
-import { ErrorBanner } from '../../components/ErrorBanner'
-import { LoadingSpinner } from '../../components/LoadingSpinner'
 import { useUser } from '@my/api'
+import { Avatar, Button, H2, Paragraph, XStack, YStack } from '@my/ui'
+import { ChevronLeft, RefreshCw } from '@tamagui/lucide-icons'
+import { ErrorBanner } from '../../components/ErrorBanner'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
+import { LoadingSpinner } from '../../components/LoadingSpinner'
 
 export function UserDetailScreen({ id, onGoBack }: { id: string; onGoBack?: () => void }) {
   if (!id) {

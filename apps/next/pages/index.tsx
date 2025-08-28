@@ -1,7 +1,7 @@
-import { HomeScreen } from 'app/features/home/screen'
-import Link from 'next/link'
-import Head from 'next/head'
 import { Button } from '@my/ui'
+import { HomeScreen } from 'app/features/home/screen'
+import Head from 'next/head'
+import Link from 'next/link'
 
 export default function Page() {
   return (

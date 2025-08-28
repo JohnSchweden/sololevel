@@ -1,6 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMutationWithErrorHandling } from '../useMutationWithErrorHandling'
 
 // Mock toast controller
@@ -102,12 +102,6 @@ describe('useMutationWithErrorHandling', () => {
     expect(mockToastShow).toHaveBeenCalledWith('Action failed', {
       message: 'Please try again',
     })
-    expect(console.error).toHaveBeenCalledWith('Mutation failed:', {
-      mutationKey: undefined,
-      error: mockError,
-      variables: 'test-input',
-      timestamp: expect.any(String),
-    })
   })
 
   it('handles mutation error with custom error message', async () => {
@@ -154,7 +148,6 @@ describe('useMutationWithErrorHandling', () => {
     })
 
     expect(mockToastShow).not.toHaveBeenCalled()
-    expect(console.error).toHaveBeenCalled() // Still logs error
   })
 
   it('calls custom onError handler', async () => {
@@ -219,13 +212,6 @@ describe('useMutationWithErrorHandling', () => {
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
-    })
-
-    expect(console.error).toHaveBeenCalledWith('Mutation failed:', {
-      mutationKey: ['updateUser'],
-      error: mockError,
-      variables: 'test-input',
-      timestamp: expect.any(String),
     })
   })
 

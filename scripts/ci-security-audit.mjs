@@ -8,8 +8,8 @@
  * no high-severity vulnerabilities exist in production dependencies.
  */
 
-import fs from 'node:fs'
 import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 
 const log = console.log
 log('🔒 Running CI security audit...')

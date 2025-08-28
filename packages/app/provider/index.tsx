@@ -1,13 +1,13 @@
-import { useColorScheme, Platform } from 'react-native'
-import { useEffect } from 'react'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
+import { useEffect } from 'react'
+import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { ToastViewport } from './ToastViewport'
-import { QueryProvider } from './QueryProvider'
-import { I18nProvider } from './I18nProvider'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useAuthStore } from '../stores/auth'
 import { useFeatureFlagsStore } from '../stores/feature-flags'
-import { ErrorBoundary } from '../components/ErrorBoundary'
+import { I18nProvider } from './I18nProvider'
+import { QueryProvider } from './QueryProvider'
+import { ToastViewport } from './ToastViewport'
 
 export function Provider({
   children,

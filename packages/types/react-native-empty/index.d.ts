@@ -3,4 +3,4 @@
 // This file exists to satisfy the dependency resolution without errors.
 
 // No type definitions needed as React Native provides its own types
-export {};
+export {}

@@ -1,7 +1,7 @@
+import { Bell, Menu } from '@tamagui/lucide-icons'
 import React from 'react'
-import { YStack, Text, Circle } from 'tamagui'
+import { Circle, Text, YStack } from 'tamagui'
 import { Button } from '../Button'
-import { Menu, Bell } from '@tamagui/lucide-icons'
 
 export interface CameraHeaderProps {
   title: string

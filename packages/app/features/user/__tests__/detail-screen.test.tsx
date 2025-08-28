@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // Simplified tests that don't involve react-native-svg
 describe('UserDetailScreen', () => {
