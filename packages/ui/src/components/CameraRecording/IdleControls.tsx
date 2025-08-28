@@ -1,8 +1,8 @@
+import React, { useState } from 'react'
 import { XStack, YStack, Circle } from 'tamagui'
 import { Button } from 'tamagui'
 import { Upload, SwitchCamera } from '@tamagui/lucide-icons'
 import { Pressable } from 'react-native'
-import { useState } from 'react'
 
 export interface IdleControlsProps {
   onStartRecording?: () => void

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 // Mock SafeAreaProvider
-export const SafeAreaProvider = ({ children }: { children: ReactNode }) => children;
+export const SafeAreaProvider = ({ children }: { children: ReactNode }) =>
+  children;
 
 // Mock SafeAreaView
 export const SafeAreaView = ({ children }: { children: ReactNode }) => children;

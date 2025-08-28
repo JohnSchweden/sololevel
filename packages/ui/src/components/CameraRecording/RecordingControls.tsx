@@ -1,8 +1,8 @@
+import React, { useState } from 'react'
 import { XStack, YStack, Text } from 'tamagui'
 import { Button } from 'tamagui'
 import { Square, Settings, SwitchCamera } from '@tamagui/lucide-icons'
 import { Pressable } from 'react-native'
-import { useState } from 'react'
 
 export enum RecordingState {
   IDLE = 'idle',

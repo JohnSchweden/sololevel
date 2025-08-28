@@ -1,5 +1,7 @@
-import '@testing-library/jest-native/extend-expect'
 import '@testing-library/jest-dom'
+
+// Use React Testing Library for web components instead of React Native Testing Library
+// This avoids conflicts with jsdom environment
 
 // Mock window.matchMedia for Tamagui
 Object.defineProperty(window, 'matchMedia', {
@@ -15,6 +17,20 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 })
+
+// Mock ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
+
+// Mock IntersectionObserver
+global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
 
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
@@ -100,3 +116,160 @@ jest.mock('react-native-reanimated', () => {
     },
   }
 })
+
+// Mock Expo modules core
+jest.mock('expo-modules-core', () => ({
+  NativeModule: jest.fn(),
+  requireNativeModule: jest.fn(),
+  requireOptionalNativeModule: jest.fn(),
+}))
+
+// Mock global expo object
+Object.defineProperty(globalThis, 'expo', {
+  value: {
+    NativeModule: jest.fn(),
+    modules: {},
+  },
+  writable: true,
+})
+
+// Mock Expo Camera
+jest.mock('expo-camera', () => ({
+  CameraView: ({ children }) => children,
+  Camera: ({ children }) => children,
+  useCameraPermissions: () => [
+    { granted: true, canAskAgain: true, status: 'granted' },
+    jest.fn(),
+  ],
+  useMicrophonePermissions: () => [
+    { granted: true, canAskAgain: true, status: 'granted' },
+    jest.fn(),
+  ],
+}))
+
+// Mock Tamagui Lucide Icons
+jest.mock('@tamagui/lucide-icons', () => ({
+  RefreshCw: () => 'RefreshCw',
+  ChevronLeft: () => 'ChevronLeft',
+  AlertCircle: () => 'AlertCircle',
+  AlertTriangle: () => 'AlertTriangle',
+  CheckCircle: () => 'CheckCircle',
+  X: () => 'X',
+  Play: () => 'Play',
+  Pause: () => 'Pause',
+  Square: () => 'Square',
+  RotateCcw: () => 'RotateCcw',
+  Upload: () => 'Upload',
+  SwitchCamera: () => 'SwitchCamera',
+  Settings: () => 'Settings',
+  // Add other icons as needed
+}))
+
+// Mock Expo Router
+jest.mock('expo-router', () => ({
+  Link: ({ children }) => children,
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: () => false,
+  }),
+  useLocalSearchParams: () => ({ id: 'mock-id' }),
+  Stack: {
+    Screen: ({ children }) => children,
+  },
+}))
+
+// Mock Tamagui config
+jest.mock('@tamagui/config/v4', () => ({
+  defaultConfig: {
+    tokens: {},
+    themes: {},
+    fonts: {},
+  },
+}))
+
+// Mock Tamagui core components to prevent styled() errors
+jest.mock('@tamagui/core', () => {
+  const React = require('react')
+  const mockComponent = (name) =>
+    React.forwardRef((props, ref) =>
+      React.createElement('div', { ...props, ref, 'data-testid': name })
+    )
+  
+  return {
+    TamaguiProvider: ({ children }) => children,
+    styled: (component, config) => mockComponent,
+    Stack: mockComponent('Stack'),
+    XStack: mockComponent('XStack'),
+    YStack: mockComponent('YStack'),
+    Button: mockComponent('Button'),
+    Text: mockComponent('Text'),
+    View: mockComponent('View'),
+    createTamagui: jest.fn(() => ({})),
+    createTokens: jest.fn(() => ({})),
+    createTheme: jest.fn(() => ({})),
+    getVariableValue: jest.fn(),
+  }
+})
+
+// Mock Tamagui components
+jest.mock('tamagui', () => {
+  const React = require('react')
+  const mockComponent = (name) =>
+    React.forwardRef((props, ref) =>
+      React.createElement('div', { ...props, ref, 'data-testid': name })
+    )
+  
+  return {
+    TamaguiProvider: ({ children }) => children,
+    styled: (component, config) => mockComponent,
+    createTamagui: jest.fn(() => ({})),
+    Stack: mockComponent('Stack'),
+    XStack: mockComponent('XStack'),
+    YStack: mockComponent('YStack'),
+    Button: mockComponent('Button'),
+    Text: mockComponent('Text'),
+    View: mockComponent('View'),
+    Dialog: {
+      Root: ({ children }) => children,
+      Portal: ({ children }) => children,
+      Overlay: mockComponent('DialogOverlay'),
+      Content: mockComponent('DialogContent'),
+      Title: mockComponent('DialogTitle'),
+      Description: mockComponent('DialogDescription'),
+      Close: mockComponent('DialogClose'),
+    },
+  }
+})
+
+// Mock @tamagui/button
+jest.mock('@tamagui/button', () => {
+  const React = require('react')
+  const mockButton = React.forwardRef((props, ref) =>
+    React.createElement('button', { ...props, ref, 'data-testid': 'Button' })
+  )
+  return {
+    Button: mockButton,
+  }
+})
+
+// Mock @tamagui/font-inter
+jest.mock('@tamagui/font-inter', () => ({
+  createInterFont: jest.fn(() => ({
+    family: 'Inter',
+    size: {},
+    lineHeight: {},
+    weight: {},
+    letterSpacing: {},
+  })),
+}))
+
+// Mock @my/config
+jest.mock('@my/config', () => ({
+  config: {
+    tokens: {},
+    themes: {},
+    fonts: {},
+  },
+}))

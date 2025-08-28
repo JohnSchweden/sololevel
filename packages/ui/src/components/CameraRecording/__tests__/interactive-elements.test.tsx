@@ -3,8 +3,9 @@
  * Tests recording state machine, camera controls, zoom functionality, and navigation dialogs
  * Validates touch interactions and accessibility compliance
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native'
-import { renderHook, act } from '@testing-library/react-hooks'
+import React from 'react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { TamaguiProvider } from '@tamagui/core'
 import config from '../../../config/tamagui.config' // Test config
 

@@ -7,6 +7,15 @@ module.exports = {
     '^@config/(.*)$': '<rootDir>/../config/src/$1',
     '^react-native$': 'react-native-web',
     '^react-native/(.*)$': 'react-native-web/$1',
+    '^expo-camera$': '<rootDir>/jest.setup.js',
+    '^expo-modules-core$': '<rootDir>/jest.setup.js',
+    '^expo-router$': '<rootDir>/jest.setup.js',
+    '^@tamagui/config/v4$': '<rootDir>/jest.setup.js',
+    '^@tamagui/core$': '<rootDir>/__mocks__/@tamagui/core.js',
+    '^tamagui$': '<rootDir>/__mocks__/tamagui.js',
+    '^@tamagui/button$': '<rootDir>/jest.setup.js',
+    '^@tamagui/font-inter$': '<rootDir>/jest.setup.js',
+    '^@my/config$': '<rootDir>/jest.setup.js',
   },
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': [
