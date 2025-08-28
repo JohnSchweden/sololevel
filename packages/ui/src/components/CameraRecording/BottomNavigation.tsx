@@ -1,3 +1,4 @@
+import React from 'react'
 import { XStack, YStack, Text, Button } from 'tamagui'
 
 export interface BottomNavigationProps {

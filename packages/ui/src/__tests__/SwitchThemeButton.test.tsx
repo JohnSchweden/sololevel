@@ -1,3 +1,50 @@
+// Mock Tamagui components before imports
+jest.mock('tamagui', () => {
+  const React = require('react')
+  const mockComponent = (name: string) =>
+    React.forwardRef((props: any, ref: any) => {
+      // Filter out Tamagui-specific props
+      const {
+        backgroundColor, borderRadius, minHeight, minWidth, pressStyle, hoverStyle,
+        accessibilityRole, accessibilityLabel, accessibilityHint, accessibilityState,
+        scale, animation, borderWidth, borderColor, shadowColor, shadowOffset,
+        shadowOpacity, shadowRadius, elevation, gap, paddingHorizontal,
+        alignItems, justifyContent, size, opacity, onPress, ...domProps
+      } = props
+
+      return React.createElement(name === 'Button' ? 'button' : 'div', {
+        ...domProps,
+        ref,
+        'data-testid': name,
+        'aria-label': accessibilityLabel,
+        'aria-describedby': accessibilityHint,
+        'role': accessibilityRole || (name === 'Button' ? 'button' : undefined),
+        'aria-selected': accessibilityState?.selected,
+        'aria-disabled': props.disabled,
+        onClick: onPress, // Convert onPress to onClick for web
+        style: {
+          minHeight: minHeight || 44,
+          minWidth: minWidth || 44,
+          ...domProps.style
+        }
+      })
+    })
+
+  return {
+    TamaguiProvider: ({ children }: { children: any }) => children,
+    createTamagui: jest.fn(() => ({})),
+    useIsomorphicLayoutEffect: React.useLayoutEffect,
+    Stack: mockComponent('Stack'),
+    XStack: mockComponent('XStack'),
+    YStack: mockComponent('YStack'),
+    Button: mockComponent('Button'),
+    Text: mockComponent('Text'),
+    View: mockComponent('View'),
+    Circle: mockComponent('Circle'),
+  }
+})
+
+import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'

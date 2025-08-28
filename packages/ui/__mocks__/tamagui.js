@@ -36,6 +36,7 @@ module.exports = {
   TamaguiProvider: ({ children }) => children,
   styled: mockStyled,
   createTamagui: jest.fn(() => ({})),
+  useIsomorphicLayoutEffect: React.useLayoutEffect,
   Stack: mockComponent('Stack'),
   XStack: mockComponent('XStack'),
   YStack: mockComponent('YStack'),
@@ -51,5 +52,9 @@ module.exports = {
     Title: mockComponent('DialogTitle'),
     Description: mockComponent('DialogDescription'),
     Close: mockComponent('DialogClose'),
+    Trigger: mockComponent('DialogTrigger'),
+    Header: mockComponent('DialogHeader'),
+    Footer: mockComponent('DialogFooter'),
+    ScrollView: mockComponent('DialogScrollView'),
   },
 }

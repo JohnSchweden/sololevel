@@ -1,3 +1,4 @@
+import React from 'react'
 import { YStack, XStack, Dialog } from 'tamagui'
 import { Button } from 'tamagui'
 import { AlertTriangle } from '@tamagui/lucide-icons'

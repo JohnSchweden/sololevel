@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { XStack, YStack, Text } from 'tamagui'
 import { Button } from 'tamagui'
 import { Square, Settings, SwitchCamera } from '@tamagui/lucide-icons'
