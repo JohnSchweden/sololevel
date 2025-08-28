@@ -1,33 +1,43 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.3/schema.json",
-  "organizeImports": {
-    "enabled": false
-  },
+  "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "off" } } },
   "linter": {
     "enabled": true,
-    "ignore": [
-      ".tamagui",
-      "*/ios/**",
-      ".vscode",
-      "**/node_modules/**",
-      "**/coverage/**",
-      "**/tamagui.css",
-      "**/*.d.ts",
-      "packages/vendor/**",
-      "packages/**/vendor/**",
-      "**/tsconfig.json",
-      "**/dist/**",
-      "**/package.json",
-      ".codesandbox",
-      "tsconfig.base.json",
-      "**/types/database.ts"
+    "includes": [
+      "**",
+      "!**/.tamagui",
+      "!**/*/ios/**",
+      "!**/.vscode",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!**/tamagui.css",
+      "!**/*.d.ts",
+      "!**/packages/vendor/**",
+      "!**/packages/**/vendor/**",
+      "!**/tsconfig.json",
+      "!**/dist/**",
+      "!**/package.json",
+      "!**/.codesandbox",
+      "!**/tsconfig.base.json",
+      "!**/types/database.ts",
+      "!**/*.md",
+      "!**/*.mdc",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.json",
+      "!**/*.lock",
+      "!**/*.log",
+      "!**/*.txt",
+      "!**/*.sql",
+      "!**/*.toml",
+      "!**/*.cjs",
+      "!**/*.mjs"
     ],
 
     "rules": {
       "correctness": {
         "useExhaustiveDependencies": "off",
         "noInnerDeclarations": "off",
-        "noUnnecessaryContinue": "off",
         "noConstructorReturn": "off"
       },
       "suspicious": {
@@ -37,14 +47,13 @@
         "noExplicitAny": "off",
         "noArrayIndexKey": "off",
         "noDoubleEquals": "off",
-        "noConsoleLog": "error",
         "noAssignInExpressions": "off",
-        "noRedeclare": "off"
+        "noRedeclare": "off",
+        "noConsole": { "level": "error", "options": { "allow": ["log"] } }
       },
       "style": {
         "noParameterAssign": "off",
         "noNonNullAssertion": "off",
-        "noArguments": "off",
         "noUnusedTemplateLiteral": "off",
         "useDefaultParameterLast": "off",
         "useConst": "off",
@@ -67,7 +76,9 @@
         "noUselessFragments": "off",
         "useLiteralKeys": "off",
         "useSimplifiedLogicExpression": "off",
-        "useOptionalChain": "off"
+        "useOptionalChain": "off",
+        "noUselessContinue": "off",
+        "noArguments": "off"
       },
       "a11y": {
         "noSvgWithoutTitle": "off",
@@ -85,22 +96,35 @@
     "indentWidth": 2,
     "lineWidth": 100,
     "attributePosition": "multiline",
-    "ignore": [
-      ".tamagui",
-      "**/ios/**",
-      ".vscode",
-      "**/node_modules/**",
-      "**/coverage/**",
-      "**/tamagui.css",
-      "**/*.d.ts",
-      "packages/vendor/**",
-      "packages/**/vendor/**",
-      "**/tsconfig.json",
-      "**/dist/**",
-      "**/package.json",
-      ".codesandbox",
-      "tsconfig.base.json",
-      "**/types/database.ts"
+    "includes": [
+      "**",
+      "!**/.tamagui",
+      "!**/ios/**",
+      "!**/.vscode",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!**/tamagui.css",
+      "!**/*.d.ts",
+      "!**/packages/vendor/**",
+      "!**/packages/**/vendor/**",
+      "!**/tsconfig.json",
+      "!**/dist/**",
+      "!**/package.json",
+      "!**/.codesandbox",
+      "!**/tsconfig.base.json",
+      "!**/types/database.ts",
+      "!**/*.md",
+      "!**/*.mdc",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.json",
+      "!**/*.lock",
+      "!**/*.log",
+      "!**/*.txt",
+      "!**/*.sql",
+      "!**/*.toml",
+      "!**/*.cjs",
+      "!**/*.mjs"
     ]
   },
   "javascript": {
@@ -115,5 +139,9 @@
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
+  },
+  "files": {
+    "maxSize": 3145728,
+    "ignoreUnknown": true
   }
 }

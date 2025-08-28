@@ -262,7 +262,7 @@ export function {{Feature}}Screen({ onNavigateBack, linkComponent }: {{Feature}}
         borderBottomColor="$borderColor"
       >
         <Button 
-          variant="ghost" 
+          chromeless 
           size="$3"
           onPress={onNavigateBack}
           icon={<ChevronLeft />}
@@ -543,7 +543,7 @@ export function {{Name}}ListItem({
         {/* Action */}
         {onActionPress && (
           <Button
-            variant="ghost"
+            chromeless
             size="$3"
             onPress={onActionPress}
             icon={actionIcon}

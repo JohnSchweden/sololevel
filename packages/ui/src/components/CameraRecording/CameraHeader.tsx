@@ -28,7 +28,7 @@ export function CameraHeader({
     <>
       {/* Left Section - Menu/Back Button */}
       <Button
-        variant="chromeless"
+        chromeless
         size="$3"
         onPress={onMenuPress}
         icon={
@@ -89,7 +89,7 @@ export function CameraHeader({
       {/* Right Section - Notification Button with Badge */}
       <YStack position="relative">
         <Button
-          variant="chromeless"
+          chromeless
           size="$3"
           onPress={onNotificationPress}
           icon={

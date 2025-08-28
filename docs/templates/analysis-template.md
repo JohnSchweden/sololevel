@@ -9,9 +9,9 @@
 // Root Layout Structure (Both States)
 YStack flex={1} backgroundColor="$background"
 ├── Header: XStack height={60} paddingHorizontal="$4" alignItems="center"
-│   ├── Left: Button variant="ghost" size={44x44} (hamburger/back)
+│   ├── Left: Button chromeless size={44x44} (hamburger/back)
 │   ├── Center: Text/Timer (screen title or recording duration)
-│   └── Right: Button variant="ghost" size={44x44} (notifications)
+│   └── Right: Button chromeless size={44x44} (notifications)
 ├── CameraArea: YStack flex={1} position="relative"
 │   ├── CameraPreview: Camera component (full background)
 │   ├── PoseOverlay: SVG/Canvas overlay (transparent, non-blocking)
@@ -23,15 +23,15 @@ YStack flex={1} backgroundColor="$background"
 │       └── RECORDING STATE:
 │           ├── CameraSettings: Button icon={Settings} size={44x44}
 │           ├── ZoomControls: XStack gap="$2"
-│           │   ├── ZoomButton: Button "1x" variant={active ? "primary" : "ghost"}
-│           │   ├── ZoomButton: Button "2x" variant={active ? "primary" : "ghost"}
-│           │   └── ZoomButton: Button "3x" variant={active ? "primary" : "ghost"}
+│           │   ├── ZoomButton: Button "1x" variant={active ? "primary" : "chromeless"}
+│           │   ├── ZoomButton: Button "2x" variant={active ? "primary" : "chromeless"}
+│           │   └── ZoomButton: Button "3x" variant={active ? "primary" : "chromeless"}
 │           ├── PauseStopButton: Button size={60x60} icon={Pause/Square}
 │           └── CameraSwapButton: Button icon={RotateCcw} size={44x44}
 └── BottomNavigation: XStack height={80} justifyContent="space-between" paddingHorizontal="$4"
-    ├── CoachTab: Button variant="ghost" flex={1} icon={MessageCircle}
+    ├── CoachTab: Button chromeless flex={1} icon={MessageCircle}
     ├── RecordTab: Button variant="primary" flex={1} icon={Circle} (active)
-    └── InsightsTab: Button variant="ghost" flex={1} icon={BarChart}
+    └── InsightsTab: Button chromeless flex={1} icon={BarChart}
 ```
 - [ ] **Component Mapping**: Map each UI element 1:1 to Tamagui components
 - [ ] **Responsive Breakpoints**: Identify mobile/tablet/desktop variations

@@ -5,13 +5,7 @@ import { ErrorBanner } from '../../components/ErrorBanner'
 import { LoadingSpinner } from '../../components/LoadingSpinner'
 import { useUser } from '@my/api'
 
-export function UserDetailScreen({
-  id,
-  onGoBack,
-}: {
-  id: string
-  onGoBack?: () => void
-}) {
+export function UserDetailScreen({ id, onGoBack }: { id: string; onGoBack?: () => void }) {
   if (!id) {
     return (
       <YStack
@@ -43,13 +37,7 @@ export function UserDetailScreen({
   )
 }
 
-function UserDetailContent({
-  id,
-  onGoBack,
-}: {
-  id: string
-  onGoBack?: () => void
-}) {
+function UserDetailContent({ id, onGoBack }: { id: string; onGoBack?: () => void }) {
   // ✅ Good: Use TanStack Query with proper error handling
   const { data: user, error, isLoading, isError, refetch } = useUser(id)
 

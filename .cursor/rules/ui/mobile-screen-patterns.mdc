@@ -218,7 +218,7 @@ export function MobileNavigation() {
       borderBottomColor="$borderColor"
     >
       <Button
-        variant="ghost" 
+        chromeless 
         size="$3"
         onPress={() => router.back()}
         icon={<ChevronLeft />}
@@ -231,7 +231,7 @@ export function MobileNavigation() {
       </Text>
       
       <Link href="/settings" asChild>
-        <Button variant="ghost" size="$3" icon={<Settings />} />
+        <Button chromeless size="$3" icon={<Settings />} />
       </Link>
     </XStack>
   )

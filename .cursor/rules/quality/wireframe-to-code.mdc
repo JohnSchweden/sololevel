@@ -17,8 +17,8 @@ WIREFRAME ELEMENT → TAMAGUI COMPONENT MAPPING:
 Header Section:
 - Title text → <H1 fontSize="$8" fontWeight="bold">
 - Subtitle → <Text fontSize="$4" color="$color11">  
-- Back button → <Button variant="ghost" icon={ChevronLeft}>
-- Menu button → <Button variant="ghost" icon={Menu}>
+- Back button → <Button chromeless icon={ChevronLeft}>
+- Menu button → <Button chromeless icon={Menu}>
 
 Content Area:
 - Card container → <YStack backgroundColor="$background" borderRadius="$4">
@@ -28,7 +28,7 @@ Content Area:
 
 Navigation:
 - Bottom tabs → <XStack justifyContent="space-between">
-- Tab item → <Button variant="ghost" icon={Icon}>
+- Tab item → <Button chromeless icon={Icon}>
 */
 
 export function WireframeScreen() {
@@ -36,9 +36,9 @@ export function WireframeScreen() {
     <YStack flex={1} backgroundColor="$background">
       {/* Header Section */}
       <XStack padding="$4" alignItems="center" justifyContent="space-between">
-        <Button variant="ghost" icon={ChevronLeft} />
+        <Button chromeless icon={ChevronLeft} />
         <H1 fontSize="$8" fontWeight="bold">Screen Title</H1>
-        <Button variant="ghost" icon={Menu} />
+        <Button chromeless icon={Menu} />
       </XStack>
       
       {/* Content Area */}
@@ -312,7 +312,7 @@ export function UserProfileScreen({ userId }: { userId: string }) {
         borderBottomColor="$borderColor"
       >
         <Button 
-          variant="ghost" 
+          chromeless 
           size="$3" 
           icon={<ChevronLeft />}
           onPress={() => router.back()}

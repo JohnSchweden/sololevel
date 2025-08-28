@@ -5,16 +5,6 @@ export const Button = styled(TamaguiButton, {
   name: 'CustomButton',
   variants: {
     variant: {
-      ghost: {
-        backgroundColor: 'transparent',
-        color: '$color12',
-        pressStyle: {
-          opacity: 0.6,
-        },
-        hoverStyle: {
-          backgroundColor: '$backgroundHover',
-        },
-      },
       primary: {
         backgroundColor: '$color9',
         color: '$color1',

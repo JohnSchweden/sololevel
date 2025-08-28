@@ -46,7 +46,7 @@ export function IdleControls({
           disabled={disabled}
           icon={
             <Upload
-              size="$1.75"
+              size="$1.5"
               color="white"
             />
           }
@@ -117,7 +117,7 @@ export function IdleControls({
           disabled={disabled || cameraSwapDisabled}
           icon={
             <SwitchCamera
-              size="$1.75"
+              size="$1.5"
               color="white"
             />
           }
@@ -215,7 +215,7 @@ export interface ControlButtonProps {
   label: string
   onPress?: () => void
   disabled?: boolean
-  variant?: 'primary' | 'secondary' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'chromeless'
   size?: 'small' | 'medium' | 'large'
 }
 
@@ -228,7 +228,7 @@ export function ControlButton({
   label,
   onPress,
   disabled = false,
-  variant = 'ghost',
+  variant = 'chromeless',
   size = 'medium',
 }: ControlButtonProps) {
   const sizeConfig = {
@@ -261,10 +261,10 @@ export function ControlButton({
       minWidth={config.minWidth}
       pressStyle={{
         scale: 0.95,
-        backgroundColor: variant === 'ghost' ? 'rgba(255,255,255,0.3)' : undefined,
+        backgroundColor: variant === 'chromeless' ? 'rgba(255,255,255,0.3)' : undefined,
       }}
       hoverStyle={{
-        backgroundColor: variant === 'ghost' ? 'rgba(255,255,255,0.25)' : undefined,
+        backgroundColor: variant === 'chromeless' ? 'rgba(255,255,255,0.25)' : undefined,
       }}
       accessibilityRole="button"
       accessibilityLabel={label}

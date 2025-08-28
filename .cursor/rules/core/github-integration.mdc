@@ -1,7 +1,7 @@
 ---
 description: GitHub Integration and Git Workflow
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # GitHub Integration Rules

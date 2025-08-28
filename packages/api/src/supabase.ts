@@ -1,33 +1,32 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '../types/database'
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
 
 // Environment variables for Supabase
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey =
-  process.env.EXPO_PUBLIC_SUPABASE_KEY ||
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // DEBUG: Log environment variables (without exposing keys)
 if (__DEV__) {
-  console.warn('🔧 Supabase Environment Check:', {
-    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'MISSING',
-    key: supabaseKey ? `${supabaseKey.substring(0, 10)}...` : 'MISSING',
+  console.warn("🔧 Supabase Environment Check:", {
+    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : "MISSING",
+    key: supabaseKey ? `${supabaseKey.substring(0, 10)}...` : "MISSING",
     nodeEnv: process.env.NODE_ENV,
-    platform:
-      typeof window !== 'undefined'
-        ? 'web'
-        : process.env.EXPO_PUBLIC_SUPABASE_URL
-          ? 'native'
-          : 'server',
-  })
+    platform: typeof window !== "undefined"
+      ? "web"
+      : process.env.EXPO_PUBLIC_SUPABASE_URL
+      ? "native"
+      : "server",
+  });
 }
 
 // Ensure required environment variables are present
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    'Missing Supabase env vars: EXPO_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY'
-  )
+    "Missing Supabase env vars: EXPO_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
+  );
 }
 
 // if (!supabaseUrl || !supabaseKey) {
@@ -74,12 +73,13 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
     // Persist auth session in storage
     persistSession: true,
     // Storage key for session
-    storageKey: 'supabase.auth.token',
+    storageKey: "supabase.auth.token",
   },
-})
+});
 
 // Type exports for convenience
-export type { Database } from '../types/database'
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row']
-export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T]
+export type { Database } from "../types/database";
+export type Tables<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Row"];
+export type Enums<T extends keyof Database["public"]["Enums"]> =
+  Database["public"]["Enums"][T];

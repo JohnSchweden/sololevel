@@ -22,7 +22,7 @@ export const NextTamaguiProvider = ({
   const [theme, setTheme] = useRootTheme()
 
   useServerInsertedHTML(() => {
-    // @ts-ignore
+    // @ts-expect-error
     const rnwStyle = StyleSheet.getSheet()
     return (
       <>

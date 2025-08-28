@@ -90,7 +90,7 @@ describe('ThemeStore', () => {
     it('handles system mode when window is undefined (SSR)', () => {
       // Temporarily remove window
       const originalWindow = global.window
-      // @ts-ignore
+      // @ts-expect-error
       delete global.window
 
       useThemeStore.getState().setMode('system')

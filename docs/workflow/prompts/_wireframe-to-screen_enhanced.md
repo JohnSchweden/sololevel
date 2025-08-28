@@ -49,7 +49,7 @@ Analyze this wireframe with mobile-first principles:
 
 **Touch Interaction Elements:**
 - Primary buttons → <Button size="$5" minHeight={44}> (44px touch targets)
-- Secondary actions → <Button variant="ghost" size="$3" minHeight={44}>
+- Secondary actions → <Button chromeless size="$3" minHeight={44}>
 - Form inputs → <Input size="$4" minHeight={44}>
 - List items → <Pressable minHeight={44}>
 
@@ -176,7 +176,7 @@ WIREFRAME VISUAL HIERARCHY → TAMAGUI IMPLEMENTATION:
 Header (Fixed):
 - Navigation: <XStack height={60} padding="$4">
 - Title: <H1 fontSize="$6" fontWeight="600">
-- Actions: <Button variant="ghost" size="$3" minHeight={44}>
+- Actions: <Button chromeless size="$3" minHeight={44}>
 
 Content (Scrollable):
 - Section headers: <H2 fontSize="$5" marginVertical="$3">

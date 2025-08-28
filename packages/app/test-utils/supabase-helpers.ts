@@ -69,12 +69,7 @@ export const expectedErrorMessages = {
 
 // Helper to create mock mutation functions
 export function createMockMutation(
-  options: {
-    isLoading?: boolean
-    isError?: boolean
-    error?: Error
-    isSuccess?: boolean
-  } = {}
+  options: { isLoading?: boolean; isError?: boolean; error?: Error; isSuccess?: boolean } = {}
 ) {
   return {
     mutate: vi.fn(),

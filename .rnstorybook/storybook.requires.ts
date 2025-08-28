@@ -11,7 +11,7 @@ const normalizedStories = [
     files: '**/*.stories.?(ts|tsx|js|jsx)',
     importPathMatcher:
       /^\.(?:(?:^|\/|(?:(?:(?!(?:^|\/)\.).)*?)\/)(?!\.)(?=.)[^/]*?\.stories\.(?:ts|tsx|js|jsx)?)$/,
-    // @ts-ignore
+    // @ts-expect-error
     req: require.context(
       './stories',
       true,
@@ -29,7 +29,7 @@ const annotations = [require('./preview'), require('@storybook/react-native/prev
 
 global.STORIES = normalizedStories
 
-// @ts-ignore
+// @ts-expect-error
 module?.hot?.accept?.()
 
 if (!global.view) {

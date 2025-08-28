@@ -79,7 +79,7 @@ Analyze this wireframe and map each element to:
 - SafeAreaView for mobile considerations
 
 **Interactive Elements:**  
-- Button variants (primary, secondary, ghost)
+- Button variants (primary, secondary, chromeless)
 - Input/TextArea with proper validation
 - Select/Dropdown components
 - Toggle/Switch elements
