@@ -74,7 +74,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/core@npm:^7.11.6, @babel/core@npm:^7.12.3, @babel/core@npm:^7.20.0, @babel/core@npm:^7.23.9, @babel/core@npm:^7.25.2, @babel/core@npm:^7.26.0, @babel/core@npm:^7.26.9, @babel/core@npm:^7.28.0, @babel/core@npm:^7.28.3":
+"@babel/core@npm:^7.11.6, @babel/core@npm:^7.12.3, @babel/core@npm:^7.20.0, @babel/core@npm:^7.23.9, @babel/core@npm:^7.25.2, @babel/core@npm:^7.28.0, @babel/core@npm:^7.28.3":
   version: 7.28.3
   resolution: "@babel/core@npm:7.28.3"
   dependencies:
@@ -1407,7 +1407,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-env@npm:^7.26.0, @babel/preset-env@npm:^7.28.3":
+"@babel/preset-env@npm:^7.28.3":
   version: 7.28.3
   resolution: "@babel/preset-env@npm:7.28.3"
   dependencies:
@@ -1500,7 +1500,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-react@npm:^7.22.15, @babel/preset-react@npm:^7.24.7, @babel/preset-react@npm:^7.26.3, @babel/preset-react@npm:^7.27.1":
+"@babel/preset-react@npm:^7.22.15, @babel/preset-react@npm:^7.24.7, @babel/preset-react@npm:^7.27.1":
   version: 7.27.1
   resolution: "@babel/preset-react@npm:7.27.1"
   dependencies:
@@ -1516,7 +1516,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-typescript@npm:^7.16.7, @babel/preset-typescript@npm:^7.23.0, @babel/preset-typescript@npm:^7.26.0, @babel/preset-typescript@npm:^7.27.1":
+"@babel/preset-typescript@npm:^7.16.7, @babel/preset-typescript@npm:^7.23.0, @babel/preset-typescript@npm:^7.27.1":
   version: 7.27.1
   resolution: "@babel/preset-typescript@npm:7.27.1"
   dependencies:
@@ -3278,24 +3278,24 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@my/ui@workspace:packages/ui"
   dependencies:
-    "@babel/core": "npm:^7.26.0"
-    "@babel/preset-env": "npm:^7.26.0"
-    "@babel/preset-react": "npm:^7.26.3"
-    "@babel/preset-typescript": "npm:^7.26.0"
+    "@babel/core": "npm:^7.28.3"
+    "@babel/preset-env": "npm:^7.28.3"
+    "@babel/preset-react": "npm:^7.27.1"
+    "@babel/preset-typescript": "npm:^7.27.1"
     "@my/config": "npm:0.0.1"
     "@tamagui/build": "npm:1.132.20"
     "@tamagui/toast": "npm:1.132.20"
     "@testing-library/jest-dom": "npm:^6.8.0"
     "@testing-library/jest-native": "npm:^5.4.3"
-    "@testing-library/react-native": "npm:^12.8.1"
-    "@types/jest": "npm:^29.5.14"
+    "@testing-library/react-native": "npm:^13.3.3"
+    "@types/jest": "npm:^30.0.0"
     babel-jest: "npm:^29.7.0"
     jest: "npm:^29.7.0"
     jest-environment-jsdom: "npm:^29.7.0"
     react: "npm:19.0.0"
     react-dom: "npm:19.0.0"
     react-native: "npm:0.79.6"
-    react-native-web: "npm:^0.19.13"
+    react-native-web: "npm:^0.21.0"
     react-test-renderer: "npm:19.0.0"
     tamagui: "npm:1.132.20"
   peerDependencies:
@@ -6363,7 +6363,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@testing-library/jest-dom@npm:^6.6.3, @testing-library/jest-dom@npm:^6.7.0, @testing-library/jest-dom@npm:^6.8.0":
+"@testing-library/jest-dom@npm:^6.6.3, @testing-library/jest-dom@npm:^6.8.0":
   version: 6.8.0
   resolution: "@testing-library/jest-dom@npm:6.8.0"
   dependencies:
@@ -6413,25 +6413,6 @@ __metadata:
     react-test-renderer:
       optional: true
   checksum: 10c0/83bef2d4c437b84143213b5275ef00ef14e5bcd344f9ded12b162d253dc3c799138ead4428026b9c725e5a38dbebf611f2898aa43f3e43432bcaccbd7bf413e5
-  languageName: node
-  linkType: hard
-
-"@testing-library/react-native@npm:^12.8.1":
-  version: 12.9.0
-  resolution: "@testing-library/react-native@npm:12.9.0"
-  dependencies:
-    jest-matcher-utils: "npm:^29.7.0"
-    pretty-format: "npm:^29.7.0"
-    redent: "npm:^3.0.0"
-  peerDependencies:
-    jest: ">=28.0.0"
-    react: ">=16.8.0"
-    react-native: ">=0.59"
-    react-test-renderer: ">=16.8.0"
-  peerDependenciesMeta:
-    jest:
-      optional: true
-  checksum: 10c0/d29a2c9a4f1318a8fbf7d53927e42c34bd3bc00c46ba7e4010828c927a2b504cbaa3284deba7780fa467b6b1b2d5ce1a4a2ab9f2d1d08d7a1740dc5b2242df21
   languageName: node
   linkType: hard
 
@@ -6738,16 +6719,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/jest@npm:^29.5.14":
-  version: 29.5.14
-  resolution: "@types/jest@npm:29.5.14"
-  dependencies:
-    expect: "npm:^29.0.0"
-    pretty-format: "npm:^29.0.0"
-  checksum: 10c0/18e0712d818890db8a8dab3d91e9ea9f7f19e3f83c2e50b312f557017dc81466207a71f3ed79cf4428e813ba939954fa26ffa0a9a7f153181ba174581b1c2aed
-  languageName: node
-  linkType: hard
-
 "@types/jest@npm:^30.0.0":
   version: 30.0.0
   resolution: "@types/jest@npm:30.0.0"
@@ -6776,7 +6747,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/json-schema@npm:*, @types/json-schema@npm:^7.0.15, @types/json-schema@npm:^7.0.5, @types/json-schema@npm:^7.0.6, @types/json-schema@npm:^7.0.8, @types/json-schema@npm:^7.0.9":
+"@types/json-schema@npm:*, @types/json-schema@npm:^7.0.15, @types/json-schema@npm:^7.0.6, @types/json-schema@npm:^7.0.8, @types/json-schema@npm:^7.0.9":
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 10c0/a996a745e6c5d60292f36731dd41341339d4eeed8180bb09226e5c8d23759067692b1d88e5d91d72ee83dfc00d3aca8e7bd43ea120516c17922cbcb7c3e252db
@@ -7639,7 +7610,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^6.12.4, ajv@npm:^6.12.5":
+"ajv@npm:^6.12.5":
   version: 6.12.6
   resolution: "ajv@npm:6.12.6"
   dependencies:
@@ -8035,21 +8006,6 @@ __metadata:
     "@babel/core": ^7.12.0
     webpack: ">=5.61.0"
   checksum: 10c0/882dfacde3ee24b432ad57e468832cd0821e2a410f6c5b75ff945f069a8956592b28c6c357df5bb03db73d2741ec3db5febb106ac0bb3591c3d4288f2cf4df0e
-  languageName: node
-  linkType: hard
-
-"babel-loader@npm:^8.4.1":
-  version: 8.4.1
-  resolution: "babel-loader@npm:8.4.1"
-  dependencies:
-    find-cache-dir: "npm:^3.3.1"
-    loader-utils: "npm:^2.0.4"
-    make-dir: "npm:^3.1.0"
-    schema-utils: "npm:^2.6.5"
-  peerDependencies:
-    "@babel/core": ^7.0.0
-    webpack: ">=2"
-  checksum: 10c0/efdca9c3ef502af58b923a32123d660c54fd0be125b7b64562c8a43bda0a3a55dac0db32331674104e7e5184061b75c3a0e395b2c5ccdc7cb2125dd9ec7108d2
   languageName: node
   linkType: hard
 
@@ -10565,7 +10521,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expect@npm:^29.0.0, expect@npm:^29.7.0":
+"expect@npm:^29.7.0":
   version: 29.7.0
   resolution: "expect@npm:29.7.0"
   dependencies:
@@ -10596,7 +10552,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "expo-app@workspace:apps/expo"
   dependencies:
-    "@babel/core": "npm:^7.26.9"
+    "@babel/core": "npm:^7.28.3"
     "@expo/config-plugins": "npm:~10.1.1"
     "@expo/metro-config": "npm:~0.20.0"
     "@my/api": "workspace:*"
@@ -11255,7 +11211,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"find-cache-dir@npm:^3.3.1, find-cache-dir@npm:^3.3.2":
+"find-cache-dir@npm:^3.3.2":
   version: 3.3.2
   resolution: "find-cache-dir@npm:3.3.2"
   dependencies:
@@ -13833,7 +13789,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"make-dir@npm:^3.0.2, make-dir@npm:^3.1.0":
+"make-dir@npm:^3.0.2":
   version: 3.1.0
   resolution: "make-dir@npm:3.1.0"
   dependencies:
@@ -15768,7 +15724,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pretty-format@npm:^29.0.0, pretty-format@npm:^29.0.3, pretty-format@npm:^29.7.0":
+"pretty-format@npm:^29.0.3, pretty-format@npm:^29.7.0":
   version: 29.7.0
   resolution: "pretty-format@npm:29.7.0"
   dependencies:
@@ -16982,17 +16938,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"schema-utils@npm:^2.6.5":
-  version: 2.7.1
-  resolution: "schema-utils@npm:2.7.1"
-  dependencies:
-    "@types/json-schema": "npm:^7.0.5"
-    ajv: "npm:^6.12.4"
-    ajv-keywords: "npm:^3.5.2"
-  checksum: 10c0/f484f34464edd8758712d5d3ba25a306e367dac988aecaf4ce112e99baae73f33a807b5cf869240bb6648c80720b36af2d7d72be3a27faa49a2d4fc63fa3f85f
-  languageName: node
-  linkType: hard
-
 "schema-utils@npm:^3.0.0":
   version: 3.3.0
   resolution: "schema-utils@npm:3.3.0"
@@ -17525,7 +17470,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sololevel@workspace:."
   dependencies:
-    "@babel/core": "npm:^7.26.9"
+    "@babel/core": "npm:^7.28.3"
     "@babel/runtime": "npm:^7.26.10"
     "@biomejs/biome": "npm:^1.9.3"
     "@gorhom/bottom-sheet": "npm:^5.2.3"
@@ -17540,7 +17485,7 @@ __metadata:
     "@storybook/react-native-web-vite": "npm:^9.1.2"
     "@tamagui/cli": "npm:1.132.20"
     "@testing-library/dom": "npm:^10.4.1"
-    "@testing-library/jest-dom": "npm:^6.7.0"
+    "@testing-library/jest-dom": "npm:^6.8.0"
     "@testing-library/react": "npm:^16.3.0"
     "@testing-library/react-hooks": "npm:^8.0.1"
     "@testing-library/react-native": "npm:^13.3.3"
@@ -17549,7 +17494,7 @@ __metadata:
     "@types/node": "npm:^24.3.0"
     "@types/react-native-web": "npm:^0"
     "@vitest/coverage-v8": "npm:^3.2.4"
-    babel-loader: "npm:^8.4.1"
+    babel-loader: "npm:^10.0.0"
     check-dependency-version-consistency: "npm:^4.1.0"
     detox: "npm:^20.29.5"
     expo: "npm:53.0.22"
