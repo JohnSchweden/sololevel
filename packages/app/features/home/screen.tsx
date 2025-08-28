@@ -10,22 +10,30 @@ import {
   XStack,
   YStack,
 } from '@my/ui'
-import { ChevronDown, ChevronUp } from '@tamagui/lucide-icons'
+import { ChevronDown, ChevronUp, Camera, Video } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
+import Link from 'next/link'
+
 export function HomeScreen({
   linkComponent,
   demoLinkComponent,
+  cameraRecordingLinkComponent,
+  enhancedCameraRecordingLinkComponent,
 }: {
   linkComponent?: React.ReactNode
   demoLinkComponent?: React.ReactNode
+  cameraRecordingLinkComponent?: React.ReactNode
+  enhancedCameraRecordingLinkComponent?: React.ReactNode
 }) {
   return (
     <ErrorBoundary>
       <HomeScreenContent
         linkComponent={linkComponent}
         demoLinkComponent={demoLinkComponent}
+        cameraRecordingLinkComponent={cameraRecordingLinkComponent}
+        enhancedCameraRecordingLinkComponent={enhancedCameraRecordingLinkComponent}
       />
     </ErrorBoundary>
   )
@@ -34,9 +42,13 @@ export function HomeScreen({
 function HomeScreenContent({
   linkComponent,
   demoLinkComponent,
+  cameraRecordingLinkComponent,
+  enhancedCameraRecordingLinkComponent,
 }: {
   linkComponent?: React.ReactNode
   demoLinkComponent?: React.ReactNode
+  cameraRecordingLinkComponent?: React.ReactNode
+  enhancedCameraRecordingLinkComponent?: React.ReactNode
 }) {
   return (
     <YStack
@@ -92,6 +104,46 @@ function HomeScreenContent({
         {linkComponent || <Button>Link to user</Button>}
         {demoLinkComponent}
       </XStack>
+
+      <YStack
+        gap="$4"
+        mt="$4"
+      >
+        <Paragraph
+          color="$color10"
+          text="center"
+        >
+          Camera Recording Screens
+        </Paragraph>
+        <XStack
+          gap="$4"
+          flexWrap="wrap"
+          justifyContent="center"
+        >
+          {cameraRecordingLinkComponent || (
+            <Button
+              icon={Camera}
+              size="$5"
+            >
+              Basic Camera
+            </Button>
+          )}
+          {enhancedCameraRecordingLinkComponent || (
+            <Link
+              href="/enhanced-camera"
+              passHref
+              legacyBehavior
+            >
+              <Button
+                icon={Video}
+                size="$5"
+              >
+                Enhanced Camera
+              </Button>
+            </Link>
+          )}
+        </XStack>
+      </YStack>
 
       <SheetDemo />
     </YStack>

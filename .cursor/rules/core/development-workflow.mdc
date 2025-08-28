@@ -14,7 +14,7 @@ alwaysApply: true
 
 ## Code Quality
 - Always run TypeScript checks: `yarn type-check`
-- Use ESLint and Prettier configurations
+- Use Biome for linting and formatting
 - Validate commits with lint-staged if configured
 
 # Common Commands

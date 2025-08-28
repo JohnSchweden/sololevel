@@ -38,12 +38,55 @@ module.exports = () => {
   /** @type {import('next').NextConfig} */
   let config = {
     i18n,
-    transpilePackages: ['react-native-web', 'expo-linking', 'expo-constants', 'expo-modules-core'],
+    transpilePackages: [
+      'react-native-web',
+      'expo-linking',
+      'expo-constants',
+      'expo-modules-core',
+      'expo-camera',
+      'expo-av',
+      'expo-media-library',
+      '@expo/vector-icons',
+    ],
     experimental: {
       scrollRestoration: true,
     },
     compiler: {
       styledJsx: false,
+    },
+    eslint: {
+      ignoreDuringBuilds: true,
+    },
+    webpack: (config, { isServer }) => {
+      // Handle React Native modules
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        // React Native Web aliases
+        'react-native$': 'react-native-web',
+        // Mock expo-camera for web builds since it's only used with dynamic imports
+        'expo-camera': false,
+      }
+
+      // Add support for React Native file extensions
+      config.resolve.extensions = [
+        '.web.js',
+        '.web.jsx',
+        '.web.ts',
+        '.web.tsx',
+        ...config.resolve.extensions,
+      ]
+
+      // Ignore expo modules that are only used on native
+      config.externals = config.externals || []
+      if (!isServer) {
+        config.externals.push({
+          'expo-camera': 'expo-camera',
+          'expo-av': 'expo-av',
+          'expo-media-library': 'expo-media-library',
+        })
+      }
+
+      return config
     },
   }
 

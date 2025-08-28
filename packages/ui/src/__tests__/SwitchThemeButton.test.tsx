@@ -1,27 +1,27 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'
-import { SwitchThemeButton } from '../SwitchThemeButton'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Tamagui theme hooks
-const mockUseThemeSetting = vi.hoisted(() => vi.fn())
-const mockUseRootTheme = vi.hoisted(() => vi.fn())
+const mockUseThemeSetting = jest.fn()
+const mockUseRootTheme = jest.fn()
 
-vi.mock('@tamagui/next-theme', () => ({
-  useThemeSetting: mockUseThemeSetting,
-  useRootTheme: mockUseRootTheme,
+jest.mock('@tamagui/next-theme', () => ({
+  useThemeSetting: () => mockUseThemeSetting(),
+  useRootTheme: () => mockUseRootTheme(),
 }))
+
+import { SwitchThemeButton } from '../SwitchThemeButton'
 
 function renderWithProvider(component: React.ReactElement) {
   return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
 }
 
 describe('SwitchThemeButton', () => {
-  const mockToggle = vi.fn()
+  const mockToggle = jest.fn()
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
 
     // Setup default mock implementations
     mockUseThemeSetting.mockReturnValue({

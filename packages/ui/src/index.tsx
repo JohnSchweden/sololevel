@@ -4,5 +4,7 @@ export * from './MyComponent'
 export { config } from '@my/config'
 export * from './CustomToast'
 export * from './SwitchThemeButton'
-export { TamaguiProvider } from 'tamagui'
 export * from './NativeToast'
+export * from './components/CameraRecording'
+// Override Button with our custom implementation
+export { Button } from './components/Button'

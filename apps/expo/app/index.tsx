@@ -1,8 +1,11 @@
 import { HomeScreen } from 'app/features/home/screen'
-import { Stack, Link } from 'expo-router'
+import { Stack, Link, useRouter } from 'expo-router'
 import { Button } from '@my/ui'
+import { Camera, Video } from '@tamagui/lucide-icons'
 
 export default function Screen() {
+  const router = useRouter()
+
   return (
     <>
       <Stack.Screen
@@ -26,6 +29,24 @@ export default function Screen() {
           >
             <Button theme="blue">🧪 Demo & Test</Button>
           </Link>
+        }
+        cameraRecordingLinkComponent={
+          <Button
+            icon={Camera}
+            size="$5"
+            onPress={() => router.push('/camera-recording' as any)}
+          >
+            Basic Camera
+          </Button>
+        }
+        enhancedCameraRecordingLinkComponent={
+          <Button
+            icon={Video}
+            size="$5"
+            onPress={() => router.push('/enhanced-camera' as any)}
+          >
+            Enhanced Camera
+          </Button>
         }
       />
     </>

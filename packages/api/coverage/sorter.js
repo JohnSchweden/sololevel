@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* biome-ignore lint/style/useImportType: coverage file */
 var addSorting = (function() {
     'use strict';
     var cols,

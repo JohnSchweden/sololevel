@@ -42,7 +42,7 @@ export function UserCard({ user }: { user: User }) {
         <Avatar src={user.avatar} size="$4" />
         <YStack>
           <Text fontSize="$4" fontWeight="bold">{user.name}</Text>
-          <Text fontSize="$2" color="$gray10">{user.email}</Text>
+          <Text fontSize="$2" color="$color11">{user.email}</Text>
         </YStack>
       </XStack>
     </YStack>
@@ -107,8 +107,8 @@ export function PostListSkeleton() {
     <YStack space="$3">
       {Array(3).fill(0).map((_, i) => (
         <YStack key={i} space="$2" padding="$3">
-          <Rectangle height={20} backgroundColor="$gray4" borderRadius="$2" />
-          <Rectangle height={40} backgroundColor="$gray4" borderRadius="$2" />
+          <Rectangle height={20} backgroundColor="$backgroundHover" borderRadius="$2" />
+          <Rectangle height={40} backgroundColor="$backgroundHover" borderRadius="$2" />
         </YStack>
       ))}
     </YStack>

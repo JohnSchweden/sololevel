@@ -90,7 +90,13 @@ Reference: docs/features/[feature-name]/analysis.md for validation."
 ### Command 3A: Implement Foundation Phase
 
 ```bash
-"Implement Phase 1 (Mobile Foundation) from docs/features/[feature-name]/tasks.md:
+"
+Implement Phase 1 (Mobile Foundation) from docs/features/[feature-name]/tasks.md:
+
+## Required Document References:
+1. Review Analysis: docs/features/[feature-name]/analysis.md for component mapping.
+2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
+3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
 
 **Apply These Rules:**
 - mobile-screen-patterns.mdc: Touch optimization, safe areas, gestures
@@ -104,18 +110,28 @@ Reference: docs/features/[feature-name]/analysis.md for validation."
 - Implement proper safe area handling with useSafeAreaInsets
 - Add accessibility labels and navigation support
 
+**Validation:**
+- Test interactions on both web and native
+- Verify touch targets meet 44px minimum
+- Confirm accessibility labels work with screen readers
+
 **Progress Tracking:**
 - Update task status as you complete each item
-- Move completed tasks to 'Completed Tasks' section immediately
+- Move completed tasks including sub-elements to 'Completed Tasks' section immediately
 - Document any blockers or changes needed
-
-Reference: docs/features/[feature-name]/analysis.md for component mapping."
+"
 ```
 
 ### Command 3B: Implement Interactive Elements Phase
 
 ```bash
-"Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks.md:
+"
+Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks.md:
+
+## Required Document References:
+1. Review Analysis: docs/features/[feature-name]/analysis.md for component mapping.
+2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
+3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
 
 **Apply These Rules:**
 - mobile-screen-patterns.mdc: Touch interactions, gesture handling
@@ -134,7 +150,11 @@ Reference: docs/features/[feature-name]/analysis.md for component mapping."
 - Verify touch targets meet 44px minimum
 - Confirm accessibility labels work with screen readers
 
-Update task progress and reference analysis for interaction requirements."
+**Progress Tracking:**
+- Update task status as you complete each item
+- Move completed tasks including sub-elements to 'Completed Tasks' section immediately
+- Document any blockers or changes needed
+"
 ```
 
 ### Command 3C: Implement Data Integration Phase

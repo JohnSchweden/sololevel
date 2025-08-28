@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react'
 import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'
 import { MyComponent } from '../MyComponent'
-import { describe, it, expect } from 'vitest'
 
 // Test wrapper with Tamagui provider
 function renderWithProvider(component: React.ReactElement) {

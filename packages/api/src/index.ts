@@ -1,6 +1,6 @@
 // Export Supabase client and types
 export { supabase } from './supabase'
-export type { Database, Tables, Enums } from './supabase'
+export type { Database, Enums, Tables } from './supabase'
 
 // Export validation utilities
 export * from './validation'

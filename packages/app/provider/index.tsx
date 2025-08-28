@@ -1,6 +1,7 @@
-import { useColorScheme } from 'react-native'
+import { useColorScheme, Platform } from 'react-native'
 import { useEffect } from 'react'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ToastViewport } from './ToastViewport'
 import { QueryProvider } from './QueryProvider'
 import { I18nProvider } from './I18nProvider'
@@ -32,7 +33,16 @@ export function Provider({
   }, [])
 
   return (
-    <ErrorBoundary>
+    <SafeAreaProvider
+      initialMetrics={
+        Platform.OS === 'web'
+          ? {
+              frame: { x: 0, y: 0, width: 0, height: 0 },
+              insets: { top: 0, left: 0, right: 0, bottom: 0 },
+            }
+          : undefined
+      }
+    >
       <I18nProvider locale={locale}>
         <QueryProvider>
           <TamaguiProvider
@@ -40,17 +50,19 @@ export function Provider({
             defaultTheme={theme}
             {...rest}
           >
-            <ToastProvider
-              swipeDirection="horizontal"
-              duration={6000}
-              native={[]}
-            >
-              {children}
-              <ToastViewport />
-            </ToastProvider>
+            <ErrorBoundary>
+              <ToastProvider
+                swipeDirection="horizontal"
+                duration={6000}
+                native={[]}
+              >
+                {children}
+                <ToastViewport />
+              </ToastProvider>
+            </ErrorBoundary>
           </TamaguiProvider>
         </QueryProvider>
       </I18nProvider>
-    </ErrorBoundary>
+    </SafeAreaProvider>
   )
 }

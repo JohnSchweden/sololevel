@@ -4,7 +4,11 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "baseUrl": ".",
     "paths": {
-      "react-native": ["react-native-web"]
+      "react-native": ["react-native-web"],
+      "@ui/*": ["../../packages/ui/src/*"],
+      "@app/*": ["../../packages/app/*"],
+      "@api/*": ["../../packages/api/*"],
+      "@config/*": ["../../packages/config/src/*"]
     },
     "allowJs": true,
     "skipLibCheck": true,

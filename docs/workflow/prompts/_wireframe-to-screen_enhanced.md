@@ -181,7 +181,7 @@ Header (Fixed):
 Content (Scrollable):
 - Section headers: <H2 fontSize="$5" marginVertical="$3">
 - Body text: <Text fontSize="$4" lineHeight="$2">
-- Captions: <Text fontSize="$3" color="$gray10">
+- Captions: <Text fontSize="$3" color="$color11">
 
 Interactive Elements:
 - Primary CTA: <Button size="$5" minHeight={44}>

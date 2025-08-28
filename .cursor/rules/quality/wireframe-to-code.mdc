@@ -16,7 +16,7 @@ WIREFRAME ELEMENT → TAMAGUI COMPONENT MAPPING:
 
 Header Section:
 - Title text → <H1 fontSize="$8" fontWeight="bold">
-- Subtitle → <Text fontSize="$4" color="$gray10">  
+- Subtitle → <Text fontSize="$4" color="$color11">  
 - Back button → <Button variant="ghost" icon={ChevronLeft}>
 - Menu button → <Button variant="ghost" icon={Menu}>
 
@@ -266,7 +266,7 @@ export function ProfileCard({
         
         <YStack flex={1}>
           <H3 fontSize="$5" fontWeight="600">{name}</H3>
-          <Text fontSize="$3" color="$gray10">{role}</Text>
+          <Text fontSize="$3" color="$color11">{role}</Text>
         </YStack>
       </XStack>
       

@@ -23,7 +23,7 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
 
   // Don't run queries during SSR
   const isClient = typeof window !== 'undefined'
-  
+
   // Safety check for SSR - return a mock result if not on client
   if (!isClient) {
     return {
@@ -53,7 +53,7 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
       status: 'idle',
     } as unknown as UseQueryResult<TData, TError>
   }
-  
+
   // Wrap useQuery in try-catch to handle SSR gracefully
   let result: UseQueryResult<TData, TError>
   try {

@@ -31,7 +31,8 @@
     "sourceMap": false,
     "target": "es2020",
     "types": [
-      "node"
+      "node",
+      "jest"
     ],
     "lib": [
       "dom",

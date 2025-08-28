@@ -26,16 +26,12 @@ YStack flex={1} backgroundColor="$background"
 │       ├── RecordButton: Button variant="primary" size={80x80} (main CTA)
 │       └── CameraSwapButton: Button icon={RotateCcw} size={60x60}
 └── BottomNavigation: XStack height={80} justifyContent="space-between"
-    ├── CoachTab: Button variant="ghost" icon={User}
-    ├── RecordTab: Button variant="primary" icon={Circle} (active)
-    └── InsightsTab: Button variant="ghost" icon={BarChart}
+    ├── CoachTab: Button variant="ghost" 
+    ├── RecordTab: Button variant="primary" (active)
+    └── InsightsTab: Button variant="ghost"
 ```
 
-### Responsive Breakpoints
-- [x] **Mobile (xs: 0-428px)**: Primary target - single column, bottom navigation
-- [x] **Tablet (sm: 429-768px)**: Larger camera area, same layout structure
-- [x] **Desktop (md+: 769px+)**: Side navigation possible, larger controls
-
+c
 ### Interactive Elements
 - [x] **Touch Targets**: All buttons meet 44px minimum (record button 80px for emphasis)
 - [x] **Primary Action**: Large red record button (80x80px) - most prominent

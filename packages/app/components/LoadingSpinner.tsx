@@ -10,8 +10,8 @@ export function LoadingSpinner({ message = 'Loading...', inline = false }: Loadi
     return (
       <YStack
         gap="$2"
-        items="center"
-        py="$2"
+        alignItems="center"
+        paddingVertical="$2"
       >
         <Paragraph
           color="$color10"

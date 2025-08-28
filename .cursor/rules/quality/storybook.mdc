@@ -203,10 +203,12 @@ const meta: Meta<typeof Component> = {
     // Define all interactive controls
   },
   decorators: [
-    // Always wrap with TamaguiProvider
+    // Always wrap with TamaguiProvider and ErrorBoundary
     (Story) => (
       <TamaguiProvider config={config}>
-        <Story />
+        <ErrorBoundary>
+          <Story />
+        </ErrorBoundary>
       </TamaguiProvider>
     ),
   ],
@@ -219,13 +221,15 @@ const meta: Meta<typeof Component> = {
 decorators: [
   (Story) => (
     <TamaguiProvider config={config}>
-      {process.env.STORYBOOK_PLATFORM === 'native' ? (
-        <SafeAreaProvider>
+      <ErrorBoundary>
+        {process.env.STORYBOOK_PLATFORM === 'native' ? (
+          <SafeAreaProvider>
+            <Story />
+          </SafeAreaProvider>
+        ) : (
           <Story />
-        </SafeAreaProvider>
-      ) : (
-        <Story />
-      )}
+        )}
+      </ErrorBoundary>
     </TamaguiProvider>
   ),
 ]
@@ -257,6 +261,7 @@ decorators: [
 
 ### Required Elements
 - [ ] TamaguiProvider wrapper in decorators
+- [ ] ErrorBoundary inside TamaguiProvider for error handling
 - [ ] Proper title hierarchy (Category/Subcategory/Name)
 - [ ] Autodocs tag for documentation
 - [ ] ArgTypes for all interactive props
@@ -272,6 +277,7 @@ decorators: [
 
 ### Anti-Patterns
 - ❌ Don't create stories without TamaguiProvider
+- ❌ Don't place ErrorBoundary outside TamaguiProvider
 - ❌ Don't skip state variations
 - ❌ Don't use generic story names
 - ❌ Don't forget cross-platform testing

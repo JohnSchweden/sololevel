@@ -188,7 +188,7 @@ export function MobileLoadingScreen({ isLoading, error, children }) {
     return (
       <YStack flex={1} justifyContent="center" alignItems="center">
         <Spinner size="large" color="$blue10" />
-        <Text marginTop="$4" color="$gray10">
+        <Text marginTop="$4" color="$color11">
           Loading...
         </Text>
       </YStack>
@@ -252,7 +252,7 @@ export function OptimizedMobileList({ data }: { data: Item[] }) {
       minHeight={60}
     >
       <Text fontSize="$4" fontWeight="600">{item.title}</Text>
-      <Text fontSize="$3" color="$gray10">{item.subtitle}</Text>
+      <Text fontSize="$3" color="$color11">{item.subtitle}</Text>
     </YStack>
   ), [])
 

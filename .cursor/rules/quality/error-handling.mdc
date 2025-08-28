@@ -6,6 +6,29 @@ alwaysApply: false
 
 # Error Handling Rules
 
+## Provider Hierarchy & Error Boundaries
+- ErrorBoundary MUST be inside TamaguiProvider to access Tamagui context
+- Provider order: SafeArea → I18n → Query → Tamagui → ErrorBoundary → Toast
+- ErrorBoundary can use Tamagui components in fallback UI when inside TamaguiProvider
+
+```typescript
+// ✅ Good - ErrorBoundary inside TamaguiProvider
+<TamaguiProvider config={config}>
+  <ErrorBoundary>
+    <ToastProvider>
+      {children}
+    </ToastProvider>
+  </ErrorBoundary>
+</TamaguiProvider>
+
+// ❌ Bad - ErrorBoundary outside TamaguiProvider
+<ErrorBoundary>
+  <TamaguiProvider config={config}>
+    {children}
+  </TamaguiProvider>
+</ErrorBoundary>
+```
+
 ## API Calls (TanStack Query)
 - ALWAYS use error boundaries for query errors
 - NEVER throw unhandled errors in components

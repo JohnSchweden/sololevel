@@ -25,15 +25,15 @@ export function ErrorBanner({ error, onRetry, onDismiss, variant = 'banner' }: E
   if (variant === 'inline') {
     return (
       <YStack
-        bg="$red2"
+        backgroundColor="$red2"
         borderColor="$red6"
         borderWidth={1}
         borderRadius="$4"
-        p="$3"
+        padding="$3"
         gap="$2"
       >
         <XStack
-          items="center"
+          alignItems="center"
           gap="$2"
         >
           <AlertTriangle
@@ -74,17 +74,17 @@ export function ErrorBanner({ error, onRetry, onDismiss, variant = 'banner' }: E
 
   return (
     <YStack
-      bg="$red3"
+      backgroundColor="$red3"
       borderColor="$red6"
       borderWidth={1}
       borderRadius="$4"
-      p="$4"
+      padding="$4"
       gap="$3"
-      mx="$4"
-      my="$2"
+      marginHorizontal="$4"
+      marginVertical="$2"
     >
       <XStack
-        items="center"
+        alignItems="center"
         gap="$3"
       >
         <AlertTriangle
@@ -110,7 +110,7 @@ export function ErrorBanner({ error, onRetry, onDismiss, variant = 'banner' }: E
         )}
       </XStack>
       {onRetry && (
-        <XStack justify="flex-end">
+        <XStack justifyContent="flex-end">
           <Button
             size="$3"
             variant="outlined"

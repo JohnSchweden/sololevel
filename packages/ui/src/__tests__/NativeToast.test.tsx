@@ -1,16 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'
-import { NativeToast } from '../NativeToast'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Tamagui toast hook
-const mockUseToastState = vi.hoisted(() => vi.fn())
+const mockUseToastState = jest.fn()
 
-vi.mock('@tamagui/toast', () => {
+jest.mock('@tamagui/toast', () => {
   const FakeToast: any = ({ children, ...props }: any) => {
     // Strip non-DOM props to avoid React warnings
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { viewportName, enterStyle, exitStyle, y, opacity, scale, animation, ...rest } = props
     return (
       <div
@@ -29,9 +26,11 @@ vi.mock('@tamagui/toast', () => {
 
   return {
     Toast: FakeToast,
-    useToastState: mockUseToastState,
+    useToastState: () => mockUseToastState(),
   }
 })
+
+import { NativeToast } from '../NativeToast'
 
 function renderWithProvider(component: React.ReactElement) {
   return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
@@ -39,7 +38,7 @@ function renderWithProvider(component: React.ReactElement) {
 
 describe('NativeToast', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('renders nothing when no toast state', () => {
@@ -129,7 +128,7 @@ describe('NativeToast', () => {
 
     const toast = screen.getByTestId('toast')
     expect(toast).toBeTruthy()
-    expect(toast).toHaveAttribute('duration', '4000')
-    expect(toast).toHaveAttribute('data-viewport-name', 'custom-viewport')
+    expect(toast.getAttribute('duration')).toBe('4000')
+    expect(toast.getAttribute('data-viewport-name')).toBe('custom-viewport')
   })
 })

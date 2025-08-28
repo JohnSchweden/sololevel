@@ -26,7 +26,7 @@ alwaysApply: true
 - **UI/Styling**: Tamagui, Expo Router, Lucide React
 - **Backend**: Supabase client, Supabase CLI
 - **State Management**: Zustand, TanStack Query, React Hook Form
-- **Development**: Turbo, Vitest, ESLint, Prettier, TypeScript
+- **Development**: Turbo, Vitest, Biome, TypeScript
 - **Testing**: React Testing Library, Detox, Playwright
 - **Validation**: Zod
 - **Utilities**: Lodash (sparingly), date-fns

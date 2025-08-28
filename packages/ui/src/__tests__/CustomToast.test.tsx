@@ -2,17 +2,16 @@ import { render, screen } from '@testing-library/react'
 import { TamaguiProvider } from 'tamagui'
 import { config } from '@my/config'
 import { CustomToast } from '../CustomToast'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Platform to control web/native behavior
-vi.mock('react-native', () => ({
+jest.mock('react-native', () => ({
   Platform: {
     OS: 'web' as 'web' | 'ios' | 'android',
   },
 }))
 
 // Mock NativeToast component
-vi.mock('../NativeToast', () => ({
+jest.mock('../NativeToast', () => ({
   NativeToast: () => <div data-testid="native-toast">Native Toast</div>,
 }))
 
@@ -22,7 +21,7 @@ function renderWithProvider(component: React.ReactElement) {
 
 describe('CustomToast', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('renders NativeToast on web platform', async () => {

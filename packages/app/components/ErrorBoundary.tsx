@@ -44,21 +44,21 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <YStack
           flex={1}
-          justify="center"
-          items="center"
+          justifyContent="center"
+          alignItems="center"
           gap="$4"
-          p="$4"
-          bg="$background"
+          padding="$4"
+          backgroundColor="$background"
         >
           <H3
             color="$red10"
-            text="center"
+            textAlign="center"
           >
             Something went wrong
           </H3>
           <Paragraph
             color="$color10"
-            text="center"
+            textAlign="center"
             maxWidth={300}
           >
             We encountered an unexpected error. Please try again.
