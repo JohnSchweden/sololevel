@@ -48,6 +48,36 @@ vi.mock('expo-router', () => ({
   },
 }))
 
+// Mock Expo modules core
+vi.mock('expo-modules-core', () => ({
+  NativeModule: vi.fn(),
+  requireNativeModule: vi.fn(),
+  requireOptionalNativeModule: vi.fn(),
+}))
+
+// Mock Expo Camera
+vi.mock('expo-camera', () => ({
+  CameraView: ({ children }: any) => children,
+  Camera: ({ children }: any) => children,
+  useCameraPermissions: () => [
+    { granted: true, canAskAgain: true, status: 'granted' },
+    vi.fn(),
+  ],
+  useMicrophonePermissions: () => [
+    { granted: true, canAskAgain: true, status: 'granted' },
+    vi.fn(),
+  ],
+}))
+
+// Mock global expo object
+Object.defineProperty(globalThis, 'expo', {
+  value: {
+    NativeModule: vi.fn(),
+    modules: {},
+  },
+  writable: true,
+})
+
 // Mock Tamagui Lucide Icons to prevent react-native-svg issues
 vi.mock('@tamagui/lucide-icons', () => ({
   RefreshCw: () => 'RefreshCw',

@@ -32,7 +32,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["react-native-svg", "@testing-library/react-native"],
+    exclude: ["react-native-svg", "@testing-library/react-native", "react-native-safe-area-context", "expo-camera"],
     include: ["expo-router", "expo-constants", "expo-linking", "@my/api"],
   },
   resolve: {
@@ -41,6 +41,10 @@ export default defineConfig({
       {
         find: "react-native-svg",
         replacement: resolve(__dirname, "./__mocks__/react-native-svg.ts"),
+      },
+      {
+        find: "react-native-safe-area-context",
+        replacement: resolve(__dirname, "./__mocks__/react-native-safe-area-context.ts"),
       },
       { find: "@my/ui", replacement: resolve(__dirname, "../ui/src") },
       { find: "@my/config", replacement: resolve(__dirname, "../config/src") },
