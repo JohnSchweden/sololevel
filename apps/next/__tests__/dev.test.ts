@@ -36,7 +36,7 @@ test('Next.js dev server starts', async () => {
     })
 
     // Check for expected output
-    expect(output).toContain('Next.js 15.5.0')
+    expect(output).toContain('Next.js 15.5.2')
     expect(output).toContain('Local:')
     expect(output).toContain('Ready in')
 
