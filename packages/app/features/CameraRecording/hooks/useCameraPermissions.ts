@@ -1,281 +1,195 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Alert, Linking, Platform } from 'react-native'
-import { CameraPermissionStatus } from '../types'
+import { useCallback, useEffect, useState } from "react";
+import { useCameraRecordingStore } from "../../../stores/cameraRecording";
 
-interface CameraPermissionsState {
-  camera: CameraPermissionStatus
-  microphone: CameraPermissionStatus
-  isLoading: boolean
-  error: string | null
-}
+/**
+ * Web stub implementation of camera permissions hook
+ * Provides a minimal interface that matches the native version but with no-op implementations
+ */
 
-interface CameraPermissionsActions {
-  requestCameraPermission: () => Promise<boolean>
-  requestMicrophonePermission: () => Promise<boolean>
-  requestAllPermissions: () => Promise<boolean>
-  openSettings: () => void
-  showPermissionRationale: (type: 'camera' | 'microphone') => void
-}
+// Match the type from expo-camera for consistency
+type PermissionResponse = {
+  granted: boolean;
+  status: string;
+  canAskAgain: boolean;
+};
 
 export interface UseCameraPermissionsResult {
-  permissions: CameraPermissionsState
-  actions: CameraPermissionsActions
-  hasAllPermissions: boolean
-  canRecord: boolean
+  // Expo's original API (stubbed)
+  permission: PermissionResponse | null;
+  requestPermission: () => Promise<PermissionResponse>;
+
+  // Enhanced features (stubbed)
+  isLoading: boolean;
+  error: string | null;
+  canRequestAgain: boolean;
+
+  // Actions (stubbed)
+  requestPermissionWithRationale: () => Promise<boolean>;
+  redirectToSettings: () => Promise<void>;
+  clearError: () => void;
+  retryRequest: () => Promise<boolean>;
 }
 
 /**
- * Camera Permissions Management Hook
- * Handles camera/microphone permission requests with proper rationale modals
- * Implements US-RU-02: Handle permissions gracefully
+ * Configuration for the permissions hook (ignored in web version)
  */
-export function useCameraPermissions(): UseCameraPermissionsResult {
-  const [permissions, setPermissions] = useState<CameraPermissionsState>({
-    camera: CameraPermissionStatus.UNDETERMINED,
-    microphone: CameraPermissionStatus.UNDETERMINED,
-    isLoading: false,
-    error: null,
-  })
+export interface UseCameraPermissionsConfig {
+  /** Show permission rationale modal before requesting */
+  showRationale?: boolean;
+  /** Enable automatic settings redirect for denied permissions */
+  enableSettingsRedirect?: boolean;
+  /** Custom rationale message for different platforms */
+  customRationale?: {
+    title: string;
+    message: string;
+    okButton?: string;
+    cancelButton?: string;
+  };
+  /** Callback when permission status changes */
+  onPermissionChange?: (status: PermissionResponse | null) => void;
+  /** Callback when permission request fails */
+  onError?: (error: string) => void;
+}
 
-  // Check current permissions on mount
+/**
+ * Web stub implementation of camera permissions hook
+ * Returns always-denied state to prevent camera access attempts
+ */
+export function useCameraPermissions(
+  config: UseCameraPermissionsConfig = {},
+): UseCameraPermissionsResult {
+  const { onPermissionChange, onError } = config;
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Always return denied permission on web
+  const permission: PermissionResponse = {
+    granted: false,
+    status: "denied",
+    canAskAgain: false,
+  };
+  const canRequestAgain = false;
+
+  // Zustand store integration
+  const { setPermissions, permissions: storePermissions } =
+    useCameraRecordingStore();
+
+  // Update Zustand store when component mounts
   useEffect(() => {
-    checkCurrentPermissions()
-  }, [])
+    setPermissions({
+      camera: "denied", // Web always denied
+      microphone: storePermissions.microphone, // Keep existing microphone permission
+    });
+    onPermissionChange?.(permission);
+  }, [setPermissions, storePermissions.microphone, onPermissionChange]);
 
-  const checkCurrentPermissions = useCallback(async () => {
-    setPermissions((prev) => ({ ...prev, isLoading: true, error: null }))
+  // Stub implementations that do nothing
+  const requestPermission = useCallback(async () => {
+    const errorMessage = "Camera permissions are not available in web browser";
+    setError(errorMessage);
+    onError?.(errorMessage);
+    return permission;
+  }, [permission, onError]);
 
-    try {
-      if (Platform.OS === 'web') {
-        // Web getUserMedia permissions are handled differently
-        const cameraStatus = await checkWebCameraPermission()
-        const microphoneStatus = await checkWebMicrophonePermission()
-
-        setPermissions({
-          camera: cameraStatus,
-          microphone: microphoneStatus,
-          isLoading: false,
-          error: null,
-        })
-      } else {
-        // Native permissions using expo-camera
-        const { Camera } = await import('expo-camera')
-        const cameraStatus = await Camera.getCameraPermissionsAsync()
-        const microphoneStatus = await Camera.getMicrophonePermissionsAsync()
-
-        setPermissions({
-          camera: mapNativePermissionStatus(cameraStatus.status),
-          microphone: mapNativePermissionStatus(microphoneStatus.status),
-          isLoading: false,
-          error: null,
-        })
-      }
-    } catch (error) {
-      setPermissions((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to check camera permissions',
-      }))
-    }
-  }, [])
-
-  const requestCameraPermission = useCallback(async (): Promise<boolean> => {
-    setPermissions((prev) => ({ ...prev, isLoading: true, error: null }))
-
-    try {
-      if (Platform.OS === 'web') {
-        const granted = await requestWebCameraPermission()
-        setPermissions((prev) => ({
-          ...prev,
-          camera: granted ? CameraPermissionStatus.GRANTED : CameraPermissionStatus.DENIED,
-          isLoading: false,
-        }))
-        return granted
-      }
-
-      const { Camera } = await import('expo-camera')
-      const { status } = await Camera.requestCameraPermissionsAsync()
-      const permissionStatus = mapNativePermissionStatus(status)
-
-      setPermissions((prev) => ({
-        ...prev,
-        camera: permissionStatus,
-        isLoading: false,
-      }))
-
-      return permissionStatus === CameraPermissionStatus.GRANTED
-    } catch (error) {
-      setPermissions((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to request camera permission',
-      }))
-      return false
-    }
-  }, [])
-
-  const requestMicrophonePermission = useCallback(async (): Promise<boolean> => {
-    setPermissions((prev) => ({ ...prev, isLoading: true, error: null }))
-
-    try {
-      if (Platform.OS === 'web') {
-        const granted = await requestWebMicrophonePermission()
-        setPermissions((prev) => ({
-          ...prev,
-          microphone: granted ? CameraPermissionStatus.GRANTED : CameraPermissionStatus.DENIED,
-          isLoading: false,
-        }))
-        return granted
-      }
-
-      const { Camera } = await import('expo-camera')
-      const { status } = await Camera.requestMicrophonePermissionsAsync()
-      const permissionStatus = mapNativePermissionStatus(status)
-
-      setPermissions((prev) => ({
-        ...prev,
-        microphone: permissionStatus,
-        isLoading: false,
-      }))
-
-      return permissionStatus === CameraPermissionStatus.GRANTED
-    } catch (error) {
-      setPermissions((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to request microphone permission',
-      }))
-      return false
-    }
-  }, [])
-
-  const requestAllPermissions = useCallback(async (): Promise<boolean> => {
-    const cameraGranted = await requestCameraPermission()
-    const microphoneGranted = await requestMicrophonePermission()
-    return cameraGranted && microphoneGranted
-  }, [requestCameraPermission, requestMicrophonePermission])
-
-  const openSettings = useCallback(() => {
-    if (Platform.OS === 'web') {
-      // Web browsers handle this in their permission UI
-      window.alert('Please enable camera and microphone permissions in your browser settings')
-    } else {
-      Linking.openSettings()
-    }
-  }, [])
-
-  const showPermissionRationale = useCallback(
-    (type: 'camera' | 'microphone') => {
-      const title =
-        type === 'camera' ? 'Camera Permission Required' : 'Microphone Permission Required'
-      const message =
-        type === 'camera'
-          ? 'This app needs camera access to record videos for AI analysis. Please grant camera permission to continue.'
-          : 'This app needs microphone access to record audio with your videos. Please grant microphone permission to continue.'
-
-      Alert.alert(title, message, [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Open Settings',
-          onPress: openSettings,
-        },
-      ])
+  const requestPermissionWithRationale = useCallback(
+    async (): Promise<boolean> => {
+      setIsLoading(true);
+      const errorMessage =
+        "Camera permissions are not available in web browser";
+      setError(errorMessage);
+      onError?.(errorMessage);
+      setIsLoading(false);
+      return false;
     },
-    [openSettings]
-  )
+    [onError],
+  );
 
-  // Computed properties
-  const hasAllPermissions =
-    permissions.camera === CameraPermissionStatus.GRANTED &&
-    permissions.microphone === CameraPermissionStatus.GRANTED
+  const redirectToSettings = useCallback(async (): Promise<void> => {
+    // Open browser settings (improved cross-browser support)
+    try {
+      // Detect browser and open appropriate settings
+      const userAgent = window.navigator.userAgent.toLowerCase();
 
-  const canRecord = hasAllPermissions && !permissions.isLoading
+      if (userAgent.includes("chrome")) {
+        window.open("chrome://settings/content/camera", "_blank");
+      } else if (userAgent.includes("firefox")) {
+        window.open("about:preferences#privacy", "_blank");
+      } else if (userAgent.includes("safari")) {
+        // Safari doesn't support direct settings URLs
+        alert(
+          "Please open Safari Preferences > Websites > Camera to enable permissions",
+        );
+      } else {
+        // Generic instructions
+        alert(
+          "Please check your browser settings to enable camera permissions",
+        );
+      }
+    } catch (err) {
+      const errorMessage =
+        "Unable to open browser settings. Please enable camera permissions manually.";
+      setError(errorMessage);
+      onError?.(errorMessage);
+    }
+  }, [onError]);
+
+  const retryRequest = useCallback(async (): Promise<boolean> => {
+    return requestPermissionWithRationale();
+  }, [requestPermissionWithRationale]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   return {
-    permissions,
-    actions: {
-      requestCameraPermission,
-      requestMicrophonePermission,
-      requestAllPermissions,
-      openSettings,
-      showPermissionRationale,
-    },
-    hasAllPermissions,
-    canRecord,
-  }
+    // Expo's original API (stubbed)
+    permission,
+    requestPermission,
+
+    // Enhanced features (stubbed)
+    isLoading,
+    error,
+    canRequestAgain,
+
+    // Enhanced actions (stubbed)
+    requestPermissionWithRationale,
+    redirectToSettings,
+    clearError,
+    retryRequest,
+  };
 }
 
-// Helper functions
-function mapNativePermissionStatus(status: string): CameraPermissionStatus {
-  switch (status) {
-    case 'granted':
-      return CameraPermissionStatus.GRANTED
-    case 'denied':
-      return CameraPermissionStatus.DENIED
-    case 'undetermined':
-      return CameraPermissionStatus.UNDETERMINED
-    default:
-      return CameraPermissionStatus.RESTRICTED
-  }
+/**
+ * Hook for checking if camera permissions are granted (always false on web)
+ */
+export function useCameraPermissionStatus() {
+  const { permission } = useCameraPermissions();
+  return {
+    isGranted: permission?.granted ?? false,
+    isDenied: permission?.status === "denied",
+    isUndetermined: permission?.status === "undetermined",
+    canAskAgain: permission?.canAskAgain ?? false,
+  };
 }
 
-async function checkWebCameraPermission(): Promise<CameraPermissionStatus> {
-  try {
-    const result = await navigator.permissions.query({ name: 'camera' as any })
-    switch (result.state) {
-      case 'granted':
-        return CameraPermissionStatus.GRANTED
-      case 'denied':
-        return CameraPermissionStatus.DENIED
-      case 'prompt':
-        return CameraPermissionStatus.UNDETERMINED
-      default:
-        return CameraPermissionStatus.UNDETERMINED
-    }
-  } catch {
-    return CameraPermissionStatus.UNDETERMINED
-  }
-}
+/**
+ * Hook for handling permission modal visibility (no-op on web)
+ */
+export function usePermissionModal() {
+  const { setPermissionModalOpen, showPermissionModal } =
+    useCameraRecordingStore();
 
-async function checkWebMicrophonePermission(): Promise<CameraPermissionStatus> {
-  try {
-    const result = await navigator.permissions.query({
-      name: 'microphone' as any,
-    })
-    switch (result.state) {
-      case 'granted':
-        return CameraPermissionStatus.GRANTED
-      case 'denied':
-        return CameraPermissionStatus.DENIED
-      case 'prompt':
-        return CameraPermissionStatus.UNDETERMINED
-      default:
-        return CameraPermissionStatus.UNDETERMINED
-    }
-  } catch {
-    return CameraPermissionStatus.UNDETERMINED
-  }
-}
+  const openModal = useCallback(() => {
+    setPermissionModalOpen(true);
+  }, [setPermissionModalOpen]);
 
-async function requestWebCameraPermission(): Promise<boolean> {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-    stream.getTracks().forEach((track) => track.stop()) // Clean up
-    return true
-  } catch {
-    return false
-  }
-}
+  const closeModal = useCallback(() => {
+    setPermissionModalOpen(false);
+  }, [setPermissionModalOpen]);
 
-async function requestWebMicrophonePermission(): Promise<boolean> {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    stream.getTracks().forEach((track) => track.stop()) // Clean up
-    return true
-  } catch {
-    return false
-  }
+  return {
+    isVisible: showPermissionModal,
+    openModal,
+    closeModal,
+  };
 }

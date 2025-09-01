@@ -5,7 +5,7 @@
 
 // Mock Tamagui components globally
 jest.mock('tamagui', () => {
-  const React = require('react')
+  const _React = require('react')
   const { createTamaguiMock } = require('./mocks')
 
   return createTamaguiMock()
@@ -13,7 +13,7 @@ jest.mock('tamagui', () => {
 
 // Mock Lucide icons globally
 jest.mock('@tamagui/lucide-icons', () => {
-  const React = require('react')
+  const _React = require('react')
   const { createIconMocks } = require('./mocks')
 
   return createIconMocks()

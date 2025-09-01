@@ -10,12 +10,6 @@ export const UserParamsSchema = z.object({
 
 export const UserDetailParamsSchema = UserParamsSchema
 
-// Demo/example navigation params
-export const DemoParamsSchema = z.object({
-  demoId: z.string().optional(),
-  variant: z.enum(['basic', 'advanced', 'custom']).optional(),
-})
-
 // Search-related navigation params
 export const SearchParamsSchema = z.object({
   query: z.string().optional(),
@@ -50,7 +44,7 @@ export const DeepLinkParamsSchema = z.object({
 // Export types for navigation params
 export type UserParams = z.infer<typeof UserParamsSchema>
 export type UserDetailParams = z.infer<typeof UserDetailParamsSchema>
-export type DemoParams = z.infer<typeof DemoParamsSchema>
+
 export type SearchParams = z.infer<typeof SearchParamsSchema>
 export type SettingsParams = z.infer<typeof SettingsParamsSchema>
 export type ModalParams = z.infer<typeof ModalParamsSchema>
@@ -69,7 +63,6 @@ export function validateNavParams<T extends z.ZodSchema>(
 export const navigationValidators = {
   user: (params: unknown) => validateNavParams(UserParamsSchema, params),
   userDetail: (params: unknown) => validateNavParams(UserDetailParamsSchema, params),
-  demo: (params: unknown) => validateNavParams(DemoParamsSchema, params),
   search: (params: unknown) => validateNavParams(SearchParamsSchema, params),
   settings: (params: unknown) => validateNavParams(SettingsParamsSchema, params),
   modal: (params: unknown) => validateNavParams(ModalParamsSchema, params),

@@ -1,16 +1,30 @@
 // Camera Recording Components - Phase 1 & 2 Exports
-export {
-  CameraContainer,
-  CameraControlsOverlay,
-  CameraPreviewArea,
-} from './CameraContainer'
-export { CameraHeader, RecordingTimer } from './CameraHeader'
-export { CameraPreview } from './CameraPreview'
-export { BottomNavigation, TabBar } from './BottomNavigation'
+export { CameraContainer } from "./CameraContainer";
+export { CameraHeader } from "./CameraHeader";
+export { CameraPreview } from "./CameraPreview";
+export type { CameraPreviewContainerProps, CameraPreviewRef } from "./types";
+export { BottomNavigation } from "./BottomNavigation";
 
 // Phase 2 Interactive Components
-export { ControlButton, IdleControls, RecordButton } from './IdleControls'
-export { RecordingControls, ZoomControls } from './RecordingControls'
-export { ConfirmationDialog, NavigationDialog } from './NavigationDialog'
+export { ControlButton, IdleControls, RecordButton } from "./IdleControls";
+export { RecordingControls } from "./RecordingControls";
+export { NavigationDialog } from "./NavigationDialog";
 
-// Note: Types and hooks are imported directly from @app to avoid circular dependencies
+// Phase 3 Data Integration Components
+export { VideoFilePicker } from "./VideoFilePicker";
+
+// Phase 4 Screen Integration Components
+export { SideSheet } from "./SideSheet";
+export { PostRecordingPlayback } from "./PostRecordingPlayback";
+
+// VideoFilePicker Props Interface
+export interface VideoFilePickerProps {
+  isOpen: boolean;
+  onVideoSelected: (file: File, metadata: any) => void;
+  onCancel: () => void;
+  maxDurationSeconds?: number;
+  maxFileSizeBytes?: number;
+  showUploadProgress?: boolean;
+  uploadProgress?: number;
+  disabled?: boolean;
+}

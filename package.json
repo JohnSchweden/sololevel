@@ -75,11 +75,12 @@
     "check-dependency-version-consistency": "^4.1.0",
     "expo-modules-core": "^2.5.0",
     "husky": "^9.1.6",
+    "immer": "^10.1.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "turbo": "^1.13.4",
-    "typescript": "^5.9.2",
+    "typescript": "~5.8.3",
     "ultra-runner": "^3.10.5",
     "undici": "^5.29.0"
   },

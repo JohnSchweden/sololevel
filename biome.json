@@ -48,7 +48,8 @@
         "noUselessFragments": "off",
         "useLiteralKeys": "off",
         "useSimplifiedLogicExpression": "off",
-        "useOptionalChain": "off"
+        "useOptionalChain": "off",
+        "noStaticOnlyClass": "off"
       },
       "a11y": {
         "noSvgWithoutTitle": "off",

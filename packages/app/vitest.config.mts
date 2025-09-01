@@ -54,6 +54,25 @@ export default defineConfig({
           "./__mocks__/react-native-safe-area-context.ts",
         ),
       },
+      {
+        find: "@expo/react-native-action-sheet",
+        replacement: resolve(
+          __dirname,
+          "./__mocks__/expo-react-native-action-sheet.ts",
+        ),
+      },
+      {
+        find: "expo-modules-core",
+        replacement: resolve(__dirname, "./__mocks__/expo-modules-core.ts"),
+      },
+      {
+        find: "expo-image-picker",
+        replacement: resolve(__dirname, "./__mocks__/expo-image-picker.ts"),
+      },
+      {
+        find: "expo-document-picker",
+        replacement: resolve(__dirname, "./__mocks__/expo-document-picker.ts"),
+      },
       { find: "@my/ui", replacement: resolve(__dirname, "../ui/src") },
       { find: "@my/config", replacement: resolve(__dirname, "../config/src") },
       { find: "app", replacement: resolve(__dirname, ".") },

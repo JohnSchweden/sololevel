@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthStore>()(
         } else {
           set({ user: null, session: null, loading: false })
         }
-      } catch (error) {
+      } catch (_error) {
         set({ loading: false })
       }
     },
@@ -88,7 +88,7 @@ export const useAuthStore = create<AuthStore>()(
         })
 
         // Note: subscription cleanup would be handled by the component using this store
-      } catch (error) {
+      } catch (_error) {
         set({ loading: false, initialized: true })
       }
     },

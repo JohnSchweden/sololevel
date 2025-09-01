@@ -42,6 +42,23 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+# TypeScript compilation artifacts
+packages/**/*.js
+packages/**/*.js.map
+packages/**/*.d.ts
+!packages/**/jest.config.js
+!packages/**/babel.config.js
+!packages/**/*.config.js
+!packages/**/vitest.config.mjs
+!packages/**/vitest.config.mts
+!packages/**/jest.setup.js
+!packages/**/vitest.setup.js
+!packages/*/src/types/*.d.ts
+!packages/types/**/*.d.ts
+!packages/**/__mocks__/*.d.ts
+
+# compiled js files in expo app directory
+apps/expo/app/**/*.js
 
 # os
 .DS_Store

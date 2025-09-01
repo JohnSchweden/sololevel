@@ -1,5 +1,0 @@
-// TEMPORARILY DISABLED TESTS
-// TEMPORARILY DISABLED: react-native-svg + React 19 compatibility issue
-// Issue: react-native-svg@15.12.1 has TypeScript syntax errors with React 19
-// TODO: Re-enable when react-native-svg releases React 19 compatible version
-// Original test file moved to: screen.test.tsx.disabled

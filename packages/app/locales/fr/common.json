@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "home": "Accueil",
+
     "profile": "Profil",
     "settings": "Paramètres",
-    "demo": "Démo",
+
     "back": "Retour",
     "close": "Fermer",
     "cancel": "Annuler",
@@ -21,7 +21,7 @@
     "email": "E-mail",
     "password": "Mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
-    "username": "Nom d'utilisateur",
+
     "firstName": "Prénom",
     "lastName": "Nom de famille",
     "rememberMe": "Se souvenir de moi"

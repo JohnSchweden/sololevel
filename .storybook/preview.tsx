@@ -1,5 +1,4 @@
 import type { Preview } from '@storybook/react-native-web-vite'
-import React from 'react'
 
 const preview: Preview = {
   parameters: {
@@ -24,7 +23,7 @@ const preview: Preview = {
             <Story />
           </TamaguiProvider>
         )
-      } catch (error) {
+      } catch (_error) {
         return <Story />
       }
     },

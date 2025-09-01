@@ -9,7 +9,7 @@ afterAll(() => {
     try {
       process.kill(buildProcess.pid, 0) // Check if process exists
       process.kill(buildProcess.pid) // Kill the process if it exists
-    } catch (error) {}
+    } catch (_error) {}
   }
 })
 

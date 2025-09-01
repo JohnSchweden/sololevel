@@ -47,6 +47,7 @@
     "next-transpile-modules": "^10.0.1",
     "react-native": "0.79.6",
     "tree-kill": "^1.2.2",
+    "ts-loader": "^9.5.4",
     "typescript": "^5.9.2",
     "vercel": "^46.0.2",
     "vitest": "^3.2.4",

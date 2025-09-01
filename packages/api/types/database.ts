@@ -28,6 +28,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: number
+          pose_data: Json | null
+          processing_completed_at: string | null
+          processing_started_at: string | null
+          progress_percentage: number | null
+          results: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          video_recording_id: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: never
+          pose_data?: Json | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          progress_percentage?: number | null
+          results?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          video_recording_id: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: never
+          pose_data?: Json | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          progress_percentage?: number | null
+          results?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          video_recording_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'analysis_jobs_video_recording_id_fkey'
+            columns: ['video_recording_id']
+            isOneToOne: false
+            referencedRelation: 'video_recordings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -61,12 +114,126 @@ export type Database = {
         }
         Relationships: []
       }
+      upload_sessions: {
+        Row: {
+          bytes_uploaded: number | null
+          chunk_size: number | null
+          created_at: string
+          expires_at: string
+          id: number
+          session_id: string
+          signed_url: string
+          status: string
+          total_bytes: number
+          updated_at: string
+          user_id: string
+          video_recording_id: number | null
+        }
+        Insert: {
+          bytes_uploaded?: number | null
+          chunk_size?: number | null
+          created_at?: string
+          expires_at: string
+          id?: never
+          session_id?: string
+          signed_url: string
+          status?: string
+          total_bytes: number
+          updated_at?: string
+          user_id: string
+          video_recording_id?: number | null
+        }
+        Update: {
+          bytes_uploaded?: number | null
+          chunk_size?: number | null
+          created_at?: string
+          expires_at?: string
+          id?: never
+          session_id?: string
+          signed_url?: string
+          status?: string
+          total_bytes?: number
+          updated_at?: string
+          user_id?: string
+          video_recording_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'upload_sessions_video_recording_id_fkey'
+            columns: ['video_recording_id']
+            isOneToOne: false
+            referencedRelation: 'video_recordings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      video_recordings: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          file_size: number
+          filename: string
+          format: string
+          id: number
+          metadata: Json | null
+          original_filename: string | null
+          storage_path: string
+          updated_at: string
+          upload_progress: number | null
+          upload_status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds: number
+          file_size: number
+          filename: string
+          format: string
+          id?: never
+          metadata?: Json | null
+          original_filename?: string | null
+          storage_path: string
+          updated_at?: string
+          upload_progress?: number | null
+          upload_status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          file_size?: number
+          filename?: string
+          format?: string
+          id?: never
+          metadata?: Json | null
+          original_filename?: string | null
+          storage_path?: string
+          updated_at?: string
+          upload_progress?: number | null
+          upload_status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_upload_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_upload_progress: {
+        Args: { recording_id: number }
+        Returns: {
+          bytes_uploaded: number
+          id: number
+          progress_percentage: number
+          total_bytes: number
+          upload_status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

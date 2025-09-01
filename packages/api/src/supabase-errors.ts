@@ -77,7 +77,7 @@ export async function safeSupabaseOperation<T>(
   try {
     const result = await operation()
     return handleSupabaseResult(result, context)
-  } catch (error) {
+  } catch (_error) {
     return {
       success: false,
       data: undefined,

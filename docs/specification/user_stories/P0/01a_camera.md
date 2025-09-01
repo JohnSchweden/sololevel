@@ -5,12 +5,12 @@ References: `../PRD.md`, `../TRD.md`, `../01a_camera.png`
 Note: The camera and recording are one screen with different states. This file covers the Idle state and shared chrome visible while idle.
 
 ## US-RU-02: Handle permissions gracefully
-- As a user, I want clear prompts for camera/microphone permissions.
+- As a user, I want clear prompts for camera permissions.
 - Priority: P0
 - Acceptance Criteria:
   - Given permissions are not granted
   - When I open the record screen
-  - Then I see a rationale modal with Go to Settings option
+  - Then I see a native UI modal with Go to Settings option
   - And the UI shows disabled controls until permissions granted
 
 ## US-RU-06a: Recording states — Idle controls

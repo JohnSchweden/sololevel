@@ -14,7 +14,7 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
   let toast: any = null
   try {
     toast = useToastController()
-  } catch (error) {
+  } catch (_error) {
     // Toast not available during SSR, that's okay
   }
   const lastErrorRef = useRef<TError | null>(null)
@@ -62,7 +62,7 @@ export function useQueryWithErrorHandling<TData = unknown, TError = Error>(
       throwOnError: false, // Always prevent throwing errors
       enabled: queryOptions.enabled !== false && isClient, // Only run on client
     })
-  } catch (error) {
+  } catch (_error) {
     return {
       data: undefined,
       error: null,

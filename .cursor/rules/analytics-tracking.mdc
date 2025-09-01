@@ -1,7 +1,7 @@
 ---
 description: This rule explains how to create and update an analytics.md file to track how often .mdc rules is being used.
 globs: [".cursor/analytics.md"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Cursor Rules Analytics

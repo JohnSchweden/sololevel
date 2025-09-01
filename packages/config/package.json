@@ -12,7 +12,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tamagui-build --skip-types",
+    "build": "echo 'config package - using pre-built types'",
     "watch": "tamagui-build --skip-types --watch"
   },
   "dependencies": {

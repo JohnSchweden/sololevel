@@ -46,7 +46,7 @@ test('Next.js dev server starts', async () => {
     if (devProcess?.pid) {
       try {
         await treeKillAsync(devProcess.pid)
-      } catch (error) {}
+      } catch (_error) {}
     }
   }
 }, 60000) // Increased timeout to account for both startup and shutdown

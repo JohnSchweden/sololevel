@@ -193,7 +193,7 @@ yarn test:e2e:ios
 yarn test:e2e:android
 
 # Web E2E
-npx playwright test
+yarn playwright test
 ```
 
 ## 📱 **Mobile-First Considerations**

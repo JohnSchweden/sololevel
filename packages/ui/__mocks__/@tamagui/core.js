@@ -5,7 +5,7 @@ const mockComponent = (name) =>
     React.createElement('div', { ...props, ref, 'data-testid': name })
   )
 
-const mockStyled = (component, config) => mockComponent
+const mockStyled = (_component, _config) => mockComponent
 
 module.exports = {
   TamaguiProvider: ({ children }) => children,

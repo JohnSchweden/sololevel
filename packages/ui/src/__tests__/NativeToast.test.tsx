@@ -1,5 +1,3 @@
-import React from 'react'
-
 // Mock Tamagui components before imports
 jest.mock('tamagui', () => {
   const React = require('react')
@@ -68,10 +66,7 @@ jest.mock('tamagui', () => {
   }
 })
 
-import { config } from '@my/config'
-import { render, renderWithProvider, screen } from '../test-utils'
-
-import { TamaguiProvider } from 'tamagui'
+import { renderWithProvider, screen } from '../test-utils'
 
 // Mock Tamagui toast hook
 const mockUseToastState = jest.fn()

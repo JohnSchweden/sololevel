@@ -119,7 +119,7 @@ export const useFeatureFlagsStore = create<FeatureFlagsStore>()(
         }
 
         set({ loading: false, lastUpdated: new Date() })
-      } catch (error) {
+      } catch (_error) {
         set({ loading: false })
       }
     },

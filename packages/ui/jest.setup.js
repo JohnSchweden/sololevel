@@ -144,6 +144,72 @@ jest.mock('expo-camera', () => ({
   ],
 }))
 
+// Mock Expo Document Picker
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn().mockResolvedValue({
+    canceled: false,
+    assets: [
+      {
+        uri: 'file://mock-video.mp4',
+        name: 'mock-video.mp4',
+        size: 1024 * 1024,
+        mimeType: 'video/mp4',
+      },
+    ],
+  }),
+}))
+
+// Mock Expo Image Picker
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn().mockResolvedValue({
+    canceled: false,
+    assets: [
+      {
+        uri: 'file://mock-video.mp4',
+        fileName: 'mock-video.mp4',
+        fileSize: 1024 * 1024,
+        mimeType: 'video/mp4',
+        duration: 30000,
+        width: 1920,
+        height: 1080,
+      },
+    ],
+  }),
+  launchCameraAsync: jest.fn().mockResolvedValue({
+    canceled: false,
+    assets: [
+      {
+        uri: 'file://mock-video.mp4',
+        fileName: 'mock-video.mp4',
+        fileSize: 1024 * 1024,
+        mimeType: 'video/mp4',
+        duration: 30000,
+        width: 1920,
+        height: 1080,
+      },
+    ],
+  }),
+  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+    status: 'granted',
+  }),
+  MediaTypeOptions: {
+    Videos: 'Videos',
+  },
+}))
+
+// Mock Expo React Native Action Sheet
+jest.mock('@expo/react-native-action-sheet', () => ({
+  useActionSheet: () => ({
+    showActionSheetWithOptions: jest.fn((options, callback) => {
+      // Simulate user selecting the first option (Photo Library)
+      callback(0)
+    }),
+  }),
+  ActionSheetProvider: ({ children }) => children,
+}))
+
 // Mock Tamagui Lucide Icons
 jest.mock('@tamagui/lucide-icons', () => ({
   RefreshCw: () => 'RefreshCw',
@@ -159,6 +225,10 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Upload: () => 'Upload',
   SwitchCamera: () => 'SwitchCamera',
   Settings: () => 'Settings',
+  Camera: () => 'Camera',
+  FileVideo: () => 'FileVideo',
+  Folder: () => 'Folder',
+  Image: () => 'Image',
   // Add other icons as needed
 }))
 
@@ -196,7 +266,7 @@ jest.mock('@tamagui/core', () => {
 
   return {
     TamaguiProvider: ({ children }) => children,
-    styled: (component, config) => mockComponent,
+    styled: (_component, _config) => mockComponent,
     Stack: mockComponent('Stack'),
     XStack: mockComponent('XStack'),
     YStack: mockComponent('YStack'),
@@ -220,7 +290,7 @@ jest.mock('tamagui', () => {
 
   return {
     TamaguiProvider: ({ children }) => children,
-    styled: (component, config) => mockComponent,
+    styled: (_component, _config) => mockComponent,
     createTamagui: jest.fn(() => ({})),
     Stack: mockComponent('Stack'),
     XStack: mockComponent('XStack'),
@@ -237,6 +307,13 @@ jest.mock('tamagui', () => {
       Description: mockComponent('DialogDescription'),
       Close: mockComponent('DialogClose'),
     },
+    Sheet: {
+      Root: ({ children }) => children,
+      Overlay: mockComponent('SheetOverlay'),
+      Handle: mockComponent('SheetHandle'),
+      Frame: mockComponent('SheetFrame'),
+    },
+    Circle: mockComponent('Circle'),
   }
 })
 
@@ -270,3 +347,18 @@ jest.mock('@my/config', () => ({
     fonts: {},
   },
 }))
+
+// Mock React Native Alert
+jest.mock('react-native', () => {
+  const RN = jest.requireActual('react-native')
+  return {
+    ...RN,
+    Alert: {
+      alert: jest.fn(),
+    },
+    Platform: {
+      OS: 'web',
+      select: jest.fn((options) => options.web || options.default),
+    },
+  }
+})

@@ -9,8 +9,8 @@ export const Link = ({ href, children, asChild, ...props }: any) => {
 }
 
 export const useRouter = () => ({
-  push: (href: string) => {},
-  replace: (href: string) => {},
+  push: (_href: string) => {},
+  replace: (_href: string) => {},
   back: () => {},
   canGoBack: () => false,
 })

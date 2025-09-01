@@ -1,14 +1,21 @@
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
+import type { VideoValidationResult } from '../../utils/videoValidation'
+import { VideoFilePicker } from './VideoFilePicker'
 
 export interface IdleControlsProps {
   onStartRecording?: () => void
   onUploadVideo?: () => void
+  onVideoSelected?: (file: File, metadata: VideoValidationResult['metadata']) => void
   onCameraSwap?: () => void
   disabled?: boolean
   cameraSwapDisabled?: boolean
+  maxDurationSeconds?: number
+  maxFileSizeBytes?: number
+  showUploadProgress?: boolean
+  uploadProgress?: number
 }
 
 /**
@@ -19,11 +26,42 @@ export interface IdleControlsProps {
 export function IdleControls({
   onStartRecording,
   onUploadVideo,
+  onVideoSelected,
   onCameraSwap,
   disabled = false,
   cameraSwapDisabled = false,
+  maxDurationSeconds = 60,
+  maxFileSizeBytes = 100 * 1024 * 1024, // 100MB
+  showUploadProgress = false,
+  uploadProgress = 0,
 }: IdleControlsProps) {
   const [isRecordPressed, setIsRecordPressed] = useState(false)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+
+  const handleUploadVideo = useCallback(() => {
+    if (onVideoSelected) {
+      // Use integrated video picker
+      setIsPickerOpen(true)
+    } else if (onUploadVideo) {
+      // Use legacy callback
+      onUploadVideo()
+    }
+  }, [onVideoSelected, onUploadVideo])
+
+  const handleVideoSelected = useCallback(
+    (file: File, metadata: VideoValidationResult['metadata']) => {
+      setIsPickerOpen(false)
+      onVideoSelected?.(file, metadata)
+    },
+    [onVideoSelected]
+  )
+
+  const handlePickerCancel = useCallback(() => {
+    setIsPickerOpen(false)
+  }, [])
+
+  // Choose the appropriate picker based on platform
+  const VideoPickerComponent = VideoFilePicker
 
   return (
     <YStack
@@ -41,8 +79,8 @@ export function IdleControls({
         <Button
           variant="outlined"
           size="$3"
-          onPress={onUploadVideo}
-          disabled={disabled}
+          onPress={handleUploadVideo}
+          disabled={disabled || showUploadProgress}
           icon={
             <Upload
               size="$1.5"
@@ -136,6 +174,20 @@ export function IdleControls({
           accessibilityHint="Switch between front and back camera"
         />
       </XStack>
+
+      {/* Integrated Video File Picker */}
+      {onVideoSelected && (
+        <VideoPickerComponent
+          isOpen={isPickerOpen}
+          onVideoSelected={handleVideoSelected}
+          onCancel={handlePickerCancel}
+          maxDurationSeconds={maxDurationSeconds}
+          maxFileSizeBytes={maxFileSizeBytes}
+          showUploadProgress={showUploadProgress}
+          uploadProgress={uploadProgress}
+          disabled={showUploadProgress}
+        />
+      )}
     </YStack>
   )
 }

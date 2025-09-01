@@ -38,13 +38,18 @@ YStack flex={1} backgroundColor="$background"
     └── InsightsTab: Button chromeless flex={1} icon={BarChart}
 ```
 
-### Component Mapping (Tamagui Components)
+### Component Mapping (Tamagui Components + Expo/RN Libraries)
 - **Header Container**: `XStack` with safe area padding
 - **Menu/Back Button**: `Button chromeless size="$3"` with `<Menu />` or `<ChevronLeft />` icon
 - **Title/Timer**: `Text fontSize="$6" fontWeight="600"` (idle) or `Text fontSize="$5" fontFamily="$mono"` (recording timer)
 - **Notification Button**: `Button chromeless size="$3"` with badge overlay using `Circle` positioned absolute
-- **Camera Preview**: Platform-specific camera component (`expo-camera` native, `getUserMedia` web)
-- **Pose Overlay**: `Svg` component with `Path` elements for skeleton nodes and connections
+- **Camera Preview**: `Camera` from `expo-camera` (web + native via unified API)
+- **Recording**: `Camera.recordAsync()` (native) and `MediaRecorder` (web)
+- **Video Playback**: `Video` from `expo-video`
+- **Upload Pickers**: `expo-image-picker` (gallery video) and `expo-document-picker` (Files app)
+- **Pose Overlay**: `Svg` / `react-native-svg` layer driven by MediaPipe Pose Landmarker
+- **Keep Awake**: `useKeepAwake` from `expo-keep-awake` during active recording/analysis
+- **Action Sheet (Native UX)**: `ActionSheetIOS` (iOS) or `@expo/react-native-action-sheet` cross-platform
 - **Primary Record Button**: `Button size="$6" backgroundColor="$red9" borderRadius="$12"` (80x80px)
 - **Secondary Action Buttons**: `Button size="$4"` (60x60px touch targets)
 - **Zoom Controls**: `XStack gap="$2"` with `Button size="$3" variant={active}` for each zoom level
@@ -167,14 +172,20 @@ const CameraScreen = () => {
 
 ### Platform Considerations
 - **Native (Expo)**:
-  - `expo-camera` for camera access
-  - `expo-media-library` for video saving
-  - `react-native-svg` for pose overlay
+  - `expo-camera` for capture (`Camera`, `useCameraPermissions`)
+  - `expo-video` for playback (`Video`)
+  - `expo-image-picker` for gallery video selection
+  - `expo-document-picker` for Files app video selection
+  - `expo-keep-awake` to prevent sleep during recording/analysis
+  - `react-native-svg` for the overlay surface
+  - `@expo/react-native-action-sheet` for native selection UI
+  - MediaPipe Pose Landmarker (native bindings) for on-device pose detection
   - Native navigation with `expo-router`
 - **Web**:
-  - `getUserMedia` for camera access
-  - `MediaRecorder` for video recording
-  - SVG for pose overlay
+  - `expo-camera` (web) backed by `getUserMedia` for preview/permissions
+  - `MediaRecorder` for recording
+  - `@mediapipe/tasks-vision` (MediaPipe Pose Landmarker) for pose detection
+  - SVG overlay
   - Next.js routing
 
 ### Performance Needs (TRD Compliance)
@@ -187,6 +198,11 @@ const CameraScreen = () => {
 - **App Launch**: < 3 seconds to camera ready state (TRD requirement)
 - **Upload Success**: p95 ≥ 99% on 3G+ networks for 60s clips (TRD requirement)
 - **Progress Updates**: At least every 500ms during upload (TRD requirement)
+
+Additional considerations:
+- Activate `useKeepAwake` only during active recording/analysis to reduce battery impact
+- Prefer `recordAsync` quality presets aligned with device capabilities (native)
+- On web, throttle MediaPipe inference or use region-of-interest to sustain 30fps
 
 ### Security Requirements (TRD Compliance)
 - **Row Level Security**: All database access restricted to authenticated users
@@ -205,6 +221,59 @@ const CameraScreen = () => {
 - **Voice Control**: "Start recording", "Stop recording" commands
 
 ## Component Architecture Phase
+
+### Expo & React Native Library Mapping
+```typescript
+// Core APIs used by this feature
+import { Camera, CameraType, useCameraPermissions } from 'expo-camera'
+import { Video } from 'expo-video'
+import { useKeepAwake } from 'expo-keep-awake'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
+import { useActionSheet } from '@expo/react-native-action-sheet'
+// MediaPipe (web) for pose detection
+// import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'
+```
+
+- **Permissions**: `useCameraPermissions()` from `expo-camera`
+- **Preview/Record**: `Camera` component; `recordAsync()` (native) or `MediaRecorder` (web)
+- **Playback**: `Video` from `expo-video`
+- **Upload Source**: `expo-image-picker` (gallery) or `expo-document-picker` (files)
+- **Keep Awake**: `useKeepAwake()` during capture/analysis
+- **Action Sheet**: `useActionSheet()` for native selection UI (Upload vs Record)
+- **Pose**: MediaPipe Pose Landmarker (`@mediapipe/tasks-vision` on web; native bindings on iOS/Android)
+
+```typescript
+// Permissions + keep awake
+const CameraRecordingScreen = () => {
+  const [permission, requestPermission] = useCameraPermissions()
+  useKeepAwake()
+  // render <Camera /> when permission?.granted
+}
+```
+
+```typescript
+// Native action sheet for upload source
+const { showActionSheetWithOptions } = useActionSheet()
+
+const onUploadPress = () => {
+  showActionSheetWithOptions(
+    { options: ['Pick from Gallery', 'Pick from Files', 'Cancel'], cancelButtonIndex: 2 },
+    async (index) => {
+      if (index === 0) {
+        await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos })
+      } else if (index === 1) {
+        await DocumentPicker.getDocumentAsync({ type: 'video/*', multiple: false })
+      }
+    },
+  )
+}
+```
+
+```typescript
+// MediaPipe Pose (web)
+// Initialize PoseLandmarker with WASM assets and feed results into SVG overlay
+```
 
 ### Component Hierarchy
 ```typescript
@@ -353,6 +422,12 @@ export const cameraTheme = {
 - Simultaneous recording and pose detection
 ```
 
+### Library-specific Testing Notes
+
+- Mock `expo-camera`, `expo-video`, `expo-image-picker`, `expo-document-picker`, and `expo-keep-awake` in unit tests
+- Web: stub `MediaRecorder` and MediaPipe (`@mediapipe/tasks-vision`) with deterministic outputs
+- Native: stub ActionSheet via `@expo/react-native-action-sheet` test utilities
+
 ## User Story Compliance Validation
 
 ### US-RU-02: Handle permissions gracefully ✅
@@ -428,15 +503,20 @@ export const cameraTheme = {
 ## Cross-Platform Validation Phase
 
 ### Web Implementation
-- **Camera Access**: `getUserMedia` API with fallback handling
+- **Camera Access**: `expo-camera` (web) using `getUserMedia` under the hood; `useCameraPermissions`
 - **Recording**: `MediaRecorder` API with format constraints
-- **Pose Detection**: TensorFlow.js MediaPipe integration
+- **Playback**: `expo-video`
+- **Pose Detection**: MediaPipe Pose Landmarker via `@mediapipe/tasks-vision`
+- **Upload Source**: `expo-image-picker` and `expo-document-picker`
 - **Upload**: Direct to Supabase Storage with progress tracking
 
 ### Native Implementation
-- **Camera Access**: `expo-camera` with permission handling
-- **Recording**: Native video recording with quality settings
-- **Pose Detection**: React Native MediaPipe or TensorFlow Lite
+- **Camera Access**: `expo-camera` with `useCameraPermissions`
+- **Recording**: `Camera.recordAsync` with quality presets
+- **Playback**: `expo-video`
+- **Keep Awake**: `expo-keep-awake` during capture/analysis
+- **Pose Detection**: MediaPipe (e.g., native Mediapipe bindings)
+- **Upload Source**: `expo-image-picker` / `expo-document-picker` via native Action Sheet
 - **Upload**: Background upload with network retry logic
 
 ### Shared Logic (packages/app/features)

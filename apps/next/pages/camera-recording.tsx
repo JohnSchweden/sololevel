@@ -1,25 +1,71 @@
-import { CameraRecordingScreen } from '@app/features/CameraRecording/CameraRecordingScreen'
-import Head from 'next/head'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
+import { useCallback } from 'react'
 
-export default function CameraRecordingPage() {
+// Dynamically import the camera component to avoid SSR issues with Expo modules
+const CameraRecordingScreen = dynamic(
+  () =>
+    import('app/features/CameraRecording/CameraRecordingScreen').then((mod) => ({
+      default: mod.CameraRecordingScreen,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: 'black',
+          color: 'white',
+          fontSize: '18px',
+        }}
+      >
+        Loading Camera...
+      </div>
+    ),
+  }
+)
+
+/**
+ * Camera Recording Page - Next.js
+ * Web implementation of camera recording screen
+ * Uses Next.js router for navigation
+ * Camera components are loaded client-side only to avoid SSR issues
+ */
+export default function RecordPage() {
   const router = useRouter()
 
-  return (
-    <>
-      <Head>
-        <title>Camera Recording - Solo:Level</title>
-        <meta
-          name="description"
-          content="Record videos for AI analysis"
-        />
-      </Head>
+  // Navigation handlers following Next.js router patterns
+  const handleNavigateBack = useCallback(() => {
+    router.back()
+  }, [router])
 
-      <CameraRecordingScreen
-        onNavigateBack={() => router.back()}
-        onOpenSideSheet={() => console.log('Open side sheet')}
-        onTabChange={(tab) => console.log(`Tab changed to ${tab}`)}
-      />
-    </>
+  // Side sheet is now handled internally by CameraRecordingScreen
+
+  const handleTabChange = useCallback(
+    (tab: 'coach' | 'record' | 'insights') => {
+      // Navigate to different tabs using Next.js router
+      switch (tab) {
+        case 'coach':
+          router.push('/') // Navigate to home/coach tab
+          break
+        case 'record':
+          // Already on record page
+          break
+        case 'insights':
+          router.push('/') // Navigate to home/insights tab - placeholder
+          break
+      }
+    },
+    [router]
+  )
+
+  return (
+    <CameraRecordingScreen
+      onNavigateBack={handleNavigateBack}
+      onTabChange={handleTabChange}
+    />
   )
 }

@@ -3,15 +3,16 @@
   "include": ["**/*.ts", "**/*.tsx", "locales/**/*.json"],
   "exclude": ["**/__tests__/screen.test.tsx", "**/__tests__/detail-screen.test.tsx"],
   "compilerOptions": {
-    "composite": true,
     "jsx": "react-jsx",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "types": ["vitest/globals", "vitest", "node"],
     "paths": {
-      "app/*": ["./packages/app/*"],
+      "@ui/*": ["./packages/ui/src/*"],
+      "@app/*": ["./packages/app/*"],
+      "@api/*": ["./packages/api/*"],
+      "@config/*": ["./packages/config/src/*"],
       "@my/ui/*": ["./packages/ui/*"]
     }
-  },
-  "references": []
+  }
 }

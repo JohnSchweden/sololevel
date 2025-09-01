@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "home": "Home",
+
     "profile": "Profile",
     "settings": "Settings",
-    "demo": "Demo",
+
     "back": "Back",
     "close": "Close",
     "cancel": "Cancel",
@@ -21,7 +21,7 @@
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm Password",
-    "username": "Username",
+
     "firstName": "First Name",
     "lastName": "Last Name",
     "rememberMe": "Remember Me"

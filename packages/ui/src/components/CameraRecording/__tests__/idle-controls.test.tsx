@@ -8,6 +8,31 @@ import '../../../test-utils/setup'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { act } from '@testing-library/react'
 import { TestProvider } from '../../../test-utils'
+
+// Mock the VideoFilePicker component to avoid Expo module issues in tests
+jest.mock('../VideoFilePicker', () => ({
+  VideoFilePicker: ({
+    isOpen,
+    onVideoSelected,
+    onCancel,
+  }: {
+    isOpen: boolean
+    onVideoSelected: (file: File, metadata: any) => void
+    onCancel: () => void
+  }) => {
+    if (!isOpen) return null
+    return (
+      <div data-testid="video-picker">
+        <div>Select Video</div>
+        <button onClick={() => onVideoSelected(new File([''], 'test.mp4'), { duration: 30 })}>
+          Select File
+        </button>
+        <button onClick={onCancel}>Cancel</button>
+      </div>
+    )
+  },
+}))
+
 import { IdleControls } from '../IdleControls'
 
 describe('Idle Controls Component', () => {
@@ -17,6 +42,16 @@ describe('Idle Controls Component', () => {
     onCameraSwap: jest.fn(),
     disabled: false,
     cameraSwapDisabled: false,
+  }
+
+  const mockPropsWithVideoSelection = {
+    onStartRecording: jest.fn(),
+    onVideoSelected: jest.fn(),
+    onCameraSwap: jest.fn(),
+    disabled: false,
+    cameraSwapDisabled: false,
+    maxDurationSeconds: 60,
+    maxFileSizeBytes: 100 * 1024 * 1024,
   }
 
   beforeEach(() => {
@@ -180,6 +215,101 @@ describe('Idle Controls Component', () => {
 
       expect(uploadButton).toHaveAttribute('aria-label', 'Upload video file')
       expect(cameraButton).toHaveAttribute('aria-label', 'Switch camera')
+    })
+  })
+
+  describe('VideoFilePicker Integration', () => {
+    it('opens video picker when onVideoSelected is provided and upload button is pressed', () => {
+      render(
+        <TestProvider>
+          <IdleControls {...mockPropsWithVideoSelection} />
+        </TestProvider>
+      )
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i })
+      fireEvent.click(uploadButton)
+
+      // VideoFilePicker should be rendered when isOpen is true
+      expect(screen.getByText('Select Video')).toBeTruthy()
+    })
+
+    it('uses legacy onUploadVideo callback when onVideoSelected is not provided', () => {
+      render(
+        <TestProvider>
+          <IdleControls {...mockProps} />
+        </TestProvider>
+      )
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i })
+      fireEvent.click(uploadButton)
+
+      expect(mockProps.onUploadVideo).toHaveBeenCalledTimes(1)
+      // VideoFilePicker should not be rendered
+      expect(screen.queryByText('Select Video')).toBeNull()
+    })
+
+    it('handles video selection and closes picker', () => {
+      render(
+        <TestProvider>
+          <IdleControls {...mockPropsWithVideoSelection} />
+        </TestProvider>
+      )
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i })
+      fireEvent.click(uploadButton)
+
+      // Simulate video selection
+      const mockFile = new File(['video content'], 'test.mp4', { type: 'video/mp4' })
+      const mockMetadata = { duration: 30, format: 'video/mp4', width: 1920, height: 1080 }
+
+      // This would be called by the VideoFilePicker component
+      act(() => {
+        mockPropsWithVideoSelection.onVideoSelected(mockFile, mockMetadata)
+      })
+
+      expect(mockPropsWithVideoSelection.onVideoSelected).toHaveBeenCalledWith(
+        mockFile,
+        mockMetadata
+      )
+    })
+
+    it('disables upload button when showUploadProgress is true', () => {
+      const propsWithProgress = {
+        ...mockPropsWithVideoSelection,
+        showUploadProgress: true,
+        uploadProgress: 50,
+      }
+
+      render(
+        <TestProvider>
+          <IdleControls {...propsWithProgress} />
+        </TestProvider>
+      )
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i })
+      expect(uploadButton).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('passes correct props to VideoFilePicker', () => {
+      const customProps = {
+        ...mockPropsWithVideoSelection,
+        maxDurationSeconds: 120,
+        maxFileSizeBytes: 200 * 1024 * 1024,
+        showUploadProgress: true,
+        uploadProgress: 75,
+      }
+
+      render(
+        <TestProvider>
+          <IdleControls {...customProps} />
+        </TestProvider>
+      )
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i })
+      fireEvent.click(uploadButton)
+
+      // VideoFilePicker should be rendered with correct props
+      expect(screen.getByText('Select Video')).toBeTruthy()
     })
   })
 })

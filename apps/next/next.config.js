@@ -23,14 +23,12 @@ const plugins = [
     importsWhitelist: ['constants.js', 'colors.js'],
     outputCSS: process.env.NODE_ENV === 'production' ? './public/tamagui.css' : null,
     logTimings: false,
-    disableExtraction,
-    shouldExtract: (path) => {
-      if (path.includes(join('packages', 'app'))) {
-        return true
-      }
-    },
-    disableThemesBundleOptimize: true,
+    disableExtraction: true, // Force disable extraction to reduce memory
+    shouldExtract: () => false, // Completely disable extraction
     excludeReactNativeWebExports: ['Switch', 'ProgressBar', 'Picker', 'CheckBox', 'Touchable'],
+    // Memory optimization settings
+    optimizeInteractionCSS: false,
+    disableThemesBundleOptimize: true,
   }),
 ]
 
@@ -63,8 +61,6 @@ module.exports = () => {
         ...(config.resolve.alias || {}),
         // React Native Web aliases
         'react-native$': 'react-native-web',
-        // Mock expo-camera for web builds since it's only used with dynamic imports
-        'expo-camera': false,
       }
 
       // Add support for React Native file extensions
@@ -80,8 +76,6 @@ module.exports = () => {
       config.externals = config.externals || []
       if (!isServer) {
         config.externals.push({
-          'expo-camera': 'expo-camera',
-          'expo-av': 'expo-av',
           'expo-media-library': 'expo-media-library',
         })
       }

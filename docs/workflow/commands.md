@@ -98,7 +98,7 @@ Implement Phase 1 (Mobile Foundation) from docs/features/[feature-name]/tasks.md
 2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
 3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
 
-**Apply These Rules:**
+**Fetch These Rules:**
 - mobile-screen-patterns.mdc: Touch optimization, safe areas, gestures
 - ui-styling-tamagui.mdc: Responsive design, theme tokens, animations
 - wireframe-to-code.mdc: Systematic component creation patterns
@@ -133,7 +133,7 @@ Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks
 2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
 3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
 
-**Apply These Rules:**
+**Fetch These Rules:**
 - mobile-screen-patterns.mdc: Touch interactions, gesture handling
 - features/navigation-expo-router.mdc: Navigation implementation
 - ui-styling-tamagui.mdc: Interactive states, animations
@@ -162,7 +162,7 @@ Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks
 ```bash
 "Implement Phase 3 (Data Integration) from docs/features/[feature-name]/tasks.md:
 
-**Apply These Rules:**
+**Fetch These Rules:**
 - features/data-state-management.mdc: State management patterns
 - backend/supabase-database.mdc: Database implementation
 - backend/supabase-backend.mdc: API integration
@@ -179,6 +179,14 @@ Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks
 - Test error states and loading states
 - Verify offline functionality where applicable
 
+**Validation:**
+- Run type-check and lint after implementing each task.
+
+**Progress Tracking:**
+- Update task status as you complete each item
+- Move completed tasks including sub-elements to 'Completed Tasks' section immediately
+- Document any blockers or changes needed
+
 Reference docs/features/[feature-name]/analysis.md for data requirements."
 ```
 
@@ -187,23 +195,20 @@ Reference docs/features/[feature-name]/analysis.md for data requirements."
 ```bash
 "Implement Phase 4 (Screen Integration) from docs/features/[feature-name]/tasks.md:
 
-**Apply These Rules:**
+**Fetch These Rules:**
 - features/navigation-expo-router.mdc: Cross-platform routing
 - ui/platform-specific.mdc: Platform adaptations
-
-**Integration Tasks:**
-- Create screen component in packages/app/features
-- Add Expo Router route in apps/expo/app
-- Add Next.js page in apps/next/pages  
-- Wire up navigation between screens
-- Add deep linking support
+- task-lists.mdc: Task-List managament
 
 **Cross-Platform Validation:**
 - Test navigation flows on both platforms
 - Verify URL handling and deep links
 - Confirm platform-specific optimizations
 
-Update task progress and validate against analysis requirements."
+**Validation:**
+- Run type-check and lint after the implemention.
+
+Reference: docs/features/[feature-name]/analysis.md for validation."
 ```
 
 ### Command 3E: Implement Platform Optimization Phase
