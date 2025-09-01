@@ -261,16 +261,8 @@
   - [x] Create component (`VideoFilePicker.web.tsx`)
   - [x] Test cross-browser compatibility (Expo provides unified API)
 
-## In Progress Tasks
+  ### Phase 4: Screen Integration [Both]
 
-
-
-## Future Tasks
-
-
-### Phase 4: Screen Integration [Both]
-
-## Completed Tasks
 - [x] Create camera recording screen component [Both] [L]
   - Integrate all camera controls and states
   - State management with recording flow
@@ -313,20 +305,7 @@
   - SEO considerations for web
 
 ## In Progress Tasks
-- [ ] Complete permission loading/error UI implementation in CameraRecordingScreen [Both] [S]
-  - Next: Implement permission loading spinner and error message UI
-  - Blocker: Need to design consistent error state UX
 
-- [ ] Implement video upload picker functionality in handleUploadVideo [Both] [M]
-  - Next: Integrate with VideoFilePicker components
-  - Blocker: Need to connect with existing upload service
-
-## Future Tasks
-- [ ] Implement camera settings modal in handleSettingsOpen [Both] [S]
-- [ ] Add user notifications for max duration reached in recording state machine [Both] [S]
-- [ ] Add user feedback for recording errors in screen logic [Both] [S]
-
-### Phase 5: Platform Optimization [Both]
 - [ ] Implement pose detection overlay (MediaPipe) [Both] [L]
   - Live motion capture with skeleton nodes (US-RU-08)
   - SVG/Canvas overlay rendering at 30fps
@@ -347,6 +326,26 @@
   - [ ] Optimize for 30fps rendering
   - [ ] Test pose detection accuracy
 
+
+## Future Tasks
+
+
+
+## In Progress Tasks
+- [ ] Complete permission loading/error UI implementation in CameraRecordingScreen [Both] [S]
+  - Next: Implement permission loading spinner and error message UI
+  - Blocker: Need to design consistent error state UX
+
+- [ ] Implement video upload picker functionality in handleUploadVideo [Both] [M]
+  - Next: Integrate with VideoFilePicker components
+  - Blocker: Need to connect with existing upload service
+
+## Future Tasks
+- [ ] Implement camera settings modal in handleSettingsOpen [Both] [S]
+- [ ] Add user notifications for max duration reached in recording state machine [Both] [S]
+- [ ] Add user feedback for recording errors in screen logic [Both] [S]
+
+### Phase 5: Platform Optimization [Both]
 - [ ] Optimize camera performance [Both] [M]
   - Camera initialization under 2 seconds
   - Recording start latency under 500ms

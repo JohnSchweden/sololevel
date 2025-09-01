@@ -49,7 +49,7 @@ export function CameraContainer({
           left={0}
           right={0}
           paddingTop={insets.top}
-          height={36 + insets.top}
+          height={60 + insets.top}
           paddingHorizontal="$3"
           alignItems="center"
           justifyContent="space-between"
@@ -153,7 +153,7 @@ export function CameraControlsOverlay({
       {...getPositionProps()}
       alignItems="center"
       justifyContent="center"
-      zIndex={5} // Above camera but below header/nav
+      zIndex={15} // Above camera but below header/nav
     >
       {children}
     </YStack>

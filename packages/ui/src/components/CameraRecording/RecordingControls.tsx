@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
+import { log } from '../../utils/logger'
 
 export enum RecordingState {
   IDLE = 'idle',
@@ -239,7 +240,14 @@ export function RecordingControls({
         <Button
           variant="outlined"
           size="$3"
-          onPress={onCameraSwap}
+          onPress={async () => {
+            try {
+              await onCameraSwap?.()
+            } catch (error) {
+              // Error is handled in the camera logic, just log for debugging
+              log.warn('RecordingControls', 'Camera swap failed', error)
+            }
+          }}
           disabled={disabled || !canSwapCamera}
           icon={
             <SwitchCamera

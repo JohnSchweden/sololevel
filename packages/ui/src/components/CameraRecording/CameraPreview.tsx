@@ -38,6 +38,18 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         getCamera: (): null => {
           return null
         },
+        toggleFacing: async (): Promise<void> => {
+          log.warn('CameraRecording', 'Camera facing toggle not supported in web browser')
+          throw new Error('Camera facing toggle is not available in web browsers')
+        },
+        setZoom: async (_zoom: number): Promise<void> => {
+          log.warn('CameraRecording', 'Zoom control not supported in web browser')
+          throw new Error('Zoom control is not available in web browsers')
+        },
+        getZoom: async (): Promise<number> => {
+          log.warn('CameraRecording', 'Zoom control not supported in web browser')
+          throw new Error('Zoom control is not available in web browsers')
+        },
       }),
       []
     )

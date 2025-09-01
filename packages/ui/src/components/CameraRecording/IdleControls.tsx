@@ -2,6 +2,7 @@ import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
 import React, { useCallback, useState } from 'react'
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
+import { log } from '../../utils/logger'
 import type { VideoValidationResult } from '../../utils/videoValidation'
 import { VideoFilePicker } from './VideoFilePicker'
 
@@ -109,6 +110,7 @@ export function IdleControls({
           onPressIn={() => setIsRecordPressed(true)}
           onPressOut={() => setIsRecordPressed(false)}
           disabled={disabled}
+          style={{ zIndex: 10 }}
           accessibilityRole="button"
           accessibilityLabel="Start recording"
           accessibilityHint="Press to start recording a new video"
@@ -129,13 +131,7 @@ export function IdleControls({
             elevation={4}
             scale={isRecordPressed ? 0.97 : 1.0}
             animation="quick"
-            hoverStyle={{
-              scale: 1.02,
-              backgroundColor: 'rgba(255,255,255,0.06)',
-            }}
-            pressStyle={{
-              scale: 0.97,
-            }}
+            pointerEvents="none"
           >
             {/* Inner Record Circle */}
             <Circle
@@ -150,7 +146,14 @@ export function IdleControls({
         <Button
           variant="outlined"
           size="$3"
-          onPress={onCameraSwap}
+          onPress={async () => {
+            try {
+              await onCameraSwap?.()
+            } catch (error) {
+              // Error is handled in the camera logic, just log for debugging
+              log.warn('IdleControls', 'Camera swap failed', error)
+            }
+          }}
           disabled={disabled || cameraSwapDisabled}
           icon={
             <SwitchCamera

@@ -48,7 +48,7 @@ export function VideoFilePicker({
           }
 
           result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            mediaTypes: 'videos',
             allowsEditing: false,
             quality: 1,
             videoMaxDuration: maxDurationSeconds,
@@ -65,7 +65,7 @@ export function VideoFilePicker({
           }
 
           result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            mediaTypes: 'videos',
             allowsEditing: false,
             quality: 1,
             videoMaxDuration: maxDurationSeconds,
@@ -118,6 +118,20 @@ export function VideoFilePicker({
 
         const file = new File([blob], fileName, { type: mimeType })
 
+        // Get duration from asset if available
+        let assetDuration = 0
+        if ('duration' in asset && typeof asset.duration === 'number') {
+          // ImagePicker asset duration might be in milliseconds or some other unit
+          // Convert to seconds if needed
+          assetDuration = asset.duration
+
+          // Check if duration seems unreasonably long (likely in milliseconds)
+          if (assetDuration > 3600) {
+            // If longer than 1 hour, likely in milliseconds
+            assetDuration = assetDuration / 1000
+          }
+        }
+
         // Validate video file
         const validation = await validateVideoFile(file, {
           maxDurationSeconds,
@@ -130,14 +144,30 @@ export function VideoFilePicker({
           return
         }
 
+        // Use asset duration if available and valid, otherwise use validation metadata
+        const finalDuration = assetDuration > 0 ? assetDuration : validation.metadata?.duration || 0
+
         log.info('VideoFilePicker', 'Video selected and validated', {
           name: file.name,
           size: file.size,
-          duration: validation.metadata?.duration,
+          rawAssetDuration: 'duration' in asset ? asset.duration : 'N/A',
+          assetDuration: assetDuration,
+          validationDuration: validation.metadata?.duration,
+          finalDuration: finalDuration,
+          durationUnit:
+            assetDuration > 3600 ? 'converted from ms to seconds' : 'already in seconds',
         })
 
+        // Override the validation metadata with asset duration if available
+        const metadata = validation.metadata
+          ? {
+              ...validation.metadata,
+              duration: finalDuration,
+            }
+          : undefined
+
         // Call success callback
-        onVideoSelected(file, validation.metadata)
+        onVideoSelected(file, metadata)
       }
     } catch (error) {
       log.error('VideoFilePicker', 'Error selecting video', error)

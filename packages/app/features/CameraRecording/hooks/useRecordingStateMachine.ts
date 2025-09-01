@@ -15,6 +15,7 @@ interface RecordingStateMachineConfig {
   onMaxDurationReached?: () => void;
   onStateChange?: (state: RecordingState, duration: number) => void;
   onError?: (error: string) => void;
+  onResetZoom?: () => void;
 }
 
 interface RecordingStateMachineResult {
@@ -53,6 +54,7 @@ export function useRecordingStateMachine(
     onMaxDurationReached,
     onStateChange,
     onError,
+    onResetZoom,
   } = config;
 
   const [recordingState, setRecordingState] = useState<RecordingState>(
@@ -62,8 +64,7 @@ export function useRecordingStateMachine(
   const [startTime, setStartTime] = useState<number | null>(null);
   const [pausedDuration, setPausedDuration] = useState(0);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const requestRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -71,34 +72,56 @@ export function useRecordingStateMachine(
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
     };
   }, []);
 
-  // High precision timer using requestAnimationFrame
-  const updateDuration = useCallback(() => {
-    if (recordingState === RecordingState.RECORDING && startTime) {
-      const currentTime = Date.now();
-      const elapsed = currentTime - startTime + pausedDuration;
+  // Timer effect for updating duration during recording
+  useEffect(() => {
+    // Only start timer when actively recording
+    if (
+      recordingState === RecordingState.RECORDING && startTime &&
+      !timerRef.current
+    ) {
+      const updateTimer = () => {
+        const currentTime = Date.now();
+        const elapsed = currentTime - startTime + pausedDuration;
 
-      if (elapsed >= maxDurationMs) {
-        // Hit maximum duration - automatically stop
-        setDuration(maxDurationMs);
-        setRecordingState(RecordingState.STOPPED);
-        onMaxDurationReached?.();
-        onStateChange?.(RecordingState.STOPPED, maxDurationMs);
-        return;
-      }
+        if (elapsed >= maxDurationMs) {
+          // Hit maximum duration - automatically stop
+          setDuration(maxDurationMs);
+          setRecordingState(RecordingState.STOPPED);
+          onMaxDurationReached?.();
+          onStateChange?.(RecordingState.STOPPED, maxDurationMs);
+          // Clear timer
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          return;
+        }
 
-      setDuration(elapsed);
-      requestRef.current = requestAnimationFrame(updateDuration);
+        setDuration(elapsed);
+      };
+
+      // Set up interval for continuous updates
+      timerRef.current = setInterval(updateTimer, 100); // Update every 100ms
     }
+
+    // Clear timer when not recording or when explicitly paused/stopped
+    if (recordingState !== RecordingState.RECORDING && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [
     recordingState,
     startTime,
-    pausedDuration,
     maxDurationMs,
     onMaxDurationReached,
     onStateChange,
@@ -122,13 +145,12 @@ export function useRecordingStateMachine(
       await cameraControls?.startRecording();
 
       onStateChange?.(RecordingState.RECORDING, 0);
-      requestRef.current = requestAnimationFrame(updateDuration);
     } catch (error) {
       onError?.(
         error instanceof Error ? error.message : "Failed to start recording",
       );
     }
-  }, [recordingState, cameraControls, onStateChange, onError, updateDuration]);
+  }, [recordingState, cameraControls, onStateChange, onError]);
 
   // Pause recording
   const pauseRecording = useCallback(async () => {
@@ -141,20 +163,22 @@ export function useRecordingStateMachine(
       // Pause camera recording
       await cameraControls?.pauseRecording();
 
+      let finalDuration = duration;
       if (startTime) {
         const currentTime = Date.now();
-        const elapsed = currentTime - startTime + pausedDuration;
-        setPausedDuration(elapsed);
-        setDuration(elapsed);
+        finalDuration = currentTime - startTime + pausedDuration;
+        setPausedDuration(finalDuration);
+        setDuration(finalDuration);
+      }
+
+      // Clear timer BEFORE changing state to prevent race conditions
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
 
       setRecordingState(RecordingState.PAUSED);
-      onStateChange?.(RecordingState.PAUSED, duration);
-
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-        requestRef.current = null;
-      }
+      onStateChange?.(RecordingState.PAUSED, finalDuration);
     } catch (error) {
       onError?.(
         error instanceof Error ? error.message : "Failed to pause recording",
@@ -198,9 +222,9 @@ export function useRecordingStateMachine(
       setRecordingState(RecordingState.STOPPED);
       onStateChange?.(RecordingState.STOPPED, duration);
 
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-        requestRef.current = null;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     } catch (error) {
       onError?.(
@@ -240,10 +264,10 @@ export function useRecordingStateMachine(
 
       const now = Date.now();
       setStartTime(now);
+      // Keep pausedDuration as is - it will be used in timer calculations
       setRecordingState(RecordingState.RECORDING);
 
       onStateChange?.(RecordingState.RECORDING, duration);
-      requestRef.current = requestAnimationFrame(updateDuration);
     } catch (error) {
       onError?.(
         error instanceof Error ? error.message : "Failed to resume recording",
@@ -256,7 +280,6 @@ export function useRecordingStateMachine(
     maxDurationMs,
     onStateChange,
     onError,
-    updateDuration,
   ]);
 
   // Reset to idle state
@@ -267,10 +290,13 @@ export function useRecordingStateMachine(
       setStartTime(null);
       setPausedDuration(0);
 
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-        requestRef.current = null;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
+
+      // Reset zoom to level 1 when switching to idle state
+      onResetZoom?.();
 
       onStateChange?.(RecordingState.IDLE, 0);
     } catch (error) {
@@ -278,7 +304,7 @@ export function useRecordingStateMachine(
         error instanceof Error ? error.message : "Failed to reset recording",
       );
     }
-  }, [onStateChange, onError]);
+  }, [onStateChange, onError, onResetZoom]);
 
   // Helper function to format duration as MM:SS
   const formatDuration = useCallback((milliseconds: number): string => {

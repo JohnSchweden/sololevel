@@ -1,5 +1,9 @@
 // Camera Recording Components - Phase 1 & 2 Exports
-export { CameraContainer } from "./CameraContainer";
+export {
+  CameraContainer,
+  CameraControlsOverlay,
+  CameraPreviewArea,
+} from "./CameraContainer";
 export { CameraHeader } from "./CameraHeader";
 export { CameraPreview } from "./CameraPreview";
 export type { CameraPreviewContainerProps, CameraPreviewRef } from "./types";

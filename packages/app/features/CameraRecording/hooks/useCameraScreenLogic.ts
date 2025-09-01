@@ -14,6 +14,15 @@ export const useCameraScreenLogic = (
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
   const [showSideSheet, setShowSideSheet] = useState(false);
 
+  const handleResetZoom = useCallback(() => {
+    console.log("useCameraScreenLogic handleResetZoom: resetting to level 1");
+    setZoomLevel(1);
+  }, []);
+  const [activeTab, setActiveTab] = useState<"coach" | "record" | "insights">(
+    "record",
+  );
+  const [cameraReady, setCameraReady] = useState(false);
+
   const {
     permission,
     isLoading: permissionLoading,
@@ -60,18 +69,33 @@ export const useCameraScreenLogic = (
       log.error("useRecordingStateMachine", error);
       // TODO: Handle recording errors with user feedback
     }, []),
+    onResetZoom: handleResetZoom,
   });
 
-  const handleCameraSwap = useCallback(() => {
+  const handleCameraSwap = useCallback(async () => {
     if (recordingState === RecordingState.RECORDING) {
       return; // Disable camera swap while recording
     }
-    setCameraType((prev) => (prev === "front" ? "back" : "front"));
-  }, [recordingState]);
+
+    try {
+      // Simply update the camera type state - the CameraPreview component will handle the change
+      // via its 'facing' prop rather than trying to use toggleFacing which is unreliable
+      setCameraType((prev) => (prev === "front" ? "back" : "front"));
+      log.info("handleCameraSwap", "Camera facing changed", {
+        newType: cameraType === "front" ? "back" : "front",
+      });
+    } catch (error) {
+      log.error("handleCameraSwap", "Failed to change camera facing", error);
+    }
+  }, [recordingState, cameraType]);
 
   const handleZoomChange = useCallback((level: 1 | 2 | 3) => {
+    console.log("useCameraScreenLogic handleZoomChange:", {
+      level,
+      previousZoomLevel: zoomLevel,
+    });
     setZoomLevel(level);
-  }, []);
+  }, [zoomLevel]);
 
   const handleStartRecording = useCallback(async () => {
     if (!canRecord) return;
@@ -121,9 +145,34 @@ export const useCameraScreenLogic = (
     }
   }, [canStop, stopRecording]);
 
+  const handleBackPress = useCallback(async () => {
+    if (!canStop) return;
+    try {
+      await stopRecording();
+      // After stopping, reset to idle state
+      resetRecording();
+      log.info("handleBackPress", "Recording stopped and reset to idle state");
+    } catch (error) {
+      log.warn(
+        "handleBackPress",
+        `Stop recording and reset failed: ${error}`,
+      );
+    }
+  }, [canStop, stopRecording, resetRecording]);
+
   const handleUploadVideo = useCallback(() => {
-    // TODO: Implement video upload picker
+    // Legacy callback for backward compatibility
     log.info("handleUploadVideo", "Upload video clicked");
+  }, []);
+
+  const handleVideoSelected = useCallback((file: File, metadata: any) => {
+    log.info("handleVideoSelected", "Video selected for upload", {
+      fileName: file.name,
+      fileSize: file.size,
+      duration: metadata?.duration,
+    });
+
+    // TODO: Implement actual upload logic using VideoUploadService
   }, []);
 
   const handleSettingsOpen = useCallback(() => {
@@ -160,10 +209,23 @@ export const useCameraScreenLogic = (
     setShowNavigationDialog(false);
   }, []);
 
+  const handleTabChange = useCallback(
+    (tab: "coach" | "record" | "insights") => {
+      setActiveTab(tab);
+      onNavigateBack?.(); // Navigate back when switching tabs
+    },
+    [onNavigateBack],
+  );
+
+  const handleCameraReady = useCallback(() => {
+    setCameraReady(true);
+    log.info("useCameraScreenLogic", "Camera is ready for recording");
+  }, []);
+
   const headerTitle = recordingState === RecordingState.RECORDING ||
       recordingState === RecordingState.PAUSED
     ? formattedDuration
-    : "Record";
+    : "Solo:Level";
 
   const isRecording = recordingState === RecordingState.RECORDING;
 
@@ -172,6 +234,7 @@ export const useCameraScreenLogic = (
     zoomLevel,
     showNavigationDialog,
     showSideSheet,
+    activeTab,
     permission,
     permissionLoading,
     permissionError,
@@ -181,17 +244,23 @@ export const useCameraScreenLogic = (
     formattedDuration,
     isRecording,
     headerTitle,
+    cameraReady,
     handleCameraSwap,
     handleZoomChange,
+    handleResetZoom,
     handleStartRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleStopRecording,
+    handleBackPress,
     handleUploadVideo,
+    handleVideoSelected,
     handleSettingsOpen,
     handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
+    handleTabChange,
+    handleCameraReady,
     setShowSideSheet,
     setShowNavigationDialog,
   };

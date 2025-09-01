@@ -1,4 +1,4 @@
-import { Bell, Menu } from '@tamagui/lucide-icons'
+import { Bell, ChevronLeft, Menu } from '@tamagui/lucide-icons'
 import { Circle, Text, YStack } from 'tamagui'
 import { Button } from '../Button'
 
@@ -7,8 +7,10 @@ export interface CameraHeaderProps {
   showTimer?: boolean
   timerValue?: string
   onMenuPress?: () => void
+  onBackPress?: () => void
   onNotificationPress?: () => void
   notificationBadgeCount?: number
+  isRecording?: boolean
 }
 
 /**
@@ -21,8 +23,10 @@ export function CameraHeader({
   showTimer = false,
   timerValue = '00:00:00',
   onMenuPress,
+  onBackPress,
   onNotificationPress,
   notificationBadgeCount = 0,
+  isRecording = false,
 }: CameraHeaderProps) {
   return (
     <>
@@ -30,12 +34,19 @@ export function CameraHeader({
       <Button
         chromeless
         size="$3"
-        onPress={onMenuPress}
+        onPress={isRecording ? onBackPress : onMenuPress}
         icon={
-          <Menu
-            size="$1.5"
-            color="white"
-          />
+          isRecording ? (
+            <ChevronLeft
+              size="$1.5"
+              color="white"
+            />
+          ) : (
+            <Menu
+              size="$1.5"
+              color="white"
+            />
+          )
         }
         minWidth={44}
         minHeight={44}
@@ -49,7 +60,7 @@ export function CameraHeader({
           backgroundColor: 'rgba(255,255,255,0.2)',
         }}
         accessibilityRole="button"
-        accessibilityLabel="Open side menu"
+        accessibilityLabel={isRecording ? 'Stop recording and go back' : 'Open side menu'}
       />
 
       {/* Center Section - Title or Timer */}
@@ -86,59 +97,61 @@ export function CameraHeader({
         )}
       </YStack>
 
-      {/* Right Section - Notification Button with Badge */}
-      <YStack position="relative">
-        <Button
-          chromeless
-          size="$3"
-          onPress={onNotificationPress}
-          icon={
-            <Bell
-              size="$1.5"
-              color="white"
-            />
-          }
-          minWidth={44}
-          minHeight={44}
-          borderRadius="$6"
-          backgroundColor="transparent"
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.1)',
-          }}
-          pressStyle={{
-            scale: 0.95,
-            backgroundColor: 'rgba(255,255,255,0.2)',
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={
-            notificationBadgeCount > 0
-              ? `Notifications: ${notificationBadgeCount} unread`
-              : 'Notifications'
-          }
-        />
+      {/* Right Section - Notification Button with Badge (hidden during recording) */}
+      {!isRecording && (
+        <YStack position="relative">
+          <Button
+            chromeless
+            size="$3"
+            onPress={onNotificationPress}
+            icon={
+              <Bell
+                size="$1.5"
+                color="white"
+              />
+            }
+            minWidth={44}
+            minHeight={44}
+            borderRadius="$6"
+            backgroundColor="transparent"
+            hoverStyle={{
+              backgroundColor: 'rgba(255,255,255,0.1)',
+            }}
+            pressStyle={{
+              scale: 0.95,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              notificationBadgeCount > 0
+                ? `Notifications: ${notificationBadgeCount} unread`
+                : 'Notifications'
+            }
+          />
 
-        {/* Notification Badge */}
-        {notificationBadgeCount > 0 && (
-          <Circle
-            position="absolute"
-            top={6}
-            right={6}
-            size={16}
-            backgroundColor="$red9"
-            alignItems="center"
-            justifyContent="center"
-          >
-            <Text
-              fontSize="$1"
-              color="white"
-              fontWeight="600"
-              lineHeight="$1"
+          {/* Notification Badge */}
+          {notificationBadgeCount > 0 && (
+            <Circle
+              position="absolute"
+              top={6}
+              right={6}
+              size={16}
+              backgroundColor="$red9"
+              alignItems="center"
+              justifyContent="center"
             >
-              {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
-            </Text>
-          </Circle>
-        )}
-      </YStack>
+              <Text
+                fontSize="$1"
+                color="white"
+                fontWeight="600"
+                lineHeight="$1"
+              >
+                {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
+              </Text>
+            </Circle>
+          )}
+        </YStack>
+      )}
     </>
   )
 }

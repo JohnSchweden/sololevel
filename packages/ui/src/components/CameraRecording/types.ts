@@ -3,6 +3,8 @@ import type { CameraView } from "expo-camera";
 export interface CameraPreviewContainerProps {
   isRecording: boolean;
   cameraType: "front" | "back";
+  zoomLevel?: number;
+  onZoomChange?: (zoom: number) => void;
   onCameraReady?: () => void;
   onError?: (error: string) => void;
   children?: React.ReactNode;
@@ -16,4 +18,7 @@ export interface CameraPreviewRef {
   resumeRecording: () => Promise<void>;
   takePicture: () => Promise<string | null>;
   getCamera: () => CameraView | null;
+  toggleFacing: () => Promise<void>;
+  setZoom: (zoom: number) => Promise<void>;
+  getZoom: () => Promise<number>;
 }

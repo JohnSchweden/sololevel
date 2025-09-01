@@ -1,3 +1,4 @@
+import { ActionSheetProvider } from '@expo/react-native-action-sheet'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
 import { useEffect } from 'react'
 import { Platform, useColorScheme } from 'react-native'
@@ -56,8 +57,12 @@ export function Provider({
                 duration={6000}
                 native={[]}
               >
-                {children}
-                <ToastViewport />
+                <ActionSheetProvider>
+                  <>
+                    {children}
+                    <ToastViewport />
+                  </>
+                </ActionSheetProvider>
               </ToastProvider>
             </ErrorBoundary>
           </TamaguiProvider>

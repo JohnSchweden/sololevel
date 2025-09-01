@@ -261,7 +261,7 @@ const onUploadPress = () => {
     { options: ['Pick from Gallery', 'Pick from Files', 'Cancel'], cancelButtonIndex: 2 },
     async (index) => {
       if (index === 0) {
-        await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos })
+        await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'videos' })
       } else if (index === 1) {
         await DocumentPicker.getDocumentAsync({ type: 'video/*', multiple: false })
       }

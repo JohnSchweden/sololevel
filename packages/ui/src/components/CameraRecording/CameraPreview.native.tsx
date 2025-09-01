@@ -13,7 +13,16 @@ import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
  */
 export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainerProps>(
   (
-    { isRecording, cameraType, onCameraReady, onError, children, permissionGranted = false },
+    {
+      isRecording,
+      cameraType,
+      zoomLevel = 0,
+      onZoomChange,
+      onCameraReady,
+      onError,
+      children,
+      permissionGranted = false,
+    },
     ref
   ) => {
     const cameraRef = useRef<CameraView>(null)
@@ -28,6 +37,10 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         startRecording: async (): Promise<void> => {
           if (!cameraRef.current) {
             throw new Error('Camera not available')
+          }
+
+          if (!cameraReady) {
+            throw new Error("Camera is not ready yet. Wait for 'onCameraReady' callback")
           }
 
           try {
@@ -78,8 +91,43 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         getCamera: (): CameraView | null => {
           return cameraRef.current
         },
+        toggleFacing: async (): Promise<void> => {
+          // This method is kept for backward compatibility
+          // But we now recommend controlling camera facing via the 'facing' prop
+          // which is more reliable across Expo versions
+          log.info(
+            'CameraRecording',
+            'toggleFacing called - using prop-based switching is recommended'
+          )
+
+          // No implementation needed as camera facing is now controlled via props
+          // The parent component should update the cameraType state instead
+          return Promise.resolve()
+        },
+        setZoom: async (zoom: number): Promise<void> => {
+          if (!cameraRef.current) {
+            throw new Error('Camera not available')
+          }
+
+          try {
+            // Clamp zoom value between 0 and 1 (Expo Camera expects 0-1 range)
+            const clampedZoom = Math.max(0, Math.min(1, zoom))
+            console.log('CameraPreview setZoom called:', { requestedZoom: zoom, clampedZoom })
+            // Note: Expo Camera zoom is set via props, not methods
+            // The zoom prop will be updated through parent component
+            onZoomChange?.(clampedZoom)
+            log.info('CameraPreview', 'Zoom value updated', { zoom: clampedZoom })
+          } catch (error) {
+            log.error('CameraPreview', 'Failed to update zoom', error)
+            throw error
+          }
+        },
+        getZoom: async (): Promise<number> => {
+          // Return current zoom level from props
+          return zoomLevel
+        },
       }),
-      []
+      [cameraReady]
     )
 
     // Camera permissions check with enhanced UX
@@ -162,10 +210,12 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       return () => subscription?.remove()
     }, [])
 
-    // Reset camera state when camera type changes
+    // Handle camera type changes more gracefully
     useEffect(() => {
-      setCameraReady(false)
+      // Don't reset camera ready state when switching cameras
+      // Only reset error state to ensure smooth camera switching
       setCameraError(null)
+      log.info('CameraPreview', 'Camera type changed', { newType: cameraType })
     }, [cameraType])
 
     // Camera props with orientation handling
@@ -179,7 +229,11 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         aspectRatio: orientation === 'landscape' ? 16 / 9 : 9 / 16,
       } as any,
       facing: cameraType,
-      onCameraReady: handleCameraReady,
+      zoom: zoomLevel, // Add zoom support
+      onCameraReady: () => {
+        console.log('Camera ready with zoom level:', zoomLevel)
+        handleCameraReady()
+      },
       onMountError: handleMountError,
       // Enable audio for recording
       mode: (isRecording ? 'video' : 'picture') as CameraMode,
