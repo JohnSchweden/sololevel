@@ -1,21 +1,20 @@
 import { log } from "@my/ui/src/utils/logger";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CameraRecordingScreenProps, RecordingState } from "../types";
-import { useCameraPermissions } from "./useCameraPermissions";
 import { useRecordingStateMachine } from "./useRecordingStateMachine";
 
-export const useCameraScreenLogic = (
-  { onNavigateBack, cameraRef }: CameraRecordingScreenProps & {
-    cameraRef?: any;
-  },
-) => {
+export const useCameraScreenLogic = ({
+  onNavigateBack,
+  cameraRef,
+}: CameraRecordingScreenProps & {
+  cameraRef?: any;
+}) => {
   const [cameraType, setCameraType] = useState<"front" | "back">("back");
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1);
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
   const [showSideSheet, setShowSideSheet] = useState(false);
 
   const handleResetZoom = useCallback(() => {
-    console.log("useCameraScreenLogic handleResetZoom: resetting to level 1");
     setZoomLevel(1);
   }, []);
   const [activeTab, setActiveTab] = useState<"coach" | "record" | "insights">(
@@ -23,15 +22,28 @@ export const useCameraScreenLogic = (
   );
   const [cameraReady, setCameraReady] = useState(false);
 
-  const {
-    permission,
-    isLoading: permissionLoading,
-    error: permissionError,
-    canRequestAgain,
-  } = useCameraPermissions({
-    showRationale: true,
-    enableSettingsRedirect: true,
-  });
+  // Memoize camera controls to prevent recreating the object on every render
+  const cameraControls = useMemo(() => {
+    if (cameraRef?.current && cameraReady) {
+      return {
+        startRecording: cameraRef.current.startRecording,
+        stopRecording: cameraRef.current.stopRecording,
+        pauseRecording: cameraRef.current.pauseRecording,
+        resumeRecording: cameraRef.current.resumeRecording,
+      };
+    }
+    return undefined;
+  }, [cameraRef, cameraReady]);
+
+  // Log when camera controls become available
+  useEffect(() => {
+    if (cameraControls) {
+      log.info(
+        "useCameraScreenLogic",
+        "Camera controls are now available for recording",
+      );
+    }
+  }, [cameraControls]);
 
   const {
     recordingState,
@@ -48,14 +60,7 @@ export const useCameraScreenLogic = (
     canStop,
   } = useRecordingStateMachine({
     maxDurationMs: 60000, // 60 seconds
-    cameraControls: cameraRef?.current
-      ? {
-        startRecording: cameraRef.current.startRecording,
-        stopRecording: cameraRef.current.stopRecording,
-        pauseRecording: cameraRef.current.pauseRecording,
-        resumeRecording: cameraRef.current.resumeRecording,
-      }
-      : undefined,
+    cameraControls,
     onMaxDurationReached: useCallback(() => {
       // TODO: Show user notification about max duration
     }, []),
@@ -89,16 +94,22 @@ export const useCameraScreenLogic = (
     }
   }, [recordingState, cameraType]);
 
-  const handleZoomChange = useCallback((level: 1 | 2 | 3) => {
-    console.log("useCameraScreenLogic handleZoomChange:", {
-      level,
-      previousZoomLevel: zoomLevel,
-    });
-    setZoomLevel(level);
-  }, [zoomLevel]);
+  const handleZoomChange = useCallback(
+    (level: 1 | 2 | 3) => {
+      setZoomLevel(level);
+    },
+    [zoomLevel],
+  );
 
   const handleStartRecording = useCallback(async () => {
     if (!canRecord) return;
+    if (!cameraReady) {
+      log.warn(
+        "handleStartRecording",
+        "Camera not ready yet, cannot start recording",
+      );
+      return;
+    }
     try {
       await startRecording();
     } catch (error) {
@@ -107,7 +118,7 @@ export const useCameraScreenLogic = (
         `Recording not supported on this platform: ${error}`,
       );
     }
-  }, [canRecord, startRecording]);
+  }, [canRecord, cameraReady, startRecording]);
 
   const handlePauseRecording = useCallback(async () => {
     if (!canPause) return;
@@ -153,10 +164,7 @@ export const useCameraScreenLogic = (
       resetRecording();
       log.info("handleBackPress", "Recording stopped and reset to idle state");
     } catch (error) {
-      log.warn(
-        "handleBackPress",
-        `Stop recording and reset failed: ${error}`,
-      );
+      log.warn("handleBackPress", `Stop recording and reset failed: ${error}`);
     }
   }, [canStop, stopRecording, resetRecording]);
 
@@ -235,10 +243,6 @@ export const useCameraScreenLogic = (
     showNavigationDialog,
     showSideSheet,
     activeTab,
-    permission,
-    permissionLoading,
-    permissionError,
-    canRequestAgain,
     recordingState,
     duration,
     formattedDuration,

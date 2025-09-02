@@ -58,8 +58,8 @@ export function CameraContainer({
           top={0}
           left={0}
           right={0}
-          paddingTop={insets.top}
-          height={60 + insets.top}
+          paddingTop={insets.top + 20}
+          height={80 + insets.top}
           paddingHorizontal="$3"
           alignItems="center"
           justifyContent="space-between"
@@ -100,7 +100,10 @@ export interface CameraPreviewAreaProps {
  * Camera Preview Area with Absolute Positioning Support
  * Provides relative positioning for overlays and controls
  */
-export function CameraPreviewArea({ children, isRecording = false }: CameraPreviewAreaProps) {
+export function CameraPreviewArea({
+  children,
+  isRecording: _isRecording = false,
+}: CameraPreviewAreaProps) {
   return (
     <YStack
       flex={1}
@@ -108,8 +111,7 @@ export function CameraPreviewArea({ children, isRecording = false }: CameraPrevi
       backgroundColor="transparent" // TEMPORARY: Remove background to test
       // REMOVED: justifyContent="center" and alignItems="center" - these were compressing the camera
       // Add subtle border when recording for visual feedback
-      borderWidth={isRecording ? 2 : 0}
-      borderColor="$red9"
+      // REMOVED: Red border when recording - no longer needed
     >
       {children}
     </YStack>

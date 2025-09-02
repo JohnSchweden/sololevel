@@ -1,6 +1,16 @@
-import { ActionSheetProvider } from '@expo/react-native-action-sheet'
+// Platform-specific ActionSheet provider - client-only to avoid hydration issues
+let ActionSheetProvider: any = ({ children }: { children: React.ReactNode }) => children
+
+// Load ActionSheetProvider only on client
+if (typeof window !== 'undefined') {
+  try {
+    ActionSheetProvider = require('@expo/react-native-action-sheet').ActionSheetProvider
+  } catch {
+    // Web fallback - keep no-op provider
+  }
+}
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -21,6 +31,12 @@ export function Provider({
 }) {
   const colorScheme = useColorScheme()
   const theme = defaultTheme || (colorScheme === 'dark' ? 'dark' : 'light')
+
+  // Ensure ActionSheetProvider is only rendered on client to avoid hydration mismatches
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Initialize stores once
   useEffect(() => {
@@ -57,12 +73,19 @@ export function Provider({
                 duration={6000}
                 native={[]}
               >
-                <ActionSheetProvider>
+                {mounted ? (
+                  <ActionSheetProvider>
+                    <>
+                      {children}
+                      <ToastViewport />
+                    </>
+                  </ActionSheetProvider>
+                ) : (
                   <>
                     {children}
                     <ToastViewport />
                   </>
-                </ActionSheetProvider>
+                )}
               </ToastProvider>
             </ErrorBoundary>
           </TamaguiProvider>

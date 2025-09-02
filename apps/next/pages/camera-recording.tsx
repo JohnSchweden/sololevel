@@ -30,7 +30,7 @@ const CameraRecordingScreen = dynamic(
 
 /**
  * Camera Recording Page - Next.js
- * Web implementation of camera recording screen
+ * Dedicated camera recording interface
  * Uses Next.js router for navigation
  * Camera components are loaded client-side only to avoid SSR issues
  */
@@ -49,13 +49,13 @@ export default function RecordPage() {
       // Navigate to different tabs using Next.js router
       switch (tab) {
         case 'coach':
-          router.push('/') // Navigate to home/coach tab
+          router.push('/') // Navigate to home page
           break
         case 'record':
           // Already on record page
           break
         case 'insights':
-          router.push('/') // Navigate to home/insights tab - placeholder
+          router.push('/') // Navigate to home page for now - placeholder
           break
       }
     },

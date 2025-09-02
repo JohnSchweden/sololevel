@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Platform } from "react-native";
 import { useCameraRecordingStore } from "../../../stores/cameraRecording";
 
+// Global singleton to prevent multiple permission requests across all component instances
+let globalPermissionRequestInProgress = false;
+let globalRationaleModalOpen = false;
+
 /**
  * Enhanced camera permissions hook that wraps Expo's useCameraPermissions
  * with additional UX features, error handling, and Zustand integration
@@ -113,15 +117,15 @@ export function useCameraPermissions(
   useEffect(() => {
     if (permission) {
       // Map expo-camera permission response to API schema format
-      const mappedStatus = permission.granted
-        ? "granted"
-        : permission.status === "denied"
-        ? "denied"
-        : permission.status === "undetermined"
-        ? "undetermined"
-        : permission.status === "granted"
-        ? "granted" // Explicit check for granted status
-        : "undetermined"; // Fallback for any other status
+      let mappedStatus: "granted" | "denied" | "undetermined" = "undetermined";
+
+      if (permission.granted) {
+        mappedStatus = "granted";
+      } else if (permission.status === "denied") {
+        mappedStatus = "denied";
+      } else if (permission.status === "undetermined") {
+        mappedStatus = "undetermined";
+      }
 
       setPermissions({
         camera: mappedStatus,
@@ -143,6 +147,13 @@ export function useCameraPermissions(
   const showRationaleModal = useCallback(async (): Promise<boolean> => {
     if (!showRationale) return true;
 
+    // Prevent multiple rationale modals globally
+    if (globalRationaleModalOpen) {
+      console.log("Rationale modal already open globally, skipping...");
+      return false;
+    }
+
+    globalRationaleModalOpen = true;
     const rationale = getRationaleMessage();
 
     return new Promise((resolve) => {
@@ -150,11 +161,17 @@ export function useCameraPermissions(
         {
           text: rationale.cancelButton || "Cancel",
           style: "cancel",
-          onPress: () => resolve(false),
+          onPress: () => {
+            globalRationaleModalOpen = false;
+            resolve(false);
+          },
         },
         {
           text: rationale.okButton || "OK",
-          onPress: () => resolve(true),
+          onPress: () => {
+            globalRationaleModalOpen = false;
+            resolve(true);
+          },
         },
       ]);
     });
@@ -186,9 +203,26 @@ export function useCameraPermissions(
   // Request permission with enhanced UX
   const requestPermissionWithRationale = useCallback(
     async (): Promise<boolean> => {
+      // Prevent multiple concurrent permission requests globally
+      if (globalPermissionRequestInProgress) {
+        console.log(
+          "Permission request already in progress globally, skipping...",
+        );
+        return false;
+      }
+
+      // If permission is already granted, don't request again
+      if (permission?.granted) {
+        console.log("Permission already granted, skipping request...");
+        return true;
+      }
+
       try {
+        globalPermissionRequestInProgress = true;
         setIsLoading(true);
         setError(null);
+
+        console.log("Starting permission request flow...");
 
         // Show rationale modal first (if enabled)
         const shouldProceed = await showRationaleModal();
@@ -202,6 +236,7 @@ export function useCameraPermissions(
 
         // Handle different permission states
         if (result.granted) {
+          console.log("Permission granted successfully");
           return true;
         }
 
@@ -238,6 +273,7 @@ export function useCameraPermissions(
         return false;
       } finally {
         setIsLoading(false);
+        globalPermissionRequestInProgress = false;
       }
     },
     [
@@ -246,6 +282,7 @@ export function useCameraPermissions(
       enableSettingsRedirect,
       redirectToSettings,
       onError,
+      permission?.granted,
     ],
   );
 

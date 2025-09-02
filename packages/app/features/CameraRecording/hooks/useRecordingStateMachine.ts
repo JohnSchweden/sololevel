@@ -1,6 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
 import { RecordingState } from "../types";
+
+// Platform-agnostic alert function
+const showAlert = (title: string, message: string) => {
+  // Simple platform detection without hydration issues
+  const hasWindow = typeof window !== "undefined";
+
+  if (hasWindow) {
+    // Use window.alert for web to avoid console linting issues
+    if (typeof window.alert === "function") {
+      window.alert(`${title}: ${message}`);
+    }
+    return;
+  }
+
+  // On native, use Alert if available
+  try {
+    const ReactNative = require("react-native");
+    if (ReactNative?.Alert) {
+      ReactNative.Alert.alert(title, message, [{ text: "OK" }]);
+    }
+  } catch {
+    // Silent fallback for environments without alert capabilities
+  }
+};
 
 interface CameraControls {
   startRecording: () => Promise<void>;
@@ -64,7 +87,7 @@ export function useRecordingStateMachine(
   const [startTime, setStartTime] = useState<number | null>(null);
   const [pausedDuration, setPausedDuration] = useState(0);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | number | null>(null);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -134,6 +157,13 @@ export function useRecordingStateMachine(
       return;
     }
 
+    if (!cameraControls) {
+      const errorMsg =
+        "Camera is not ready yet. Wait for 'onCameraReady' callback";
+      onError?.(errorMsg);
+      return;
+    }
+
     try {
       const now = Date.now();
       setStartTime(now);
@@ -142,7 +172,7 @@ export function useRecordingStateMachine(
       setRecordingState(RecordingState.RECORDING);
 
       // Start camera recording
-      await cameraControls?.startRecording();
+      await cameraControls.startRecording();
 
       onStateChange?.(RecordingState.RECORDING, 0);
     } catch (error) {
@@ -250,10 +280,9 @@ export function useRecordingStateMachine(
 
     // Check if we would exceed max duration
     if (duration >= maxDurationMs) {
-      Alert.alert(
+      showAlert(
         "Maximum Duration Reached",
         "This recording has reached the 60-second limit and cannot be resumed.",
-        [{ text: "OK" }],
       );
       return;
     }

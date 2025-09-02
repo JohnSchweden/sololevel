@@ -10,7 +10,16 @@ import { NextThemeProvider, useRootTheme } from '@tamagui/next-theme'
 import { Provider } from 'app/provider'
 import { useServerInsertedHTML } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { StyleSheet } from 'react-native'
+// Import StyleSheet for web compatibility
+let StyleSheet: any
+try {
+  StyleSheet = require('react-native').StyleSheet
+} catch {
+  // Fallback for environments where react-native is not available
+  StyleSheet = {
+    getSheet: () => ({ textContent: '', id: 'tamagui-rnw' }),
+  }
+}
 
 export const NextTamaguiProvider = ({
   children,
@@ -22,7 +31,6 @@ export const NextTamaguiProvider = ({
   const [theme, setTheme] = useRootTheme()
 
   useServerInsertedHTML(() => {
-    // @ts-expect-error
     const rnwStyle = StyleSheet.getSheet()
     return (
       <>
