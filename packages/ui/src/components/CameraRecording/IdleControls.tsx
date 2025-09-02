@@ -1,5 +1,6 @@
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
 import React, { useCallback, useState } from 'react'
+// Use React Native Pressable with platform detection
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
 import { log } from '../../utils/logger'

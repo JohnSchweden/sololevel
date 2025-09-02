@@ -1,4 +1,5 @@
 import React from 'react'
+import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
 export interface BottomNavigationProps {
@@ -79,8 +80,15 @@ function NavigationTab({ label, isActive, onPress, disabled = false }: Navigatio
         backgroundColor: 'transparent',
       }}
       accessibilityRole="tab"
-      accessibilityState={{ selected: isActive }}
-      accessibilityLabel={`${label} tab`}
+      // Use data attributes for testing instead of aria attributes
+      data-testid={`${label.toLowerCase()}-tab`}
+      data-active={isActive}
+      // Include accessibility attributes for screen readers
+      aria-label={`${label} tab`}
+      aria-selected={isActive}
+      // Also include native accessibility for React Native compatibility
+      accessibilityState={Platform.OS !== 'web' ? { selected: isActive } : undefined}
+      accessibilityLabel={Platform.OS !== 'web' ? `${label} tab` : undefined}
     >
       <YStack
         alignItems="center"

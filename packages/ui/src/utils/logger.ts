@@ -14,9 +14,15 @@ export interface LoggerLike {
   error: LogMethod
 }
 
-const isDev: boolean =
-  (typeof __DEV__ !== 'undefined' && !!__DEV__) ||
-  (typeof process !== 'undefined' && process?.env?.NODE_ENV !== 'production')
+// Safe development environment detection
+let isDev = false
+try {
+  isDev =
+    (typeof __DEV__ !== 'undefined' && !!__DEV__) ||
+    (typeof process !== 'undefined' && process?.env?.NODE_ENV !== 'production')
+} catch {
+  isDev = false
+}
 
 function formatMessage(level: LogLevel, message: string, ...args: unknown[]) {
   const timestamp = new Date().toISOString()

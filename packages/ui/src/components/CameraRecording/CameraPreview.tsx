@@ -9,7 +9,15 @@ import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
  */
 export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainerProps>(
   ({ isRecording, cameraType, onCameraReady, children, permissionGranted = false }, ref) => {
-    const [cameraReady, setCameraReady] = useState(false)
+    // Fix hydration mismatch by initializing with null and setting client state after mount
+    const [cameraReady, setCameraReady] = useState<boolean | null>(null)
+    const [isClient, setIsClient] = useState(false)
+
+    // Ensure client-side hydration consistency
+    useEffect(() => {
+      setIsClient(true)
+      setCameraReady(false)
+    }, [])
 
     // Expose camera control methods via ref
     useImperativeHandle(
@@ -54,9 +62,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       []
     )
 
-    // Simulate camera initialization on web
+    // Simulate camera initialization on web - only after client hydration
     useEffect(() => {
-      if (permissionGranted) {
+      if (isClient && permissionGranted && cameraReady === false) {
         const timer = setTimeout(() => {
           setCameraReady(true)
           onCameraReady?.()
@@ -65,8 +73,28 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
 
         return () => clearTimeout(timer)
       }
-      return () => {} // Cleanup function for when permissionGranted is false
-    }, [permissionGranted, onCameraReady])
+      return () => {} // Cleanup function for when conditions not met
+    }, [isClient, permissionGranted, onCameraReady, cameraReady])
+
+    // Show loading state during hydration to prevent mismatch
+    if (!isClient || cameraReady === null) {
+      return (
+        <YStack
+          flex={1}
+          backgroundColor="$color1"
+          alignItems="center"
+          justifyContent="center"
+          padding="$4"
+        >
+          <SizableText
+            size="$4"
+            color="$color10"
+          >
+            Loading...
+          </SizableText>
+        </YStack>
+      )
+    }
 
     // Show error state for web
     if (!permissionGranted) {
@@ -152,7 +180,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
               color="$color11"
               textAlign="center"
             >
-              {cameraReady ? 'Camera ready (web placeholder)' : 'Initializing...'}
+              {cameraReady === true ? 'Camera ready (web placeholder)' : 'Initializing...'}
             </SizableText>
             <SizableText
               size="$2"
@@ -165,7 +193,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         </YStack>
 
         {/* Recording indicator overlay */}
-        {isRecording && cameraReady && (
+        {isRecording && cameraReady === true && (
           <YStack
             position="absolute"
             top={16}

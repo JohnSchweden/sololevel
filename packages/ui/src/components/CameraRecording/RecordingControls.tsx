@@ -1,6 +1,7 @@
 import { Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { useState } from 'react'
-import { Pressable } from 'react-native'
+// Use React Native Pressable with platform detection
+import { Platform, Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
 import { log } from '../../utils/logger'
@@ -337,8 +338,9 @@ function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
         backgroundColor: isActive ? '$blue10' : 'rgba(255,255,255,0.25)',
       }}
       accessibilityRole="button"
-      accessibilityLabel={`${level}x zoom`}
-      accessibilityState={{ selected: isActive }}
+      {...(Platform.OS === 'web'
+        ? { 'aria-label': `${level}x zoom`, 'aria-pressed': isActive }
+        : { accessibilityLabel: `${level}x zoom`, accessibilityState: { selected: isActive } })}
     >
       <Text
         fontSize="$3"

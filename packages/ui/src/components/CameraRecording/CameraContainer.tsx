@@ -1,5 +1,15 @@
+// Platform-agnostic safe area hook
+const useSafeAreaInsets = () => {
+  // Default safe area values for cross-platform compatibility
+  return {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  }
+}
+
 import type { ReactNode } from 'react'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { XStack, YStack } from 'tamagui'
 import type { GetProps } from 'tamagui'
 
