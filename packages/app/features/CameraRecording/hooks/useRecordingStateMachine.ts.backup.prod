@@ -1,0 +1,535 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { useEnhancedCameraStore } from "../../../stores/enhancedCameraStore";
+import { usePerformanceStore } from "../../../stores/performanceStore";
+import { usePoseStore } from "../../../stores/poseStore";
+
+/**
+ * Enhanced Recording State Machine for Phase 2b
+ * Comprehensive state management with validation, recovery, and performance monitoring
+ */
+
+export type RecordingState =
+  | "idle"
+  | "initializing"
+  | "ready"
+  | "recording"
+  | "paused"
+  | "stopping"
+  | "stopped"
+  | "error";
+
+export type RecordingEvent =
+  | "INITIALIZE"
+  | "START"
+  | "PAUSE"
+  | "RESUME"
+  | "STOP"
+  | "ERROR"
+  | "RESET"
+  | "THERMAL_LIMIT"
+  | "BATTERY_LOW";
+
+export interface RecordingSession {
+  id: string;
+  startTime: number;
+  endTime?: number;
+  duration: number;
+  state: RecordingState;
+  segments: RecordingSegment[];
+  metadata: RecordingMetadata;
+}
+
+export interface RecordingSegment {
+  id: string;
+  startTime: number;
+  endTime?: number;
+  duration: number;
+  quality: QualitySnapshot;
+}
+
+export interface RecordingMetadata {
+  cameraType: "front" | "back";
+  resolution: string;
+  frameRate: number;
+  zoomLevel: number;
+  thermalEvents: number;
+  pauseCount: number;
+  errorCount: number;
+}
+
+export interface QualitySnapshot {
+  resolution: string;
+  frameRate: number;
+  thermalState: string;
+  batteryLevel: number;
+  timestamp: number;
+}
+
+export interface RecordingConfig {
+  enableThermalProtection: boolean;
+  enableBatteryProtection: boolean;
+  maxDuration: number; // seconds
+  batteryThreshold: number; // percentage
+  autoSaveInterval: number; // seconds
+}
+
+const defaultConfig: RecordingConfig = {
+  enableThermalProtection: true,
+  enableBatteryProtection: true,
+  maxDuration: 3600, // 1 hour
+  batteryThreshold: 5, // 5%
+  autoSaveInterval: 30, // 30 seconds
+};
+
+/**
+ * Enhanced Recording State Machine Hook
+ */
+export const useRecordingStateMachine = (
+  config: Partial<RecordingConfig> = {},
+) => {
+  const [currentConfig, setCurrentConfig] = useState<RecordingConfig>({
+    ...defaultConfig,
+    ...config,
+  });
+
+  const [currentState, setCurrentState] = useState<RecordingState>("idle");
+  const [currentSession, setCurrentSession] = useState<RecordingSession | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Refs for timers
+  const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Store references
+  const cameraStore = useEnhancedCameraStore();
+  const performanceStore = usePerformanceStore();
+  const poseStore = usePoseStore();
+
+  /**
+   * Execute state transition
+   */
+  const transition = useCallback(
+    async (event: RecordingEvent) => {
+      setIsTransitioning(true);
+      setError(null);
+
+      try {
+        switch (currentState) {
+          case "idle":
+            if (event === "INITIALIZE") {
+              await initializeRecording();
+              setCurrentState("ready");
+            }
+            break;
+
+          case "ready":
+            if (event === "START" && canStartRecording()) {
+              await startRecording();
+              setCurrentState("recording");
+            }
+            break;
+
+          case "recording":
+            if (event === "PAUSE") {
+              await pauseRecording();
+              setCurrentState("paused");
+            } else if (event === "STOP") {
+              await stopRecording();
+              setCurrentState("stopped");
+            } else if (event === "THERMAL_LIMIT") {
+              await pauseRecording();
+              setCurrentState("paused");
+            } else if (event === "BATTERY_LOW") {
+              await stopRecording();
+              setCurrentState("stopped");
+            } else if (event === "ERROR") {
+              setCurrentState("error");
+            }
+            break;
+
+          case "paused":
+            if (event === "RESUME") {
+              await resumeRecording();
+              setCurrentState("recording");
+            } else if (event === "STOP") {
+              await stopRecording();
+              setCurrentState("stopped");
+            }
+            break;
+
+          case "stopped":
+          case "error":
+            if (event === "RESET") {
+              await resetSession();
+              setCurrentState("idle");
+            }
+            break;
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Transition failed:", error);
+        setError(error instanceof Error ? error.message : "Transition failed");
+        setCurrentState("error");
+        return false;
+      } finally {
+        setIsTransitioning(false);
+      }
+    },
+    [currentState],
+  );
+
+  /**
+   * Initialize recording session
+   */
+  const initializeRecording = useCallback(async () => {
+    if (!cameraStore.state.isInitialized) {
+      await cameraStore.initializeCamera();
+    }
+
+    if (
+      !cameraStore.permissions.camera ||
+      cameraStore.permissions.camera !== "granted"
+    ) {
+      throw new Error("Camera permission required");
+    }
+
+    const session: RecordingSession = {
+      id: crypto.randomUUID(),
+      startTime: Date.now(),
+      duration: 0,
+      state: "ready",
+      segments: [],
+      metadata: {
+        cameraType: cameraStore.settings.cameraType,
+        resolution: cameraStore.settings.adaptiveQuality.currentResolution,
+        frameRate: cameraStore.settings.adaptiveQuality.currentFrameRate,
+        zoomLevel: cameraStore.settings.zoomLevel,
+        thermalEvents: 0,
+        pauseCount: 0,
+        errorCount: 0,
+      },
+    };
+
+    setCurrentSession(session);
+  }, [cameraStore]);
+
+  /**
+   * Check if recording can start
+   */
+  const canStartRecording = useCallback(() => {
+    const { system } = performanceStore;
+
+    if (
+      currentConfig.enableThermalProtection &&
+      system.thermalState === "critical"
+    ) {
+      return false;
+    }
+
+    if (
+      currentConfig.enableBatteryProtection &&
+      system.batteryLevel < currentConfig.batteryThreshold
+    ) {
+      return false;
+    }
+
+    return true;
+  }, [currentConfig, performanceStore.system]);
+
+  /**
+   * Start recording
+   */
+  const startRecording = useCallback(async () => {
+    if (!currentSession) {
+      throw new Error("No active session");
+    }
+
+    await cameraStore.startRecording();
+
+    if (poseStore.processingSettings.enabled) {
+      poseStore.startPoseRecording();
+    }
+
+    if (!performanceStore.isMonitoring) {
+      performanceStore.startMonitoring();
+    }
+
+    const segment: RecordingSegment = {
+      id: crypto.randomUUID(),
+      startTime: Date.now(),
+      duration: 0,
+      quality: createQualitySnapshot(),
+    };
+
+    setCurrentSession((prev) => ({
+      ...prev!,
+      segments: [...prev!.segments, segment],
+    }));
+
+    if (currentConfig.autoSaveInterval > 0) {
+      autoSaveIntervalRef.current = setInterval(
+        saveSessionProgress,
+        currentConfig.autoSaveInterval * 1000,
+      );
+    }
+
+    durationTimerRef.current = setInterval(updateDuration, 1000);
+  }, [
+    currentSession,
+    cameraStore,
+    poseStore,
+    performanceStore,
+    currentConfig.autoSaveInterval,
+  ]);
+
+  /**
+   * Pause recording
+   */
+  const pauseRecording = useCallback(async () => {
+    await cameraStore.pauseRecording();
+
+    setCurrentSession((prev) => {
+      if (!prev) return prev;
+
+      const segments = [...prev.segments];
+      const currentSegment = segments[segments.length - 1];
+      if (currentSegment && !currentSegment.endTime) {
+        currentSegment.endTime = Date.now();
+        currentSegment.duration = currentSegment.endTime -
+          currentSegment.startTime;
+      }
+
+      return {
+        ...prev,
+        segments,
+        metadata: {
+          ...prev.metadata,
+          pauseCount: prev.metadata.pauseCount + 1,
+        },
+      };
+    });
+
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+  }, [cameraStore]);
+
+  /**
+   * Resume recording
+   */
+  const resumeRecording = useCallback(async () => {
+    await cameraStore.resumeRecording();
+
+    const segment: RecordingSegment = {
+      id: crypto.randomUUID(),
+      startTime: Date.now(),
+      duration: 0,
+      quality: createQualitySnapshot(),
+    };
+
+    setCurrentSession((prev) => ({
+      ...prev!,
+      segments: [...prev!.segments, segment],
+    }));
+
+    durationTimerRef.current = setInterval(updateDuration, 1000);
+  }, [cameraStore]);
+
+  /**
+   * Stop recording
+   */
+  const stopRecording = useCallback(async () => {
+    await cameraStore.stopRecording();
+
+    if (poseStore.recordingData.isRecording) {
+      poseStore.stopPoseRecording();
+    }
+
+    setCurrentSession((prev) => {
+      if (!prev) return prev;
+
+      const segments = [...prev.segments];
+      const currentSegment = segments[segments.length - 1];
+      if (currentSegment && !currentSegment.endTime) {
+        currentSegment.endTime = Date.now();
+        currentSegment.duration = currentSegment.endTime -
+          currentSegment.startTime;
+      }
+
+      return {
+        ...prev,
+        endTime: Date.now(),
+        duration: Date.now() - prev.startTime,
+        segments,
+        state: "stopped",
+      };
+    });
+
+    clearAllTimers();
+  }, [cameraStore, poseStore]);
+
+  /**
+   * Reset session
+   */
+  const resetSession = useCallback(async () => {
+    setCurrentSession(null);
+    setError(null);
+    clearAllTimers();
+  }, []);
+
+  /**
+   * Create quality snapshot
+   */
+  const createQualitySnapshot = useCallback((): QualitySnapshot => {
+    const { system } = performanceStore;
+    const { adaptiveQuality } = cameraStore.settings;
+
+    return {
+      resolution: adaptiveQuality.currentResolution,
+      frameRate: adaptiveQuality.currentFrameRate,
+      thermalState: system.thermalState,
+      batteryLevel: system.batteryLevel,
+      timestamp: Date.now(),
+    };
+  }, [performanceStore.system, cameraStore.settings.adaptiveQuality]);
+
+  /**
+   * Update session duration
+   */
+  const updateDuration = useCallback(() => {
+    setCurrentSession((prev) => {
+      if (!prev || currentState !== "recording") return prev;
+      return {
+        ...prev,
+        duration: Date.now() - prev.startTime,
+      };
+    });
+  }, [currentState]);
+
+  /**
+   * Save session progress
+   */
+  const saveSessionProgress = useCallback(async () => {
+    if (!currentSession) return;
+
+    try {
+      const sessionData = JSON.stringify(currentSession);
+      // console.log("Session progress saved:", sessionData.length, "bytes");
+    } catch (error) {
+      // console.error("Failed to save session progress:", error);
+    }
+  }, [currentSession]);
+
+  /**
+   * Clear all timers
+   */
+  const clearAllTimers = useCallback(() => {
+    if (autoSaveIntervalRef.current) {
+      clearInterval(autoSaveIntervalRef.current);
+      autoSaveIntervalRef.current = null;
+    }
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+  }, []);
+
+  // Monitor system conditions
+  useEffect(() => {
+    if (currentState !== "recording") return;
+
+    const { system } = performanceStore;
+
+    if (
+      currentConfig.enableThermalProtection &&
+      system.thermalState === "critical"
+    ) {
+      transition("THERMAL_LIMIT");
+    }
+
+    if (
+      currentConfig.enableBatteryProtection &&
+      system.batteryLevel < currentConfig.batteryThreshold
+    ) {
+      transition("BATTERY_LOW");
+    }
+
+    if (currentSession) {
+      const duration = (Date.now() - currentSession.startTime) / 1000;
+      if (duration > currentConfig.maxDuration) {
+        transition("STOP");
+      }
+    }
+  }, [
+    currentState,
+    currentSession,
+    currentConfig,
+    performanceStore.system,
+    transition,
+  ]);
+
+  // Monitor app state changes
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === "background" && currentState === "recording") {
+        transition("PAUSE");
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
+    return () => subscription?.remove();
+  }, [currentState, transition]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, [clearAllTimers]);
+
+  return {
+    // Current state
+    currentState,
+    currentSession,
+    error,
+    isTransitioning,
+    config: currentConfig,
+
+    // Actions
+    transition,
+    initialize: () => transition("INITIALIZE"),
+    start: () => transition("START"),
+    pause: () => transition("PAUSE"),
+    resume: () => transition("RESUME"),
+    stop: () => transition("STOP"),
+    reset: () => transition("RESET"),
+
+    // Configuration
+    updateConfig: (newConfig: Partial<RecordingConfig>) => {
+      setCurrentConfig((prev) => ({ ...prev, ...newConfig }));
+    },
+
+    // Utilities
+    canStart: canStartRecording,
+    getSessionDuration: () => currentSession?.duration || 0,
+    getSegmentCount: () => currentSession?.segments.length || 0,
+    exportSession: () => currentSession ? JSON.stringify(currentSession) : null,
+
+    // State checks
+    isIdle: currentState === "idle",
+    isReady: currentState === "ready",
+    isRecording: currentState === "recording",
+    isPaused: currentState === "paused",
+    isStopped: currentState === "stopped",
+    hasError: currentState === "error",
+  };
+};

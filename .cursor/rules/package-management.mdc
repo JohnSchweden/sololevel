@@ -6,18 +6,28 @@ alwaysApply: true
 
 # Package Management & Project Dependencies
 
+## Yarn 4 Configuration Best Practices
+- **Node Linker**: Use `nodeLinker: node-modules` for compatibility
+- **Global Cache**: Enable `enableGlobalCache: true` for performance
+- **Immutable Installs**: Use `enableImmutableInstalls: true` for CI/CD
+- **Package Extensions**: Configure broken peer dependencies via `packageExtensions`
+- **Resolutions**: Force specific versions with `resolutions` for conflicts
+
 ## Yarn Workspace Management
-- Use `yarn` for all package management operations
+- Use `yarn` (v4+) for all package management operations
 - Never suggest `npm` or `pnpm` commands
 - Use `yarn workspace <workspace-name>` for workspace-specific operations
 - Use `yarn add` for dependencies, `yarn add -D` for dev dependencies
 - Use `yarn remove` to uninstall packages
 
-## Workspace Operations
+## Modern Workspace Operations
 - Add packages to specific workspaces: `yarn workspace app add package-name`
 - Install all dependencies: `yarn install`
 - Run scripts in workspaces: `yarn workspace app run script-name`
 - Use workspace protocols for internal dependencies: `"@my/ui": "workspace:*"`
+- Run across all workspaces: `yarn workspaces foreach run <script>`
+- Focus on specific workspace: `yarn workspaces focus <workspace>`
+- Remove duplicates: `yarn dedupe`
 
 ## Project Dependencies Strategy
 
@@ -72,13 +82,22 @@ yarn add -D -W development-tool
 - [ ] Security vulnerabilities checked (`yarn npm audit`)
 - [ ] License compatibility verified
 
-### Troubleshooting Dependencies
+### Modern Troubleshooting & Health Checks
 - Clear cache: `yarn cache clean`
 - Reinstall: `rm -rf node_modules yarn.lock && yarn install`
 - Check hoisting: `yarn why package-name`
+- Analyze peer dependencies: `yarn explain peer-requirements`
+- Health check: `yarn dlx @yarnpkg/doctor`
+- Update lockfile only: `yarn install --mode update-lockfile`
 - Resolve peer dependency conflicts with resolutions in root package.json
 - Use `--check-cache` flag to verify package integrity
-- Use `--check-resolutions` flag to verify resolution coherence
+
+### Peer Dependency Management
+- **Avoid masking warnings**: Never use `logFilters` to hide YN0060, YN0086, YN0069
+- **Proper resolution**: Fix peer deps with `resolutions` or `packageExtensions`
+- **Version alignment**: Use resolutions to enforce consistent versions across workspaces
+- **Undeclared dependencies**: Always declare imports in respective package.json files
+- **Multiple installations**: Use `yarn why <package>` to identify and resolve duplicates
 
 ### Monorepo-Specific Patterns
 - Internal package dependencies use workspace protocol

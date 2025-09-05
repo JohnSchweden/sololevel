@@ -7,6 +7,9 @@ export interface FeatureFlags {
   showDebugInfo: boolean
   useMockData: boolean
 
+  // Camera implementation flags
+  useVisionCamera: boolean // true = VisionCamera (dev build), false = Expo Camera (Expo Go)
+
   // Feature flags
   enableNewUi: boolean
   enablePushNotifications: boolean
@@ -41,6 +44,9 @@ const defaultFlags: FeatureFlags = {
   showDebugInfo: false,
   useMockData:
     process.env.NEXT_PUBLIC_USE_MOCKS === 'true' || process.env.EXPO_PUBLIC_USE_MOCKS === 'true',
+
+  // Camera implementation
+  useVisionCamera: process.env.EXPO_PUBLIC_USE_VISION_CAMERA !== 'false', // Default true, override with env
 
   // Features
   enableNewUi: false,
@@ -111,6 +117,13 @@ export const useFeatureFlagsStore = create<FeatureFlagsStore>()(
           process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'false'
         ) {
           envFlags.enableAnalytics = false
+        }
+
+        // Camera implementation flag
+        if (process.env.EXPO_PUBLIC_USE_VISION_CAMERA === 'true') {
+          envFlags.useVisionCamera = true
+        } else if (process.env.EXPO_PUBLIC_USE_VISION_CAMERA === 'false') {
+          envFlags.useVisionCamera = false
         }
 
         // Apply environment overrides

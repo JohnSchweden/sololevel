@@ -9,11 +9,12 @@
     ]
   },
   "installConfig": {
-    "hoistingLimits": "workspaces"
+
   },
   "scripts": {
     "native": "cd apps/expo && yarn start",
     "native:prebuild": "cd apps/expo && yarn prebuild",
+    "vision": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform ios --clean",
     "ios": "cd apps/expo && yarn ios",
     "android": "cd apps/expo && yarn android",
     "watch": "ultra -r --no-pretty --concurrency 400 watch",
@@ -33,7 +34,23 @@
     "lint:fix": "biome check --write .",
     "format": "biome format .",
     "format:fix": "biome format --write .",
+    "dev:mvp": "turbo dev",
+    "build:mvp": "turbo build",
+    "type-check:mvp": "turbo type-check",
+    "lint:mvp": "biome check .",
+    "lint:fix:mvp": "biome check --write .",
+    "format:mvp": "biome format .",
+    "format:fix:mvp": "biome format --write .",
+    "dev:prod": "turbo dev --filter=production",
+    "build:prod": "turbo build --filter=production",
+    "type-check:prod": "tsc --project tsconfig.production.json",
+    "lint:prod": "biome check . --config biome.production.json",
+    "lint:fix:prod": "biome check --write . --config biome.production.json",
+    "format:prod": "biome format . --config biome.production.json",
+    "format:fix:prod": "biome format --write . --config biome.production.json",
     "upgrade:tamagui": "yarn up '*tamagui*'@latest '@tamagui/*'@latest",
+    "flag:vision": "./scripts/toggle-camera.sh vision",
+    "flag:expo": "./scripts/toggle-camera.sh expo",
     "upgrade:tamagui:canary": "yarn up '*tamagui*'@canary '@tamagui/*'@canary",
     "check-tamagui": "tamagui check",
     "test": "yarn workspaces foreach --all --exclude expo-app run test",
@@ -57,9 +74,12 @@
   "resolutions": {
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-test-renderer": "19.0.0",
+    "@types/react": "^19.1.12",
+    "expo": "53.0.22",
     "react-refresh": "^0.14.0",
     "react-native-svg": "^15.12.1",
-    "react-native-web": "^0.21.0",
+    "react-native-web": "~0.20.0",
     "react-native": "0.79.6",
     "path-to-regexp": "^6.3.0",
     "undici": "^5.29.0",
@@ -73,6 +93,7 @@
     "@babel/core": "^7.28.3",
     "@babel/runtime": "^7.26.10",
     "check-dependency-version-consistency": "^4.1.0",
+    "expo": "~53.0.22",
     "expo-modules-core": "^2.5.0",
     "husky": "^9.1.6",
     "immer": "^10.1.1",
@@ -128,5 +149,6 @@
     "vitest": "^3.2.4",
     "webpack": "^5.79.0",
     "webpack-bundle-analyzer": "^4.9.0"
-  }
+  },
+  "version": "1.0.0"
 }

@@ -296,3 +296,50 @@ You may potentially want to have the native module transpiled for the next app. 
 - Install command to be `yarn set version stable && yarn install`
 - Build command: leave default setting
 - Output dir: leave default setting
+
+## Camera Implementation Switching
+
+This project supports switching between VisionCamera (development builds) and Expo Camera (Expo Go) implementations.
+
+### Quick Switching
+
+Use the yarn scripts to switch implementations:
+
+```bash
+# Switch to VisionCamera (full features, dev build)
+yarn flag:vision
+
+# Switch to Expo Camera (Expo Go compatible)
+yarn flag:expo
+
+# Or use the direct script
+./scripts/toggle-camera.sh vision
+./scripts/toggle-camera.sh expo
+./scripts/toggle-camera.sh  # Check status
+```
+
+### Manual Configuration
+
+Set the environment variable:
+
+```bash
+# VisionCamera (development)
+export EXPO_PUBLIC_USE_VISION_CAMERA=true
+
+# Expo Camera (Expo Go)
+export EXPO_PUBLIC_USE_VISION_CAMERA=false
+```
+
+### Implementation Details
+
+- **VisionCamera**: Full camera features, better performance, requires native build
+- **Expo Camera**: Limited features, Expo Go compatible, faster iteration
+- **Automatic Switching**: Based on `useVisionCamera` feature flag
+- **Same API**: No code changes needed when switching
+
+### Troubleshooting
+
+1. **Clear Metro Cache**: `npx expo start --clear`
+2. **Reset Environment**: Delete `.env.local` and restart
+3. **Check Feature Flag**: Verify `useVisionCamera` flag in dev tools
+4. **Expo Go**: Always uses Expo Camera implementation

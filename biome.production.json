@@ -1,0 +1,94 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+  "assists": { "actions": { "source": { "sortJsxProps": "off" } } },
+  "linter": {
+    "enabled": true,
+    "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    "ignore": [
+      "**/coverage/**"
+    ],
+
+    "rules": {
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noInnerDeclarations": "off",
+        "noConstructorReturn": "off"
+      },
+      "suspicious": {
+        "noImplicitAnyLet": "off",
+        "noConfusingVoidType": "off",
+        "noEmptyInterface": "off",
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off",
+        "noDoubleEquals": "off",
+        "noAssignInExpressions": "off",
+        "noRedeclare": "off",
+        "noConsole": { "level": "error", "options": { "allow": ["log"] } }
+      },
+      "style": {
+        "noParameterAssign": "off",
+        "noNonNullAssertion": "off",
+        "noUnusedTemplateLiteral": "off",
+        "useDefaultParameterLast": "off",
+        "useConst": "off",
+        "useEnumInitializers": "off",
+        "useTemplate": "off",
+        "useSelfClosingElements": "off",
+        "useImportType": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off",
+        "noDangerouslySetInnerHtmlWithChildren": "off"
+      },
+      "performance": {
+        "noDelete": "off",
+        "noAccumulatingSpread": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noBannedTypes": "off",
+        "noUselessFragments": "off",
+        "useLiteralKeys": "off",
+        "useSimplifiedLogicExpression": "off",
+        "useOptionalChain": "off",
+        "noStaticOnlyClass": "off"
+      },
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useMediaCaption": "off",
+        "noHeaderScope": "off",
+        "useAltText": "off",
+        "useButtonType": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "attributePosition": "multiline",
+    "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    "ignore": [
+      "**/coverage/**"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "trailingCommas": "es5",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "quoteStyle": "single"
+    }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "maxSize": 3145728,
+    "ignoreUnknown": true
+  }
+}

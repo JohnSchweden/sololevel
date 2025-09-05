@@ -4,6 +4,11 @@
       "description": "ADD docs to Cursor indexing.",
       "patterns": ["**/*.js", "**/*.ts"],
       "content": "See README.md → Cursor Setup section."
+    },
+    {
+      "description": "Step-by-step rule for systematic task execution",
+      "patterns": ["**/*.js", "**/*.ts", "**/*.tsx", "**/*.md"],
+      "content": "docs/workflow/prompts/_step-by-step-rule.md"
     }
   ]
 }

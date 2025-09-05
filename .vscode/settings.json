@@ -1,55 +1,95 @@
 {
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+  "files.exclude": {
+    // 🚀 EXCLUDE PRODUCTION FILES FROM MVP DEVELOPMENT
+    "**/usePoseMetrics.ts": true,
+    "**/usePoseState.ts": true,
+    "**/poseConfigManager.ts": true,
+    "**/poseStateIntegrationTest.ts": true,
+    "**/poseStatePersistence.ts": true,
+    "**/storeEnhancementMigration.ts": true,
+    "**/cameraRecordingEnhanced.ts": true,
+    "**/enhancedCameraStore.ts": true,
+    "**/performanceStore.ts": true,
+    "**/useAdaptiveQuality.ts": true,
+    "**/useEnhancedZoom.ts": true,
+    "**/useEnhancedCameraSwap.ts": true,
+    "**/useThermalMonitoring.native.ts": true,
+    "**/useFrameProcessing.ts": true,
+    "**/useFrameProcessor.native.ts": true,
+    "**/useCameraFrameProcessor.web.ts": true,
+    "**/usePoseDetection.native.ts": true,
+    "**/usePoseDetection.web.ts": true,
+    "**/poseProcessing.native.ts": true,
+    "**/poseDetection.web.ts": true,
+    "**/PerformanceMonitor.tsx": true,
+    "**/ThermalIndicator.tsx": true,
+    "**/CameraSwapButton.tsx": true,
+    "**/pose.ts": true,
+    "**/enhanced-state.ts": true,
+    "**/performance.ts": true,
+    "**/thermal.ts": true,
+    "**/cross-platform-state.ts": true,
+    "**/poseDetectionConfig.ts": true,
+    "**/poseDataBuffer.ts": true,
+    "**/poseDataExport.ts": true,
+    "**/poseDataValidation.ts": true,
+    "**/poseThermalIntegration.ts": true,
+    "**/storeMigration.ts": true,
+    "**/cameraRecording.ts.backup.prod": true,
+    "**/useCameraPermissions.native.ts.backup.prod": true,
+    "**/useCameraScreenLogic.ts.backup.prod": true,
+    "**/useRecordingStateMachine.ts.backup.prod": true,
+    "**/poseStore.ts": true
   },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+  "search.exclude": {
+    // 🚀 EXCLUDE PRODUCTION FILES FROM SEARCH
+    "**/*Enhanced*.ts": true,
+    "**/*enhanced*.ts": true,
+    "**/poseStore.ts": true,
+    "**/poseData*.ts": true,
+    "**/poseThermal*.ts": true,
+    "**/poseState*.ts": true,
+    "**/usePoseMetrics.ts": true,
+    "**/usePoseState.ts": true,
+    "**/poseConfigManager.ts": true,
+    "**/poseStateIntegrationTest.ts": true,
+    "**/poseStatePersistence.ts": true,
+    "**/storeEnhancementMigration.ts": true,
+    "**/cameraRecordingEnhanced.ts": true,
+    "**/enhancedCameraStore.ts": true,
+    "**/performanceStore.ts": true,
+    "**/useAdaptiveQuality.ts": true,
+    "**/useEnhancedZoom.ts": true,
+    "**/useEnhancedCameraSwap.ts": true,
+    "**/useThermalMonitoring.native.ts": true,
+    "**/useFrameProcessing.ts": true,
+    "**/useFrameProcessor.native.ts": true,
+    "**/useCameraFrameProcessor.web.ts": true,
+    "**/usePoseDetection.native.ts": true,
+    "**/usePoseDetection.web.ts": true,
+    "**/poseProcessing.native.ts": true,
+    "**/poseDetection.web.ts": true,
+    "**/PerformanceMonitor.tsx": true,
+    "**/ThermalIndicator.tsx": true,
+    "**/CameraSwapButton.tsx": true,
+    "**/pose.ts": true,
+    "**/enhanced-state.ts": true,
+    "**/performance.ts": true,
+    "**/thermal.ts": true,
+    "**/cross-platform-state.ts": true,
+    "**/poseDetectionConfig.ts": true,
+    "**/poseDataBuffer.ts": true,
+    "**/poseDataExport.ts": true,
+    "**/poseDataValidation.ts": true,
+    "**/poseThermalIntegration.ts": true,
+    "**/storeMigration.ts": true,
+    "**/cameraRecording.ts.backup.prod": true,
+    "**/useCameraPermissions.native.ts.backup.prod": true,
+    "**/useCameraScreenLogic.ts.backup.prod": true,
+    "**/useRecordingStateMachine.ts.backup.prod": true,
+    "**/poseStore.ts": true
   },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[markdown]": {
-    // "editor.wordWrap": "on",
-    // "editor.rulers": [100, 100],
-    "editor.formatOnSave": false
-  },
-  "cSpell.words": [
-    "Tamagui"
-  ],
-  "deno.path": "/opt/homebrew/bin/deno",
-  "deno.enablePaths": [
-    "supabase/functions"
-  ],
-  "deno.lint": true,
-  "deno.unstable": [
-    "bare-node-builtins",
-    "byonm",
-    "sloppy-imports",
-    "unsafe-proto",
-    "webgpu",
-    "broadcast-channel",
-    "worker-options",
-    "cron",
-    "kv",
-    "ffi",
-    "fs",
-    "http",
-    "net"
-  ],
-  "editor.codeActionsOnSave": {
-    "quickfix.biome": "always",
-    "source.organizeImports.biome": "always"
-  },
-  "editor.formatOnSave": true,
-  "editor.insertSpaces": true,
-  "editor.tabSize": 2,
-  "explorer.fileNesting.enabled": true,
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": false,
+  "typescript.preferences.includeCompletionsForModuleExports": false
 }

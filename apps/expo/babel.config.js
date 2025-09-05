@@ -17,7 +17,6 @@ module.exports = (api) => {
         },
       ],
       // if you want reanimated support
-      'react-native-worklets/plugin',
       [
         '@tamagui/babel-plugin',
         {
@@ -27,6 +26,8 @@ module.exports = (api) => {
           disableExtraction: false,
         },
       ],
+      'react-native-worklets-core/plugin',
+      'react-native-reanimated/plugin',
     ],
   }
 }

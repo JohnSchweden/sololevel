@@ -6,6 +6,8 @@ export {
 } from './CameraContainer'
 export { CameraHeader } from './CameraHeader'
 export { CameraPreview } from './CameraPreview'
+export { PoseOverlay } from './PoseOverlay'
+export { PoseDetectionToggle, PoseDetectionToggleCompact } from './PoseDetectionToggle'
 export type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
 export { BottomNavigation } from './BottomNavigation'
 

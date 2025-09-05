@@ -171,38 +171,54 @@ const CameraScreen = () => {
   - Analysis job creation
 
 ### Platform Considerations
-- **Native (Expo)**:
-  - `expo-camera` for capture (`Camera`, `useCameraPermissions`)
-  - `expo-video` for playback (`Video`)
-  - `expo-image-picker` for gallery video selection
-  - `expo-document-picker` for Files app video selection
-  - `expo-keep-awake` to prevent sleep during recording/analysis
-  - `react-native-svg` for the overlay surface
-  - `@expo/react-native-action-sheet` for native selection UI
-  - MediaPipe Pose Landmarker (native bindings) for on-device pose detection
-  - Native navigation with `expo-router`
-- **Web**:
-  - `expo-camera` (web) backed by `getUserMedia` for preview/permissions
-  - `MediaRecorder` for recording
-  - `@mediapipe/tasks-vision` (MediaPipe Pose Landmarker) for pose detection
-  - SVG overlay
-  - Next.js routing
+- **Native (Expo + React Native New Architecture)**:
+  - **Camera Stack**: `react-native-vision-camera` v4+ (primary) with `expo-camera` fallback
+  - **Pose Engine**: `react-native-fast-tflite` v1.6.1 + **MoveNet Lightning** model (replacing MediaPipe for 3-5x faster performance)
+  - **Overlay Rendering**: `react-native-skia` for GPU-accelerated pose landmark rendering
+  - **Video Recording**: VisionCamera's native recording capabilities with configurable quality presets
+  - **Threading**: `react-native-worklets-core` for native-thread pose processing
+  - **Playback**: `react-native-video` v6+ with synchronized pose overlay
+  - **Upload Sources**: `expo-image-picker` (gallery) and `expo-document-picker` (files)
+  - **Keep Awake**: `expo-keep-awake` during capture/analysis
+  - **Action Sheet**: `@expo/react-native-action-sheet` for native selection UX
+  - **State Management**: Enhanced Zustand stores (`useCameraStore`, `usePoseStore`, `usePerformanceStore`)
+  - **Performance Monitoring**: Native thermal state monitoring and adaptive quality management
+- **Web (Next.js + Progressive Web App)**:
+  - **Camera Access**: Enhanced `getUserMedia()` with `ImageCapture` API for better frame control
+  - **Pose Engine**: TensorFlow.js with **MoveNet Lightning** (same model as native) + WebGPU backend
+  - **Threading**: Web Workers with `OffscreenCanvas` for native-like background processing
+  - **Recording**: `MediaRecorder` API with VP9/WebM format for optimal compression
+  - **Playback**: HTML5 `<video>` with WebGL-accelerated Canvas overlay
+  - **Upload Sources**: `expo-image-picker` and `expo-document-picker`
+  - **State Management**: Shared Zustand stores (identical to native)
+  - **Performance**: WebGPU acceleration with WebGL fallback, service worker model caching
+  - **PWA Features**: Background sync, offline model loading
 
-### Performance Needs (TRD Compliance)
-- **Camera Stream**: 30fps minimum, 720p default resolution
-- **Pose Detection**: Real-time processing without blocking UI
-- **Recording**: Efficient video encoding for mobile
-- **Upload**: Background processing with progress feedback
-- **Memory**: Cleanup camera resources on unmount
+### Performance Needs (TRD Compliance + Pipeline Optimizations)
+- **Camera Stream**: 30fps minimum, 720p default resolution (adaptive: 15-30fps based on thermal state)
+- **Pose Detection**: Real-time processing without blocking UI (3-5x faster with MoveNet vs MediaPipe)
+- **Recording**: Efficient video encoding with configurable quality presets and thermal management
+- **Upload**: Background processing with progress feedback and network retry logic
+- **Memory**: Cleanup camera resources on unmount, compressed pose data storage (50MB buffer max)
 - **Analysis Pipeline**: < 10 seconds median processing time (TRD requirement)
 - **App Launch**: < 3 seconds to camera ready state (TRD requirement)
 - **Upload Success**: p95 ≥ 99% on 3G+ networks for 60s clips (TRD requirement)
 - **Progress Updates**: At least every 500ms during upload (TRD requirement)
+- **Cross-Platform Performance**:
+  - **Native**: 30-60fps with GPU acceleration, 40-60% battery savings through adaptive quality
+  - **Web**: 30-45fps mobile web, 50+ fps desktop with WebGPU, intelligent frame skipping
+  - **Thermal Management**: Dynamic quality adjustment (normal/fair/serious/critical states)
+  - **Memory Optimization**: Compressed pose data (220 bytes/frame), circular buffers, efficient cleanup
 
 Additional considerations:
-- Activate `useKeepAwake` only during active recording/analysis to reduce battery impact
-- Prefer `recordAsync` quality presets aligned with device capabilities (native)
-- On web, throttle MediaPipe inference or use region-of-interest to sustain 30fps
+- **Thermal State Monitoring**: Dynamic quality adjustment prevents device overheating
+- **Adaptive Frame Processing**: Skip frames intelligently when performance degrades (native: every 3rd frame on serious thermal state)
+- **GPU Acceleration**: WebGPU/WebGL for TensorFlow.js, GPU delegates for TensorFlow Lite
+- **Memory Management**: Circular pose data buffers, automatic cleanup, compressed storage format
+- **Cross-Platform Model Consistency**: Same MoveNet Lightning model across native and web platforms
+- **Service Worker Caching**: Pre-load models for offline capability (web)
+- **Battery Optimization**: Smart frame rate reduction and processing throttling based on battery level
+- **Threading Strategy**: Native worklets (iOS/Android) and Web Workers (web) for background processing
 
 ### Security Requirements (TRD Compliance)
 - **Row Level Security**: All database access restricted to authenticated users
@@ -224,24 +240,38 @@ Additional considerations:
 
 ### Expo & React Native Library Mapping
 ```typescript
-// Core APIs used by this feature
+// Core APIs used by this feature - Optimized Stack
 import { Camera, CameraType, useCameraPermissions } from 'expo-camera'
-import { Video } from 'expo-video'
+import { useFrameProcessor } from 'react-native-vision-camera' // Primary camera
+import { useTensorflowModel } from 'react-native-fast-tflite' // Pose detection
+import { Video } from 'react-native-video' // Playback
 import { useKeepAwake } from 'expo-keep-awake'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import { useActionSheet } from '@expo/react-native-action-sheet'
-// MediaPipe (web) for pose detection
-// import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'
+import { runOnJS, runOnWorklet } from 'react-native-worklets-core' // Native threading
+
+// Web APIs used by this feature
+import * as tf from '@tensorflow/tfjs'
+import '@tensorflow/tfjs-backend-webgpu'
+import '@tensorflow/tfjs-backend-webgl'
+import * as poseDetection from '@tensorflow-models/pose-detection'
+
+// Shared state management
+import { useCameraStore } from '../stores/cameraStore'
+import { usePoseStore } from '../stores/poseStore'
+import { usePerformanceStore } from '../stores/performanceStore'
 ```
 
 - **Permissions**: `useCameraPermissions()` from `expo-camera`
-- **Preview/Record**: `Camera` component; `recordAsync()` (native) or `MediaRecorder` (web)
-- **Playback**: `Video` from `expo-video`
+- **Preview/Record**: `react-native-vision-camera` with `useFrameProcessor` (native); enhanced `getUserMedia` + `ImageCapture` (web)
+- **Playback**: `react-native-video` v6+ (native); HTML5 `<video>` with WebGL overlay (web)
 - **Upload Source**: `expo-image-picker` (gallery) or `expo-document-picker` (files)
-- **Keep Awake**: `useKeepAwake()` during capture/analysis
+- **Keep Awake**: `useKeepAwake()` during capture/analysis with thermal monitoring
 - **Action Sheet**: `useActionSheet()` for native selection UI (Upload vs Record)
-- **Pose**: MediaPipe Pose Landmarker (`@mediapipe/tasks-vision` on web; native bindings on iOS/Android)
+- **Pose Detection**: MoveNet Lightning via TensorFlow Lite (native) or TensorFlow.js (web) - same model across platforms
+- **Threading**: `react-native-worklets-core` worklets (native); Web Workers + OffscreenCanvas (web)
+- **State Management**: Enhanced Zustand stores with performance monitoring and thermal state tracking
 
 ```typescript
 // Permissions + keep awake
@@ -519,18 +549,25 @@ export const cameraTheme = {
 - **Upload Source**: `expo-image-picker` / `expo-document-picker` via native Action Sheet
 - **Upload**: Background upload with network retry logic
 
-### Shared Logic (packages/app/features)
-- Camera permission management
-- Recording state machine
-- Upload progress tracking
-- Pose data processing
-- Analysis job creation
+### Shared Logic (packages/app/features) - Unified Architecture
+- **Camera permission management**: Identical hooks and state management
+- **Recording state machine**: Shared Zustand stores with cross-platform synchronization
+- **Upload progress tracking**: Unified progress handling with retry logic
+- **Pose data processing**: Same MoveNet Lightning model and data compression format
+- **Analysis job creation**: Shared API integration and error handling
+- **Performance monitoring**: Unified metrics collection and adaptive quality management
+- **Data compression**: Shared `PoseDataBuffer` class with identical JSON export format
+- **State management**: Identical Zustand store structure and actions across platforms
 
-### Performance Considerations
-- **Bundle Size**: Lazy load pose detection models
-- **Memory Usage**: Cleanup camera resources properly
-- **Battery Impact**: Optimize pose detection frequency
-- **Network Usage**: Efficient video encoding settings
+### Performance Considerations - Pipeline Optimizations
+- **Bundle Size**: Lazy load TensorFlow.js models with service worker caching (web)
+- **Memory Usage**: Compressed pose data storage (220 bytes/frame), circular buffers, automatic cleanup
+- **Battery Impact**: Adaptive quality management with thermal state monitoring (40-60% savings)
+- **Network Usage**: Efficient video encoding with VP9/WebM (web) and configurable presets (native)
+- **GPU Acceleration**: WebGPU/WebGL backends (web), GPU delegates (native)
+- **Frame Processing**: Intelligent frame skipping based on performance metrics
+- **Model Optimization**: MoveNet Lightning for 3-5x faster inference vs MediaPipe
+- **Threading**: Native worklets (iOS/Android) and Web Workers (web) for background processing
 
 ## Quality Gates
 
@@ -551,11 +588,16 @@ export const cameraTheme = {
 - **Contrast**: UI elements visible against video background
 - **Voice Commands**: Integration ready for accessibility features
 
-### Performance Benchmarks
-- **Camera Initialization**: < 2 seconds
+### Performance Benchmarks - Pipeline Targets
+- **Camera Initialization**: < 2 seconds (VisionCamera fast startup)
 - **Recording Start**: < 500ms from tap to recording
-- **Pose Overlay**: 30fps rendering without camera lag
+- **Pose Detection**: 30-60fps native, 30-45fps web mobile, 50+ fps web desktop
+- **Pose Overlay**: 30fps rendering without camera lag (Skia/WebGL acceleration)
 - **Upload Progress**: Updates every 100ms with accurate percentage
+- **Model Loading**: < 3 seconds with service worker caching (web)
+- **Memory Usage**: < 100MB during recording with compressed pose data
+- **Battery Impact**: 40-60% reduction through adaptive quality management
+- **Thermal Performance**: Maintains normal thermal state during extended recording
 
 ## Documentation Requirements
 
@@ -586,30 +628,35 @@ export const cameraTheme = {
 ## Implementation Priority
 
 ### Phase 1: Core Camera Functionality
-1. Camera preview and permissions
-2. Basic recording controls (start/stop)
-3. Timer display and state management
+1. **VisionCamera Integration**: Replace expo-camera with react-native-vision-camera v4+
+2. **Basic Recording**: Implement start/stop with native recording capabilities
+3. **Timer Display**: Real-time recording duration with state management
+4. **Permission Handling**: Cross-platform camera and storage permissions
 
-### Phase 2: Enhanced Controls  
-1. Zoom level controls
-2. Camera swap functionality
-3. Recording pause/resume
+### Phase 2: Enhanced Controls & State Management
+1. **Adaptive Quality System**: Thermal monitoring and dynamic quality adjustment
+2. **Zoom & Camera Controls**: Multi-level zoom with camera swap functionality
+3. **Recording States**: Pause/resume with proper state transitions
+4. **Enhanced Zustand Stores**: Performance monitoring and thermal state tracking
 
-### Phase 3: AI Integration
-1. Pose overlay implementation
-2. Real-time pose detection
-3. Upload and analysis integration
+### Phase 3: AI Integration & Pose Detection
+1. **MoveNet Lightning Setup**: TensorFlow Lite (native) and TensorFlow.js (web)
+2. **Pose Overlay Rendering**: Skia (native) and WebGL Canvas (web) for landmarks
+3. **Real-time Processing**: Worklet/Web Worker threading for smooth performance
+4. **Data Compression**: Implement `PoseDataBuffer` with timestamp synchronization
 
-### Phase 4: Polish & Optimization
-1. Performance optimization
-2. Accessibility enhancements
-3. Cross-platform testing
-4. Animation and feedback improvements
+### Phase 4: Cross-Platform Optimization & Polish
+1. **Performance Optimization**: GPU acceleration, frame skipping, memory management
+2. **Unified Architecture**: Shared components and state management across platforms
+3. **PWA Features**: Service worker caching, offline model loading (web)
+4. **Accessibility & Testing**: Screen reader support, comprehensive test coverage
 
 ---
 
-**Analysis Completed**: 2025-01-19  
-**Cross-Referenced**: PRD, TRD, User Stories (01a_camera.md, 01b_recording.md)
+**Analysis Completed**: 2025-01-19
+**Cross-Referenced**: PRD, TRD, User Stories (01a_camera.md, 01b_recording.md), Pipeline Docs (native_pipeline.md, web_pipeline.md)
 **Validation**: All wireframe elements mapped, all 15 user stories covered
 **Coverage**: 100% user story compliance, TRD performance/security alignment verified
-**Mobile-First**: Responsive breakpoints, touch targets, and safe area handling specified
+**Technical Architecture**: Unified MoveNet Lightning across platforms, adaptive quality management, native threading
+**Performance Targets**: 30-60fps native, 30-50fps web with GPU acceleration and 40-60% battery optimization
+**Mobile-First**: Responsive breakpoints, touch targets, safe area handling, thermal-aware processing

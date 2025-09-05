@@ -17,6 +17,13 @@ alwaysApply: true
 - Use Biome for linting and formatting
 - Validate commits with lint-staged if configured
 
+## Test Review Checklist
+- [ ] Test-to-code ratio is ≤ 1:2
+- [ ] Tests focus on user behavior, not implementation
+- [ ] Only critical user flows are tested
+- [ ] Minimal mocking (only external dependencies)
+- [ ] No testing of internal hook calls or state changes
+
 # Common Commands
 - `yarn install` - Install dependencies
 - `yarn dev` - Start development servers (Turbo)

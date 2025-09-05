@@ -1,7 +1,6 @@
+import { useCallback } from 'react'
 import { CameraRecordingScreen } from 'app/features/CameraRecording'
 import { useRouter } from 'expo-router'
-import { useCallback } from 'react'
-
 /**
  * Camera Recording Route
  * File-based routing for camera recording screen

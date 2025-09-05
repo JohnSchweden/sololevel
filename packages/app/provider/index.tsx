@@ -1,12 +1,12 @@
-// Platform-specific ActionSheet provider - client-only to avoid hydration issues
-let ActionSheetProvider: any = ({ children }: { children: React.ReactNode }) => children
-
-// Load ActionSheetProvider only on client
-if (typeof window !== 'undefined') {
+// Platform-specific ActionSheet provider - loaded dynamically to avoid module evaluation issues
+const getActionSheetProvider = () => {
   try {
-    ActionSheetProvider = require('@expo/react-native-action-sheet').ActionSheetProvider
+    // Try to load ActionSheetProvider - this will work on React Native
+    const { ActionSheetProvider } = require('@expo/react-native-action-sheet')
+    return ActionSheetProvider
   } catch {
-    // Web fallback - keep no-op provider
+    // Fallback for web or when package is not available
+    return ({ children }: { children: React.ReactNode }) => children
   }
 }
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
@@ -34,8 +34,11 @@ export function Provider({
 
   // Ensure ActionSheetProvider is only rendered on client to avoid hydration mismatches
   const [mounted, setMounted] = useState(false)
+  const [ActionSheetProvider, setActionSheetProvider] = useState<any>(null)
+  
   useEffect(() => {
     setMounted(true)
+    setActionSheetProvider(() => getActionSheetProvider())
   }, [])
 
   // Initialize stores once
@@ -73,7 +76,7 @@ export function Provider({
                 duration={6000}
                 native={[]}
               >
-                {mounted ? (
+                {mounted && ActionSheetProvider ? (
                   <ActionSheetProvider>
                     <>
                       {children}

@@ -409,6 +409,27 @@ Ensure analysis remains the single source of truth for requirements."
 Maintain task list as accurate reflection of current implementation state."
 ```
 
+## 🔧 Build Error Fixing Commands
+
+### Quick Build Error Fix
+
+```bash
+"I've got some build errors. Run yarn type-check to see the TypeScript errors, then fix them, and then run yarn build until build passes."
+```
+
+### Pre-PR Validation
+
+```bash
+"Run yarn pre-pr to validate the build before committing. Fix any TypeScript or build errors that come up."
+```
+
+### Alternative Build Commands
+
+- `yarn pre-pr` - Runs type-check + build (fast pre-PR validation)
+- `yarn type-check` - TypeScript compilation only  
+- `yarn build` - Full build across all packages
+- `yarn lint:fix` - Fix linting issues
+
 ## 📋 Quick Reference Command Templates
 
 ### Analysis Phase

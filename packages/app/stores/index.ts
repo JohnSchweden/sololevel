@@ -13,17 +13,7 @@ export type {
   FeatureFlagsStore,
 } from './feature-flags'
 
-export {
-  useCameraRecordingSelectors,
-  useCameraRecordingStore,
-  useRecordingTimer,
-} from './cameraRecording'
-export type {
-  CameraPermissions,
-  CameraRecordingStore,
-  CameraSettings,
-  RecordingMetrics,
-} from './cameraRecording'
+export { useCameraRecordingStore } from './cameraRecording'
 
 export {
   useUploadProgressSelectors,

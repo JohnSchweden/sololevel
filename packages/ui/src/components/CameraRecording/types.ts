@@ -1,4 +1,6 @@
 // Platform-agnostic camera view type
+// Native: VisionCamera Camera component
+// Web: HTMLVideoElement or similar
 type CameraView = any
 
 export interface CameraPreviewContainerProps {

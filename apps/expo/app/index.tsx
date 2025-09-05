@@ -1,6 +1,6 @@
+// No need to import React explicitly with automatic JSX runtime
 import { CameraRecordingScreen } from 'app/features/CameraRecording'
 import { Stack } from 'expo-router'
-
 export default function Screen() {
   return (
     <>

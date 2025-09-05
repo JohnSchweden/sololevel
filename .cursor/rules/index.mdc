@@ -2,7 +2,6 @@
 description: Automatic rule discovery and application index for monorepo
 globs: ["**/*"]
 alwaysApply: true
-priority: 1
 ---
 
 # Cursor Rules Index

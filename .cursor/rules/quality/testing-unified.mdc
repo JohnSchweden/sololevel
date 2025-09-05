@@ -1,7 +1,7 @@
 ---
 description: Unified testing strategy for monorepo
 globs: ["**/*.test.*", "**/*.spec.*", "e2e/**/*"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Testing Strategy
@@ -128,11 +128,21 @@ Object.defineProperty(window, 'matchMedia', {
 - Integration: Key user flows
 - E2E: Critical paths only
 
-## Anti-Patterns (NEVER DO)
+## What NOT to Test (Anti-Patterns)(NEVER DO)
 - ❌ Using Vitest for React Native testing
 - ❌ Testing React Native modules with Node.js require()
-- ❌ Testing implementation details instead of user interactions
 - ❌ Ignoring established testing patterns
+- ❌ Mock implementations of internal hooks
+- ❌ Every possible state combination
+- ❌ Implementation details (function calls, internal state)
+- ❌ Edge cases that users never encounter
+- ❌ Platform-specific behavior unless critical
+
+## Test Review Questions
+1. "Would a user notice if this test failed?"
+2. "Is this testing behavior or implementation?"
+3. "Could this test be 50% shorter?"
+4. "Are we mocking too much?"
 
 ## Validation Checklist
 Before declaring something "broken":
@@ -142,8 +152,35 @@ Before declaring something "broken":
 □ Check if user can reproduce the issue
 □ Follow established testing patterns
 □ Test user interactions, not implementation details
-□ Test in the correct runtime environment
-□ Verify the app actually works (not just imports)
-□ Check if user can reproduce the issue
-□ Follow established testing patterns
-□ Test user interactions, not implementation details
+
+## Test Efficiency Guidelines
+
+### CRITICAL: Maintain Test-to-Code Ratio
+- **Target Ratio**: 1:2 (1 line of test per 2 lines of code)
+- **Maximum Ratio**: 1:1 (never exceed code length)
+- **Red Flag**: If test > code, you're testing wrong things
+
+### Test Scope Rules
+- **Unit Tests**: Test single function/component behavior
+- **Integration Tests**: Test 2-3 components working together
+- **E2E Tests**: Test complete user flows only
+
+
+### What TO Test (User-Focused)
+- ✅ User-visible behavior and interactions
+- ✅ Critical user flows (happy path + 1-2 error cases)
+- ✅ Integration points where components connect
+- ✅ Accessibility and usability
+
+### Test Writing Checklist
+Before writing a test, ask:
+1. Does this test user-visible behavior?
+2. Would a user notice if this broke?
+3. Is this the simplest test that proves it works?
+4. Am I testing implementation or behavior?
+
+### Test Bloat Prevention
+- **One test per user action** (not per internal function call)
+- **Mock only external dependencies** (APIs, file system, network)
+- **Use real components** when possible (not mocked versions)
+- **Focus on integration points** where bugs actually occur
