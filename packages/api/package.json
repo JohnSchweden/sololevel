@@ -13,7 +13,7 @@
     "test:coverage:report": "vitest run --coverage --reporter=html"
   },
   "dependencies": {
-    "@my/ui": "workspace:*",
+    "@my/ui": "0.0.1",
     "@supabase/supabase-js": "^2.56.0",
     "zod": "^4.0.17"
   },

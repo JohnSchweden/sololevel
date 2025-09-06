@@ -5,7 +5,10 @@ import { CameraRecordingScreenProps } from './types'
  * Wrapper component that handles feature flag routing BEFORE any hooks are called
  * This prevents Rules of Hooks violations by ensuring React never sees different hook structures
  */
-export function CameraRecordingScreenWrapper({ onNavigateBack, onTabChange }: CameraRecordingScreenProps) {
+export function CameraRecordingScreenWrapper({
+  onNavigateBack,
+  onTabChange,
+}: CameraRecordingScreenProps) {
   const { flags } = useFeatureFlagsStore()
 
   // Determine implementation at the top level, before any other hooks
@@ -19,7 +22,7 @@ export function CameraRecordingScreenWrapper({ onNavigateBack, onTabChange }: Ca
       />
     )
   }
-  
+
   // Dynamically import Expo Camera implementation
   const { CameraRecordingScreen: ExpoCameraScreen } = require('./CameraRecordingScreen.expo')
   return (

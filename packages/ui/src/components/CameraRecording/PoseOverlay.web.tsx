@@ -15,8 +15,8 @@ import {
   type PoseKeypoint,
 } from '@app/features/CameraRecording/types/pose'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import type { PoseOverlayProps } from './PoseOverlay'
 import { PoseOverlayUtils } from '../../utils/PoseOverlayUtils'
+import type { PoseOverlayProps } from './PoseOverlay'
 
 /**
  * WebGL-specific configuration

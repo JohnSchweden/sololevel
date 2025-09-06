@@ -8,15 +8,15 @@
       "./packages/types/*"
     ]
   },
-  "installConfig": {
-
-  },
+  "installConfig": {},
   "scripts": {
     "native": "cd apps/expo && yarn start",
     "native:prebuild": "cd apps/expo && yarn prebuild",
-    "vision": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform ios --clean",
-    "ios": "cd apps/expo && yarn ios",
-    "android": "cd apps/expo && yarn android",
+    "native:prebuild:ios": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform ios",
+    "ios": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn ios --no-install",
+    "android": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn android --no-install",
+    "update:ios": "cd ios && pod install",
+    "update:android": "cd android && pod install",
     "watch": "ultra -r --no-pretty --concurrency 400 watch",
     "vercel:install": "yarn set version 3.5 && yarn install",
     "web": "cd apps/next && yarn next",
@@ -79,7 +79,7 @@
     "expo": "53.0.22",
     "react-refresh": "^0.14.0",
     "react-native-svg": "^15.12.1",
-    "react-native-web": "~0.20.0",
+    "react-native-web": "^0.21.0",
     "react-native": "0.79.6",
     "path-to-regexp": "^6.3.0",
     "undici": "^5.29.0",
@@ -93,7 +93,7 @@
     "@babel/core": "^7.28.3",
     "@babel/runtime": "^7.26.10",
     "check-dependency-version-consistency": "^4.1.0",
-    "expo": "~53.0.22",
+    "expo": "53.0.22",
     "expo-modules-core": "^2.5.0",
     "husky": "^9.1.6",
     "immer": "^10.1.1",
@@ -101,7 +101,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "turbo": "^1.13.4",
-    "typescript": "~5.8.3",
+    "typescript": "^5.9.2",
     "ultra-runner": "^3.10.5",
     "undici": "^5.29.0"
   },

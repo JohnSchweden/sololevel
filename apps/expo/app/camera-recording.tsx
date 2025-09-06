@@ -1,6 +1,10 @@
-import { useCallback } from 'react'
-import { CameraRecordingScreen } from 'app/features/CameraRecording'
+// DEBUG: Temporarily disable CameraRecordingScreen import to isolate crash
+// import { CameraRecordingScreen } from 'app/features/CameraRecording'
 import { useRouter } from 'expo-router'
+import { useCallback } from 'react'
+import { Text, View } from 'react-native'
+
+console.log('🚀 CAMERA-RECORDING: Module loaded successfully')
 /**
  * Camera Recording Route
  * File-based routing for camera recording screen
@@ -35,9 +39,8 @@ export default function RecordScreen() {
   )
 
   return (
-    <CameraRecordingScreen
-      onNavigateBack={handleNavigateBack}
-      onTabChange={handleTabChange}
-    />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>DEBUG: Camera Recording Screen (CameraRecordingScreen import disabled)</Text>
+    </View>
   )
 }

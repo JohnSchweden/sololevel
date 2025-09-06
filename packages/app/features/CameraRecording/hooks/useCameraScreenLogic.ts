@@ -34,10 +34,18 @@ export const useCameraScreenLogic = ({
     }
     // Return a stable object structure even when not ready
     return {
-      startRecording: async () => { throw new Error('Camera not ready') },
-      stopRecording: async () => { throw new Error('Camera not ready') },
-      pauseRecording: async () => { throw new Error('Camera not ready') },
-      resumeRecording: async () => { throw new Error('Camera not ready') },
+      startRecording: async () => {
+        throw new Error('Camera not ready')
+      },
+      stopRecording: async () => {
+        throw new Error('Camera not ready')
+      },
+      pauseRecording: async () => {
+        throw new Error('Camera not ready')
+      },
+      resumeRecording: async () => {
+        throw new Error('Camera not ready')
+      },
       isReady: false,
     }
   }, [cameraRef, cameraReady])
@@ -248,4 +256,3 @@ export const useCameraScreenLogic = ({
     setShowNavigationDialog,
   }
 }
-

@@ -118,8 +118,16 @@ export function enableNetworkLogging(): () => void {
 
     const patchedFetch: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const start = Date.now()
-      const method = (init?.method || (typeof input === 'string' ? 'GET' : input instanceof Request ? input.method : 'GET')).toUpperCase()
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url
+      const method = (
+        init?.method ||
+        (typeof input === 'string' ? 'GET' : input instanceof Request ? input.method : 'GET')
+      ).toUpperCase()
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : (input as Request).url
       let requestBody: unknown
       try {
         requestBody = init?.body
@@ -134,11 +142,27 @@ export function enableNetworkLogging(): () => void {
           // Avoid large binary bodies; best-effort text
           responseBody = await clone.text()
         } catch {}
-        pushNetwork({ method, url, status: res.status, ok: res.ok, requestBody, responseBody, timestamp: new Date().toISOString(), durationMs })
+        pushNetwork({
+          method,
+          url,
+          status: res.status,
+          ok: res.ok,
+          requestBody,
+          responseBody,
+          timestamp: new Date().toISOString(),
+          durationMs,
+        })
         return res
       } catch (error) {
         const durationMs = Date.now() - start
-        pushNetwork({ method, url, error, requestBody, timestamp: new Date().toISOString(), durationMs })
+        pushNetwork({
+          method,
+          url,
+          error,
+          requestBody,
+          timestamp: new Date().toISOString(),
+          durationMs,
+        })
         throw error
       }
     }

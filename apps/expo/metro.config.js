@@ -50,14 +50,14 @@ config.resolver.extraNodeModules = {
     paths: [path.resolve(projectRoot, 'node_modules')],
   }),
   // React 19 + Hermes compatibility
-  'react': path.resolve(workspaceRoot, 'node_modules/react'),
+  react: path.resolve(workspaceRoot, 'node_modules/react'),
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
 }
 
 // React 19 + Hermes compatibility: ensure consistent React resolution
 config.resolver.alias = {
   ...config.resolver.alias,
-  'react': path.resolve(workspaceRoot, 'node_modules/react'),
+  react: path.resolve(workspaceRoot, 'node_modules/react'),
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
 }
 

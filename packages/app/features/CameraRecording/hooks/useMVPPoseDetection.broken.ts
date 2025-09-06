@@ -110,7 +110,7 @@ export function useMVPPoseDetection(
 
       // Temporarily disable platform-specific implementation to test module loading
       console.log('🔍 DEBUG: startDetection called, isNative:', isNative)
-      
+
       // Mock implementation for testing
       setTimeout(() => {
         const mockPose: MVPPoseDetectionResult = {
@@ -137,7 +137,7 @@ export function useMVPPoseDetection(
 
   const stopDetection = useCallback((): void => {
     console.log('🔍 DEBUG: stopDetection called')
-    
+
     setState((prev) => ({
       ...prev,
       isDetecting: false,
@@ -151,9 +151,7 @@ export function useMVPPoseDetection(
     if (state.isDetecting) {
       stopDetection()
     } else if (state.isEnabled) {
-      startDetection().catch((error) => {
-        console.error('Failed to start MVP pose detection:', error)
-      })
+      startDetection().catch((error) => {})
     }
   }, [state.isDetecting, state.isEnabled, startDetection, stopDetection])
 

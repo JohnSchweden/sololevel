@@ -4,12 +4,12 @@ import React, { useEffect } from 'react'
 if (typeof global !== 'undefined') {
   global.React = React
 }
-import { useColorScheme } from 'react-native'
-import { useFonts } from 'expo-font'
-import { SplashScreen, Stack } from 'expo-router'
+import { NativeToast } from '@my/ui'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { Provider } from 'app/provider'
-import { NativeToast } from '@my/ui'
+import { useFonts } from 'expo-font'
+import { SplashScreen, Stack } from 'expo-router'
+import { useColorScheme } from 'react-native'
 
 import { log } from '@my/ui/src/utils/logger'
 log.info('_layout.tsx', 'Module loaded, React version:', React.version)
@@ -64,7 +64,32 @@ function RootLayoutNav() {
     return (
       <Provider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack />
+          {(() => {
+            log.info('_layout.tsx', 'About to render Stack')
+            try {
+              return (
+                <Stack>
+                  <Stack.Screen
+                    name="index"
+                    options={{
+                      title: 'Camera Recording',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="camera-recording"
+                    options={{
+                      title: 'Camera Recording',
+                      headerShown: false,
+                    }}
+                  />
+                </Stack>
+              )
+            } catch (error) {
+              log.error('_layout.tsx', 'Error rendering Stack:', error as unknown)
+              throw error
+            }
+          })()}
           <NativeToast />
         </ThemeProvider>
       </Provider>

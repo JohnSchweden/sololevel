@@ -4,7 +4,8 @@
  * Cross-platform interface that delegates to native or web implementations
  */
 
-console.log('🔍 DEBUG: useMVPPoseDetection.ts module loading - START')
+import { log } from '@my/ui/src/utils/logger'
+log.debug('🔍 DEBUG: useMVPPoseDetection.ts module loading - START')
 
 // Test minimal imports first
 import { useCallback, useRef, useState } from 'react'
@@ -72,7 +73,7 @@ export function useMVPPoseDetection(
   const isNative = Platform.OS !== 'web'
 
   if (__DEV__) {
-    console.log('🎯 useMVPPoseDetection initialized:', { isNative, initialConfig })
+    log.debug('🎯 useMVPPoseDetection initialized:', { isNative, initialConfig })
   }
 
   // MVP configuration - simple and focused
@@ -109,8 +110,8 @@ export function useMVPPoseDetection(
       }))
 
       // Temporarily disable platform-specific implementation to test module loading
-      console.log('🔍 DEBUG: startDetection called, isNative:', isNative)
-      
+      log.debug('🔍 DEBUG: startDetection called, isNative:', isNative)
+
       // Mock implementation for testing
       setTimeout(() => {
         const mockPose: MVPPoseDetectionResult = {
@@ -136,8 +137,8 @@ export function useMVPPoseDetection(
   }, [config, state.isEnabled])
 
   const stopDetection = useCallback((): void => {
-    console.log('🔍 DEBUG: stopDetection called')
-    
+    log.debug('🔍 DEBUG: stopDetection called')
+
     setState((prev) => ({
       ...prev,
       isDetecting: false,
@@ -151,9 +152,7 @@ export function useMVPPoseDetection(
     if (state.isDetecting) {
       stopDetection()
     } else if (state.isEnabled) {
-      startDetection().catch((error) => {
-        console.error('Failed to start MVP pose detection:', error)
-      })
+      startDetection().catch((error) => {})
     }
   }, [state.isDetecting, state.isEnabled, startDetection, stopDetection])
 
@@ -268,4 +267,4 @@ export const MVPPoseDetectionUtils = {
   },
 }
 
-console.log('🔍 DEBUG: useMVPPoseDetection.ts module loading - END')
+log.debug('🔍 DEBUG: useMVPPoseDetection.ts module loading - END')

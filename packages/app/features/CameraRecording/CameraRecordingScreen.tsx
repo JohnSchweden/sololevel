@@ -1,5 +1,5 @@
-import { CameraRecordingScreenProps } from './types'
 import { CameraRecordingScreenWrapper } from './CameraRecordingScreenWrapper'
+import { CameraRecordingScreenProps } from './types'
 
 /**
  * Main Camera Recording Screen - delegates to wrapper for feature flag handling

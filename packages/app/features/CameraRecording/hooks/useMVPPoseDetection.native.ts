@@ -54,12 +54,12 @@ class MockMVPTFLiteModel {
       throw new Error('Model not loaded')
     }
 
-    // Generate mock pose data for MVP
+    // Generate mock pose data for MVP with proper coordinate bounds
     const keypoints: MVPPoseKeypoint[] = MVP_MOVENET_KEYPOINT_NAMES.map((name, index) => ({
       name,
-      // Generate mock coordinates with some randomness for demonstration
-      x: 0.3 + Math.sin(Date.now() * 0.001 + index) * 0.4, // Oscillating between 0.1-0.7
-      y: 0.3 + Math.cos(Date.now() * 0.001 + index) * 0.4, // Oscillating between 0.1-0.7
+      // Generate mock coordinates within valid 0-1 range
+      x: Math.max(0, Math.min(1, 0.3 + Math.sin(Date.now() * 0.001 + index) * 0.3)), // Clamped 0.0-0.6
+      y: Math.max(0, Math.min(1, 0.3 + Math.cos(Date.now() * 0.001 + index) * 0.3)), // Clamped 0.0-0.6
       confidence: 0.4 + Math.random() * 0.5, // Random confidence between 0.4-0.9
     }))
 
@@ -197,7 +197,6 @@ export const MVPNativePoseUtils = {
     inputResolution: { width: 256, height: 256 },
   }),
 }
-
 
 /**
  * Future Integration Points for Real TensorFlow Lite

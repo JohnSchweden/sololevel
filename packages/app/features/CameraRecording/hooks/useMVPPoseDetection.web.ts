@@ -246,7 +246,6 @@ export const MVPWebPoseUtils = {
   },
 }
 
-
 /**
  * Future Integration Points for Real TensorFlow.js
  * These comments serve as guides for when TensorFlow.js is properly integrated:

@@ -3,12 +3,111 @@
  * Shared utility functions for pose overlay rendering across platforms
  */
 
-import type {
-  PoseConnection,
-  PoseDetectionResult,
-  PoseOverlayConfig,
-} from '@app/features/CameraRecording/types/pose'
-import { DEFAULT_OVERLAY_CONFIG, POSE_CONNECTIONS } from '@app/features/CameraRecording/types/pose'
+// Temporarily define types locally to avoid import issues
+type PoseKeypointName =
+  | 'nose'
+  | 'left_eye'
+  | 'right_eye'
+  | 'left_ear'
+  | 'right_ear'
+  | 'left_shoulder'
+  | 'right_shoulder'
+  | 'left_elbow'
+  | 'right_elbow'
+  | 'left_wrist'
+  | 'right_wrist'
+  | 'left_hip'
+  | 'right_hip'
+  | 'left_knee'
+  | 'right_knee'
+  | 'left_ankle'
+  | 'right_ankle'
+
+interface PoseKeypoint {
+  name: PoseKeypointName
+  x: number
+  y: number
+  confidence: number
+}
+
+interface PoseDetectionResult {
+  keypoints: PoseKeypoint[]
+  confidence: number
+  timestamp: number
+  frameId?: string
+}
+
+interface PoseOverlayConfig {
+  showKeypoints: boolean
+  showConnections: boolean
+  showConfidence: boolean
+  keypointRadius: number
+  connectionWidth: number
+  colors: {
+    keypoint: string
+    connection: string
+    lowConfidence: string
+    highConfidence: string
+  }
+  enableAnimation: boolean
+  animationDuration: number
+  interpolationFrames: number
+  scaleWithConfidence: boolean
+  minScale: number
+  maxScale: number
+  confidenceThreshold: number
+}
+
+interface PoseConnection {
+  from: PoseKeypointName
+  to: PoseKeypointName
+  color?: string
+  width?: number
+}
+
+const DEFAULT_OVERLAY_CONFIG: PoseOverlayConfig = {
+  showKeypoints: true,
+  showConnections: true,
+  showConfidence: false,
+  keypointRadius: 4,
+  connectionWidth: 2,
+  colors: {
+    keypoint: '#00ff00',
+    connection: '#ffffff',
+    lowConfidence: '#ff6b6b',
+    highConfidence: '#51cf66',
+  },
+  enableAnimation: true,
+  animationDuration: 100,
+  interpolationFrames: 3,
+  scaleWithConfidence: true,
+  minScale: 0.5,
+  maxScale: 1.0,
+  confidenceThreshold: 0.3,
+}
+
+const POSE_CONNECTIONS: PoseConnection[] = [
+  // Head
+  { from: 'nose', to: 'left_eye' },
+  { from: 'nose', to: 'right_eye' },
+  { from: 'left_eye', to: 'left_ear' },
+  { from: 'right_eye', to: 'right_ear' },
+  // Torso
+  { from: 'left_shoulder', to: 'right_shoulder' },
+  { from: 'left_shoulder', to: 'left_hip' },
+  { from: 'right_shoulder', to: 'right_hip' },
+  { from: 'left_hip', to: 'right_hip' },
+  // Arms
+  { from: 'left_shoulder', to: 'left_elbow' },
+  { from: 'left_elbow', to: 'left_wrist' },
+  { from: 'right_shoulder', to: 'right_elbow' },
+  { from: 'right_elbow', to: 'right_wrist' },
+  // Legs
+  { from: 'left_hip', to: 'left_knee' },
+  { from: 'left_knee', to: 'left_ankle' },
+  { from: 'right_hip', to: 'right_knee' },
+  { from: 'right_knee', to: 'right_ankle' },
+]
 
 export const PoseOverlayUtils = {
   /**

@@ -1,7 +1,7 @@
 import { useFeatureFlagsStore } from 'app/stores/feature-flags'
 import { forwardRef, useMemo } from 'react'
-import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
 import { log } from '../../utils/logger'
+import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
 
 /**
  * Hybrid Camera Preview Component - switches between VisionCamera and Expo Camera implementations
@@ -25,7 +25,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           return ExpoCameraPreview
         }
       }
-      
+
       // Use Expo Camera implementation
       const { CameraPreview: ExpoCameraPreview } = require('./CameraPreview.native.expo')
       return ExpoCameraPreview

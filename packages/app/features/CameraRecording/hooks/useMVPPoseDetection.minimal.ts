@@ -1,10 +1,10 @@
-console.log('🔍 MINIMAL: Module loading START')
-
-import { useState, useCallback, useRef } from 'react'
-import { Platform } from 'react-native'
-
-// Test adding the logger import that was in the original
+// Use logger instead of console
 import { log } from '@my/ui/src/utils/logger'
+
+log.debug('🔍 MINIMAL: Module loading START')
+
+import { useCallback, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 
 // Test adding the types import that might be causing the issue
 import type {
@@ -16,15 +16,15 @@ import type {
 import { DEFAULT_MVP_POSE_CONFIG } from '../types/MVPpose'
 
 export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConfig>) {
-  console.log('🔍 MINIMAL: Hook called')
-  
+  // Removed excessive logging
+
   const isNative = Platform.OS !== 'web'
-  
+
   const [config] = useState<MVPPoseDetectionConfig>(() => ({
     ...DEFAULT_MVP_POSE_CONFIG,
     ...initialConfig,
   }))
-  
+
   const [state, setState] = useState<MVPPoseDetectionState>({
     isInitialized: false,
     isDetecting: false,
@@ -33,25 +33,134 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
     config,
     error: null,
   })
-  
+
   const detectionRef = useRef<any>(null)
   const currentPoseRef = useRef<MVPPoseDetectionResult | null>(null)
-  
+
   const startDetection = useCallback(async (): Promise<void> => {
-    console.log('🔍 MINIMAL: startDetection called')
-    setState((prev) => ({
-      ...prev,
-      isDetecting: true,
-      error: null,
-    }))
-  }, [])
+    log.debug('🔍 MINIMAL: startDetection called')
+
+    try {
+      if (!state.isEnabled) {
+        throw new Error('Pose detection is disabled')
+      }
+
+      setState((prev) => ({
+        ...prev,
+        isDetecting: true,
+        error: null,
+      }))
+
+      // Delegate to platform-specific implementation
+      if (isNative) {
+        const { startMVPPoseDetectionNative } = require('./useMVPPoseDetection.native')
+        detectionRef.current = await startMVPPoseDetectionNative(
+          config,
+          (pose: MVPPoseDetectionResult) => {
+            currentPoseRef.current = pose
+            setState((prev) => ({
+              ...prev,
+              currentPose: pose,
+              isInitialized: true,
+            }))
+            // Debug actual pose data structure - throttled logging
+            if (pose && pose.keypoints && Math.random() < 0.1) { // Only log 10% of poses
+              log.debug('🔍 POSE DATA:', { 
+                keypointCount: pose.keypoints.length,
+                confidence: pose.confidence.toFixed(3),
+                nose: pose.keypoints.find(kp => kp.name === 'nose'),
+                leftWrist: pose.keypoints.find(kp => kp.name === 'left_wrist'),
+                rightWrist: pose.keypoints.find(kp => kp.name === 'right_wrist'),
+                leftEye: pose.keypoints.find(kp => kp.name === 'left_eye'),
+                rightEye: pose.keypoints.find(kp => kp.name === 'right_eye'),
+                coordinateRange: {
+                  minX: Math.min(...pose.keypoints.map(kp => kp.x)).toFixed(3),
+                  maxX: Math.max(...pose.keypoints.map(kp => kp.x)).toFixed(3),
+                  minY: Math.min(...pose.keypoints.map(kp => kp.y)).toFixed(3),
+                  maxY: Math.max(...pose.keypoints.map(kp => kp.y)).toFixed(3)
+                }
+              })
+            }
+          }
+        )
+      } else {
+        const { startMVPPoseDetectionWeb } = require('./useMVPPoseDetection.web')
+        detectionRef.current = await startMVPPoseDetectionWeb(
+          config,
+          (pose: MVPPoseDetectionResult) => {
+            currentPoseRef.current = pose
+            setState((prev) => ({
+              ...prev,
+              currentPose: pose,
+              isInitialized: true,
+            }))
+          }
+        )
+      }
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isDetecting: false,
+        error: error instanceof Error ? error.message : 'Failed to start pose detection',
+      }))
+      throw error
+    }
+  }, [config, state.isEnabled, isNative])
 
   const stopDetection = useCallback((): void => {
-    console.log('🔍 MINIMAL: stopDetection called')
+    log.debug('🔍 MINIMAL: stopDetection called')
+
+    try {
+      if (detectionRef.current) {
+        if (isNative) {
+          const { stopMVPPoseDetectionNative } = require('./useMVPPoseDetection.native')
+          stopMVPPoseDetectionNative(detectionRef.current)
+        } else {
+          const { stopMVPPoseDetectionWeb } = require('./useMVPPoseDetection.web')
+          stopMVPPoseDetectionWeb(detectionRef.current)
+        }
+        detectionRef.current = null
+      }
+
+      setState((prev) => ({
+        ...prev,
+        isDetecting: false,
+        currentPose: null,
+      }))
+      currentPoseRef.current = null
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Failed to stop pose detection',
+      }))
+    }
+  }, [isNative])
+
+  const toggleDetection = useCallback((): void => {
+    if (state.isDetecting) {
+      stopDetection()
+    } else if (state.isEnabled) {
+      startDetection().catch((error) => {
+        log.error('Failed to start MVP pose detection:', error)
+      })
+    }
+  }, [state.isDetecting, state.isEnabled, startDetection, stopDetection])
+
+  const updateConfig = useCallback(
+    (newConfig: Partial<MVPPoseDetectionConfig>): void => {
+      const updatedConfig = { ...config, ...newConfig }
+      setState((prev) => ({
+        ...prev,
+        config: updatedConfig,
+      }))
+    },
+    [config]
+  )
+
+  const clearError = useCallback((): void => {
     setState((prev) => ({
       ...prev,
-      isDetecting: false,
-      currentPose: null,
+      error: null,
     }))
   }, [])
 
@@ -62,9 +171,9 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
     state,
     startDetection,
     stopDetection,
-    toggleDetection: () => console.log('🔍 MINIMAL: toggleDetection called'),
-    updateConfig: () => console.log('🔍 MINIMAL: updateConfig called'),
-    clearError: () => console.log('🔍 MINIMAL: clearError called'),
+    toggleDetection,
+    updateConfig,
+    clearError,
   } as UseMVPPoseDetection
 }
 
@@ -140,4 +249,4 @@ export const MVPPoseDetectionUtils = {
   },
 }
 
-console.log('🔍 MINIMAL: Module loading END')
+log.debug('🔍 MINIMAL: Module loading END')

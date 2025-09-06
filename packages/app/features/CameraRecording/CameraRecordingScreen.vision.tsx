@@ -13,6 +13,8 @@ import {
   RecordingControls,
   SideSheet,
 } from '@my/ui/src/components/CameraRecording'
+// Test minimal hook to isolate issue
+import { log } from '@my/ui/src/utils/logger'
 import { useEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { YStack } from 'tamagui'
@@ -20,9 +22,8 @@ import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
-// Test minimal hook to isolate issue
 import { useMVPPoseDetection } from './hooks/useMVPPoseDetection.minimal'
-console.log('🔍 DEBUG: Importing useMVPPoseDetection:', typeof useMVPPoseDetection)
+log.debug('🔍 DEBUG: Importing useMVPPoseDetection:', typeof useMVPPoseDetection)
 import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 // import { adaptMVPPoseToProduction } from './utils/MVPTypeAdapter'
@@ -78,11 +79,9 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       permissionGranted: permission?.granted,
       currentPoseData: currentPose ? 'Present' : 'None',
     }
-    // Always log in development for debugging
-    if (__DEV__) {
-      console.log('🎯 MVP Pose Detection State:', debugInfo)
-      console.log('🎯 Toggle should show:', true) // Toggle should always show
-      console.log('🎯 Overlay should show:', poseEnabled && !!currentPose)
+    // Reduced logging - only log state changes, not every frame
+    if (__DEV__ && Math.random() < 0.01) { // Only log 1% of the time
+      log.debug('🎯 MVP Pose Detection State:', debugInfo)
     }
   }, [poseEnabled, isDetecting, currentPose, permission?.granted])
 

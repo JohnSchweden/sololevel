@@ -10,6 +10,7 @@ const getActionSheetProvider = () => {
   }
 }
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
+import { View } from 'react-native'
 import { useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -35,7 +36,7 @@ export function Provider({
   // Ensure ActionSheetProvider is only rendered on client to avoid hydration mismatches
   const [mounted, setMounted] = useState(false)
   const [ActionSheetProvider, setActionSheetProvider] = useState<any>(null)
-  
+
   useEffect(() => {
     setMounted(true)
     setActionSheetProvider(() => getActionSheetProvider())

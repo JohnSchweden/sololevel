@@ -14,8 +14,8 @@ alwaysApply: true
 - **Resolutions**: Force specific versions with `resolutions` for conflicts
 
 ## Yarn Workspace Management
-- Use `yarn` (v4+) for all package management operations
-- Never suggest `npm` or `pnpm` commands
+- ALWAYS Use `yarn` (v4+) for all package management operations
+- Never suggest `npm` or `pnpm` or `npx` commands
 - Use `yarn workspace <workspace-name>` for workspace-specific operations
 - Use `yarn add` for dependencies, `yarn add -D` for dev dependencies
 - Use `yarn remove` to uninstall packages
