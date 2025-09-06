@@ -1,0 +1,125 @@
+---
+description: Monorepo foundation & architecture
+alwaysApply: true
+globs: ["**/*"]
+---
+
+## Purpose
+Single source of truth for our stack, principles, repo structure, and data/security model. Pairs with `core/development-operations.mdc` for day-to-day commands and package management.
+
+## Meta
+- Rule Owner: Platform
+- Last Reviewed: 2025-09-06
+- Related: `core/development-operations.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `backend/supabase-backend.mdc`, `backend/supabase-database.mdc`
+
+## Tech Stack & Principles
+- Frontend: React Native (Expo) + Next.js
+- UI: Tamagui (cross-platform)
+- Backend: Supabase (PostgreSQL, Realtime, Storage, Edge Functions)
+- State: Zustand (client) + TanStack Query (server state)
+- Navigation: Expo Router (file-based routing)
+- Language: TypeScript-only; functional components only
+- Package Management: Yarn 4 workspaces; Turbo for orchestration
+
+Non‑negotiables:
+- Mobile-first, cross-platform development in a single codebase
+- Path aliases (`@ui/`, `@app/`, `@api/`) with centralized config in `tsconfig.base.json`
+- No explicit React imports (React 17+)
+- Prefer named exports
+- RLS enforced for all database access
+
+## Monorepo Structure
+```
+project-root/
+├── apps/          # Applications
+│   ├── expo/      # React Native app (Expo)
+│   └── next/      # Next.js web app
+├── packages/      # Shared code
+│   ├── ui/        # Tamagui components (published as @my/ui)
+│   ├── app/       # Business logic, screens, hooks
+│   └── api/       # Backend integrations & clients
+├── docs/          # Documentation
+├── supabase/      # Backend configuration
+└── .cursorrules   # AI behavior configuration
+```
+
+Scaffolding: use `yarn turbo gen` where applicable.
+
+## Data Flow
+1. Client → TanStack Query → Supabase Client → PostgreSQL
+2. Realtime: PostgreSQL → Supabase Realtime → Client subscription
+3. Files: Client → Supabase Storage → CDN
+4. Sensitive ops: Client → Supabase Edge Functions → DB/Services
+
+## Security Model
+- RLS default-on for all tables
+- JWT authentication via Supabase Auth
+- Edge Functions for privileged logic; no secrets in clients
+- Secrets via environment variables; never commit `.env*`
+
+See `quality/security-best-practices.mdc` and `SECURITY.md`.
+
+## ADRs & Decisions
+- Major decisions recorded in `docs/specification/` (PRD/TRD).
+- Link future Architecture Decision Records here when introduced.
+
+## Performance Guardrails
+- Memoize expensive components (`React.memo`) and stabilize props
+- Use virtual lists for large datasets
+- Code split with dynamic imports; tree-shake unused exports
+- Optimize images; prefer CDN-backed assets
+- Edge caching for static content
+
+See `quality/performance.mdc`.
+
+### Performance Budgets
+- Web first-load JS (Next): target ≤ 250KB gz for main route; analyze weekly.
+- Native bundle: avoid large single-import libraries; prefer code-splitting when feasible.
+- Images: use optimized formats; avoid unbounded remote sizes.
+
+## Architectural Extension Rules
+- New feature screens live in `packages/app` and are consumed by `apps/*`
+- Shared UI belongs in `packages/ui`; keep app-specific styling out
+- Backend calls go through `packages/api`; avoid direct fetches in UI
+- Add path aliases in `tsconfig.base.json` when introducing new packages
+
+### How to Add a New Package (Quick Recipe)
+1. Create `packages/<name>` with `package.json` (type: module) and `tsconfig.json`.
+2. Add to root `workspaces` and set internal deps using `"workspace:*"`.
+3. Add path alias in `tsconfig.base.json` (e.g., `@name/*`).
+4. Export named APIs only; no default exports.
+5. Add minimal tests and stories (if UI) and run `yarn type-check`.
+6. Build with Turbo and ensure consumers import via alias.
+
+## Versioning & Compatibility
+- Align Expo SDK versions across `apps` and `packages`
+- Pin critical dependencies; use carets only for utilities
+- Document breaking changes in `CHANGELOG.md`
+- Maintain compatibility matrix for major versions (Expo, RN, Next, Node)
+
+## Version Matrix
+| Area          | Current        | Minimum | Source |
+| ------------- | -------------- | ------- | ------ |
+| Node          | 20.x           | 20.x    | `package.json engines.node` |
+| Yarn          | 4.9.3          | 4.0.0   | `package.json packageManager` |
+| Expo SDK      | 53.x           | 53.x    | root/workspace `expo` versions |
+| React Native  | 0.79.x         | 0.79.x  | root `react-native` |
+| React         | 19.x           | 19.x    | root `react` |
+| Next.js       | 15.x           | 15.x    | `apps/next/package.json` |
+| Turbo         | 1.13.x         | 1.13.x  | root `turbo` |
+
+Enforcement:
+- CI validates Node and Yarn versions; local installs should use Corepack.
+- Misaligned versions must be corrected before merging.
+
+## Cross-Links
+- Day-to-day commands, Yarn 4, dependency strategy → `core/development-operations.mdc`
+- Testing policy and checklists → `quality/testing-unified.mdc`
+- Error handling patterns → `quality/error-handling.mdc`
+- Supabase backend conventions → `backend/supabase-backend.mdc`, `backend/supabase-database.mdc`
+
+## First-Hour Checklist (New Contributors)
+- Read this file and `core/development-operations.mdc`
+- Run `yarn install`, `yarn dev`, `yarn type-check`
+- Confirm path aliases in `tsconfig.base.json`
+- Skim `docs/specification/` for PRD/TRD context

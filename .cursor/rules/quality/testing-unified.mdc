@@ -1,7 +1,7 @@
 ---
 description: Unified testing strategy for monorepo
 globs: ["**/*.test.*", "**/*.spec.*", "e2e/**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Testing Strategy

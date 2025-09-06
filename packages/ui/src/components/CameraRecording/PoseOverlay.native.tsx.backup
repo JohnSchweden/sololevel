@@ -30,6 +30,7 @@ import React, { useMemo } from 'react'
 import { View } from 'react-native'
 import {
   Easing,
+  useAnimatedReaction,
   useDerivedValue,
   useSharedValue,
   withTiming,
@@ -79,36 +80,40 @@ export function PoseOverlayNative({
   const animationProgress = useSharedValue(0)
   const glowIntensity = useSharedValue(0)
 
-  // Derived values for render-safe access
-  const animationOpacity = useDerivedValue(() => animationProgress.value)
-  const glowMatrix = useDerivedValue(() => [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, glowIntensity.value, 0])
+  const colorMatrix = useDerivedValue(() => {
+    'worklet'
+    return [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, glowIntensity.value, 0]
+  }, [glowIntensity])
 
   // Update animation when pose changes
-  React.useEffect(() => {
-    if (pose) {
-      animationProgress.value = withTiming(1, {
-        duration: skiaConfig.animationDuration,
-        easing: Easing.out(Easing.quad),
-      })
-      glowIntensity.value = withTiming(1, {
-        duration: skiaConfig.animationDuration / 2,
-        easing: Easing.inOut(Easing.sin),
-      })
-    } else {
-      animationProgress.value = withTiming(0, {
-        duration: skiaConfig.animationDuration / 2,
-      })
-      glowIntensity.value = withTiming(0, {
-        duration: skiaConfig.animationDuration / 4,
-      })
+  useAnimatedReaction(
+    () => pose,
+    (currentPose) => {
+      if (currentPose) {
+        animationProgress.value = withTiming(1, {
+          duration: skiaConfig.animationDuration,
+          easing: Easing.out(Easing.quad),
+        })
+        glowIntensity.value = withTiming(1, {
+          duration: skiaConfig.animationDuration / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      } else {
+        animationProgress.value = withTiming(0, {
+          duration: skiaConfig.animationDuration / 2,
+        })
+        glowIntensity.value = withTiming(0, {
+          duration: skiaConfig.animationDuration / 4,
+        })
+      }
     }
-  }, [pose, animationProgress, glowIntensity, skiaConfig.animationDuration])
+  )
 
-         // Normalize pose coordinates to canvas size
-         const normalizedPose = useMemo(() => {
-           if (!pose) return null
-           return PoseOverlayUtils.normalizeCoordinates(pose, width, height)
-         }, [pose, width, height])
+  // Normalize pose coordinates to canvas size
+  const normalizedPose = useMemo(() => {
+    if (!pose) return null
+    return PoseOverlayUtils.normalizeCoordinates(pose, width, height)
+  }, [pose, width, height])
 
   // Filter pose by confidence
   const filteredPose = useMemo(() => {
@@ -198,9 +203,7 @@ export function PoseOverlayNative({
             <Group>
               <Paint>
                 <Blur blur={skiaConfig.glowRadius} />
-                <ColorMatrix
-                  matrix={glowMatrix}
-                />
+                <ColorMatrix matrix={colorMatrix} />
               </Paint>
               <Path
                 path={skeletonPath}
@@ -235,7 +238,7 @@ export function PoseOverlayNative({
                   p2={{ x: toKeypoint.x, y: toKeypoint.y }}
                   color={overlayConfig.colors.connection}
                   strokeWidth={overlayConfig.connectionWidth}
-                  opacity={animationOpacity}
+                  opacity={animationProgress}
                 />
               </Group>
             )
@@ -257,9 +260,7 @@ export function PoseOverlayNative({
                   <Group>
                     <Paint>
                       <Blur blur={skiaConfig.glowRadius / 2} />
-                      <ColorMatrix
-                  matrix={glowMatrix}
-                />
+                      <ColorMatrix matrix={colorMatrix} />
                     </Paint>
                     <Circle
                       cx={keypoint.x}
@@ -276,7 +277,7 @@ export function PoseOverlayNative({
                   cy={keypoint.y}
                   r={radius}
                   color={color}
-                  opacity={animationOpacity}
+                  opacity={animationProgress}
                 />
 
                 {/* Keypoint border */}
@@ -287,7 +288,7 @@ export function PoseOverlayNative({
                   color="#ffffff"
                   style="stroke"
                   strokeWidth={1}
-                  opacity={animationOpacity}
+                  opacity={animationProgress}
                 />
               </Group>
             )

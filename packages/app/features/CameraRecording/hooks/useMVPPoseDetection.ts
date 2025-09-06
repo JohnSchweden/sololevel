@@ -152,7 +152,9 @@ export function useMVPPoseDetection(
     if (state.isDetecting) {
       stopDetection()
     } else if (state.isEnabled) {
-      startDetection().catch((error) => {})
+      startDetection().catch((error) => {
+        log.error('Failed to start pose detection:', error)
+      })
     }
   }, [state.isDetecting, state.isEnabled, startDetection, stopDetection])
 

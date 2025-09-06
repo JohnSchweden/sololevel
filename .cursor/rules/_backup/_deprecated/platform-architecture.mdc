@@ -1,0 +1,11 @@
+---
+description: DEPRECATED — replaced by core/monorepo-foundation
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# DEPRECATED: Platform Architecture
+
+Replaced by: `core/monorepo-foundation.mdc`
+
+Historical content retained for reference only.

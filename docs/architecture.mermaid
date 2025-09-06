@@ -1,0 +1,142 @@
+graph TB
+    %% Clear System Architecture (Holistic Blueprint)
+
+    %% Users
+    User["👤 Users"]
+
+    %% Client Applications
+    subgraph "Client Applications"
+        ExpoApp["📱 Expo App\nReact Native (iOS/Android)"]
+        NextApp["🌐 Next.js App\nWeb (SSR/SSG)"]
+        ExpoRouter["🧭 Expo Router"]
+        NextRouter["🧭 Next Router"]
+    end
+
+    %% Shared Packages (Monorepo)
+    subgraph "Shared Packages (@my/*)"
+        UIPkg["🎨 @my/ui\nTamagui Components"]
+        AppPkg["⚙️ @my/app\nBusiness Logic, Screens, Hooks"]
+        APIPkg["🔌 @my/api\nSupabase Client & Integrations"]
+        ConfigPkg["🧰 @my/config\nConfig & Types"]
+    end
+
+    %% State & Data Fetching
+    subgraph "State & Data"
+        Zustand["🗃️ Zustand\nClient State"]
+        TSQ["📊 TanStack Query\nServer State, Caching"]
+    end
+
+    %% Backend (Supabase)
+    subgraph "Supabase Backend"
+        Auth["🔐 Auth\nJWT, Sessions"]
+        DB[("🗄️ PostgreSQL\nRLS On")] 
+        Storage["📁 Storage\nVideos, Audio, Assets"]
+        Realtime["⚡ Realtime\nSubscriptions"]
+        EdgeFns["🧩 Edge Functions\nPrivileged Logic"]
+    end
+
+    %% AI Pipeline (Hybrid: Client + Edge)
+    subgraph "AI Analysis Pipeline"
+        Pose["🕺 Pose Detection"]
+        Voice["🎤 Voice Analysis"]
+        LLM["🧠 LLM Feedback"]
+        TTS["🔊 Text-to-Speech"]
+    end
+
+    %% Dev, Build, and Quality
+    subgraph "Dev • Build • Quality"
+        Turbo["⚡ Turbo\nOrchestration"]
+        Yarn["🧶 Yarn 4\nWorkspaces"]
+        TS["📝 TypeScript\nStrict"]
+        Biome["✨ Biome\nLint/Format"]
+        Vitest["🧪 Vitest\nUnit"]
+        Playwright["🎭 Playwright\nE2E"]
+        GHA["⚙️ GitHub Actions\nCI"]
+        EAS["📦 EAS\nNative Builds"]
+        Vercel["▲ Vercel\nWeb Deploy"]
+    end
+
+    %% User Flows
+    User --> ExpoApp
+    User --> NextApp
+
+    %% App Composition
+    ExpoApp --> ExpoRouter
+    NextApp --> NextRouter
+    ExpoApp --> UIPkg
+    NextApp --> UIPkg
+    ExpoApp --> AppPkg
+    NextApp --> AppPkg
+    AppPkg --> APIPkg
+    UIPkg --> ConfigPkg
+    APIPkg --> ConfigPkg
+
+    %% State & Data
+    ExpoApp --> Zustand
+    NextApp --> Zustand
+    ExpoApp --> TSQ
+    NextApp --> TSQ
+
+    %% Backend Access (via @my/api)
+    APIPkg --> Auth
+    APIPkg --> DB
+    APIPkg --> Storage
+    APIPkg --> Realtime
+    APIPkg --> EdgeFns
+
+    %% AI Flow
+    EdgeFns --> Pose
+    EdgeFns --> Voice
+    EdgeFns --> LLM
+    EdgeFns --> TTS
+
+    %% Data Movement
+    Storage <--> EdgeFns
+    EdgeFns --> DB
+    DB --> Realtime
+    Realtime --> TSQ
+
+    %% Tooling Relationships
+    Turbo --> ExpoApp
+    Turbo --> NextApp
+    Turbo --> UIPkg
+    Turbo --> AppPkg
+    Turbo --> APIPkg
+    Yarn --> Turbo
+    TS --> Turbo
+    Biome --> Turbo
+    Vitest --> AppPkg
+    Vitest --> APIPkg
+    Playwright --> ExpoApp
+    Playwright --> NextApp
+    GHA --> Turbo
+    EAS --> ExpoApp
+    Vercel --> NextApp
+
+    %% Styling
+    classDef layerClient fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef layerShared fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef layerState fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef layerBackend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef layerAI fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    classDef layerDev fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+
+    class ExpoApp,NextApp,ExpoRouter,NextRouter layerClient
+    class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
+    class Zustand,TSQ layerState
+    class Auth,DB,Storage,Realtime,EdgeFns layerBackend
+    class Pose,Voice,LLM,TTS layerAI
+    class Turbo,Yarn,TS,Biome,Vitest,Playwright,GHA,EAS,Vercel layerDev
+
+    %% Legend
+    subgraph "Legend"
+        direction LR
+        L1[Client]:::layerClient
+        L2[Shared]:::layerShared
+        L3[State/Data]:::layerState
+        L4[Supabase]:::layerBackend
+        L5[AI]:::layerAI
+        L6[Dev/CI]:::layerDev
+    end
+
+

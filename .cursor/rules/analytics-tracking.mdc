@@ -1,41 +1,32 @@
 ---
-description: This rule explains how to create and update an analytics.md file to track how often .mdc rules is being used.
+description: Track rule usage analytics in .cursor/analytics.md
 globs: [".cursor/analytics.md"]
 alwaysApply: true
 ---
 
-# Cursor Rules Analytics
+# Rule Usage Analytics
 
-**AUTOMATICALLY** track and update rule usage in the analytics file each time you reference or apply a Cursor rule.
-
-File location:
-```
-PROJECT_ROOT/.cursor/analytics.md
-```
-
-## Auto-Update Behavior
-
-When you use any `.mdc` rule:
-1. **Increment** the usage count for that rule
-2. **Update** the last-used timestamp (YYYY-MM-DD format)
-3. **Record** the current task/feature context
-4. **Save** changes to analytics.md immediately
+Track and update rule usage automatically in `.cursor/analytics.md`.
 
 ## Format
-
 ```
-rule-name: <count> [last-used: <date>, context: <brief-description>]
-```
-
-Examples:
-```
-ui/ui-styling-tamagui: 12 [last-used: 2024-12-19, context: component-styling-updates]
-features/data-state-management: 3 [last-used: 2024-12-18, context: zustand-setup]
-backend/supabase-database: 8 [last-used: 2024-12-17, context: schema-migrations]
+rule-name: <count> [last-used: YYYY-MM-DD, context: <brief-description>]
 ```
 
-## Implementation Notes
-- Track rule usage by file path relative to `.cursor/rules/`
-- Remove `.mdc` extension from tracking entries
-- Context should be 2-4 words describing current work
-- Always update analytics.md as part of rule application, not as separate step
+## Auto-Update Process
+1. **Increment** usage count
+2. **Update** timestamp (YYYY-MM-DD)
+3. **Record** context (2-4 words)
+4. **Save** immediately
+
+## Examples
+```
+core/monorepo-foundation: 5 [last-used: 2025-09-06, context: rules-consolidation]
+core/development-operations: 7 [last-used: 2025-09-06, context: rules-consolidation]
+quality/testing-unified: 3 [last-used: 2025-09-06, context: test-setup]
+```
+
+## Rules
+- Use file path relative to `.cursor/rules/` (no `.mdc` extension)
+- Update as part of rule application, not separately
+- Context describes current work focus

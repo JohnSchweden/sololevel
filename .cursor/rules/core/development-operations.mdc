@@ -1,0 +1,193 @@
+---
+description: Development operations & package management
+alwaysApply: true
+globs:
+  - "**/package.json"
+  - "yarn.lock"
+  - "turbo.json"
+  - ".github/workflows/**"
+  - "biome*.json"
+  - "tsconfig*.json"
+  - "scripts/**"
+  - "apps/**/app.json"
+  - "apps/**/metro.config.js"
+  - "apps/**/babel.config.js"
+  - "apps/**/next.config.js"
+  - "apps/**/next-i18next.config.js"
+  - "apps/**/eas.json"
+  - "supabase/**"
+---
+
+## Purpose
+Operational rules for day-to-day development: commands, Yarn 4 workspaces, dependency strategy, testing and CI gates. Pairs with `core/monorepo-foundation.mdc` for architecture and structure.
+
+## Meta
+- Rule Owner: Platform
+- Last Reviewed: 2025-09-06
+- Related: `core/monorepo-foundation.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `core/typescript-standards.mdc`, `core/development-workflow.mdc`
+
+## Essential Commands
+```bash
+# Development
+yarn dev              # Start all dev servers (Turbo)
+yarn build            # Build all packages (Turbo)
+yarn type-check       # TypeScript validation
+yarn native           # Start Expo app
+yarn web              # Start Next.js app
+
+# Workspace ops
+yarn workspace <name> add <package>
+yarn workspace <name> run <script>
+yarn workspaces list
+
+# Supabase CLI
+yarn dlx supabase <command>
+```
+
+## Yarn 4 Workspace Management
+- Always use Yarn (v4+). Never use npm/pnpm/npx
+- Workspace protocol for internal deps: "@my/ui": "workspace:*"
+- Recommended config: `nodeLinker: node-modules`, `enableGlobalCache: true`
+- Troubleshooting: `yarn cache clean`, `yarn dlx @yarnpkg/doctor`, `yarn explain peer-requirements`
+
+## Dependency Strategy
+### Installation Patterns
+```bash
+# Shared UI components
+yarn workspace @my/ui add <ui-package>
+
+# Shared business logic
+yarn workspace app add <business-logic>
+
+# Web/Native specific
+yarn workspace next add <web-only>
+yarn workspace expo add <native-only>
+
+# Root dev tools
+yarn add -D -W <dev-tool>
+```
+
+### Categories
+- Core: React, React Native, Expo, Next.js, TypeScript
+- UI: Tamagui, Expo Router, Lucide React
+- Backend: Supabase client/CLI
+- State: Zustand, TanStack Query, React Hook Form
+- Dev/Test: Turbo, Vitest, Biome, Playwright, React Testing Library
+
+### Version Management
+- Pin exact versions for critical deps; carets only for utilities
+- Align Expo SDK across apps/packages
+- Batch updates; document breaking changes in `CHANGELOG.md`
+
+### Peer Dependencies & Resolutions
+```json
+{
+  "resolutions": {
+    "some-problematic-dep": "1.2.3"
+  },
+  "packageExtensions": {
+    "broken-dep@^2.0.0": {
+      "peerDependencies": {
+        "react": ">=18"
+      }
+    }
+  }
+}
+```
+
+### Dependency Validation Checklist
+- [ ] Compatible with React Native (check react-native-directory)
+- [ ] Compatible with Expo managed workflow
+- [ ] TypeScript support or @types package available
+- [ ] Bundle size impact acceptable
+- [ ] No conflicting peer dependencies
+- [ ] Security vulnerabilities checked (`yarn npm audit`)
+- [ ] License compatibility verified
+
+### Workspace Focus & Diagnostics
+- `yarn workspaces focus <workspace>`: speeds up installs by focusing deps for one workspace; do not use on CI; run a full `yarn install` before commit.
+- `yarn why <package>`: detect duplicate/hoisted versions and why they’re present.
+- `yarn explain peer-requirements <hash>`: resolve peer dependency issues with actionable guidance.
+- `yarn install --mode update-lockfile`: only in upgrade/renovation PRs to refresh the lockfile; never in feature PRs.
+
+### Peer Dependency Policy
+- Do not hide Yarn warnings (YN0060, YN0086, YN0069). Fix via `resolutions` or `packageExtensions` instead of `logFilters`.
+
+### Lockfile Policy (CI)
+- Use `yarn install --immutable` for reproducible CI installs.
+- Allow `--mode update-lockfile` only in dependency update branches.
+- Feature PRs must not modify `yarn.lock` unless intentionally fixing dependency health.
+
+## Testing Policy (from unified testing rule)
+- Test-to-code ratio ≤ 1:2
+- Tests target user behavior, not implementation
+- Only critical user flows are tested
+- Minimal mocking (external deps only)
+- Avoid testing internal hook calls or state transitions
+
+## Quality Gates
+- Biome for linting/formatting
+- TypeScript strict mode; `yarn type-check` must pass pre-commit/CI
+- Security: `yarn npm audit` on CI; resolve high severities promptly
+
+## CI/CD
+Example (GitHub Actions):
+```yaml
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: corepack enable
+      - run: yarn --version
+      - run: yarn install --immutable
+      - run: yarn type-check
+      - run: yarn lint
+      - run: yarn build
+      - run: yarn security:audit:ci
+```
+
+## Commit Hooks
+- Husky pre-commit hook:
+```bash
+# .husky/pre-commit
+yarn type-check && yarn lint
+```
+- Optionally add lint-staged to run Biome only on changed files.
+
+## Typical Developer Loop
+1. `yarn dev` to start Turbo pipelines
+2. Implement feature in `packages/app` and/or `packages/ui`
+3. `yarn type-check` and unit tests locally
+4. Run web/native as needed: `yarn web`, `yarn native`
+5. Commit with lint-staged hooks; open PR with CI checks
+
+## Supabase Local Development
+- Use `yarn dlx supabase start` to run local stack
+- Edge Functions: `yarn dlx supabase functions serve`
+- Check DB/Edge logs before escalating issues
+
+### Supabase Patterns (Edge vs Client)
+- Use Edge Functions for privileged logic, secrets, or admin policies; keep secrets out of clients.
+- Use direct client calls for simple CRUD guarded by RLS.
+
+## Troubleshooting & Health Checks
+- Reinstall: remove `node_modules` and `yarn.lock`, then `yarn install`
+- Integrity: `yarn workspaces foreach run build --check-cache`
+- Dedupe: `yarn dedupe`
+
+## Cross-Links
+- Architecture & structure → `core/monorepo-foundation.mdc`
+- Error handling patterns → `quality/error-handling.mdc`
+- Performance optimization → `quality/performance.mdc`
+- TypeScript rules → `core/typescript-standards.mdc`
+
+## Security & Maintenance
+- Use Renovate/Dependabot for regular dependency updates.
+- Run `yarn npm audit` on CI and fix high severities promptly.
+

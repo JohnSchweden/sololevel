@@ -57,7 +57,7 @@ const { data } = useQuery({ queryKey: ['posts'], queryFn: fetchPosts })
 // ✅ Good
 const { data, error } = await supabase.from('posts').select()
 if (error) {
-  console.error('Failed to fetch posts:', error)
+  log.error('Failed to fetch posts:', error)
   return { success: false, message: 'Failed to load posts' }
 }
 

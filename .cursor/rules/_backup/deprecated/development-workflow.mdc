@@ -1,7 +1,7 @@
 ---
 description: Development Workflow with yarn
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Development Workflow Rules

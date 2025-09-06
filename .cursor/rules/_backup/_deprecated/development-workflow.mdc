@@ -1,0 +1,11 @@
+---
+description: DEPRECATED — replaced by core/development-operations
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# DEPRECATED: Development Workflow Rules
+
+Replaced by: `core/development-operations.mdc`
+
+Historical content retained for reference only.

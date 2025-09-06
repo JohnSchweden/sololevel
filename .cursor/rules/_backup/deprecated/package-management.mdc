@@ -1,7 +1,7 @@
 ---
 description: Package Management with yarn and Project Dependencies
 globs: ["**/*", "package.json", "**/package.json", "yarn.lock", "turbo.json"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Package Management & Project Dependencies

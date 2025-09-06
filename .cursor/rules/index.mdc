@@ -1,27 +1,19 @@
 ---
 description: Automatic rule discovery and application index for monorepo
-globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Cursor Rules Index
 
 **AUTOMATICALLY** discover and apply relevant rules based on context, file patterns, and task type.
 
 ## Rule Discovery Patterns
 
-### Core Rules (Always Apply)
-- **master-monorepo-config**: Base configuration for all monorepo work
-- **analytics-tracking**: Track rule usage automatically
-- **package-management**: Dependency and workspace management
-
 ### Context-Specific Rules
 
 #### Package Management Context
 **Triggers**: `package.json`, `yarn.lock`, `turbo.json`, dependency analysis
 **Rules to Apply**:
-- `package-management`: Dependency validation and workspace operations
-- `core/master-monorepo-config`: Core monorepo patterns
+- No additional rules needed (foundation rules provide package management guidance)
 
 #### UI Development Context  
 **Triggers**: `packages/ui/**/*`, `**/components/**/*`, UI-related files
@@ -29,7 +21,6 @@ alwaysApply: true
 - `ui/ui-styling-tamagui`: Tamagui component guidelines
 - `ui/platform-specific`: Platform-specific UI patterns
 - `quality/storybook`: Component documentation
-- `core/master-monorepo-config`: Base configuration
 
 #### AI Integration Context
 **Triggers**: AI features, video analysis, pose detection, voice processing
@@ -37,7 +28,6 @@ alwaysApply: true
 - `ai/ai-integration`: AI Coach specific integrations
 - `ai/ai-state-management`: AI coaching state management
 - `ai/media-capture-platform`: Platform-specific media capture
-- `core/master-monorepo-config`: Base configuration
 
 #### Backend Development Context
 **Triggers**: `packages/api/**/*`, `supabase/**/*`, backend files
@@ -45,7 +35,6 @@ alwaysApply: true
 - `backend/supabase-backend`: Supabase architecture patterns
 - `backend/supabase-database`: Database conventions
 - `quality/security-best-practices`: Security guidelines
-- `core/master-monorepo-config`: Base configuration
 
 #### Feature Development Context
 **Triggers**: `packages/app/**/*`, `apps/**/*`, feature files
@@ -54,7 +43,6 @@ alwaysApply: true
 - `features/data-state-management`: State management
 - `features/authentication`: Auth patterns with Supabase
 - `features/api-mocking`: Offline/dev flows
-- `core/master-monorepo-config`: Base configuration
 
 #### Quality Assurance Context
 **Triggers**: `**/*.{test,spec}.*`, testing files, error handling
@@ -64,51 +52,47 @@ alwaysApply: true
 - `quality/performance`: Performance optimization
 - `quality/debugging`: Systematic debugging workflow
 - `quality/codegen-templates`: Standard scaffolds
-- `core/master-monorepo-config`: Base configuration
 
 #### Development Workflow Context
 **Triggers**: `**/*.{ts,tsx}`, development files
 **Rules to Apply**:
-- `core/development-workflow`: Development patterns
 - `core/typescript-standards`: TypeScript guidelines
-- `core/platform-architecture`: Architecture decisions
 - `core/github-integration`: GitHub workflow
 - `task-lists`: Task management
-- `core/master-monorepo-config`: Base configuration
 
 ## Auto-Application Logic
 
 ### File Pattern Matching
 ```yaml
 # Package management
-- package.json, yarn.lock, turbo.json → package-management + core/master-monorepo-config
+- package.json, yarn.lock, turbo.json → analytics-tracking
 
 # UI components  
-- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + storybook + core/master-monorepo-config
+- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + storybook
 
 # AI features
-- **/ai/**/* → ai-integration + ai-state-management + media-capture-platform + core/master-monorepo-config
+- **/ai/**/* → ai-integration + ai-state-management + media-capture-platform
 
 # Backend/API
-- packages/api/**/*, supabase/**/* → supabase-backend + supabase-database + security-best-practices + core/master-monorepo-config
+- packages/api/**/*, supabase/**/* → supabase-backend + supabase-database + security-best-practices
 
 # Features/apps
-- packages/app/**/*, apps/**/* → navigation-expo-router + data-state-management + authentication + core/master-monorepo-config
+- packages/app/**/*, apps/**/* → navigation-expo-router + data-state-management + authentication
 
 # Testing
-- **/*.{test,spec}.* → testing-unified + error-handling + performance + debugging + core/master-monorepo-config
+- **/*.{test,spec}.* → testing-unified + error-handling + performance + debugging
 
 # Stories/documentation
-- **/*.stories.* → storybook + ui-styling-tamagui + core/master-monorepo-config
+- **/*.stories.* → storybook + ui-styling-tamagui
 
 # Development
-- **/*.{ts,tsx} → development-workflow + typescript-standards + platform-architecture + github-integration + core/master-monorepo-config
+- **/*.{ts,tsx} → typescript-standards + github-integration
 ```
 
 ### Task Context Detection
 ```yaml
 # Dependency analysis
-- "dependency", "package", "yarn", "install" → package-management
+- "dependency", "package", "yarn", "install" → analytics-tracking
 
 # UI development
 - "component", "ui", "tamagui", "styling" → ui-styling-tamagui + storybook
@@ -144,16 +128,20 @@ alwaysApply: true
 - "mock", "offline", "dev" → api-mocking
 ```
 
+Rules are automatically applied based on:
+- **File patterns** matching the triggers in each context section above
+- **Task keywords** in user queries matching the context descriptions
+- **Always-apply rules** that provide the foundation layer
+
 ## Rule Precedence
 
-1. **master-monorepo-config**: Base layer (always first)
-2. **analytics-tracking**: Analytics tracking (always second)
-3. **Context-specific rules**: Applied based on file/task context
-4. **Specialized rules**: Applied for specific patterns
+1. **Always-apply rules**: `core/monorepo-foundation`, `core/development-operations`, `analytics-tracking`
+2. **Context-specific rules**: Applied based on file/task context
+3. **Specialized rules**: Applied for specific patterns
 
 ## Conflict Resolution
 
-- **Always apply** `master-monorepo-config` as base
+- **Always-apply rules** provide the foundation layer
 - **Context-specific rules** override base patterns when applicable
 - **More specific globs** take precedence over broader patterns
 - **Task context** determines rule priority

@@ -89,7 +89,7 @@ npx expo install --fix
 ```javascript
 // In React DevTools or console
 import { useFeatureFlagsStore } from './packages/app/stores/feature-flags'
-console.log(useFeatureFlagsStore.getState().flags.useVisionCamera)
+log.info(useFeatureFlagsStore.getState().flags.useVisionCamera)
 ```
 
 ### Check Environment Variables

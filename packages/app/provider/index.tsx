@@ -10,7 +10,6 @@ const getActionSheetProvider = () => {
   }
 }
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
-import { View } from 'react-native'
 import { useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'

@@ -86,9 +86,9 @@ export const usePoseDetectionWeb = () => {
         await tf.setBackend('webgpu');
         await tf.ready();
         setBackend('webgpu');
-        console.log('Using WebGPU backend - Maximum performance');
+        log.info('Using WebGPU backend - Maximum performance');
       } catch (error) {
-        console.log('WebGPU not available, falling back to WebGL');
+        log.info('WebGPU not available, falling back to WebGL');
         try {
           await tf.setBackend('webgl');
           await tf.ready();
@@ -97,7 +97,7 @@ export const usePoseDetectionWeb = () => {
           await tf.setBackend('cpu');
           await tf.ready();
           setBackend('cpu');
-          console.warn('Using CPU backend - Performance will be limited');
+          log.warn('Using CPU backend - Performance will be limited');
         }
       }
 
@@ -156,7 +156,7 @@ export const usePoseDetectionWeb = () => {
         addPerformanceMetric({ processingTime, timestamp });
       }
     } catch (error) {
-      console.error('Pose detection error:', error);
+      log.error('Pose detection error:', error);
     }
   }, [detector, updatePose, addPerformanceMetric]);
 
@@ -292,7 +292,7 @@ export const useEnhancedCamera = () => {
       const { type, result } = event.data;
       if (type === 'POSE_DETECTED' && result) {
         // Handle pose detection result
-        console.log('Pose detected in worker:', result);
+        log.info('Pose detected in worker:', result);
       }
     };
 
@@ -332,7 +332,7 @@ export const useEnhancedCamera = () => {
       startFrameProcessing();
       
     } catch (error) {
-      console.error('Camera initialization failed:', error);
+      log.error('Camera initialization failed:', error);
     }
   }, [qualitySettings]);
 
@@ -577,7 +577,7 @@ export const useWebRecording = (
       mediaRecorderRef.current.start(100); // Collect data every 100ms
       
     } catch (error) {
-      console.error('Failed to start video recording:', error);
+      log.error('Failed to start video recording:', error);
     }
   }, [videoRef]);
 
@@ -590,9 +590,9 @@ export const useWebRecording = (
       poseBufferRef.current.clear();
       startRecording(); // Shared store action
       
-      console.log('Combined web recording started');
+      log.info('Combined web recording started');
     } catch (error) {
-      console.error('Failed to start combined recording:', error);
+      log.error('Failed to start combined recording:', error);
     }
   }, [startVideoRecording, startRecording]);
 
@@ -615,9 +615,9 @@ export const useWebRecording = (
 
       stopRecording(); // Shared store action
       
-      console.log('Combined web recording stopped');
+      log.info('Combined web recording stopped');
     } catch (error) {
-      console.error('Failed to stop combined recording:', error);
+      log.error('Failed to stop combined recording:', error);
     }
   }, [stopRecording]);
 

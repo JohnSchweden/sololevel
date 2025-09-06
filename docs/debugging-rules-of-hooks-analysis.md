@@ -50,7 +50,7 @@ Despite architectural fixes, there may still be conditional logic in:
    ```typescript
    let hookPosition = 0;
    const trackHook = (name: string) => {
-     console.log(`Hook ${++hookPosition}: ${name}`);
+     log.info(`Hook ${++hookPosition}: ${name}`);
    };
    ```
 
@@ -66,14 +66,14 @@ Despite architectural fixes, there may still be conditional logic in:
 1. **Log all callback dependencies**:
    ```typescript
    const handleCallback = useCallback(() => {
-     console.log('Callback deps:', { onNavigateBack, cameraRef, cameraReady });
+     log.info('Callback deps:', { onNavigateBack, cameraRef, cameraReady });
    }, [onNavigateBack, cameraRef, cameraReady]);
    ```
 
 2. **Track object reference stability**:
    ```typescript
    useEffect(() => {
-     console.log('CameraControls changed:', cameraControls);
+     log.info('CameraControls changed:', cameraControls);
    }, [cameraControls]);
    ```
 
@@ -92,7 +92,7 @@ Add temporary logging to identify exact hook at position 18:
 // In CameraRecordingScreen.expo.tsx
 let hookCount = 0;
 const logHook = (name: string) => {
-  console.log(`Hook ${++hookCount}: ${name}`);
+  log.info(`Hook ${++hookCount}: ${name}`);
   return hookCount;
 };
 
@@ -126,7 +126,7 @@ The `cameraControls` object changes were addressed, but verify complete stabilit
 ```typescript
 // Add logging to track changes
 useEffect(() => {
-  console.log('CameraControls stability check:', {
+  log.info('CameraControls stability check:', {
     isReady: cameraControls?.isReady,
     hasStartRecording: !!cameraControls?.startRecording,
     refCount: cameraRef?.current ? 'present' : 'null'

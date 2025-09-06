@@ -368,10 +368,10 @@ export const useOptimizedRecording = (camera: React.RefObject<Camera>) => {
       quality: 'hd',
       videoBitRate: 'high',
       onRecordingFinished: (video) => {
-        console.log('Video recording finished:', video.path);
+        log.info('Video recording finished:', video.path);
       },
       onRecordingError: (error) => {
-        console.error('Video recording error:', error);
+        log.error('Video recording error:', error);
       },
     });
 
@@ -399,9 +399,9 @@ export const useOptimizedRecording = (camera: React.RefObject<Camera>) => {
         startPoseRecording(),
       ]);
       
-      console.log('Combined recording started successfully');
+      log.info('Combined recording started successfully');
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      log.error('Failed to start recording:', error);
     }
   }, [startVideoRecording, startPoseRecording]);
 
@@ -421,9 +421,9 @@ export const useOptimizedRecording = (camera: React.RefObject<Camera>) => {
 
       stopRecording();
       
-      console.log('Combined recording stopped successfully');
+      log.info('Combined recording stopped successfully');
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      log.error('Failed to stop recording:', error);
     }
   }, [camera, stopRecording]);
 

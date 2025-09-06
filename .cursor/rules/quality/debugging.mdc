@@ -98,11 +98,11 @@ alwaysApply: false
 ```typescript
 // Development-only logging
 if (__DEV__) {
-  console.log('Debug info:', { state, props, context })
+  log.info('Debug info:', { state, props, context })
 }
 
 // Error logging with context
-console.error('Operation failed:', { error, context, user })
+log.error('Operation failed:', { error, context, user })
 ```
 
 ### Zustand Debugging
@@ -124,8 +124,8 @@ const useStore = create<State>()(
 const query = useQuery({
   queryKey: ['data'],
   queryFn: fetchData,
-  onSuccess: (data) => console.log('Query success:', data),
-  onError: (error) => console.error('Query error:', error),
+  onSuccess: (data) => log.info('Query success:', data),
+  onError: (error) => log.error('Query error:', error),
 })
 ```
 
@@ -134,6 +134,6 @@ const query = useQuery({
 // Safe parsing with error logging
 const result = schema.safeParse(data)
 if (!result.success) {
-  console.error('Validation failed:', result.error.issues)
+  log.error('Validation failed:', result.error.issues)
 }
 ```
