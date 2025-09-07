@@ -65,11 +65,9 @@ flowchart TD
 ```
 
 * **Technology Stack**:
-  - Frontend: Expo (React Native), Next.js, Tamagui
-  - State/Server State: Zustand, TanStack Query
-  - Backend: Supabase (Postgres, Auth, Realtime, Storage), Edge Functions (Deno)
-  - AI: Pose (MediaPipe/TensorFlow), ASR/Voice metrics, LLM for text, TTS (e.g., Polly/GCP)
-  - Tooling: Turbo, Yarn, Jest/Vitest, Playwright
+  - See `core/monorepo-foundation.mdc` for general tech stack (Expo + Next.js, Tamagui, Zustand, TanStack Query, Expo Router, TypeScript, Yarn 4 + Turbo)
+  - **Product-specific**: AI analysis pipeline (Pose via @mediapipe/pose + @tensorflow/tfjs, ASR/Voice metrics, LLM for text, TTS via Polly/GCP)
+  - **Video Capture**: react-native-vision-camera for mobile recording
 * **Data Flow**:
   1. Client records or selects a video
   2. Client uploads to Storage bucket `raw` via signed URL
@@ -136,14 +134,14 @@ flowchart TD
 ---
 
 ## Security Considerations
-* **Threat Model**:
+* **General Security**: See `core/monorepo-foundation.mdc` and `quality/security-best-practices.mdc`
+* **Product-specific Threats**:
   - Unauthorized access to videos/artifacts → mitigate with signed URLs short TTL and RLS
   - Prompt/response injection in LLM calls → sanitize inputs, allowlist outputs, cap tokens
   - Abuse (large uploads, job storms) → size limits, rate limiting, quotas per user
-* **Authentication and Authorization**:
-  - Supabase Auth JWT; all tables RLS-enabled; owner-only access to analyses
-* **Data Encryption**:
-  - TLS in transit; at rest via Supabase Storage/PG encryption; do not store raw PII in logs
+* **Product-specific Security**:
+  - Owner-only access to analyses via RLS policies
+  - Do not store raw PII in logs
 
 ---
 
@@ -158,20 +156,20 @@ flowchart TD
 ---
 
 ## Testing Strategy
-* **Unit Testing**: business logic, stores, hooks; Zod schemas
-* **Integration Testing**: upload flow mock, analysis hook lifecycle (success/error/timeouts)
-* **Performance Testing**: 60s sample videos across network profiles; measure end-to-end < 10s median
-* **Security Testing**: RLS policy checks, signed URL TTL, auth path coverage
-* **UAT**: Verify wireflow screens and interactions on iOS/Android and web
+* **General Testing**: See `quality/testing-unified.mdc` for unit/integration testing patterns
+* **Product-specific Testing**:
+  - Performance: 60s sample videos across network profiles; measure end-to-end < 10s median
+  - Security: RLS policy checks, signed URL TTL, auth path coverage
+  - UAT: Verify wireflow screens and interactions on iOS/Android and web
 
 ---
 
 ## Deployment Plan
 * **Environment Setup**:
-  - Local: `yarn dev` with local Supabase; env via `.env.local`
+  - See `core/development-operations.mdc` for local development setup
   - Staging/Prod: Supabase projects per environment; secrets in CI
 * **Deployment Pipeline**:
-  - Turbo monorepo; checks: `yarn build`, `yarn type-check`, tests
+  - See `core/development-operations.mdc` for build commands and CI patterns
   - Edge Functions CI: bundle and deploy via Supabase CLI
 * **Rollout Strategy**:
   - Phased: internal test → beta → GA; feature flags for TTS

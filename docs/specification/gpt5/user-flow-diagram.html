@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo:Level User Flow Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .mermaid {
+            text-align: center;
+        }
+        .legend {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .legend ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .legend li {
+            margin: 5px 0;
+        }
+        .scope {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+        }
+        .scope h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Solo:Level MVP - User Flow Diagram</h1>
+        
+        <div class="mermaid">
+flowchart TD
+  A[App Open] --> B{Authenticated?}
+  B -- No --> C[Onboarding / Sign In]
+  C --> D[Home: Record or Upload]
+  B -- Yes --> D[Home: Record or Upload]
+
+  subgraph Capture
+    D --> E[Record Video]
+    D --> F[Upload Video]
+    E --> G{<= 60s?}
+    F --> G
+    G -- No --> H[Trim to <= 60s]
+    H --> G
+    G -- Yes --> I[Prepare for analysis]
+  end
+
+  I --> J[AI Analysis: voice, motion, content]
+  J --> K{Timeout > 10s or error?}
+  K -- Yes --> L[Show error + retry]
+  L --> D
+  K -- No --> M[Feedback: Text, Audio, Metrics]
+
+  subgraph Feedback_Actions [Feedback & Actions]
+    M --> N{What next?}
+    N -- Save --> O[Save to History & Profile]
+    N -- Share --> P[Share to social / export]
+    N -- Retry --> D
+  end
+
+  O --> Q[Review Session]
+  Q --> R[Progress: Trends & Metrics]
+  R --> D
+
+  D --> S[Profile & Settings]
+  S --> T[History]
+  T --> U[Open Session]
+  U --> M
+
+  %% Optional offline capture
+  D --> V{Offline?}
+  V -- Yes --> W[Record & queue upload]
+  W --> D
+  V -- No --> D
+
+  %% P1 / P2 scope markers
+  M --> X[Challenge friend - P1]
+  R --> Y[Advanced analytics - P1]
+  S --> Z[Premium features - P2]
+        </div>
+
+        <div class="legend">
+            <h3>Flow Overview</h3>
+            <ul>
+                <li><strong>Authentication:</strong> Users can sign in or go through onboarding</li>
+                <li><strong>Video Capture:</strong> Record or upload videos (max 60 seconds)</li>
+                <li><strong>AI Analysis:</strong> Multi-modal analysis of voice, motion, and content</li>
+                <li><strong>Feedback:</strong> Text, audio, and quantitative metrics</li>
+                <li><strong>Actions:</strong> Save, share, or retry based on feedback</li>
+                <li><strong>Progress:</strong> Track improvements over time</li>
+                <li><strong>Offline:</strong> Record videos when offline, upload when connected</li>
+            </ul>
+        </div>
+
+        <div class="scope">
+            <h4>Feature Scope</h4>
+            <ul>
+                <li><strong>P0 (Must Have):</strong> Core video capture, AI analysis, feedback generation</li>
+                <li><strong>P1 (Should Have):</strong> Social features, advanced analytics</li>
+                <li><strong>P2 (Nice to Have):</strong> Premium features, custom models</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>

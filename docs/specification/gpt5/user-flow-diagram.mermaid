@@ -1,0 +1,50 @@
+flowchart TD
+  A[App Open] --> B{Authenticated?}
+  B -- No --> C[Onboarding / Sign In]
+  C --> D[Home: Record or Upload]
+  B -- Yes --> D[Home: Record or Upload]
+
+  subgraph Capture
+    D --> E[Record Video]
+    D --> F[Upload Video]
+    E --> G{<= 60s?}
+    F --> G
+    G -- No --> H[Trim to <= 60s]
+    H --> G
+    G -- Yes --> I[Prepare for analysis]
+  end
+
+  I --> J[AI Analysis: voice, motion, content]
+  J --> K{Timeout > 10s or error?}
+  K -- Yes --> L[Show error + retry]
+  L --> D
+  K -- No --> M[Feedback: Text, Audio, Metrics]
+
+  subgraph Feedback_Actions [Feedback & Actions]
+    M --> N{What next?}
+    N -- Save --> O[Save to History & Profile]
+    N -- Share --> P[Share to social / export]
+    N -- Retry --> D
+  end
+
+  O --> Q[Review Session]
+  Q --> R[Progress: Trends & Metrics]
+  R --> D
+
+  D --> S[Profile & Settings]
+  S --> T[History]
+  T --> U[Open Session]
+  U --> M
+
+  %% Optional offline capture
+  D --> V{Offline?}
+  V -- Yes --> W[Record & queue upload]
+  W --> D
+  V -- No --> D
+
+  %% P1 / P2 scope markers
+  M --> X[Challenge friend - P1]
+  R --> Y[Advanced analytics - P1]
+  S --> Z[Premium features - P2]
+
+

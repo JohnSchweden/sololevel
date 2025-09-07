@@ -8,14 +8,16 @@ graph TB
     subgraph "📱 Client Applications"
         subgraph "Expo App<br/>(React Native)"
             ExpoApp[📱 Expo App<br/>iOS/Android]
-            ExpoRouter[🏗️ Expo Router<br/>File-based Routing]
             VisionCam[📷 Vision Camera<br/>Native Camera]
         end
 
         subgraph "Next.js App<br/>(Web)"
             NextApp[🌐 Next.js App<br/>SSR/SSG]
-            NextRouter[🏗️ Next.js Router<br/>App Router]
             MediaPipe[🤖 MediaPipe<br/>Web Pose Detection]
+        end
+
+        subgraph "Universal Routing"
+            ExpoRouter[🏗️ Expo Router<br/>File-based Routing<br/>Cross-platform]
         end
     end
 
@@ -113,7 +115,7 @@ graph TB
     User --> NextApp
 
     ExpoApp --> ExpoRouter
-    NextApp --> NextRouter
+    NextApp --> ExpoRouter
 
     ExpoApp --> VisionCam
     NextApp --> MediaPipe
@@ -198,7 +200,7 @@ graph TB
     classDef devLayer fill:#e0f2f1,stroke:#00695c,stroke-width:2px
 
     class User userLayer
-    class ExpoApp,NextApp,ExpoRouter,NextRouter,VisionCam,MediaPipe clientLayer
+    class ExpoApp,NextApp,ExpoRouter,VisionCam,MediaPipe clientLayer
     class Tamagui,Components,Theme,Features,Hooks,Stores,Validation,SupabaseClient,TanStackQuery,Realtime sharedLayer
     class PostgreSQL,RLS,RealtimeDB,SupabaseStorage,CDN,AIFunctions,AuthFunctions,ProcessingFunctions,SupabaseAuth,UserManagement backendLayer
     class TensorFlow,VisionCameraAI,MediaPipeWeb,WebAudioAPI,ExpoAV,VoiceProcessing,LLMService,TTSService,FeedbackEngine aiLayer

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo:Level User Flow Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .content {
+            padding: 30px;
+        }
+        .diagram-container {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .journey-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .journey-section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .journey-steps {
+            list-style: none;
+            padding: 0;
+        }
+        .journey-steps li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .journey-steps li:last-child {
+            border-bottom: none;
+        }
+        .step-arrow {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .tech-specs {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .tech-specs h3 {
+            margin-top: 0;
+            color: #2d5a2d;
+        }
+        .metrics {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .metrics h3 {
+            margin-top: 0;
+            color: #e65100;
+        }
+        .mermaid {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Solo:Level User Flow</h1>
+            <p>AI Feedback Coach App - Complete User Journey</p>
+        </div>
+        
+        <div class="content">
+            <h2>User Flow Overview</h2>
+            <p>The Solo:Level app follows a mobile-first design with four main user journeys that create an engaging, AI-powered feedback experience.</p>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e1f5fe;"></div>
+                    <span><strong>Entry Points</strong> - App launch and initial navigation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f3e5f5;"></div>
+                    <span><strong>Main Flow</strong> - Core navigation and presentation selection</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffebee;"></div>
+                    <span><strong>Recording Flow</strong> - Video recording and AI coach interaction</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e8f5e8;"></div>
+                    <span><strong>Insights Flow</strong> - Performance analysis and feedback</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #fff3e0;"></div>
+                    <span><strong>Settings Flow</strong> - App management and preferences</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f1f8e9; border-style: dashed;"></div>
+                    <span><strong>AI Processing</strong> - Background analysis and feedback generation</span>
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="mermaid">
+flowchart TD
+    %% Entry Points
+    Start([User Opens App]) --> Home[Home Screen<br/>List of Presentations]
+    
+    %% Home Screen Actions
+    Home --> |Tap Presentation| PresentationDetail[Presentation Detail<br/>Coach/Insights Tabs]
+    Home --> |Tap Filter| SearchFilter[Search/Filter Options]
+    Home --> |Tap Settings| Settings[Settings Menu]
+    
+    %% Search/Filter Flow
+    SearchFilter --> |Apply Filters| Home
+    SearchFilter --> |Back| Home
+    
+    %% Settings Flow
+    Settings --> |Tap Menu Item| SettingsSub[Settings Sub-screens<br/>Account, Notifications, etc.]
+    SettingsSub --> |Back| Settings
+    Settings --> |Back| Home
+    Settings --> |Log Out| Logout[Log Out]
+    
+    %% Presentation Detail - Coach Tab Flow
+    PresentationDetail --> |Coach Tab| CoachView[Coach View<br/>Record/Review Options]
+    
+    %% Recording Flow
+    CoachView --> |Tap Record| RecordingActive[Recording Active<br/>Stop/Pause Controls]
+    RecordingActive --> |Tap Pause| RecordingPaused[Recording Paused<br/>Resume/Stop Options]
+    RecordingPaused --> |Tap Resume| RecordingActive
+    RecordingPaused --> |Tap Stop| RecordingStopped[Recording Stopped<br/>Review/Save/Discard]
+    RecordingActive --> |Tap Stop| RecordingStopped
+    
+    %% Post-Recording Actions
+    RecordingStopped --> |Tap Save| CoachView
+    RecordingStopped --> |Tap Discard| CoachView
+    RecordingStopped --> |Tap Review| VideoPlayback[Video Playback<br/>Play/Pause/Controls]
+    
+    %% Video Playback Flow
+    VideoPlayback --> |Tap Play| VideoPlaying[Video Playing<br/>Pause/Rewind/Forward]
+    VideoPlaying --> |Tap Pause| VideoPlayback
+    VideoPlayback --> |Back| CoachView
+    VideoPlaying --> |Back| CoachView
+    
+    %% Coach Chat Flow
+    CoachView --> |Tap Chat| CoachChat[Coach Chat<br/>AI Feedback Interface]
+    CoachChat --> |Send Message| CoachResponse[Coach Response<br/>AI Feedback]
+    CoachResponse --> |Continue Chat| CoachChat
+    CoachChat --> |Back| CoachView
+    
+    %% Presentation Detail - Insights Tab Flow
+    PresentationDetail --> |Insights Tab| InsightsOverview[Insights Overview<br/>Score & Radar Chart]
+    
+    %% Insights Flow
+    InsightsOverview --> |Scroll Down| InsightsDetailed[Detailed Feedback<br/>Text Recommendations]
+    InsightsDetailed --> |Scroll Down| ActionPlan[Action Plan<br/>Personalized Steps]
+    ActionPlan --> |Scroll Up| InsightsDetailed
+    InsightsDetailed --> |Scroll Up| InsightsOverview
+    InsightsOverview --> |Back| Home
+    InsightsDetailed --> |Back| Home
+    ActionPlan --> |Back| Home
+    
+    %% Navigation Between Tabs
+    CoachView --> |Switch to Insights| InsightsOverview
+    InsightsOverview --> |Switch to Coach| CoachView
+    
+    %% AI Processing (Background)
+    RecordingStopped -.-> |AI Analysis| AIProcessing[AI Processing<br/>Voice, Movement, Content]
+    AIProcessing -.-> |Generate Feedback| CoachResponse
+    AIProcessing -.-> |Generate Metrics| InsightsOverview
+    
+    %% Styling
+    classDef entryPoint fill:#e1f5fe
+    classDef mainFlow fill:#f3e5f5
+    classDef recordingFlow fill:#ffebee
+    classDef insightsFlow fill:#e8f5e8
+    classDef settingsFlow fill:#fff3e0
+    classDef aiProcess fill:#f1f8e9,stroke-dasharray: 5 5
+    
+    class Start entryPoint
+    class Home,PresentationDetail mainFlow
+    class CoachView,RecordingActive,RecordingPaused,RecordingStopped,VideoPlayback,VideoPlaying,CoachChat,CoachResponse recordingFlow
+    class InsightsOverview,InsightsDetailed,ActionPlan insightsFlow
+    class Settings,SettingsSub,SearchFilter settingsFlow
+    class AIProcessing aiProcess
+                </div>
+            </div>
+
+            <div class="journey-section">
+                <h3>1. Presentation Recording & Review</h3>
+                <ul class="journey-steps">
+                    <li><span class="step-arrow">→</span> <strong>Entry:</strong> Home → Select Presentation → Coach Tab</li>
+                    <li><span class="step-arrow">→</span> <strong>Flow:</strong> Record → Pause/Resume → Stop → Review/Save/Discard</li>
+                    <li><span class="step-arrow">→</span> <strong>AI Integration:</strong> Automatic analysis after recording stops</li>
+                </ul>
+            </div>
+
+            <div class="journey-section">
+                <h3>2. AI Coach Interaction</h3>
+                <ul class="journey-steps">
+                    <li><span class="step-arrow">→</span> <strong>Entry:</strong> Coach Tab → Chat Interface</li>
+                    <li><span class="step-arrow">→</span> <strong>Flow:</strong> Send Message → Receive AI Feedback → Continue Conversation</li>
+                    <li><span class="step-arrow">→</span> <strong>Features:</strong> Real-time chat with AI coach for personalized guidance</li>
+                </ul>
+            </div>
+
+            <div class="journey-section">
+                <h3>3. Performance Insights</h3>
+                <ul class="journey-steps">
+                    <li><span class="step-arrow">→</span> <strong>Entry:</strong> Insights Tab → Overview → Detailed → Action Plan</li>
+                    <li><span class="step-arrow">→</span> <strong>Flow:</strong> Score Review → Detailed Feedback → Personalized Recommendations</li>
+                    <li><span class="step-arrow">→</span> <strong>Visualization:</strong> Radar charts, bar graphs, progress metrics</li>
+                </ul>
+            </div>
+
+            <div class="journey-section">
+                <h3>4. App Management</h3>
+                <ul class="journey-steps">
+                    <li><span class="step-arrow">→</span> <strong>Entry:</strong> Home → Settings → Sub-menus</li>
+                    <li><span class="step-arrow">→</span> <strong>Flow:</strong> Account, Notifications, Privacy, Help, About</li>
+                    <li><span class="step-arrow">→</span> <strong>Features:</strong> User preferences, data management, support</li>
+                </ul>
+            </div>
+
+            <div class="tech-specs">
+                <h3>Technical Integration Points</h3>
+                <h4>AI Processing Pipeline</h4>
+                <ol>
+                    <li><strong>Video Analysis:</strong> Voice, movement, content analysis</li>
+                    <li><strong>Feedback Generation:</strong> Text, audio, metrics</li>
+                    <li><strong>Response Time:</strong> < 10 seconds (per PRD requirements)</li>
+                </ol>
+                
+                <h4>Cross-Platform Considerations</h4>
+                <ul>
+                    <li><strong>Mobile-First:</strong> Touch interactions, gesture navigation</li>
+                    <li><strong>Responsive:</strong> Adapts to different screen sizes</li>
+                    <li><strong>Offline:</strong> Basic features available without connection</li>
+                </ul>
+            </div>
+
+            <div class="metrics">
+                <h3>Success Metrics Alignment</h3>
+                <p>This user flow supports the PRD success metrics:</p>
+                <ul>
+                    <li><strong>User Engagement:</strong> Multiple interaction points per session</li>
+                    <li><strong>Retention:</strong> Progress tracking and history features</li>
+                    <li><strong>Viral Potential:</strong> Share results and challenge friends (P1 features)</li>
+                    <li><strong>Performance:</strong> < 10 second AI processing time</li>
+                </ul>
+            </div>
+
+            <div class="journey-section">
+                <h3>Future Enhancements (P1/P2)</h3>
+                <p>The diagram structure supports future additions:</p>
+                <ul>
+                    <li><strong>Social Features:</strong> Share results, community feedback</li>
+                    <li><strong>Advanced Analytics:</strong> Trend analysis, comparative metrics</li>
+                    <li><strong>Premium Features:</strong> Custom AI models, expert integration</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

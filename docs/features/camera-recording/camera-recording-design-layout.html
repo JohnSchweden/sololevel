@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Recording System - Design Layout Diagram</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            theme: 'dark',
+            themeVariables: {
+                background: '#0f0f0f',
+                primaryColor: '#1a237e',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#3f51b5',
+                lineColor: '#ffffff',
+                sectionBkgColor: '#1a1a1a',
+                altSectionBkgColor: '#2a2a2a',
+                gridColor: '#333333',
+                tertiaryColor: '#404040'
+            }
+        });
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #0f0f0f;
+            font-family: Arial, sans-serif;
+        }
+        .mermaid {
+            background-color: #0f0f0f !important;
+        }
+        #diagram-container {
+            background-color: #0f0f0f;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="diagram-container">
+        <div class="mermaid">
+graph TB
+    %% Main Screen Wrapper
+    CRSW[CameraRecordingScreenWrapper]
+
+    %% Platform-specific Screen Implementations
+    CRSE[CameraRecordingScreen.expo.tsx]
+    CRSV[CameraRecordingScreen.vision.tsx]
+    CRS[CameraRecordingScreen.tsx]
+
+    %% Main Container
+    CC[CameraContainer]
+
+    %% Header Section
+    CH[CameraHeader]
+    RT[RecordingTimer]
+
+    %% Camera Preview System
+    CP[CameraPreview]
+    CPN[CameraPreview.native.tsx]
+    CPNE[CameraPreview.native.expo.tsx]
+    CPNV[CameraPreview.native.vision.tsx]
+    CPW[CameraPreview.tsx - Web]
+
+    %% Camera Preview Areas
+    CPA[CameraPreviewArea]
+    CCO[CameraControlsOverlay]
+
+    %% Pose Detection System
+    PO[PoseOverlay]
+    PON[PoseOverlay.native.tsx]
+    POW[PoseOverlay.web.tsx]
+    PDT[PoseDetectionToggle]
+    PDTC[PoseDetectionToggleCompact]
+
+    %% Control Systems
+    IC[IdleControls]
+    RC[RecordingControls]
+    RB[RecordButton]
+    CB[ControlButton]
+    ZC[ZoomControls]
+
+    %% Navigation & Dialogs
+    BN[BottomNavigation]
+    ND[NavigationDialog]
+    CD[ConfirmationDialog]
+    SS[SideSheet]
+
+    %% File Handling
+    VFP[VideoFilePicker]
+    VFPN[VideoFilePicker.native.tsx]
+    VFPW[VideoFilePicker.tsx - Web]
+
+    %% Post-Recording
+    PRP[PostRecordingPlayback]
+
+    %% Component Hierarchy
+    CRSW --> CRSE
+    CRSW --> CRSV
+    CRSW --> CRS
+
+    CRSE --> CC
+    CRSV --> CC
+    CRS --> CC
+
+    CC --> CH
+    CC --> CPA
+    CC --> BN
+
+    CH --> RT
+
+    CPA --> CP
+    CPA --> CCO
+    CPA --> PO
+
+    CP --> CPN
+    CPN --> CPNE
+    CPN --> CPNV
+    CP --> CPW
+
+    PO --> PON
+    PO --> POW
+
+    CCO --> IC
+    CCO --> RC
+    CCO --> PDT
+
+    IC --> RB
+    IC --> CB
+    IC --> VFP
+
+    RC --> ZC
+    RC --> CB
+
+    VFP --> VFPN
+    VFP --> VFPW
+
+    %% State Management & Interactions
+    IC -.->|"onStartRecording"| RC
+    RC -.->|"onStop"| PRP
+    BN -.->|"tab change"| ND
+    CH -.->|"menu press"| SS
+
+    %% Platform Detection
+    CPN -.->|"Feature Flag"| CPNE
+    CPN -.->|"Feature Flag"| CPNV
+
+    %% Dark Mode Styling
+    classDef screen fill:#1a237e,stroke:#3f51b5,stroke-width:2px,color:#ffffff
+    classDef container fill:#4a148c,stroke:#7b1fa2,stroke-width:2px,color:#ffffff
+    classDef camera fill:#1b5e20,stroke:#388e3c,stroke-width:2px,color:#ffffff
+    classDef controls fill:#e65100,stroke:#ff9800,stroke-width:2px,color:#ffffff
+    classDef navigation fill:#880e4f,stroke:#c2185b,stroke-width:2px,color:#ffffff
+    classDef platform fill:#33691e,stroke:#689f38,stroke-width:2px,color:#ffffff
+
+    class CRSW,CRSE,CRSV,CRS screen
+    class CC,CPA,CCO container
+    class CP,CPN,CPNE,CPNV,CPW,PO,PON,POW camera
+    class IC,RC,RB,CB,ZC,PDT,PDTC controls
+    class BN,ND,CD,SS navigation
+    class VFP,VFPN,VFPW,PRP platform
+        </div>
+    </div>
+</body>
+</html>
