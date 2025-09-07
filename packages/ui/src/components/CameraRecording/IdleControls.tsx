@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react'
 // Use React Native Pressable with platform detection
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
+import { shadows } from '@my/config'
 import { log } from '../../utils/logger'
 import type { VideoValidationResult } from '../../utils/videoValidation'
 import { VideoFilePicker } from './VideoFilePicker'
@@ -125,11 +126,7 @@ export function IdleControls({
             borderRadius="$12"
             borderWidth={2}
             borderColor="rgba(255,255,255,0.95)"
-            shadowColor="$shadowColor"
-            shadowOffset={{ width: 0, height: 2 }}
-            shadowOpacity={0.15}
-            shadowRadius={4}
-            elevation={4}
+            {...shadows.medium}
             scale={isRecordPressed ? 0.97 : 1.0}
             animation="quick"
             pointerEvents="none"
@@ -239,11 +236,7 @@ export function RecordButton({
         borderRadius="$12"
         borderWidth={variant === 'primary' ? 4 : 2}
         borderColor={variant === 'primary' ? 'rgba(255,255,255,0.3)' : '$borderColor'}
-        shadowColor="$shadowColor"
-        shadowOffset={{ width: 0, height: 4 }}
-        shadowOpacity={variant === 'primary' ? 0.3 : 0.1}
-        shadowRadius={8}
-        elevation={variant === 'primary' ? 8 : 4}
+        {...(variant === 'primary' ? shadows.large : shadows.medium)}
         // Touch feedback
         scale={isPressed ? 0.95 : 1.0}
         animation="quick"

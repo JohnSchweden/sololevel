@@ -1,0 +1,251 @@
+---
+description: Mobile UX patterns, touch interactions, and native feel
+globs: ["packages/ui/**/*", "packages/app/**/*", "**/mobile/**/*"]
+alwaysApply: false
+---
+
+# Mobile UX Patterns
+
+## Touch Interaction Principles
+- Touch targets minimum 44px × 44px
+- One-handed usage considerations
+- Thumb-friendly navigation zones
+- Provide visual feedback for all interactions
+
+## Touch Targets
+```typescript
+// ✅ Good - mobile touch patterns with proper feedback
+export function TouchableCard({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}>
+      <YStack
+        backgroundColor="$background"
+        padding="$md"
+        borderRadius="$md"
+        borderWidth={1}
+        borderColor="$borderColor"
+        // Touch feedback
+        hoverStyle={{ backgroundColor: "$backgroundHover" }}
+        pressStyle={{ 
+          scale: 0.98,
+          backgroundColor: "$backgroundPress"
+        }}
+        // Minimum touch target
+        minHeight={44}
+        minWidth={44}
+        justifyContent="center"
+        alignItems="center"
+      >
+        <Text>Touch Target</Text>
+      </YStack>
+    </Pressable>
+  )
+}
+```
+
+## Safe Area Handling
+```typescript
+// ✅ Good - proper safe area handling
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+export function MobileScreen() {
+  const insets = useSafeAreaInsets()
+  
+  return (
+    <YStack 
+      flex={1} 
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+      backgroundColor="$background"
+    >
+      <ScrollView 
+        contentContainerStyle={{ 
+          paddingBottom: Math.max(insets.bottom, 16) 
+        }}
+      >
+        {/* Screen content */}
+      </ScrollView>
+    </YStack>
+  )
+}
+```
+
+## Keyboard Avoidance
+```typescript
+// ✅ Good - keyboard avoidance on mobile
+import { KeyboardAvoidingView, Platform } from 'react-native'
+
+export function FormScreen() {
+  return (
+    <KeyboardAvoidingView
+      flex={1}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <YStack flex={1} padding="$md" gap="$md">
+        <Input 
+          placeholder="Username" 
+          size="$5" 
+          minHeight={44}
+        />
+        <Input 
+          placeholder="Password" 
+          secureTextEntry 
+          size="$5" 
+          minHeight={44}
+        />
+        <Button size="$5" minHeight={44}>
+          Login
+        </Button>
+      </YStack>
+    </KeyboardAvoidingView>
+  )
+}
+```
+
+## Gesture Handling
+```typescript
+// ✅ Good - mobile gestures with react-native-gesture-handler
+import { PanGestureHandler } from 'react-native-gesture-handler'
+import Animated, { 
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring 
+} from 'react-native-reanimated'
+
+export function SwipeableCard() {
+  const translateX = useSharedValue(0)
+  
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: (_, context) => {
+      context.startX = translateX.value
+    },
+    onActive: (event, context) => {
+      translateX.value = context.startX + event.translationX
+    },
+    onEnd: (event) => {
+      if (Math.abs(event.translationX) > 100) {
+        translateX.value = withSpring(event.translationX > 0 ? 300 : -300)
+      } else {
+        translateX.value = withSpring(0)
+      }
+    }
+  })
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }]
+  }))
+
+  return (
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={animatedStyle}>
+        <YStack backgroundColor="$background" padding="$md" borderRadius="$md">
+          <Text>Swipe me left or right</Text>
+        </YStack>
+      </Animated.View>
+    </PanGestureHandler>
+  )
+}
+```
+
+## Loading States
+```typescript
+// ✅ Good - mobile-optimized loading states
+export function LoadingScreen({ isLoading, error, children, onRetry }) {
+  if (error) {
+    return (
+      <YStack flex={1} justifyContent="center" alignItems="center" padding="$md">
+        <Text color="$error" fontSize="$5" textAlign="center" marginBottom="$md">
+          Something went wrong
+        </Text>
+        <Button variant="outlined" onPress={onRetry}>
+          Try Again
+        </Button>
+      </YStack>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <YStack flex={1} justifyContent="center" alignItems="center">
+        <Spinner size="large" color="$primary" />
+        <Text marginTop="$md" color="$textSecondary">
+          Loading...
+        </Text>
+      </YStack>
+    )
+  }
+
+  return children
+}
+```
+
+## List Optimization
+```typescript
+// ✅ Good - virtualized lists for performance
+import { FlashList } from '@shopify/flash-list'
+
+export function OptimizedList({ data }: { data: Item[] }) {
+  const renderItem = useCallback(({ item }: { item: Item }) => (
+    <YStack
+      padding="$md"
+      borderBottomWidth={1}
+      borderBottomColor="$borderColor"  
+      minHeight={60}
+    >
+      <Text fontSize="$4" fontWeight="600">{item.title}</Text>
+      <Text fontSize="$3" color="$textSecondary">{item.subtitle}</Text>
+    </YStack>
+  ), [])
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={60}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{ padding: 16 }}
+    />
+  )
+}
+```
+
+## Form Patterns
+```typescript
+// ✅ Good - mobile-optimized forms
+export function MobileForm() {
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <YStack padding="$md" gap="$md">
+        <YStack gap="$2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            size="$5"
+            minHeight={44}
+          />
+        </YStack>
+        
+        <YStack gap="$2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"  
+            placeholder="(555) 123-4567"
+            keyboardType="phone-pad"
+            size="$5"
+            minHeight={44}
+          />
+        </YStack>
+
+        <Button size="$5" minHeight={44} marginTop="$4">
+          Submit
+        </Button>
+      </YStack>
+    </ScrollView>
+  )
+}
+```

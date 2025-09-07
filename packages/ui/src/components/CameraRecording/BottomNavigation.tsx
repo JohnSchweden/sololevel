@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
+import { shadows } from '@my/config'
 
 export interface BottomNavigationProps {
   activeTab: 'coach' | 'record' | 'insights'
@@ -126,11 +127,7 @@ export function TabBar({ children }: TabBarProps) {
       paddingHorizontal="$4"
       alignItems="center"
       justifyContent="space-between"
-      shadowColor="$shadowColor"
-      shadowOffset={{ width: 0, height: -2 }}
-      shadowOpacity={0.1}
-      shadowRadius={4}
-      elevation={4}
+      {...shadows.small}
     >
       {children}
     </XStack>

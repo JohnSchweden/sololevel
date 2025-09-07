@@ -59,9 +59,9 @@ graph TB
     User --> ExpoApp
     User --> NextApp
 
-    %% App Composition
-    ExpoApp --> ExpoRouter
-    NextApp --> ExpoRouter
+    %% App Composition - UNIFIED ROUTING ✅
+    ExpoApp --> ExpoRouter[Universal Router]
+    NextApp --> ExpoRouter[Universal Router]
     ExpoApp --> UIPkg
     NextApp --> UIPkg
     ExpoApp --> AppPkg

@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "SoloLevel Web",
+    "slug": "sololevel-web",
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "scheme": "sololevel",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,7 +1,16 @@
 ---
-description: Tamagui styling focused on theming and advanced patterns
+description: "DEPRECATED - Use ui/cross-platform-styling.mdc instead"
 globs: ["packages/ui/**/*", "**/theme/**/*", "**/styles/**/*"]
 alwaysApply: false
+deprecated: true
+---
+
+# ⚠️ DEPRECATED - UI Styling & Theming
+
+**This rule has been consolidated into `ui/cross-platform-styling.mdc` for better organization and reduced duplication.**
+
+**Please use the new consolidated rule instead: `ui/cross-platform-styling.mdc`**
+
 ---
 
 # UI Styling & Theming
@@ -118,23 +127,28 @@ export const Card = styled(YStack, {
   backgroundColor: "$background",
   borderRadius: "$4",
   padding: "$md",
-  shadowColor: "$shadowColor",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 2,
+  ...$shadow.medium,
+  $web: {
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.15)"
+  },
 
   variants: {
     variant: {
       elevated: {
-        shadowOpacity: 0.2,
-        elevation: 4
+        ...$shadow.large,
+        $web: {
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)"
+        }
       },
       flat: {
         shadowOpacity: 0,
+        shadowRadius: 0,
         elevation: 0,
         borderWidth: 1,
-        borderColor: "$borderColor"
+        borderColor: "$borderColor",
+        $web: {
+          boxShadow: "none"
+        }
       }
     }
   }
@@ -165,6 +179,62 @@ const PlatformCard = styled(YStack, {
     }
   })
 })
+```
+
+## Shadow Handling (Cross-Platform)
+- NEVER use React Native shadow props directly on web
+- Use Tamagui's elevation system or platform-specific styling
+- PREFER shadow tokens over hardcoded shadow values
+- Handle shadowColor, shadowOffset, shadowOpacity, shadowRadius properly
+- Avoid boxShadow DOM prop warnings
+
+### Available Shadow Tokens
+- `$shadow.small` - Light shadow (elevation: 1)
+- `$shadow.medium` - Standard shadow (elevation: 2) 
+- `$shadow.large` - Prominent shadow (elevation: 4)
+- `$shadow.xlarge` - Maximum shadow (elevation: 6)
+
+```typescript
+// ✅ Good - Tamagui elevation system
+<View elevation={2} />
+
+// ✅ Good - platform-specific shadow styling with tokens
+<View 
+  {...$shadow.medium}
+  $web={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// ✅ Good - using shadow tokens
+<View 
+  {...$shadow.medium}
+  $web={{
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.15)"
+  }}
+/>
+
+// ✅ Good - platform-specific components with tokens
+// .web.tsx
+<View 
+  style={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// .native.tsx
+<View 
+  {...$shadow.medium}
+/>
+
+// ❌ Bad - causes React DOM warnings
+<View 
+  boxShadow="0 2px 3.84px rgba(0, 0, 0, 0.25)"
+  shadowColor="black"
+  shadowOffset={{ width: 0, height: 2 }}
+  shadowOpacity={0.25}
+  shadowRadius={3.84}
+/>
 ```
 
 ## Typography System

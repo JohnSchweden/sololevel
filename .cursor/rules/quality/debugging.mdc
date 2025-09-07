@@ -137,3 +137,30 @@ if (!result.success) {
   log.error('Validation failed:', result.error.issues)
 }
 ```
+
+## Test Debugging
+
+### Common Test Failures and Solutions
+
+**"Cannot read properties of undefined"**
+1. Check if manual mock exists in `__mocks__` directory
+2. Verify mock exports match actual module exports
+3. Clear Jest cache: `yarn jest --clearCache`
+
+**"Cannot find module" for internal packages**
+1. Use manual mocks in `__mocks__/@my/package-name.js`
+2. Avoid inline `jest.mock()` for TypeScript-only packages
+3. Check package.json `main` field points to correct file
+
+**TypeScript import errors in tests**
+1. Create manual mock with `.js` extension (not `.ts`)
+2. Use `module.exports` syntax in manual mocks
+3. Include `__esModule: true` for ES module compatibility
+
+### Test Debugging Workflow
+1. **Identify scope**: Module resolution, mocking, environment
+2. **Add logs**: Create debug scripts to test imports
+3. **Collect data**: Check package structure, exports, resolution
+4. **Fix systematically**: Try manual mocks before complex solutions
+5. **Verify**: Run full test suite to ensure no regressions
+6. **Clean up**: Remove debug scripts and temporary files

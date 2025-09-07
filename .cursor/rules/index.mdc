@@ -18,8 +18,11 @@ alwaysApply: false
 #### UI Development Context  
 **Triggers**: `packages/ui/**/*`, `**/components/**/*`, UI-related files
 **Rules to Apply**:
-- `ui/ui-styling-tamagui`: Tamagui component guidelines
-- `ui/platform-specific`: Platform-specific UI patterns
+- `ui/cross-platform-styling`: Parent rule coordinating UI system
+  - `ui/theming`: Tamagui tokens and theme system
+  - `ui/responsive`: Breakpoints and responsive patterns
+  - `ui/mobile-ux`: Touch interactions and mobile patterns
+  - `ui/platform-differences`: Web vs native implementations
 - `quality/storybook`: Component documentation
 
 #### AI Integration Context
@@ -68,7 +71,7 @@ alwaysApply: false
 - package.json, yarn.lock, turbo.json → analytics-tracking
 
 # UI components  
-- packages/ui/**/*, **/components/**/* → ui-styling-tamagui + platform-specific + storybook
+- packages/ui/**/*, **/components/**/* → cross-platform-styling (+ theming + responsive + mobile-ux + platform-differences) + storybook
 
 # AI features
 - **/ai/**/* → ai-integration + ai-state-management + media-capture-platform
@@ -83,7 +86,7 @@ alwaysApply: false
 - **/*.{test,spec}.* → testing-unified + error-handling + performance + debugging
 
 # Stories/documentation
-- **/*.stories.* → storybook + ui-styling-tamagui
+- **/*.stories.* → storybook + cross-platform-styling
 
 # Development
 - **/*.{ts,tsx} → typescript-standards + github-integration
@@ -95,7 +98,11 @@ alwaysApply: false
 - "dependency", "package", "yarn", "install" → analytics-tracking
 
 # UI development
-- "component", "ui", "tamagui", "styling" → ui-styling-tamagui + storybook
+- "component", "ui", "tamagui", "styling" → cross-platform-styling + storybook
+- "theming", "tokens", "colors" → theming
+- "responsive", "breakpoints", "layout" → responsive  
+- "mobile", "touch", "gestures" → mobile-ux
+- "platform", "web", "native", "shadows" → platform-differences
 
 # AI integration
 - "ai", "video", "pose", "voice", "coaching" → ai-integration + ai-state-management + media-capture-platform

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Platform, Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
+import { shadows } from '@my/config'
 import { log } from '../../utils/logger'
 
 export enum RecordingState {
@@ -125,11 +126,7 @@ export function RecordingControls({
             minHeight={60}
             minWidth={120}
             gap="$2"
-            shadowColor="$shadowColor"
-            shadowOffset={{ width: 0, height: 2 }}
-            shadowOpacity={0.2}
-            shadowRadius={4}
-            elevation={4}
+            {...shadows.medium}
             // Touch feedback
             scale={isPausePressed ? 0.95 : 1.0}
             animation="quick"

@@ -1,6 +1,7 @@
 import { AlertTriangle } from '@tamagui/lucide-icons'
 import { Dialog, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
+import { shadows } from '@my/config'
 
 export interface NavigationDialogProps {
   open: boolean
@@ -61,7 +62,7 @@ export function NavigationDialog({
 
         <Dialog.Content
           bordered
-          elevate
+          {...shadows.xlarge}
           key="content"
           animation={[
             'quick',
@@ -254,7 +255,7 @@ export function ConfirmationDialog({
 
         <Dialog.Content
           bordered
-          elevate
+          {...shadows.xlarge}
           key="content"
           animation={[
             'quick',

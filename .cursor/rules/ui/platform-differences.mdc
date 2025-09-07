@@ -1,0 +1,177 @@
+---
+description: Platform-specific implementations and cross-platform compatibility
+globs: ["**/*.native.tsx", "**/*.web.tsx", "**/Platform.*", "packages/ui/**/*"]
+alwaysApply: false
+---
+
+# Platform-Specific Handling
+
+## When to Use Platform-Specific Files
+- Use `.native.tsx` and `.web.tsx` ONLY when implementations fundamentally differ
+- Prefer Tamagui's platform detection for small differences
+- Keep platform differences minimal
+- Use `Platform.select` for conditional styling
+
+## Platform Detection Patterns
+```typescript
+// ✅ Good - platform-aware styling within single file
+import { Platform } from 'react-native'
+
+const PlatformCard = styled(YStack, {
+  backgroundColor: "$background",
+  padding: "$md",
+  borderRadius: "$md",
+  
+  // Platform-specific cursor and interaction
+  ...Platform.select({
+    web: {
+      cursor: 'pointer',
+      userSelect: 'none'
+    },
+    native: {
+      activeOpacity: 0.8
+    }
+  })
+})
+
+// ✅ Good - Tamagui platform detection
+<Button
+  $web={{
+    cursor: 'pointer',
+    ':hover': { backgroundColor: '$backgroundHover' }
+  }}
+  $native={{
+    pressStyle: { scale: 0.98 }
+  }}
+>
+  Platform Aware Button
+</Button>
+```
+
+## Shadow System (Cross-Platform)
+
+### Critical Shadow Rules
+- NEVER use React Native shadow props directly on web
+- NEVER pass `boxShadow` as DOM prop - causes React warnings
+- Use Tamagui's elevation system or platform-specific styling
+- PREFER shadow tokens over hardcoded shadow values
+
+### Shadow Implementation Patterns
+```typescript
+// ✅ Good - Tamagui elevation system
+<View elevation={2} />
+
+// ✅ Good - platform-specific shadow styling with tokens
+<View 
+  {...$shadow.medium}
+  $web={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// ✅ Good - platform-specific components
+// Component.web.tsx
+<View 
+  style={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// Component.native.tsx
+<View 
+  {...$shadow.medium}
+/>
+
+// ❌ Bad - causes React DOM warnings
+<View 
+  boxShadow="0 2px 3.84px rgba(0, 0, 0, 0.25)"
+  shadowColor="black"
+  shadowOffset={{ width: 0, height: 2 }}
+  shadowOpacity={0.25}
+  shadowRadius={3.84}
+/>
+```
+
+## Web-Only Features
+- SSR/SSG considerations
+- SEO meta tags
+- Web-specific performance optimizations
+- CSS box-shadow instead of React Native shadows
+- Mouse hover states
+- Keyboard navigation
+
+```typescript
+// ✅ Good - web-specific enhancements
+<Button
+  $web={{
+    cursor: 'pointer',
+    ':hover': { backgroundColor: '$backgroundHover' },
+    ':focus': { outlineColor: '$primary' }
+  }}
+>
+  Web Enhanced Button
+</Button>
+```
+
+## Native-Only Features
+- Push notifications
+- Native modules
+- Platform-specific permissions
+- React Native shadow properties (shadowColor, shadowOffset, etc.)
+- Haptic feedback
+- Native gestures
+
+```typescript
+// ✅ Good - native-specific features
+import { Haptics } from 'expo-haptics'
+
+<Button
+  onPress={() => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    }
+    onPress()
+  }}
+  $native={{
+    pressStyle: { scale: 0.98 }
+  }}
+>
+  Native Enhanced Button
+</Button>
+```
+
+## Animation Differences
+```typescript
+// ✅ Good - platform-aware animations
+<YStack
+  animation="quick"
+  enterStyle={{ opacity: 0, y: -10 }}
+  exitStyle={{ opacity: 0, y: 10 }}
+  $web={{
+    // Web-specific CSS transitions
+    transition: 'all 0.2s ease-in-out'
+  }}
+  $native={{
+    // Native-specific spring animations
+    animateOnly: ['transform', 'opacity']
+  }}
+>
+  Content
+</YStack>
+```
+
+## Environment Variables for Development
+```bash
+# Suppress Tamagui bundle warnings during development
+export TAMAGUI_IGNORE_BUNDLE_ERRORS=true
+
+# Enable detailed Tamagui debugging
+export DEBUG=tamagui
+```
+
+## Platform-Specific Testing
+- Test shadow rendering on both platforms
+- Verify touch interactions work on mobile
+- Check hover states on web
+- Validate keyboard navigation on web
+- Test gesture handling on native

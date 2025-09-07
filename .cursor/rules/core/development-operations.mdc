@@ -35,6 +35,10 @@ yarn type-check       # TypeScript validation
 yarn native           # Start Expo app
 yarn web              # Start Next.js app
 
+# Kill processes
+pkill -f "yarn web"   # Kill web dev server
+pkill -f "yarn native" # Kill native dev server
+
 # Workspace ops
 yarn workspace <name> add <package>
 yarn workspace <name> run <script>

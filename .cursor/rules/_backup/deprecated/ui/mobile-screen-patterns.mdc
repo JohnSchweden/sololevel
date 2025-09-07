@@ -1,7 +1,16 @@
 ---
-description: Mobile-first screen patterns and responsive design for cross-platform Tamagui screens
+description: "DEPRECATED - Use ui/cross-platform-styling.mdc instead"
 globs: ["packages/app/features/**/*", "packages/ui/components/**/*", "**/screens/**/*"]
 alwaysApply: false
+deprecated: true
+---
+
+# ⚠️ DEPRECATED - Mobile Screen Patterns
+
+**This rule has been consolidated into `ui/cross-platform-styling.mdc` for better organization and reduced duplication.**
+
+**Please use the new consolidated rule instead: `ui/cross-platform-styling.mdc`**
+
 ---
 
 # Mobile Screen Patterns

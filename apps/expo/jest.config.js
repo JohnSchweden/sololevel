@@ -7,7 +7,7 @@ module.exports = {
     '^app(.*)$': '<rootDir>/../../packages/app$1',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-web|@react-native-community|expo|@expo|@tamagui)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-web|@react-native-community|expo|@expo|@tamagui|expo-router|expo-modules-core)/)',
   ],
   testMatch: ['<rootDir>/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
 }

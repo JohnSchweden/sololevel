@@ -1,0 +1,150 @@
+---
+description: Responsive design patterns and breakpoint management
+globs: ["packages/ui/**/*", "packages/app/**/*", "**/components/**/*"]
+alwaysApply: false
+---
+
+# Responsive Design & Breakpoints
+
+## Mobile-First Approach
+- Design for smallest screen first (320px width minimum)
+- Use Tamagui's breakpoint system: `$xs`, `$sm`, `$md`, `$lg`, `$xl`
+- Test on multiple screen sizes regularly
+- Progressive enhancement for larger screens
+
+## Breakpoint Usage
+```typescript
+// ✅ Good - mobile-first responsive design
+<XStack
+  flexDirection="column"
+  gap="$md"
+  $sm={{ flexDirection: "row", gap: "$lg" }}
+  $md={{ gap: "$xl" }}
+>
+  <Text 
+    fontSize="$4" 
+    $sm={{ fontSize: "$5" }}
+    $md={{ fontSize: "$6" }}
+  >
+    Responsive Text
+  </Text>
+</XStack>
+
+// ✅ Good - responsive layout with media queries
+import { useMedia } from 'tamagui'
+
+export function ResponsiveCard() {
+  const media = useMedia()
+  
+  return (
+    <YStack
+      padding="$md"
+      $xs={{ padding: "$sm" }}
+      $lg={{ padding: "$xl" }}
+      flexDirection={media.xs ? "column" : "row"}
+      alignItems={media.xs ? "stretch" : "center"}
+    >
+      {/* Content */}
+    </YStack>
+  )
+}
+```
+
+## Layout Components
+```typescript
+// ✅ Good - responsive layout components
+export const Container = styled(YStack, {
+  maxWidth: 1200,
+  marginHorizontal: "auto",
+  paddingHorizontal: "$md",
+  width: "100%",
+  
+  variants: {
+    size: {
+      sm: { maxWidth: 640 },
+      md: { maxWidth: 768 },
+      lg: { maxWidth: 1024 },
+      xl: { maxWidth: 1200 },
+      full: { maxWidth: "100%" }
+    }
+  }
+})
+
+export const Grid = styled(XStack, {
+  flexWrap: "wrap",
+  margin: "-$sm",
+  
+  variants: {
+    columns: {
+      2: {
+        "& > *": {
+          padding: "$sm",
+          minWidth: "50%"
+        }
+      },
+      3: {
+        "& > *": {
+          padding: "$sm",
+          minWidth: "33.333%",
+          $sm: { minWidth: "50%" },
+          $xs: { minWidth: "100%" }
+        }
+      },
+      4: {
+        "& > *": {
+          padding: "$sm",
+          minWidth: "25%",
+          $md: { minWidth: "50%" },
+          $sm: { minWidth: "100%" }
+        }
+      }
+    }
+  }
+})
+```
+
+## Responsive Images
+```typescript
+// ✅ Good - responsive image handling
+export const ResponsiveImage = styled(Image, {
+  width: "100%",
+  height: "auto",
+  maxWidth: "100%",
+  
+  variants: {
+    aspectRatio: {
+      square: { aspectRatio: 1 },
+      video: { aspectRatio: 16/9 },
+      portrait: { aspectRatio: 3/4 }
+    }
+  }
+})
+```
+
+## Conditional Rendering
+```typescript
+// ✅ Good - conditional rendering based on screen size
+import { useMedia } from 'tamagui'
+
+export function ResponsiveNavigation() {
+  const media = useMedia()
+  
+  return (
+    <XStack justifyContent="space-between" alignItems="center">
+      <Text fontSize="$6">Logo</Text>
+      
+      {media.md ? (
+        // Desktop navigation
+        <XStack gap="$4">
+          <Button variant="ghost">Home</Button>
+          <Button variant="ghost">About</Button>
+          <Button variant="ghost">Contact</Button>
+        </XStack>
+      ) : (
+        // Mobile hamburger menu
+        <Button variant="ghost" icon={<Menu />} />
+      )}
+    </XStack>
+  )
+}
+```

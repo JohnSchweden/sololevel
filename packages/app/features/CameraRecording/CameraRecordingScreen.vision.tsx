@@ -80,7 +80,8 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       currentPoseData: currentPose ? 'Present' : 'None',
     }
     // Reduced logging - only log state changes, not every frame
-    if (__DEV__ && Math.random() < 0.01) { // Only log 1% of the time
+    if (__DEV__ && Math.random() < 0.01) {
+      // Only log 1% of the time
       log.debug('🎯 MVP Pose Detection State:', debugInfo)
     }
   }, [poseEnabled, isDetecting, currentPose, permission?.granted])

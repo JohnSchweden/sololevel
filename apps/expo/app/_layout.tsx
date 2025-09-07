@@ -76,13 +76,6 @@ function RootLayoutNav() {
                       headerShown: false,
                     }}
                   />
-                  <Stack.Screen
-                    name="camera-recording"
-                    options={{
-                      title: 'Camera Recording',
-                      headerShown: false,
-                    }}
-                  />
                 </Stack>
               )
             } catch (error) {

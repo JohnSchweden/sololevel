@@ -95,6 +95,31 @@ jest.mock('expo-constants', () => ({
 
 **Note:** When using `jest-expo` preset, React Native module mocking is handled automatically. Only mock Expo-specific modules as needed.
 
+### Jest Manual Mocks (Preferred for Complex Modules)
+For internal workspace packages or complex modules, use manual mocks in `__mocks__` directory:
+
+```javascript
+// packages/ui/__mocks__/@my/config.js
+const shadows = {
+  small: { shadowColor: 'rgba(0,0,0,0.1)', elevation: 1 },
+  medium: { shadowColor: 'rgba(0,0,0,0.15)', elevation: 2 },
+  // ... other shadow levels
+}
+
+module.exports = {
+  shadows,
+  config: { tokens: {}, themes: {} },
+  __esModule: true,
+  default: { shadows, config: { tokens: {}, themes: {} } }
+}
+```
+
+**Why Manual Mocks?**
+- More reliable than inline `jest.mock()` calls
+- Better for TypeScript-only packages that can't be imported by Node.js
+- Handles complex module resolution issues
+- Avoids circular dependency problems
+
 ### Vitest Setup (Web)
 ```typescript
 // apps/next/__tests__/setup.ts
@@ -152,6 +177,8 @@ Before declaring something "broken":
 □ Check if user can reproduce the issue
 □ Follow established testing patterns
 □ Test user interactions, not implementation details
+□ Try manual mocks for complex module resolution issues
+□ For test debugging, follow @debugging.mdc → "Test Debugging" section
 
 ## Test Efficiency Guidelines
 

@@ -64,21 +64,22 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
               isInitialized: true,
             }))
             // Debug actual pose data structure - throttled logging
-            if (pose && pose.keypoints && Math.random() < 0.1) { // Only log 10% of poses
-              log.debug('🔍 POSE DATA:', { 
+            if (pose && pose.keypoints && Math.random() < 0.1) {
+              // Only log 10% of poses
+              log.debug('🔍 POSE DATA:', {
                 keypointCount: pose.keypoints.length,
                 confidence: pose.confidence.toFixed(3),
-                nose: pose.keypoints.find(kp => kp.name === 'nose'),
-                leftWrist: pose.keypoints.find(kp => kp.name === 'left_wrist'),
-                rightWrist: pose.keypoints.find(kp => kp.name === 'right_wrist'),
-                leftEye: pose.keypoints.find(kp => kp.name === 'left_eye'),
-                rightEye: pose.keypoints.find(kp => kp.name === 'right_eye'),
+                nose: pose.keypoints.find((kp) => kp.name === 'nose'),
+                leftWrist: pose.keypoints.find((kp) => kp.name === 'left_wrist'),
+                rightWrist: pose.keypoints.find((kp) => kp.name === 'right_wrist'),
+                leftEye: pose.keypoints.find((kp) => kp.name === 'left_eye'),
+                rightEye: pose.keypoints.find((kp) => kp.name === 'right_eye'),
                 coordinateRange: {
-                  minX: Math.min(...pose.keypoints.map(kp => kp.x)).toFixed(3),
-                  maxX: Math.max(...pose.keypoints.map(kp => kp.x)).toFixed(3),
-                  minY: Math.min(...pose.keypoints.map(kp => kp.y)).toFixed(3),
-                  maxY: Math.max(...pose.keypoints.map(kp => kp.y)).toFixed(3)
-                }
+                  minX: Math.min(...pose.keypoints.map((kp) => kp.x)).toFixed(3),
+                  maxX: Math.max(...pose.keypoints.map((kp) => kp.x)).toFixed(3),
+                  minY: Math.min(...pose.keypoints.map((kp) => kp.y)).toFixed(3),
+                  maxY: Math.max(...pose.keypoints.map((kp) => kp.y)).toFixed(3),
+                },
               })
             }
           }

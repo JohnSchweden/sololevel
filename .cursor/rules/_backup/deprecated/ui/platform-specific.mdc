@@ -1,0 +1,78 @@
+---
+description: "DEPRECATED - Use ui/cross-platform-styling.mdc instead"
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: false
+deprecated: true
+---
+
+# ⚠️ DEPRECATED - Platform-Specific Code
+
+**This rule has been consolidated into `ui/cross-platform-styling.mdc` for better organization and reduced duplication.**
+
+**Please use the new consolidated rule instead: `ui/cross-platform-styling.mdc`**
+
+---
+
+# Platform-Specific Code
+- Use .native.tsx ONLY for platform-specific implementations
+- Use Platform.select for small differences
+- Prefer Tamagui's built-in responsive APIs
+- Test on both platforms regularly
+
+# Shadow Handling (Critical)
+- NEVER pass boxShadow as DOM prop on web
+- Use platform-specific shadow implementations
+- Handle React Native shadow props properly for web
+
+```typescript
+// ✅ Good - platform-specific shadow files with tokens
+// Component.web.tsx
+<View 
+  style={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// Component.native.tsx
+<View 
+  {...$shadow.medium}
+/>
+
+// ✅ Good - Tamagui platform-aware styling with tokens
+<View 
+  {...$shadow.medium}
+  $web={{
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)'
+  }}
+/>
+
+// ✅ Good - elevation system
+<View elevation={2} />
+
+// ❌ Bad - causes React DOM warnings
+<View 
+  boxShadow="0 2px 3.84px rgba(0, 0, 0, 0.25)"
+  shadowColor="black"
+/>
+```
+
+# Web-Only Features
+- SSR/SSG considerations
+- SEO meta tags
+- Web-specific performance optimizations
+- CSS box-shadow instead of React Native shadows
+
+# Native-Only Features
+- Push notifications
+- Native modules
+- Platform-specific permissions
+- React Native shadow properties (shadowColor, shadowOffset, etc.)
+
+# Environment Variables for Testing
+```bash
+# Suppress Tamagui bundle warnings during development
+export TAMAGUI_IGNORE_BUNDLE_ERRORS=true
+
+# Enable detailed Tamagui debugging
+export DEBUG=tamagui
+```

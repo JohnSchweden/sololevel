@@ -1,5 +1,18 @@
 import '@testing-library/jest-dom'
 
+// Suppress react-test-renderer deprecation warnings in React 19
+// This is a known issue with @testing-library/react-native until they update
+const originalConsoleError = console.error
+console.error = (...args) => {
+  if (
+    typeof args[0] === 'string' &&
+    args[0].includes('react-test-renderer is deprecated')
+  ) {
+    return // Suppress this specific warning
+  }
+  originalConsoleError(...args)
+}
+
 // Use React Testing Library for web components instead of React Native Testing Library
 // This avoids conflicts with jsdom environment
 
@@ -339,14 +352,7 @@ jest.mock('@tamagui/font-inter', () => ({
   })),
 }))
 
-// Mock @my/config
-jest.mock('@my/config', () => ({
-  config: {
-    tokens: {},
-    themes: {},
-    fonts: {},
-  },
-}))
+// Manual mock for @my/config is in __mocks__/@my/config.js
 
 // Mock React Native Alert
 jest.mock('react-native', () => {

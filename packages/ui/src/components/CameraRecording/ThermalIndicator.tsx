@@ -2,6 +2,7 @@ import { AlertTriangle, Thermometer, Zap } from '@tamagui/lucide-icons'
 import { useEffect, useState } from 'react'
 import { Animated, Platform } from 'react-native'
 import { AnimatePresence, Button, Circle, H6, Paragraph, XStack, YStack, styled } from 'tamagui'
+import { shadows } from '@my/config'
 
 /**
  * Thermal State Indicator Component for Phase 2b
@@ -342,11 +343,7 @@ export const ThermalIndicator = ({
             marginTop="$2"
             borderWidth={1}
             borderColor="$borderColor"
-            shadowColor="$shadowColor"
-            shadowOffset={{ width: 0, height: 2 }}
-            shadowOpacity={0.1}
-            shadowRadius={4}
-            elevation={3}
+            {...shadows.small}
           >
             <YStack gap="$2">
               <XStack

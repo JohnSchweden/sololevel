@@ -28,12 +28,7 @@ import {
 } from '@shopify/react-native-skia'
 import React, { useMemo } from 'react'
 import { View } from 'react-native'
-import {
-  Easing,
-  useDerivedValue,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated'
+import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated'
 import { PoseOverlayUtils } from '../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
 
@@ -81,7 +76,28 @@ export function PoseOverlayNative({
 
   // Derived values for render-safe access
   const animationOpacity = useDerivedValue(() => animationProgress.value)
-  const glowMatrix = useDerivedValue(() => [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, glowIntensity.value, 0])
+  const glowMatrix = useDerivedValue(() => [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    glowIntensity.value,
+    0,
+  ])
 
   // Update animation when pose changes
   React.useEffect(() => {
@@ -104,11 +120,11 @@ export function PoseOverlayNative({
     }
   }, [pose, animationProgress, glowIntensity, skiaConfig.animationDuration])
 
-         // Normalize pose coordinates to canvas size
-         const normalizedPose = useMemo(() => {
-           if (!pose) return null
-           return PoseOverlayUtils.normalizeCoordinates(pose, width, height)
-         }, [pose, width, height])
+  // Normalize pose coordinates to canvas size
+  const normalizedPose = useMemo(() => {
+    if (!pose) return null
+    return PoseOverlayUtils.normalizeCoordinates(pose, width, height)
+  }, [pose, width, height])
 
   // Filter pose by confidence
   const filteredPose = useMemo(() => {
@@ -198,9 +214,7 @@ export function PoseOverlayNative({
             <Group>
               <Paint>
                 <Blur blur={skiaConfig.glowRadius} />
-                <ColorMatrix
-                  matrix={glowMatrix}
-                />
+                <ColorMatrix matrix={glowMatrix} />
               </Paint>
               <Path
                 path={skeletonPath}
@@ -257,9 +271,7 @@ export function PoseOverlayNative({
                   <Group>
                     <Paint>
                       <Blur blur={skiaConfig.glowRadius / 2} />
-                      <ColorMatrix
-                  matrix={glowMatrix}
-                />
+                      <ColorMatrix matrix={glowMatrix} />
                     </Paint>
                     <Circle
                       cx={keypoint.x}

@@ -151,7 +151,7 @@ export function useMVPPoseDetection(
     if (state.isDetecting) {
       stopDetection()
     } else if (state.isEnabled) {
-      startDetection().catch((error) => {})
+      startDetection().catch(() => {})
     }
   }, [state.isDetecting, state.isEnabled, startDetection, stopDetection])
 

@@ -1,0 +1,174 @@
+---
+description: Tamagui theming system and token management
+globs: ["**/theme/**/*", "**/tamagui.config.*", "packages/config/**/*"]
+alwaysApply: false
+---
+
+# Tamagui Theming & Token System
+
+## Core Principles
+- Use semantic token names that describe purpose, not appearance
+- Create light/dark theme variants
+- Keep theme tokens consistent across platforms
+- Define themes in `packages/config/src/tamagui.config.ts`
+
+## Theme Definition
+```typescript
+// ✅ Good - semantic theme tokens
+export const theme = createTheme({
+  color: {
+    background: '#ffffff',
+    backgroundSecondary: '#f8f9fa',
+    backgroundHover: '#f1f3f4',
+    backgroundPress: '#e8eaed',
+    primary: '#007bff',
+    primaryHover: '#0056b3',
+    text: '#212529',
+    textSecondary: '#6c757d',
+    error: '#dc3545',
+    success: '#28a745',
+    borderColor: '#dee2e6'
+  },
+  space: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48
+  },
+  radius: {
+    sm: 4,
+    md: 8,
+    lg: 12,
+    xl: 16
+  }
+})
+```
+
+## Token Usage Rules
+- ALWAYS use theme tokens over hardcoded values
+- Use `$` prefix for token references
+- Leverage Tamagui's responsive tokens
+- Create custom tokens for brand-specific values
+
+```typescript
+// ✅ Good - using theme tokens
+<YStack 
+  backgroundColor="$background" 
+  padding="$md"
+  gap="$sm"
+  borderRadius="$md"
+  borderWidth={1}
+  borderColor="$borderColor"
+>
+  <Text color="$text" fontSize="$6">Title</Text>
+  <Text color="$textSecondary" fontSize="$3">Subtitle</Text>
+</YStack>
+
+// ❌ Bad - hardcoded values
+<YStack backgroundColor="#fff" padding={16} borderRadius={8}>
+```
+
+## Color System
+- Use HSL for better color manipulation
+- Create color scales for consistency
+- Implement proper dark mode support
+- Test color contrast for accessibility
+
+```typescript
+// ✅ Good - HSL color scales for better manipulation
+export const colors = {
+  blue: {
+    1: 'hsl(210, 100%, 98%)',
+    2: 'hsl(210, 100%, 95%)',
+    3: 'hsl(210, 100%, 90%)',
+    // ... scale continues
+    11: 'hsl(210, 100%, 15%)',
+    12: 'hsl(210, 100%, 8%)'
+  },
+  gray: {
+    1: 'hsl(0, 0%, 99%)',
+    2: 'hsl(0, 0%, 97%)',
+    // ... scale continues
+    11: 'hsl(0, 0%, 25%)',
+    12: 'hsl(0, 0%, 9%)'
+  }
+}
+```
+
+## Typography System
+```typescript
+// ✅ Good - typography components with variants
+export const Heading = styled(Text, {
+  fontSize: "$8",
+  fontWeight: "bold",
+  color: "$text",
+  lineHeight: "$1",
+
+  variants: {
+    level: {
+      1: { fontSize: "$10", fontWeight: "800" },
+      2: { fontSize: "$8", fontWeight: "700" },
+      3: { fontSize: "$6", fontWeight: "600" },
+      4: { fontSize: "$5", fontWeight: "600" }
+    },
+    color: {
+      primary: { color: "$primary" },
+      secondary: { color: "$textSecondary" },
+      error: { color: "$error" },
+      success: { color: "$success" }
+    }
+  }
+})
+
+export const Body = styled(Text, {
+  fontSize: "$4",
+  color: "$text",
+  lineHeight: "$2",
+  
+  variants: {
+    size: {
+      sm: { fontSize: "$3" },
+      md: { fontSize: "$4" },
+      lg: { fontSize: "$5" }
+    },
+    weight: {
+      normal: { fontWeight: "400" },
+      medium: { fontWeight: "500" },
+      semibold: { fontWeight: "600" }
+    }
+  }
+})
+```
+
+## Shadow Token System
+```typescript
+// Define in your theme config
+export const shadows = {
+  small: {
+    // Native
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.0,
+    elevation: 1,
+  },
+  medium: {
+    // Native  
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 2,
+  },
+  large: {
+    // Native
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    elevation: 4,
+  }
+}
+```

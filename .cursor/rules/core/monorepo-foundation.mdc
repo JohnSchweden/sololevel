@@ -23,7 +23,7 @@ Single source of truth for our stack, principles, repo structure, and data/secur
 
 Non‑negotiables:
 - Mobile-first, cross-platform development in a single codebase
-- Path aliases (`@ui/`, `@app/`, `@api/`) with centralized config in `tsconfig.base.json`
+- Path aliases (`@ui/`, `@app/`, `@api/`, `@config/`) with centralized config in `tsconfig.base.json`
 - No explicit React imports (React 17+)
 - Prefer named exports
 - RLS enforced for all database access
@@ -32,12 +32,13 @@ Non‑negotiables:
 ```
 project-root/
 ├── apps/          # Applications
-│   ├── expo/      # React Native app (Expo)
-│   └── next/      # Next.js web app
+│   ├── expo/      # React Native app (expo-app)
+│   └── next/      # Next.js web app (next-app)
 ├── packages/      # Shared code
-│   ├── ui/        # Tamagui components (published as @my/ui)
-│   ├── app/       # Business logic, screens, hooks
-│   └── api/       # Backend integrations & clients
+│   ├── ui/        # Tamagui components (@my/ui)
+│   ├── app/       # Business logic, screens, hooks (@my/app)
+│   ├── api/       # Backend integrations & clients (@my/api)
+│   └── config/    # Configuration & types (@my/config)
 ├── docs/          # Documentation
 ├── supabase/      # Backend configuration
 └── .cursorrules   # AI behavior configuration
@@ -81,6 +82,7 @@ See `quality/performance.mdc`.
 - New feature screens live in `packages/app` and are consumed by `apps/*`
 - Shared UI belongs in `packages/ui`; keep app-specific styling out
 - Backend calls go through `packages/api`; avoid direct fetches in UI
+- Configuration and types go in `packages/config`; shared across all packages
 - Add path aliases in `tsconfig.base.json` when introducing new packages
 
 ### How to Add a New Package (Quick Recipe)
@@ -90,6 +92,12 @@ See `quality/performance.mdc`.
 4. Export named APIs only; no default exports.
 5. Add minimal tests and stories (if UI) and run `yarn type-check`.
 6. Build with Turbo and ensure consumers import via alias.
+
+### Package Naming Conventions
+- Apps: `expo-app`, `next-app` (matches directory names)
+- Shared packages: `@my/ui`, `@my/app`, `@my/api`, `@my/config`
+- Use `workspace:*` for internal dependencies
+- All packages must be private: `"private": true`
 
 ## Versioning & Compatibility
 - Align Expo SDK versions across `apps` and `packages`
@@ -108,6 +116,13 @@ See `quality/performance.mdc`.
 | Next.js       | 15.x           | 15.x    | `apps/next/package.json` |
 | Turbo         | 1.13.x         | 1.13.x  | root `turbo` |
 
+## Workspace Scripts Reference
+- `yarn native` → `expo-app` (React Native development)
+- `yarn web` → `next-app` (Web development)
+- `yarn build:web` → `--filter=next-app`
+- `yarn build:native` → `--filter=expo-app`
+- `yarn test` → `--exclude expo-app` (excludes native from unit tests)
+
 Enforcement:
 - CI validates Node and Yarn versions; local installs should use Corepack.
 - Misaligned versions must be corrected before merging.
@@ -121,5 +136,6 @@ Enforcement:
 ## First-Hour Checklist (New Contributors)
 - Read this file and `core/development-operations.mdc`
 - Run `yarn install`, `yarn dev`, `yarn type-check`
-- Confirm path aliases in `tsconfig.base.json`
+- Confirm path aliases in `tsconfig.base.json` (`@ui/`, `@app/`, `@api/`, `@config/`)
+- Verify workspace structure: `apps/` (expo-app, next-app) and `packages/` (@my/*)
 - Skim `docs/specification/` for PRD/TRD context

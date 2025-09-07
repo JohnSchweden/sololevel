@@ -1,0 +1,78 @@
+---
+description: Cross-platform UI styling system - parent rule that coordinates focused sub-rules
+globs: ["packages/ui/**/*", "**/theme/**/*", "**/styles/**/*", "**/*.native.tsx", "**/*.web.tsx"]
+alwaysApply: false
+references: ["ui/theming", "ui/responsive", "ui/mobile-ux", "ui/platform-differences"]
+---
+
+# Cross-Platform UI Styling System
+
+## Overview
+This is the parent rule for cross-platform UI development. It coordinates focused sub-rules that each handle specific aspects of UI styling.
+
+## Core Principles
+- Mobile-first design approach (320px minimum width)
+- Token-based theming system with semantic naming
+- Platform-aware implementations without code duplication
+- Touch-friendly interactions (44px minimum touch targets)
+- Consistent cross-platform behavior with native feel
+
+## Sub-Rules Structure
+
+### 🎨 [ui/theming.mdc](./theming.mdc)
+**Tamagui theming system and token management**
+- Theme definition and semantic tokens
+- Color systems and typography
+- Shadow token system
+- HSL color scales
+
+### 📱 [ui/responsive.mdc](./responsive.mdc) 
+**Responsive design patterns and breakpoint management**
+- Mobile-first breakpoint usage
+- Layout components and grids
+- Responsive images and conditional rendering
+- Media query patterns
+
+### 👆 [ui/mobile-ux.mdc](./mobile-ux.mdc)
+**Mobile UX patterns, touch interactions, and native feel**
+- Touch targets and gesture handling
+- Safe area and keyboard avoidance
+- Loading states and list optimization
+- Mobile form patterns
+
+### 🔄 [ui/platform-differences.mdc](./platform-differences.mdc)
+**Platform-specific implementations and cross-platform compatibility**
+- When to use platform-specific files
+- Shadow system implementation
+- Web vs native feature differences
+- Platform-aware animations
+
+## Quick Reference
+
+### Most Common Patterns
+```typescript
+// Token usage
+<YStack backgroundColor="$background" padding="$md" gap="$sm">
+
+// Responsive design
+<Text fontSize="$4" $sm={{ fontSize: "$5" }} $md={{ fontSize: "$6" }}>
+
+// Touch targets
+<Button size="$5" minHeight={44}>
+
+// Platform-aware shadows
+<View {...$shadow.medium} $web={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)' }} />
+```
+
+### When to Use Which Sub-Rule
+- **Theming**: Setting up tokens, colors, typography systems
+- **Responsive**: Breakpoints, layout components, screen adaptation
+- **Mobile UX**: Touch interactions, gestures, mobile-specific patterns
+- **Platform Differences**: Web vs native implementations, shadows, platform-specific features
+
+## Best Practices Summary
+1. **Always use tokens** - Never hardcode colors, spacing, or typography values
+2. **Mobile-first responsive** - Design for smallest screen first, enhance for larger
+3. **Platform-aware shadows** - Use proper shadow implementation for each platform
+4. **Touch-friendly targets** - Minimum 44px touch targets on mobile
+5. **Consistent animations** - Use Tamagui's animation system for smooth interactions
