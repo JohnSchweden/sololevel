@@ -7,6 +7,7 @@
 import { log } from '@my/ui/src/utils/logger'
 import { useCallback, useState } from 'react'
 import { useCameraRecordingStore } from '../../../stores/cameraRecording'
+import { mvpConfig } from '../config/MVPConfig'
 
 /**
  * MVP Pose Toggle State Interface
@@ -40,7 +41,9 @@ export interface UseMVPPoseToggle {
  * MVP Pose Detection Toggle Hook
  * Provides simple enable/disable functionality for pose detection
  */
-export function useMVPPoseToggle(initialEnabled = true): UseMVPPoseToggle {
+export function useMVPPoseToggle(
+  initialEnabled = mvpConfig.getConfig().features.poseDetection
+): UseMVPPoseToggle {
   // Basic toggle state
   const [state, setState] = useState<MVPPoseToggleState>({
     isEnabled: initialEnabled,

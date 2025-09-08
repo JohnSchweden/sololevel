@@ -28,6 +28,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     // Remove redundant cameraReady state - rely on parent component's state
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
+    const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
 
     // Expose camera control methods via ref
     useImperativeHandle(
@@ -125,26 +126,50 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           }
 
           try {
-            // Clamp zoom value between 0 and 1 (Expo Camera expects 0-1 range)
-            const clampedZoom = Math.max(0, Math.min(1, zoom))
-            // Note: Expo Camera zoom is set via props, not methods
-            // The zoom prop will be updated through parent component
-            onZoomChange?.(clampedZoom)
-            log.info('CameraPreview', 'Zoom value updated', { zoom: clampedZoom })
+            // Convert discrete zoom levels (1, 2, 3) to Expo Camera range (0-1)
+            // 1x → 0.0, 2x → 0.5, 3x → 1.0
+            let expoZoomValue: number
+            if (zoom === 1) {
+              expoZoomValue = 0.0
+            } else if (zoom === 2) {
+              expoZoomValue = 0.5
+            } else if (zoom === 3) {
+              expoZoomValue = 1.0
+            } else {
+              // Handle any other values by clamping to valid range
+              expoZoomValue = Math.max(0, Math.min(1, (zoom - 1) / 2))
+            }
+
+            // Update internal zoom state to apply to CameraView component
+            setCurrentZoomLevel(expoZoomValue)
+
+            // Notify parent component of zoom change
+            onZoomChange?.(expoZoomValue)
+
+            log.info('CameraPreview', 'Zoom value updated', {
+              discreteZoom: zoom,
+              expoZoom: expoZoomValue,
+              range: '0-1',
+            })
           } catch (error) {
             log.error('CameraPreview', 'Failed to update zoom', error)
             throw error
           }
         },
         getZoom: async (): Promise<number> => {
-          // Return current zoom level from props
-          return zoomLevel
+          // Return current zoom level from internal state
+          return currentZoomLevel
         },
       }),
-      [zoomLevel, onZoomChange] // Remove cameraReady from dependencies
+      [currentZoomLevel, onZoomChange] // Include currentZoomLevel in dependencies
     )
 
     // Permission handling is now centralized in the parent component
+
+    // Sync internal zoom state with prop
+    useEffect(() => {
+      setCurrentZoomLevel(zoomLevel)
+    }, [zoomLevel])
 
     // Handle camera ready callback - simplified to just notify parent
     const handleCameraReady = () => {
@@ -267,7 +292,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         aspectRatio: orientation === 'landscape' ? 16 / 9 : 9 / 16,
       } as any,
       facing: cameraType,
-      zoom: zoomLevel, // Add zoom support
+      zoom: currentZoomLevel, // Use internal zoom state for Expo Camera (0-1 range)
       onCameraReady: handleCameraReady,
       onMountError: handleMountError,
       // Enable audio for recording - CRITICAL: Force video mode for recording readiness

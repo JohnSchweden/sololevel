@@ -7,7 +7,7 @@ import '@tamagui/polyfill-dev'
 
 import { config } from '@my/ui'
 import { NextThemeProvider, useRootTheme } from '@tamagui/next-theme'
-import { Provider } from 'app/provider'
+import { Provider } from '@app/provider'
 import { useServerInsertedHTML } from 'next/navigation'
 import type { ReactNode } from 'react'
 // Import StyleSheet for web compatibility

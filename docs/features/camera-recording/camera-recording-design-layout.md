@@ -54,7 +54,7 @@ graph TB
     VFPW[VideoFilePicker.tsx - Web]
     
     %% Post-Recording
-    PRP[PostRecordingPlayback]
+    VP[VideoPlayer]
     
     %% Component Hierarchy
     CRSW --> CRSE
@@ -99,7 +99,7 @@ graph TB
     
     %% State Management & Interactions
     IC -.->|"onStartRecording"| RC
-    RC -.->|"onStop"| PRP
+    RC -.->|"onStop"| VP
     BN -.->|"tab change"| ND
     CH -.->|"menu press"| SS
     
@@ -120,7 +120,7 @@ graph TB
     class CP,CPN,CPNE,CPNV,CPW,PO,PON,POW camera
     class IC,RC,RB,CB,ZC,PDT,PDTC controls
     class BN,ND,CD,SS navigation
-    class VFP,VFPN,VFPW,PRP platform
+    class VFP,VFPN,VFPW,VP platform
 ```
 
 ## Component Architecture Overview
@@ -154,7 +154,7 @@ graph TB
 - **Platform implementations**: Native (ActionSheet) and Web (File API)
 
 ### 7. Post-Recording
-- **PostRecordingPlayback**: Video review and processing UI
+- **VideoPlayer**: Video playback and processing UI
 
 ## Key Design Patterns
 

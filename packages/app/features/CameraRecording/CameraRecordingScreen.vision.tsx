@@ -148,17 +148,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
           ref={cameraRef}
           cameraType={cameraType}
           isRecording={isRecording}
-          zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
-          // Debug: log zoom conversion
-          // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
-          onZoomChange={(continuousZoom) => {
-            // Convert continuous zoom (0-1) back to discrete (1-3)
-            // 0.0 → 1, 0.33 → 2, 0.67 → 3
-            const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
-            // Clamp to valid range
-            const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
-            handleZoomChange(clampedZoom)
-          }}
+          zoomLevel={zoomLevel} // Pass current zoom level for display purposes
           permissionGranted={permission?.granted ?? false}
           onCameraReady={handleCameraReady}
           onError={(_error: string) => {

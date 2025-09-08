@@ -27,7 +27,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const cameraRef = useRef<Camera>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
-    const [isInitialized, setIsInitialized] = useState(false)
+    const [_isInitialized, _setIsInitialized] = useState(false)
+    const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
 
     // Get camera device based on type
     const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
@@ -59,7 +60,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           }
 
           try {
-            const recording = cameraRef.current.startRecording({
+            cameraRef.current.startRecording({
               onRecordingFinished: (video) => {
                 log.info('VisionCamera', 'Recording finished', { path: video.path })
               },
@@ -157,10 +158,17 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             const maxZoom = device.maxZoom
             const clampedZoom = Math.max(minZoom, Math.min(maxZoom, zoom))
 
+            // Update internal zoom state to apply to Camera component
+            setCurrentZoomLevel(clampedZoom)
+
+            // Notify parent component of zoom change
             onZoomChange?.(clampedZoom)
+
             log.info('VisionCamera', 'Zoom value updated', {
               zoom: clampedZoom,
               range: `${minZoom}-${maxZoom}`,
+              currentZoomLevel: currentZoomLevel,
+              willUpdateTo: clampedZoom,
             })
           } catch (error) {
             log.error('VisionCamera', 'Failed to update zoom', error)
@@ -169,16 +177,16 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         getZoom: async (): Promise<number> => {
-          return zoomLevel
+          return currentZoomLevel
         },
       }),
-      [device, zoomLevel, onZoomChange, onError]
+      [device, currentZoomLevel, onZoomChange, onError]
     )
 
     // Handle camera initialization
     const handleCameraInitialized = () => {
       log.info('VisionCamera', 'Camera initialized')
-      setIsInitialized(true)
+      _setIsInitialized(true)
       setCameraError(null)
       onCameraReady?.()
     }
@@ -189,7 +197,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       log.error('VisionCamera', 'Camera error', error)
 
       setCameraError(errorMessage)
-      setIsInitialized(false)
+      _setIsInitialized(false)
       onError?.(errorMessage)
     }
 
@@ -212,12 +220,17 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       if (!permissionGranted) {
         const errorMessage = 'Camera permission is required to use this feature'
         setCameraError(errorMessage)
-        setIsInitialized(false)
+        _setIsInitialized(false)
         onError?.(errorMessage)
       } else {
         setCameraError(null)
       }
     }, [permissionGranted, onError])
+
+    // Sync internal zoom state with prop
+    useEffect(() => {
+      setCurrentZoomLevel(zoomLevel)
+    }, [zoomLevel])
 
     // Show error state if camera failed or no device
     if (cameraError || !device) {
@@ -286,7 +299,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           isActive={true}
           video={true}
           audio={true}
-          zoom={zoomLevel}
+          zoom={currentZoomLevel}
           frameProcessor={frameProcessor}
           onInitialized={handleCameraInitialized}
           onError={handleCameraError}
