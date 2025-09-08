@@ -21,7 +21,7 @@ export { VideoFilePicker } from './VideoFilePicker'
 
 // Phase 4 Screen Integration Components
 export { SideSheet } from './SideSheet'
-export { PostRecordingPlayback } from './PostRecordingPlayback'
+export { VideoPlayer } from './VideoPlayer'
 
 // VideoFilePicker Props Interface
 export interface VideoFilePickerProps {
