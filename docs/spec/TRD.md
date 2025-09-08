@@ -12,7 +12,8 @@
 
 ## Executive Summary
 * **Purpose**: Specify the end-to-end technical design for the Solo:Level MVP that delivers instant, multi‑modal AI feedback on short user videos across iOS/Android/Web.
-* **Scope**: Covers client apps (Expo + Next.js), backend (Supabase, Edge Functions), AI analysis (pose/voice/LLM), storage, security, monitoring, and release plan. Out of scope: monetization, marketplace, advanced analytics beyond trends.
+* **Scope**: Covers client apps (Expo + Next.js), backend (Supabase, Edge Functions), AI analysis (pose/video/voice/LLM), storage, security, monitoring, and release plan. 
+* **Out of Scope**: monetization, marketplace, advanced analytics beyond trends.
 * **Audience**: Engineers, QA, PM, Design, DevOps.
 
 ---
@@ -32,7 +33,7 @@
 * **Functional Requirements**:
   1. Video capture or upload (MP4/MOV), max 60s; show duration and size
   2. Background upload to Supabase Storage with progress and retry
-  3. AI analysis pipeline (pose + voice + LLM feedback) via Edge Function
+  3. AI analysis pipeline (video + LLM feedback + TTS audio) via Edge Function
   4. Feedback surface: text summary, SSML/audio commentary, metrics/radar
   5. History list and detail views with share options
   6. Auth (email/social) and basic profile
@@ -43,7 +44,7 @@
   - Accessibility: WCAG 2.2 AA for web, RN accessibility roles/labels for native
   - Observability: structured logs, error correlation IDs, basic metrics
 * **User Stories/Use Cases**:
-  - See user stories in the folder docs/specification/user_strories/
+  - See user stories in the folder docs/spec/user_strories/
 
 ---
 
@@ -66,8 +67,57 @@ flowchart TD
 
 * **Technology Stack**:
   - See `core/monorepo-foundation.mdc` for general tech stack (Expo + Next.js, Tamagui, Zustand, TanStack Query, Expo Router, TypeScript, Yarn 4 + Turbo)
-  - **Product-specific**: AI analysis pipeline (Pose via @mediapipe/pose + @tensorflow/tfjs, ASR/Voice metrics, LLM for text, TTS via Polly/GCP)
-  - **Video Capture**: react-native-vision-camera for mobile recording
+  - **Product-specific AI Pipeline**: Real-time pose detection + Video analysis + LLM feedback + TTS generation
+
+## **Native Platform Stack (iOS/Android):**
+
+### **1. Camera & Pose Detection**
+* **Primary:** `react-native-vision-camera` v4+ 
+* **Pose Engine:** `react-native-fast-tflite` v1.6.1 + **MoveNet Lightning** (replacing ML Kit)
+* **Model:** `movenet_lightning_int8.tflite` for optimal performance
+* **Overlay:** `react-native-skia` for pose landmarks rendering
+* **Recording:** VisionCamera's built-in recording capabilities
+* **Threading:** `react-native-worklets-core` for native thread processing
+
+### **2. Video Playback & Overlay**
+* **Primary:** `react-native-video` v6+
+* **Overlay:** `react-native-skia` for pose landmarks rendering
+* **Performance:** Native-threaded overlay synchronization
+
+## **Web Platform Stack:**
+
+### **1. Camera & Pose Detection (Leveraging Native Insights)**
+
+#### **Primary Engine: TensorFlow.js with MoveNet (Unified with Native)**
+* **Model:** `@tensorflow-models/pose-detection` with **MoveNet Lightning** (same as native!)
+* **Backend:** `@tensorflow/tfjs-backend-webgpu` with WebGL fallback
+* **Processing:** Web Workers with **OffscreenCanvas** for native-like performance
+* **Camera:** Enhanced getUserMedia() API with **ImageCapture** for better frame control
+
+#### **Overlay Rendering (Native-Inspired)**
+* **Primary:** **OffscreenCanvas + Web Workers** (mimicking native threading)
+* **Rendering:** RequestAnimationFrame with **frame-perfect synchronization**
+* **Optimization:** Canvas pooling and GPU-accelerated transforms
+
+### **2. Video Recording & Processing**
+* **Primary:** MediaRecorder API with **configurable bitrates**
+* **Processing:** **Dedicated Web Workers** for pose detection during recording
+* **Streaming:** Real-time pose data streaming to match native performance
+
+### **3. Video Playback & Overlay**
+* **Primary:** HTML5 `<video>` with **frame control**
+* **Overlay:** **WebGL-accelerated Canvas** with GPU transforms
+* **Sync:** **High-resolution timer** + video currentTime for frame-perfect alignment
+
+## **Shared Components:**
+* **State Management:** Zustand stores for pose data, performance metrics, and recording state
+* **Data Compression:** Optimized pose data storage and transmission
+* **File Management:** expo-file-system for videos and pose data export
+* **Local Storage:** AsyncStorage for user preferences, SQLite for pose data
+* **Video Analysis:** Gemini flash 2.5 first then pro 2.5
+* **Voice Analysis:** Optional ASR/Voice metrics processing
+* **MMM Integration:** Gemini 2.5 text feedback generation together with video analysis
+* **TTS Pipeline:** Audio commentary via gemini TTS 2.0
 * **Data Flow**:
   1. Client records or selects a video
   2. Client uploads to Storage bucket `raw` via signed URL
@@ -75,9 +125,11 @@ flowchart TD
   4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, writes to DB and `processed` storage
   5. Client subscribes to analysis row via Realtime; UI updates when complete
 * **Third-Party Integrations**:
-  - TensorFlow.js/MediaPipe (pose)
-  - TTS provider (GCP/Polly)
-  - Optional: OpenAI/Anthropic for summary text
+  - **Native**: TensorFlow Lite + MoveNet Lightning model
+  - **Web**: TensorFlow.js + MoveNet Lightning model (unified cross-platform)
+  - **TTS Provider**: gemini TTS 2.0 for audio commentary
+  - **MMM Provider**: gemini 2.5 for feedback text generation
+  - **Performance**: WebGPU/WebGL acceleration for web, native GPU acceleration for mobile
 
 ---
 
@@ -119,12 +171,26 @@ flowchart TD
     - Response: `{ audioUrl: string }`
   - Notes: Prefer Supabase Realtime over polling for completion.
 
+* **AI Pipeline Flow**:
+
+```mermaid
+flowchart TD
+    A[Video Upload] --> B[Frame Extraction]
+    B --> C[Pose Detection<br/>MoveNet Lightning]
+    C --> D[Video/Voice Analysis<br/>Gemini 2.5]
+    D --> E[SSML Generation<br/>Gemini LLM]
+    E --> F[TTS Generation<br/>Gemini 2.0]
+    F --> G[Feedback Assembly]
+    G --> H[Realtime Update]
+```
+
 * **Algorithms and Logic (Overview)**:
   1. Frame extraction (every N ms) → pose keypoints; confidence filtering
-  2. Voice track → basic loudness, pace, pauses; optional ASR for transcript
+  2. Video/Voice analysis → Gemini 2.5 processes video frames and audio for comprehensive feedback
   3. Metrics aggregation → normalized 0–100 scales; compose radar values
   4. LLM prompt builds structured feedback with key takeaways and next steps
-  5. SSML generation → TTS → store audio; save all artifacts/URLs to DB
+  5. SSML generation → Gemini LLM creates structured speech markup from feedback
+  6. TTS generation → Gemini 2.0 converts SSML to audio; store audio; save all artifacts/URLs to DB
 
 * **Error Handling**:
   - Use discriminated union results in client hooks
@@ -196,7 +262,12 @@ flowchart TD
 
 ## Dependencies
 * **Internal**: `apps/expo`, `apps/next`, `packages/ui`, `packages/app`, `packages/api`
-* **External**: Expo, Tamagui, Supabase, TanStack Query, Zustand, TensorFlow/MediaPipe, TTS provider, LLM provider
+* **External**: 
+  - **Core**: Expo, Tamagui, Supabase, TanStack Query, Zustand
+  - **Native Pose**: react-native-fast-tflite, react-native-vision-camera, react-native-skia, react-native-worklets-core, react-native-video
+  - **Web Pose**: @tensorflow/tfjs, @tensorflow-models/pose-detection, @tensorflow/tfjs-backend-webgpu
+  - **AI Services**: TTS provider (Gemini 2.0), LLM provider (Gemini 2.5)
+  - **Models**: MoveNet Lightning (movenet_lightning_int8.tflite)
 
 ---
 

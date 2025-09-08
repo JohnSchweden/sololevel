@@ -1,0 +1,101 @@
+---
+description: Project context and architecture understanding for AI assistant - battle-tested rule for comprehensive project awareness
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Project Context and Architecture
+## SYSTEM_CONTEXT
+You are a senior developer working on a TypeScript/Expo/Next.js monorepo project (Solo:Level - AI Feedback Coach App).
+
+**Required file reads on startup:**
+- `docs/spec/architecture.mermaid`: System architecture and component relationships
+- `docs/spec/TRD.md`: Technical specifications and patterns
+- `docs/spec/status.md`: Project progress and state
+- `docs/tasks/tasks.md`: Current development tasks and requirements
+
+**Before making any changes:**
+1. Parse and understand system architecture from `docs/spec/architecture.mermaid`
+2. Check current task context from `docs/tasks/tasks.md`
+3. Update progress in `docs/spec/status.md`
+4. Follow technical specifications from `docs/spec/TRD.md`
+
+
+# File Management Rules
+## ON_FILE_CHANGE
+**Required actions after any code changes:**
+1. **READ** `docs/spec/architecture.mermaid` to verify architectural compliance
+2. **UPDATE** `docs/spec/status.md` with:
+   - Current progress
+   - Any new issues encountered
+   - Completed items
+3. **VALIDATE** changes against `docs/spec/TRD.md` specifications
+4. **VERIFY** task progress against `docs/tasks/tasks.md`
+
+
+# Code Style and Patterns
+## TYPESCRIPT_GUIDELINES (see `core/typescript-standards.mdc`)
+- Use strict typing, avoid 'any' 
+- Follow SOLID principles
+- Write unit tests for all public methods (1:2 test-to-code ratio max)
+- Document with JSDoc
+- Use Tamagui for cross-platform styling
+- Prefer named exports over default exports
+
+
+# Architecture Understanding
+## READ_ARCHITECTURE
+**File: `docs/spec/architecture.mermaid`**
+**Required parsing:**
+1. Load and parse complete Mermaid diagram
+2. Extract and understand:
+   - AI pipeline architecture (pose detection, video analysis, LLM feedback, TTS)
+   - Cross-platform stack (Expo + Next.js, Tamagui, Supabase)
+   - Database schema and RLS policies
+   - Edge Functions and API specifications
+   - Component boundaries and data flow
+3. Validate any changes against architectural constraints
+4. Ensure new code maintains defined separation of concerns
+
+**Error handling:**
+1. If file not found: STOP and notify user
+2. If architectural violation detected: WARN user
+3. If task context unclear: REQUEST clarification
+
+# Task Management
+## TASK_WORKFLOW
+**Required files:**
+- `docs/tasks/tasks.md`: Source of task definitions
+- `docs/spec/status.md`: Progress tracking
+- `docs/spec/TRD.md`: Implementation guidelines
+
+**Workflow steps:**
+1. **READ** `docs/tasks/tasks.md`:
+   - Parse current task requirements
+   - Extract acceptance criteria
+   - Identify dependencies
+
+2. **VALIDATE** against `docs/spec/architecture.mermaid`:
+   - Confirm architectural alignment
+   - Check component interactions
+   - Verify AI pipeline compliance
+
+3. **UPDATE** `docs/spec/status.md`:
+   - Mark task as in-progress
+   - Track completion of sub-tasks
+   - Document any blockers
+
+4. **IMPLEMENT** following TDD:
+   - Create test files first (1:2 ratio max)
+   - Implement to pass tests
+   - Update status on test completion
+
+# Error Prevention
+## VALIDATION_RULES
+1. Verify type consistency (TypeScript strict mode)
+2. Check for potential null/undefined
+3. Validate against business rules
+4. Ensure error handling with discriminated unions
+5. Check RLS policies for database access
+6. Validate cross-platform compatibility
+7. Ensure AI pipeline compliance

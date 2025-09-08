@@ -1,9 +1,0 @@
-{
-  "rules": [
-    {
-      "description": "Step-by-step rule for systematic task execution",
-      "patterns": ["**/*.js", "**/*.ts", "**/*.tsx", "**/*.md"],
-      "content": "docs/workflow/prompts/_step-by-step-rule.md"
-    }
-  ]
-}

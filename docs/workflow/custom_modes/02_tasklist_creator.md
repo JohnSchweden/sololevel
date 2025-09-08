@@ -14,8 +14,8 @@ This document provides the comprehensive description for analyzing wireframes fo
 Based on completed wireframe analysis in docs/features/[feature-name]/analysis.md:
 
 ## Required Document References:
-1. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
-2. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
+1. Review User Stories: docs/spec/user_stories/P0/[feature].md for acceptance criteria
+2. Review Wireframes: docs/spec/wireframes/P0/[feature].png for UI, layout, and flow
 
 1. Create detailed task list using docs/templates/tasks-template.md
 2. Save as docs/features/[feature-name]/tasks.md following task-lists.mdc format

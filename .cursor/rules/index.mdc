@@ -59,6 +59,7 @@ alwaysApply: false
 #### Development Workflow Context
 **Triggers**: `**/*.{ts,tsx}`, development files
 **Rules to Apply**:
+- `core/project-context-architecture`: Project context and architecture understanding
 - `core/typescript-standards`: TypeScript guidelines
 - `core/github-integration`: GitHub workflow
 - `task-lists`: Task management
@@ -89,7 +90,7 @@ alwaysApply: false
 - **/*.stories.* → storybook + cross-platform-styling
 
 # Development
-- **/*.{ts,tsx} → typescript-standards + github-integration
+- **/*.{ts,tsx} → project-context-architecture + typescript-standards + github-integration
 ```
 
 ### Task Context Detection
@@ -127,6 +128,7 @@ alwaysApply: false
 
 # Development workflow
 - "github", "commit", "pr", "workflow" → github-integration
+- "architecture", "context", "project", "understanding" → project-context-architecture
 
 # Task management
 - "task", "todo", "plan" → task-lists
@@ -142,7 +144,7 @@ Rules are automatically applied based on:
 
 ## Rule Precedence
 
-1. **Always-apply rules**: `core/monorepo-foundation`, `core/development-operations`, `analytics-tracking`
+1. **Always-apply rules**: `core/monorepo-foundation`, `core/development-operations`, `core/project-context-architecture`, `analytics-tracking`
 2. **Context-specific rules**: Applied based on file/task context
 3. **Specialized rules**: Applied for specific patterns
 

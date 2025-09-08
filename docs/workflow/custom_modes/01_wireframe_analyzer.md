@@ -14,10 +14,10 @@ This document provides the comprehensive description for analyzing wireframes fo
 New wireframe received for [FeatureName]. Before implementation:
 
 ## Required Document References:
-1. Review PRD: docs/specification/1_PRD.md for business context and requirements
-2. Review TRD: docs/specification/2_TRD.md for technical architecture and constraints  
-3. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
-4. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
+1. Review PRD: docs/spec/1_PRD.md for business context and requirements
+2. Review TRD: docs/spec/2_TRD.md for technical architecture and constraints  
+3. Review User Stories: docs/spec/user_stories/P0/[feature].md for acceptance criteria
+4. Review Wireframes: docs/spec/wireframes/P0/[feature].png for UI, layout, and flow
 
 ## Setup & Analysis:
 1. Create feature directory: mkdir -p docs/features/[feature-name]/{components,testing}

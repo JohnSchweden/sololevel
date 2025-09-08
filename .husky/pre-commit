@@ -1,0 +1,8 @@
+# Prevent package-lock.json commits
+if [ -f "package-lock.json" ]; then
+  echo "❌ package-lock.json detected. Use 'yarn install' instead of 'npm install'"
+  exit 1
+fi
+
+# Run type checking and linting
+yarn type-check && yarn lint

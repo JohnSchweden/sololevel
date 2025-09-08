@@ -1,7 +1,7 @@
+import { shadows } from '@my/config'
 import { AlertTriangle } from '@tamagui/lucide-icons'
 import { Dialog, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
-import { shadows } from '@my/config'
 
 export interface NavigationDialogProps {
   open: boolean

@@ -4,10 +4,7 @@ import '@testing-library/jest-dom'
 // This is a known issue with @testing-library/react-native until they update
 const originalConsoleError = console.error
 console.error = (...args) => {
-  if (
-    typeof args[0] === 'string' &&
-    args[0].includes('react-test-renderer is deprecated')
-  ) {
+  if (typeof args[0] === 'string' && args[0].includes('react-test-renderer is deprecated')) {
     return // Suppress this specific warning
   }
   originalConsoleError(...args)

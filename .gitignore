@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# npm artifacts (use yarn instead)
+package-lock.json
+
 # local env files
 .env
 .env.local

@@ -1,6 +1,6 @@
+import { shadows } from '@my/config'
 import { ChevronLeft, History } from '@tamagui/lucide-icons'
 import { Dialog, ScrollView, XStack, YStack } from 'tamagui'
-import { shadows } from '@my/config'
 import { Button, Text } from 'tamagui'
 
 export interface SideSheetProps {

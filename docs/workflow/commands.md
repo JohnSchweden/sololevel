@@ -95,8 +95,8 @@ Implement Phase 1 (Mobile Foundation) from docs/features/[feature-name]/tasks.md
 
 ## Required Document References:
 1. Review Analysis: docs/features/[feature-name]/analysis.md for component mapping.
-2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
-3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
+2. Review User Stories: docs/spec/user_stories/P0/[feature].md for acceptance criteria
+3. Review Wireframes: docs/spec/wireframes/P0/[feature].png for UI, layout, and flow
 
 **Fetch These Rules:**
 - mobile-screen-patterns.mdc: Touch optimization, safe areas, gestures
@@ -130,8 +130,8 @@ Implement Phase 2 (Interactive Elements) from docs/features/[feature-name]/tasks
 
 ## Required Document References:
 1. Review Analysis: docs/features/[feature-name]/analysis.md for component mapping.
-2. Review User Stories: docs/specification/user_stories/P0/[feature].md for acceptance criteria
-3. Review Wireframes: docs/specification/wireframes/P0/[feature].png for UI, layout, and flow
+2. Review User Stories: docs/spec/user_stories/P0/[feature].md for acceptance criteria
+3. Review Wireframes: docs/spec/wireframes/P0/[feature].png for UI, layout, and flow
 
 **Fetch These Rules:**
 - mobile-screen-patterns.mdc: Touch interactions, gesture handling

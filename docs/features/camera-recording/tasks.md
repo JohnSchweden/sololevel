@@ -1,9 +1,9 @@
 # Camera Recording Implementation Tasks
 
 ## Context & Analysis
-- **Wireframe Images**: docs/specification/wireframes/P0/01a_camera.png, 01b_recording.png [Status: ✅]
+- **Wireframe Images**: docs/spec/wireframes/P0/01a_camera.png, 01b_recording.png [Status: ✅]
 - **Wireframe Analysis**: docs/features/camera-recording/analysis.md [Status: ✅]
-- **User Stories**: docs/specification/user_stories/P0/01a_camera.md, 01b_recording.md [Status: ✅]
+- **User Stories**: docs/spec/user_stories/P0/01a_camera.md, 01b_recording.md [Status: ✅]
 - **Feature Description**: Camera recording screen with idle/recording states, pose overlay, upload functionality
 - **Platforms**: [Both] - Cross-platform mobile-first implementation
 - **Priority**: High (P0 feature)
@@ -560,8 +560,8 @@
 - `docs/features/camera-recording/analysis.md` — Wireframe analysis reference [x]
 - `docs/features/camera-recording/tasks.md` — This task list [x]
 - `docs/features/camera-recording/analysis-validation-report.md` — Analysis validation [x]
-- `docs/specification/user_stories/P0/01a_camera.md` — Idle state user stories [x]
-- `docs/specification/user_stories/P0/01b_recording.md` — Recording state user stories [x]
+- `docs/spec/user_stories/P0/01a_camera.md` — Idle state user stories [x]
+- `docs/spec/user_stories/P0/01b_recording.md` — Recording state user stories [x]
 - `packages/ui/components/CameraRecording/` — UI component directory [ ]
 - `packages/app/features/CameraRecording/` — Screen logic directory [ ]
 - `packages/api/hooks/useCameraRecording.ts` — Camera data hooks [ ]

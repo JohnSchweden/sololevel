@@ -39,7 +39,7 @@ alwaysApply: false
 
 ## SSML & Audio Generation
 - Generate SSML in Edge Functions
-- Use TTS services (Google Cloud TTS, Amazon Polly)
+- Use TTS services (Gemini TTS)
 - Cache generated audio in Supabase Storage
 - Stream audio playback with buffering
 

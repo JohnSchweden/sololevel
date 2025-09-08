@@ -1,9 +1,9 @@
+import { shadows } from '@my/config'
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
 import React, { useCallback, useState } from 'react'
 // Use React Native Pressable with platform detection
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
-import { shadows } from '@my/config'
 import { log } from '../../utils/logger'
 import type { VideoValidationResult } from '../../utils/videoValidation'
 import { VideoFilePicker } from './VideoFilePicker'

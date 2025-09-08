@@ -24,7 +24,7 @@ Operational rules for day-to-day development: commands, Yarn 4 workspaces, depen
 ## Meta
 - Rule Owner: Platform
 - Last Reviewed: 2025-09-06
-- Related: `core/monorepo-foundation.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `core/typescript-standards.mdc`, `core/development-workflow.mdc`
+- Related: `core/monorepo-foundation.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `core/typescript-standards.mdc`
 
 ## Essential Commands
 ```bash
@@ -39,9 +39,7 @@ yarn web              # Start Next.js app
 pkill -f "yarn web"   # Kill web dev server
 pkill -f "yarn native" # Kill native dev server
 
-# Workspace ops
-yarn workspace <name> add <package>
-yarn workspace <name> run <script>
+# Workspace ops (see Workspace Commands Reference below)
 yarn workspaces list
 
 # Supabase CLI
@@ -54,21 +52,19 @@ yarn dlx supabase <command>
 - Recommended config: `nodeLinker: node-modules`, `enableGlobalCache: true`
 - Troubleshooting: `yarn cache clean`, `yarn dlx @yarnpkg/doctor`, `yarn explain peer-requirements`
 
+### Yarn Enforcement
+- **packageManager field**: Enforces Yarn 4.9.3 via `package.json`
+- **Pre-commit hooks**: Prevent commits with `package-lock.json` or `node_modules` from npm
+- **CI validation**: All workflows use `yarn install --immutable`
+- **Local development**: Use `corepack enable` to ensure correct Yarn version
+
 ## Dependency Strategy
 ### Installation Patterns
 ```bash
-# Shared UI components
-yarn workspace @my/ui add <ui-package>
-
-# Shared business logic
-yarn workspace app add <business-logic>
-
-# Web/Native specific
-yarn workspace next add <web-only>
-yarn workspace expo add <native-only>
-
 # Root dev tools
 yarn add -D -W <dev-tool>
+
+# Workspace-specific packages (see Workspace Commands Reference below)
 ```
 
 ### Categories
@@ -105,7 +101,7 @@ yarn add -D -W <dev-tool>
 - [ ] TypeScript support or @types package available
 - [ ] Bundle size impact acceptable
 - [ ] No conflicting peer dependencies
-- [ ] Security vulnerabilities checked (`yarn npm audit`)
+- [ ] Security vulnerabilities checked (see Quality Gates)
 - [ ] License compatibility verified
 
 ### Workspace Focus & Diagnostics
@@ -122,17 +118,17 @@ yarn add -D -W <dev-tool>
 - Allow `--mode update-lockfile` only in dependency update branches.
 - Feature PRs must not modify `yarn.lock` unless intentionally fixing dependency health.
 
-## Testing Policy (from unified testing rule)
+## Quality Gates
+- Biome for linting/formatting
+- TypeScript strict mode; `yarn type-check` must pass pre-commit/CI
+- Security: `yarn npm audit` on CI; resolve high severities promptly
+
+### Testing Policy (from unified testing rule)
 - Test-to-code ratio ≤ 1:2
 - Tests target user behavior, not implementation
 - Only critical user flows are tested
 - Minimal mocking (external deps only)
 - Avoid testing internal hook calls or state transitions
-
-## Quality Gates
-- Biome for linting/formatting
-- TypeScript strict mode; `yarn type-check` must pass pre-commit/CI
-- Security: `yarn npm audit` on CI; resolve high severities promptly
 
 ## CI/CD
 Example (GitHub Actions):
@@ -157,12 +153,10 @@ jobs:
 ```
 
 ## Commit Hooks
-- Husky pre-commit hook:
-```bash
-# .husky/pre-commit
-yarn type-check && yarn lint
-```
-- Optionally add lint-staged to run Biome only on changed files.
+- Husky pre-commit hook enforces:
+  - Prevents commits with `package-lock.json` (Yarn enforcement)
+  - Runs `yarn type-check` and `yarn lint` on every commit
+- Optionally add lint-staged to run Biome only on changed files
 
 ## Typical Developer Loop
 1. `yarn dev` to start Turbo pipelines
@@ -170,6 +164,28 @@ yarn type-check && yarn lint
 3. `yarn type-check` and unit tests locally
 4. Run web/native as needed: `yarn web`, `yarn native`
 5. Commit with lint-staged hooks; open PR with CI checks
+
+## Workspace Commands Reference
+```bash
+# Package management
+yarn workspace @my/ui add <package>        # UI components
+yarn workspace @my/app add <package>       # Business logic
+yarn workspace @my/api add <package>       # Backend integrations
+yarn workspace @my/config add <package>    # Configuration
+
+# App-specific
+yarn workspace expo-app add <package>      # React Native
+yarn workspace next-app add <package>      # Next.js web
+
+# General workspace operations
+yarn workspace <name> add <package>        # Add to any workspace
+yarn workspace <name> run <script>         # Run script in workspace
+
+# Build & test filters
+yarn build --filter=expo-app              # Native build only
+yarn build --filter=next-app              # Web build only
+yarn test --exclude expo-app              # Exclude native from tests
+```
 
 ## Supabase Local Development
 - Use `yarn dlx supabase start` to run local stack
@@ -192,6 +208,6 @@ yarn type-check && yarn lint
 - TypeScript rules → `core/typescript-standards.mdc`
 
 ## Security & Maintenance
-- Use Renovate/Dependabot for regular dependency updates.
-- Run `yarn npm audit` on CI and fix high severities promptly.
+- Use Renovate/Dependabot for regular dependency updates
+- Security auditing handled in Quality Gates section
 

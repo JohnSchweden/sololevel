@@ -1,7 +1,7 @@
+import { shadows } from '@my/config'
 import React from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
-import { shadows } from '@my/config'
 
 export interface BottomNavigationProps {
   activeTab: 'coach' | 'record' | 'insights'

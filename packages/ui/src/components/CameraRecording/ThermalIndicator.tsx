@@ -1,8 +1,8 @@
+import { shadows } from '@my/config'
 import { AlertTriangle, Thermometer, Zap } from '@tamagui/lucide-icons'
 import { useEffect, useState } from 'react'
 import { Animated, Platform } from 'react-native'
 import { AnimatePresence, Button, Circle, H6, Paragraph, XStack, YStack, styled } from 'tamagui'
-import { shadows } from '@my/config'
 
 /**
  * Thermal State Indicator Component for Phase 2b

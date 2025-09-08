@@ -61,7 +61,7 @@ Scaffolding: use `yarn turbo gen` where applicable.
 See `quality/security-best-practices.mdc` and `SECURITY.md`.
 
 ## ADRs & Decisions
-- Major decisions recorded in `docs/specification/` (PRD/TRD).
+- Major decisions recorded in `docs/spec/` (PRD/TRD).
 - Link future Architecture Decision Records here when introduced.
 
 ## Performance Guardrails
@@ -138,4 +138,4 @@ Enforcement:
 - Run `yarn install`, `yarn dev`, `yarn type-check`
 - Confirm path aliases in `tsconfig.base.json` (`@ui/`, `@app/`, `@api/`, `@config/`)
 - Verify workspace structure: `apps/` (expo-app, next-app) and `packages/` (@my/*)
-- Skim `docs/specification/` for PRD/TRD context
+- Skim `docs/spec/` for PRD/TRD context
