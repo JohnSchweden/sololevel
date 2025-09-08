@@ -287,6 +287,11 @@ export interface ZoomControlsProps {
 export function ZoomControls({ currentZoom, onZoomChange, disabled = false }: ZoomControlsProps) {
   const zoomLevels: Array<1 | 2 | 3> = [1, 2, 3]
 
+  const handleZoomChange = (level: 1 | 2 | 3) => {
+    log.info('ZoomControls', 'Zoom change requested', { level, currentZoom, disabled })
+    onZoomChange?.(level)
+  }
+
   return (
     <XStack
       alignItems="center"
@@ -300,7 +305,7 @@ export function ZoomControls({ currentZoom, onZoomChange, disabled = false }: Zo
           key={level}
           level={level}
           isActive={currentZoom === level}
-          onPress={() => onZoomChange?.(level)}
+          onPress={() => handleZoomChange(level)}
           disabled={disabled}
         />
       ))}
@@ -316,11 +321,16 @@ interface ZoomButtonProps {
 }
 
 function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
+  const handlePress = () => {
+    log.info('ZoomButton', 'Zoom button pressed', { level, isActive, disabled })
+    onPress?.()
+  }
+
   return (
     <Button
       variant="outlined"
       size="$2"
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled}
       backgroundColor={disabled ? '$color8' : isActive ? '$blue9' : 'rgba(255,255,255,0.2)'}
       borderRadius="$4"

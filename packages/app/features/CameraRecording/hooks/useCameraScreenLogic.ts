@@ -103,9 +103,26 @@ export const useCameraScreenLogic = ({
     }
   }, [recordingState, cameraType])
 
-  const handleZoomChange = useCallback((level: 1 | 2 | 3) => {
-    setZoomLevel(level)
-  }, [])
+  const handleZoomChange = useCallback(
+    async (level: 1 | 2 | 3) => {
+      log.info('handleZoomChange', 'Zoom level change requested', {
+        level,
+        cameraRef: !!cameraRef?.current,
+      })
+      setZoomLevel(level)
+
+      // Apply zoom to camera if ref is available
+      if (cameraRef?.current) {
+        try {
+          await cameraRef.current.setZoom(level)
+          log.info('handleZoomChange', 'Zoom applied to camera', { level })
+        } catch (error) {
+          log.error('handleZoomChange', 'Failed to apply zoom to camera', error)
+        }
+      }
+    },
+    [cameraRef]
+  )
 
   const handleStartRecording = useCallback(async () => {
     if (!canRecord) return
