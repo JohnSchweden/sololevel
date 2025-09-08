@@ -50,7 +50,7 @@ e2e/
 
 **Usage:**
 ```typescript
-import { ErrorBoundary, withErrorBoundary } from 'app/components/ErrorBoundary'
+import { ErrorBoundary, withErrorBoundary } from '@app/components/ErrorBoundary'
 
 // Component wrapper
 <ErrorBoundary>
@@ -71,7 +71,7 @@ const SafeComponent = withErrorBoundary(YourComponent)
 
 **Usage:**
 ```typescript
-import { useQueryWithErrorHandling } from 'app/hooks/useQueryWithErrorHandling'
+import { useQueryWithErrorHandling } from '@app/hooks/useQueryWithErrorHandling'
 
 const { data, error, isLoading, isError, refetch } = useQueryWithErrorHandling({
   queryKey: ['user', id],
@@ -124,7 +124,7 @@ const result = handleSupabaseResult({ data, error }, 'fetchPosts')
 
 **Usage:**
 ```typescript
-import { validateApiResponse, safeParseWithDetails } from 'app/validation/api-responses'
+import { validateApiResponse, safeParseWithDetails } from '@app/validation/api-responses'
 
 // API response validation
 const user = validateApiResponse(UserSchema, apiData, 'fetchUser')

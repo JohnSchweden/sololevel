@@ -108,7 +108,7 @@
    ```typescript
    // apps/next/app/_layout.tsx
    import { Stack } from 'expo-router'
-   import { Provider } from 'app/provider'
+   import { Provider } from '@app/provider'
 
    export default function RootLayout() {
      return (

@@ -14,6 +14,7 @@
   "dependencies": {
     "@mediapipe/pose": "^0.5.1675469404",
     "@my/api": "workspace:*",
+    "@my/app": "workspace:*",
     "@my/config": "0.0.1",
     "@tamagui/animations-css": "1.132.20",
     "@tamagui/config": "1.132.20",
@@ -26,7 +27,6 @@
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "@tensorflow/tfjs-converter": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
-    "app": "0.0.0",
     "expo-constants": "~17.1.7",
     "expo-linking": "~7.1.7",
     "expo-router": "~5.1.4",

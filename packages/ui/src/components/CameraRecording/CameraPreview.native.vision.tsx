@@ -27,7 +27,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const cameraRef = useRef<Camera>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
-    const [isInitialized, setIsInitialized] = useState(false)
+    const [_isInitialized, _setIsInitialized] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
 
     // Get camera device based on type
@@ -60,7 +60,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           }
 
           try {
-            const recording = cameraRef.current.startRecording({
+            cameraRef.current.startRecording({
               onRecordingFinished: (video) => {
                 log.info('VisionCamera', 'Recording finished', { path: video.path })
               },
@@ -186,7 +186,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     // Handle camera initialization
     const handleCameraInitialized = () => {
       log.info('VisionCamera', 'Camera initialized')
-      setIsInitialized(true)
+      _setIsInitialized(true)
       setCameraError(null)
       onCameraReady?.()
     }
@@ -197,7 +197,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       log.error('VisionCamera', 'Camera error', error)
 
       setCameraError(errorMessage)
-      setIsInitialized(false)
+      _setIsInitialized(false)
       onError?.(errorMessage)
     }
 
@@ -220,7 +220,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       if (!permissionGranted) {
         const errorMessage = 'Camera permission is required to use this feature'
         setCameraError(errorMessage)
-        setIsInitialized(false)
+        _setIsInitialized(false)
         onError?.(errorMessage)
       } else {
         setCameraError(null)

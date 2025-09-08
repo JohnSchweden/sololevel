@@ -54,7 +54,7 @@ graph TB
     VFPW[VideoFilePicker.tsx - Web]
     
     %% Post-Recording
-    PRP[PostRecordingPlayback]
+    PRP[VideoPlayer]
     
     %% Component Hierarchy
     CRSW --> CRSE
@@ -154,7 +154,7 @@ graph TB
 - **Platform implementations**: Native (ActionSheet) and Web (File API)
 
 ### 7. Post-Recording
-- **PostRecordingPlayback**: Video review and processing UI
+- **VideoPlayer**: Video review and processing UI
 
 ## Key Design Patterns
 

@@ -117,7 +117,7 @@ export function {{Feature}}Screen({
 ### Expo Router app route
 ```tsx
 // apps/expo/app/{{feature}}/[id].tsx
-import { {{Feature}}Screen } from 'app/features/{{feature}}/screen';
+import { {{Feature}}Screen } from '@app/features/{{feature}}/screen';
 import { Stack, useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { Button } from '@ui/index';
 

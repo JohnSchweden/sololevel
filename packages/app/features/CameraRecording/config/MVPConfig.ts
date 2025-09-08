@@ -69,7 +69,7 @@ export const DEFAULT_MVP_CONFIG: MVPConfig = {
   mode: 'development',
 
   features: {
-    poseDetection: true,
+    poseDetection: false,
     recordingControls: true,
     cameraSwap: true,
     zoom: true,
@@ -83,7 +83,7 @@ export const DEFAULT_MVP_CONFIG: MVPConfig = {
     enableGrid: false,
     maxRecordingDuration: 60, // 60 seconds
     qualityPreset: 'medium',
-    enablePoseDetection: true,
+    enablePoseDetection: false,
     poseConfig: {
       modelType: 'lightning',
       confidenceThreshold: 0.3,
@@ -113,8 +113,13 @@ export const PRODUCTION_MVP_CONFIG: MVPConfig = {
     showDebugInfo: false,
     logLevel: 'error',
   },
+  features: {
+    ...DEFAULT_MVP_CONFIG.features,
+    poseDetection: false, // Explicitly set to false for production
+  },
   camera: {
     ...DEFAULT_MVP_CONFIG.camera,
+    enablePoseDetection: false, // Explicitly set to false for production
     poseConfig: {
       ...DEFAULT_MVP_CONFIG.camera.poseConfig,
       targetFps: 24, // Lower FPS for production performance

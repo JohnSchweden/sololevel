@@ -1,4 +1,4 @@
-import { Provider } from 'app/provider'
+import { Provider } from '@app/provider'
 import { Stack } from 'expo-router'
 import React from 'react'
 
