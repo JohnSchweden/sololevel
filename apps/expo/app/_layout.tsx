@@ -4,9 +4,9 @@ import React, { useEffect } from 'react'
 if (typeof global !== 'undefined') {
   global.React = React
 }
+import { Provider } from '@app/provider'
 import { NativeToast } from '@my/ui'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
-import { Provider } from '@app/provider'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
 import { useColorScheme } from 'react-native'

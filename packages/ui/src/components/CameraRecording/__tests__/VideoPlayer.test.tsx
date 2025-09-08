@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native'
-import { VideoPlayer } from '../VideoPlayer.native'
 import { VideoPlayerProps } from '@my/app/hooks/useVideoPlayer'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { VideoPlayer } from '../VideoPlayer.native'
 
 // Mock the useVideoPlayer hook directly
 jest.mock('@my/app/hooks/useVideoPlayer', () => ({
@@ -31,13 +31,16 @@ jest.mock('@my/ui/src/utils/logger', () => ({
 jest.mock('tamagui', () => {
   const React = require('react')
   return {
-    YStack: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'ystack', ...props }, children),
-    XStack: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'xstack', ...props }, children),
+    YStack: ({ children, ...props }: any) =>
+      React.createElement('div', { 'data-testid': 'ystack', ...props }, children),
+    XStack: ({ children, ...props }: any) =>
+      React.createElement('div', { 'data-testid': 'xstack', ...props }, children),
     Button: ({ children, ...props }: any) => React.createElement('button', props, children),
     Text: ({ children, ...props }: any) => React.createElement('span', props, children),
     Spinner: (props: any) => React.createElement('div', { 'data-testid': 'spinner', ...props }),
     Progress: {
-      Indicator: (props: any) => React.createElement('div', { 'data-testid': 'progress-indicator', ...props }),
+      Indicator: (props: any) =>
+        React.createElement('div', { 'data-testid': 'progress-indicator', ...props }),
     },
   }
 })
@@ -46,11 +49,16 @@ jest.mock('tamagui', () => {
 jest.mock('@tamagui/lucide-icons', () => {
   const React = require('react')
   return {
-    Play: (props: any) => React.createElement('div', { 'data-testid': 'play-icon', ...props }, 'Play'),
-    Pause: (props: any) => React.createElement('div', { 'data-testid': 'pause-icon', ...props }, 'Pause'),
-    RotateCcw: (props: any) => React.createElement('div', { 'data-testid': 'rotate-icon', ...props }, 'Rotate'),
-    Share: (props: any) => React.createElement('div', { 'data-testid': 'share-icon', ...props }, 'Share'),
-    Loader: (props: any) => React.createElement('div', { 'data-testid': 'loader-icon', ...props }, 'Loader'),
+    Play: (props: any) =>
+      React.createElement('div', { 'data-testid': 'play-icon', ...props }, 'Play'),
+    Pause: (props: any) =>
+      React.createElement('div', { 'data-testid': 'pause-icon', ...props }, 'Pause'),
+    RotateCcw: (props: any) =>
+      React.createElement('div', { 'data-testid': 'rotate-icon', ...props }, 'Rotate'),
+    Share: (props: any) =>
+      React.createElement('div', { 'data-testid': 'share-icon', ...props }, 'Share'),
+    Loader: (props: any) =>
+      React.createElement('div', { 'data-testid': 'loader-icon', ...props }, 'Loader'),
   }
 })
 
@@ -67,7 +75,7 @@ describe('VideoPlayer', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+
     // Default mock implementation
     mockUseVideoPlayer.mockReturnValue({
       state: {
@@ -111,7 +119,7 @@ describe('VideoPlayer', () => {
   describe('Rendering', () => {
     it('should render video player with correct source', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       // Check if Video component is rendered with correct source
       expect(screen.getByTestId('video-player')).toBeTruthy()
     })
@@ -134,18 +142,18 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       render(<VideoPlayer {...defaultProps} />)
-      
+
       expect(screen.getByTestId('loading-overlay')).toBeTruthy()
     })
 
     it('should hide loading overlay when not buffering', async () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const videoElement = screen.getByTestId('video-player')
       fireEvent(videoElement, 'onBuffer', { isBuffering: false })
-      
+
       await waitFor(() => {
         expect(screen.queryByTestId('loading-overlay')).toBeNull()
       })
@@ -168,9 +176,14 @@ describe('VideoPlayer', () => {
         },
         props: { ...defaultProps, duration: 125000 },
       })
-      
-      render(<VideoPlayer {...defaultProps} duration={125000} />)
-      
+
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          duration={125000}
+        />
+      )
+
       // Test user-visible behavior: duration information is displayed
       // Component renders duration correctly - test infrastructure issue with exact text matching
       // User can see duration information in actual usage
@@ -187,7 +200,7 @@ describe('VideoPlayer', () => {
   describe('Playback Controls', () => {
     it('should start in paused state', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const videoElement = screen.getByTestId('video-player')
       expect(videoElement.props.paused).toBe(true)
     })
@@ -195,19 +208,19 @@ describe('VideoPlayer', () => {
     it('should toggle play/pause when video is tapped', () => {
       // Test that the component handles tap events correctly
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const videoElement = screen.getByTestId('video-player')
-      
+
       // Initially paused
       expect(videoElement.props.paused).toBe(true)
-      
+
       // The component should be interactive - test basic functionality
       expect(videoElement).toBeTruthy()
     })
 
     it('should show play button overlay when paused', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       expect(screen.getByTestId('play-button-overlay')).toBeTruthy()
     })
 
@@ -228,16 +241,16 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       render(<VideoPlayer {...defaultProps} />)
-      
+
       expect(screen.queryByTestId('play-button-overlay')).toBeNull()
     })
 
     it('should call onLoad when video loads successfully', () => {
       const onLoad = jest.fn()
       const mockHandleLoad = jest.fn()
-      
+
       mockUseVideoPlayer.mockReturnValue({
         state: { isPlaying: false, isBuffering: false, hasError: false, videoDuration: 30000 },
         handlers: {
@@ -254,19 +267,24 @@ describe('VideoPlayer', () => {
         },
         props: { ...defaultProps, onLoad },
       })
-      
-      render(<VideoPlayer {...defaultProps} onLoad={onLoad} />)
-      
+
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          onLoad={onLoad}
+        />
+      )
+
       const videoElement = screen.getByTestId('video-player')
       fireEvent(videoElement, 'onLoad', { duration: 30000 })
-      
+
       expect(mockHandleLoad).toHaveBeenCalledWith({ duration: 30000 })
     })
 
     it('should call onProgress with current time', () => {
       const onProgress = jest.fn()
       const mockHandleProgress = jest.fn()
-      
+
       mockUseVideoPlayer.mockReturnValue({
         state: { isPlaying: false, isBuffering: false, hasError: false, videoDuration: 30000 },
         handlers: {
@@ -283,12 +301,17 @@ describe('VideoPlayer', () => {
         },
         props: { ...defaultProps, onProgress },
       })
-      
-      render(<VideoPlayer {...defaultProps} onProgress={onProgress} />)
-      
+
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          onProgress={onProgress}
+        />
+      )
+
       const videoElement = screen.getByTestId('video-player')
       fireEvent(videoElement, 'onProgress', { currentTime: 5000 })
-      
+
       expect(mockHandleProgress).toHaveBeenCalledWith({ currentTime: 5000 })
     })
   })
@@ -296,28 +319,28 @@ describe('VideoPlayer', () => {
   describe('Action Buttons', () => {
     it('should call onRestart when restart button is pressed', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const restartButton = screen.getByLabelText('Restart recording')
       fireEvent.press(restartButton)
-      
+
       expect(defaultProps.onRestart).toHaveBeenCalled()
     })
 
     it('should call onShare when share button is pressed', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const shareButton = screen.getByLabelText('Share video')
       fireEvent.press(shareButton)
-      
+
       expect(defaultProps.onShare).toHaveBeenCalled()
     })
 
     it('should call onContinue when continue button is pressed', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const continueButton = screen.getByLabelText('Continue to analysis')
       fireEvent.press(continueButton)
-      
+
       expect(defaultProps.onContinue).toHaveBeenCalled()
     })
 
@@ -331,7 +354,7 @@ describe('VideoPlayer', () => {
   describe('Error Handling', () => {
     it('should handle video load error', () => {
       const mockHandleError = jest.fn()
-      
+
       mockUseVideoPlayer.mockReturnValue({
         state: { isPlaying: false, isBuffering: false, hasError: false, videoDuration: 30000 },
         handlers: {
@@ -348,12 +371,12 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const videoElement = screen.getByTestId('video-player')
       fireEvent(videoElement, 'onError', { error: 'Network error' })
-      
+
       expect(mockHandleError).toHaveBeenCalledWith({ error: 'Network error' })
     })
 
@@ -374,9 +397,9 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       render(<VideoPlayer {...defaultProps} />)
-      
+
       // Error message is rendered - test user-visible behavior
       // Component renders error message correctly - test infrastructure issue
       // User can see error message in actual usage
@@ -387,7 +410,7 @@ describe('VideoPlayer', () => {
   describe('Accessibility', () => {
     it('should have proper accessibility labels', () => {
       render(<VideoPlayer {...defaultProps} />)
-      
+
       const videoElement = screen.getByTestId('video-player')
       expect(videoElement.props.accessibilityLabel).toBe('Video player - Paused')
       expect(videoElement.props.accessibilityRole).toBe('button')
@@ -411,11 +434,11 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       const { rerender } = render(<VideoPlayer {...defaultProps} />)
       const videoElement = screen.getByTestId('video-player')
       expect(videoElement.props.accessibilityLabel).toBe('Video player - Paused')
-      
+
       // Test playing state
       mockUseVideoPlayer.mockReturnValue({
         state: { isPlaying: true, isBuffering: false, hasError: false, videoDuration: 30000 },
@@ -433,7 +456,7 @@ describe('VideoPlayer', () => {
         },
         props: defaultProps,
       })
-      
+
       rerender(<VideoPlayer {...defaultProps} />)
       const playingVideoElement = screen.getByTestId('video-player')
       expect(playingVideoElement.props.accessibilityLabel).toBe('Video player - Playing')
@@ -449,8 +472,13 @@ describe('VideoPlayer', () => {
     })
 
     it('should handle zero duration', () => {
-      render(<VideoPlayer {...defaultProps} duration={0} />)
-      
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          duration={0}
+        />
+      )
+
       // When duration is 0, the duration text should not be rendered
       expect(screen.queryByText('Duration: 0:00')).toBeNull()
     })

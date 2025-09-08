@@ -1,14 +1,14 @@
-import { useState, useCallback, useRef } from 'react'
-import { Play, RotateCcw, Share, Loader } from '@tamagui/lucide-icons'
-import { Button, Progress, Text, XStack, YStack, Spinner } from 'tamagui'
+import { VideoPlayerProps, useVideoPlayer } from '@my/app/hooks/useVideoPlayer'
+import { Loader, Play, RotateCcw, Share } from '@tamagui/lucide-icons'
+import { useCallback, useRef, useState } from 'react'
 import Video from 'react-native-video'
-import { useVideoPlayer, VideoPlayerProps } from '@my/app/hooks/useVideoPlayer'
+import { Button, Progress, Spinner, Text, XStack, YStack } from 'tamagui'
 
 /**
  * Native Video Player Implementation
  * Full video playback with custom overlays and processing status
  * Implements US-RU-13: Video playback with live processing
- * 
+ *
  * Features:
  * - Real video playback with react-native-video
  * - Custom loading overlay during buffering
@@ -17,7 +17,7 @@ import { useVideoPlayer, VideoPlayerProps } from '@my/app/hooks/useVideoPlayer'
  * - Action buttons (restart, share, continue)
  * - Accessibility support
  * - Error handling with user feedback
- * 
+ *
  * Native-specific features:
  * - Hardware acceleration
  * - Native video controls integration
@@ -27,27 +27,27 @@ import { useVideoPlayer, VideoPlayerProps } from '@my/app/hooks/useVideoPlayer'
 export function VideoPlayer(props: VideoPlayerProps) {
   const { state, handlers, props: sharedProps } = useVideoPlayer(props)
   const { isPlaying, isBuffering, hasError } = state
-  const { 
-    handleLoad, 
-    handleProgress, 
-    handleBuffer, 
-    handleError, 
+  const {
+    handleLoad,
+    handleProgress,
+    handleBuffer,
+    handleError,
     togglePlayPause,
     getAccessibilityLabel,
     formatDuration,
     setError,
-    setPlaying
+    setPlaying,
   } = handlers
-  const { 
-    videoUri, 
-    duration, 
-    onRestart, 
-    onShare, 
-    onContinue, 
-    isProcessing, 
-    processingProgress, 
-    disabled, 
-    showControls 
+  const {
+    videoUri,
+    duration,
+    onRestart,
+    onShare,
+    onContinue,
+    isProcessing,
+    processingProgress,
+    disabled,
+    showControls,
   } = sharedProps
 
   const videoRef = useRef<any>(null)
@@ -68,9 +68,18 @@ export function VideoPlayer(props: VideoPlayerProps) {
         justifyContent="center"
         testID="loading-overlay"
       >
-        <YStack alignItems="center" gap="$3">
-          <Spinner size="large" color="white" />
-          <Text color="white" fontSize="$4">
+        <YStack
+          alignItems="center"
+          gap="$3"
+        >
+          <Spinner
+            size="large"
+            color="white"
+          />
+          <Text
+            color="white"
+            fontSize="$4"
+          >
             Loading...
           </Text>
         </YStack>
@@ -128,8 +137,15 @@ export function VideoPlayer(props: VideoPlayerProps) {
         justifyContent="center"
         padding="$4"
       >
-        <YStack alignItems="center" gap="$3">
-          <Text color="white" fontSize="$5" textAlign="center">
+        <YStack
+          alignItems="center"
+          gap="$3"
+        >
+          <Text
+            color="white"
+            fontSize="$5"
+            textAlign="center"
+          >
             Failed to load video
           </Text>
           <Button
@@ -163,9 +179,20 @@ export function VideoPlayer(props: VideoPlayerProps) {
         justifyContent="center"
         padding="$4"
       >
-        <YStack alignItems="center" gap="$3" maxWidth={300}>
-          <Loader size={32} color="white" />
-          <Text color="white" fontSize="$5" textAlign="center">
+        <YStack
+          alignItems="center"
+          gap="$3"
+          maxWidth={300}
+        >
+          <Loader
+            size={32}
+            color="white"
+          />
+          <Text
+            color="white"
+            fontSize="$5"
+            textAlign="center"
+          >
             Processing Video...
           </Text>
           <Progress
@@ -175,12 +202,16 @@ export function VideoPlayer(props: VideoPlayerProps) {
             height={8}
             backgroundColor="rgba(255, 255, 255, 0.3)"
           >
-            <Progress.Indicator 
-              animation="bouncy" 
+            <Progress.Indicator
+              animation="bouncy"
               backgroundColor="white"
             />
           </Progress>
-          <Text color="white" fontSize="$3" textAlign="center">
+          <Text
+            color="white"
+            fontSize="$3"
+            textAlign="center"
+          >
             {processingProgress.toFixed(0)}% Complete
           </Text>
         </YStack>
@@ -265,9 +296,18 @@ export function VideoPlayer(props: VideoPlayerProps) {
           borderColor="$borderColor"
           borderStyle="dashed"
         >
-          <YStack alignItems="center" gap="$2">
-            <Play size={48} color="$color" />
-            <Text fontSize="$4" color="$color">
+          <YStack
+            alignItems="center"
+            gap="$2"
+          >
+            <Play
+              size={48}
+              color="$color"
+            />
+            <Text
+              fontSize="$4"
+              color="$color"
+            >
               No Video Available
             </Text>
           </YStack>
@@ -329,7 +369,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
 
       {/* Video Info */}
       {duration > 0 && (
-        <Text fontSize="$3" color="$color" textAlign="center">
+        <Text
+          fontSize="$3"
+          color="$color"
+          textAlign="center"
+        >
           Duration: {formatDuration(duration)}
         </Text>
       )}

@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
 import { log } from '@my/ui/src/utils/logger'
+import { useCallback, useState } from 'react'
 
 export interface VideoPlayerProps {
   videoUri?: string
@@ -70,17 +70,23 @@ export function useVideoPlayer({
   }, [])
 
   // Handle video load
-  const handleLoad = useCallback((data: { duration: number }) => {
-    log.info('VideoPlayer', 'Video loaded successfully', { duration: data.duration })
-    setHasError(false)
-    setVideoDuration(data.duration)
-    onLoad?.(data)
-  }, [onLoad])
+  const handleLoad = useCallback(
+    (data: { duration: number }) => {
+      log.info('VideoPlayer', 'Video loaded successfully', { duration: data.duration })
+      setHasError(false)
+      setVideoDuration(data.duration)
+      onLoad?.(data)
+    },
+    [onLoad]
+  )
 
   // Handle video progress
-  const handleProgress = useCallback((data: { currentTime: number }) => {
-    onProgress?.(data)
-  }, [onProgress])
+  const handleProgress = useCallback(
+    (data: { currentTime: number }) => {
+      onProgress?.(data)
+    },
+    [onProgress]
+  )
 
   // Handle buffering state
   const handleBuffer = useCallback((data: { isBuffering: boolean }) => {
@@ -98,8 +104,8 @@ export function useVideoPlayer({
   // Toggle play/pause
   const togglePlayPause = useCallback(() => {
     if (disabled || isProcessing) return
-    
-    setIsPlaying(prev => !prev)
+
+    setIsPlaying((prev) => !prev)
     log.info('VideoPlayer', 'Playback toggled', { isPlaying: !isPlaying })
   }, [disabled, isProcessing, isPlaying])
 
