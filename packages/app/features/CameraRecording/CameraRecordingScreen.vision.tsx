@@ -12,6 +12,7 @@ import {
   PoseOverlay,
   RecordingControls,
   SideSheet,
+  VideoPlayer,
 } from '@my/ui/src/components/CameraRecording'
 // Test minimal hook to isolate issue
 import { log } from '@my/ui/src/utils/logger'
@@ -98,6 +99,10 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     isRecording,
     headerTitle,
     cameraReady,
+    // Screen state transition
+    videoData,
+    isVideoPlayerMode,
+    isCameraMode,
     handleCameraSwap,
     handleZoomChange,
     handleStartRecording,
@@ -115,11 +120,17 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     handleCameraReady,
     setShowSideSheet,
     setShowNavigationDialog,
+    // Video player actions
+    handleRestartRecording,
+    handleContinueToAnalysis,
   } = useCameraScreenLogic({ onNavigateBack, onTabChange, cameraRef })
 
   // Show timer and chevron left when in any recording state (RECORDING or PAUSED)
   const isInRecordingState =
     recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
+
+  // Update header title based on screen state
+  const displayHeaderTitle = isVideoPlayerMode ? 'Video Playback' : headerTitle
 
   // Track zoom level changes for debugging (removed console.log to prevent hydration issues)
 
@@ -127,7 +138,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     <CameraContainer
       header={
         <CameraHeader
-          title={headerTitle}
+          title={displayHeaderTitle}
           showTimer={isInRecordingState}
           timerValue={formattedDuration}
           onMenuPress={() => setShowSideSheet(true)}
@@ -144,62 +155,82 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       }
     >
       <CameraPreviewArea isRecording={isRecording}>
-        <CameraPreview
-          ref={cameraRef}
-          cameraType={cameraType}
-          isRecording={isRecording}
-          zoomLevel={zoomLevel} // Pass current zoom level for display purposes
-          permissionGranted={permission?.granted ?? false}
-          onCameraReady={handleCameraReady}
-          onError={(_error: string) => {
-            // TODO: Handle camera errors with user feedback
-          }}
-        />
-
-        {/* MVP Pose Detection Overlay */}
-        {poseEnabled && currentPose && (
-          <PoseOverlay
-            pose={currentPose}
-            width={screenWidth}
-            height={screenHeight}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              zIndex: 5, // Above camera but below controls
+        {/* Conditional rendering: Camera Preview or Video Player */}
+        {isVideoPlayerMode && videoData ? (
+          // Video Player Mode
+          <VideoPlayer
+            videoUri={videoData.videoUri}
+            duration={videoData.duration}
+            onRestart={handleRestartRecording}
+            onContinue={handleContinueToAnalysis}
+            onShare={() => {
+              log.info('useCameraScreenLogic', 'Share video clicked')
             }}
+            showControls={true}
+            autoPlay={true}
           />
+        ) : (
+          // Camera Preview Mode
+          <>
+            <CameraPreview
+              ref={cameraRef}
+              cameraType={cameraType}
+              isRecording={isRecording}
+              zoomLevel={zoomLevel} // Pass current zoom level for display purposes
+              permissionGranted={permission?.granted ?? false}
+              onCameraReady={handleCameraReady}
+              onError={(_error: string) => {
+                // TODO: Handle camera errors with user feedback
+              }}
+            />
+
+            {/* MVP Pose Detection Overlay */}
+            {poseEnabled && currentPose && (
+              <PoseOverlay
+                pose={currentPose}
+                width={screenWidth}
+                height={screenHeight}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 5, // Above camera but below controls
+                }}
+              />
+            )}
+
+            {/* MVP Debug Overlay - Development Only */}
+            <MVPPoseDebugOverlay
+              pose={currentPose}
+              isDetecting={isDetecting}
+              isEnabled={poseEnabled}
+            />
+
+            {/* MVP Pose Detection Toggle - Below Debug Overlay */}
+            <YStack
+              position="absolute"
+              top={250}
+              right={20}
+              zIndex={10}
+            >
+              <PoseDetectionToggleCompact
+                isEnabled={poseEnabled}
+                onToggle={() => {
+                  if (__DEV__) {
+                    console.log('🎯 Toggle button pressed, poseEnabled:', poseEnabled)
+                  }
+                  togglePoseDetection()
+                }}
+                testID="camera-pose-toggle"
+              />
+            </YStack>
+          </>
         )}
-
-        {/* MVP Debug Overlay - Development Only */}
-        <MVPPoseDebugOverlay
-          pose={currentPose}
-          isDetecting={isDetecting}
-          isEnabled={poseEnabled}
-        />
-
-        {/* MVP Pose Detection Toggle - Below Debug Overlay */}
-        <YStack
-          position="absolute"
-          top={250}
-          right={20}
-          zIndex={10}
-        >
-          <PoseDetectionToggleCompact
-            isEnabled={poseEnabled}
-            onToggle={() => {
-              if (__DEV__) {
-                console.log('🎯 Toggle button pressed, poseEnabled:', poseEnabled)
-              }
-              togglePoseDetection()
-            }}
-            testID="camera-pose-toggle"
-          />
-        </YStack>
       </CameraPreviewArea>
 
-      {/* Camera Controls - Conditional based on recording state */}
-      {permission?.granted &&
+      {/* Camera Controls - Only show when in camera mode, not video player mode */}
+      {isCameraMode &&
+        permission?.granted &&
         (recordingState === RecordingState.IDLE ? (
           <CameraControlsOverlay position="bottom">
             <IdleControls

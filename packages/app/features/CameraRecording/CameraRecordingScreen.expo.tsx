@@ -10,6 +10,7 @@ import {
   NavigationDialog,
   RecordingControls,
   SideSheet,
+  VideoPlayer,
 } from '@my/ui/src/components/CameraRecording'
 import { useEffect, useRef, useState } from 'react'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
@@ -53,6 +54,10 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     isRecording,
     headerTitle,
     cameraReady,
+    // Screen state transition
+    videoData,
+    isVideoPlayerMode,
+    isCameraMode,
     handleCameraSwap,
     handleZoomChange,
     handleStartRecording,
@@ -70,11 +75,17 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     handleCameraReady,
     setShowSideSheet,
     setShowNavigationDialog,
+    // Video player actions
+    handleRestartRecording,
+    handleContinueToAnalysis,
   } = useCameraScreenLogic({ onNavigateBack, onTabChange, cameraRef })
 
   // Show timer and chevron left when in any recording state (RECORDING or PAUSED)
   const isInRecordingState =
     recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
+
+  // Update header title based on screen state
+  const displayHeaderTitle = isVideoPlayerMode ? 'Video Playback' : headerTitle
 
   // Track zoom level changes for debugging (removed console.log to prevent hydration issues)
 
@@ -82,7 +93,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     <CameraContainer
       header={
         <CameraHeader
-          title={headerTitle}
+          title={displayHeaderTitle}
           showTimer={isInRecordingState}
           timerValue={formattedDuration}
           onMenuPress={() => setShowSideSheet(true)}
@@ -99,31 +110,49 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       }
     >
       <CameraPreviewArea isRecording={isRecording}>
-        <CameraPreview
-          ref={cameraRef}
-          cameraType={cameraType}
-          isRecording={isRecording}
-          zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
-          // Debug: log zoom conversion
-          // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
-          onZoomChange={(continuousZoom) => {
-            // Convert continuous zoom (0-1) back to discrete (1-3)
-            // 0.0 → 1, 0.33 → 2, 0.67 → 3
-            const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
-            // Clamp to valid range
-            const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
-            handleZoomChange(clampedZoom)
-          }}
-          permissionGranted={permission?.granted ?? false}
-          onCameraReady={handleCameraReady}
-          onError={(_error: string) => {
-            // TODO: Handle camera errors with user feedback
-          }}
-        />
+        {/* Conditional rendering: Camera Preview or Video Player */}
+        {isVideoPlayerMode && videoData ? (
+          // Video Player Mode
+          <VideoPlayer
+            videoUri={videoData.videoUri}
+            duration={videoData.duration}
+            onRestart={handleRestartRecording}
+            onContinue={handleContinueToAnalysis}
+            onShare={() => {
+              // TODO: Implement share functionality
+            }}
+            showControls={true}
+            autoPlay={true}
+          />
+        ) : (
+          // Camera Preview Mode
+          <CameraPreview
+            ref={cameraRef}
+            cameraType={cameraType}
+            isRecording={isRecording}
+            zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
+            // Debug: log zoom conversion
+            // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
+            onZoomChange={(continuousZoom) => {
+              // Convert continuous zoom (0-1) back to discrete (1-3)
+              // 0.0 → 1, 0.33 → 2, 0.67 → 3
+              const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
+              // Clamp to valid range
+              const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
+              handleZoomChange(clampedZoom)
+            }}
+            permissionGranted={permission?.granted ?? false}
+            onCameraReady={handleCameraReady}
+            onError={(_error: string) => {
+              // TODO: Handle camera errors with user feedback
+            }}
+          />
+        )}
       </CameraPreviewArea>
 
-      {/* Camera Controls - Conditional based on recording state */}
-      {permission?.granted &&
+      {/* Camera Controls - Only show when in camera mode, not video player mode */}
+      {isCameraMode &&
+        permission?.granted &&
         (recordingState === RecordingState.IDLE ? (
           <CameraControlsOverlay position="bottom">
             <IdleControls

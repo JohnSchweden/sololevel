@@ -13,6 +13,7 @@
     "test:coverage:report": "vitest run --coverage --reporter=html"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@my/ui": "0.0.1",
     "@supabase/supabase-js": "^2.56.0",
     "zod": "^4.0.17"

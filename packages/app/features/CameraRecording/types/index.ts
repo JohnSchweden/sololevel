@@ -16,6 +16,8 @@ export enum RecordingState {
   STOPPED = 'stopped',
 }
 
+export type ScreenState = 'camera' | 'videoPlayer'
+
 // Core TypeScript Interfaces
 export interface CameraRecordingScreenProps {
   // Navigation

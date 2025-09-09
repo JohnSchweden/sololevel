@@ -2,6 +2,7 @@ import { log } from '@my/ui/src/utils/logger'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
+import { type VideoData, useScreenStateTransition } from './useScreenStateTransition'
 
 export const useCameraScreenLogic = ({
   onNavigateBack,
@@ -19,6 +20,32 @@ export const useCameraScreenLogic = ({
   }, [])
   const [activeTab, setActiveTab] = useState<'coach' | 'record' | 'insights'>('record')
   const [cameraReady, setCameraReady] = useState(false)
+
+  // Screen state transition management
+  const {
+    screenState,
+    videoData,
+    isVideoPlayerMode,
+    isCameraMode,
+    handleRecordingStateChange,
+    handleRestartRecording,
+    handleContinueToAnalysis,
+  } = useScreenStateTransition({
+    onNavigateToVideoPlayer: useCallback((videoData: VideoData) => {
+      log.info('useCameraScreenLogic', 'Navigating to video player', videoData)
+      // TODO: Handle navigation to video player mode
+    }, []),
+    onNavigateToCamera: useCallback(() => {
+      log.info('useCameraScreenLogic', 'Navigating back to camera')
+      // TODO: Handle navigation back to camera mode
+    }, []),
+  })
+
+  log.debug('useCameraScreenLogic', 'Current screen state', {
+    screenState,
+    isVideoPlayerMode,
+    isCameraMode,
+  })
 
   // Stabilize camera controls to prevent dependency array size changes
   const cameraControls = useMemo(() => {
@@ -76,9 +103,7 @@ export const useCameraScreenLogic = ({
     onMaxDurationReached: useCallback(() => {
       // TODO: Show user notification about max duration
     }, []),
-    onStateChange: useCallback((_state: RecordingState, _durationMs: number) => {
-      // State change handled implicitly through reactive updates
-    }, []),
+    onStateChange: handleRecordingStateChange,
     onError: useCallback((error: string) => {
       log.error('useRecordingStateMachine', error)
       // TODO: Handle recording errors with user feedback
@@ -156,10 +181,17 @@ export const useCameraScreenLogic = ({
   }, [canResume, resumeRecording])
 
   const handleStopRecording = useCallback(async () => {
-    if (!canStop) return
+    log.info('useCameraScreenLogic', 'handleStopRecording called', { canStop })
+    if (!canStop) {
+      log.warn('useCameraScreenLogic', 'Cannot stop recording - not allowed', { canStop })
+      return
+    }
     try {
+      log.info('useCameraScreenLogic', 'Calling stopRecording()')
       await stopRecording()
+      log.info('useCameraScreenLogic', 'stopRecording() completed successfully')
     } catch (error) {
+      log.error('useCameraScreenLogic', 'Error stopping recording', error)
       log.warn('handleStopRecording', `Stop recording not supported on this platform: ${error}`)
     }
   }, [canStop, stopRecording])
@@ -242,6 +274,7 @@ export const useCameraScreenLogic = ({
   const isRecording = recordingState === RecordingState.RECORDING
 
   return {
+    // Camera state
     cameraType,
     zoomLevel,
     showNavigationDialog,
@@ -253,6 +286,14 @@ export const useCameraScreenLogic = ({
     isRecording,
     headerTitle,
     cameraReady,
+
+    // Screen state transition
+    screenState,
+    videoData,
+    isVideoPlayerMode,
+    isCameraMode,
+
+    // Camera actions
     handleCameraSwap,
     handleZoomChange,
     handleResetZoom,
@@ -271,5 +312,9 @@ export const useCameraScreenLogic = ({
     handleCameraReady,
     setShowSideSheet,
     setShowNavigationDialog,
+
+    // Video player actions
+    handleRestartRecording,
+    handleContinueToAnalysis,
   }
 }

@@ -17,7 +17,7 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.sololevel.app"
     },
     "android": {
@@ -47,7 +47,8 @@
           "enableMicrophonePermission": true,
           "microphonePermissionText": "This app needs access to microphone to record audio with your workout videos."
         }
-      ]
+      ],
+      "./plugins/withDisableCodeSigning"
     ],
     "experiments": {
       "typedRoutes": true

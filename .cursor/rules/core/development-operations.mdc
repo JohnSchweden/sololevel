@@ -62,7 +62,7 @@ yarn dlx supabase <command>
 ### Installation Patterns
 ```bash
 # Root dev tools
-yarn add -D -W <dev-tool>
+yarn add -D <dev-tool>
 
 # Workspace-specific packages (see Workspace Commands Reference below)
 ```

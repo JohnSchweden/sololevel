@@ -2488,6 +2488,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@google/generative-ai@npm:^0.21.0":
+  version: 0.21.0
+  resolution: "@google/generative-ai@npm:0.21.0"
+  checksum: 10c0/cff5946c5964f2380e5097d82bd563d79be27a1a5ac604aaaad3f9ba3382992e4f0a371bd255baabfba4e5bdf296d8ce1410cbd65424afa98e64b2590fe49f3b
+  languageName: node
+  linkType: hard
+
 "@gorhom/bottom-sheet@npm:^5.2.3":
   version: 5.2.6
   resolution: "@gorhom/bottom-sheet@npm:5.2.6"
@@ -3257,6 +3264,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@my/api@workspace:packages/api"
   dependencies:
+    "@google/generative-ai": "npm:^0.21.0"
     "@my/ui": "npm:0.0.1"
     "@supabase/supabase-js": "npm:^2.56.0"
     "@tanstack/react-query": "npm:^5.85.5"
@@ -3385,6 +3393,7 @@ __metadata:
     expo: "npm:53.0.22"
     expo-camera: "npm:^16.1.11"
     expo-document-picker: "npm:^13.1.6"
+    expo-file-system: "npm:^18.0.4"
     expo-image-picker: "npm:^16.1.4"
     expo-linking: "npm:^7.1.7"
     jest: "npm:^29.7.0"
@@ -10669,6 +10678,7 @@ __metadata:
     expo-dev-client: "npm:^5.2.4"
     expo-doctor: "npm:1.13.5"
     expo-document-picker: "npm:^13.1.6"
+    expo-file-system: "npm:^18.0.4"
     expo-font: "npm:~13.3.2"
     expo-image-picker: "npm:^16.1.4"
     expo-linear-gradient: "npm:~14.1.5"
@@ -10695,6 +10705,7 @@ __metadata:
     react-native-safe-area-context: "npm:^5.6.0"
     react-native-screens: "npm:~4.11.1"
     react-native-svg: "npm:^15.12.1"
+    react-native-video: "npm:^6.16.1"
     react-native-vision-camera: "npm:^4.7.1"
     react-native-worklets-core: "npm:^1.3.0"
     react-test-renderer: "npm:19.0.0"
@@ -10835,7 +10846,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-file-system@npm:~18.1.11":
+"expo-file-system@npm:^18.0.4, expo-file-system@npm:~18.1.11":
   version: 18.1.11
   resolution: "expo-file-system@npm:18.1.11"
   peerDependencies:
@@ -16268,6 +16279,16 @@ __metadata:
   peerDependencies:
     react-native: "*"
   checksum: 10c0/a48e6978f5a2c9e225bb93cc5f9985a8ac0fe7d8122105bcd88ef8d8420a3b33a67ce5d2bda2b606bf5fa94af9f6d04efce354580b60900e7c967fd2ebdc42cf
+  languageName: node
+  linkType: hard
+
+"react-native-video@npm:^6.16.1":
+  version: 6.16.1
+  resolution: "react-native-video@npm:6.16.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/f30ba6bcf1e9350d5efb8d08cb73f8ddb096393936939b6134f8d1ca03987c5534c18817784584b83d3450ab68a03273c758c1b5288f302cc1af376282443eb7
   languageName: node
   linkType: hard
 

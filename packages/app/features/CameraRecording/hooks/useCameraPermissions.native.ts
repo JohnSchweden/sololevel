@@ -1,32 +1,19 @@
-import { useCameraPermissions as useExpoCameraPermissions } from 'expo-camera'
-import { PermissionResponse } from 'expo-camera'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
 import { useCameraRecordingStore } from '../../../stores/cameraRecording'
+import { useFeatureFlagsStore } from '../../../stores/feature-flags'
 
 // Global singleton to prevent multiple permission requests across all component instances
 let globalPermissionRequestInProgress = false
-let globalRationaleModalOpen = false
+// let globalRationaleModalOpen = false // Commented out - not used when rationale modal is disabled
 
 /**
- * Enhanced camera permissions hook that wraps Expo's useCameraPermissions
- * with additional UX features, error handling, and Zustand integration
+ * Base permission response interface that can be extended by platform-specific implementations
  */
-export interface UseCameraPermissionsResult {
-  // Expo's original API
-  permission: PermissionResponse | null
-  requestPermission: () => Promise<PermissionResponse>
-
-  // Enhanced features
-  isLoading: boolean
-  error: string | null
-  canRequestAgain: boolean
-
-  // Actions
-  requestPermissionWithRationale: () => Promise<boolean>
-  redirectToSettings: () => Promise<void>
-  clearError: () => void
-  retryRequest: () => Promise<boolean>
+export interface BasePermissionResponse {
+  granted: boolean
+  status: 'granted' | 'denied' | 'undetermined'
+  canAskAgain: boolean
 }
 
 /**
@@ -45,23 +32,42 @@ export interface UseCameraPermissionsConfig {
     cancelButton?: string
   }
   /** Callback when permission status changes */
-  onPermissionChange?: (status: PermissionResponse | null) => void
+  onPermissionChange?: (status: BasePermissionResponse | null) => void
   /** Callback when permission request fails */
   onError?: (error: string) => void
 }
 
 /**
- * Custom camera permissions hook with enhanced UX
- * Wraps Expo's useCameraPermissions with additional features:
- * - Platform-specific rationale messages
- * - Settings redirect for permanently denied permissions
- * - Loading states and error handling
- * - Retry logic
- * - Zustand store integration
+ * Base result interface for camera permissions
  */
-export function useCameraPermissions(
+export interface BaseUseCameraPermissionsResult {
+  // Enhanced features
+  isLoading: boolean
+  error: string | null
+  canRequestAgain: boolean
+
+  // Actions
+  requestPermissionWithRationale: () => Promise<boolean>
+  redirectToSettings: () => Promise<void>
+  clearError: () => void
+  retryRequest: () => Promise<boolean>
+}
+
+/**
+ * Generic camera permissions result interface
+ */
+export interface UseCameraPermissionsResult extends BaseUseCameraPermissionsResult {
+  // Platform-specific permission API
+  permission: BasePermissionResponse | null
+  requestPermission: () => Promise<BasePermissionResponse>
+}
+
+/**
+ * Shared base hook with common functionality for all camera permission implementations
+ */
+export function useBaseCameraPermissions<T extends BasePermissionResponse>(
   config: UseCameraPermissionsConfig = {}
-): UseCameraPermissionsResult {
+) {
   const {
     showRationale = true,
     enableSettingsRedirect = true,
@@ -70,18 +76,21 @@ export function useCameraPermissions(
     onError,
   } = config
 
-  // Use Expo's hook internally
-  const [permission, requestPermission] = useExpoCameraPermissions()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Zustand store integration - simplified to avoid dependency array issues
+  // Zustand store integration
   const { setPermissions } = useCameraRecordingStore()
 
-  // Platform-specific rationale messages
+  // Platform-specific rationale messages (commented out - native system handles messaging)
   const getRationaleMessage = useCallback(() => {
     if (customRationale) return customRationale
 
+    // Return undefined when no custom rationale is provided - native system handles messaging
+    return undefined
+
+    // Custom platform-specific messages (commented out for later use)
+    /*
     if (Platform.OS === 'ios') {
       return {
         title: 'Camera Access Required',
@@ -110,36 +119,46 @@ export function useCameraPermissions(
       okButton: 'Continue',
       cancelButton: 'Cancel',
     }
+    */
   }, [customRationale])
 
-  // Update Zustand store when permission changes - simplified to avoid changing dependencies
-  useEffect(() => {
-    if (permission) {
-      // Map expo-camera permission response to API schema format
-      let mappedStatus: 'granted' | 'denied' | 'undetermined' = 'undetermined'
+  // Update Zustand store when permission changes
+  const updateStorePermissions = useCallback(
+    (permission: T | null, microphonePermission?: boolean) => {
+      if (permission) {
+        // Map permission response to API schema format
+        let mappedStatus: 'granted' | 'denied' | 'undetermined' = 'undetermined'
 
-      if (permission.granted) {
-        mappedStatus = 'granted'
-      } else if (permission.status === 'denied') {
-        mappedStatus = 'denied'
-      } else if (permission.status === 'undetermined') {
-        mappedStatus = 'undetermined'
+        if (permission.granted) {
+          mappedStatus = 'granted'
+        } else if (permission.status === 'denied') {
+          mappedStatus = 'denied'
+        } else if (permission.status === 'undetermined') {
+          mappedStatus = 'undetermined'
+        }
+
+        setPermissions({
+          camera: mappedStatus,
+          microphone:
+            microphonePermission !== undefined
+              ? microphonePermission
+                ? 'granted'
+                : 'denied'
+              : 'undetermined',
+        })
+        onPermissionChange?.(permission)
       }
+    },
+    [setPermissions, onPermissionChange]
+  )
 
-      // Only update camera permission, avoid reading other store values to prevent dependency changes
-      setPermissions({
-        camera: mappedStatus,
-        microphone: 'undetermined', // Don't read from store to avoid changing dependencies
-      })
-      onPermissionChange?.(permission)
-    }
-  }, [permission, setPermissions, onPermissionChange])
-
-  // Check if we can request permission again
-  const canRequestAgain = permission?.canAskAgain ?? false
-
-  // Show permission rationale modal
+  // Show permission rationale modal (disabled - native system handles messaging)
   const showRationaleModal = useCallback(async (): Promise<boolean> => {
+    // Native permission system handles messaging - skip custom rationale
+    return true
+
+    // Custom rationale modal (commented out - native system handles messaging)
+    /*
     if (!showRationale) return true
 
     // Prevent multiple rationale modals globally
@@ -170,6 +189,7 @@ export function useCameraPermissions(
         },
       ])
     })
+    */
   }, [showRationale, getRationaleMessage])
 
   // Redirect to app settings
@@ -195,89 +215,88 @@ export function useCameraPermissions(
     }
   }, [onError])
 
-  // Request permission with enhanced UX
-  const requestPermissionWithRationale = useCallback(async (): Promise<boolean> => {
-    // Prevent multiple concurrent permission requests globally
-    if (globalPermissionRequestInProgress) {
-      console.log('Permission request already in progress globally, skipping...')
-      return false
-    }
-
-    // If permission is already granted, don't request again
-    if (permission?.granted) {
-      console.log('Permission already granted, skipping request...')
-      return true
-    }
-
-    try {
-      globalPermissionRequestInProgress = true
-      setIsLoading(true)
-      setError(null)
-
-      console.log('Starting permission request flow...')
-
-      // Show rationale modal first (if enabled)
-      const shouldProceed = await showRationaleModal()
-      if (!shouldProceed) {
-        setIsLoading(false)
+  // Request permission with enhanced UX (to be implemented by platform-specific hooks)
+  const requestPermissionWithRationale = useCallback(
+    async (requestPermissionFn: () => Promise<T>, isAlreadyGranted: boolean): Promise<boolean> => {
+      // Prevent multiple concurrent permission requests globally
+      if (globalPermissionRequestInProgress) {
+        console.log('Permission request already in progress globally, skipping...')
         return false
       }
 
-      // Request permission using Expo's hook
-      const result = await requestPermission()
-
-      // Handle different permission states
-      if (result.granted) {
-        console.log('Permission granted successfully')
+      // If permission is already granted, don't request again
+      if (isAlreadyGranted) {
+        console.log('Permission already granted, skipping request...')
         return true
       }
 
-      if (!result.canAskAgain) {
-        // Permanently denied - offer settings redirect
-        if (enableSettingsRedirect) {
-          Alert.alert(
-            'Permission Required',
-            'Camera access was denied. You can enable it in Settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: redirectToSettings },
-            ]
-          )
-        }
-        return false
-      }
+      try {
+        globalPermissionRequestInProgress = true
+        setIsLoading(true)
+        setError(null)
 
-      // Permission denied but can ask again later
-      if (result.status === 'denied') {
-        const errorMessage = 'Camera permission was denied. Please try again later.'
+        console.log('Starting permission request flow...')
+
+        // Show rationale modal first (if enabled)
+        const shouldProceed = await showRationaleModal()
+        if (!shouldProceed) {
+          setIsLoading(false)
+          return false
+        }
+
+        // Request permission using platform-specific function
+        const result = await requestPermissionFn()
+
+        // Handle different permission states
+        if (result.granted) {
+          console.log('Permission granted successfully')
+          return true
+        }
+
+        if (!result.canAskAgain) {
+          // Permanently denied - offer settings redirect
+          if (enableSettingsRedirect) {
+            Alert.alert(
+              'Permission Required',
+              'Camera access was denied. You can enable it in Settings.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: redirectToSettings },
+              ]
+            )
+          }
+          return false
+        }
+
+        // Permission denied but can ask again later
+        if (result.status === 'denied') {
+          const errorMessage = 'Camera permission was denied. Please try again later.'
+          setError(errorMessage)
+          onError?.(errorMessage)
+        }
+
+        return false
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Permission request failed'
         setError(errorMessage)
         onError?.(errorMessage)
+        return false
+      } finally {
+        setIsLoading(false)
+        globalPermissionRequestInProgress = false
       }
-
-      return false
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Permission request failed'
-      setError(errorMessage)
-      onError?.(errorMessage)
-      return false
-    } finally {
-      setIsLoading(false)
-      globalPermissionRequestInProgress = false
-    }
-  }, [
-    requestPermission,
-    showRationaleModal,
-    enableSettingsRedirect,
-    redirectToSettings,
-    onError,
-    permission?.granted,
-  ])
+    },
+    [showRationaleModal, enableSettingsRedirect, redirectToSettings, onError]
+  )
 
   // Retry permission request
-  const retryRequest = useCallback(async (): Promise<boolean> => {
-    setError(null)
-    return requestPermissionWithRationale()
-  }, [requestPermissionWithRationale])
+  const retryRequest = useCallback(
+    async (requestPermissionFn: () => Promise<T>, isAlreadyGranted: boolean): Promise<boolean> => {
+      setError(null)
+      return requestPermissionWithRationale(requestPermissionFn, isAlreadyGranted)
+    },
+    [requestPermissionWithRationale]
+  )
 
   // Clear error state
   const clearError = useCallback(() => {
@@ -285,21 +304,43 @@ export function useCameraPermissions(
   }, [])
 
   return {
-    // Expo's original API
-    permission,
-    requestPermission,
-
-    // Enhanced features
+    // State
     isLoading,
     error,
-    canRequestAgain,
 
-    // Enhanced actions
-    requestPermissionWithRationale,
+    // Actions
+    showRationaleModal,
     redirectToSettings,
-    clearError,
+    requestPermissionWithRationale,
     retryRequest,
+    clearError,
+    updateStorePermissions,
   }
+}
+
+/**
+ * Wrapper component that handles feature flag routing for camera permissions
+ * This prevents Rules of Hooks violations by ensuring React never sees different hook structures
+ */
+export function useCameraPermissions(
+  config: UseCameraPermissionsConfig = {}
+): UseCameraPermissionsResult {
+  const { flags } = useFeatureFlagsStore()
+
+  // Determine implementation at the top level, before any other hooks
+  if (flags.useVisionCamera) {
+    // Dynamically import VisionCamera implementation
+    const {
+      useCameraPermissions: useVisionCameraPermissions,
+    } = require('./useCameraPermissions.native.vision')
+    return useVisionCameraPermissions(config)
+  }
+
+  // Dynamically import Expo Camera implementation
+  const {
+    useCameraPermissions: useExpoCameraPermissions,
+  } = require('./useCameraPermissions.native.expo')
+  return useExpoCameraPermissions(config)
 }
 
 /**

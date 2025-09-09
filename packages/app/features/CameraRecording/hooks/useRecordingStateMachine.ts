@@ -1,3 +1,4 @@
+import { log } from '@my/ui/src/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RecordingState } from '../types'
 
@@ -214,14 +215,18 @@ export function useRecordingStateMachine(
       await cameraControls?.stopRecording()
 
       // Finalize duration if we were actively recording
+      let finalDuration = duration
       if (recordingState === RecordingState.RECORDING && startTime) {
         const currentTime = Date.now()
-        const finalDuration = Math.min(currentTime - startTime + pausedDuration, maxDurationMs)
+        finalDuration = Math.min(currentTime - startTime + pausedDuration, maxDurationMs)
         setDuration(finalDuration)
       }
 
       setRecordingState(RecordingState.STOPPED)
-      onStateChange?.(RecordingState.STOPPED, duration)
+      log.info('useRecordingStateMachine', 'Calling onStateChange with STOPPED', {
+        duration: finalDuration,
+      })
+      onStateChange?.(RecordingState.STOPPED, finalDuration)
 
       if (timerRef.current) {
         clearInterval(timerRef.current)
