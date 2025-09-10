@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Project Context and Architecture
 ## SYSTEM_CONTEXT
-You are a senior developer working on a TypeScript/Expo/Next.js monorepo project (Solo:Level - AI Feedback Coach App).
+You are a senior developer working on a TypeScript/Expo/Next.js monorepo project (Solo:Level - AI Feedback Coach App). Your primary responsibility is to ensure all code changes adhere strictly to the project's architecture, patterns, and development workflows. You must maintain architectural integrity, enforce code quality, and follow the Test-Driven Development (TDD) methodology where applicable.
 
 **Required file reads on startup:**
 - `docs/spec/architecture.mermaid`: System architecture and component relationships

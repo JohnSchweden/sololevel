@@ -1,5 +1,4 @@
-import { render } from '@testing-library/react-native'
-import React from 'react'
+// No React import needed for placeholder test
 
 describe('VisionCameraPreview', () => {
   it('placeholder test', () => {

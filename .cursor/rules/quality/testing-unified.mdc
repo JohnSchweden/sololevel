@@ -20,6 +20,11 @@ alwaysApply: false
 - Use `jsdom` environment for component tests
 - Test user interactions, not implementation details
 
+### Jest Import Guidelines (React Native)
+- **With jest-expo preset**: No imports needed - Jest globals (`describe`, `it`, `expect`, `jest.fn()`) are automatically available
+- **Mock functions**: Use `jest.fn()`, `jest.mock()` (globals available with jest-expo)
+- **Benefits**: Cleaner code with jest-expo, explicit dependencies when needed
+
 ### Web/Node.js (Vitest)
 - Use `jsdom` environment for React components
 - Use `node` environment for utilities

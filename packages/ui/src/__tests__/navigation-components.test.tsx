@@ -110,11 +110,7 @@ describe('Navigation Components (Cross-Platform)', () => {
         return <XStack testID="nav-layout">{children}</XStack>
       }
 
-      const { getByTestId } = render(
-        <NavigationLayout>
-          <div>Test Content</div>
-        </NavigationLayout>
-      )
+      const { getByTestId } = render(<NavigationLayout>Test Content</NavigationLayout>)
 
       // Test that layout renders correctly
       expect(getByTestId('nav-layout')).toBeDefined()
@@ -127,7 +123,7 @@ describe('Navigation Components (Cross-Platform)', () => {
 
         return (
           <YStack testID="stateful-nav">
-            <div testID="current-route">{currentRoute}</div>
+            <YStack testID="current-route">{currentRoute}</YStack>
           </YStack>
         )
       }

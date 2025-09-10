@@ -1,5 +1,5 @@
+/// <reference types="jest" />
 import type { User } from '@my/api'
-import { vi } from 'vitest'
 
 // Mock Supabase user data
 export const mockUser: User = {
@@ -20,28 +20,28 @@ export const mockUseUserStates = {
     error: null,
     isLoading: true,
     isError: false,
-    refetch: vi.fn(),
+    refetch: jest.fn(),
   },
   success: {
     data: mockUser,
     error: null,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    refetch: jest.fn(),
   },
   error: {
     data: undefined,
     error: new Error('Network error'),
     isLoading: false,
     isError: true,
-    refetch: vi.fn(),
+    refetch: jest.fn(),
   },
   notFound: {
     data: null,
     error: null,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    refetch: jest.fn(),
   },
 }
 
@@ -72,12 +72,12 @@ export function createMockMutation(
   options: { isLoading?: boolean; isError?: boolean; error?: Error; isSuccess?: boolean } = {}
 ) {
   return {
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
     isLoading: options.isLoading ?? false,
     isError: options.isError ?? false,
     error: options.error ?? null,
     isSuccess: options.isSuccess ?? false,
-    reset: vi.fn(),
+    reset: jest.fn(),
   }
 }

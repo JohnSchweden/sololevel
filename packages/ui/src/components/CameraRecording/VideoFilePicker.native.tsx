@@ -95,11 +95,7 @@ export function VideoFilePicker({
       if (result.assets && result.assets.length > 0) {
         const asset = result.assets[0]
 
-        // Create File object for validation
-        const response = await fetch(asset.uri)
-        const blob = await response.blob()
-
-        // Create File with proper name and type based on source
+        // Get filename and mime type
         let fileName: string
         let mimeType: string
 
@@ -116,6 +112,10 @@ export function VideoFilePicker({
           mimeType = 'video/mp4'
         }
 
+        // For gallery/file selection, the file is already local - no need to copy it
+        // Only create File object for validation using the existing local file
+        const response = await fetch(asset.uri)
+        const blob = await response.blob()
         const file = new File([blob], fileName, { type: mimeType })
 
         // Get duration from asset if available
@@ -158,13 +158,27 @@ export function VideoFilePicker({
             assetDuration > 3600 ? 'converted from ms to seconds' : 'already in seconds',
         })
 
-        // Override the validation metadata with asset duration if available
+        // Override the validation metadata with asset duration and original file info
         const metadata = validation.metadata
           ? {
               ...validation.metadata,
               duration: finalDuration,
+              localUri: asset.uri, // Use original URI since file is already local
+              originalFilename: fileName,
             }
-          : undefined
+          : {
+              duration: finalDuration,
+              size: file.size,
+              format: mimeType.split('/')[1] || 'mp4',
+              localUri: asset.uri, // Use original URI since file is already local
+              originalFilename: fileName,
+            }
+
+        log.info('VideoFilePicker', 'Video selected from local storage', {
+          uri: asset.uri,
+          filename: fileName,
+          size: file.size,
+        })
 
         // Call success callback
         onVideoSelected(file, metadata)

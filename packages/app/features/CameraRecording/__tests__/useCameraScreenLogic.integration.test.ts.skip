@@ -1,28 +1,29 @@
 import { act, renderHook } from '@testing-library/react'
-import { vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 import { useCameraScreenLogic } from '../hooks/useCameraScreenLogic'
 import { RecordingState } from '../types'
 
 // Mock logger
-vi.mock('@my/ui/src/utils/logger', () => ({
+jest.mock('@my/ui/src/utils/logger', () => ({
   log: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
   },
 }))
 
 // Mock the recording state machine
-vi.mock('../hooks/useRecordingStateMachine', () => ({
-  useRecordingStateMachine: vi.fn(() => ({
+jest.mock('../hooks/useRecordingStateMachine', () => ({
+  useRecordingStateMachine: jest.fn(() => ({
     recordingState: RecordingState.IDLE,
     duration: 0,
     formattedDuration: '0:00',
-    startRecording: vi.fn(),
-    pauseRecording: vi.fn(),
-    resumeRecording: vi.fn(),
-    stopRecording: vi.fn(),
-    resetRecording: vi.fn(),
+    startRecording: jest.fn(),
+    pauseRecording: jest.fn(),
+    resumeRecording: jest.fn(),
+    stopRecording: jest.fn(),
+    resetRecording: jest.fn(),
     canRecord: true,
     canPause: false,
     canResume: false,
@@ -32,12 +33,12 @@ vi.mock('../hooks/useRecordingStateMachine', () => ({
 
 describe('useCameraScreenLogic Integration', () => {
   const defaultProps = {
-    onNavigateBack: vi.fn(),
+    onNavigateBack: jest.fn(),
     cameraRef: { current: null },
   }
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('Screen State Integration', () => {
@@ -122,7 +123,7 @@ describe('useCameraScreenLogic Integration', () => {
 
   describe('Navigation Integration', () => {
     it('should handle navigation back', () => {
-      const onNavigateBack = vi.fn()
+      const onNavigateBack = jest.fn()
       const { result } = renderHook(() => useCameraScreenLogic({ ...defaultProps, onNavigateBack }))
 
       act(() => {

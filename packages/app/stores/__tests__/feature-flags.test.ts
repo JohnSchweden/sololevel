@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 import { useFeatureFlagsStore } from '../feature-flags'
 
 // Mock environment variables
@@ -37,11 +38,11 @@ describe('FeatureFlagsStore', () => {
       lastUpdated: null,
     })
 
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('initial state', () => {
@@ -232,7 +233,7 @@ describe('FeatureFlagsStore', () => {
 
     it('handles loading error gracefully', async () => {
       // Mock console.error to avoid noise in tests
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
       // Store original state for cleanup
       const originalSetFlags = useFeatureFlagsStore.getState().setFlags

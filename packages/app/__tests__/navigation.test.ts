@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 
 /**
  * Navigation Behavior Tests for Expo Router Migration
@@ -11,14 +12,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock router for testing navigation logic
 const mockRouter = {
-  push: vi.fn(),
-  back: vi.fn(),
-  replace: vi.fn(),
-  canGoBack: vi.fn(() => true),
+  push: jest.fn(),
+  back: jest.fn(),
+  replace: jest.fn(),
+  canGoBack: jest.fn(() => true),
 }
 
 // Mock expo-router (will be installed during migration)
-vi.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({
   router: mockRouter,
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
@@ -27,7 +28,7 @@ vi.mock('expo-router', () => ({
 
 describe('Navigation Behavior (Cross-Platform)', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('Basic Navigation', () => {

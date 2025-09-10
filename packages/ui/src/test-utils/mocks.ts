@@ -499,6 +499,7 @@ export function createTamaguiMock() {
     // Interactive components
     Button: createMockComponent('Button'),
     Text: createMockComponent('Text'),
+    SizableText: createMockComponent('SizableText'),
     View: mockComponent,
 
     // Form components

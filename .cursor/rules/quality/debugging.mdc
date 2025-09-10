@@ -1,166 +1,86 @@
----
-description: Systematic debugging workflow and stack-specific debugging techniques for the monorepo tech stack
-globs: ["**/*.{ts,tsx}", "**/*.{test,spec}.*", "**/debug/**/*", "**/logs/**/*"]
-alwaysApply: false
----
+# Debugging Workflow Rule
 
-# Debugging Rules
+## SYSTEM_CONTEXT
+You are a senior developer diagnosing and resolving a bug within the monorepo. Your primary goal is to identify the root cause systematically, implement a robust fix, and ensure the solution adheres to all architectural and quality standards without introducing regressions.
 
-## Debugger Mode Workflow
+## REQUIRED_READINGS
+Before starting a debugging session, you must review the following to understand the expected behavior and context:
+1.  **`docs/spec/architecture.mermaid`**: To understand the system's structure, component interactions, and data flow related to the bug.
+2.  **`docs/spec/TRD.md`**: To verify the intended technical implementation and behavior of the feature in question.
+3.  **`docs/tasks/tasks.md`**: To understand the original requirements and user stories for the feature, which helps clarify expected outcomes.
+4.  **Relevant error handling rule (`quality/error-handling.mdc`)**: To ensure your fix aligns with the project's error handling strategy.
 
-1. **Identify Scope**: List 5–7 possible sources (UI, navigation, state, queries, API, build tooling, schema) → narrow to top 1–2
-2. **Add Targeted Logs**: Console, Zustand snapshots, TanStack query lifecycle, Zod validation errors
-3. **Collect Logs**: `getConsoleLogs`, `getConsoleErrors`, `getNetworkLogs`, `getNetworkErrors`
-4. **Check Supabase**: Edge/DB logs when needed
-5. **Analyze**: Provide analysis + next log/trace suggestions if root cause unclear
-6. **Cleanup**: Remove temporary debugging artifacts (logs, test hooks, debug flags) after fix
+## DEBUGGING_WORKFLOW
+Follow this systematic process to diagnose and resolve bugs efficiently.
 
-## Stack-Specific Debugging
+1.  **ANALYZE & REPRODUCE (PRE-STEP)**:
+    *   Read the bug report or task description.
+    *   Reliably reproduce the bug in a local development environment. Document the exact steps.
+    *   Formulate a hypothesis. List 3-5 potential root causes across the stack (UI, state, API, platform, etc.). Prioritize the top 1-2 most likely candidates.
 
-### Expo / Metro
-- `expo start --clear`
-- Device logs: `npx react-native log-ios` / `npx react-native log-android`
-- Use `Platform.OS` logs for iOS vs Android issues
+2.  **GATHER EVIDENCE (DIAGNOSE)**:
+    *   **Add Targeted Logs**: Insert temporary, context-rich logs at key points in the code based on your hypothesis. Use the project's designated logger.
+    *   **Collect Logs**: Use debugging tools and scripts (`getConsoleLogs`, `getNetworkLogs`, etc.) to capture runtime data.
+    *   **Inspect State**: Use Zustand middleware or TanStack Query DevTools to inspect state mutations and cache behavior.
+    *   **Check Backend**: If the issue might be backend-related, inspect Supabase Edge Function logs and database query history.
+    *   **Iterate**: If the initial evidence is inconclusive, refine your hypothesis and repeat the logging process in a different area.
 
-### Next.js
-- Check API routes separately from React components
-- Debug SSR/SSG/hydration differences
+3.  **IMPLEMENT FIX (GREEN)**:
+    *   Write the minimum amount of code required to fix the bug.
+    *   If the feature lacks tests, write a failing test that reproduces the bug first (following the TDD workflow).
+    *   Ensure the fix passes the new test and all existing relevant tests.
 
-### Zustand
-- Add middleware for state change logs
-- Log store snapshots to debug mutations
+4.  **REFACTOR & CLEAN (REFACTOR)**:
+    *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
+    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `console.log` statements, temporary variables, debug flags).
+    *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
 
-### Supabase
-- Use Supabase dashboard for Edge + DB logs
-- Test RLS with different auth states
-- Log realtime subscription lifecycle
+## DEBUGGING_TECHNIQUES_BY_STACK
 
-### Tamagui
-- Log current theme + tokens
-- Check style compilation/debug props
+### General
+*   **Error Boundaries**: Wrap components in error boundaries to catch rendering errors.
+*   **Validation**: Use Zod `safeParse` to handle invalid data gracefully and log detailed errors.
 
-### Expo Router
-- Log route params and navigation state
-- Check useLocalSearchParams() vs router.query differences
-- Validate navigation stack consistency across platforms
+### Cross-Platform (Expo / Next.js)
+*   **Expo**: Use `expo start --clear` to avoid cache issues. Check device-specific logs with `npx react-native log-ios` or `log-android`.
+*   **Next.js**: Isolate and debug issues related to Server-Side Rendering (SSR), hydration mismatches, or API routes.
+*   **Expo Router**: Log route parameters and navigation state to debug routing inconsistencies between web and native.
 
-### Zod
-- Use `safeParse` and log validation errors
+### State Management (Zustand / TanStack Query)
+*   **Zustand**: Use `devtools` middleware to log state changes and inspect the store history.
+*   **TanStack Query**: Use the React Query DevTools. Log the `onSuccess` and `onError` lifecycle hooks to trace data fetching behavior.
 
-### TanStack Query
-- Log query/mutation lifecycle (`onSuccess`, `onError`)
-- Inspect caching and retries
+### Backend (Supabase)
+*   Use the Supabase Studio dashboard to inspect database logs and Edge Function execution.
+*   Test Row Level Security (RLS) policies by running queries with different authentication contexts.
 
-### Tooling
-- Yarn: `yarn why <package>` for dependency issues
-- Turborepo: run builds with `--filter`
-- TypeScript: `tsc --noEmit` across repo
-
-## Debugging Best Practices
-
-### Error Boundaries
-- Implement proper error boundaries for React components
-- Use early returns, log errors, don't throw in components
-- Handle async errors with TanStack Query
-
-### Validation
-- Use Zod for runtime validation
-- Provide meaningful error messages across platforms
-- Log validation errors with context
-
-### Performance Debugging
-- Monitor bundle analyzer reports
-- Check React.memo usage for expensive components
-- Validate virtual list implementations
-- Track image optimization with platform-appropriate Image components
-
-### Cross-Platform Issues
-- Test on both iOS and Android for native issues
-- Validate web vs native behavior differences
-- Check platform-specific code paths
-- Verify Expo Router navigation consistency (native) and Next.js router consistency (web)
-
-### State Management Debugging
-- Log Zustand state changes with middleware
-- Track TanStack Query cache state
-- Monitor realtime subscription lifecycle
-- Validate form state with react-hook-form
-
-### API Debugging
-- Check Supabase RLS policies
-- Validate Edge Function logs
-- Monitor realtime subscription errors
-- Test authentication states
-
-## Debugging Tools
-
-### Console Logging
+### Code Snippets for Logging
 ```typescript
-// Development-only logging
+// Development-only logging with context
 if (__DEV__) {
-  log.info('Debug info:', { state, props, context })
+  log.info('Debugging component state:', { state, props });
 }
 
-// Error logging with context
-log.error('Operation failed:', { error, context, user })
-```
-
-### Zustand Debugging
-```typescript
-// Add middleware for state logging
-const useStore = create<State>()(
-  devtools(
-    (set, get) => ({
-      // store implementation
-    }),
-    { name: 'Store Name' }
-  )
-)
-```
-
-### TanStack Query Debugging
-```typescript
-// Log query lifecycle
-const query = useQuery({
-  queryKey: ['data'],
-  queryFn: fetchData,
-  onSuccess: (data) => log.info('Query success:', data),
-  onError: (error) => log.error('Query error:', error),
-})
-```
-
-### Zod Validation Debugging
-```typescript
-// Safe parsing with error logging
-const result = schema.safeParse(data)
+// Zod validation with error logging
+const result = mySchema.safeParse(data);
 if (!result.success) {
-  log.error('Validation failed:', result.error.issues)
+  log.error('Validation failed:', { issues: result.error.issues });
 }
+
+// TanStack Query lifecycle logging
+const { data, error } = useQuery({
+  queryKey: ['myData'],
+  queryFn: fetchData,
+  onSuccess: (data) => log.info('Query succeeded.'),
+  onError: (error) => log.error('Query failed:', { error }),
+});
 ```
 
-## Test Debugging
-
-### Common Test Failures and Solutions
-
-**"Cannot read properties of undefined"**
-1. Check if manual mock exists in `__mocks__` directory
-2. Verify mock exports match actual module exports
-3. Clear Jest cache: `yarn jest --clearCache`
-
-**"Cannot find module" for internal packages**
-1. Use manual mocks in `__mocks__/@my/package-name.js`
-2. Avoid inline `jest.mock()` for TypeScript-only packages
-3. Check package.json `main` field points to correct file
-
-**TypeScript import errors in tests**
-1. Create manual mock with `.js` extension (not `.ts`)
-2. Use `module.exports` syntax in manual mocks
-3. Include `__esModule: true` for ES module compatibility
-
-### Test Debugging Workflow
-1. **Identify scope**: Module resolution, mocking, environment
-2. **Add logs**: Create debug scripts to test imports
-3. **Collect data**: Check package structure, exports, resolution
-4. **Fix systematically**: Try manual mocks before complex solutions
-5. **Verify**: Run full test suite to ensure no regressions
-6. **Clean up**: Remove debug scripts and temporary files
+## VALIDATION_CHECKLIST
+Before finalizing your fix, ensure you can answer "yes" to all of these questions:
+- [ ] Is the bug reliably fixed, and have you verified it with the original reproduction steps?
+- [ ] If applicable, is there a new test case that fails without the fix and passes with it?
+- [ ] Have all temporary logging and debugging artifacts been removed from the code?
+- [ ] Does the fix adhere to the project's architecture and coding standards?
+- [ ] Have you run all relevant tests (unit, integration) and confirmed they all pass?
+- [ ] Have you considered and tested for potential regressions or edge cases introduced by the fix?

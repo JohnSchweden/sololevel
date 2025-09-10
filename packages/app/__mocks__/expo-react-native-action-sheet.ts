@@ -1,5 +1,5 @@
+/// <reference types="jest" />
 import React from 'react'
-import { vi } from 'vitest'
 
 // Mock the ActionSheetProvider
 export const ActionSheetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -9,7 +9,7 @@ export const ActionSheetProvider: React.FC<{ children: React.ReactNode }> = ({ c
 // Mock the useActionSheet hook
 export const useActionSheet = () => {
   return {
-    showActionSheetWithOptions: vi.fn(),
+    showActionSheetWithOptions: jest.fn(),
   }
 }
 

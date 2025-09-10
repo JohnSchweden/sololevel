@@ -1,6 +1,6 @@
-import { VideoPlayerProps, useVideoPlayer } from '@my/app/hooks/useVideoPlayer'
+import { VideoPlayerProps, useVideoPlayer } from '@app/hooks/useVideoPlayer'
 import { Loader, Play, RotateCcw, Share } from '@tamagui/lucide-icons'
-import { useCallback, useRef, useState } from 'react'
+import { useRef } from 'react'
 import Video from 'react-native-video'
 import { Button, Progress, Spinner, Text, XStack, YStack } from 'tamagui'
 

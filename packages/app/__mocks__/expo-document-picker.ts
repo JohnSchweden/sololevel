@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+/// <reference types="jest" />
 
 // Mock DocumentPickerResult
 export interface DocumentPickerResult {
@@ -10,7 +10,7 @@ export interface DocumentPickerResult {
 }
 
 // Mock getDocumentAsync
-export const getDocumentAsync = vi.fn(async (): Promise<DocumentPickerResult> => {
+export const getDocumentAsync = jest.fn(async (): Promise<DocumentPickerResult> => {
   return {
     type: 'cancel',
   }

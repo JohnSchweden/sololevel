@@ -226,6 +226,7 @@ export const ThermalIndicator = ({
       return () => pulse.stop()
     } else {
       pulseAnim.setValue(1)
+      return undefined
     }
   }, [config.shouldPulse, disabled, pulseAnim])
 
@@ -463,8 +464,6 @@ export const CompactThermalIndicator = ({
   size = 'small',
   onPress,
 }: Pick<ThermalIndicatorProps, 'thermalState' | 'temperature' | 'size' | 'onPress'>) => {
-  const config = getThermalConfig(thermalState)
-
   // Only show for non-normal states
   if (thermalState === 'normal') {
     return null

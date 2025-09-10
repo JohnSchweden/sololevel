@@ -1,25 +1,26 @@
 import { act, renderHook } from '@testing-library/react'
-import { vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 import { useScreenStateTransition } from '../hooks/useScreenStateTransition'
 import { RecordingState } from '../types'
 
 // Mock logger
-vi.mock('@ui/utils/logger', () => ({
+jest.mock('@ui/utils/logger', () => ({
   log: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
   },
 }))
 
 describe('useScreenStateTransition', () => {
   const defaultProps = {
-    onNavigateToVideoPlayer: vi.fn(),
-    onNavigateToCamera: vi.fn(),
+    onNavigateToVideoPlayer: jest.fn(),
+    onNavigateToCamera: jest.fn(),
   }
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('Initial State', () => {
@@ -207,7 +208,7 @@ describe('useScreenStateTransition', () => {
 
   describe('Callback Integration', () => {
     it('should call onNavigateToVideoPlayer with correct data', () => {
-      const onNavigateToVideoPlayer = vi.fn()
+      const onNavigateToVideoPlayer = jest.fn()
       const { result } = renderHook(() =>
         useScreenStateTransition({
           ...defaultProps,
@@ -226,7 +227,7 @@ describe('useScreenStateTransition', () => {
     })
 
     it('should call onNavigateToCamera when returning to camera', () => {
-      const onNavigateToCamera = vi.fn()
+      const onNavigateToCamera = jest.fn()
       const { result } = renderHook(() =>
         useScreenStateTransition({
           ...defaultProps,

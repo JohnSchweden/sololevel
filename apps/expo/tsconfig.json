@@ -7,6 +7,8 @@
     "expo-env.d.ts",
     "../../packages/app/**/*.ts",
     "../../packages/app/**/*.tsx",
+    "../../packages/ui/**/*.ts",
+    "../../packages/ui/**/*.tsx",
     "../../packages/api/**/*.ts",
     "../../packages/api/**/*.tsx"
   ],
@@ -14,9 +16,9 @@
     "**/node_modules",
     "**/dist",
     // 🚀 EXCLUDE ALL PRODUCTION POSE DETECTION FILES FROM MVP DEVELOPMENT
-    "../../packages/app/features/CameraRecording/components/CameraSwapButton.tsx",
-    "../../packages/app/features/CameraRecording/components/PerformanceMonitor.tsx",
-    "../../packages/app/features/CameraRecording/components/ThermalIndicator.tsx",
+    "../../packages/ui/src/components/CameraRecording/CameraSwapButton.tsx",
+    "../../packages/ui/src/components/CameraRecording/PerformanceMonitor.tsx",
+    "../../packages/ui/src/components/CameraRecording/ThermalIndicator.tsx",
     "../../packages/app/features/CameraRecording/config/poseConfigManager.ts",
     "../../packages/app/features/CameraRecording/config/poseDetectionConfig.ts",
     "../../packages/app/features/CameraRecording/hooks/useAdaptiveQuality.ts",
@@ -59,7 +61,8 @@
     "jsx": "react-jsx",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "skipLibCheck": true
   },
   "references": []
 }

@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { config } from '@my/config'
 import { TamaguiProvider, Text } from '@my/ui'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -11,7 +12,7 @@ function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
   return <Text testID="success">No error</Text>
 }
 
-import { afterAll, beforeAll, vi } from 'vitest'
+// No imports needed - jest-expo preset provides globals
 
 // Test wrapper with theme provider
 function renderWithProvider(component: React.ReactElement) {
@@ -21,7 +22,7 @@ function renderWithProvider(component: React.ReactElement) {
 // Mock console.error to avoid noise in tests
 const originalError = console.error
 beforeAll(() => {
-  console.error = vi.fn()
+  console.error = jest.fn()
 })
 
 afterAll(() => {
@@ -64,7 +65,7 @@ describe('ErrorBoundary', () => {
   })
 
   it('calls onError callback when error occurs', () => {
-    const onError = vi.fn()
+    const onError = jest.fn()
 
     renderWithProvider(
       <ErrorBoundary onError={onError}>

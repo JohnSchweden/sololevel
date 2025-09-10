@@ -1,12 +1,14 @@
+import { supabase } from '@my/api'
 import type { Session, User } from '@supabase/supabase-js'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 import { useAuthStore } from '../auth'
 
 // Mock Supabase functions
-vi.mock('@my/api', () => {
-  const mockSignOut = vi.fn()
-  const mockGetSession = vi.fn()
-  const mockOnAuthStateChange = vi.fn()
+jest.mock('@my/api', () => {
+  const mockSignOut = jest.fn()
+  const mockGetSession = jest.fn()
+  const mockOnAuthStateChange = jest.fn()
 
   return {
     supabase: {
@@ -28,11 +30,11 @@ describe('AuthStore', () => {
       loading: true,
       initialized: false,
     })
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('initial state', () => {
@@ -91,8 +93,8 @@ describe('AuthStore', () => {
 
   describe('signOut', () => {
     it('successfully signs out user', async () => {
-      const { supabase } = await import('@my/api')
-      const mockSignOut = vi.mocked(supabase.auth.signOut)
+      // Use static import instead of dynamic import
+      const mockSignOut = jest.mocked(supabase.auth.signOut)
       mockSignOut.mockResolvedValue({ error: null })
 
       // Set initial authenticated state
@@ -111,8 +113,8 @@ describe('AuthStore', () => {
     })
 
     it('handles sign out error', async () => {
-      const { supabase } = await import('@my/api')
-      const mockSignOut = vi.mocked(supabase.auth.signOut)
+      // Use static import instead of dynamic import
+      const mockSignOut = jest.mocked(supabase.auth.signOut)
       const mockError = {
         message: 'Sign out failed',
         code: 'sign_out_error',
@@ -122,7 +124,7 @@ describe('AuthStore', () => {
       mockSignOut.mockResolvedValue({ error: mockError })
 
       // Mock console.error to avoid noise in tests
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
       await useAuthStore.getState().signOut()
 
@@ -135,12 +137,12 @@ describe('AuthStore', () => {
     })
 
     it('handles unexpected error during sign out', async () => {
-      const { supabase } = await import('@my/api')
-      const mockSignOut = vi.mocked(supabase.auth.signOut)
+      // Use static import instead of dynamic import
+      const mockSignOut = jest.mocked(supabase.auth.signOut)
       const mockError = new Error('Unexpected error')
       mockSignOut.mockRejectedValue(mockError)
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
       await useAuthStore.getState().signOut()
 
@@ -155,9 +157,9 @@ describe('AuthStore', () => {
       const mockUser = { id: 'user-1', email: 'test@example.com' } as User
       const mockSession = { user: mockUser, access_token: 'token' } as Session
 
-      const { supabase } = await import('@my/api')
-      const mockGetSession = vi.mocked(supabase.auth.getSession)
-      const mockOnAuthStateChange = vi.mocked(supabase.auth.onAuthStateChange)
+      // Use static import instead of dynamic import
+      const mockGetSession = jest.mocked(supabase.auth.getSession)
+      const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
 
       mockGetSession.mockResolvedValue({
         data: { session: mockSession },
@@ -165,7 +167,7 @@ describe('AuthStore', () => {
       })
       mockOnAuthStateChange.mockReturnValue({
         data: {
-          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+          subscription: { id: 'test', callback: jest.fn(), unsubscribe: jest.fn() },
         },
       })
 
@@ -182,9 +184,9 @@ describe('AuthStore', () => {
     })
 
     it('initializes auth with no session', async () => {
-      const { supabase } = await import('@my/api')
-      const mockGetSession = vi.mocked(supabase.auth.getSession)
-      const mockOnAuthStateChange = vi.mocked(supabase.auth.onAuthStateChange)
+      // Use static import instead of dynamic import
+      const mockGetSession = jest.mocked(supabase.auth.getSession)
+      const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
 
       mockGetSession.mockResolvedValue({
         data: { session: null },
@@ -192,7 +194,7 @@ describe('AuthStore', () => {
       })
       mockOnAuthStateChange.mockReturnValue({
         data: {
-          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+          subscription: { id: 'test', callback: jest.fn(), unsubscribe: jest.fn() },
         },
       })
 
@@ -206,9 +208,9 @@ describe('AuthStore', () => {
     })
 
     it('handles session error during initialization', async () => {
-      const { supabase } = await import('@my/api')
-      const mockGetSession = vi.mocked(supabase.auth.getSession)
-      const mockOnAuthStateChange = vi.mocked(supabase.auth.onAuthStateChange)
+      // Use static import instead of dynamic import
+      const mockGetSession = jest.mocked(supabase.auth.getSession)
+      const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
       const mockError = {
         message: 'Session error',
         code: 'session_error',
@@ -222,11 +224,11 @@ describe('AuthStore', () => {
       })
       mockOnAuthStateChange.mockReturnValue({
         data: {
-          subscription: { id: 'test', callback: vi.fn(), unsubscribe: vi.fn() },
+          subscription: { id: 'test', callback: jest.fn(), unsubscribe: jest.fn() },
         },
       })
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
       await useAuthStore.getState().initialize()
 
@@ -237,7 +239,7 @@ describe('AuthStore', () => {
     })
 
     it('does not initialize if already initialized', async () => {
-      const { supabase } = await import('@my/api')
+      // Use static import instead of dynamic import
       // Set as already initialized
       useAuthStore.getState().setInitialized(true)
 
@@ -247,9 +249,9 @@ describe('AuthStore', () => {
     })
 
     it('handles auth state changes', async () => {
-      const { supabase } = await import('@my/api')
-      const mockGetSession = vi.mocked(supabase.auth.getSession)
-      const mockOnAuthStateChange = vi.mocked(supabase.auth.onAuthStateChange)
+      // Use static import instead of dynamic import
+      const mockGetSession = jest.mocked(supabase.auth.getSession)
+      const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
       let authChangeCallback: any
 
       mockGetSession.mockResolvedValue({
@@ -262,8 +264,8 @@ describe('AuthStore', () => {
           data: {
             subscription: {
               id: 'test',
-              callback: vi.fn(),
-              unsubscribe: vi.fn(),
+              callback: jest.fn(),
+              unsubscribe: jest.fn(),
             },
           },
         }

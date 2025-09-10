@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+/// <reference types="jest" />
+// No imports needed - jest-expo preset provides globals
 import { useThemeStore } from '../theme'
 
 // Mock window.matchMedia
-const mockMatchMedia = vi.fn()
+const mockMatchMedia = jest.fn()
 
 describe('ThemeStore', () => {
   beforeEach(() => {
@@ -20,15 +21,15 @@ describe('ThemeStore', () => {
 
     mockMatchMedia.mockReturnValue({
       matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
     })
 
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe('initial state', () => {
@@ -60,8 +61,8 @@ describe('ThemeStore', () => {
     it('sets system mode with light preference', () => {
       mockMatchMedia.mockReturnValue({
         matches: false, // Light mode
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
       })
 
       useThemeStore.getState().setMode('system')
@@ -75,8 +76,8 @@ describe('ThemeStore', () => {
     it('sets system mode with dark preference', () => {
       mockMatchMedia.mockReturnValue({
         matches: true, // Dark mode
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
       })
 
       useThemeStore.getState().setMode('system')
@@ -168,8 +169,8 @@ describe('ThemeStore', () => {
       // Set to system mode
       mockMatchMedia.mockReturnValue({
         matches: true, // System prefers dark
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
       })
 
       useThemeStore.getState().setMode('system')

@@ -1,3 +1,4 @@
+import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { CameraMode, CameraRatio, CameraView } from 'expo-camera'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Dimensions, View } from 'react-native'
@@ -43,7 +44,29 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           // The parent already ensures camera is ready before calling this method
 
           try {
-            await cameraRef.current.recordAsync()
+            const video = await cameraRef.current.recordAsync()
+            if (!video?.uri) {
+              throw new Error('Recording failed: no video data received')
+            }
+            log.info('ExpoCamera', 'Recording finished', { uri: video.uri })
+
+            // Save video to local storage using expo-file-system
+            try {
+              const filename = `recording_${Date.now()}.mp4`
+              const savedVideo = await VideoStorageService.saveVideo(video.uri, filename, {
+                format: 'mp4',
+                // Note: Duration not available in expo-camera recording result
+              })
+
+              log.info('ExpoCamera', 'Video saved to local storage', {
+                originalUri: video.uri,
+                localUri: savedVideo.localUri,
+                filename: savedVideo.filename,
+                size: savedVideo.size,
+              })
+            } catch (saveError) {
+              log.error('ExpoCamera', 'Failed to save video to local storage', saveError)
+            }
             log.info('CameraRecording', 'Recording started')
           } catch (error) {
             log.error('CameraRecording', 'Failed to start recording', error)
@@ -299,6 +322,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       mode: 'video' as CameraMode,
       // Orientation-aware aspect ratio
       ratio: (orientation === 'landscape' ? '16:9' : '9:16') as CameraRatio,
+      permissionGranted,
     }
 
     // Show error state if camera failed

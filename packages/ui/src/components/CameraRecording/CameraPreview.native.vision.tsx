@@ -1,3 +1,4 @@
+import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Dimensions, View } from 'react-native'
 import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera'
@@ -61,8 +62,26 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
           try {
             cameraRef.current.startRecording({
-              onRecordingFinished: (video) => {
+              onRecordingFinished: async (video) => {
                 log.info('VisionCamera', 'Recording finished', { path: video.path })
+
+                // Save video to local storage using expo-file-system
+                try {
+                  const filename = `recording_${Date.now()}.mp4`
+                  const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
+                    format: 'mp4',
+                    duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
+                  })
+
+                  log.info('VisionCamera', 'Video saved to local storage', {
+                    originalPath: video.path,
+                    localUri: savedVideo.localUri,
+                    filename: savedVideo.filename,
+                    size: savedVideo.size,
+                  })
+                } catch (saveError) {
+                  log.error('VisionCamera', 'Failed to save video to local storage', saveError)
+                }
               },
               onRecordingError: (error) => {
                 log.error('VisionCamera', 'Recording error', error)
@@ -232,6 +251,16 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       setCurrentZoomLevel(zoomLevel)
     }, [zoomLevel])
 
+    // Don't render camera if permission not granted
+    if (!permissionGranted) {
+      return (
+        <View
+          style={{ flex: 1, backgroundColor: 'black' }}
+          testID="black-screen"
+        />
+      )
+    }
+
     // Show error state if camera failed or no device
     if (cameraError || !device) {
       return (
@@ -276,11 +305,6 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           </YStack>
         </YStack>
       )
-    }
-
-    // Don't render camera if permission not granted
-    if (!permissionGranted) {
-      return <View style={{ flex: 1, backgroundColor: 'black' }} />
     }
 
     return (

@@ -1,0 +1,86 @@
+# Debugging Workflow
+
+## SYSTEM_CONTEXT
+You are a senior developer diagnosing and resolving a bug within the monorepo. Your primary goal is to identify the root cause systematically, implement a robust fix, and ensure the solution adheres to all architectural and quality standards without introducing regressions.
+
+## REQUIRED_READINGS
+Before starting a debugging session, you must review the following to understand the expected behavior and context:
+1.  **`docs/spec/architecture.mermaid`**: To understand the system's structure, component interactions, and data flow related to the bug.
+2.  **`docs/spec/TRD.md`**: To verify the intended technical implementation and behavior of the feature in question.
+3.  **`docs/tasks/tasks.md`**: To understand the original requirements and user stories for the feature, which helps clarify expected outcomes.
+4.  **Relevant error handling rule (`quality/error-handling.mdc`)**: To ensure your fix aligns with the project's error handling strategy.
+
+## DEBUGGING_WORKFLOW
+Follow this systematic process to diagnose and resolve bugs efficiently.
+
+1.  **ANALYZE & REPRODUCE (PRE-STEP)**:
+    *   Read the bug report or task description.
+    *   Reliably reproduce the bug in a local development environment. Document the exact steps.
+    *   Formulate a hypothesis. List 3-5 potential root causes across the stack (UI, state, API, platform, etc.). Prioritize the top 1-2 most likely candidates.
+
+2.  **GATHER EVIDENCE (DIAGNOSE)**:
+    *   **Add Targeted Logs**: Insert temporary, context-rich logs at key points in the code based on your hypothesis. Use the project's designated logger.
+    *   **Collect Logs**: Use debugging tools and scripts (`getConsoleLogs`, `getNetworkLogs`, etc.) to capture runtime data.
+    *   **Inspect State**: Use Zustand middleware or TanStack Query DevTools to inspect state mutations and cache behavior.
+    *   **Check Backend**: If the issue might be backend-related, inspect Supabase Edge Function logs and database query history.
+    *   **Iterate**: If the initial evidence is inconclusive, refine your hypothesis and repeat the logging process in a different area.
+
+3.  **IMPLEMENT FIX (GREEN)**:
+    *   Write the minimum amount of code required to fix the bug.
+    *   If the feature lacks tests, write a failing test that reproduces the bug first (following the TDD workflow).
+    *   Ensure the fix passes the new test and all existing relevant tests.
+
+4.  **REFACTOR & CLEAN (REFACTOR)**:
+    *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
+    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `console.log` statements, temporary variables, debug flags).
+    *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
+
+## DEBUGGING_TECHNIQUES_BY_STACK
+
+### General
+*   **Error Boundaries**: Wrap components in error boundaries to catch rendering errors.
+*   **Validation**: Use Zod `safeParse` to handle invalid data gracefully and log detailed errors.
+
+### Cross-Platform (Expo / Next.js)
+*   **Expo**: Use `yarn native --clear` to avoid cache issues. Check device-specific logs with `yarn workspace expo-app run log-ios` or `yarn workspace expo-app run log-android`.
+*   **Next.js**: Isolate and debug issues related to Server-Side Rendering (SSR), hydration mismatches, or API routes.
+*   **Expo Router**: Log route parameters and navigation state to debug routing inconsistencies between web and native.
+
+### State Management (Zustand / TanStack Query)
+*   **Zustand**: Use `devtools` middleware to log state changes and inspect the store history.
+*   **TanStack Query**: Use the React Query DevTools. Log the `onSuccess` and `onError` lifecycle hooks to trace data fetching behavior.
+
+### Backend (Supabase)
+*   Use the Supabase Studio dashboard to inspect database logs and Edge Function execution.
+*   Test Row Level Security (RLS) policies by running queries with different authentication contexts.
+
+### Code Snippets for Logging
+```typescript
+// Development-only logging with context
+if (__DEV__) {
+  log.info('Debugging component state:', { state, props });
+}
+
+// Zod validation with error logging
+const result = mySchema.safeParse(data);
+if (!result.success) {
+  log.error('Validation failed:', { issues: result.error.issues });
+}
+
+// TanStack Query lifecycle logging
+const { data, error } = useQuery({
+  queryKey: ['myData'],
+  queryFn: fetchData,
+  onSuccess: (data) => log.info('Query succeeded.'),
+  onError: (error) => log.error('Query failed:', { error }),
+});
+```
+
+## VALIDATION_CHECKLIST
+Before finalizing your fix, ensure you can answer "yes" to all of these questions:
+- [ ] Is the bug reliably fixed, and have you verified it with the original reproduction steps?
+- [ ] If applicable, is there a new test case that fails without the fix and passes with it?
+- [ ] Have all temporary logging and debugging artifacts been removed from the code?
+- [ ] Does the fix adhere to the project's architecture and coding standards?
+- [ ] Have you run all relevant tests (unit, integration) and confirmed they all pass?
+- [ ] Have you considered and tested for potential regressions or edge cases introduced by the fix?

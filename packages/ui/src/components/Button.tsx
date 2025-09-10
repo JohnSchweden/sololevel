@@ -51,6 +51,6 @@ export const Button = styled(TamaguiButton, {
       },
     },
   },
-})
+}) as unknown as typeof TamaguiButton
 
 export type ButtonProps = React.ComponentProps<typeof Button>

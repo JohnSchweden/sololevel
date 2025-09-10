@@ -15,7 +15,8 @@
   - ✅ Video upload service with Supabase Storage integration
   - ✅ Signed URL generation for secure uploads
   - ✅ Upload progress tracking and chunked uploads
-  - ✅ Local video file storage via `expo-file-system`
+  - ✅ Local video file storage via `expo-file-system` (VideoStorageService for camera recordings)
+  - ✅ Comprehensive test coverage for video recording components (Jest + React Native Testing Library)
 
 ## In Progress
 - **US-RU-01: Record a video up to 60 seconds** (85% complete)
@@ -23,7 +24,7 @@
   - ✅ Recording controls (Record, Pause/Resume, Stop)
   - ✅ Real-time timer display during recording
   - ✅ Camera and microphone permissions
-  - ✅ Local video file storage
+  - ✅ Local video file storage via `expo-file-system`
   - ✅ Supabase Storage upload with signed URLs
   - 🏗️ Integration between recording and upload flows
   - ⏳ Error handling and user feedback for upload failures

@@ -1,0 +1,57 @@
+{
+  "commandRules": {
+    "allow": [
+      "yarn workspace",
+      "yarn workspace list",
+      "yarn workspace run",
+      "yarn workspace build",
+      "yarn workspace test",
+      "yarn workspace type-check",
+      "yarn workspace lint",
+      "yarn workspace expo-app",
+      "yarn workspace next-app",
+      "yarn workspace @my/ui",
+      "yarn workspace @my/app",
+      "yarn workspace @my/api",
+      "yarn workspace @my/config"
+    ],
+    "block": [
+      "yarn workspace add",
+      "yarn workspace remove",
+      "yarn workspace expo-app add",
+      "yarn workspace expo-app remove",
+      "yarn workspace next-app add",
+      "yarn workspace next-app remove",
+      "yarn workspace @my/ui add",
+      "yarn workspace @my/ui remove",
+      "yarn workspace @my/app add",
+      "yarn workspace @my/app remove",
+      "yarn workspace @my/api add",
+      "yarn workspace @my/api remove",
+      "yarn workspace @my/config add",
+      "yarn workspace @my/config remove"
+    ]
+  },
+
+  "_comment": "Command validation system with confirmation",
+  "validation": {
+    "enabled": true,
+    "behavior": "confirmation-required",
+    "scripts": {
+      "validate-command": "node scripts/validate-command.js",
+      "command-validator": "source scripts/command-validator.sh"
+    },
+    "usage": {
+      "validate": "node scripts/validate-command.js \"your command here\"",
+      "shell-integration": "source scripts/command-validator.sh",
+      "override": "CURSOR_RULES_OVERRIDE=true [blocked command]",
+      "pre-commit-hook": "Add to .husky/pre-commit for validation"
+    },
+    "override-options": {
+      "env-var": "CURSOR_RULES_OVERRIDE=true",
+      "temporary-allow": "Remove command from block list temporarily",
+      "interactive": "Use shell validator for yes/no confirmation"
+    },
+    "note": "Blocked commands now require explicit confirmation instead of being completely blocked"
+  }
+}

@@ -34,7 +34,7 @@ describe('ComponentName', () => {
         />
       )
 
-      expect(screen.getByText('Test Title')).toBeInTheDocument()
+      expect(screen.getByTestId('ComponentName')).toHaveAttribute('title', 'Test Title')
       expect(screen.getByTestId('ComponentName')).toHaveAttribute('data-variant', 'primary')
     })
   })
