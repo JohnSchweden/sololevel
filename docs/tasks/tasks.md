@@ -1,7 +1,7 @@
 # Current Sprint Tasks
 
 ## US-RU-01: Record a video up to 60 seconds
-Status: Pending
+Status: Done
 Priority: High
 Dependencies: Camera and microphone permissions
 

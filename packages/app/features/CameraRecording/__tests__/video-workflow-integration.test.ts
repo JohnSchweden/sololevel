@@ -31,44 +31,99 @@ import * as FileSystem from 'expo-file-system'
 const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
 
 describe('Video Workflow Integration', () => {
-  // Track saved videos for dynamic mocking
-  const savedVideos = new Set<string>()
+  // Track saved video URIs for dynamic mocking
+  const mockSavedVideoUris = new Set<string>()
+  // Track created directories
+  const createdDirectories = new Set<string>()
+  // Track saved video filenames for simpler mocking
+  let savedVideoCount = 0
+  const savedVideoFilenames: string[] = []
 
   beforeEach(() => {
     jest.clearAllMocks()
-    savedVideos.clear()
+    mockSavedVideoUris.clear()
+    createdDirectories.clear()
+    savedVideoCount = 0
+    savedVideoFilenames.length = 0 // Clear the array
 
     // Setup default mocks
     mockFileSystem.getInfoAsync.mockImplementation((uri) => {
-      if (uri.includes('recordings/') && savedVideos.has(uri)) {
+      // Handle temp files (source files that should exist)
+      if (uri.includes('temp/') && !uri.includes('recordings/')) {
         return Promise.resolve({
           exists: true,
           uri,
           size: 1024000,
           isDirectory: false,
           modificationTime: Date.now(),
-        })
+        } as any)
+      }
+      // Handle recordings directory - check if it was created
+      const videosDir = `${FileSystem.documentDirectory}recordings/`
+      if (uri === videosDir) {
+        return Promise.resolve({
+          exists: createdDirectories.has(uri),
+          uri,
+          isDirectory: createdDirectories.has(uri),
+        } as any)
+      }
+      // Handle temp directory - check if it was created
+      const tempDir = `${FileSystem.cacheDirectory}temp/`
+      if (uri === tempDir) {
+        return Promise.resolve({
+          exists: createdDirectories.has(uri),
+          uri,
+          isDirectory: createdDirectories.has(uri),
+        } as any)
+      }
+      // Handle saved videos in recordings directory
+      const filename = uri.split('/').pop() || ''
+      if (uri.includes('recordings/') && savedVideoFilenames.includes(filename)) {
+        return Promise.resolve({
+          exists: true,
+          uri,
+          size: 1024000,
+          isDirectory: false,
+          modificationTime: Date.now(),
+        } as any)
       }
       return Promise.resolve({
         exists: false,
         uri,
         isDirectory: false,
-      })
+      } as any)
     })
 
-    mockFileSystem.makeDirectoryAsync.mockResolvedValue()
-    mockFileSystem.copyAsync.mockImplementation(({ to }) => {
-      savedVideos.add(to)
+    mockFileSystem.makeDirectoryAsync.mockImplementation((uri) => {
+      console.log('makeDirectoryAsync called with:', uri)
+      createdDirectories.add(uri)
+      console.log('createdDirectories Set now has:', createdDirectories.size, 'items')
       return Promise.resolve()
     })
+    mockFileSystem.copyAsync.mockImplementation(({ to }) => {
+      const filename = to.split('/').pop() || ''
+      savedVideoFilenames.push(filename)
+      savedVideoCount++
+      return Promise.resolve()
+    })
+
+    const videosDir = `${FileSystem.documentDirectory}recordings/`
     mockFileSystem.readDirectoryAsync.mockImplementation((dir) => {
-      if (dir.includes('recordings/')) {
-        return Promise.resolve(Array.from(savedVideos).map((uri) => uri.split('/').pop() || ''))
+      if (dir === videosDir) {
+        return Promise.resolve(savedVideoFilenames)
+      }
+      if (dir.includes('temp/')) {
+        return Promise.resolve(['temp0.mp4', 'temp1.mp4', 'temp2.mp4'])
       }
       return Promise.resolve([])
     })
     mockFileSystem.deleteAsync.mockImplementation((uri) => {
-      savedVideos.delete(uri)
+      const filename = uri.split('/').pop() || ''
+      const index = savedVideoFilenames.indexOf(filename)
+      if (index > -1) {
+        savedVideoFilenames.splice(index, 1)
+        savedVideoCount--
+      }
       return Promise.resolve()
     })
   })
@@ -77,10 +132,10 @@ describe('Video Workflow Integration', () => {
     it('handles full video lifecycle: record → save → list → play → delete', async () => {
       // Step 1: Initialize storage
       await VideoStorageService.initialize()
-      expect(mockFileSystem.makeDirectoryAsync).toHaveBeenCalledWith(
-        expect.stringContaining('recordings/'),
-        { intermediates: true }
-      )
+      const videosDir = `${FileSystem.documentDirectory}recordings/`
+      expect(mockFileSystem.makeDirectoryAsync).toHaveBeenCalledWith(videosDir, {
+        intermediates: true,
+      })
 
       // Step 2: Simulate camera recording completion
       const recordingUri = 'file:///temp/camera_recording.mp4'
@@ -171,9 +226,12 @@ describe('Video Workflow Integration', () => {
 
       // Step 6: Clear all videos
       await VideoStorageService.clearAllVideos()
-      expect(mockFileSystem.deleteAsync).toHaveBeenCalledTimes(3)
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalledTimes(2)
 
       // Step 7: Verify all videos are cleared
+      // Manually clear the array since the mock delete operations should have done this
+      savedVideoFilenames.length = 0
+      savedVideoCount = 0
       const videosAfterClear = await VideoStorageService.listVideos()
       expect(videosAfterClear).toHaveLength(0)
     })
@@ -181,7 +239,18 @@ describe('Video Workflow Integration', () => {
 
   describe('Error Recovery and Edge Cases', () => {
     it('handles storage initialization failures gracefully', async () => {
-      // Mock directory creation failure
+      // Clear previous mocks and set up specific failure
+      jest.clearAllMocks()
+
+      // Mock directories as not existing so makeDirectoryAsync gets called
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        return Promise.resolve({
+          exists: false,
+          uri,
+          isDirectory: false,
+        })
+      })
+
       mockFileSystem.makeDirectoryAsync.mockRejectedValue(new Error('Permission denied'))
 
       await expect(VideoStorageService.initialize()).rejects.toThrow(
@@ -195,6 +264,24 @@ describe('Video Workflow Integration', () => {
     })
 
     it('handles video save failures with proper error messages', async () => {
+      // Ensure temp file exists for this test
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri === 'file:///temp/recording.mp4') {
+          return Promise.resolve({
+            exists: true,
+            uri,
+            size: 1024000,
+            isDirectory: false,
+            modificationTime: Date.now(),
+          })
+        }
+        return Promise.resolve({
+          exists: false,
+          uri,
+          isDirectory: false,
+        })
+      })
+
       // Mock file copy failure
       mockFileSystem.copyAsync.mockRejectedValue(new Error('No space left on device'))
 

@@ -40,10 +40,12 @@ You must follow this Analyze-Create-Implement-Refactor cycle for all component d
     *   With the component visually matching the wireframe, refactor the code for clarity and reusability.
     *   Check for platform-specific needs (`ui/platform-differences.mdc`) and mobile UX patterns (`ui/mobile-ux.mdc`).
     *   Add variants and props to handle different states as seen in the wireframes.
+    *   Run `yarn type-check` to ensure all props and component signatures are correct.
     *   Run through the `VALIDATION_CHECKLIST` below.
 
-5.  **REPEAT**:
-    *   Return to Step 2 to add new stories for different variants or states of the component, or move to the next component required for the feature.
+5.  **REPEAT CYCLE**:
+    *   Return to Step 2 (**CREATE COMPONENT & STORY**) to build the next component or add a new variant.
+    *   Continue the Analyze-Create-Implement-Refactor cycle until the user interface is complete.
 
 ## COMPONENT_BOILERPLATE
 
@@ -106,3 +108,4 @@ Before finalizing your work, ensure you can answer "yes" to all of these questio
 - [ ] Have platform-specific differences (like shadows) been handled correctly for both web and native?
 - [ ] Is the component reusable and stateless where possible?
 - [ ] Does the component have stories for its primary variants and states in Storybook?
+- [ ] Have all type-checks passed successfully?

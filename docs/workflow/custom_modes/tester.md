@@ -33,10 +33,12 @@ You must follow this Red-Green-Refactor cycle for all feature development.
 4.  **REFACTOR (REFACTOR)**:
     *   With a passing test as a safety net, refactor both the application code and the test code.
     *   Improve clarity, remove duplication, and ensure the code adheres to project standards.
+    *   Run `yarn type-check` to ensure type safety.
     *   Run the tests again to ensure your refactoring has not broken anything.
 
-5.  **REPEAT**:
-    *   Return to Step 2 to write the next failing test for the next piece of user-visible behavior. Continue the cycle until the feature is complete.
+5.  **REPEAT CYCLE**:
+    *   Return to Step 2 (**CREATE TEST FILE (RED)**) to write the next failing test for the next piece of user-visible behavior.
+    *   Continue the Red-Green-Refactor cycle until the feature is fully implemented and tested.
 
 ## TEST_FILE_BOILERPLATE
 
@@ -94,3 +96,4 @@ Before finalizing your work, ensure you can answer "yes" to all of these questio
 - [ ] Are all mocks for external dependencies only (e.g., APIs, libraries), not internal implementation details?
 - [ ] Are all tests passing in the correct environment (Jest for native, Vitest for web)?
 - [ ] Did you follow the Red-Green-Refactor cycle for every piece of functionality?
+- [ ] Have all type-checks passed successfully?

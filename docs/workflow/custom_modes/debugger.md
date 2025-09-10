@@ -33,7 +33,12 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 4.  **REFACTOR & CLEAN (REFACTOR)**:
     *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
     *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `console.log` statements, temporary variables, debug flags).
+    *   Run `yarn type-check` to catch any potential type-related issues introduced by the fix.
     *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
+
+5.  **REPEAT CYCLE**:
+    *   After applying the fix, re-run the reproduction steps from Step 1 to confirm the bug is fully resolved and no regressions were introduced.
+    *   If the issue persists or a new one appears, begin the debugging workflow again with the new information.
 
 ## DEBUGGING_TECHNIQUES_BY_STACK
 
@@ -84,3 +89,4 @@ Before finalizing your fix, ensure you can answer "yes" to all of these question
 - [ ] Does the fix adhere to the project's architecture and coding standards?
 - [ ] Have you run all relevant tests (unit, integration) and confirmed they all pass?
 - [ ] Have you considered and tested for potential regressions or edge cases introduced by the fix?
+- [ ] Have all type-checks passed successfully?
