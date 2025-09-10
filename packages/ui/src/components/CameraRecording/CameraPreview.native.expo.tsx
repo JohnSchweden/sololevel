@@ -20,6 +20,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       onZoomChange,
       onCameraReady,
       onError,
+      onVideoRecorded,
       children,
       permissionGranted = false,
     },
@@ -48,11 +49,26 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             if (!video?.uri) {
               throw new Error('Recording failed: no video data received')
             }
-            log.info('ExpoCamera', 'Recording finished', { uri: video.uri })
+            log.info('ExpoCamera', 'Recording finished', {
+              uri: video.uri,
+              hasUri: !!video.uri,
+              uriStartsWithFile: video.uri?.startsWith('file://'),
+              uriLength: video.uri?.length,
+            })
+
+            // Validate video URI before saving
+            if (!video.uri || !video.uri.startsWith('file://')) {
+              log.error('ExpoCamera', 'Invalid video URI received', {
+                uri: video.uri,
+                expectedFormat: 'file://...',
+              })
+              onError?.('Invalid video URI')
+              return
+            }
 
             // Save video to local storage using expo-file-system
+            const filename = `recording_${Date.now()}.mp4`
             try {
-              const filename = `recording_${Date.now()}.mp4`
               const savedVideo = await VideoStorageService.saveVideo(video.uri, filename, {
                 format: 'mp4',
                 // Note: Duration not available in expo-camera recording result
@@ -63,9 +79,19 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
                 localUri: savedVideo.localUri,
                 filename: savedVideo.filename,
                 size: savedVideo.size,
+                metadata: savedVideo.metadata,
               })
+
+              // Notify parent component about the saved video
+              onVideoRecorded?.(savedVideo.localUri)
             } catch (saveError) {
-              log.error('ExpoCamera', 'Failed to save video to local storage', saveError)
+              log.error('ExpoCamera', 'Failed to save video to local storage', {
+                videoUri: video.uri,
+                filename,
+                error: saveError instanceof Error ? saveError.message : saveError,
+                errorStack: saveError instanceof Error ? saveError.stack : undefined,
+              })
+              onError?.('Failed to save video')
             }
             log.info('CameraRecording', 'Recording started')
           } catch (error) {

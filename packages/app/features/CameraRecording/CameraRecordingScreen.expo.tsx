@@ -76,6 +76,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     setShowSideSheet,
     setShowNavigationDialog,
     // Video player actions
+    handleVideoRecorded,
     handleRestartRecording,
     handleContinueToAnalysis,
   } = useCameraScreenLogic({ onNavigateBack, onTabChange, cameraRef })
@@ -143,6 +144,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
             }}
             permissionGranted={permission?.granted ?? false}
             onCameraReady={handleCameraReady}
+            onVideoRecorded={handleVideoRecorded}
             onError={(_error: string) => {
               // TODO: Handle camera errors with user feedback
             }}

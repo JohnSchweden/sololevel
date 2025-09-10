@@ -1,8 +1,9 @@
 import { VideoPlayerProps, useVideoPlayer } from '@app/hooks/useVideoPlayer'
 import { Loader, Play, RotateCcw, Share } from '@tamagui/lucide-icons'
-import { useRef } from 'react'
+import React, { useRef } from 'react'
 import Video from 'react-native-video'
 import { Button, Progress, Spinner, Text, XStack, YStack } from 'tamagui'
+import { log } from '../../utils/logger'
 
 /**
  * Native Video Player Implementation
@@ -51,6 +52,65 @@ export function VideoPlayer(props: VideoPlayerProps) {
   } = sharedProps
 
   const videoRef = useRef<any>(null)
+
+  // Validate video URI on mount
+  React.useEffect(() => {
+    if (videoUri) {
+      // Only validate in non-test environments to avoid import issues
+      if (process.env.NODE_ENV !== 'test') {
+        log.info('VideoPlayer', 'Initializing with video URI', {
+          videoUri,
+          hasUri: !!videoUri,
+          uriLength: videoUri.length,
+          isFileUri: videoUri.startsWith('file://'),
+        })
+
+        // Validate file exists (async check)
+        if (videoUri.startsWith('file://')) {
+          import('expo-file-system')
+            .then(({ getInfoAsync }) => {
+              getInfoAsync(videoUri)
+                .then((info) => {
+                  if (!info.exists) {
+                    log.error('VideoPlayer', 'Video file does not exist', {
+                      videoUri,
+                      exists: info.exists,
+                      size: 0,
+                    })
+                    setError(true)
+                  } else {
+                    log.info('VideoPlayer', 'Video file validated', {
+                      videoUri,
+                      exists: info.exists,
+                      size: info.size,
+                      modificationTime: info.modificationTime,
+                    })
+                  }
+                })
+                .catch((error) => {
+                  log.error('VideoPlayer', 'Failed to validate video file', {
+                    videoUri,
+                    error: error instanceof Error ? error.message : error,
+                  })
+                  setError(true)
+                })
+            })
+            .catch((importError) => {
+              log.warn(
+                'VideoPlayer',
+                'Could not import expo-file-system for validation',
+                importError
+              )
+            })
+        }
+      }
+    } else {
+      // Only log in non-test environments
+      if (process.env.NODE_ENV !== 'test') {
+        log.info('VideoPlayer', 'No video URI provided')
+      }
+    }
+  }, [videoUri, setError])
 
   // Render loading overlay
   const renderLoadingOverlay = () => {

@@ -10,6 +10,7 @@ export interface CameraPreviewContainerProps {
   onZoomChange?: (zoom: number) => void
   onCameraReady?: () => void
   onError?: (error: string) => void
+  onVideoRecorded?: (videoUri: string) => void
   children?: React.ReactNode
   permissionGranted?: boolean
 }

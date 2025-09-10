@@ -20,6 +20,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       onZoomChange,
       onCameraReady,
       onError,
+      onVideoRecorded,
       children,
       permissionGranted = false,
     },
@@ -63,11 +64,28 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           try {
             cameraRef.current.startRecording({
               onRecordingFinished: async (video) => {
-                log.info('VisionCamera', 'Recording finished', { path: video.path })
+                log.info('VisionCamera', 'Recording finished', {
+                  path: video.path,
+                  duration: video.duration,
+                  hasPath: !!video.path,
+                  pathStartsWithFile: video.path?.startsWith('file://'),
+                  pathLength: video.path?.length,
+                })
+
+                // Validate video path before saving
+                if (!video.path || !video.path.startsWith('file://')) {
+                  log.error('VisionCamera', 'Invalid video path received', {
+                    path: video.path,
+                    duration: video.duration,
+                    expectedFormat: 'file://...',
+                  })
+                  onError?.('Invalid video path')
+                  return
+                }
 
                 // Save video to local storage using expo-file-system
+                const filename = `recording_${Date.now()}.mp4`
                 try {
-                  const filename = `recording_${Date.now()}.mp4`
                   const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
                     format: 'mp4',
                     duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
@@ -78,9 +96,21 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
                     localUri: savedVideo.localUri,
                     filename: savedVideo.filename,
                     size: savedVideo.size,
+                    metadata: savedVideo.metadata,
                   })
+
+                  // Notify parent component about the saved video
+                  onVideoRecorded?.(savedVideo.localUri)
+
+                  // Video saved successfully - parent component will handle navigation to player
                 } catch (saveError) {
-                  log.error('VisionCamera', 'Failed to save video to local storage', saveError)
+                  log.error('VisionCamera', 'Failed to save video to local storage', {
+                    videoPath: video.path,
+                    filename,
+                    error: saveError instanceof Error ? saveError.message : saveError,
+                    errorStack: saveError instanceof Error ? saveError.stack : undefined,
+                  })
+                  onError?.('Failed to save video')
                 }
               },
               onRecordingError: (error) => {

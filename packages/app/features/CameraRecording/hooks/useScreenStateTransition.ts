@@ -1,5 +1,5 @@
 import { log } from '@my/ui/src/utils/logger'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { RecordingState } from '../types'
 
 export type ScreenState = 'camera' | 'videoPlayer'
@@ -12,6 +12,7 @@ export interface VideoData {
 export interface ScreenStateTransitionConfig {
   onNavigateToVideoPlayer?: (videoData: VideoData) => void
   onNavigateToCamera?: () => void
+  onVideoRecorded?: (videoUri: string) => void
 }
 
 export interface ScreenStateTransitionResult {
@@ -23,6 +24,7 @@ export interface ScreenStateTransitionResult {
 
   // Actions
   handleRecordingStateChange: (state: RecordingState, duration: number) => void
+  handleVideoRecorded: (videoUri: string) => void
   handleRestartRecording: () => void
   handleContinueToAnalysis: () => void
 }
@@ -37,16 +39,23 @@ export interface ScreenStateTransitionResult {
 export function useScreenStateTransition(
   config: ScreenStateTransitionConfig
 ): ScreenStateTransitionResult {
-  const { onNavigateToVideoPlayer, onNavigateToCamera } = config
+  const { onNavigateToVideoPlayer, onNavigateToCamera, onVideoRecorded } = config
 
   const [screenState, setScreenState] = useState<ScreenState>('camera')
   const [videoData, setVideoData] = useState<VideoData | null>(null)
+  const [savedVideoUri, setSavedVideoUri] = useState<string | null>(null)
+  const savedVideoUriRef = useRef<string | null>(null)
 
-  // Generate unique video URI for each recording
-  const generateVideoUri = useCallback(() => {
-    const timestamp = Date.now()
-    return `file://recording_${timestamp}.mp4`
-  }, [])
+  // Handle when a video has been recorded and saved
+  const handleVideoRecorded = useCallback(
+    (videoUri: string) => {
+      log.info('useScreenStateTransition', 'Video recorded and saved', { videoUri })
+      setSavedVideoUri(videoUri)
+      savedVideoUriRef.current = videoUri
+      onVideoRecorded?.(videoUri)
+    },
+    [onVideoRecorded]
+  )
 
   // Handle recording state changes
   const handleRecordingStateChange = useCallback(
@@ -55,34 +64,52 @@ export function useScreenStateTransition(
         state,
         duration,
         currentScreenState: screenState,
+        savedVideoUri,
       })
 
       // Only transition to video player when recording stops
       if (state === RecordingState.STOPPED) {
-        log.info('useScreenStateTransition', 'Recording STOPPED - transitioning to video player')
-        const videoUri = generateVideoUri()
-        const newVideoData: VideoData = {
-          videoUri,
-          duration: Math.max(0, duration), // Ensure non-negative duration
-        }
+        log.info('useScreenStateTransition', 'Recording STOPPED - will wait for video to be saved')
 
-        setVideoData(newVideoData)
-        setScreenState('videoPlayer')
+        // Wait a bit for the video to be saved and onVideoRecorded to be called
+        // This ensures savedVideoUri is available before transitioning
+        setTimeout(() => {
+          const currentSavedUri = savedVideoUriRef.current
+          log.info('useScreenStateTransition', 'Delayed transition to video player', {
+            savedVideoUri: currentSavedUri,
+            hasSavedUri: !!currentSavedUri,
+          })
 
-        log.info('useScreenStateTransition', 'State set to videoPlayer', {
-          videoUri,
-          duration: newVideoData.duration,
-        })
+          // Use the real saved video URI if available, otherwise generate a fallback
+          const videoUri = currentSavedUri || `file://recording_${Date.now()}.mp4`
+          const newVideoData: VideoData = {
+            videoUri,
+            duration: Math.max(0, duration), // Ensure non-negative duration
+          }
 
-        // Notify parent component about the transition
-        onNavigateToVideoPlayer?.(newVideoData)
-        log.info('useScreenStateTransition', 'onNavigateToVideoPlayer called', {
-          videoUri,
-          duration: newVideoData.duration,
-        })
+          setVideoData(newVideoData)
+          setScreenState('videoPlayer')
+
+          log.info('useScreenStateTransition', 'State set to videoPlayer', {
+            videoUri,
+            duration: newVideoData.duration,
+            usedSavedUri: !!currentSavedUri,
+          })
+
+          // Notify parent component about the transition
+          onNavigateToVideoPlayer?.(newVideoData)
+          log.info('useScreenStateTransition', 'onNavigateToVideoPlayer called', {
+            videoUri,
+            duration: newVideoData.duration,
+          })
+
+          // Reset saved URI for next recording
+          setSavedVideoUri(null)
+          savedVideoUriRef.current = null
+        }, 100) // Small delay to allow video saving to complete
       }
     },
-    [generateVideoUri, onNavigateToVideoPlayer]
+    [savedVideoUri, onNavigateToVideoPlayer, screenState]
   )
 
   // Handle restart recording (return to camera)
@@ -91,6 +118,8 @@ export function useScreenStateTransition(
 
     setScreenState('camera')
     setVideoData(null)
+    setSavedVideoUri(null)
+    savedVideoUriRef.current = null
 
     onNavigateToCamera?.()
   }, [onNavigateToCamera])
@@ -101,6 +130,8 @@ export function useScreenStateTransition(
 
     setScreenState('camera')
     setVideoData(null)
+    setSavedVideoUri(null)
+    savedVideoUriRef.current = null
 
     onNavigateToCamera?.()
   }, [onNavigateToCamera])
@@ -118,6 +149,7 @@ export function useScreenStateTransition(
 
     // Actions
     handleRecordingStateChange,
+    handleVideoRecorded,
     handleRestartRecording,
     handleContinueToAnalysis,
   }

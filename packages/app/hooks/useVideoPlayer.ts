@@ -95,11 +95,22 @@ export function useVideoPlayer({
   }, [])
 
   // Handle video errors
-  const handleError = useCallback((error: any) => {
-    log.error('VideoPlayer', 'Video playback error', error)
-    setHasError(true)
-    setIsPlaying(false)
-  }, [])
+  const handleError = useCallback(
+    (error: any) => {
+      log.error('VideoPlayer', 'Video playback error', {
+        error,
+        errorCode: error?.code,
+        errorDomain: error?.domain,
+        errorMessage: error?.localizedDescription || error?.message,
+        videoUri,
+        hasVideoUri: !!videoUri,
+        isFileUri: videoUri?.startsWith('file://'),
+      })
+      setHasError(true)
+      setIsPlaying(false)
+    },
+    [videoUri]
+  )
 
   // Toggle play/pause
   const togglePlayPause = useCallback(() => {

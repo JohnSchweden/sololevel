@@ -28,6 +28,7 @@ export const useCameraScreenLogic = ({
     isVideoPlayerMode,
     isCameraMode,
     handleRecordingStateChange,
+    handleVideoRecorded,
     handleRestartRecording,
     handleContinueToAnalysis,
   } = useScreenStateTransition({
@@ -38,6 +39,9 @@ export const useCameraScreenLogic = ({
     onNavigateToCamera: useCallback(() => {
       log.info('useCameraScreenLogic', 'Navigating back to camera')
       // TODO: Handle navigation back to camera mode
+    }, []),
+    onVideoRecorded: useCallback((videoUri: string) => {
+      log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
     }, []),
   })
 
@@ -314,6 +318,7 @@ export const useCameraScreenLogic = ({
     setShowNavigationDialog,
 
     // Video player actions
+    handleVideoRecorded,
     handleRestartRecording,
     handleContinueToAnalysis,
   }

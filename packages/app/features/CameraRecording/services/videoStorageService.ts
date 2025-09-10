@@ -57,11 +57,26 @@ export class VideoStorageService {
     try {
       await VideoStorageService.initialize()
 
+      // Validate source file exists
+      log.info('VideoStorageService', 'Validating source file', { sourceUri })
+      const sourceInfo = await FileSystem.getInfoAsync(sourceUri)
+      if (!sourceInfo.exists) {
+        throw new Error(`Source file does not exist: ${sourceUri}`)
+      }
+
       // Generate unique filename with timestamp
       const timestamp = Date.now()
       const extension = VideoStorageService.getFileExtension(filename) || 'mp4'
       const uniqueFilename = `video_${timestamp}.${extension}`
       const localUri = `${VideoStorageService.VIDEOS_DIR}${uniqueFilename}`
+
+      log.info('VideoStorageService', 'Copying file', {
+        from: sourceUri,
+        to: localUri,
+        sourceExists: sourceInfo.exists,
+        sourceSize: sourceInfo.size,
+        videosDir: VideoStorageService.VIDEOS_DIR,
+      })
 
       // Copy file from source to local storage
       await FileSystem.copyAsync({
@@ -69,27 +84,41 @@ export class VideoStorageService {
         to: localUri,
       })
 
-      // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(localUri)
-      if (!fileInfo.exists) {
-        throw new Error('Failed to save video file')
+      // Verify the copy was successful
+      const copiedInfo = await FileSystem.getInfoAsync(localUri)
+      if (!copiedInfo.exists) {
+        throw new Error(`Failed to copy video file to: ${localUri}`)
+      }
+
+      // Verify file size is reasonable
+      if (!copiedInfo.size || copiedInfo.size === 0) {
+        log.warn('VideoStorageService', 'Copied file has zero size', { localUri, copiedInfo })
       }
 
       const result = {
         localUri,
         filename: uniqueFilename,
-        size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
+        size: copiedInfo.size || 0,
         metadata: {
           ...metadata,
           savedAt: new Date().toISOString(),
           originalFilename: filename,
+          sourcePath: sourceUri,
+          sourceSize: sourceInfo.size,
         },
       }
 
       log.info('VideoStorageService', 'Video saved successfully', result)
       return result
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to save video', { sourceUri, filename, error })
+      log.error('VideoStorageService', 'Failed to save video', {
+        sourceUri,
+        filename,
+        localUri: `${VideoStorageService.VIDEOS_DIR}video_${Date.now()}.mp4`,
+        videosDir: VideoStorageService.VIDEOS_DIR,
+        tempDir: VideoStorageService.TEMP_DIR,
+        error,
+      })
       throw new Error(
         `Failed to save video: ${error instanceof Error ? error.message : 'Unknown error'}`
       )

@@ -131,6 +131,7 @@ describe('VideoStorageService', () => {
       mockFileSystem.getInfoAsync
         .mockResolvedValueOnce({ exists: false } as any) // recordings dir
         .mockResolvedValueOnce({ exists: false } as any) // temp dir
+        .mockResolvedValueOnce({ exists: true, size: 2048000 } as any) // source file
         .mockResolvedValueOnce({ exists: true, size: 1024000 } as any) // saved file
 
       mockFileSystem.copyAsync.mockResolvedValueOnce(undefined)
@@ -146,6 +147,8 @@ describe('VideoStorageService', () => {
         ...metadata,
         savedAt: expect.any(String),
         originalFilename: filename,
+        sourcePath: sourceUri,
+        sourceSize: 2048000,
       })
       expect(mockFileSystem.copyAsync).toHaveBeenCalledWith({
         from: sourceUri,
@@ -178,13 +181,14 @@ describe('VideoStorageService', () => {
       mockFileSystem.getInfoAsync
         .mockResolvedValueOnce({ exists: true } as any) // recordings dir
         .mockResolvedValueOnce({ exists: true } as any) // temp dir
+        .mockResolvedValueOnce({ exists: true, size: 2048000 } as any) // source file
         .mockResolvedValueOnce({ exists: false } as any) // saved file
 
       mockFileSystem.copyAsync.mockResolvedValueOnce(undefined)
 
       // Act & Assert
       await expect(VideoStorageService.saveVideo(sourceUri, filename)).rejects.toThrow(
-        'Failed to save video file'
+        'Failed to copy video file to'
       )
     })
   })
