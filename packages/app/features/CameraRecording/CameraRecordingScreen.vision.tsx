@@ -13,9 +13,9 @@ import {
   RecordingControls,
   SideSheet,
   VideoPlayer,
-} from '@my/ui/src/components/CameraRecording'
+} from '@ui/components/CameraRecording'
 // Test minimal hook to isolate issue
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@ui/utils/logger'
 import { useEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { YStack } from 'tamagui'
@@ -99,6 +99,9 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     isRecording,
     headerTitle,
     cameraReady,
+    // Camera swap visual feedback
+    isCameraSwapping,
+    cameraSwapTransitionDuration,
     // Screen state transition
     videoData,
     isVideoPlayerMode,
@@ -241,6 +244,8 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
               onVideoSelected={handleVideoSelected}
               onCameraSwap={handleCameraSwap}
               disabled={!cameraReady}
+              isCameraSwapping={isCameraSwapping}
+              cameraSwapTransitionDuration={cameraSwapTransitionDuration}
             />
           </CameraControlsOverlay>
         ) : (

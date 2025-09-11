@@ -3322,6 +3322,8 @@ __metadata:
     "@types/react-native": "npm:@types/react-native-empty@1.0.0"
     expo: "npm:53.0.22"
     expo-camera: "npm:^16.1.11"
+    expo-document-picker: "npm:^14.0.6"
+    expo-image-picker: "npm:^17.0.7"
     expo-localization: "npm:^16.1.6"
     i18next: "npm:^25.4.2"
     jest: "npm:^29.7.0"
@@ -10857,6 +10859,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-document-picker@npm:^14.0.6":
+  version: 14.0.6
+  resolution: "expo-document-picker@npm:14.0.6"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/7267f3b302a3b475b1daff07b3e54675af51c498845701bc4c78a6b691a38ca43ba6291da9616f8609e4d965eb0d1e0cff957e6893edcc89656a994f9d75d458
+  languageName: node
+  linkType: hard
+
 "expo-eas-client@npm:~0.14.4":
   version: 0.14.4
   resolution: "expo-eas-client@npm:0.14.4"
@@ -10895,6 +10906,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-image-loader@npm:~6.0.0":
+  version: 6.0.0
+  resolution: "expo-image-loader@npm:6.0.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/36f1e80d2b3d2a1cce440c7d938cd3cf3138f2b1fa706a1954e415bfae87b5b8eeaec65be0ab17880eb7585dd28c9225d056ebdb98ac81e0ffbfe880d952b0eb
+  languageName: node
+  linkType: hard
+
 "expo-image-picker@npm:^16.1.4":
   version: 16.1.4
   resolution: "expo-image-picker@npm:16.1.4"
@@ -10903,6 +10923,17 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10c0/7e27458a48140cea2864564db40ff102525302ca60e9526838ae265523dba8b1d9ceea3a2ac94c1eaece78f4cd1ded0f1a2391517e61a3fd8a6f17b06e337293
+  languageName: node
+  linkType: hard
+
+"expo-image-picker@npm:^17.0.7":
+  version: 17.0.7
+  resolution: "expo-image-picker@npm:17.0.7"
+  dependencies:
+    expo-image-loader: "npm:~6.0.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/dc8b1075fcdb840c55d822ba5f33cd8c0728a5b71fcd9be90cb01a04eeacee1ac9af76203f405ab4e241259171242dc6a63ff39adef14efef314145ea7a868d2
   languageName: node
   linkType: hard
 

@@ -27,8 +27,23 @@ function loadRules() {
 
 function isCommandBlocked(command, blockedCommands) {
   return blockedCommands.some((blocked) => {
-    // Exact match or starts with blocked command
-    return command === blocked || command.startsWith(blocked + ' ')
+    // Exact match
+    if (command === blocked) return true
+
+    // Starts with blocked command
+    if (command.startsWith(blocked + ' ')) return true
+
+    // Check for workspace-specific patterns like "yarn workspace @my/app add"
+    // This catches patterns like: yarn workspace <workspace> add/remove
+    const workspacePattern = /yarn workspace [^\s]+ (add|remove)/
+    if (blocked.includes('workspace') && blocked.includes('add')) {
+      return workspacePattern.test(command)
+    }
+    if (blocked.includes('workspace') && blocked.includes('remove')) {
+      return workspacePattern.test(command)
+    }
+
+    return false
   })
 }
 
