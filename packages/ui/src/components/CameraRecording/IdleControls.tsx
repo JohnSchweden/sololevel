@@ -19,6 +19,9 @@ export interface IdleControlsProps {
   maxFileSizeBytes?: number
   showUploadProgress?: boolean
   uploadProgress?: number
+  // Camera swap visual feedback
+  isCameraSwapping?: boolean
+  cameraSwapTransitionDuration?: number
 }
 
 /**
@@ -37,9 +40,14 @@ export function IdleControls({
   maxFileSizeBytes = 100 * 1024 * 1024, // 100MB
   showUploadProgress = false,
   uploadProgress = 0,
+  isCameraSwapping = false,
+  cameraSwapTransitionDuration = 300, // Used for accessibility and future animation timing
 }: IdleControlsProps) {
   const [isRecordPressed, setIsRecordPressed] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
+
+  // Use transition duration for accessibility and future animation timing
+  const transitionDuration = cameraSwapTransitionDuration
 
   const handleUploadVideo = useCallback(() => {
     if (onVideoSelected) {
@@ -152,17 +160,22 @@ export function IdleControls({
               log.warn('IdleControls', 'Camera swap failed', error)
             }
           }}
-          disabled={disabled || cameraSwapDisabled}
+          disabled={disabled || cameraSwapDisabled || isCameraSwapping}
           icon={
             <SwitchCamera
               size="$1.5"
-              color="white"
+              color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
             />
           }
-          backgroundColor="$overlayGlassStrong"
+          backgroundColor={isCameraSwapping ? 'rgba(255,255,255,0.1)' : '$overlayGlassStrong'}
           borderRadius="$12"
           minHeight={56}
           minWidth={56}
+          opacity={isCameraSwapping ? 0.7 : 1.0}
+          animation="quick"
+          style={{
+            transitionDuration: `${transitionDuration}ms`,
+          }}
           pressStyle={{
             scale: 0.96,
             backgroundColor: 'rgba(255,255,255,0.08)',
@@ -171,7 +184,7 @@ export function IdleControls({
             backgroundColor: 'rgba(255,255,255,0.06)',
           }}
           accessibilityRole="button"
-          accessibilityLabel="Switch camera"
+          accessibilityLabel={isCameraSwapping ? 'Switching camera' : 'Switch camera'}
           accessibilityHint="Switch between front and back camera"
         />
       </XStack>
