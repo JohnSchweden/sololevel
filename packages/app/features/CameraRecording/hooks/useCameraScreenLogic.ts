@@ -1,8 +1,9 @@
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@ui/utils/logger'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
 import { type VideoData, useScreenStateTransition } from './useScreenStateTransition'
+import { useTabPersistence } from './useTabPersistence'
 
 export const useCameraScreenLogic = ({
   onNavigateBack,
@@ -14,11 +15,16 @@ export const useCameraScreenLogic = ({
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
   const [showSideSheet, setShowSideSheet] = useState(false)
+  
+  // Camera swap visual feedback state
+  const [isCameraSwapping, setIsCameraSwapping] = useState(false)
+  const CAMERA_SWAP_TRANSITION_DURATION = 300 // 300ms for smooth transition
 
   const handleResetZoom = useCallback(() => {
     setZoomLevel(1)
   }, [])
-  const [activeTab, setActiveTab] = useState<'coach' | 'record' | 'insights'>('record')
+  // Tab persistence across app sessions
+  const { activeTab, setActiveTab, isLoading: isTabLoading } = useTabPersistence()
   const [cameraReady, setCameraReady] = useState(false)
 
   // Screen state transition management
@@ -120,17 +126,34 @@ export const useCameraScreenLogic = ({
       return // Disable camera swap while recording
     }
 
+    if (isCameraSwapping) {
+      return // Prevent multiple simultaneous swaps
+    }
+
     try {
-      // Simply update the camera type state - the CameraPreview component will handle the change
+      // Start visual feedback
+      setIsCameraSwapping(true)
+      
+      // Update the camera type state - the CameraPreview component will handle the change
       // via its 'facing' prop rather than trying to use toggleFacing which is unreliable
-      setCameraType((prev) => (prev === 'front' ? 'back' : 'front'))
+      const newCameraType = cameraType === 'front' ? 'back' : 'front'
+      setCameraType(newCameraType)
+      
       log.info('handleCameraSwap', 'Camera facing changed', {
-        newType: cameraType === 'front' ? 'back' : 'front',
+        newType: newCameraType,
       })
+
+      // Provide visual feedback duration for smooth transition
+      setTimeout(() => {
+        setIsCameraSwapping(false)
+      }, CAMERA_SWAP_TRANSITION_DURATION)
+      
     } catch (error) {
       log.error('handleCameraSwap', 'Failed to change camera facing', error)
+      // Ensure we reset the swapping state on error
+      setIsCameraSwapping(false)
     }
-  }, [recordingState, cameraType])
+  }, [recordingState, cameraType, isCameraSwapping, CAMERA_SWAP_TRANSITION_DURATION])
 
   const handleZoomChange = useCallback(
     async (level: 1 | 2 | 3) => {
@@ -290,6 +313,13 @@ export const useCameraScreenLogic = ({
     isRecording,
     headerTitle,
     cameraReady,
+    
+    // Tab persistence state
+    isTabLoading,
+    
+    // Camera swap visual feedback
+    isCameraSwapping,
+    cameraSwapTransitionDuration: CAMERA_SWAP_TRANSITION_DURATION,
 
     // Screen state transition
     screenState,
