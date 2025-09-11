@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useState } from 'react'
 import { log } from '@ui/utils/logger'
+import { useCallback, useEffect, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'
 
@@ -23,7 +23,7 @@ export function useTabPersistence() {
   const loadSavedTab = useCallback(async () => {
     try {
       const savedTab = await AsyncStorage.getItem(TAB_STORAGE_KEY)
-      
+
       if (savedTab && isValidTab(savedTab)) {
         setActiveTabState(savedTab as TabType)
         log.info('useTabPersistence', 'Loaded saved tab state', { tab: savedTab })
@@ -50,15 +50,18 @@ export function useTabPersistence() {
     }
   }, [])
 
-  const setActiveTab = useCallback((tab: TabType) => {
-    if (!isValidTab(tab)) {
-      log.warn('useTabPersistence', 'Invalid tab value provided', { tab })
-      return
-    }
+  const setActiveTab = useCallback(
+    (tab: TabType) => {
+      if (!isValidTab(tab)) {
+        log.warn('useTabPersistence', 'Invalid tab value provided', { tab })
+        return
+      }
 
-    setActiveTabState(tab)
-    saveTab(tab)
-  }, [saveTab])
+      setActiveTabState(tab)
+      saveTab(tab)
+    },
+    [saveTab]
+  )
 
   return {
     activeTab,

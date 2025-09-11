@@ -1,0 +1,66 @@
+graph TB
+    subgraph "GitHub Repository"
+        MAIN[main branch<br/>⚠️ Unprotected<br/>Development]
+        FEATURE1[feature/camera-recording<br/>In Development]
+        FEATURE2[feature/upload-system<br/>Planned]
+        HOTFIX[hotfix/quick-fix<br/>Emergency]
+    end
+
+    subgraph "Local Development"
+        DEV[Developer Workspace<br/>Local Machine]
+        STAGING[Local Staging<br/>Optional Testing]
+    end
+
+    subgraph "CI/CD Pipeline"
+        BUILD[Build & Test<br/>Turborepo Cache]
+        LINT[Lint & Type Check<br/>Biome + TypeScript]
+        TEST[Unit & Integration Tests<br/>Vitest + Jest]
+        E2E[E2E Tests<br/>Playwright]
+    end
+
+    subgraph "Deployment"
+        DEV_DEPLOY[Development Deploy<br/>Auto-deploy on main push]
+        MANUAL_DEPLOY[Manual Deploy<br/>When needed]
+    end
+
+    %% Development Flow
+    DEV --> FEATURE1
+    FEATURE1 --> BUILD
+    BUILD --> LINT
+    LINT --> TEST
+    TEST --> E2E
+
+    %% Direct Push to Main (Possible but Discouraged)
+    DEV -.->|Direct Push| MAIN
+    E2E -.->|Skip PR| MAIN
+
+    %% Proper PR Flow (Recommended)
+    E2E --> STAGING
+    STAGING --> MAIN
+
+    %% Emergency Flow
+    HOTFIX --> MAIN
+
+    %% Deployment Flow
+    MAIN --> DEV_DEPLOY
+    DEV_DEPLOY --> MANUAL_DEPLOY
+
+    %% Branch Protection (Optional)
+    MAIN -.->|Optional PR| FEATURE1
+    MAIN -.->|Optional PR| FEATURE2
+
+    classDef main fill:#e3f2fd,stroke:#1976d2
+    classDef feature fill:#f3e5f5,stroke:#7b1fa2
+    classDef staging fill:#fff3e0,stroke:#f57c00
+    classDef deployment fill:#e8f5e8,stroke:#388e3c
+    classDef emergency fill:#ffebee,stroke:#c62828
+
+    class MAIN main
+    class FEATURE1,FEATURE2 feature
+    class STAGING staging
+    class DEV_DEPLOY,MANUAL_DEPLOY deployment
+    class HOTFIX emergency
+
+    %% Highlight the risky path
+    classDef risky stroke:#ff5722,stroke-width:3px,stroke-dasharray: 5 5
+    linkStyle 6 stroke:#ff5722,stroke-width:3px,stroke-dasharray: 5 5

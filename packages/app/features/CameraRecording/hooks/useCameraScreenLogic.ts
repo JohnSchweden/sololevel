@@ -15,7 +15,7 @@ export const useCameraScreenLogic = ({
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
   const [showSideSheet, setShowSideSheet] = useState(false)
-  
+
   // Camera swap visual feedback state
   const [isCameraSwapping, setIsCameraSwapping] = useState(false)
   const CAMERA_SWAP_TRANSITION_DURATION = 300 // 300ms for smooth transition
@@ -133,12 +133,12 @@ export const useCameraScreenLogic = ({
     try {
       // Start visual feedback
       setIsCameraSwapping(true)
-      
+
       // Update the camera type state - the CameraPreview component will handle the change
       // via its 'facing' prop rather than trying to use toggleFacing which is unreliable
       const newCameraType = cameraType === 'front' ? 'back' : 'front'
       setCameraType(newCameraType)
-      
+
       log.info('handleCameraSwap', 'Camera facing changed', {
         newType: newCameraType,
       })
@@ -147,7 +147,6 @@ export const useCameraScreenLogic = ({
       setTimeout(() => {
         setIsCameraSwapping(false)
       }, CAMERA_SWAP_TRANSITION_DURATION)
-      
     } catch (error) {
       log.error('handleCameraSwap', 'Failed to change camera facing', error)
       // Ensure we reset the swapping state on error
@@ -313,10 +312,10 @@ export const useCameraScreenLogic = ({
     isRecording,
     headerTitle,
     cameraReady,
-    
+
     // Tab persistence state
     isTabLoading,
-    
+
     // Camera swap visual feedback
     isCameraSwapping,
     cameraSwapTransitionDuration: CAMERA_SWAP_TRANSITION_DURATION,

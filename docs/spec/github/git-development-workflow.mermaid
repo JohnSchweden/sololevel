@@ -1,0 +1,54 @@
+graph TD
+    subgraph "Current State"
+        MAIN[main branch<br/>Stable Code]
+        FEATURE[feature/camera-recording<br/>Current Feature]
+        PUSHED[✅ Pushed to GitHub]
+    end
+
+    subgraph "Future Development Options"
+        CONTINUE_SAME[Continue Same Feature<br/>feature/camera-recording]
+        NEW_FEATURE_A[New Feature A<br/>feature/upload-system]
+        NEW_FEATURE_B[New Feature B<br/>feature/notifications]
+        HOTFIX[Hotfix<br/>hotfix/security-fix]
+        MAIN_WORK[Direct to Main<br/>⚠️ Only for urgent/trivial]
+    end
+
+    subgraph "Decision Factors"
+        SCOPE[Feature Scope<br/>• Related changes?<br/>• Same user story?]
+        COMPLEXITY[Complexity<br/>• Size of changes?<br/>• Risk level?]
+        TIMING[Timing<br/>• Simultaneous work?<br/>• Dependencies?]
+        URGENCY[Urgency<br/>• Blocking issues?<br/>• Security fixes?]
+    end
+
+    %% Current flow
+    MAIN --> FEATURE
+    FEATURE --> PUSHED
+
+    %% Future development paths
+    PUSHED --> CONTINUE_SAME
+    PUSHED --> NEW_FEATURE_A
+    PUSHED --> NEW_FEATURE_B
+    PUSHED --> HOTFIX
+    PUSHED --> MAIN_WORK
+
+    %% Decision guidance
+    CONTINUE_SAME -->|Yes| SCOPE
+    NEW_FEATURE_A -->|No| SCOPE
+    NEW_FEATURE_B -->|No| SCOPE
+    HOTFIX -->|Critical| URGENCY
+    MAIN_WORK -->|Trivial| COMPLEXITY
+
+    %% Styling
+    classDef current fill:#e3f2fd,stroke:#1976d2
+    classDef same fill:#e8f5e8,stroke:#2e7d32
+    classDef new fill:#f3e5f5,stroke:#7b1fa2
+    classDef urgent fill:#ffebee,stroke:#c62828
+    classDef caution fill:#fff3e0,stroke:#f57c00
+    classDef decision fill:#f5f5f5,stroke:#616161
+
+    class MAIN,FEATURE,PUSHED current
+    class CONTINUE_SAME same
+    class NEW_FEATURE_A,NEW_FEATURE_B new
+    class HOTFIX urgent
+    class MAIN_WORK caution
+    class SCOPE,COMPLEXITY,TIMING,URGENCY decision

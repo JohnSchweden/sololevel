@@ -1,0 +1,56 @@
+graph TD
+    %% Define styles first
+    classDef fastest fill:#4caf50,stroke:#2e7d32,color:#ffffff,stroke-width:2px
+    classDef fast fill:#8bc34a,stroke:#4caf50,color:#ffffff
+    classDef standard fill:#2196f3,stroke:#1976d2,color:#ffffff
+    classDef risky fill:#f44336,stroke:#d32f2f,color:#ffffff,stroke-dasharray: 5 5
+    classDef setup fill:#ff9800,stroke:#f57c00,color:#ffffff
+    classDef tradeOff fill:#9c27b0,stroke:#7b1fa2,color:#ffffff
+
+    subgraph "⚡ Fast Iteration Options (Speed Order)"
+        DIRECT[Direct Push to Main<br/>🚀 30 seconds<br/>⚠️ Risky]
+        FAST_FORWARD[Fast-Forward Merge<br/>⚡ 1-2 minutes<br/>✅ Clean]
+        SQUASH[Squash & Merge<br/>⚡ 2-3 minutes<br/>✅ Clean History]
+        MERGE[Create Merge Commit<br/>🔵 3-5 minutes<br/>📝 Preserves History]
+        REBASE[Rebase & Merge<br/>🔵 4-6 minutes<br/>📋 Linear History]
+        PR[GitHub Pull Request<br/>🔵 5-10 minutes<br/>🛡️ Full Review]
+    end
+
+    subgraph "📊 Speed vs Safety Trade-off"
+        SPEED[⚡ Speed Priority<br/>Direct: 30s<br/>Fast-Forward: 1-2min<br/>Squash: 2-3min]
+        SAFETY[🛡️ Safety Priority<br/>PR: Highest<br/>Squash: High<br/>Merge: Medium<br/>Direct: Lowest]
+        HISTORY[📝 History Quality<br/>PR: Full Preservation<br/>Merge: Detailed<br/>Squash: Clean<br/>Direct: Messy]
+    end
+
+    subgraph "🎯 Your Current Setup (Solo Dev)"
+        UNPROTECTED[✅ Main Unprotected<br/>Enables Direct Push]
+        NO_PROTECTION[✅ No Branch Protection<br/>No Required Reviews]
+        SINGLE_DEV[✅ Single Developer<br/>Self-Review OK]
+        FAST_ITERATE[🎯 Fast Iteration<br/>Priority Over Safety]
+    end
+
+    %% Speed progression (fastest to slowest)
+    DIRECT --> FAST_FORWARD
+    FAST_FORWARD --> SQUASH
+    SQUASH --> MERGE
+    MERGE --> REBASE
+    REBASE --> PR
+
+    %% Trade-off relationships
+    SPEED -->|vs| SAFETY
+    SAFETY -->|vs| SPEED
+    HISTORY -->|vs| SPEED
+
+    %% Your setup enables these fast options
+    UNPROTECTED --> DIRECT
+    UNPROTECTED --> FAST_FORWARD
+    NO_PROTECTION --> SQUASH
+    SINGLE_DEV --> PR
+    FAST_ITERATE --> DIRECT
+
+    %% Apply styles
+    class DIRECT fastest
+    class FAST_FORWARD,SQUASH fast
+    class MERGE,REBASE,PR standard
+    class UNPROTECTED,NO_PROTECTION,SINGLE_DEV,FAST_ITERATE setup
+    class SPEED,SAFETY,HISTORY tradeOff

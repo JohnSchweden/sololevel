@@ -1,0 +1,65 @@
+graph TB
+    subgraph "Current Status"
+        CURRENT[Current Branch: main<br/>📍 You are here]
+        CHANGES[Uncommitted Changes<br/>• Camera recording refactor<br/>• Tab persistence<br/>• TDD tests<br/>• Documentation updates]
+    end
+    
+    subgraph "Planned Commits (This Session)"
+        COMMIT1["Commit 1: feat(app): tab persistence<br/>+ useTabPersistence.ts<br/>+ useScreenStateTransition.ts<br/>+ useCameraScreenLogic.ts"]
+        COMMIT2["Commit 2: test(app): TDD coverage<br/>+ useScreenStateTransition.test.ts<br/>+ useCameraScreenLogic.integration.test.ts<br/>+ accessibility-validation.test.tsx"]
+        COMMIT3["Commit 3: feat(ui): camera controls<br/>+ IdleControls.tsx enhancements<br/>+ Visual feedback<br/>+ WCAG 2.2 AA compliance"]
+        COMMIT4["Commit 4: docs: status update<br/>+ status.md updates<br/>+ User stories reorganization<br/>+ Interaction flow docs"]
+        COMMIT5["Commit 5: chore: cleanup<br/>- Remove .skip test files<br/>- Update dependencies<br/>- Clean yarn.lock"]
+        COMMIT6["Commit 6: chore: validation<br/>+ Update command validation<br/>- Remove backup files"]
+    end
+    
+    subgraph "Next Steps"
+        BRANCH[Create Feature Branch<br/>feature/camera-recording-enhancements]
+        PUSH[Push to GitHub<br/>git push origin feature/...]
+        PR[Create Pull Request<br/>Link to US-RU issues]
+        REVIEW[Code Review<br/>Team approval required]
+        MERGE[Merge to main<br/>After CI/CD passes]
+    end
+    
+    subgraph "Future Work"
+        USRU03["US-RU-03: Upload System<br/>• Media picker integration<br/>• File validation<br/>• Upload queuing"]
+        USRU04["US-RU-04: Background Upload<br/>• Progress tracking<br/>• Retry logic<br/>• Network monitoring"]
+        USRU05["US-RU-05: Supabase Storage<br/>• Signed URLs<br/>• Security policies<br/>• File encryption"]
+        USRU11["US-RU-11: Notifications<br/>• Badge count wiring<br/>• Realtime updates<br/>• Navigation integration"]
+        USRU12["US-RU-12: Side Sheet<br/>• Video history<br/>• Coach conversations<br/>• Quick navigation"]
+    end
+    
+    %% Current Flow
+    CURRENT --> CHANGES
+    CHANGES --> BRANCH
+    
+    %% Commit Sequence
+    BRANCH --> COMMIT1
+    COMMIT1 --> COMMIT2
+    COMMIT2 --> COMMIT3
+    COMMIT3 --> COMMIT4
+    COMMIT4 --> COMMIT5
+    COMMIT5 --> COMMIT6
+    
+    %% Next Steps
+    COMMIT6 --> PUSH
+    PUSH --> PR
+    PR --> REVIEW
+    REVIEW --> MERGE
+    
+    %% Future Work
+    MERGE --> USRU03
+    USRU03 --> USRU04
+    USRU04 --> USRU05
+    USRU05 --> USRU11
+    USRU11 --> USRU12
+    
+    classDef current fill:#fff3e0
+    classDef planned fill:#e3f2fd
+    classDef next fill:#f1f8e9
+    classDef future fill:#fce4ec
+    
+    class CURRENT,CHANGES current
+    class COMMIT1,COMMIT2,COMMIT3,COMMIT4,COMMIT5,COMMIT6 planned
+    class BRANCH,PUSH,PR,REVIEW,MERGE next
+    class USRU03,USRU04,USRU05,USRU11,USRU12 future

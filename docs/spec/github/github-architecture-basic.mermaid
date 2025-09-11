@@ -1,0 +1,54 @@
+graph TB
+    subgraph "GitHub Repository"
+        MAIN[main branch<br/>Production Ready]
+        FEATURE1[feature/camera-recording<br/>In Development]
+        FEATURE2[feature/upload-system<br/>Planned]
+        HOTFIX[hotfix/security-patch<br/>Emergency]
+    end
+    
+    subgraph "Local Development"
+        DEV[Developer Workspace<br/>Local Machine]
+        STAGING[Staging Environment<br/>Testing]
+    end
+    
+    subgraph "CI/CD Pipeline"
+        BUILD[Build & Test<br/>Turborepo Cache]
+        LINT[Lint & Type Check<br/>Biome + TypeScript]
+        TEST[Unit & Integration Tests<br/>Vitest + Jest]
+        E2E[E2E Tests<br/>Playwright]
+    end
+    
+    subgraph "Deployment"
+        WEB[Web App<br/>Next.js → Vercel]
+        NATIVE[Native App<br/>Expo → App Stores]
+    end
+    
+    %% Development Flow
+    DEV --> FEATURE1
+    FEATURE1 --> BUILD
+    BUILD --> LINT
+    LINT --> TEST
+    TEST --> E2E
+    E2E --> STAGING
+    
+    %% Merge Flow
+    STAGING --> MAIN
+    MAIN --> WEB
+    MAIN --> NATIVE
+    
+    %% Emergency Flow
+    HOTFIX --> MAIN
+    
+    %% Branch Protection
+    MAIN -.->|Protected| FEATURE1
+    MAIN -.->|Protected| FEATURE2
+    
+    classDef mainBranch fill:#e1f5fe
+    classDef featureBranch fill:#f3e5f5
+    classDef hotfixBranch fill:#ffebee
+    classDef deployment fill:#e8f5e8
+    
+    class MAIN mainBranch
+    class FEATURE1,FEATURE2 featureBranch
+    class HOTFIX hotfixBranch
+    class WEB,NATIVE deployment

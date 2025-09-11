@@ -1,0 +1,56 @@
+graph TD
+    %% Define styles first
+    classDef state fill:#e3f2fd,stroke:#2196f3,color:#000000
+    classDef success fill:#e8f5e8,stroke:#4caf50,color:#000000
+    classDef fail fill:#ffebee,stroke:#f44336,color:#000000
+    classDef condition fill:#f3e5f5,stroke:#9c27b0,color:#000000
+    classDef method fill:#fff3e0,stroke:#ff9800,color:#000000
+    classDef command fill:#e8f5e8,stroke:#4caf50,color:#000000
+
+    subgraph "📋 Git History Visualization"
+        BEFORE_STATE["BEFORE<br/>main: A ─ B<br/>feature: A ─ C ─ D"]
+        FAST_FORWARD_STATE["FAST-FORWARD RESULT<br/>main: A ─ B ─ C ─ D<br/>🚀 Pointer moves forward<br/>✅ No merge commit"]
+        MERGE_COMMIT_STATE["MERGE COMMIT RESULT<br/>main: A ─ B ─ M<br/>feature: A ─ C ─ D ─ M<br/>🔗 Creates merge commit<br/>📊 Preserves both branches"]
+    end
+
+    subgraph "🎯 Fast-Forward Conditions"
+        COND1["✅ Main has NO new commits<br/>since feature branch created"]
+        COND2["✅ Feature branch is ahead<br/>of main (linear path)"]
+        COND3["✅ No merge conflicts exist"]
+    end
+
+    subgraph "⚡ Merge Method Comparison"
+        FF_METHOD["Fast-Forward<br/>🚀 30-60 seconds<br/>📝 Linear history<br/>🎯 No merge commit<br/>✅ Clean git log"]
+        MERGE_METHOD["Merge Commit<br/>🔵 2-3 minutes<br/>📊 Preserves histories<br/>🔗 Creates merge commit<br/>📈 Shows boundaries"]
+        REBASE_METHOD["Rebase<br/>🔵 3-5 minutes<br/>📋 Rewrites history<br/>🔄 Moves commits<br/>⚠️ Changes hashes"]
+    end
+
+    subgraph "🚀 Fast-Forward Workflow"
+        STEP1["1. Update main<br/>git checkout main<br/>git pull origin main"]
+        STEP2["2. Switch to feature<br/>git checkout feature/branch"]
+        STEP3["3. Sync if needed<br/>git merge main<br/>(only if main changed)"]
+        STEP4["4. Fast-forward merge<br/>git checkout main<br/>git merge feature/branch"]
+        STEP5["5. Push result<br/>git push origin main"]
+    end
+
+    %% Flow connections
+    BEFORE_STATE --> COND1
+    COND1 --> COND2
+    COND2 --> COND3
+    COND3 --> FAST_FORWARD_STATE
+    COND3 -.->|"If conditions fail"| MERGE_COMMIT_STATE
+
+    FF_METHOD --> STEP1
+    STEP1 --> STEP2
+    STEP2 --> STEP3
+    STEP3 --> STEP4
+    STEP4 --> STEP5
+
+    %% Apply styles
+    class BEFORE_STATE state
+    class FAST_FORWARD_STATE success
+    class MERGE_COMMIT_STATE fail
+    class COND1,COND2,COND3 condition
+    class FF_METHOD method
+    class MERGE_METHOD,REBASE_METHOD method
+    class STEP1,STEP2,STEP3,STEP4,STEP5 command

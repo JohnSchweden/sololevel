@@ -1,0 +1,67 @@
+graph TB
+    subgraph "GitHub Repository"
+        MAIN[main branch<br/>🛡️ Protected<br/>Production Ready]
+        FEATURE1[feature/camera-recording<br/>In Development]
+        FEATURE2[feature/upload-system<br/>Planned]
+        HOTFIX[hotfix/security-patch<br/>Emergency]
+        RELEASE[release/v1.2.0<br/>Tagged Release]
+        STAGING[staging<br/>Pre-production]
+    end
+
+    subgraph "Local Development"
+        DEV[Developer Workspace<br/>Local Machine]
+    end
+
+    subgraph "CI/CD Pipeline"
+        BUILD[Build & Test<br/>Turborepo Cache]
+        LINT[Lint & Type Check<br/>Biome + TypeScript]
+        TEST[Unit & Integration Tests<br/>Vitest + Jest]
+        E2E[E2E Tests<br/>Playwright]
+        SECURITY[Security Scan<br/>Dependency Audit]
+    end
+
+    subgraph "Deployment Pipeline"
+        STAGING_ENV[Staging Environment<br/>Auto-deploy]
+        PROD_ENV[Production Environment<br/>Manual Deploy]
+    end
+
+    %% Development Flow
+    DEV --> FEATURE1
+    FEATURE1 --> BUILD
+    BUILD --> LINT
+    LINT --> TEST
+    TEST --> E2E
+    E2E --> SECURITY
+
+    %% PR Flow
+    SECURITY --> STAGING_ENV
+
+    %% Production Flow
+    STAGING_ENV --> PROD_ENV
+    PROD_ENV -.-> MAIN
+
+    %% Merge Flow
+    STAGING_ENV --> MAIN
+    MAIN --> RELEASE
+
+    %% Emergency Flow
+    HOTFIX --> STAGING_ENV
+    HOTFIX --> MAIN
+
+    %% Branch Protection Rules
+    MAIN -.->|Requires PR| FEATURE1
+    MAIN -.->|Requires PR| FEATURE2
+    MAIN -.->|Requires Review| HOTFIX
+    MAIN -.->|Requires Tests| STAGING
+
+    classDef protected fill:#ffebee,stroke:#d32f2f
+    classDef feature fill:#f3e5f5,stroke:#7b1fa2
+    classDef staging fill:#fff3e0,stroke:#f57c00
+    classDef production fill:#e8f5e8,stroke:#2e7d32
+    classDef emergency fill:#ffebee,stroke:#c62828
+
+    class MAIN protected
+    class FEATURE1,FEATURE2 feature
+    class STAGING staging
+    class PROD_ENV production
+    class HOTFIX emergency
