@@ -18,7 +18,6 @@ export const NativeToast = () => {
       y={0}
       opacity={1}
       scale={1}
-      animation="quick"
     >
       <YStack
         paddingVertical="$1.5"

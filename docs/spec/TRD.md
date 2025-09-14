@@ -79,7 +79,15 @@ flowchart TD
 * **Recording:** VisionCamera's built-in recording capabilities
 * **Threading:** `react-native-worklets-core` for native thread processing
 
-### **2. Video Playback & Overlay**
+### **2. Video Processing & Analysis**
+* **Upload Processing:** `react-native-video-processing` v2+ for frame extraction and pose detection
+* **Frame Extraction:** Real-time frame-by-frame processing with configurable intervals (30fps default)
+* **Pose Detection Pipeline:** Same MoveNet Lightning model for consistency with live recording
+* **Data Format:** Unified `PoseDetectionResult[]` structure matching VisionCamera recording format
+* **Performance:** Background processing with progress callbacks and memory optimization
+* **Threading:** Worklet-based processing to avoid blocking UI during analysis
+
+### **3. Video Playback & Overlay**
 * **Primary:** `react-native-video` v6+
 * **Overlay:** `react-native-skia` for pose landmarks rendering
 * **Performance:** Native-threaded overlay synchronization
@@ -175,22 +183,34 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Video Upload] --> B[Frame Extraction]
-    B --> C[Pose Detection<br/>MoveNet Lightning]
-    C --> D[Video/Voice Analysis<br/>Gemini 2.5]
-    D --> E[SSML Generation<br/>Gemini LLM]
-    E --> F[TTS Generation<br/>Gemini 2.0]
-    F --> G[Feedback Assembly]
-    G --> H[Realtime Update]
+    A[Video Upload] --> B{Video Source}
+    B -->|Live Recording| C[VisionCamera Pose Data]
+    B -->|Uploaded Video| D[react-native-video-processing]
+    D --> E[Frame Extraction]
+    E --> F[MoveNet Lightning Pose Detection]
+    F --> G[Pose Data Unification]
+    C --> G
+    G --> H[Video/Voice Analysis<br/>Gemini 2.5]
+    H --> I[SSML Generation<br/>Gemini LLM]
+    I --> J[TTS Generation<br/>Gemini 2.0]
+    J --> K[Feedback Assembly]
+    K --> L[Realtime Update]
 ```
 
 * **Algorithms and Logic (Overview)**:
-  1. Frame extraction (every N ms) → pose keypoints; confidence filtering
-  2. Video/Voice analysis → Gemini 2.5 processes video frames and audio for comprehensive feedback
-  3. Metrics aggregation → normalized 0–100 scales; compose radar values
-  4. LLM prompt builds structured feedback with key takeaways and next steps
-  5. SSML generation → Gemini LLM creates structured speech markup from feedback
-  6. TTS generation → Gemini 2.0 converts SSML to audio; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
+  1. **Video Source Detection**: Determine if video has existing pose data (live recording) or needs processing (uploaded video)
+  2. **Frame Extraction Pipeline**: 
+     - Live Recording: Use existing VisionCamera pose data from `PoseDetectionResult[]` format
+     - Uploaded Video: Use `react-native-video-processing` to extract frames at configurable intervals (default 30fps)
+  3. **Pose Detection Unification**: 
+     - Apply MoveNet Lightning model to extracted frames for uploaded videos
+     - Maintain consistent `PoseDetectionResult[]` format across both sources
+     - Confidence filtering and temporal smoothing for uploaded video pose data
+  4. **Video/Voice Analysis**: Gemini 2.5 processes video frames, pose data, and audio for comprehensive feedback
+  5. **Metrics Aggregation**: Normalized 0–100 scales from pose keypoints and movement analysis; compose radar values
+  6. **LLM Prompt**: Builds structured feedback with key takeaways and next steps using unified pose data
+  7. **SSML Generation**: Gemini LLM creates structured speech markup from feedback
+  8. **TTS Generation**: Gemini 2.0 converts SSML to audio; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
 
 * **Audio Playback Strategy**:
   - **Format Optimization**: Convert TTS output from WAV to AAC/MP3 for 75%+ file size reduction
@@ -274,6 +294,7 @@ flowchart TD
 * **External**: 
   - **Core**: Expo, Tamagui, Supabase, TanStack Query, Zustand
   - **Native Pose**: react-native-fast-tflite, react-native-vision-camera, react-native-skia, react-native-worklets-core, react-native-video
+  - **Video Processing**: react-native-video-processing (frame extraction and pose detection for uploaded videos)
   - **Audio Playback**: react-native-video (primary), react-native-sound (fallback for audio-only)
   - **Web Pose**: @tensorflow/tfjs, @tensorflow-models/pose-detection, @tensorflow/tfjs-backend-webgpu
   - **AI Services**: TTS provider (Gemini 2.0), LLM provider (Gemini 2.5)

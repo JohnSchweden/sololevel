@@ -46,18 +46,23 @@ export type {
   AnalysisStatus as AnalysisServiceStatus,
   PoseData,
 } from './services/analysisService'
+export {
+  createAnalysisJobWithPoseProcessing,
+  updateAnalysisJobWithPoseData,
+  // Mock exports for testing (defined in __mocks__ directory)
+  __mockCreateAnalysisJob,
+  __mockUpdateAnalysisJob,
+} from './services/analysisService'
 // Realtime service functions
 export {
-  cleanupRealtime,
-  getActiveSubscriptions,
+  createRealtimeConnection,
+  handleConnectionResilience,
+  reconnectWithBackoff,
+  synchronizeOfflineData,
+  resolveDataConflicts,
+  manageSubscriptionScaling,
+  subscribeToAnalysisUpdates,
   getConnectionStatus,
-  initializeRealtimeSubscriptions,
-  reconnectRealtime,
-  subscribeToAnalysisJob,
-  subscribeToUploadSession,
-  unsubscribe,
-  unsubscribeAll,
-  useRealtimeSubscriptions,
 } from './services/realtimeService'
 // Optimistic updates service functions - exported individually from hooks
 // Offline service functions - exported individually from hooks

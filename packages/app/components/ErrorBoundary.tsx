@@ -1,5 +1,6 @@
-import { Button, H3, Paragraph, YStack } from '@my/ui'
+import { Button } from '@my/ui'
 import { Component, type ReactNode } from 'react'
+import { H3, Paragraph, YStack } from 'tamagui'
 
 interface Props {
   children: ReactNode
@@ -63,7 +64,6 @@ export class ErrorBoundary extends Component<Props, State> {
           </Paragraph>
           <Button
             onPress={this.handleRetry}
-            theme="red"
             variant="outlined"
           >
             Try Again

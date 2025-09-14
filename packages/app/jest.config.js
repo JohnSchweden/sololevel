@@ -1,7 +1,13 @@
 module.exports = {
-  preset: 'jest-expo',
+  preset: null,
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts'],
+  globals: {
+    __DEV__: true,
+  },
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: require.resolve('./babel.config.js') }],
+  },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     'features/**/*.{ts,tsx}',

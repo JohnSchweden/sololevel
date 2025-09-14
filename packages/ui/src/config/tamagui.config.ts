@@ -39,6 +39,7 @@ const config = createTamagui({
       2: 4,
       3: 8,
       4: 12,
+      6: 24,
       12: 24,
     },
     zIndex: {

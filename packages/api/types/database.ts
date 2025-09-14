@@ -30,6 +30,7 @@ export type Database = {
     Tables: {
       analysis_jobs: {
         Row: {
+          audio_url: string | null
           created_at: string
           error_message: string | null
           id: number
@@ -38,12 +39,15 @@ export type Database = {
           processing_started_at: string | null
           progress_percentage: number | null
           results: Json | null
+          ssml: string | null
           status: string
+          summary_text: string | null
           updated_at: string
           user_id: string
           video_recording_id: number
         }
         Insert: {
+          audio_url?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -52,12 +56,15 @@ export type Database = {
           processing_started_at?: string | null
           progress_percentage?: number | null
           results?: Json | null
+          ssml?: string | null
           status?: string
+          summary_text?: string | null
           updated_at?: string
           user_id: string
           video_recording_id: number
         }
         Update: {
+          audio_url?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -66,7 +73,9 @@ export type Database = {
           processing_started_at?: string | null
           progress_percentage?: number | null
           results?: Json | null
+          ssml?: string | null
           status?: string
+          summary_text?: string | null
           updated_at?: string
           user_id?: string
           video_recording_id?: number
@@ -77,6 +86,44 @@ export type Database = {
             columns: ['video_recording_id']
             isOneToOne: false
             referencedRelation: 'video_recordings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      analysis_metrics: {
+        Row: {
+          analysis_id: number
+          created_at: string
+          id: number
+          metric_key: string
+          metric_value: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_id: number
+          created_at?: string
+          id?: never
+          metric_key: string
+          metric_value: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_id?: number
+          created_at?: string
+          id?: never
+          metric_key?: string
+          metric_value?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'analysis_metrics_analysis_id_fkey'
+            columns: ['analysis_id']
+            isOneToOne: false
+            referencedRelation: 'analysis_jobs'
             referencedColumns: ['id']
           },
         ]
@@ -224,6 +271,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_analysis_with_metrics: {
+        Args: { analysis_job_id: number }
+        Returns: {
+          analysis_id: number
+          audio_url: string
+          created_at: string
+          metrics: Json
+          progress_percentage: number
+          ssml: string
+          status: string
+          summary_text: string
+          updated_at: string
+        }[]
+      }
       get_upload_progress: {
         Args: { recording_id: number }
         Returns: {
@@ -233,6 +294,20 @@ export type Database = {
           total_bytes: number
           upload_status: string
         }[]
+      }
+      migrate_results_to_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      store_analysis_results: {
+        Args: {
+          analysis_job_id: number
+          p_audio_url?: string
+          p_metrics?: Json
+          p_ssml?: string
+          p_summary_text?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

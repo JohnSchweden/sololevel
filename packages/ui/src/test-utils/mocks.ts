@@ -3,6 +3,7 @@
  * Provides consistent mock implementations across all test files
  */
 
+import { jest } from '@jest/globals'
 import React from 'react'
 
 // Types for better type safety

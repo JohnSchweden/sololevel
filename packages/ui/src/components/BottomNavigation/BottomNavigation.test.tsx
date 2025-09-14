@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 // Import shared test utilities (includes all mocks and setup)
-import '../../../test-utils/setup'
+import '../../test-utils/setup'
 import { TestProvider } from '../../test-utils'
 
 // Import component to test

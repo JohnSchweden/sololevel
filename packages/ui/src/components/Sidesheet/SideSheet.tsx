@@ -23,7 +23,6 @@ export function SideSheet({ open, onOpenChange }: SideSheetProps) {
       <Dialog.Portal>
         <Dialog.Overlay
           key="overlay"
-          animation="quick"
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
@@ -32,14 +31,6 @@ export function SideSheet({ open, onOpenChange }: SideSheetProps) {
           bordered
           {...shadows.xlarge}
           key="content"
-          animation={[
-            'quick',
-            {
-              opacity: {
-                overshootClamping: true,
-              },
-            },
-          ]}
           enterStyle={{ x: 0, y: 0, opacity: 1, scale: 1 }}
           exitStyle={{ x: 0, y: 0, opacity: 0, scale: 0.95 }}
           x={0}

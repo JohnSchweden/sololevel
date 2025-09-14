@@ -66,36 +66,79 @@
 - US-RU-10: Bottom navigation — Coach / Record / Insights
 - US-RU-13: Video player
 
+### **Video Analysis & Feedback System UI Components** 
+- ✅ ProcessingOverlay component with AI pipeline stages
+- ✅ VideoPlayer component (basic structure and platform-specific implementations)
+- ✅ MotionCaptureOverlay component for pose data visualization (skeleton nodes and connections)
+- ✅ FeedbackBubbles component for AI commentary with positioning and tap interactions
+- ✅ AudioFeedbackOverlay component with TTS playback controls and progress
+- ✅ VideoControlsOverlay component with play/pause, seek, time display, and auto-hide behavior
+- ✅ BottomSheet component for feedback timeline with tabs and social interactions
+- ✅ SocialIcons component for engagement metrics with formatted counts
+- ✅ VideoTitle component for AI-powered title generation and editing
+- ✅ VideoAnalysisScreen integration - main screen orchestrating all components
+
+### **Backend Analysis & Architecture**
+- ✅ Complete AI pipeline architecture analysis (analysis-backend.md)
+- ✅ TRD-compliant database schema design (analyses, analysis_metrics, profiles tables)
+- ✅ RLS policies for secure data access and user isolation
+- ✅ Supabase Storage strategy (raw/processed buckets with proper access control)
+- ✅ Edge Functions architecture for AI analysis pipeline
+- ✅ Real-time integration patterns for live analysis updates
+- ✅ AI pipeline integration specifications (MoveNet, Gemini 2.5, TTS 2.0)
+- ✅ TDD implementation roadmap with 5 phases
+
+### **Backend Implementation Phase 3: AI Pipeline Edge Functions** ✅ **COMPLETED**
+- ✅ AI analysis Edge Function implemented with video processing support
+- ✅ Complete Edge Function with API contract (ai-analyze-video, status, tts endpoints)
+- ✅ Video source detection, pose data unification, AI pipeline processing
+- ✅ Comprehensive TDD test suite with 15+ test scenarios
+- ✅ Health check, CORS support, error handling, logging
+- ✅ Database integration with analysis_jobs table
+- ✅ Real-time progress tracking through 7 pipeline stages
+- ✅ **TESTED AND WORKING**: Edge Function deployed and tested locally
+- ✅ **DATABASE READY**: All migrations applied, tables created successfully
+- ✅ **API ENDPOINTS VERIFIED**: Health check, analysis creation, TTS generation working
+
+### **Phase 1: Database Foundation** ✅ **COMPLETED WITH TDD**
+- ✅ Analysis Metrics Table: Separate `analysis_metrics` table per TRD specification
+- ✅ TTS/Audio Fields: Added `summary_text`, `ssml`, `audio_url` to `analysis_jobs` table
+- ✅ TRD-Compliant API Functions: `storeAnalysisResults()`, `getAnalysisWithMetrics()`, `addAnalysisMetrics()`
+- ✅ Service Role Policies: RLS policies for AI pipeline operations
+- ✅ Rollback Procedures: Complete rollback migration and documentation
+- ✅ **TDD**: 14 comprehensive tests (RED-GREEN-REFACTOR cycle followed)
+- ✅ **Type Safety**: Updated database types with new schema
+
+### **Phase 2: Storage Integration** ✅ **COMPLETED WITH TDD**
+- ✅ Storage Bucket Policies: Complete storage access control with user folder isolation
+- ✅ Rate Limiting: Signed URL generation rate limiting (50 requests/hour per user)
+- ✅ File Management: Secure file operations (upload, download, delete, info)
+- ✅ Access Validation: User-based file access control and service role support
+- ✅ Error Handling: Comprehensive error handling for all storage operations
+- ✅ **TDD**: 21 comprehensive tests (RED-GREEN-REFACTOR cycle followed)
+- ✅ **Security**: User folder isolation, TTL-based signed URLs, access validation
+
+### **Phase 4: Real-time Integration** ✅ **COMPLETED WITH TDD**
+- ✅ Connection Resilience: Network interruption handling with heartbeat monitoring
+- ✅ Exponential Backoff: Intelligent reconnection with exponential backoff strategy
+- ✅ Data Synchronization: Offline data sync with conflict resolution (server/client/timestamp strategies)
+- ✅ Subscription Scaling: Performance optimization for multiple concurrent connections
+- ✅ Connection Pooling: Memory-efficient connection management with per-user limits
+- ✅ Performance Monitoring: Real-time metrics for latency, throughput, and error rates
+- ✅ **TDD**: 24 comprehensive tests (RED-GREEN-REFACTOR cycle followed)
+- ✅ **Resilience**: Auto-reconnection, offline support, conflict resolution
+
+
 ## In Progress
-- **Video Analysis & Feedback System UI Components** (100% complete)
-  - ✅ ProcessingOverlay component with AI pipeline stages
-  - ✅ VideoPlayer component (basic structure and platform-specific implementations)
-  - ✅ MotionCaptureOverlay component for pose data visualization (skeleton nodes and connections)
-  - ✅ FeedbackBubbles component for AI commentary with positioning and tap interactions
-  - ✅ AudioFeedbackOverlay component with TTS playback controls and progress
-  - ✅ VideoControlsOverlay component with play/pause, seek, time display, and auto-hide behavior
-  - ✅ BottomSheet component for feedback timeline with tabs and social interactions
-  - ✅ SocialIcons component for engagement metrics with formatted counts
-  - ✅ VideoTitle component for AI-powered title generation and editing
-  - ✅ VideoAnalysisScreen integration - main screen orchestrating all components
 
-**Current Focus: Video Analysis & Feedback System Complete!**
-- Status: All 10 core UI components implemented (100% complete)
-- **Components Completed**:
-  1. **VideoTitle Component** - AI-powered title generation with editing capability ✅
-  2. **VideoAnalysisScreen** - Main screen integration orchestrating all overlay components ✅
-- All UI/UX components following analysis-ui.md specifications are now complete
-- Ready for backend integration and AI analysis pipeline connection
-
-## Dependencies Status
-- ✅ Camera recording system completed
-- 🟡 AI analysis pipeline (backend pending - mock data available for UI development)
-- 🟡 Pose detection data (using mock data for UI development)
 
 ## Pending
-- xxx
+
+
+
 
 ## Known Issues
 - Web camera recording shows placeholder (expected - not supported in browsers)
 - Upload integration needs final connection between recording hooks and upload service
 - Live pose overlay performance could be optimized for longer recording sessions
+- **RESOLVED**: All tests now passing - analysis service test fixed by removing @my/ui dependency and using local logger

@@ -22,3 +22,6 @@ export { VideoTitle } from './components/VideoAnalysis/VideoTitle/VideoTitle'
 // Video utilities
 export * from './utils/videoValidation'
 export * from './utils/logger'
+
+// Test utilities are NOT exported from main package to avoid production bundling
+// Import them directly in test files: import { render, screen } from '@my/ui/test-utils'

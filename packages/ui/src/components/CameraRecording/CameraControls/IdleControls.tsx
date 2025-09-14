@@ -136,7 +136,6 @@ export function IdleControls({
             borderColor="rgba(255,255,255,0.95)"
             {...shadows.medium}
             scale={isRecordPressed ? 0.97 : 1.0}
-            animation="quick"
             pointerEvents="none"
           >
             {/* Inner Record Circle */}
@@ -172,7 +171,6 @@ export function IdleControls({
           minHeight={56}
           minWidth={56}
           opacity={isCameraSwapping ? 0.7 : 1.0}
-          animation="quick"
           style={{
             transitionDuration: `${transitionDuration}ms`,
           }}
@@ -252,7 +250,6 @@ export function RecordButton({
         {...(variant === 'primary' ? shadows.large : shadows.medium)}
         // Touch feedback
         scale={isPressed ? 0.95 : 1.0}
-        animation="quick"
       >
         <Circle
           size={innerCircleSize}

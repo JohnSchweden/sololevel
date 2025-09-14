@@ -32,7 +32,7 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 
 4.  **REFACTOR & CLEAN (REFACTOR)**:
     *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
-    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `console.log` statements, temporary variables, debug flags).
+    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `log.info` statements, temporary variables, debug flags).
     *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
 
 ## DEBUGGING_TECHNIQUES_BY_STACK
@@ -75,6 +75,13 @@ const { data, error } = useQuery({
   onError: (error) => log.error('Query failed:', { error }),
 });
 ```
+
+## Import Debugging
+When encountering "Cannot find module" errors:
+1. Check if using correct import pattern (`@my/` vs path aliases)
+2. Verify exports exist in package index files
+3. Confirm path aliases in `tsconfig.base.json`
+4. Use `@my/package` for package-level, `@package/path` for file-level
 
 ## VALIDATION_CHECKLIST
 Before finalizing your fix, ensure you can answer "yes" to all of these questions:

@@ -10,7 +10,7 @@ import { act } from '@testing-library/react'
 import { TestProvider } from '../../../test-utils'
 
 // Mock the VideoFilePicker component to avoid Expo module issues in tests
-jest.mock('../VideoFilePicker', () => ({
+jest.mock('../../VideoFilePicker/VideoFilePicker', () => ({
   VideoFilePicker: ({
     isOpen,
     onVideoSelected,

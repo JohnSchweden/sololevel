@@ -54,7 +54,6 @@ export function NavigationDialog({
       <Dialog.Portal>
         <Dialog.Overlay
           key="overlay"
-          animation="quick"
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
@@ -64,20 +63,12 @@ export function NavigationDialog({
           bordered
           {...shadows.xlarge}
           key="content"
-          animation={[
-            'quick',
-            {
-              opacity: {
-                overshootClamping: true,
-              },
-            },
-          ]}
           enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
           gap="$4"
           maxWidth={400}
           backgroundColor="$background"
-          borderRadius="$8"
+          borderRadius="$4"
         >
           {/* Header with Warning Icon */}
           <XStack
@@ -247,7 +238,6 @@ export function ConfirmationDialog({
       <Dialog.Portal>
         <Dialog.Overlay
           key="overlay"
-          animation="quick"
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
@@ -257,20 +247,12 @@ export function ConfirmationDialog({
           bordered
           {...shadows.xlarge}
           key="content"
-          animation={[
-            'quick',
-            {
-              opacity: {
-                overshootClamping: true,
-              },
-            },
-          ]}
           enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
           gap="$4"
           maxWidth={400}
           backgroundColor="$background"
-          borderRadius="$8"
+          borderRadius="$4"
         >
           {/* Header */}
           <XStack

@@ -32,7 +32,7 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 
 4.  **REFACTOR & CLEAN (REFACTOR)**:
     *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
-    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `console.log` statements, temporary variables, debug flags).
+    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `log.info` statements, temporary variables, debug flags).
     *   Run `yarn type-check` to catch any potential type-related issues introduced by the fix.
     *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
 

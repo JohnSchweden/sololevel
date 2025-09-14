@@ -110,6 +110,11 @@ jest.mock('@my/ui', () => {
       React.createElement('div', { 'data-testid': 'SocialIcons' }, children),
     VideoTitle: ({ children }: { children?: any }) =>
       React.createElement('div', { 'data-testid': 'VideoTitle' }, children),
+    log: {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    },
   }
 })
 

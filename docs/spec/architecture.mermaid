@@ -37,6 +37,7 @@ graph TB
     %% AI Pipeline (Hybrid: Client + Edge)
     subgraph "AI Analysis Pipeline"
         Pose["🕺 Pose Detection"]
+        VideoProc["📹 Video Processing\n(react-native-video-processing)"]
         Voice["🎤 Voice Analysis"]
         LLM["🧠 LLM Feedback"]
         TTS["🔊 Text-to-Speech"]
@@ -85,9 +86,11 @@ graph TB
 
     %% AI Flow
     EdgeFns --> Pose
+    EdgeFns --> VideoProc
     EdgeFns --> Voice
     EdgeFns --> LLM
     EdgeFns --> TTS
+    VideoProc --> Pose
 
     %% Data Movement
     Storage <--> EdgeFns
@@ -124,7 +127,7 @@ graph TB
     class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
     class Zustand,TSQ layerState
     class Auth,DB,Storage,Realtime,EdgeFns layerBackend
-    class Pose,Voice,LLM,TTS layerAI
+    class Pose,VideoProc,Voice,LLM,TTS layerAI
     class Turbo,Yarn,TS,Biome,Vitest,Playwright,GHA,EAS,Vercel layerDev
 
     %% Legend

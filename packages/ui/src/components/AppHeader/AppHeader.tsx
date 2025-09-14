@@ -62,7 +62,7 @@ export function AppHeader({
         }
         minWidth={44}
         minHeight={44}
-        borderRadius="$6"
+        borderRadius="$4"
         backgroundColor="transparent"
         hoverStyle={{
           backgroundColor: 'rgba(255,255,255,0.1)',
@@ -124,7 +124,7 @@ export function AppHeader({
             }
             minWidth={44}
             minHeight={44}
-            borderRadius="$6"
+            borderRadius="$4"
             backgroundColor="transparent"
             hoverStyle={{
               backgroundColor: 'rgba(255,255,255,0.1)',

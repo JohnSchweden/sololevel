@@ -99,6 +99,39 @@ See `quality/performance.mdc`.
 - Use `workspace:*` for internal dependencies
 - All packages must be private: `"private": true`
 
+## Import Strategy & Package Resolution
+
+### Package-Level Imports (Scoped)
+Use `@my/` scoped package names for:
+- Package-level exports (main index files)
+- Workspace dependencies in package.json
+- Cross-package imports
+
+```typescript
+// ✅ Correct - package-level imports
+import { Button } from '@my/ui'
+import { useAuth } from '@my/app' 
+import { supabase } from '@my/api'
+```
+
+### Path-Level Imports (Aliases)
+Use path aliases for:
+- Specific file imports within packages
+- Internal package structure navigation
+
+```typescript
+// ✅ Correct - path-level imports  
+import { Button } from '@ui/components/Button'
+import { useAuth } from '@app/hooks/useAuth'
+import { supabase } from '@api/supabase'
+```
+
+### Import Resolution Rules
+1. **Package exports**: Always use `@my/` scoped names
+2. **File imports**: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`)
+3. **Never mix**: Don't use `@api` without `/*` - use `@api/services/...`
+4. **Export strategy**: Export from package index files for `@my/` imports
+
 ## Versioning & Compatibility
 - Align Expo SDK versions across `apps` and `packages`
 - Pin critical dependencies; use carets only for utilities

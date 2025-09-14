@@ -82,7 +82,7 @@ export function RecordingControls({
         backgroundColor="rgba(0,0,0,0.6)"
         paddingHorizontal="$4"
         paddingVertical="$2"
-        borderRadius="$6"
+        borderRadius="$4"
       >
         <Text
           fontSize="$6"
@@ -120,7 +120,7 @@ export function RecordingControls({
             alignItems="center"
             justifyContent="center"
             backgroundColor={disabled ? '$color8' : 'rgba(255,255,255,0.9)'}
-            borderRadius="$8"
+            borderRadius="$4"
             paddingHorizontal="$4"
             paddingVertical="$3"
             minHeight={60}
@@ -129,7 +129,6 @@ export function RecordingControls({
             {...shadows.medium}
             // Touch feedback
             scale={isPausePressed ? 0.95 : 1.0}
-            animation="quick"
             hoverStyle={{
               backgroundColor: disabled ? '$color8' : 'rgba(255,255,255,1.0)',
             }}
@@ -170,7 +169,7 @@ export function RecordingControls({
           onPress={onStop}
           disabled={disabled}
           backgroundColor="transparent" // Transparent
-          borderRadius="$8"
+          borderRadius="$4"
           minHeight={60}
           minWidth={60}
           pressStyle={{
@@ -213,7 +212,7 @@ export function RecordingControls({
             />
           }
           backgroundColor="rgba(255,255,255,0.2)"
-          borderRadius="$8"
+          borderRadius="$4"
           minHeight={44}
           minWidth={44}
           pressStyle={{
@@ -254,7 +253,7 @@ export function RecordingControls({
             />
           }
           backgroundColor="rgba(255,255,255,0.2)"
-          borderRadius="$8"
+          borderRadius="$4"
           minHeight={44}
           minWidth={44}
           pressStyle={{
@@ -297,7 +296,7 @@ export function ZoomControls({ currentZoom, onZoomChange, disabled = false }: Zo
       alignItems="center"
       gap="$2"
       backgroundColor="rgba(0,0,0,0.4)"
-      borderRadius="$6"
+      borderRadius="$4"
       padding="$2"
     >
       {zoomLevels.map((level) => (

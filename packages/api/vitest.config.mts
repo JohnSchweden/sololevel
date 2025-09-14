@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    deps: {
+      inline: ['react-native-svg'],
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -33,6 +36,9 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['react-native-svg', '@testing-library/react-native'],
     include: ['@my/ui'],
+  },
+  ssr: {
+    noExternal: ['react-native-svg'],
   },
   resolve: {
     alias: [

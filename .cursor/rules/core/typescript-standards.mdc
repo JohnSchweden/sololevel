@@ -45,3 +45,16 @@ alwaysApply: false
   type Result<T, E = Error> = 
     | { success: true; data: T }
     | { success: false; error: E }
+  ```
+
+## Import Standards
+
+### Monorepo Import Patterns
+- **Package imports**: `import { Component } from '@my/ui'` (for main exports)
+- **Path imports**: `import { Component } from '@ui/components/Button'` (for specific files)
+- **Never use**: `import from '@api'` without path - use `@api/services/...`
+
+### TypeScript Path Resolution
+- All path aliases defined in `tsconfig.base.json`
+- Use scoped package names in `package.json` dependencies
+- Export functions/types from package index files for `@my/` imports
