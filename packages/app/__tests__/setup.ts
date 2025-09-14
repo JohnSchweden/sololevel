@@ -58,6 +58,69 @@ jest.mock('expo-file-system', () => ({
   readAsStringAsync: jest.fn(),
 }))
 
+// Mock Tamagui components for app package tests
+jest.mock('tamagui', () => {
+  const React = require('react')
+  const mockComponent = (name: string) =>
+    React.forwardRef((props: any, ref: any) =>
+      React.createElement('div', { ...props, ref, 'data-testid': name })
+    )
+
+  return {
+    TamaguiProvider: ({ children }: { children: any }) => children,
+    styled: (_component: any, _config: any) => mockComponent,
+    Stack: mockComponent('Stack'),
+    XStack: mockComponent('XStack'),
+    YStack: mockComponent('YStack'),
+    Button: mockComponent('Button'),
+    Text: mockComponent('Text'),
+    View: mockComponent('View'),
+    createTamagui: jest.fn(() => ({})),
+  }
+})
+
+// Mock @tamagui/lucide-icons
+jest.mock('@tamagui/lucide-icons', () => ({
+  ChevronLeft: () => 'ChevronLeft',
+  MoreVertical: () => 'MoreVertical',
+  Edit3: () => 'Edit3',
+  Check: () => 'Check',
+  X: () => 'X',
+}))
+
+// Mock @my/ui components
+jest.mock('@my/ui', () => {
+  const React = require('react')
+  return {
+    ProcessingOverlay: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'ProcessingOverlay' }, children),
+    VideoPlayer: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'VideoPlayer' }, children),
+    MotionCaptureOverlay: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'MotionCaptureOverlay' }, children),
+    FeedbackBubbles: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'FeedbackBubbles' }, children),
+    AudioFeedbackOverlay: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'AudioFeedbackOverlay' }, children),
+    VideoControlsOverlay: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'VideoControlsOverlay' }, children),
+    BottomSheet: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'BottomSheet' }, children),
+    SocialIcons: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'SocialIcons' }, children),
+    VideoTitle: ({ children }: { children?: any }) =>
+      React.createElement('div', { 'data-testid': 'VideoTitle' }, children),
+  }
+})
+
+// Mock @my/config
+jest.mock('@my/config', () => ({
+  PoseData: [],
+  FeedbackMessage: {},
+  SocialStats: {},
+  FeedbackItem: {},
+}))
+
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,
