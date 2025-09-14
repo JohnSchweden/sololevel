@@ -67,25 +67,24 @@
 - US-RU-13: Video player
 
 ## In Progress
-- **US-VF-01: Video Analysis & Feedback System UI Components** (15% complete)
+- **US-VF-01: Video Analysis & Feedback System UI Components** (25% complete)
   - ✅ Analysis-ui.md completed with comprehensive component specifications
   - ✅ Domain-specific analysis templates created and populated
   - ✅ TDD workflow established following @developer.md
   - ✅ ProcessingOverlay component with AI pipeline stages
   - ✅ VideoPlayer component (basic structure and types)
   - ✅ VideoControlsOverlay component with play/pause, seek, time display, and auto-hide behavior
-  - 🏗️ **MotionCaptureOverlay component for pose data visualization** (next step)
-  - ⏳ SkeletonOverlay component for pose visualization
-  - ⏳ FeedbackBubbles component for AI commentary
-  - ⏳ AudioFeedbackOverlay component for TTS playback
-  - ⏳ BottomSheet component for feedback timeline
+  - ✅ MotionCaptureOverlay component for pose data visualization (skeleton nodes and connections)
+  - ✅ FeedbackBubbles component for AI commentary with positioning and tap interactions
+  - ✅ AudioFeedbackOverlay component with TTS playback controls and progress
+  - 🏗️ **BottomSheet component for feedback timeline** (next step)
   - ⏳ SocialIcons component for engagement metrics
   - ⏳ VideoAnalysisScreen integration
 
 **Current Focus: Building Tamagui UI Components with TDD**
-- Status: VideoControlsOverlay component completed ✅ (Phase 1: UI Component Development)
-  - ✅ Implemented and tested VideoControlsOverlay component with controls visibility, time display, and button interactions
-- Next: MotionCaptureOverlay component for pose visualization (US-VF-03)
+- Status: AudioFeedbackOverlay component completed ✅ (Phase 1: UI Component Development)
+  - ✅ Implemented and tested AudioFeedbackOverlay component with TTS playback controls, progress bar, and close functionality
+- Next: BottomSheet component for feedback timeline (US-VF-05)
 - Dependencies: Camera recording system (✅ completed), AI analysis pipeline (pending backend)
 
 ## Dependencies Status
