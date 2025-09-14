@@ -80,6 +80,9 @@ const MetricRow = styled(XStack, {
       detailed: {
         paddingVertical: '$2',
       },
+      overlay: {
+        paddingVertical: '$1',
+      },
     },
   } as const,
 })
@@ -119,32 +122,46 @@ const MetricIcon = styled(Circle, {
 /**
  * Get metric status based on value and thresholds
  */
-const getMetricStatus = (metric: keyof PerformanceMetrics, value: number) => {
+const getMetricStatus = (metric: keyof PerformanceMetrics, value: number | string) => {
   switch (metric) {
     case 'fps':
-      if (value >= 25) return 'good'
-      if (value >= 15) return 'warning'
+      if (typeof value === 'number' && value >= 25) return 'good'
+      if (typeof value === 'number' && value >= 15) return 'warning'
       return 'critical'
 
     case 'memoryUsage':
-      if (value < 100) return 'good'
-      if (value < 200) return 'warning'
+      if (typeof value === 'number' && value < 100) return 'good'
+      if (typeof value === 'number' && value < 200) return 'warning'
       return 'critical'
 
     case 'cpuUsage':
-      if (value < 60) return 'good'
-      if (value < 80) return 'warning'
+      if (typeof value === 'number' && value < 60) return 'good'
+      if (typeof value === 'number' && value < 80) return 'warning'
       return 'critical'
 
     case 'batteryLevel':
-      if (value > 30) return 'good'
-      if (value > 15) return 'warning'
+      if (typeof value === 'number' && value > 30) return 'good'
+      if (typeof value === 'number' && value > 15) return 'warning'
       return 'critical'
 
     case 'qualityScore':
-      if (value >= 80) return 'good'
-      if (value >= 60) return 'warning'
+      if (typeof value === 'number' && value >= 80) return 'good'
+      if (typeof value === 'number' && value >= 60) return 'warning'
       return 'critical'
+
+    case 'thermalState':
+      switch (value) {
+        case 'normal':
+          return 'good'
+        case 'fair':
+          return 'warning'
+        case 'serious':
+          return 'critical'
+        case 'critical':
+          return 'critical'
+        default:
+          return 'good'
+      }
 
     default:
       return 'good'
@@ -154,20 +171,22 @@ const getMetricStatus = (metric: keyof PerformanceMetrics, value: number) => {
 /**
  * Format metric value for display
  */
-const formatMetricValue = (metric: keyof PerformanceMetrics, value: number) => {
+const formatMetricValue = (metric: keyof PerformanceMetrics, value: number | string) => {
   switch (metric) {
     case 'fps':
-      return `${Math.round(value)} fps`
+      return typeof value === 'number' ? `${Math.round(value)} fps` : 'N/A fps'
     case 'memoryUsage':
-      return `${Math.round(value)} MB`
+      return typeof value === 'number' ? `${Math.round(value)} MB` : 'N/A MB'
     case 'cpuUsage':
     case 'batteryLevel':
     case 'qualityScore':
-      return `${Math.round(value)}%`
+      return typeof value === 'number' ? `${Math.round(value)}%` : 'N/A%'
     case 'droppedFrames':
       return `${value}`
+    case 'thermalState':
+      return typeof value === 'string' ? value.charAt(0).toUpperCase() + value.slice(1) : 'Unknown'
     default:
-      return `${Math.round(value)}`
+      return typeof value === 'number' ? `${Math.round(value)}` : `${value}`
   }
 }
 
@@ -232,8 +251,8 @@ const MetricDisplay = ({
   onPress,
 }: {
   metric: keyof PerformanceMetrics
-  value: number
-  variant?: 'compact' | 'detailed'
+  value: number | string
+  variant?: 'compact' | 'detailed' | 'overlay'
   showLabel?: boolean
   onPress?: () => void
 }) => {
@@ -265,10 +284,27 @@ const MetricDisplay = ({
       return () => pulse.stop()
     } else {
       pulseAnim.setValue(1)
+      return undefined
     }
   }, [status, pulseAnim])
 
-  const getProgressValue = () => {
+    const getProgressValue = () => {
+    if (typeof value === 'string') {
+      // Handle thermalState mapping to percentage
+      switch (value) {
+        case 'normal':
+          return 100
+        case 'fair':
+          return 75
+        case 'serious':
+          return 50
+        case 'critical':
+          return 25
+        default:
+          return 0
+      }
+    }
+
     switch (metric) {
       case 'fps':
         return Math.min((value / 30) * 100, 100)
@@ -354,7 +390,7 @@ const PerformanceSummary = ({
   variant = 'detailed',
 }: {
   metrics: PerformanceMetrics
-  variant?: 'compact' | 'detailed'
+  variant?: 'compact' | 'detailed' | 'overlay'
 }) => {
   const overallStatus = (() => {
     const statuses = [
@@ -438,7 +474,6 @@ export const PerformanceMonitor = ({
   metrics,
   variant = 'detailed',
   showLabels = true,
-  showHistory = false,
   onMetricPress,
   style,
 }: PerformanceMonitorProps) => {

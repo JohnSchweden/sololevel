@@ -10,10 +10,10 @@ import '../../../test-utils/setup'
 import { TestProvider } from '../../../test-utils'
 
 // Import centralized mocks
-import { RecordingState } from './mocks'
+import { RecordingState } from '../__tests__/mocks'
 
 // Import component to test
-import { RecordingControls } from '../RecordingControls'
+import { RecordingControls } from './RecordingControls'
 
 // Test if component can be imported and basic Tamagui setup works
 describe('Recording Controls Component - Import Test', () => {

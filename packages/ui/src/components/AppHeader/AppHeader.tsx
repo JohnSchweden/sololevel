@@ -2,32 +2,44 @@ import { Bell, ChevronLeft, Menu } from '@tamagui/lucide-icons'
 import { Circle, Text, YStack } from 'tamagui'
 import { Button } from '../Button'
 
-export interface CameraHeaderProps {
+// Generic app states that can be handled by the header
+export type AppHeaderMode = 'default' | 'camera' | 'recording' | 'analysis'
+
+export interface AppHeaderProps {
   title: string
+  mode?: AppHeaderMode
   showTimer?: boolean
   timerValue?: string
   onMenuPress?: () => void
   onBackPress?: () => void
   onNotificationPress?: () => void
   notificationBadgeCount?: number
-  isRecording?: boolean
+  // Mode-specific props
+  cameraProps?: {
+    isRecording?: boolean
+  }
 }
 
 /**
- * Camera Header Component
- * Mobile-optimized header with navigation/menu button, title/timer display, and notifications
+ * App Header Component
+ * Generic header that adapts to different application states and modes
+ * Mobile-optimized with navigation, title/timer display, and notifications
  * Implements 44px touch targets and responsive design
  */
-export function CameraHeader({
+export function AppHeader({
   title,
+  mode = 'default',
   showTimer = false,
   timerValue = '00:00:00',
   onMenuPress,
   onBackPress,
   onNotificationPress,
   notificationBadgeCount = 0,
-  isRecording = false,
-}: CameraHeaderProps) {
+  cameraProps,
+}: AppHeaderProps) {
+  // Derive state from mode
+  const isRecording = mode === 'recording' || cameraProps?.isRecording
+  const showNotifications = mode !== 'recording' && mode !== 'camera'
   return (
     <>
       {/* Left Section - Menu/Back Button */}
@@ -97,8 +109,8 @@ export function CameraHeader({
         )}
       </YStack>
 
-      {/* Right Section - Notification Button with Badge (hidden during recording) */}
-      {!isRecording && (
+      {/* Right Section - Notification Button with Badge */}
+      {showNotifications && (
         <YStack position="relative">
           <Button
             chromeless
@@ -186,3 +198,39 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
     </Text>
   )
 }
+
+// Usage Examples (can be moved to a separate examples file)
+/*
+// Default mode - standard app header
+<AppHeader
+  title="Dashboard"
+  onMenuPress={() => console.log('Menu pressed')}
+  onNotificationPress={() => console.log('Notifications pressed')}
+/>
+
+// Camera mode - hides notifications, shows menu
+<AppHeader
+  title="Camera"
+  mode="camera"
+  onMenuPress={() => console.log('Menu pressed')}
+  onBackPress={() => console.log('Back pressed')}
+/>
+
+// Recording mode - shows back button, timer, hides notifications
+<AppHeader
+  title="Recording"
+  mode="recording"
+  showTimer={true}
+  timerValue="00:05:23"
+  onBackPress={() => console.log('Stop recording')}
+/>
+
+// Analysis mode - shows notifications, menu
+<AppHeader
+  title="Analysis"
+  mode="analysis"
+  onMenuPress={() => console.log('Menu pressed')}
+  onNotificationPress={() => console.log('Notifications pressed')}
+  notificationBadgeCount={3}
+/>
+*/

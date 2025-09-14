@@ -3,8 +3,8 @@ import { CameraMode, CameraRatio, CameraView } from 'expo-camera'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Dimensions, View } from 'react-native'
 import { SizableText, YStack } from 'tamagui'
-import { log } from '../../utils/logger'
-import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
+import { log } from '../../../utils/logger'
+import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**
  * Camera Preview Component using Expo Camera

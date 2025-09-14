@@ -8,10 +8,10 @@ import '@testing-library/jest-dom'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
-import { TestProvider } from '../../../test-utils'
+import { TestProvider } from '../../test-utils'
 
 // Import component to test
-import { BottomNavigation } from '../BottomNavigation'
+import { BottomNavigation } from './BottomNavigation'
 
 // Mock data for viewport testing
 const MOBILE_DEVICES = [

@@ -34,10 +34,6 @@ This screen encompasses five distinct states/interactions:
 ```typescript
 // Unified Video Analysis & Feedback System Layout Structure
 YStack flex={1} backgroundColor="$background"
-├── StatusBar: YStack height={44} paddingHorizontal="$4" justifyContent="center"
-│   ├── Time: Text "9:41" color="$color12"
-│   ├── NetworkIcons: XStack gap="$2" (cellular, wifi, battery)
-│   └── DynamicIsland: YStack width={126} height={37} backgroundColor="$color1" borderRadius={20}
 ├── Header: XStack height={60} paddingHorizontal="$4" alignItems="center" backgroundColor="$color2"
 │   ├── BackButton: Button chromeless size={44} icon={ChevronLeft} color="$color12"
 │   ├── TitleSection: YStack flex={1} alignItems="center"

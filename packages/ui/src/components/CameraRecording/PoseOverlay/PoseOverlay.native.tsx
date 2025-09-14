@@ -12,6 +12,7 @@
 import {
   DEFAULT_OVERLAY_CONFIG,
   POSE_CONNECTIONS,
+  type PoseConnection,
   type PoseDetectionResult,
   type PoseKeypoint,
 } from '@app/features/CameraRecording/types/pose'
@@ -29,7 +30,7 @@ import {
 import React, { useMemo } from 'react'
 import { View } from 'react-native'
 import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated'
-import { PoseOverlayUtils } from '../../utils/PoseOverlayUtils'
+import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
 
 /**
@@ -151,7 +152,7 @@ export function PoseOverlayNative({
 
     const path = Skia.Path.Make()
 
-    validConnections.forEach((connection) => {
+    validConnections.forEach((connection: PoseConnection) => {
       const fromKeypoint = filteredPose.keypoints.find(
         (kp: PoseKeypoint) => kp.name === connection.from
       )
@@ -232,7 +233,7 @@ export function PoseOverlayNative({
           )}
 
           {/* Individual connection lines with animation */}
-          {validConnections.map((connection, index) => {
+          {validConnections.map((connection: PoseConnection, index: number) => {
             const fromKeypoint = filteredPose.keypoints.find(
               (kp: PoseKeypoint) => kp.name === connection.from
             )
@@ -344,7 +345,7 @@ export const SkiaPoseUtils = {
     const interpolatedPose = PoseOverlayUtils.interpolatePoses(fromPose, toPose, progress)
 
     // Create path from interpolated pose
-    interpolatedPose.keypoints.forEach((keypoint, index) => {
+    interpolatedPose.keypoints.forEach((keypoint: PoseKeypoint, index: number) => {
       if (index === 0) {
         path.moveTo(keypoint.x, keypoint.y)
       } else {

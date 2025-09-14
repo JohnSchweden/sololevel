@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Platform, Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
-import { log } from '../../utils/logger'
+import { log } from '../../../utils/logger'
 
 export enum RecordingState {
   IDLE = 'idle',

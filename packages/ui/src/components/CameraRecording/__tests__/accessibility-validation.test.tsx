@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
-import { IdleControls } from '../IdleControls'
+import { IdleControls } from '../CameraControls/IdleControls'
 
 describe('IdleControls Accessibility Validation', () => {
   it('should have minimum 44x44px touch targets for all interactive elements', () => {

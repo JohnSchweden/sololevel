@@ -159,6 +159,7 @@ export const CameraSwapButton = ({
       return () => rotation.stop()
     } else {
       rotateAnim.setValue(0)
+      return undefined
     }
   }, [isSwapping, rotateAnim])
 
@@ -178,7 +179,9 @@ export const CameraSwapButton = ({
         }),
       ])
       pulse.start()
+      return undefined
     }
+    return undefined
   }, [swapError, pulseAnim])
 
   const getButtonState = () => {

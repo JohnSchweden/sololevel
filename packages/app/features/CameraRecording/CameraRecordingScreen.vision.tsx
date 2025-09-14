@@ -1,8 +1,8 @@
 import {
+  AppHeader,
   BottomNavigation,
   CameraContainer,
   CameraControlsOverlay,
-  CameraHeader,
   CameraPreview,
   CameraPreviewArea,
   type CameraPreviewRef,
@@ -141,14 +141,15 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
   return (
     <CameraContainer
       header={
-        <CameraHeader
+        <AppHeader
           title={displayHeaderTitle}
+          mode={isInRecordingState ? 'recording' : 'camera'}
           showTimer={isInRecordingState}
           timerValue={formattedDuration}
           onMenuPress={() => setShowSideSheet(true)}
           onBackPress={handleBackPress}
           onNotificationPress={handleNavigateBack}
-          isRecording={isInRecordingState}
+          cameraProps={{ isRecording: isInRecordingState }}
         />
       }
       bottomNavigation={

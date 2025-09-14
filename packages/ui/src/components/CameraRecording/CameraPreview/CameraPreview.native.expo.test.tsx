@@ -2,7 +2,7 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { act, render } from '@testing-library/react-native'
 import React from 'react'
 import { View } from 'react-native'
-import { CameraPreview } from '../CameraPreview.native.expo'
+import { CameraPreview } from './CameraPreview.native.expo'
 
 // Mock expo-camera
 jest.doMock('expo-camera', () => {

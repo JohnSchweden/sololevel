@@ -68,14 +68,7 @@ export interface RecordingControlsProps {
   onSettingsOpen?: () => void
 }
 
-export interface CameraHeaderProps {
-  title: string
-  showTimer?: boolean
-  timerValue?: string
-  onMenuPress?: () => void
-  onNotificationPress?: () => void
-  notificationBadgeCount?: number
-}
+// CameraHeaderProps removed - now using AppHeaderProps from @my/ui/components/AppHeader
 
 export interface CameraPreviewContainerProps {
   isRecording: boolean

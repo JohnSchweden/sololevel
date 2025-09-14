@@ -1,6 +1,6 @@
 import { VideoPlayerProps } from '@app/hooks/useVideoPlayer'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { VideoPlayer } from '../VideoPlayer.native'
+import { VideoPlayer } from './VideoPlayer.native'
 
 // Mock the useVideoPlayer hook directly
 jest.mock('@app/hooks/useVideoPlayer', () => ({

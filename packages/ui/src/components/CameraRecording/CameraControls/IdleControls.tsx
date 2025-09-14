@@ -4,9 +4,9 @@ import React, { useCallback, useState } from 'react'
 // Use React Native Pressable with platform detection
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
-import { log } from '../../utils/logger'
-import type { VideoValidationResult } from '../../utils/videoValidation'
-import { VideoFilePicker } from './VideoFilePicker'
+import { log } from '../../../utils/logger'
+import type { VideoValidationResult } from '../../../utils/videoValidation'
+import { VideoFilePicker } from '../../VideoFilePicker/VideoFilePicker'
 
 export interface IdleControlsProps {
   onStartRecording?: () => void

@@ -7,7 +7,7 @@
 import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { act, render, waitFor } from '@testing-library/react-native'
 import { log } from '@ui/utils/logger'
-import { VideoPlayer } from '../VideoPlayer.native'
+import { VideoPlayer } from '../../VideoPlayer/VideoPlayer.native'
 
 // Mock expo-file-system
 jest.mock('expo-file-system', () => ({

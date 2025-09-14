@@ -9,7 +9,7 @@ import type {
   PoseOverlayConfig,
 } from '@app/features/CameraRecording/types/pose'
 import { Platform } from 'react-native'
-import { PoseOverlayUtils } from '../../utils/PoseOverlayUtils'
+import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 
 export interface PoseOverlayProps {
   pose: PoseDetectionResult | null

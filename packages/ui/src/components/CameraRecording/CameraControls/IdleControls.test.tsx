@@ -33,7 +33,7 @@ jest.mock('../VideoFilePicker', () => ({
   },
 }))
 
-import { IdleControls } from '../IdleControls'
+import { IdleControls } from './IdleControls'
 
 describe('Idle Controls Component', () => {
   const mockProps = {

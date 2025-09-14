@@ -8,7 +8,7 @@ import '../../../test-utils/setup'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { TestProvider } from '../../../test-utils'
 import { NAVIGATION_DIALOG_CONFIGS } from '../../../test-utils/mock-data'
-import { NavigationDialog } from '../NavigationDialog'
+import { NavigationDialog } from './NavigationDialog'
 
 describe('Navigation Dialog Component', () => {
   beforeEach(() => {

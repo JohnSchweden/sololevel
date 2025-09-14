@@ -3,8 +3,8 @@ import { render } from '@testing-library/react-native'
 import React from 'react'
 import { Dimensions } from 'react-native'
 import { useCameraDevice, useFrameProcessor } from 'react-native-vision-camera'
-import { VisionCameraPreview } from '../CameraPreview.native.vision'
 import type { CameraPreviewRef } from '../types'
+import { VisionCameraPreview } from './CameraPreview.native.vision'
 
 // Mock react-native-vision-camera
 jest.mock('react-native-vision-camera', () => {

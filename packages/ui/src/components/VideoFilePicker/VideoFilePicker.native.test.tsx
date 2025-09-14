@@ -2,7 +2,7 @@ import { render, waitFor } from '@testing-library/react-native'
 import { VideoValidationResult, validateVideoFile } from '@ui/utils/videoValidation'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
-import { VideoFilePicker } from '../VideoFilePicker.native'
+import { VideoFilePicker } from './VideoFilePicker.native'
 
 // Mock expo modules
 jest.mock('expo-image-picker', () => ({

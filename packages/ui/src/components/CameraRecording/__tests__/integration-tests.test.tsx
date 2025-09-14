@@ -12,9 +12,9 @@ import { TestProvider } from '../../../test-utils'
 // Import centralized mocks
 import { RecordingState } from './mocks'
 
-import { IdleControls } from '../IdleControls'
-import { NavigationDialog } from '../NavigationDialog'
-import { RecordingControls } from '../RecordingControls'
+import { IdleControls } from '../CameraControls/IdleControls'
+import { NavigationDialog } from '../CameraControls/NavigationDialog'
+import { RecordingControls } from '../CameraControls/RecordingControls'
 // Import hooks and components to test integration
 import { useCameraControls, useRecordingStateMachine } from './mocks'
 

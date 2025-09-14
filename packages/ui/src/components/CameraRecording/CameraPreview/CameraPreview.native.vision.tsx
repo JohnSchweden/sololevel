@@ -3,8 +3,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Dimensions, View } from 'react-native'
 import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera'
 import { SizableText, YStack } from 'tamagui'
-import { log } from '../../utils/logger'
-import type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
+import { log } from '../../../utils/logger'
+import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**
  * VisionCamera Preview Component - Enhanced Performance

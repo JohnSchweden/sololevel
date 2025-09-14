@@ -10,7 +10,7 @@ import '../../../test-utils/setup'
 import { TestProvider } from '../../../test-utils'
 
 // Import component to test
-import { ZoomControls } from '../RecordingControls'
+import { ZoomControls } from './RecordingControls'
 
 describe('Zoom Controls Component', () => {
   const mockProps = {

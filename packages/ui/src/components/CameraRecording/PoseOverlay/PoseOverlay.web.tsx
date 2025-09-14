@@ -11,11 +11,12 @@
 import {
   DEFAULT_OVERLAY_CONFIG,
   POSE_CONNECTIONS,
+  type PoseConnection,
   type PoseDetectionResult,
   type PoseKeypoint,
 } from '@app/features/CameraRecording/types/pose'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { PoseOverlayUtils } from '../../utils/PoseOverlayUtils'
+import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
 
 /**
@@ -227,9 +228,9 @@ class WebGLPoseRenderer {
     const lineData: number[] = []
     const colorData: number[] = []
 
-    validConnections.forEach((connection) => {
-      const fromKeypoint = pose.keypoints.find((kp: any) => kp.name === connection.from)
-      const toKeypoint = pose.keypoints.find((kp: any) => kp.name === connection.to)
+    validConnections.forEach((connection: PoseConnection) => {
+      const fromKeypoint = pose.keypoints.find((kp: PoseKeypoint) => kp.name === connection.from)
+      const toKeypoint = pose.keypoints.find((kp: PoseKeypoint) => kp.name === connection.to)
 
       if (fromKeypoint && toKeypoint) {
         // Line vertices
@@ -497,7 +498,7 @@ export function PoseOverlayWeb({
       ctx.lineWidth = overlayConfig.connectionWidth
       ctx.lineCap = 'round'
 
-      validConnections.forEach((connection) => {
+      validConnections.forEach((connection: PoseConnection) => {
         const fromKeypoint = filteredPose.keypoints.find(
           (kp: PoseKeypoint) => kp.name === connection.from
         )
