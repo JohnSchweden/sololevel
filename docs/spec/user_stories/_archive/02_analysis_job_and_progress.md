@@ -46,8 +46,9 @@ References: `../PRD.md`, `../TRD.md`, `../wireflow.png`
 - Priority: P0
 - Acceptance Criteria:
   - Given analysis is queued or processing
-  - When I tap Cancel
-  - Then the job stops and status becomes `failed|cancelled`
+  - When I tap Back
+  - Then the job stops and a dialog with the info `cancelled` is shown
+  - And I'm forwarded back to the camera view
 
 ## Performance Targets
 - End-to-end feedback median < 10s for 60s clip

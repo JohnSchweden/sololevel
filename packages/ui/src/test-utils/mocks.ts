@@ -331,7 +331,7 @@ export function createMockComponent(name: string) {
       {
         ...domProps,
         ref,
-        'data-testid': name,
+        'data-testid': props.testID || name,
         'aria-label': props.accessibilityLabel,
         'aria-describedby': props.accessibilityHint,
         role: props.accessibilityRole,
@@ -524,6 +524,9 @@ export function createTamaguiMock() {
 
     // Animations
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+
+    // Loading components
+    Spinner: createMockComponent('Spinner'),
   }
 }
 

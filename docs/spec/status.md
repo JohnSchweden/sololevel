@@ -1,104 +1,102 @@
 # Project Status
 
 ## Completed Features
-- Basic project setup
-- Database connections
-- Base module structure
-- **US-RU-02: Handle permissions gracefully** (100% complete)
-  - ✅ Native UI modal with "Go to Settings" option when permissions denied
-  - ✅ Disabled UI controls until permissions are granted (`permission?.granted` check)
-  - ✅ Settings redirect functionality via `redirectToSettings()`
-  - ✅ Permission state management in `useCameraPermissions` hook
-  - ✅ Automatic permission request on mount when not granted
 
-- **US-RU-06a: Recording states — Idle controls** (100% complete)
-  - ✅ Primary Record button (88x88px) with prominent styling
-  - ✅ Upload icon button for existing videos
-  - ✅ Camera Swap button for front/rear toggle
-  - ✅ Live camera preview running and ready to record
-  - ✅ Motion capture overlay renders on top of camera view (non-blocking)
-  - ✅ Enhanced accessibility labels and touch targets validation
-  - ✅ WCAG 2.2 AA compliance with 44x44px minimum touch targets
-  - ✅ Screen reader compatibility with proper accessibility labels and hints
-  - ✅ Disabled state accessibility announcements
+### **Infrastructure & Foundation**
+- Full TechStack monorepo setup
+- Yarn 4 workspace management
+- Cross-platform build system
+- CI/CD pipeline
+- Database schema and RLS policies
+- Supabase backend integration
+- TypeScript strict configuration
+- Biome linting/formatting setup
+- Testing infrastructure
 
-- **US-RU-09a: Camera controls — swap (idle)** (100% complete)
-  - ✅ Front/back camera toggle implemented
-  - ✅ Smooth camera transition via state change
-  - ✅ Disabled during recording to prevent interruption
-  - ✅ State management working
-  - ✅ Visual feedback during swap transition
-  - ✅ 300ms transition duration for smooth UX
-  - ✅ Button visual states (opacity, color, disabled) during swap
-  - ✅ Accessibility labels update during transition
+### **Shared Packages Architecture**
+- @my/ui package (cross-platform UI components)
+- @my/app package (business logic and screens)
+- @my/api package (Supabase client and services)
+- @my/config package (configuration and types)
 
-- **US-RU-10: Bottom navigation — Coach / Record / Insights** (100% complete)
-  - ✅ Three-tab bottom navigation (Coach/Record/Insights)
-  - ✅ Active state indication implemented
-  - ✅ Smooth tab transitions
-  - ✅ Record tab selected on recording screen
-  - ✅ Tab state persistence across app sessions
-  - ✅ AsyncStorage integration for tab state persistence
-  - ✅ Graceful error handling for storage failures
-  - ✅ Tab validation and fallback to default state
+### **Backend Services & API**
+- Video upload service with Supabase Storage
+- Signed URL generation for secure uploads
+- Upload progress tracking and chunked uploads
+- Analysis service for AI processing pipeline
+- Realtime subscriptions for live updates
+- Offline queue service for background processing
+- Optimistic updates for better UX
+- Error handling with discriminated unions
+
+### **Cross-Platform Components**
+- Camera preview with VisionCamera fallback
+- Pose overlay with Skia/WebGL rendering
+- Video player with react-native-video/HTML5
+- File picker with expo-document-picker
+- Navigation components with Expo Router
+- State management with Zustand and TanStack Query
+
+### **Testing & Quality**
+- Unit tests with Jest/Vitest
+- Component tests with React Testing Library
+- E2E tests with Playwright and Detox
+- Integration tests for camera workflows
+- Accessibility tests with WCAG 2.2 AA compliance
+- Performance monitoring and thermal indicators
+- Security auditing with npm audit
+
+### **Development Tools**
+- Storybook for component development
+- Hot reloading for fast development
+- Type checking across all packages
+- Bundle analysis and optimization
+- Security vulnerability scanning
+- Dependency management with Yarn 4
+
+### **Camera Recording Features**
+- US-RU-01: Record a video up to 60 seconds
+- US-RU-02: Handle permissions gracefully
+- US-RU-06a: Recording states — Idle controls
+- US-RU-06b: Recording states — Recording/Paused controls
+- US-RU-07: Confirm navigation away while recording
+- US-RU-08: Live motion capture overlay with nodes
+- US-RU-09a: Camera controls — swap (idle)
+- US-RU-09b: Camera controls — zoom & settings (recording)
+- US-RU-10: Bottom navigation — Coach / Record / Insights
+- US-RU-13: Video player
 
 ## In Progress
-- **US-RU-03: Upload an existing video (MP4/MOV)** (95% complete)
-  - ✅ Schema validation: MP4/MOV format support (VideoFormatSchema)
-  - ✅ Schema validation: File size validation ≤60s (duration_seconds: 1-60)
-  - ✅ Schema validation: Upload progress tracking (UploadStatusSchema)
-  - ✅ Schema validation: Upload session management (UploadSessionSchema)
-  - ✅ Schema validation: Video upload options (VideoUploadOptionsSchema)
-  - ✅ Native media picker dependencies installed (expo-document-picker, expo-image-picker)
-  - ✅ Native media picker implementation with action sheet
-  - ✅ File validation before upload (format, duration, size validation)
-  - ✅ Cross-platform integration (web + native)
-  - ✅ Permission handling for camera and media library
-  - ✅ TDD test coverage for all media picker functionality
-  - ⏳ Upload queuing system implementation
+- **US-VF-01: Video Analysis & Feedback System UI Components** (15% complete)
+  - ✅ Analysis-ui.md completed with comprehensive component specifications
+  - ✅ Domain-specific analysis templates created and populated
+  - ✅ TDD workflow established following @developer.md
+  - ✅ ProcessingOverlay component with AI pipeline stages
+  - ✅ VideoPlayer component (basic structure and types)
+  - ✅ VideoControlsOverlay component with play/pause, seek, time display, and auto-hide behavior
+  - 🏗️ **MotionCaptureOverlay component for pose data visualization** (next step)
+  - ⏳ SkeletonOverlay component for pose visualization
+  - ⏳ FeedbackBubbles component for AI commentary
+  - ⏳ AudioFeedbackOverlay component for TTS playback
+  - ⏳ BottomSheet component for feedback timeline
+  - ⏳ SocialIcons component for engagement metrics
+  - ⏳ VideoAnalysisScreen integration
 
-**Current Focus: Idle UI polish + notifications badge wiring + side-sheet integration**
-- Status: In Progress
+**Current Focus: Building Tamagui UI Components with TDD**
+- Status: VideoControlsOverlay component completed ✅ (Phase 1: UI Component Development)
+  - ✅ Implemented and tested VideoControlsOverlay component with controls visibility, time display, and button interactions
+- Next: MotionCaptureOverlay component for pose visualization (US-VF-03)
+- Dependencies: Camera recording system (✅ completed), AI analysis pipeline (pending backend)
+
+## Dependencies Status
+- ✅ Camera recording system completed
+- 🟡 AI analysis pipeline (backend pending - mock data available for UI development)
+- 🟡 Pose detection data (using mock data for UI development)
 
 ## Pending
-
-### Upload & Backend Integration Features
-
-- **US-RU-11: Notifications with badge** (60% complete)
-  - ✅ Notification icon available in header
-  - ✅ Badge UI supported by `CameraHeader` via `notificationBadgeCount`
-  - ⏳ Badge count not wired to unread notifications state
-  - ⏳ `onNotificationPress` not navigating to notifications screen yet
-  - ⏳ Realtime updates not connected to backend service
-
-- **US-RU-04: Background upload with progress and retry** (0% complete)
-  - ❌ Background upload capability
-  - ❌ Progress tracking with visual feedback
-  - ❌ Automatic retry on network failures
-  - ❌ Upload pause/resume functionality
-  - ❌ Network connectivity monitoring
-
-- **US-RU-05: Secure upload to Supabase Storage (raw)** (0% complete)
-  - ❌ Secure upload to Supabase Storage
-  - ❌ Signed URL generation
-  - ❌ User-specific storage buckets
-  - ❌ File encryption in transit
-  - ❌ Access control validation
-
-- **US-RU-12: Side-sheet with previous videos and coach conversations** (20% complete)
-  - ✅ Basic SideSheet component exists (placeholder)
-  - ❌ Actual video history integration
-  - ❌ Coach conversation history
-  - ❌ Quick navigation to video details
-  - ❌ Search and filter capabilities
-
-### Navigation & Settings Features
-- **US-RU-13: Settings screen navigation** (0% complete)
-- **US-RU-14: Account settings management** (0% complete)
-- **US-RU-15: Personalization options** (0% complete)
-- **US-RU-16: Data controls and privacy** (0% complete)
-- **US-RU-17: Security settings** (0% complete)
+- xxx
 
 ## Known Issues
 - Web camera recording shows placeholder (expected - not supported in browsers)
-- Upload integration needs completion between recording hooks and upload service
+- Upload integration needs final connection between recording hooks and upload service
+- Live pose overlay performance could be optimized for longer recording sessions

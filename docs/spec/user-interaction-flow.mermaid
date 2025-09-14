@@ -7,6 +7,13 @@ graph TD
     %% 🟡 Coach: Coach flow (E-series)
     %% 🔵 Insights: Insights flow (H-series)
     %% 🟣 Settings: Settings sub-screens
+    %% 
+    %% Wireframe Mapping:
+    %% G6A (Processing State) = 02a_video_processing.png
+    %% G8 (Video Playback) = 02b_video_playback.png  
+    %% G11A (Playing State) = 02c_video_ontap_played.png
+    %% G11B (Paused State) = 02d_video_ontap_paused.png
+    %% G9D (Bottom Sheet) = 02e_video_bottom_sheet.png
     
     %% Entry Points
     A[App Launch] --> B[Main Screen - Camera View]
@@ -183,20 +190,64 @@ graph TD
     F2 --> G5[Analysis Processing] 
     F3 --> B
     
-    %% Analysis Flow
+    %% Analysis Flow - Enhanced with Processing States
     G5 --> G6[AI Processing with Spinner]
-    G6 --> G7[Feedback Review Screen]
+    G6 --> G6A[Processing State - Wireframe 02a]
+    G6A --> G6B[Frame Extraction Stage 1/5]
+    G6A --> G6C[Pose Detection Stage 2/5]
+    G6A --> G6D[Video Analysis Stage 3/5]
+    G6A --> G6E[LLM Feedback Stage 4/5]
+    G6A --> G6F[TTS Generation Stage 5/5]
+    G6B --> G6C
+    G6C --> G6D
+    G6D --> G6E
+    G6E --> G6F
+    G6F --> G7[Feedback Review Screen]
     
-    %% Feedback Review Flow
+    %% Processing State Navigation
+    G6A --> G6A1[Cancel Processing]
+    G6A --> G6A2[View Results - When Complete]
+    G6A1 --> B
+    G6A2 --> G7
+    
+    %% Feedback Review Flow - Enhanced with Wireframe States
     G7 --> G8[Video Playback with Overlay]
     G7 --> G9[View AI Feedback Timeline]
     G7 --> G10[View Performance Insights]
+    
+    %% Video Playback Sub-states (Wireframe 02b)
+    G8 --> G8A[Motion Capture Overlay Active]
+    G8 --> G8B[Feedback Bubbles Display]
+    G8 --> G8C[Audio Commentary Playback]
+    G8A --> G8
+    G8B --> G8
+    G8C --> G8
+    
+    %% Video Controls Sub-states (Wireframes 02c/02d)
     G8 --> G11[Play/Pause Controls]
     G8 --> G12[Seek Timeline]
-    G11 --> G8
+    G11 --> G11A[Video Playing State - 02c]
+    G11 --> G11B[Video Paused State - 02d]
+    G11A --> G8
+    G11B --> G8
     G12 --> G8
+    
+    %% Bottom Sheet Sub-states (Wireframe 02e)
+    G9 --> G9A[Feedback Tab Active]
+    G9 --> G9B[Insights Tab Active]
+    G9 --> G9C[Comments Tab Active]
+    G9 --> G9D[Bottom Sheet Expanded - 40% Height]
+    G9 --> G9E[Bottom Sheet Collapsed]
+    G9A --> G9
+    G9B --> G9
+    G9C --> G9
+    G9D --> G9E
+    G9E --> G9D
+    
+    %% Navigation between main states
     G9 --> G7
     G10 --> G7
+    G8 --> G7
 
     %% Coach Tab Flow
     E --> E1[Chat Mode]
@@ -240,9 +291,9 @@ graph TD
     class A entryPoint
     class B mainScreen
     class C,C1,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15 sideSheet
-    class G5,G6,G7,G8,G9,G10,G11,G12 recording
-    class G5,G6 analysis
-    class G7,G8,G9,G10,G11,G12 feedback
+    class G5,G6,G6A,G6B,G6C,G6D,G6E,G6F,G6A1,G6A2,G7,G8,G8A,G8B,G8C,G9,G9A,G9B,G9C,G9D,G9E,G10,G11,G11A,G11B,G12 recording
+    class G5,G6,G6A,G6B,G6C,G6D,G6E,G6F,G6A1,G6A2 analysis
+    class G7,G8,G8A,G8B,G8C,G9,G9A,G9B,G9C,G9D,G9E,G10,G11,G11A,G11B,G12 feedback
     class E,E1,E2,E3,E4,E5 coach
     class H,H1,H2,H3,H4,H5 insights
     class C3,C9,C10,C11,C12,C13,C14,C15 settings

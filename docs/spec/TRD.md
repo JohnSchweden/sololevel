@@ -117,17 +117,17 @@ flowchart TD
 * **Video Analysis:** Gemini flash 2.5 first then pro 2.5
 * **Voice Analysis:** Optional ASR/Voice metrics processing
 * **MMM Integration:** Gemini 2.5 text feedback generation together with video analysis
-* **TTS Pipeline:** Audio commentary via gemini TTS 2.0
+* **TTS Pipeline:** Audio commentary via gemini TTS 2.0 → Convert to AAC/MP3 format for optimal mobile/web compatibility
 * **Data Flow**:
   1. Client records or selects a video
   2. Client uploads to Storage bucket `raw` via signed URL
   3. Client calls `ai-analyze-video` with storage path; receives job id
-  4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, writes to DB and `processed` storage
+  4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, converts audio to AAC/MP3, writes to DB and `processed` storage
   5. Client subscribes to analysis row via Realtime; UI updates when complete
 * **Third-Party Integrations**:
   - **Native**: TensorFlow Lite + MoveNet Lightning model
   - **Web**: TensorFlow.js + MoveNet Lightning model (unified cross-platform)
-  - **TTS Provider**: gemini TTS 2.0 for audio commentary
+  - **TTS Provider**: gemini TTS 2.0 for audio commentary (output converted to AAC/MP3)
   - **MMM Provider**: gemini 2.5 for feedback text generation
   - **Performance**: WebGPU/WebGL acceleration for web, native GPU acceleration for mobile
 
@@ -157,7 +157,7 @@ flowchart TD
       analysis_id bigint FK -> analyses(id) on delete cascade,
       metric_key text, metric_value numeric, unit text
     ) RLS enabled
-  - Storage buckets: `raw` (uploads), `processed` (thumbnails, audio)
+  - Storage buckets: `raw` (uploads), `processed` (thumbnails, audio in AAC/MP3 format)
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
 
 * **API Specifications (Edge Functions)**:
@@ -190,7 +190,16 @@ flowchart TD
   3. Metrics aggregation → normalized 0–100 scales; compose radar values
   4. LLM prompt builds structured feedback with key takeaways and next steps
   5. SSML generation → Gemini LLM creates structured speech markup from feedback
-  6. TTS generation → Gemini 2.0 converts SSML to audio; store audio; save all artifacts/URLs to DB
+  6. TTS generation → Gemini 2.0 converts SSML to audio; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
+
+* **Audio Playback Strategy**:
+  - **Format Optimization**: Convert TTS output from WAV to AAC/MP3 for 75%+ file size reduction
+  - **Cross-Platform Compatibility**: AAC primary (iOS/Android), MP3 fallback (universal), OGG for web
+  - **Client Playback**: Use `react-native-video` for unified video/audio playback across platforms
+  - **Audio-Only Fallback**: `react-native-sound` if needed for dedicated audio-only files
+  - **Web Fallback**: HTML5 `<audio>` element with multiple format sources
+  - **Performance**: Compressed formats reduce load times and memory consumption on mobile devices
+  - **User Experience**: Require user interaction to initiate audio playback (autoplay restrictions)
 
 * **Error Handling**:
   - Use discriminated union results in client hooks
@@ -215,7 +224,7 @@ flowchart TD
 * **Load Handling**:
   - Async analysis jobs; realtime updates; queue long tasks with pg_cron/webhooks if needed
 * **Caching Strategies**:
-  - Cache LLM/TTS for identical SSML; CDN for `processed` artifacts
+  - Cache LLM/TTS for identical SSML; CDN for `processed` artifacts (AAC/MP3 audio files)
 * **Scaling**:
   - Horizontal scale Edge Functions; Storage/CDN scales automatically; DB indexes on `analyses.user_id`, `created_at`
 
@@ -265,6 +274,7 @@ flowchart TD
 * **External**: 
   - **Core**: Expo, Tamagui, Supabase, TanStack Query, Zustand
   - **Native Pose**: react-native-fast-tflite, react-native-vision-camera, react-native-skia, react-native-worklets-core, react-native-video
+  - **Audio Playback**: react-native-video (primary), react-native-sound (fallback for audio-only)
   - **Web Pose**: @tensorflow/tfjs, @tensorflow-models/pose-detection, @tensorflow/tfjs-backend-webgpu
   - **AI Services**: TTS provider (Gemini 2.0), LLM provider (Gemini 2.5)
   - **Models**: MoveNet Lightning (movenet_lightning_int8.tflite)
