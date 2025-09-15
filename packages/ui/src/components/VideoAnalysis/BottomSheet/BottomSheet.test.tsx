@@ -1,5 +1,9 @@
 import { render } from '@testing-library/react-native'
+import '@testing-library/jest-dom'
 import { BottomSheet } from './BottomSheet'
+// TestProviders import removed as it's not used
+
+// Test providers setup
 
 const mockFeedbackItems = [
   {

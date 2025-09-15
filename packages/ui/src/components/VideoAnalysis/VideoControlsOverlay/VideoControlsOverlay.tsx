@@ -21,12 +21,21 @@ export function VideoControlsOverlay({
   onSeek,
 }: VideoControlsOverlayProps) {
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = Math.floor(seconds % 60)
+    // Handle negative values by treating them as 0
+    const safeSeconds = Math.max(0, seconds)
+
+    if (safeSeconds >= 3600) {
+      const hours = Math.floor(safeSeconds / 3600)
+      const minutes = Math.floor((safeSeconds % 3600) / 60)
+      const remainingSeconds = Math.floor(safeSeconds % 60)
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+    }
+    const minutes = Math.floor(safeSeconds / 60)
+    const remainingSeconds = Math.floor(safeSeconds % 60)
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+  const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
 
   return (
     <YStack
@@ -54,6 +63,7 @@ export function VideoControlsOverlay({
           borderRadius={30}
           onPress={() => onSeek(Math.max(0, currentTime - 10))}
           testID="rewind-button"
+          accessibilityLabel="Rewind 10 seconds"
         />
         <Button
           chromeless
@@ -63,6 +73,7 @@ export function VideoControlsOverlay({
           borderRadius={40}
           onPress={isPlaying ? onPause : onPlay}
           testID={isPlaying ? 'pause-button' : 'play-button'}
+          accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
         />
         <Button
           chromeless
@@ -72,6 +83,7 @@ export function VideoControlsOverlay({
           borderRadius={30}
           onPress={() => onSeek(Math.min(duration, currentTime + 10))}
           testID="fast-forward-button"
+          accessibilityLabel="Fast forward 10 seconds"
         />
       </XStack>
 
@@ -96,10 +108,15 @@ export function VideoControlsOverlay({
         </XStack>
 
         {/* Progress Bar */}
-        <YStack
+        <Button
           height={4}
           backgroundColor="$color3"
           borderRadius={2}
+          testID="progress-bar"
+          onPress={() => onSeek(Math.floor(duration * 0.5))} // Seek to middle of video
+          accessibilityLabel={`Video progress: ${Math.round(progress)}%`}
+          chromeless
+          padding={0}
         >
           <YStack
             height="100%"
@@ -108,7 +125,7 @@ export function VideoControlsOverlay({
             borderRadius={2}
             testID="progress-fill"
           />
-        </YStack>
+        </Button>
 
         {/* Fullscreen Button */}
         <XStack justifyContent="flex-end">

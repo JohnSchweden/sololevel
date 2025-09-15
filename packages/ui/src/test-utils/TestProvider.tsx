@@ -3,10 +3,24 @@
  * Provides consistent test environment setup with customizable options
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RenderOptions, render } from '@testing-library/react'
 import React from 'react'
 import { TamaguiProvider } from 'tamagui'
 import config from '../config/tamagui.config'
+
+// Lazy load react-native render to avoid issues in web environments
+let renderNative: any = null
+const getRenderNative = () => {
+  if (!renderNative) {
+    try {
+      renderNative = require('@testing-library/react-native').render
+    } catch {
+      // Not in a React Native environment
+    }
+  }
+  return renderNative
+}
 
 export interface TestProviderProps {
   children: React.ReactNode
@@ -14,6 +28,7 @@ export interface TestProviderProps {
   theme?: 'light' | 'dark' | 'auto'
   locale?: string
   disableAnimations?: boolean
+  queryClient?: QueryClient
 }
 
 export interface RenderWithProviderOptions extends Omit<RenderOptions, 'wrapper'> {
@@ -21,18 +36,34 @@ export interface RenderWithProviderOptions extends Omit<RenderOptions, 'wrapper'
   theme?: 'light' | 'dark' | 'auto'
   locale?: string
   disableAnimations?: boolean
+  queryClient?: QueryClient
 }
 
 /**
  * Enhanced TestProvider component with customizable options
  * Supports theme overrides, custom config, and animation disabling
  */
+// Create a test query client
+const createTestQueryClient = (customQueryClient?: QueryClient) =>
+  customQueryClient ||
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  })
+
 export function TestProvider({
   children,
   config: customConfig = config,
   //theme = 'light',
   //locale = 'en',
   disableAnimations = true,
+  queryClient,
 }: TestProviderProps) {
   // Create a test-friendly config
   const testConfig = {
@@ -46,7 +77,13 @@ export function TestProvider({
       : customConfig.animations,
   }
 
-  return <TamaguiProvider config={testConfig}>{children}</TamaguiProvider>
+  const testQueryClient = createTestQueryClient(queryClient)
+
+  return (
+    <QueryClientProvider client={testQueryClient}>
+      <TamaguiProvider config={testConfig}>{children}</TamaguiProvider>
+    </QueryClientProvider>
+  )
 }
 
 /**
@@ -57,7 +94,14 @@ export function renderWithProvider(
   component: React.ReactElement,
   options: RenderWithProviderOptions = {}
 ) {
-  const { config: customConfig, theme, locale, disableAnimations, ...renderOptions } = options
+  const {
+    config: customConfig,
+    theme,
+    locale,
+    disableAnimations,
+    queryClient,
+    ...renderOptions
+  } = options
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <TestProvider
@@ -65,6 +109,7 @@ export function renderWithProvider(
       theme={theme}
       locale={locale}
       disableAnimations={disableAnimations}
+      queryClient={queryClient}
     >
       {children}
     </TestProvider>
@@ -92,6 +137,48 @@ export function createRenderWithProvider(defaultOptions: RenderWithProviderOptio
   return (component: React.ReactElement, options: RenderWithProviderOptions = {}) => {
     return renderWithProvider(component, { ...defaultOptions, ...options })
   }
+}
+
+/**
+ * Native render function with TestProvider wrapper for React Native tests
+ * Automatically detects and uses @testing-library/react-native
+ */
+export function renderWithProviderNative(
+  component: React.ReactElement,
+  options: RenderWithProviderOptions = {}
+) {
+  const renderFn = getRenderNative()
+  if (!renderFn) {
+    throw new Error(
+      'renderWithProviderNative requires @testing-library/react-native to be installed'
+    )
+  }
+
+  const {
+    config: customConfig,
+    theme,
+    locale,
+    disableAnimations,
+    queryClient,
+    ...renderOptions
+  } = options
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <TestProvider
+      config={customConfig}
+      theme={theme}
+      locale={locale}
+      disableAnimations={disableAnimations}
+      queryClient={queryClient}
+    >
+      {children}
+    </TestProvider>
+  )
+
+  return renderFn(component, {
+    ...renderOptions,
+    wrapper: Wrapper,
+  })
 }
 
 /**

@@ -11,14 +11,52 @@ alwaysApply: false
 - **Web/Node.js: Vitest**
 - **NEVER use Vitest for React Native testing**
 
+## MANDATORY: Follow Enhanced Testing Patterns
+**BEFORE writing any React Native tests, consult: `docs/workflow/custom_modes/testing-workflow-enhanced.md`**
+
+### Critical React Native Testing Rules (Learned from Sept 2025 Fixes):
+1. **Query Strategy**: ALWAYS use `getByLabelText('exact-label')` instead of `getByRole('button', { name: /text/i })`
+2. **Event Handling**: ALWAYS use `fireEvent.press()` instead of `fireEvent.click()` for React Native
+3. **State Assertions**: NEVER use DOM matchers like `toBeDisabled()` - check component props directly
+4. **Focus Testing**: NEVER use `.focus()` method or `document.activeElement` in React Native tests
+5. **Component Mocking**: NEVER use `jest.requireActual('react-native')` - causes TurboModule errors
+6. **Accessibility**: ALL testable components MUST have `accessibilityLabel` prop
+7. **TestID Expectations**: DON'T assume testIDs exist - use accessibility labels instead
+8. **Portal Components**: DON'T test Dialog/Modal portal rendering - focus on props and callbacks
+9. **Mock Coverage**: ALL used Tamagui components MUST be mocked in jest.setup.js
+
 ## Environment-Specific Testing
 
 ### React Native/Expo (Jest)
 - Use `jest-expo` preset
 - Test with `@testing-library/react-native`
-- Mock React Native modules properly
+- **CRITICAL**: Mock React Native modules selectively (see enhanced workflow)
 - Use `jsdom` environment for component tests
 - Test user interactions, not implementation details
+- **MANDATORY**: Follow patterns in `testing-workflow-enhanced.md`
+
+#### Common Anti-Patterns to Avoid:
+```typescript
+// ❌ WRONG - Don't use DOM-style queries
+const button = screen.getByRole('button', { name: /discard/i })
+fireEvent.click(button)
+expect(button).toBeDisabled()
+
+// ✅ CORRECT - Use React Native patterns
+const button = screen.getByLabelText('Discard recording')
+fireEvent.press(button)
+expect(button.props.disabled).toBe(true)
+```
+
+```typescript
+// ❌ WRONG - Don't test portal rendering
+expect(screen.getByText('Dialog Title')).toBeTruthy()
+expect(document.activeElement).toBe(button)
+
+// ✅ CORRECT - Test component behavior
+expect(screen.getByLabelText('Dialog content')).toBeTruthy()
+expect(mockOnOpenChange).toHaveBeenCalled()
+```
 
 ### Jest Import Guidelines (React Native)
 - **With jest-expo preset**: No imports needed - Jest globals (`describe`, `it`, `expect`, `jest.fn()`) are automatically available
@@ -168,6 +206,109 @@ Object.defineProperty(window, 'matchMedia', {
 - ❌ Edge cases that users never encounter
 - ❌ Platform-specific behavior unless critical
 
+## CRITICAL: React Native Testing Library Patterns (MANDATORY)
+
+### Query Strategy (ALWAYS)
+- ✅ **React Native**: `getByLabelText('exact-label')` instead of `getByTestId()`
+- ✅ **Web**: `getByTestId('component-id')` for reliable queries
+- ❌ **NEVER**: `document.querySelector()` or `document.querySelectorAll()`
+
+### Event Handling (ALWAYS)
+- ✅ **React Native**: `fireEvent.press(element)` for touch/press events
+- ✅ **Web**: `fireEvent.click(element)` for mouse clicks
+- ❌ **NEVER**: Mix click/press between platforms
+
+### State Assertions (ALWAYS)
+- ✅ **React Native**: `expect(button.props.disabled).toBe(true)` (check props)
+- ✅ **Web**: `expect(button).toBeDisabled()` (DOM matchers OK)
+- ❌ **NEVER**: Use DOM matchers on React Native components
+
+### Component Mocking (MANDATORY)
+**ALWAYS mock these in jest.setup.js:**
+- ✅ All used Tamagui components (`Spinner`, `Circle`, `SizableText`, etc.)
+- ✅ Expo modules (`CameraView`, `FileSystem`, `DocumentPicker`)
+- ✅ Browser APIs (`window.getComputedStyle`, `ResizeObserver`)
+- ✅ External services (`VideoStorageService`, `SupabaseClient`)
+
+### Accessibility Requirements (MANDATORY)
+```typescript
+// ✅ CORRECT - Always add accessibilityLabel
+<Button accessibilityLabel="Start recording" onPress={onStart} />
+<Text accessibilityLabel="Recording time: 00:00">{time}</Text>
+
+// ❌ WRONG - No accessibility label
+<Button onPress={onStart} />
+```
+
+### Component Types for Testing
+```typescript
+// ✅ CORRECT - Use Button for clickable elements in tests
+<Button onPress={onSeek} testID="progress-bar" chromeless padding={0}>
+  {/* Progress content */}
+</Button>
+
+// ❌ WRONG - YStack with onPress may not work in tests
+<YStack onPress={onSeek} testID="progress-bar">
+  {/* Progress content */}
+</YStack>
+```
+
+## Common Error Patterns & Fixes
+
+### Error: "Cannot read properties of undefined (reading 'localUri')"
+**Cause**: Incomplete mock for async services
+**Fix**: Mock service with proper async return values
+```typescript
+// ✅ CORRECT
+jest.mock('@app/services/VideoStorageService', () => ({
+  VideoStorageService: {
+    saveVideo: jest.fn().mockResolvedValue({
+      localUri: 'file:///videos/test.mp4',
+      filename: 'test.mp4',
+      size: 1024000,
+      metadata: { duration: 30, format: 'mp4' }
+    })
+  }
+}))
+```
+
+### Error: "Unable to find an element with testID: component"
+**Cause**: Wrong query method for platform
+**Fix**: Use platform-appropriate queries
+```typescript
+// ✅ React Native
+expect(screen.getByLabelText('Play video')).toBeTruthy()
+
+// ✅ Web
+expect(screen.getByTestId('play-button')).toBeTruthy()
+```
+
+### Error: "TypeError: _react.fireEvent.press is not a function"
+**Cause**: Using wrong event type for platform
+**Fix**: Import and use correct fireEvent
+```typescript
+import { fireEvent } from '@testing-library/react'
+
+// ✅ React Native
+fireEvent.press(button)
+
+// ✅ Web
+fireEvent.click(button)
+```
+
+### Error: "Element type is invalid: expected a string... but got: undefined"
+**Cause**: Missing Tamagui component mocks
+**Fix**: Add all used components to jest.setup.js
+```typescript
+jest.mock('tamagui', () => ({
+  // ... existing mocks
+  Spinner: mockComponent('Spinner'),
+  SizableText: mockTextComponent,
+  Circle: mockComponent('Circle'),
+  // Add any newly used components here
+}))
+```
+
 ## Test Review Questions
 1. "Would a user notice if this test failed?"
 2. "Is this testing behavior or implementation?"
@@ -184,6 +325,16 @@ Before declaring something "broken":
 □ Test user interactions, not implementation details
 □ Try manual mocks for complex module resolution issues
 □ For test debugging, follow @debugging.mdc → "Test Debugging" section
+
+### CRITICAL: React Native Test Validation (MANDATORY)
+□ Component has `accessibilityLabel` for ALL interactive elements
+□ Using `getByLabelText()` instead of `getByTestId()` for React Native
+□ Using `fireEvent.press()` instead of `fireEvent.click()` for React Native
+□ Using `props.disabled` instead of `toBeDisabled()` for state assertions
+□ ALL used Tamagui components are mocked in jest.setup.js
+□ Expo modules are properly mocked with correct interfaces
+□ Browser APIs are mocked if testing CSS/styling properties
+□ Service mocks return proper data structures with expected properties
 
 ## Test Efficiency Guidelines
 

@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const ProcessingState: Story = {
   args: {
-    videoId: 'sample-video-123',
+    analysisJobId: 1,
     initialStatus: 'processing',
     onBack: () => console.log('Back pressed'),
     onMenuPress: () => console.log('Menu pressed'),
@@ -39,7 +39,7 @@ export const ProcessingState: Story = {
 
 export const ReadyState: Story = {
   args: {
-    videoId: 'sample-video-123',
+    analysisJobId: 1,
     initialStatus: 'ready',
     onBack: () => console.log('Back pressed'),
     onMenuPress: () => console.log('Menu pressed'),
@@ -63,7 +63,7 @@ export const ReadyState: Story = {
 
 export const PlayingState: Story = {
   args: {
-    videoId: 'sample-video-123',
+    analysisJobId: 1,
     initialStatus: 'playing',
     onBack: () => console.log('Back pressed'),
     onMenuPress: () => console.log('Menu pressed'),
@@ -87,7 +87,7 @@ export const PlayingState: Story = {
 
 export const PausedState: Story = {
   args: {
-    videoId: 'sample-video-123',
+    analysisJobId: 1,
     initialStatus: 'paused',
     onBack: () => console.log('Back pressed'),
     onMenuPress: () => console.log('Menu pressed'),
@@ -111,7 +111,7 @@ export const PausedState: Story = {
 
 export const WithCallbacks: Story = {
   args: {
-    videoId: 'sample-video-123',
+    analysisJobId: 1,
     initialStatus: 'ready',
     onBack: () => alert('Back button pressed!'),
     onMenuPress: () => alert('Menu button pressed!'),

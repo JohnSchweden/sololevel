@@ -3,7 +3,7 @@
  * Tests end-to-end integration between components and hooks
  */
 
-import { act, render, renderHook, screen } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
@@ -57,7 +57,7 @@ describe('Integration Tests', () => {
 
       // Verify UI reflects hook state
       expect(recordingResult.current.recordingState).toBe(RecordingState.RECORDING)
-      expect(document.querySelector('[accessibilitylabel="Pause recording"]')).toBeTruthy()
+      expect(screen.getByLabelText('Pause recording')).toBeTruthy()
 
       // Pause recording and verify state change
       act(() => {
@@ -82,7 +82,7 @@ describe('Integration Tests', () => {
       )
 
       expect(recordingResult.current.recordingState).toBe(RecordingState.PAUSED)
-      expect(document.querySelector('[accessibilitylabel="Resume recording"]')).toBeTruthy()
+      expect(screen.getByLabelText('Resume recording')).toBeTruthy()
     })
 
     it('handles complete recording session lifecycle', () => {
@@ -141,9 +141,9 @@ describe('Integration Tests', () => {
       )
 
       // Start recording from idle controls
-      const recordButton = document.querySelector('[accessibilitylabel="Start recording"]')
+      const recordButton = screen.getByLabelText('Start recording')
       if (recordButton) {
-        ;(recordButton as HTMLElement).click()
+        fireEvent.click(recordButton)
       }
 
       // Verify recording state machine was triggered
@@ -315,7 +315,7 @@ describe('Integration Tests', () => {
       // Discard recording
       const discardButton = screen.getByLabelText('Discard recording')
       if (discardButton) {
-        ;(discardButton as HTMLElement).click()
+        fireEvent.click(discardButton)
       }
 
       // Verify discard action was called
@@ -377,7 +377,7 @@ describe('Integration Tests', () => {
 
       // Verify state consistency
       expect(recordingResult.current.recordingState).toBe(RecordingState.RECORDING)
-      expect(document.querySelector('[accessibilitylabel="Pause recording"]')).toBeTruthy()
+      expect(screen.getByLabelText('Pause recording')).toBeTruthy()
     })
 
     it('handles rapid state changes gracefully', () => {
@@ -464,7 +464,7 @@ describe('Integration Tests', () => {
       )
 
       // Verify all components render without performance issues
-      expect(document.querySelector('[accessibilitylabel="Start recording"]')).toBeTruthy()
+      expect(screen.getByLabelText('Start recording')).toBeTruthy()
       // Note: Camera zoom level and recording state may vary depending on mock state
     })
   })

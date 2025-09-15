@@ -334,9 +334,8 @@ describe('CameraPreview (Expo Camera)', () => {
           permissionGranted={false}
         />
       )
-      jest.runAllTimers()
 
-      // Assert
+      // Assert - error should be called synchronously when permission is denied
       expect(mockOnError).toHaveBeenCalledWith('Camera permission is required to use this feature')
     })
   })

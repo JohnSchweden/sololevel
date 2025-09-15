@@ -13,13 +13,20 @@ import { BottomSheet } from '@my/ui'
 import { SocialIcons } from '@my/ui'
 import { VideoTitle } from '@my/ui'
 
+// Real-time integration hooks
+import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
+import { useAnalysisJobStatus } from '../../stores/analysisStatus'
+
+// API services
+import { useQuery } from '@tanstack/react-query'
+// Mock API services for now - will be implemented in Phase 3
+const getAnalysisJob = (_id: number) => Promise.resolve(null)
+const getAnalysisResults = (_job: any) => null
+
+// Error handling components
+import { ConnectionErrorBanner } from '../../components/ConnectionErrorBanner'
+
 // Inline type definitions for integration
-interface PoseData {
-  id: string
-  timestamp: number
-  joints: any[]
-  confidence: number
-}
 
 interface FeedbackMessage {
   id: string
@@ -48,54 +55,74 @@ interface SocialStats {
 }
 
 export interface VideoAnalysisScreenProps {
-  videoId: string
+  analysisJobId: number
+  videoRecordingId?: number
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
   onBack?: () => void
   onMenuPress?: () => void
 }
 
 export function VideoAnalysisScreen({
-  initialStatus = 'ready',
+  analysisJobId,
+  // videoRecordingId and initialStatus are available but not used in current implementation
   onBack,
   onMenuPress,
 }: VideoAnalysisScreenProps) {
+  // Real-time integration
+  const realtimeData = useVideoAnalysisRealtime(analysisJobId)
+  const jobStatus = useAnalysisJobStatus(analysisJobId)
+
+  // Fetch analysis job data
+  const { data: analysisJob } = useQuery({
+    queryKey: ['analysis', analysisJobId],
+    queryFn: () => getAnalysisJob(analysisJobId),
+    enabled: !!analysisJobId,
+  })
+
   // Screen state
-  const [status, setStatus] = useState<'processing' | 'ready' | 'playing' | 'paused'>(initialStatus)
-  const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [showControls, setShowControls] = useState(true)
   const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<'feedback' | 'insights' | 'comments'>('feedback')
 
-  // Video and analysis data
-  const [videoUri, setVideoUri] = useState<string | null>(null)
-  const [title, setTitle] = useState<string | null>('Golf Swing Analysis')
+  // Derived state from real-time data
+  const status = jobStatus.isProcessing
+    ? 'processing'
+    : jobStatus.isCompleted
+      ? 'ready'
+      : jobStatus.isFailed
+        ? 'ready'
+        : 'processing'
+
+  // Local state for playback control
+  const [isPlaying, setIsPlaying] = useState(false)
+  const progress = jobStatus.progress / 100
+  const videoUri = (analysisJob as any)?.video_recordings?.filename || null
+  const [title, setTitle] = useState<string | null>(null)
   const [isTitleGenerating, setIsTitleGenerating] = useState(false)
 
-  // Mock data for development
-  const poseData: PoseData[] = []
-  const feedbackMessages: FeedbackMessage[] = [
-    {
-      id: '1',
-      timestamp: 1000,
-      text: 'Great posture! Keep your back straight.',
-      type: 'positive' as const,
-      category: 'posture' as const,
-      position: { x: 0.5, y: 0.3 },
-      isHighlighted: true,
-      isActive: true,
-    },
-    {
-      id: '2',
-      timestamp: 2000,
-      text: 'Bend your knees a little bit for better stability.',
-      type: 'suggestion' as const,
-      category: 'movement' as const,
-      position: { x: 0.7, y: 0.5 },
-      isHighlighted: false,
+  // Real data from analysis results
+  const analysisResults = jobStatus.results ? getAnalysisResults(jobStatus.job!) : null
+  const poseData = realtimeData.poseHistory || []
+  const currentPose = realtimeData.currentPose
+
+  // Transform analysis results to feedback messages
+  const feedbackMessages: FeedbackMessage[] =
+    (analysisResults as any)?.recommendations?.map((rec: any, index: number) => ({
+      id: `feedback-${index}`,
+      timestamp: (index + 1) * 1000, // Distribute across video timeline
+      text: rec.message,
+      type:
+        rec.priority === 'high'
+          ? 'correction'
+          : rec.priority === 'medium'
+            ? 'suggestion'
+            : 'positive',
+      category: rec.type as 'posture' | 'movement' | 'grip' | 'voice',
+      position: { x: 0.5 + (index % 2) * 0.2, y: 0.3 + (index % 3) * 0.2 },
+      isHighlighted: rec.priority === 'high',
       isActive: false,
-    },
-  ]
+    })) || []
 
   const [socialStats, setSocialStats] = useState<
     Omit<SocialStats, 'onLike' | 'onComment' | 'onBookmark' | 'onShare'>
@@ -130,39 +157,34 @@ export function VideoAnalysisScreen({
     },
   ]
 
-  // Simulate processing completion
+  // Update title from analysis results
   useEffect(() => {
-    if (status === 'processing') {
-      const interval = setInterval(() => {
-        setProgress((prev: number) => {
-          if (prev >= 1) {
-            setStatus('ready')
-            setVideoUri('https://example.com/sample-video.mp4') // Mock video URI
-            clearInterval(interval)
-            return 1
-          }
-          return prev + 0.1
-        })
-      }, 500)
-      return () => clearInterval(interval)
-    }
-    // No-op for other states
-    return
-  }, [status])
-
-  // Simulate title generation
-  useEffect(() => {
-    if (status === 'ready' && !title) {
+    if ((analysisResults as any)?.summary_text && !title) {
       setIsTitleGenerating(true)
+      // Extract title from summary or generate from analysis type
+      const generatedTitle =
+        (analysisResults as any).summary_text.split('.')[0] || 'Analysis Complete'
       setTimeout(() => {
-        setTitle('Golf Swing Analysis')
+        setTitle(generatedTitle)
         setIsTitleGenerating(false)
-      }, 2000)
+      }, 1000)
     }
-  }, [status, title])
+  }, [analysisResults, title])
+
+  // Connection error handling state
+  const [showConnectionError, setShowConnectionError] = useState(false)
+
+  // Handle connection status changes
+  useEffect(() => {
+    if (!realtimeData.isConnected && realtimeData.connectionError) {
+      setShowConnectionError(true)
+    } else if (realtimeData.isConnected) {
+      setShowConnectionError(false)
+    }
+  }, [realtimeData.isConnected, realtimeData.connectionError])
 
   const handlePlayPause = () => {
-    setStatus(status === 'playing' ? 'paused' : 'playing')
+    setIsPlaying(!isPlaying)
   }
 
   const handleSeek = (time: number) => {
@@ -249,6 +271,17 @@ export function VideoAnalysisScreen({
         position="relative"
         backgroundColor="$color1"
       >
+        {/* Connection Error Banner */}
+        <ConnectionErrorBanner
+          isVisible={showConnectionError}
+          error={realtimeData.connectionError}
+          reconnectAttempts={realtimeData.reconnectAttempts}
+          onRetry={() => {
+            // Trigger reconnection by resubscribing
+            setShowConnectionError(false)
+          }}
+          onDismiss={() => setShowConnectionError(false)}
+        />
         {status === 'processing' ? (
           <YStack
             flex={1}
@@ -258,11 +291,19 @@ export function VideoAnalysisScreen({
           >
             <ProcessingOverlay
               progress={progress}
-              currentStep="Processing video analysis..."
-              estimatedTime={30}
-              onCancel={() => setStatus('ready')}
-              onViewResults={() => setStatus('ready')}
-              isComplete={false}
+              currentStep={
+                jobStatus.isProcessing
+                  ? 'Processing video analysis...'
+                  : jobStatus.isFailed
+                    ? 'Analysis failed'
+                    : 'Analysis complete'
+              }
+              estimatedTime={jobStatus.isProcessing ? 30 : 0}
+              onCancel={() => onBack?.()}
+              onViewResults={() => {
+                /* Analysis complete, already showing results */
+              }}
+              isComplete={jobStatus.isCompleted}
             />
           </YStack>
         ) : (
@@ -276,7 +317,7 @@ export function VideoAnalysisScreen({
               {videoUri && (
                 <VideoAnalysisPlayer
                   videoUri={videoUri}
-                  isPlaying={status === 'playing'}
+                  isPlaying={isPlaying}
                   currentTime={currentTime}
                   duration={0}
                   showControls={showControls}
@@ -298,8 +339,8 @@ export function VideoAnalysisScreen({
 
               {/* Overlays */}
               <MotionCaptureOverlay
-                poseData={poseData}
-                isVisible={true}
+                poseData={currentPose ? [currentPose] : poseData}
+                isVisible={jobStatus.isCompleted && !!currentPose}
               />
 
               <FeedbackBubbles
@@ -308,17 +349,17 @@ export function VideoAnalysisScreen({
               />
 
               <AudioFeedbackOverlay
-                audioUrl="https://example.com/audio.mp3"
+                audioUrl={(analysisJob as any)?.audio_url || null}
                 isPlaying={false}
                 currentTime={0}
                 duration={10}
                 onPlayPause={() => console.log('Audio play/pause')}
                 onClose={() => console.log('Close audio')}
-                isVisible={false}
+                isVisible={!!(analysisJob as any)?.audio_url}
               />
 
               <VideoControlsOverlay
-                isPlaying={status === 'playing'}
+                isPlaying={isPlaying}
                 currentTime={currentTime}
                 duration={0}
                 showControls={showControls}

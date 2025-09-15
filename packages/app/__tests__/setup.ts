@@ -126,6 +126,186 @@ jest.mock('@my/config', () => ({
   FeedbackItem: {},
 }))
 
+// Mock @api/src/supabase
+jest.mock('@api/src/supabase', () => ({
+  supabase: {
+    channel: jest.fn(() => ({
+      on: jest.fn().mockReturnThis(),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+    })),
+    realtime: {
+      onConnStateChange: jest.fn(),
+    },
+  },
+}))
+
+// Mock TanStack Query
+jest.mock('@tanstack/react-query', () => ({
+  QueryClient: jest.fn().mockImplementation(() => ({
+    getQueryData: jest.fn(),
+    setQueryData: jest.fn(),
+    invalidateQueries: jest.fn(),
+    refetchQueries: jest.fn(),
+    cancelQueries: jest.fn(),
+    removeQueries: jest.fn(),
+    clear: jest.fn(),
+    mount: jest.fn(),
+    unmount: jest.fn(),
+    getDefaultOptions: jest.fn(),
+    setDefaultOptions: jest.fn(),
+    getQueryCache: jest.fn(),
+    getMutationCache: jest.fn(),
+    getLogger: jest.fn(),
+    setLogger: jest.fn(),
+    isFetching: jest.fn(),
+    isMutating: jest.fn(),
+    getQueryState: jest.fn(),
+    getMutationState: jest.fn(),
+    ensureQueryData: jest.fn(),
+    prefetchQuery: jest.fn(),
+    fetchQuery: jest.fn(),
+    executeMutation: jest.fn(),
+    resumePausedMutations: jest.fn(),
+    getQueryDefaults: jest.fn(),
+    setQueryDefaults: jest.fn(),
+    getMutationDefaults: jest.fn(),
+    setMutationDefaults: jest.fn(),
+    getQueryClient: jest.fn(),
+    setQueryClient: jest.fn(),
+  })),
+  QueryClientProvider: ({ children }: { children: any }) => children,
+  useQuery: jest.fn(() => ({
+    data: null,
+    error: null,
+    isLoading: false,
+    isError: false,
+    isSuccess: false,
+    refetch: jest.fn(),
+  })),
+  useMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isLoading: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    data: null,
+    reset: jest.fn(),
+  })),
+  useQueryClient: jest.fn(() => ({
+    getQueryData: jest.fn(),
+    setQueryData: jest.fn(),
+    invalidateQueries: jest.fn(),
+    refetchQueries: jest.fn(),
+  })),
+}))
+
+// Mock Zustand stores
+jest.mock('../stores/MVPposeStore', () => ({
+  usePoseStore: jest.fn(() => ({
+    currentPose: null,
+    poseHistory: [],
+    processingQuality: 'medium',
+    errors: [],
+    processPose: jest.fn(),
+    addError: jest.fn(),
+    clearErrors: jest.fn(),
+    clearHistory: jest.fn(),
+  })),
+}))
+
+jest.mock('../stores/analysisStatus', () => ({
+  useAnalysisStatusStore: jest.fn(() => ({
+    updateJob: jest.fn(),
+    subscribeToJob: jest.fn(),
+    unsubscribeFromJob: jest.fn(),
+  })),
+}))
+
+// Mock Tamagui components
+jest.mock('tamagui', () => {
+  const React = require('react')
+  return {
+    Button: ({ children, onPress, testID, ...props }: any) =>
+      React.createElement('TouchableOpacity', { onPress, testID, ...props }, children),
+    XStack: ({ children, testID, ...props }: any) =>
+      React.createElement('View', { testID, style: { flexDirection: 'row' }, ...props }, children),
+    YStack: ({ children, testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID, style: { flexDirection: 'column' }, ...props },
+        children
+      ),
+  }
+})
+
+// Mock Tamagui icons
+jest.mock('@tamagui/lucide-icons', () => ({
+  ChevronLeft: ({ testID, ...props }: any) => {
+    const React = require('react')
+    return React.createElement('View', { testID: testID || 'chevron-left', ...props }, '←')
+  },
+  MoreVertical: ({ testID, ...props }: any) => {
+    const React = require('react')
+    return React.createElement('View', { testID: testID || 'more-vertical', ...props }, '⋮')
+  },
+}))
+
+// Mock @my/ui components
+jest.mock('@my/ui', () => {
+  const React = require('react')
+  return {
+    ProcessingOverlay: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'processing-overlay', ...props },
+        'Processing'
+      ),
+    VideoAnalysisPlayer: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'video-player-container', ...props },
+        'Video Player'
+      ),
+    MotionCaptureOverlay: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'motion-capture-overlay', ...props },
+        'Motion Capture'
+      ),
+    FeedbackBubbles: ({ testID, ...props }: any) =>
+      React.createElement('View', { testID: testID || 'feedback-bubbles', ...props }, 'Feedback'),
+    AudioFeedbackOverlay: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'audio-feedback-overlay', ...props },
+        'Audio'
+      ),
+    VideoControlsOverlay: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'video-controls-overlay', ...props },
+        'Controls'
+      ),
+    BottomSheet: ({ testID, ...props }: any) =>
+      React.createElement('View', { testID: testID || 'bottom-sheet', ...props }, 'Bottom Sheet'),
+    SocialIcons: ({ testID, ...props }: any) =>
+      React.createElement('View', { testID: testID || 'social-icons', ...props }, 'Social'),
+    VideoTitle: ({ testID, ...props }: any) =>
+      React.createElement('View', { testID: testID || 'video-title', ...props }, 'Video Title'),
+  }
+})
+
+// Mock React Native StyleSheet
+jest.mock('react-native/Libraries/StyleSheet/StyleSheet', () => ({
+  flatten: jest.fn((style) => style),
+  create: jest.fn((styles) => styles),
+  absoluteFill: {},
+  absoluteFillObject: {},
+  hairlineWidth: 1,
+}))
+
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,

@@ -17,6 +17,16 @@ export function ProcessingOverlay({
   onViewResults,
   isComplete,
 }: ProcessingOverlayProps) {
+  // Format time display
+  const formatTime = (seconds: number) => {
+    if (seconds === 0) return 'Almost done...'
+    if (seconds < 60) return `${seconds} seconds remaining`
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    if (remainingSeconds === 0) return `${minutes} minute${minutes > 1 ? 's' : ''} remaining`
+    return `${minutes} minute${minutes > 1 ? 's' : ''} ${remainingSeconds} seconds remaining`
+  }
+
   return (
     <YStack
       position="absolute"
@@ -26,6 +36,8 @@ export function ProcessingOverlay({
       alignItems="center"
       padding="$4"
       gap="$6"
+      testID="processing-overlay"
+      accessibilityLabel="Processing overlay"
     >
       {/* Processing Indicator */}
       <YStack
@@ -35,6 +47,8 @@ export function ProcessingOverlay({
         borderRadius={20}
         justifyContent="center"
         alignItems="center"
+        testID="processing-spinner"
+        accessibilityLabel="Processing spinner"
       >
         <Spinner
           size="small"
@@ -52,6 +66,7 @@ export function ProcessingOverlay({
           fontWeight="600"
           color="white"
           textAlign="center"
+          accessibilityLabel={`Current step: ${currentStep}`}
         >
           {currentStep}
         </Text>
@@ -63,20 +78,32 @@ export function ProcessingOverlay({
           Stage {Math.ceil(progress / 20)} of 5
         </Text>
 
-        {/* Simple Progress Bar */}
+        {/* Progress Bar */}
         <YStack
           width="80%"
           height={4}
           backgroundColor="$gray8"
           borderRadius="$1"
+          testID="progress-bar"
+          accessibilityLabel="Progress bar"
         >
           <YStack
             height="100%"
-            width={`${progress}%`}
+            width={`${Math.min(Math.max(progress * 100, 0), 100)}%`}
             backgroundColor="$blue9"
             borderRadius="$1"
           />
         </YStack>
+
+        {/* Progress Percentage */}
+        <Text
+          fontSize="$3"
+          color="$gray10"
+          textAlign="center"
+          accessibilityLabel={`Processing progress: ${Math.round(Math.min(Math.max(progress * 100, 0), 100))}%`}
+        >
+          {`${Math.round(Math.min(Math.max(progress * 100, 0), 100))}%`}
+        </Text>
       </YStack>
 
       {/* Analysis Status */}
@@ -105,7 +132,7 @@ export function ProcessingOverlay({
           color="$gray10"
           textAlign="center"
         >
-          Estimated time remaining: {estimatedTime}s
+          {formatTime(estimatedTime)}
         </Text>
       </YStack>
 
@@ -120,19 +147,19 @@ export function ProcessingOverlay({
           variant="outlined"
           flex={1}
           onPress={onCancel}
-          testID="cancel-button"
+          accessibilityLabel="Cancel processing"
         >
-          Cancel
+          <Text testID="cancel-button">Cancel</Text>
         </Button>
         <Button
           chromeless
           flex={1}
           onPress={onViewResults}
           disabled={!isComplete}
-          testID="view-results-button"
           opacity={isComplete ? 1 : 0.5}
+          accessibilityLabel="View analysis results"
         >
-          View Results
+          <Text testID="view-results-button">View Results</Text>
         </Button>
       </XStack>
     </YStack>

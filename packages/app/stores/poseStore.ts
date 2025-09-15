@@ -624,9 +624,7 @@ export const usePoseStore = create<PoseStore>()(
       ),
     ),
   ),
-);
-
-// Selector hooks for optimized subscriptions
+);// Selector hooks for optimized subscriptions
 export const usePoseDetectionState = () =>
   usePoseStore((state) => ({
     isInitialized: state.isInitialized,
@@ -660,3 +658,5 @@ export const usePoseIntegration = () =>
     performanceMetrics: state.performanceMetrics,
     thermalState: state.thermalState,
   }));
+
+

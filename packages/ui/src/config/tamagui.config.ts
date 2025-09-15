@@ -2,6 +2,14 @@ import { createTamagui } from 'tamagui'
 
 // Simple test configuration with minimal setup
 const config = createTamagui({
+  // Settings for Tamagui
+  settings: {
+    allowedStyleValues: 'somewhat-strict-web',
+    autocompleteSpecificTokens: 'except-special',
+    mediaPropOrder: true,
+    shouldAddPrefersColorThemes: true,
+    themeClassNameOnRoot: true,
+  },
   // Basic tokens for testing
   tokens: {
     color: {

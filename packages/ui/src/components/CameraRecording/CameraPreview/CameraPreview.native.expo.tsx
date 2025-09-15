@@ -333,6 +333,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     // Camera props with orientation handling
     const cameraProps = {
       ref: cameraRef,
+      testID: 'expo-camera',
       style: {
         flex: 1,
         width: '100%',

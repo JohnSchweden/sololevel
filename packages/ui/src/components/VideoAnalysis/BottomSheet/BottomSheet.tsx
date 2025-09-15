@@ -95,6 +95,7 @@ export function BottomSheet({
       shadowRadius={4}
       elevation={5}
       testID="bottom-sheet"
+      accessibilityLabel="Bottom sheet"
     >
       <YStack flex={1}>
         {/* Handle */}
@@ -102,6 +103,7 @@ export function BottomSheet({
           alignItems="center"
           paddingVertical="$2"
           testID="sheet-handle"
+          accessibilityLabel="Sheet handle"
         >
           <Button
             chromeless
@@ -128,6 +130,7 @@ export function BottomSheet({
               borderBottomWidth={1}
               borderBottomColor="$borderColor"
               testID="tab-navigation"
+              accessibilityLabel="Tab navigation"
             >
               {(['feedback', 'insights', 'comments'] as const).map((tab) => (
                 <Button

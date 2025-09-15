@@ -6,8 +6,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
-    deps: {
-      inline: ['react-native-svg'],
+    server: {
+      deps: {
+        inline: ['react-native-svg'],
+      },
     },
     coverage: {
       provider: 'v8',

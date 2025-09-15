@@ -327,8 +327,12 @@ export function createMockComponent(name: string) {
         : [iconElement]
     }
 
+    // Determine element type - use button for interactive elements, div for layout
+    const isInteractive = name === 'Button' || props.onPress
+    const elementType = isInteractive ? 'button' : 'div'
+
     return React.createElement(
-      name === 'Button' ? 'button' : 'div',
+      elementType,
       {
         ...domProps,
         ref,
