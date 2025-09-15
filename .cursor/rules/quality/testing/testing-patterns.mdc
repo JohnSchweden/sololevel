@@ -1,0 +1,316 @@
+---
+description: AAA pattern, test organization, and modern testing best practices
+globs: ["**/*.test.*", "**/*.spec.*"]
+parent: "quality/testing-unified"
+priority: high
+---
+
+# Testing Patterns & Organization (AAA + Modern Best Practices)
+
+## 🎯 AAA Pattern - MANDATORY
+**ALL tests must follow this structure for clarity and maintainability:**
+
+```typescript
+describe('ComponentName', () => {
+  it('should handle user interaction', () => {
+    // 🧪 ARRANGE: Set up test data, mocks, and component state
+    const mockProps = { onPress: jest.fn() }
+    const user = userEvent.setup()
+
+    // 🎬 ACT: Perform the action being tested
+    render(<ComponentName {...mockProps} />)
+    await user.click(screen.getByLabelText('Button'))
+
+    // ✅ ASSERT: Verify the expected outcome
+    expect(mockProps.onPress).toHaveBeenCalledTimes(1)
+  })
+})
+```
+
+## 🏗️ Test Independence & Isolation
+**Design each test to be completely self-contained:**
+
+```typescript
+describe('VideoControlsOverlay', () => {
+  beforeEach(() => {
+    jest.clearAllMocks() // Clean slate for each test
+  })
+
+  it('plays video when play button pressed', () => {
+    // 🧪 ARRANGE
+    const onPlay = jest.fn()
+    
+    // 🎬 ACT
+    render(<VideoControlsOverlay onPlay={onPlay} isPlaying={false} />)
+    fireEvent.press(screen.getByLabelText('Play video'))
+    
+    // ✅ ASSERT
+    expect(onPlay).toHaveBeenCalledTimes(1)
+  })
+
+  it('pauses video when pause button pressed', () => { 
+    // 🧪 ARRANGE - Completely independent
+    const onPause = jest.fn()
+    
+    // 🎬 ACT
+    render(<VideoControlsOverlay onPause={onPause} isPlaying={true} />)
+    fireEvent.press(screen.getByLabelText('Pause video'))
+    
+    // ✅ ASSERT
+    expect(onPause).toHaveBeenCalledTimes(1)
+  })
+})
+```
+
+## 📊 Data-Driven Testing Patterns
+**Separate test data from test logic for better maintainability:**
+
+```typescript
+// ✅ CORRECT - Data-driven test structure
+const progressTestScenarios = [
+  { progress: 0, expectedLabel: 'Video progress: 0% complete' },
+  { progress: 0.5, expectedLabel: 'Video progress: 50% complete' },
+  { progress: 1, expectedLabel: 'Video progress: 100% complete' }
+]
+
+describe('VideoControlsOverlay Progress', () => {
+  progressTestScenarios.forEach(({ progress, expectedLabel }) => {
+    it(`displays ${Math.round(progress * 100)}% progress correctly`, () => {
+      // 🧪 ARRANGE
+      const props = { currentTime: progress * 120, duration: 120 }
+      
+      // 🎬 ACT
+      render(<VideoControlsOverlay {...props} />)
+      
+      // ✅ ASSERT
+      expect(screen.getByLabelText(expectedLabel)).toBeTruthy()
+    })
+  })
+})
+
+// External test data file approach
+// tests/data/video-scenarios.ts
+export const videoTestData = {
+  playback: [
+    { state: 'playing', expectedIcon: 'pause', action: 'pause' },
+    { state: 'paused', expectedIcon: 'play', action: 'play' }
+  ],
+  seeking: [
+    { currentTime: 0, seekTo: 30, expectedTime: '00:30' },
+    { currentTime: 60, seekTo: 120, expectedTime: '02:00' }
+  ]
+}
+```
+
+## 📋 Test Organization & Naming Best Practices
+**Create maintainable test suites with clear naming conventions:**
+
+```typescript
+// ✅ CORRECT - Hierarchical test organization
+describe('VideoControlsOverlay', () => {
+  describe('Playback Controls', () => {
+    describe('Play/Pause Functionality', () => {
+      it('should start video playback when play button is pressed', () => {
+        // Test implementation
+      })
+
+      it('should pause video playback when pause button is pressed', () => {
+        // Test implementation
+      })
+    })
+
+    describe('Seek Controls', () => {
+      it('should skip forward 10 seconds when fast-forward is pressed', () => {
+        // Test implementation
+      })
+
+      it('should prevent seeking beyond video duration', () => {
+        // Test implementation
+      })
+    })
+  })
+
+  describe('Progress Display', () => {
+    it('should display current time in MM:SS format', () => {
+      // Test implementation
+    })
+
+    it('should update progress bar position based on current time', () => {
+      // Test implementation
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('should announce progress updates to screen readers', () => {
+      // Test implementation
+    })
+  })
+})
+```
+
+## 🧪 Enhanced Mock & Stub Patterns
+**Isolate units under test with comprehensive mocking:**
+
+```typescript
+// ✅ CORRECT - Layered mocking strategy
+// 1. External API mocks
+jest.mock('@my/api', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockResolvedValue({ data: [], error: null })
+    }))
+  }
+}))
+
+// 2. Service layer mocks
+jest.mock('@app/services/VideoStorageService', () => ({
+  VideoStorageService: {
+    saveVideo: jest.fn().mockResolvedValue({
+      localUri: 'file:///videos/test.mp4',
+      filename: 'test.mp4'
+    })
+  }
+}))
+
+// 3. UI component mocks (when necessary)
+jest.mock('expo-camera', () => ({
+  CameraView: mockComponent('CameraView'),
+  useCameraPermissions: jest.fn(() => [true, jest.fn()])
+}))
+
+// Helper for consistent component mocking
+const mockComponent = (name) => ({ children, ...props }) => 
+  React.createElement('div', { ...props, 'data-testid': name }, children)
+```
+
+## 🔄 Test Maintenance & Refactoring
+**Regular review patterns to maintain effectiveness:**
+
+### Maintenance Checklist (Review every 2 weeks)
+```typescript
+// ✅ MAINTENANCE CHECKLIST
+// □ Test names clearly describe what they verify
+// □ AAA pattern is consistently followed
+// □ Test data is separated from test logic
+// □ Mocks are still relevant to current implementation
+// □ Test execution time is acceptable (< 5s per test)
+// □ Coverage reports show meaningful coverage
+// □ No flaky tests (tests that pass/fail randomly)
+```
+
+### Refactoring Patterns
+```typescript
+// ❌ BEFORE: Complex nested setup
+it('handles complex user flow', () => {
+  const complexSetup = setupComplexScenario()
+  // ... lots of setup code mixed with test logic
+  fireEvent.press(getByTestId('button'))
+  expect(something).toBeTruthy()
+})
+
+// ✅ AFTER: Clear separation with AAA
+it('handles complex user flow', () => {
+  // 🧪 ARRANGE
+  const { user, mockHandlers } = setupComplexScenario()
+  
+  // 🎬 ACT
+  await user.press(screen.getByLabelText('Start Flow'))
+  await user.press(screen.getByLabelText('Continue'))
+  
+  // ✅ ASSERT
+  expect(screen.getByLabelText('Flow Complete')).toBeTruthy()
+  expect(mockHandlers.onComplete).toHaveBeenCalled()
+})
+```
+
+## 🏆 Test Scope Rules (User-Focused)
+
+### What TO Test 
+- ✅ **User-visible behavior and interactions**
+- ✅ **Critical user flows** (happy path + 1-2 error cases)  
+- ✅ **Integration points** where components connect
+- ✅ **Accessibility and usability**
+- ✅ **State changes** that affect user experience
+- ✅ **Error handling** that users would encounter
+
+### What NOT to Test
+- ❌ **Implementation details** (internal function calls, state structure)
+- ❌ **Every state combination** (focus on critical paths only)
+- ❌ **Platform-specific edge cases** (unless critical for UX)
+- ❌ **Library internals** (trust that React, Tamagui, etc. work)
+- ❌ **Complex interaction chains** (convert to integration tests)
+- ❌ **Internal hooks** (mock external dependencies only)
+
+## 📏 Test Efficiency Guidelines
+→ See `quality/testing/testing-metrics.mdc` for efficiency ratios and validation checklists
+
+## 🎯 Test Strategy Patterns
+
+### Unit Tests (Single Component/Function)
+```typescript
+// Test isolated component behavior
+describe('ProgressBar', () => {
+  it('should display progress percentage', () => {
+    // 🧪 ARRANGE
+    const progress = 0.75
+    
+    // 🎬 ACT
+    render(<ProgressBar progress={progress} />)
+    
+    // ✅ ASSERT
+    expect(screen.getByLabelText('Progress: 75% complete')).toBeTruthy()
+  })
+})
+```
+
+### Integration Tests (2-3 Components Working Together)
+```typescript
+// Test component interactions
+describe('VideoPlayer Integration', () => {
+  it('should update controls when video state changes', () => {
+    // 🧪 ARRANGE
+    const { rerender } = render(
+      <VideoPlayer>
+        <VideoControls />
+        <ProgressBar />
+      </VideoPlayer>
+    )
+    
+    // 🎬 ACT
+    fireEvent.press(screen.getByLabelText('Play video'))
+    
+    // ✅ ASSERT
+    expect(screen.getByLabelText('Pause video')).toBeTruthy()
+    expect(screen.getByLabelText(/Progress:/)).toBeTruthy()
+  })
+})
+```
+
+### Hybrid Strategy (Convert Failing Tests)
+**When complex interaction tests fail with query issues:**
+1. **Convert to integration test** focusing on verifiable behavior
+2. **Test the outcome**, not the interaction steps
+3. **Focus on state changes** that users would notice
+
+## 🧹 Test Bloat Prevention
+
+### Maintenance Principles
+- **One test per user action** (not per internal function call)
+- **Mock only external dependencies** (APIs, file system, network)
+- **Use real components** when possible (not mocked versions)
+- **Focus on integration points** where bugs actually occur
+- **Convert failing tests** to integration tests instead of fighting queries
+
+### Performance Guidelines
+- **Test Execution Time**: Keep individual tests under 5 seconds
+- **Parallel Execution**: Enable `--maxWorkers=4` for faster CI/CD
+- **Test Independence**: No shared state between tests
+- **Clean Setup/Teardown**: Proper cleanup prevents test pollution
+
+## 🎯 Success Review Questions
+1. **"Would a user notice if this test failed?"**
+2. **"Is this testing behavior or implementation?"**
+3. **"Could this test be 50% shorter?"**
+4. **"Are we mocking too much?"**
+5. **"Does this test follow the AAA pattern clearly?"**

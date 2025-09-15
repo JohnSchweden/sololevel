@@ -1,0 +1,380 @@
+---
+description: Web testing with Vitest, browser APIs, and web-specific patterns
+globs: ["apps/next/**/*.test.*", "packages/**/*.web.test.*", "**/*.vitest.*"]
+parent: "quality/testing-unified"
+priority: medium
+---
+
+# Web Testing with Vitest
+
+## 🎯 Core Principles
+- **Use Vitest** for all web/Node.js testing (never Jest)
+- **Test business logic** and web-specific functionality
+- **Mock browser APIs** when needed
+- **Test accessibility** with proper ARIA patterns
+
+## ⚡ Quick Setup
+
+### Vitest Configuration
+```typescript
+// vitest.config.mjs
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom', // for React components
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true // optional: enables describe/it globals
+  }
+})
+```
+
+### Environment Selection
+- **`jsdom`**: For React components and DOM testing
+- **`node`**: For utilities, services, and pure functions
+
+## 🧪 Essential Imports
+
+### With Globals Enabled
+```typescript
+// vitest.config with globals: true
+import React from 'react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import '@testing-library/jest-dom'
+
+// describe, it, expect, vi are global
+describe('Component', () => {
+  it('should work', () => {
+    expect(true).toBe(true)
+  })
+})
+```
+
+### Without Globals (Explicit Imports)
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import React from 'react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import '@testing-library/jest-dom'
+
+describe('Component', () => {
+  it('should work', () => {
+    expect(true).toBe(true)
+  })
+})
+```
+
+## 🎯 Web-Specific Query Patterns
+
+### ✅ CORRECT - Web DOM Queries
+```typescript
+// Use testID for reliable web queries
+const button = screen.getByTestId('submit-button')
+const form = screen.getByRole('form', { name: 'Contact Form' })
+const heading = screen.getByRole('heading', { level: 1 })
+
+// Web accessibility patterns
+const dialog = screen.getByRole('dialog')
+const closeButton = screen.getByRole('button', { name: /close/i })
+```
+
+### DOM Matchers (Web Only)
+```typescript
+// These work in jsdom environment
+expect(button).toBeDisabled()
+expect(input).toHaveValue('test')
+expect(element).toHaveClass('active')
+expect(link).toHaveAttribute('href', '/home')
+```
+
+## 🎮 Event Handling (Web)
+
+### ✅ CORRECT - Web Events
+```typescript
+import { fireEvent, userEvent } from '@testing-library/react'
+
+// Mouse events
+fireEvent.click(button)
+fireEvent.mouseOver(tooltip)
+
+// Keyboard events  
+fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+
+// User-driven events (preferred for complex interactions)
+const user = userEvent.setup()
+await user.click(button)
+await user.type(input, 'Hello World')
+await user.keyboard('{Escape}')
+```
+
+## 🌐 Browser API Mocking
+
+### Setup File (test/setup.ts)
+```typescript
+import '@testing-library/jest-dom'
+import { vi } from 'vitest'
+
+// Mock common browser APIs
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock IntersectionObserver  
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock fetch if needed
+global.fetch = vi.fn()
+```
+
+## 🎨 Component Testing Patterns
+
+### React Component Tests
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { Button } from './Button'
+
+describe('Button', () => {
+  it('should call onClick when clicked', () => {
+    // 🧪 ARRANGE
+    const onClick = vi.fn()
+    
+    // 🎬 ACT
+    render(<Button onClick={onClick}>Click me</Button>)
+    fireEvent.click(screen.getByRole('button'))
+    
+    // ✅ ASSERT
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('should be disabled when disabled prop is true', () => {
+    // 🧪 ARRANGE & ACT
+    render(<Button disabled>Disabled</Button>)
+    
+    // ✅ ASSERT
+    const button = screen.getByRole('button')
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+  })
+})
+```
+
+### Next.js Specific Patterns
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+// Mock Next.js router
+vi.mock('next/router', () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+    pathname: '/',
+    query: {},
+    asPath: '/'
+  }))
+}))
+
+// Mock Next.js Image
+vi.mock('next/image', () => ({
+  default: ({ src, alt, ...props }) => {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt} {...props} />
+  }
+}))
+```
+
+## 🔧 Utility Testing
+
+### Pure Function Tests
+```typescript
+// utils/formatDate.test.ts
+import { describe, it, expect } from 'vitest'
+import { formatDate } from './formatDate'
+
+describe('formatDate', () => {
+  it('should format date to MM/DD/YYYY', () => {
+    // 🧪 ARRANGE
+    const date = new Date('2024-01-15')
+    
+    // 🎬 ACT
+    const result = formatDate(date)
+    
+    // ✅ ASSERT
+    expect(result).toBe('01/15/2024')
+  })
+
+  it('should handle invalid dates', () => {
+    // 🧪 ARRANGE
+    const invalidDate = new Date('invalid')
+    
+    // 🎬 ACT
+    const result = formatDate(invalidDate)
+    
+    // ✅ ASSERT
+    expect(result).toBe('Invalid Date')
+  })
+})
+```
+
+### Async Function Tests
+```typescript
+// services/api.test.ts
+import { describe, it, expect, vi } from 'vitest'
+import { fetchUserData } from './api'
+
+describe('fetchUserData', () => {
+  it('should fetch user data successfully', async () => {
+    // 🧪 ARRANGE
+    const mockUser = { id: 1, name: 'John' }
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockUser)
+    })
+    
+    // 🎬 ACT
+    const result = await fetchUserData(1)
+    
+    // ✅ ASSERT
+    expect(result).toEqual(mockUser)
+    expect(fetch).toHaveBeenCalledWith('/api/users/1')
+  })
+
+  it('should handle fetch errors', async () => {
+    // 🧪 ARRANGE
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    
+    // 🎬 ACT & ASSERT
+    await expect(fetchUserData(1)).rejects.toThrow('Network error')
+  })
+})
+```
+
+## 🎭 Mocking Strategies
+
+### External Libraries
+```typescript
+// Mock third-party libraries
+vi.mock('lodash', () => ({
+  debounce: vi.fn((fn) => fn),
+  throttle: vi.fn((fn) => fn)
+}))
+
+// Mock with partial mocking
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query')
+  return {
+    ...actual,
+    useQuery: vi.fn(),
+    useMutation: vi.fn()
+  }
+})
+```
+
+### Module Mocking
+```typescript
+// Automatic mock
+vi.mock('@my/api')
+
+// Manual mock with implementation
+vi.mock('@my/config', () => ({
+  config: {
+    apiUrl: 'https://test-api.example.com',
+    features: { analytics: false }
+  }
+}))
+```
+
+## 🌍 Environment Variables
+```typescript
+// Mock environment variables
+vi.stubEnv('NODE_ENV', 'test')
+vi.stubEnv('API_URL', 'https://test-api.com')
+
+// In tests
+describe('Config', () => {
+  it('should use test API URL', () => {
+    expect(process.env.API_URL).toBe('https://test-api.com')
+  })
+})
+```
+
+## 🚫 Web Testing Anti-Patterns
+
+### ❌ WRONG - Using Jest Patterns
+```typescript
+// Don't use Jest in web tests
+import { jest } from '@jest/globals' // ❌ Wrong test runner
+
+// Don't mix React Native patterns
+import { fireEvent } from '@testing-library/react-native' // ❌ Wrong library
+fireEvent.press(button) // ❌ React Native event
+```
+
+### ❌ WRONG - Incorrect Environment
+```typescript
+// Using wrong test environment
+// vitest.config with environment: 'node' for DOM tests ❌
+expect(button).toBeInTheDocument() // Fails in node environment
+```
+
+## 📝 Web Test Template
+
+```typescript
+// Component.test.tsx  
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import '@testing-library/jest-dom'
+import { Component } from './Component'
+
+describe('Component', () => {
+  it('should handle user interaction', () => {
+    // 🧪 ARRANGE
+    const onSubmit = vi.fn()
+    
+    // 🎬 ACT  
+    render(<Component onSubmit={onSubmit} />)
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }))
+    
+    // ✅ ASSERT
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Success')).toBeInTheDocument()
+  })
+})
+```
+
+## ✅ Web Testing Checklist
+□ Using Vitest (not Jest) for web tests
+□ Correct environment: `jsdom` for components, `node` for utilities
+□ Using `fireEvent.click()` instead of `fireEvent.press()`
+□ DOM matchers like `toBeDisabled()` work correctly
+□ Browser APIs properly mocked in setup file
+□ Using `getByRole()` and `getByTestId()` for reliable queries
+□ Following AAA pattern (see `quality/testing/testing-patterns.mdc`)
+□ Accessibility attributes tested where relevant
+
+## 🎯 Web-Specific Success Patterns
+- **Reliability**: `getByRole()` and `getByTestId()` work consistently in jsdom
+- **Performance**: Vitest parallel execution and fast HMR
+- **Developer Experience**: Better TypeScript integration than Jest
+- **Browser APIs**: Comprehensive mocking support for web APIs

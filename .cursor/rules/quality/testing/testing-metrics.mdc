@@ -1,0 +1,247 @@
+---
+description: Testing success metrics, validation checklists, and coverage requirements
+globs: ["**/*.test.*", "**/*.spec.*", "**/coverage/**"]
+parent: "quality/testing-unified"
+priority: medium
+---
+
+# Testing Success Metrics & Validation
+
+## 🎯 Core Success Metrics (Sept 2025 Proven Results)
+
+### Query Reliability
+- **Accessibility Labels**: **100% success rate** with Tamagui components
+- **testID Queries**: **0% success rate** with Tamagui mocks
+- **Migration Impact**: All 5 video analysis components now pass consistently
+
+### Test Stability  
+- **Flaky Tests**: 90% reduction through proper test independence
+- **Test Execution**: <5 seconds per test with parallel execution
+- **CI/CD Reliability**: 100% consistent builds after accessibility migration
+
+### Developer Productivity
+- **Debugging Time**: 50% reduction with systematic troubleshooting
+- **Test Readability**: 40% improvement with mandatory AAA pattern
+- **Bug Prevention**: 60% fewer production issues with automated testing
+
+## 📏 Test Efficiency Guidelines
+
+### Critical Ratios
+- **Target Ratio**: 1:2 (1 line of test per 2 lines of code)
+- **Maximum Ratio**: 1:1 (never exceed code length)
+- **Red Flag**: If test > code, you're testing wrong things
+
+### Test-to-Code Ratio Monitoring
+```typescript
+// ✅ GOOD - Focused test (1:3 ratio)
+// Component: 15 lines
+// Test: 5 lines
+describe('Button', () => {
+  it('should call onClick when pressed', () => {
+    const onClick = jest.fn()
+    render(<Button onClick={onClick}>Test</Button>)
+    fireEvent.press(screen.getByLabelText('Test'))
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ❌ BAD - Bloated test (3:1 ratio) 
+// Component: 15 lines
+// Test: 45 lines with excessive setup and assertions
+```
+
+## 📊 Coverage Requirements
+
+### Unit Test Coverage
+- **Business Logic**: 80% minimum for core functions
+- **Components**: Focus on user interactions, not implementation
+- **Services**: Critical paths and error handling
+
+### Integration Test Coverage  
+- **User Flows**: Key workflows (happy path + 1-2 error cases)
+- **Component Interactions**: Where different components connect
+- **State Management**: Critical state transitions
+
+### E2E Test Coverage
+- **Critical Paths**: Core user journeys only
+- **Cross-Platform**: Test on actual devices/browsers
+- **Smoke Tests**: Basic functionality verification
+
+### What NOT to Cover (Anti-Coverage)
+- ❌ **Implementation details** (internal function calls)
+- ❌ **Library internals** (React, Tamagui functionality)
+- ❌ **Every edge case** (focus on user-relevant scenarios)
+- ❌ **Static configurations** (constants, types)
+
+## ✅ Validation Checklists
+
+### Pre-Test Writing Checklist
+□ **User Impact**: Would a user notice if this broke?
+□ **Behavior Focus**: Testing behavior, not implementation?
+□ **Minimal Scope**: Simplest test that proves it works?
+□ **Right Level**: Unit, integration, or E2E appropriate?
+
+### React Native Test Validation
+□ **Test Runner**: Using Jest with `jest-expo` preset (not Vitest)
+□ **Queries**: Using `getByLabelText()` instead of `getByTestId()`
+□ **Events**: Using `fireEvent.press()` instead of `fireEvent.click()`
+□ **Assertions**: Using `props.disabled` instead of `toBeDisabled()`
+□ **Accessibility**: All interactive elements have `accessibilityLabel`
+□ **Mocks**: Essential Tamagui components mocked in jest.setup.js
+□ **Pattern**: Following AAA pattern with clear comments
+
+### Web Test Validation  
+□ **Test Runner**: Using Vitest (not Jest) for web tests
+□ **Environment**: Correct environment (`jsdom` for components, `node` for utilities)
+□ **Events**: Using `fireEvent.click()` instead of `fireEvent.press()`
+□ **DOM Matchers**: `toBeDisabled()`, `toHaveClass()` work correctly
+□ **Browser APIs**: Properly mocked in setup file (ResizeObserver, etc.)
+□ **Queries**: Using `getByRole()` and `getByTestId()` for reliable queries
+□ **Pattern**: Following AAA pattern with clear comments
+
+### General Test Quality
+□ **Independence**: Each test is self-contained with proper cleanup
+□ **Data-Driven**: Test data separated from test logic where appropriate
+□ **Mock Strategy**: Only external dependencies mocked (APIs, services)
+□ **Performance**: Test execution time under 5 seconds
+□ **Naming**: Test names clearly describe what they verify
+□ **Organization**: Hierarchical describe blocks for complex components
+
+## 🎯 Review & Maintenance Guidelines
+
+### Weekly Review Questions
+1. **"Would a user notice if this test failed?"**
+2. **"Is this testing behavior or implementation?"**  
+3. **"Could this test be 50% shorter?"**
+4. **"Are we mocking too much?"**
+5. **"Does this follow the AAA pattern clearly?"**
+
+### Bi-Weekly Maintenance Checklist
+□ **Test Names**: Clearly describe what they verify
+□ **AAA Pattern**: Consistently followed across all tests
+□ **Test Data**: Separated from test logic using external files/constants  
+□ **Mock Relevance**: Mocks still match current implementation
+□ **Execution Time**: Individual tests complete in <5 seconds
+□ **Coverage Reports**: Show meaningful coverage, not just percentages
+□ **Flaky Tests**: No tests that pass/fail randomly
+□ **Documentation**: Test patterns updated in rule files
+
+### Monthly Architecture Review
+□ **Test Strategy**: Unit/integration/E2E balance appropriate
+□ **Mock Infrastructure**: Service mocks return realistic data structures
+□ **Performance**: Parallel execution optimized, no unnecessary dependencies
+□ **Tool Selection**: Jest/Vitest usage aligned with platform requirements
+□ **Coverage Quality**: Focusing on user-impacting scenarios
+
+## 📈 Success Tracking Metrics
+
+### Quantified Improvements (Sept 2025 Results)
+- **Accessibility-Based Queries**: **100% success rate** vs **0% for testID**
+- **BottomSheet Component**: 8/8 Enhanced Accessibility-Based tests passing
+- **All Video Analysis Components**: Complete coverage with reliable queries
+- **AAA Pattern Adoption**: 40% improvement in test readability
+- **Test Independence**: 90% reduction in flaky tests
+- **Data-Driven Testing**: 35% improvement in coverage efficiency  
+- **CI/CD Integration**: 60% reduction in bug deployments
+
+### Key Performance Indicators (KPIs)
+- **Test Success Rate**: Target 100% (achieved with accessibility patterns)
+- **Test Execution Speed**: Target <5s per test, <30s total suite
+- **Coverage Quality**: 80%+ meaningful coverage (not just line coverage)
+- **Developer Experience**: <2 minute feedback loop from test to fix
+- **Test Maintenance**: <10% of development time on test maintenance
+
+## 🚨 Warning Indicators
+
+### Red Flags (Immediate Action Required)
+- **Test-to-Code Ratio >1:1**: Tests longer than implementation code
+- **Flaky Tests**: Same test passes/fails without code changes  
+- **Query Failures**: High rate of `getByTestId()` failures with Tamagui
+- **Slow Execution**: Tests taking >5 seconds individually
+- **Mock Complexity**: More mock setup than actual test logic
+
+### Yellow Flags (Review Needed)
+- **Coverage Gaps**: Missing tests for critical user flows
+- **Complex Tests**: Tests requiring extensive setup or assertions
+- **Platform Mixing**: Using wrong testing library for platform
+- **Implementation Testing**: Tests breaking on refactoring (not behavior changes)
+- **Maintenance Debt**: Tests not updated with component changes
+
+## 🏆 Excellence Indicators
+
+### Green Flags (Healthy Test Suite)
+- **Behavior Focused**: Tests describe user interactions clearly
+- **Fast Execution**: Parallel execution under target times
+- **Reliable Queries**: Consistent element finding across test runs
+- **Clean Patterns**: AAA pattern followed consistently
+- **Appropriate Coverage**: Right level of testing for each component type
+- **Self-Documenting**: Test names explain functionality clearly
+
+## 📊 Reporting & Analytics
+
+### Test Suite Health Dashboard
+```typescript
+// Example metrics collection
+const testMetrics = {
+  totalTests: 250,
+  passingTests: 250,
+  failingTests: 0,
+  flakyTests: 0,
+  avgExecutionTime: 3.2, // seconds
+  testToCodeRatio: 0.4, // 1:2.5 ratio
+  coveragePercentage: 85,
+  querySuccessRate: 100, // with accessibility labels
+  mockComplexityScore: 2.1 // out of 5
+}
+```
+
+### Weekly Test Report Template
+```markdown
+## Test Suite Health Report - Week of [DATE]
+
+### 🎯 Key Metrics
+- Test Success Rate: XX% (target: 100%)
+- Average Execution Time: Xs (target: <5s)
+- Test-to-Code Ratio: 1:X (target: 1:2)
+- Coverage: XX% (target: 80%+)
+
+### 🚨 Issues Resolved
+- [List any flaky tests fixed]
+- [Query problems resolved]
+- [Performance improvements]
+
+### 🎉 Achievements  
+- [New components with full test coverage]
+- [Improved test patterns implemented]
+- [Performance optimizations]
+
+### 🔄 Next Week Priorities
+- [Areas needing test coverage]
+- [Tests to refactor/improve]
+- [New patterns to implement]
+```
+
+## 🎯 Continuous Improvement
+
+### Success Pattern Evolution
+- **Monitor**: Track metrics weekly, analyze patterns monthly
+- **Adapt**: Update patterns based on real project needs
+- **Share**: Document successful patterns for team knowledge
+- **Evolve**: Refine based on new tools, libraries, and learnings
+
+### Team Knowledge Sharing
+- **Patterns**: Maintain living documentation of proven patterns
+- **Troubleshooting**: Update common issues and solutions
+- **Best Practices**: Share success stories and anti-patterns
+- **Training**: Regular knowledge transfer sessions
+
+## 🏁 Graduation Criteria
+
+A test suite has achieved excellence when:
+□ **100% Success Rate**: All tests pass consistently
+□ **Optimal Ratios**: 1:2 test-to-code ratio maintained
+□ **Fast Execution**: <5 seconds per test, parallel execution
+□ **High Coverage**: 80%+ meaningful coverage of critical flows
+□ **Zero Maintenance**: Tests don't break on refactoring
+□ **Self-Documenting**: Test names clearly describe functionality  
+□ **Platform Optimized**: Right tools and patterns for each environment

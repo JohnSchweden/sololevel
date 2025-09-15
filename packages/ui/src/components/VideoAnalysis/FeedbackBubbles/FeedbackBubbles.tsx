@@ -30,12 +30,20 @@ export function FeedbackBubbles({ messages, onBubbleTap }: FeedbackBubblesProps)
       gap="$3"
       pointerEvents="auto"
       testID="feedback-bubbles"
+      accessibilityLabel="Feedback bubbles container"
     >
       {visibleMessages.map((message) => (
         <Pressable
           key={message.id}
           onPress={() => onBubbleTap(message)}
           testID={`feedback-bubble-${message.id}`}
+          accessibilityLabel={`Feedback: ${message.text}`}
+          accessibilityRole="button"
+          accessibilityHint={`Tap to view details about ${message.category} feedback`}
+          accessibilityState={{
+            selected: message.isHighlighted,
+            disabled: !message.isActive,
+          }}
         >
           <YStack
             backgroundColor="$color3"
@@ -45,12 +53,14 @@ export function FeedbackBubbles({ messages, onBubbleTap }: FeedbackBubblesProps)
             opacity={message.isActive ? 1 : 0.7}
             scale={message.isHighlighted ? 1.05 : 1}
             testID={`bubble-content-${message.id}`}
+            accessibilityLabel={`${message.type} feedback bubble`}
           >
             <Text
               fontSize="$4"
               color="$color12"
               fontWeight={message.isHighlighted ? '600' : '400'}
               testID={`bubble-text-${message.id}`}
+              accessibilityLabel={message.text}
             >
               {message.text}
             </Text>

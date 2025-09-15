@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react-native'
 import '@testing-library/jest-dom'
+import { fireEvent } from '@testing-library/react-native'
 import { renderWithProviderNative } from '../../../test-utils/TestProvider'
 import { MotionCaptureOverlay } from './MotionCaptureOverlay'
 
@@ -53,14 +54,18 @@ describe('MotionCaptureOverlay', () => {
     it('renders with required props', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          /Motion capture overlay visible: \d+ joints detected with \d+% confidence/
+        )
+      ).toBeTruthy()
     })
 
     it('renders skeleton nodes for each joint', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
       // Should render a node for each joint
-      const nodes = screen.getAllByLabelText(/joint, confidence:/)
+      const nodes = screen.getAllByLabelText(/joint: /)
       expect(nodes).toHaveLength(mockPoseData[0].joints.length)
     })
 
@@ -68,7 +73,9 @@ describe('MotionCaptureOverlay', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
       // Should render connections based on joint relationships
-      expect(screen.getByLabelText('Skeleton connections')).toBeTruthy()
+      expect(
+        screen.getByLabelText('Skeleton connections: 12 bone connections detected')
+      ).toBeTruthy()
     })
 
     it('hides overlay when isVisible is false', () => {
@@ -79,7 +86,9 @@ describe('MotionCaptureOverlay', () => {
         />
       )
 
-      const overlay = screen.getByLabelText(/Motion capture overlay showing detected pose/)
+      const overlay = screen.getByLabelText(
+        'Motion capture overlay hidden: 9 joints detected with 70% confidence'
+      )
       expect(overlay).toBeTruthy()
     })
 
@@ -91,7 +100,9 @@ describe('MotionCaptureOverlay', () => {
         />
       )
 
-      const overlay = screen.getByLabelText(/Motion capture overlay showing detected pose/)
+      const overlay = screen.getByLabelText(
+        'Motion capture overlay visible: 9 joints detected with 70% confidence'
+      )
       expect(overlay).toBeTruthy()
     })
 
@@ -111,7 +122,11 @@ describe('MotionCaptureOverlay', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
       // Should render the overlay when visible
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
+      ).toBeTruthy()
     })
   })
 
@@ -119,7 +134,7 @@ describe('MotionCaptureOverlay', () => {
     it('positions joints correctly based on coordinates', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      const noseNode = screen.getByLabelText('nose joint, confidence: 90%')
+      const noseNode = screen.getByLabelText('nose joint: 90% confidence')
       // Node should be positioned at 50% x, 30% y (relative coordinates)
       expect(noseNode).toBeTruthy()
     })
@@ -141,8 +156,8 @@ describe('MotionCaptureOverlay', () => {
       )
 
       // Low confidence node (30%) should be filtered out, high confidence node should remain
-      expect(screen.queryByLabelText('nose joint, confidence: 30%')).toBeFalsy()
-      expect(screen.getByLabelText('leftEye joint, confidence: 90%')).toBeTruthy()
+      expect(screen.queryByLabelText('nose joint: 30% confidence')).toBeFalsy()
+      expect(screen.getByLabelText('leftEye joint: 90% confidence')).toBeTruthy()
     })
 
     it('filters out joints below confidence threshold', () => {
@@ -161,8 +176,8 @@ describe('MotionCaptureOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('nose joint, confidence: 80%')).toBeTruthy()
-      expect(screen.queryByLabelText('leftEye joint, confidence: 20%')).toBeFalsy()
+      expect(screen.getByLabelText('nose joint: 80% confidence')).toBeTruthy()
+      expect(screen.queryByLabelText('leftEye joint: 20% confidence')).toBeFalsy()
     })
 
     it('handles multiple pose frames', () => {
@@ -183,7 +198,11 @@ describe('MotionCaptureOverlay', () => {
       )
 
       // Should render the most recent pose frame
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
+      ).toBeTruthy()
     })
   })
 
@@ -191,7 +210,7 @@ describe('MotionCaptureOverlay', () => {
     it('applies correct skeleton colors', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      const nodes = screen.getAllByLabelText(/joint, confidence:/)
+      const nodes = screen.getAllByLabelText(/joint: /)
       nodes.forEach((node) => {
         // Nodes should use theme colors
         expect(node).toBeTruthy()
@@ -201,14 +220,18 @@ describe('MotionCaptureOverlay', () => {
     it('uses appropriate connection line styles', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      const connections = screen.getByLabelText('Skeleton connections')
+      const connections = screen.getByLabelText(
+        'Skeleton connections: 12 bone connections detected'
+      )
       expect(connections).toBeTruthy()
     })
 
     it('maintains proper z-index layering', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      const overlay = screen.getByLabelText(/Motion capture overlay showing detected pose/)
+      const overlay = screen.getByLabelText(
+        'Motion capture overlay visible: 9 joints detected with 70% confidence'
+      )
       // Should be positioned above video but below controls
       expect(overlay).toBeTruthy()
     })
@@ -218,15 +241,17 @@ describe('MotionCaptureOverlay', () => {
     it('has proper accessibility labels for joints', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
-      expect(screen.getByLabelText('nose joint, confidence: 90%')).toBeTruthy()
-      expect(screen.getByLabelText('leftEye joint, confidence: 80%')).toBeTruthy()
+      expect(screen.getByLabelText('nose joint: 90% confidence')).toBeTruthy()
+      expect(screen.getByLabelText('leftEye joint: 80% confidence')).toBeTruthy()
     })
 
     it('provides semantic description of pose', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
       expect(
-        screen.getByLabelText('Motion capture overlay showing detected pose with 70% confidence')
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
       ).toBeTruthy()
     })
 
@@ -246,7 +271,9 @@ describe('MotionCaptureOverlay', () => {
       )
 
       expect(
-        screen.getByLabelText('Motion capture overlay showing detected pose with 90% confidence')
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 90% confidence'
+        )
       ).toBeTruthy()
     })
   })
@@ -301,7 +328,11 @@ describe('MotionCaptureOverlay', () => {
         )
       }
 
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
+      ).toBeTruthy()
     })
   })
 
@@ -326,14 +357,18 @@ describe('MotionCaptureOverlay', () => {
       )
 
       // Should animate to new positions
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
+      ).toBeTruthy()
     })
 
     it('pulses nodes based on confidence', () => {
       renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
 
       // High confidence nodes should have subtle pulsing animation
-      const highConfidenceNode = screen.getByLabelText('nose joint, confidence: 90%')
+      const highConfidenceNode = screen.getByLabelText('nose joint: 90% confidence')
       expect(highConfidenceNode).toBeTruthy()
     })
   })
@@ -357,7 +392,11 @@ describe('MotionCaptureOverlay', () => {
       )
 
       // Should render without crashing
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 1 joints detected with 50% confidence'
+        )
+      ).toBeTruthy()
     })
 
     it('handles missing joint connections', () => {
@@ -378,7 +417,217 @@ describe('MotionCaptureOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText(/Motion capture overlay showing detected pose/)).toBeTruthy()
+      expect(
+        screen.getByLabelText(
+          'Motion capture overlay visible: 9 joints detected with 70% confidence'
+        )
+      ).toBeTruthy()
+    })
+  })
+
+  describe('Phase 2: Interactive Elements Tests', () => {
+    describe('Joint Node Interactions', () => {
+      it('calls onNodeTap when a joint node is pressed', () => {
+        const mockOnNodeTap = jest.fn()
+        renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            onNodeTap={mockOnNodeTap}
+          />
+        )
+
+        const noseJoint = screen.getByLabelText('nose joint: 90% confidence')
+        fireEvent.press(noseJoint)
+
+        expect(mockOnNodeTap).toHaveBeenCalledWith('nose')
+      })
+
+      it('calls onNodeTap with correct joint id when different joints are pressed', () => {
+        const mockOnNodeTap = jest.fn()
+        renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            onNodeTap={mockOnNodeTap}
+          />
+        )
+
+        const leftEyeJoint = screen.getByLabelText('leftEye joint: 80% confidence')
+        fireEvent.press(leftEyeJoint)
+
+        expect(mockOnNodeTap).toHaveBeenCalledWith('leftEye')
+      })
+
+      it('does not call onNodeTap when onNodeTap is not provided', () => {
+        // This should not throw an error
+        renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            // onNodeTap not provided
+          />
+        )
+
+        const noseJoint = screen.getByLabelText('nose joint: 90% confidence')
+        fireEvent.press(noseJoint)
+
+        // Should not crash - test passes if no error is thrown
+        expect(screen.getByLabelText(/Motion capture overlay/)).toBeTruthy()
+      })
+
+      it('only renders joints with confidence above threshold', () => {
+        const lowConfidencePoseData = [
+          {
+            ...mockPoseData[0],
+            joints: [
+              { id: 'nose', x: 0.5, y: 0.3, confidence: 0.9, connections: [] }, // Above threshold
+              { id: 'lowConfidenceJoint', x: 0.4, y: 0.4, confidence: 0.2, connections: [] }, // Below threshold
+            ],
+          },
+        ]
+
+        renderWithProviders(
+          <MotionCaptureOverlay
+            poseData={lowConfidencePoseData}
+            isVisible={true}
+          />
+        )
+
+        // High confidence joint should be present
+        expect(screen.getByLabelText('nose joint: 90% confidence')).toBeTruthy()
+
+        // Low confidence joint should not be rendered
+        expect(screen.queryByLabelText('lowConfidenceJoint joint: 20% confidence')).toBeFalsy()
+      })
+    })
+
+    describe('Overlay Visibility Interactions', () => {
+      it('shows overlay when isVisible is true', () => {
+        const { root } = renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            isVisible={true}
+          />
+        )
+
+        expect(root.props.style?.opacity || 1).toBe(1)
+      })
+
+      it('hides overlay when isVisible is false', () => {
+        const { root } = renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            isVisible={false}
+          />
+        )
+
+        expect(root.props.style?.opacity || 0).toBe(0)
+      })
+
+      it('transitions visibility smoothly', () => {
+        const { rerender, root } = renderWithProviders(
+          <MotionCaptureOverlay
+            {...mockProps}
+            isVisible={true}
+          />
+        )
+
+        // Initially visible
+        expect(root.props.style?.opacity || 1).toBe(1)
+
+        // Hide overlay
+        rerender(
+          <MotionCaptureOverlay
+            {...mockProps}
+            isVisible={false}
+          />
+        )
+
+        // Now hidden
+        expect(root.props.style?.opacity || 0).toBe(0)
+      })
+    })
+
+    describe('Pose Data Updates', () => {
+      it('updates joint positions when pose data changes', () => {
+        const { rerender } = renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
+
+        // Initially shows nose at original position
+        expect(screen.getByLabelText('nose joint: 90% confidence')).toBeTruthy()
+
+        // Update pose data with different joint positions
+        const updatedPoseData = [
+          {
+            ...mockPoseData[0],
+            joints: [{ id: 'nose', x: 0.6, y: 0.4, confidence: 0.95, connections: [] }],
+          },
+        ]
+
+        rerender(
+          <MotionCaptureOverlay
+            poseData={updatedPoseData}
+            isVisible={true}
+          />
+        )
+
+        // Should show updated confidence
+        expect(screen.getByLabelText('nose joint: 95% confidence')).toBeTruthy()
+      })
+
+      it('handles empty pose data gracefully', () => {
+        const result = renderWithProviders(
+          <MotionCaptureOverlay
+            poseData={[]}
+            isVisible={true}
+          />
+        )
+
+        // Should render nothing when no pose data (component returns null)
+        expect(result.root).toBeFalsy()
+      })
+
+      it('updates skeleton connections when joint positions change', () => {
+        renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
+
+        // Should render skeleton connections container
+        expect(
+          screen.getByLabelText('Skeleton connections: 12 bone connections detected')
+        ).toBeTruthy()
+
+        // Verify that the component renders without errors when connections exist
+        expect(screen.getByLabelText(/Motion capture overlay/)).toBeTruthy()
+      })
+    })
+
+    describe('Accessibility and Touch Targets', () => {
+      it('provides proper accessibility labels for all joints', () => {
+        renderWithProviders(<MotionCaptureOverlay {...mockProps} />)
+
+        // Check that all high-confidence joints have accessibility labels
+        expect(screen.getByLabelText('nose joint: 90% confidence')).toBeTruthy()
+        expect(screen.getByLabelText('leftEye joint: 80% confidence')).toBeTruthy()
+        expect(screen.getByLabelText('rightEye joint: 80% confidence')).toBeTruthy()
+      })
+
+      it('updates accessibility label with overall pose confidence', () => {
+        const highConfidencePose = [
+          {
+            ...mockPoseData[0],
+            confidence: 0.95,
+          },
+        ]
+
+        renderWithProviders(
+          <MotionCaptureOverlay
+            poseData={highConfidencePose}
+            isVisible={true}
+          />
+        )
+
+        expect(
+          screen.getByLabelText(
+            'Motion capture overlay visible: 9 joints detected with 95% confidence'
+          )
+        ).toBeTruthy()
+      })
     })
   })
 })

@@ -36,6 +36,37 @@
     "native": {
       "cache": false,
       "persistent": true
+    },
+
+    // 🚀 TESTING PIPELINE WITH PARALLEL EXECUTION (High Impact)
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
+      "outputs": ["coverage/**"]
+    },
+    "test:watch": {
+      "dependsOn": ["build"],
+      "persistent": true,
+      "cache": false
+    },
+    "test:coverage": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+      "outputs": ["coverage/**"]
+    },
+
+    // 🔍 QUALITY ASSURANCE
+    "lint": {
+      "inputs": ["src/**/*.{ts,tsx,js,jsx}", "*.{js,json,ts}"]
+    },
+    "typecheck": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**/*.{ts,tsx}", "tsconfig.json"]
     }
   }
 }

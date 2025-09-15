@@ -14,26 +14,35 @@ describe('VideoTitle', () => {
   })
 
   it('renders title correctly', () => {
-    const { toJSON } = render(<VideoTitle {...mockProps} />)
+    // 🧪 ARRANGE: Set up component with title
+    const titleProps = { ...mockProps }
 
+    // 🎬 ACT: Render the component
+    const { toJSON } = render(<VideoTitle {...titleProps} />)
+
+    // ✅ ASSERT: Component renders successfully with title
     expect(toJSON()).toBeTruthy()
   })
 
   it('shows timestamp when provided', () => {
-    const { toJSON } = render(<VideoTitle {...mockProps} />)
+    // 🧪 ARRANGE: Set up component with timestamp
+    const timestampProps = { ...mockProps }
 
+    // 🎬 ACT: Render the component
+    const { toJSON } = render(<VideoTitle {...timestampProps} />)
+
+    // ✅ ASSERT: Component renders successfully with timestamp
     expect(toJSON()).toBeTruthy()
   })
 
   it('shows generating state', () => {
-    const { toJSON } = render(
-      <VideoTitle
-        {...mockProps}
-        title={null}
-        isGenerating={true}
-      />
-    )
+    // 🧪 ARRANGE: Set up component in generating state
+    const generatingProps = { ...mockProps, title: null, isGenerating: true }
 
+    // 🎬 ACT: Render the component
+    const { toJSON } = render(<VideoTitle {...generatingProps} />)
+
+    // ✅ ASSERT: Component renders successfully in generating state
     expect(toJSON()).toBeTruthy()
   })
 

@@ -25,9 +25,8 @@ describe('ProcessingOverlay', () => {
     it('renders with required props', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
-      // Check if text content exists anywhere in the component
-      // Since textContent is not available, we'll check if the component renders without errors
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      // Check enhanced accessibility labels
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
     })
 
     it('displays progress correctly', () => {
@@ -38,8 +37,9 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      // Progress should be displayed as percentage
-      expect(screen.getByLabelText('Processing progress: 75%')).toBeTruthy()
+      // Progress should be displayed as percentage with enhanced accessibility
+      expect(screen.getByLabelText('Processing progress: 75 percent complete')).toBeTruthy()
+      expect(screen.getByLabelText('Progress bar: 75% complete')).toBeTruthy()
     })
 
     it('handles zero progress', () => {
@@ -50,7 +50,7 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('Processing progress: 0%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 0 percent complete')).toBeTruthy()
     })
 
     it('handles complete progress', () => {
@@ -62,9 +62,9 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('Processing progress: 100%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 100 percent complete')).toBeTruthy()
       // Component should render without errors when complete
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis complete')).toBeTruthy()
     })
 
     it('calls onCancel when cancel button is pressed', () => {
@@ -102,7 +102,9 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      const viewResultsButton = screen.getByLabelText('View analysis results')
+      const viewResultsButton = screen.getByLabelText(
+        'View analysis results (disabled until processing complete)'
+      )
       // For React Native Testing Library, just verify the button exists
       expect(viewResultsButton).toBeTruthy()
     })
@@ -140,7 +142,7 @@ describe('ProcessingOverlay', () => {
         )
 
         // Component should render without errors for each step
-        expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+        expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
         unmount()
       })
     })
@@ -162,7 +164,7 @@ describe('ProcessingOverlay', () => {
         )
 
         // Component should render without errors for each time value
-        expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+        expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
         unmount()
       })
     })
@@ -173,7 +175,7 @@ describe('ProcessingOverlay', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
       // Progress bar should use primary color
-      const progressBar = screen.getByLabelText('Progress bar')
+      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
       expect(progressBar).toBeTruthy()
     })
 
@@ -181,13 +183,13 @@ describe('ProcessingOverlay', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
       // Component should render without errors
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
     })
 
     it('maintains proper spacing', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
-      const container = screen.getByLabelText('Processing overlay')
+      const container = screen.getByLabelText('Processing overlay: Analysis in progress')
       expect(container).toBeTruthy()
     })
   })
@@ -197,7 +199,9 @@ describe('ProcessingOverlay', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
       expect(screen.getByLabelText('Cancel processing')).toBeTruthy()
-      expect(screen.getByLabelText('View analysis results')).toBeTruthy()
+      expect(
+        screen.getByLabelText('View analysis results (disabled until processing complete)')
+      ).toBeTruthy()
     })
 
     it('announces progress updates', () => {
@@ -208,14 +212,16 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('Processing progress: 50%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 50 percent complete')).toBeTruthy()
     })
 
     it('maintains minimum touch target sizes', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
       const cancelButton = screen.getByLabelText('Cancel processing')
-      const viewResultsButton = screen.getByLabelText('View analysis results')
+      const viewResultsButton = screen.getByLabelText(
+        'View analysis results (disabled until processing complete)'
+      )
 
       // Buttons should have minimum 44pt touch targets
       expect(cancelButton).toBeTruthy()
@@ -233,7 +239,7 @@ describe('ProcessingOverlay', () => {
       )
 
       // Should clamp to 0%
-      expect(screen.getByLabelText('Processing progress: 0%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 0 percent complete')).toBeTruthy()
     })
 
     it('handles progress values over 100%', () => {
@@ -245,7 +251,7 @@ describe('ProcessingOverlay', () => {
       )
 
       // Should clamp to 100%
-      expect(screen.getByLabelText('Processing progress: 100%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 100 percent complete')).toBeTruthy()
     })
 
     it('handles missing callback props gracefully', () => {
@@ -258,7 +264,7 @@ describe('ProcessingOverlay', () => {
       renderWithProviders(<ProcessingOverlay {...propsWithoutCallbacks} />)
 
       // Should still render without errors
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
     })
   })
 
@@ -285,7 +291,7 @@ describe('ProcessingOverlay', () => {
         )
       }
 
-      expect(screen.getByLabelText('Processing progress: 100%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 100 percent complete')).toBeTruthy()
     })
   })
 
@@ -306,7 +312,7 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('Processing progress: 50%')).toBeTruthy()
+      expect(screen.getByLabelText('Processing progress: 50 percent complete')).toBeTruthy()
     })
 
     it('shows loading spinner during processing', () => {
@@ -317,7 +323,7 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.getByLabelText('Processing spinner')).toBeTruthy()
+      expect(screen.getByLabelText('Processing spinner: Active')).toBeTruthy()
     })
 
     it('hides loading spinner when complete', () => {
@@ -328,7 +334,169 @@ describe('ProcessingOverlay', () => {
         />
       )
 
-      expect(screen.queryByTestId('processing-spinner')).toBeFalsy()
+      expect(screen.queryByLabelText('Processing spinner: Active')).toBeFalsy()
+    })
+  })
+
+  describe('Phase 2: Interactive Elements Tests', () => {
+    describe('Cancel Button Interactions', () => {
+      it('calls onCancel when cancel button is pressed', () => {
+        const mockOnCancel = jest.fn()
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            onCancel={mockOnCancel}
+          />
+        )
+
+        const cancelButton = screen.getByLabelText('Cancel processing')
+        fireEvent.press(cancelButton)
+
+        expect(mockOnCancel).toHaveBeenCalledTimes(1)
+      })
+
+      it('cancel button is always enabled during processing', () => {
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={false}
+          />
+        )
+
+        const cancelButton = screen.getByLabelText('Cancel processing')
+        expect(cancelButton.props.disabled).toBeFalsy()
+      })
+
+      it('cancel button remains enabled when processing is complete', () => {
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={true}
+          />
+        )
+
+        const cancelButton = screen.getByLabelText('Cancel processing')
+        expect(cancelButton.props.disabled).toBeFalsy()
+      })
+    })
+
+    describe('View Results Button Interactions', () => {
+      it('calls onViewResults when view results button is pressed and processing is complete', () => {
+        const mockOnViewResults = jest.fn()
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            onViewResults={mockOnViewResults}
+            isComplete={true}
+          />
+        )
+
+        const viewResultsButton = screen.getByLabelText('View analysis results')
+        fireEvent.press(viewResultsButton)
+
+        expect(mockOnViewResults).toHaveBeenCalledTimes(1)
+      })
+
+      it('view results button is disabled when processing is not complete', () => {
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={false}
+          />
+        )
+
+        const viewResultsButton = screen.getByLabelText(
+          'View analysis results (disabled until processing complete)'
+        )
+        expect(viewResultsButton.props.disabled).toBe(true)
+      })
+
+      it('view results button is enabled when processing is complete', () => {
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={true}
+          />
+        )
+
+        const viewResultsButton = screen.getByLabelText('View analysis results')
+        expect(viewResultsButton.props.disabled).toBe(false)
+      })
+
+      it('does not call onViewResults when button is disabled and pressed', () => {
+        const mockOnViewResults = jest.fn()
+        renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            onViewResults={mockOnViewResults}
+            isComplete={false}
+          />
+        )
+
+        const viewResultsButton = screen.getByLabelText(
+          'View analysis results (disabled until processing complete)'
+        )
+        fireEvent.press(viewResultsButton)
+
+        // Should not be called when disabled
+        expect(mockOnViewResults).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('Button State Transitions', () => {
+      it('view results button transitions from disabled to enabled when processing completes', () => {
+        const { rerender } = renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={false}
+          />
+        )
+
+        // Initially disabled
+        const viewResultsButton = screen.getByLabelText(
+          'View analysis results (disabled until processing complete)'
+        )
+        expect(viewResultsButton.props.disabled).toBe(true)
+
+        // Complete processing
+        rerender(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={true}
+          />
+        )
+
+        // Now enabled - button label changes when enabled
+        const enabledButton = screen.getByLabelText('View analysis results')
+        expect(enabledButton.props.disabled).toBe(false)
+      })
+
+      it('button opacity changes based on completion state', () => {
+        const { rerender } = renderWithProviders(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={false}
+          />
+        )
+
+        // Initially low opacity (disabled state)
+        const viewResultsButton = screen.getByLabelText(
+          'View analysis results (disabled until processing complete)'
+        )
+        expect(viewResultsButton.props.style?.opacity || 0.5).toBe(0.5)
+
+        // Complete processing
+        rerender(
+          <ProcessingOverlay
+            {...mockProps}
+            isComplete={true}
+          />
+        )
+
+        // Now full opacity (enabled state) - button label changes when enabled
+        const enabledButton = screen.getByLabelText('View analysis results')
+        expect(enabledButton.props.style?.opacity || 1).toBe(1)
+      })
     })
   })
 })

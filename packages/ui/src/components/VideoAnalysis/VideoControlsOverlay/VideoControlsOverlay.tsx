@@ -36,6 +36,7 @@ export function VideoControlsOverlay({
   }
 
   const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
+  const progressPercentage = Math.round(progress)
 
   return (
     <YStack
@@ -47,6 +48,9 @@ export function VideoControlsOverlay({
       opacity={showControls ? 1 : 0}
       pointerEvents={showControls ? 'auto' : 'none'}
       testID="video-controls-overlay"
+      accessibilityLabel={`Video controls overlay ${showControls ? 'visible' : 'hidden'}`}
+      accessibilityRole="toolbar"
+      accessibilityState={{ expanded: showControls }}
     >
       {/* Center Controls */}
       <XStack
@@ -54,6 +58,7 @@ export function VideoControlsOverlay({
         alignItems="center"
         gap="$4"
         marginBottom="$4"
+        accessibilityLabel="Video playback controls"
       >
         <Button
           chromeless
@@ -64,6 +69,8 @@ export function VideoControlsOverlay({
           onPress={() => onSeek(Math.max(0, currentTime - 10))}
           testID="rewind-button"
           accessibilityLabel="Rewind 10 seconds"
+          accessibilityRole="button"
+          accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
         />
         <Button
           chromeless
@@ -74,6 +81,9 @@ export function VideoControlsOverlay({
           onPress={isPlaying ? onPause : onPlay}
           testID={isPlaying ? 'pause-button' : 'play-button'}
           accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+          accessibilityRole="button"
+          accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
+          accessibilityState={{ selected: isPlaying }}
         />
         <Button
           chromeless
@@ -84,17 +94,26 @@ export function VideoControlsOverlay({
           onPress={() => onSeek(Math.min(duration, currentTime + 10))}
           testID="fast-forward-button"
           accessibilityLabel="Fast forward 10 seconds"
+          accessibilityRole="button"
+          accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
         />
       </XStack>
 
       {/* Bottom Controls */}
-      <YStack gap="$2">
+      <YStack
+        gap="$2"
+        accessibilityLabel="Video timeline and controls"
+      >
         {/* Time Display */}
-        <XStack justifyContent="space-between">
+        <XStack
+          justifyContent="space-between"
+          accessibilityLabel="Video time information"
+        >
           <Text
             fontSize="$3"
             color="$color12"
             testID="current-time"
+            accessibilityLabel={`Current time: ${formatTime(currentTime)}`}
           >
             {formatTime(currentTime)}
           </Text>
@@ -102,6 +121,7 @@ export function VideoControlsOverlay({
             fontSize="$3"
             color="$color12"
             testID="total-time"
+            accessibilityLabel={`Total duration: ${formatTime(duration)}`}
           >
             {formatTime(duration)}
           </Text>
@@ -114,7 +134,10 @@ export function VideoControlsOverlay({
           borderRadius={2}
           testID="progress-bar"
           onPress={() => onSeek(Math.floor(duration * 0.5))} // Seek to middle of video
-          accessibilityLabel={`Video progress: ${Math.round(progress)}%`}
+          accessibilityLabel={`Video progress: ${progressPercentage}% complete. Tap to seek to middle of video.`}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
+          accessibilityHint="Tap to jump to the middle of the video"
           chromeless
           padding={0}
         >
@@ -128,13 +151,19 @@ export function VideoControlsOverlay({
         </Button>
 
         {/* Fullscreen Button */}
-        <XStack justifyContent="flex-end">
+        <XStack
+          justifyContent="flex-end"
+          accessibilityLabel="Additional video controls"
+        >
           <Button
             chromeless
             icon={Maximize}
             size={44}
             color="$color12"
             testID="fullscreen-button"
+            accessibilityLabel="Enter fullscreen mode"
+            accessibilityRole="button"
+            accessibilityHint="Tap to view video in fullscreen"
           />
         </XStack>
       </YStack>

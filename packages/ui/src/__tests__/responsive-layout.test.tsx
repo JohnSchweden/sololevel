@@ -60,11 +60,11 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
-      const overlay = screen.getByLabelText('Processing overlay')
+      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
       expect(overlay).toBeTruthy()
 
       // Should use mobile-appropriate spacing and sizing
-      const progressBar = screen.getByLabelText('Progress bar')
+      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
       expect(progressBar).toBeTruthy()
     })
 
@@ -85,7 +85,9 @@ describe('Responsive Layout Tests', () => {
       expect(playButton).toBeTruthy()
 
       // Touch targets should be minimum 44pt on mobile
-      const progressBar = screen.getByLabelText('Video progress: 25%')
+      const progressBar = screen.getByLabelText(
+        'Video progress: 25% complete. Tap to seek to middle of video.'
+      )
       expect(progressBar).toBeTruthy()
     })
 
@@ -107,7 +109,7 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<BottomSheet {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet')
+      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Should show drag handle for mobile gesture interaction
@@ -128,7 +130,7 @@ describe('Responsive Layout Tests', () => {
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
       // Components should scale appropriately for mobile viewport
-      const container = screen.getByLabelText('Processing overlay')
+      const container = screen.getByLabelText('Processing overlay: Analysis in progress')
       expect(container).toBeTruthy()
     })
   })
@@ -151,11 +153,11 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
-      const overlay = screen.getByLabelText('Processing overlay')
+      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
       expect(overlay).toBeTruthy()
 
       // Should use larger spacing tokens for tablet
-      const progressBar = screen.getByLabelText('Progress bar')
+      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
       expect(progressBar).toBeTruthy()
     })
 
@@ -176,7 +178,9 @@ describe('Responsive Layout Tests', () => {
       expect(playButton).toBeTruthy()
 
       // Controls should be larger on tablet
-      const progressBar = screen.getByLabelText('Video progress: 25%')
+      const progressBar = screen.getByLabelText(
+        'Video progress: 25% complete. Tap to seek to middle of video.'
+      )
       expect(progressBar).toBeTruthy()
     })
 
@@ -206,7 +210,7 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<BottomSheet {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet')
+      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Should show more content on tablet
@@ -233,11 +237,11 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<ProcessingOverlay {...mockProps} />)
 
-      const overlay = screen.getByLabelText('Processing overlay')
+      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
       expect(overlay).toBeTruthy()
 
       // Should use desktop spacing and sizing
-      const progressBar = screen.getByLabelText('Progress bar')
+      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
       expect(progressBar).toBeTruthy()
     })
 
@@ -258,7 +262,9 @@ describe('Responsive Layout Tests', () => {
       expect(playButton).toBeTruthy()
 
       // Desktop should support hover interactions
-      const progressBar = screen.getByLabelText('Video progress: 25%')
+      const progressBar = screen.getByLabelText(
+        'Video progress: 25% complete. Tap to seek to middle of video.'
+      )
       expect(progressBar).toBeTruthy()
     })
 
@@ -280,7 +286,7 @@ describe('Responsive Layout Tests', () => {
 
       renderWithProviders(<BottomSheet {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet')
+      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Desktop could show as side panel instead of bottom sheet
@@ -307,13 +313,13 @@ describe('Responsive Layout Tests', () => {
       Dimensions.get.mockReturnValue(mockDimensions.mobile)
 
       rerender(<ProcessingOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
 
       // Transition to tablet
       Dimensions.get.mockReturnValue(mockDimensions.tablet)
 
       rerender(<ProcessingOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
     })
 
     it('maintains component functionality across breakpoints', () => {
@@ -437,7 +443,7 @@ describe('Responsive Layout Tests', () => {
         rerender(<BottomSheet {...mockProps} />)
       }
 
-      expect(screen.getByLabelText('Bottom sheet')).toBeTruthy()
+      expect(screen.getByLabelText('Bottom sheet expanded')).toBeTruthy()
     })
   })
 })

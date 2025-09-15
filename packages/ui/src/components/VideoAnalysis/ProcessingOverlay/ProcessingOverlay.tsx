@@ -27,6 +27,9 @@ export function ProcessingOverlay({
     return `${minutes} minute${minutes > 1 ? 's' : ''} ${remainingSeconds} seconds remaining`
   }
 
+  const progressPercentage = Math.round(Math.min(Math.max(progress * 100, 0), 100))
+  const currentStage = Math.ceil(progress / 20)
+
   return (
     <YStack
       position="absolute"
@@ -37,7 +40,9 @@ export function ProcessingOverlay({
       padding="$4"
       gap="$6"
       testID="processing-overlay"
-      accessibilityLabel="Processing overlay"
+      accessibilityLabel={`Processing overlay: ${isComplete ? 'Analysis complete' : 'Analysis in progress'}`}
+      // accessibilityRole="dialog"
+      accessibilityState={{ busy: !isComplete }}
     >
       {/* Processing Indicator */}
       <YStack
@@ -48,7 +53,9 @@ export function ProcessingOverlay({
         justifyContent="center"
         alignItems="center"
         testID="processing-spinner"
-        accessibilityLabel="Processing spinner"
+        accessibilityLabel={`Processing spinner: ${isComplete ? 'Complete' : 'Active'}`}
+        accessibilityRole="progressbar"
+        accessibilityState={{ busy: !isComplete }}
       >
         <Spinner
           size="small"
@@ -60,6 +67,7 @@ export function ProcessingOverlay({
       <YStack
         alignItems="center"
         gap="$3"
+        accessibilityLabel="Processing stage information"
       >
         <Text
           fontSize="$5"
@@ -74,8 +82,9 @@ export function ProcessingOverlay({
           fontSize="$4"
           color="$gray11"
           textAlign="center"
+          accessibilityLabel={`Stage ${currentStage} of 5`}
         >
-          Stage {Math.ceil(progress / 20)} of 5
+          Stage {currentStage} of 5
         </Text>
 
         {/* Progress Bar */}
@@ -85,11 +94,13 @@ export function ProcessingOverlay({
           backgroundColor="$gray8"
           borderRadius="$1"
           testID="progress-bar"
-          accessibilityLabel="Progress bar"
+          accessibilityLabel={`Progress bar: ${progressPercentage}% complete`}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
         >
           <YStack
             height="100%"
-            width={`${Math.min(Math.max(progress * 100, 0), 100)}%`}
+            width={`${progressPercentage}%`}
             backgroundColor="$blue9"
             borderRadius="$1"
           />
@@ -100,9 +111,9 @@ export function ProcessingOverlay({
           fontSize="$3"
           color="$gray10"
           textAlign="center"
-          accessibilityLabel={`Processing progress: ${Math.round(Math.min(Math.max(progress * 100, 0), 100))}%`}
+          accessibilityLabel={`Processing progress: ${progressPercentage} percent complete`}
         >
-          {`${Math.round(Math.min(Math.max(progress * 100, 0), 100))}%`}
+          {`${progressPercentage}%`}
         </Text>
       </YStack>
 
@@ -111,19 +122,22 @@ export function ProcessingOverlay({
         gap="$3"
         marginTop="$6"
         alignItems="center"
+        accessibilityLabel="Analysis status information"
       >
         <Text
           fontSize="$5"
           fontWeight="600"
           textAlign="center"
           color="white"
+          accessibilityLabel={isComplete ? 'AI Analysis Complete' : 'AI Analysis in Progress'}
         >
-          AI Analysis in Progress
+          {isComplete ? 'AI Analysis Complete' : 'AI Analysis in Progress'}
         </Text>
         <Text
           fontSize="$4"
           color="$gray11"
           textAlign="center"
+          accessibilityLabel="Processing your video with advanced AI"
         >
           Processing your video with advanced AI
         </Text>
@@ -131,6 +145,7 @@ export function ProcessingOverlay({
           fontSize="$3"
           color="$gray10"
           textAlign="center"
+          accessibilityLabel={`Time estimate: ${formatTime(estimatedTime)}`}
         >
           {formatTime(estimatedTime)}
         </Text>
@@ -142,24 +157,37 @@ export function ProcessingOverlay({
         marginTop="$6"
         width="100%"
         maxWidth={400}
+        accessibilityLabel="Processing action buttons"
+        accessibilityRole="toolbar"
       >
         <Button
           variant="outlined"
           flex={1}
           onPress={onCancel}
+          testID="cancel-button"
           accessibilityLabel="Cancel processing"
+          accessibilityRole="button"
+          accessibilityHint="Tap to cancel the video analysis process"
         >
-          <Text testID="cancel-button">Cancel</Text>
+          <Text>Cancel</Text>
         </Button>
         <Button
           chromeless
           flex={1}
-          onPress={onViewResults}
+          onPress={isComplete ? onViewResults : undefined}
           disabled={!isComplete}
           opacity={isComplete ? 1 : 0.5}
-          accessibilityLabel="View analysis results"
+          testID="view-results-button"
+          accessibilityLabel={`View analysis results${isComplete ? '' : ' (disabled until processing complete)'}`}
+          accessibilityRole="button"
+          accessibilityHint={
+            isComplete
+              ? 'Tap to view your analysis results'
+              : 'Button will be enabled when processing is complete'
+          }
+          accessibilityState={{ disabled: !isComplete }}
         >
-          <Text testID="view-results-button">View Results</Text>
+          <Text>View Results</Text>
         </Button>
       </XStack>
     </YStack>

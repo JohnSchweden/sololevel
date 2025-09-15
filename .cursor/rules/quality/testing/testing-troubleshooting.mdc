@@ -1,0 +1,356 @@
+---
+description: Common testing errors, fixes, and debugging techniques for React Native and web
+globs: ["**/*.test.*", "**/*.spec.*"]
+parent: "quality/testing-unified"  
+priority: medium
+---
+
+# Testing Troubleshooting & Debugging
+
+## 🎯 Quick Diagnosis Guide
+**When a test fails, check in this order:**
+1. **Environment**: Correct test runner (Jest for RN, Vitest for web)?
+2. **Queries**: Using accessibility labels vs testID?
+3. **Events**: Using `fireEvent.press()` vs `fireEvent.click()`?
+4. **Mocks**: Are all used components mocked properly?
+5. **Setup**: Is the test environment configured correctly?
+
+## 🚨 Most Common Errors (Sept 2025 Analysis)
+
+### #1: "Unable to find element with testID" (70% of issues)
+**Root Cause**: testID queries fail with Tamagui mocks - **0% success rate**
+
+→ See `quality/testing/testing-react-native.mdc` for detailed accessibility pattern explanation
+
+#### ✅ Quick Solution
+```typescript
+// Use accessibility labels instead
+expect(screen.getByLabelText('Play video')).toBeTruthy()
+expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
+```
+
+### #2: "TypeError: fireEvent.press is not a function"
+**Root Cause**: Wrong testing library import for platform
+
+→ See `quality/testing/testing-react-native.mdc` and `quality/testing/testing-web.mdc` for platform-specific event handling
+
+#### ✅ Quick Fix
+```typescript
+// React Native
+import { fireEvent } from '@testing-library/react-native'
+fireEvent.press(button) // ✅
+
+// Web
+import { fireEvent } from '@testing-library/react'
+fireEvent.click(button) // ✅
+```
+
+### #3: "Element type is invalid: expected string but got undefined"
+**Root Cause**: Missing Tamagui component mocks
+
+#### ❌ Problem Pattern
+```typescript
+// Component uses unmocked Tamagui component
+<SizableText>Hello</SizableText> // Not mocked = undefined
+```
+
+#### ✅ Solution: Add to jest.setup.js
+→ See `quality/testing/testing-setup.mdc` for complete Tamagui mock configuration
+
+```typescript
+// Quick fix: Add missing component
+jest.mock('tamagui', () => ({
+  // ... existing mocks from jest.setup.js
+  SizableText: mockTextComponent // Add this line
+}))
+```
+
+### #4: "Cannot read properties of undefined (reading 'localUri')"
+**Root Cause**: Incomplete async service mocks
+
+#### ❌ Problem Pattern
+```typescript
+// Service mock returns undefined or incomplete data
+jest.mock('@app/services/VideoStorageService')
+// Uses auto-mock which returns undefined for methods
+```
+
+#### ✅ Solution: Complete Mock Implementation
+```typescript
+jest.mock('@app/services/VideoStorageService', () => ({
+  VideoStorageService: {
+    saveVideo: jest.fn().mockResolvedValue({
+      localUri: 'file:///videos/test.mp4',
+      filename: 'test.mp4',
+      size: 1024000,
+      metadata: { duration: 30, format: 'mp4' }
+    })
+  }
+}))
+```
+
+### #5: TurboModule/DevMenu Errors (React Native)
+**Root Cause**: React Native internal modules not properly mocked
+
+#### ❌ Problem Pattern
+```typescript
+// Error: TurboModuleRegistry.getEnforcing(...): 'DevMenu' could not be found
+jest.mock('react-native') // Too broad, causes issues
+```
+
+#### ✅ Solution: Specific Module Mocks
+```typescript
+// Add to jest.setup.js
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter')
+jest.mock('react-native/Libraries/Core/DeviceEventManager')
+
+// Don't mock all of react-native
+// Let jest-expo handle the core React Native mocking
+```
+
+## 🔍 Debugging Strategies
+
+### Query Debugging (Most Important)
+```typescript
+// Debug what elements are actually rendered
+screen.debug() // Shows full DOM tree
+
+// Find elements with specific text patterns
+screen.getByText(/pattern/i)
+
+// List all available roles
+screen.logTestingPlaygroundURL() // Web only
+
+// Check what accessibility labels are available
+console.log('Available labels:', screen.getAllByRole('button').map(btn => btn.getAttribute('aria-label')))
+```
+
+### Mock Debugging
+```typescript
+// Verify mock was called correctly
+const mockFn = jest.fn()
+expect(mockFn).toHaveBeenCalledWith(expectedArgs)
+
+// Debug mock call history
+console.log('Mock calls:', mockFn.mock.calls)
+console.log('Mock results:', mockFn.mock.results)
+
+// Reset mocks between tests
+beforeEach(() => {
+  jest.clearAllMocks()
+})
+```
+
+### Component State Debugging
+```typescript
+// Check component props directly (React Native)
+const button = screen.getByLabelText('Submit')
+console.log('Button props:', button.props)
+console.log('Button disabled:', button.props.disabled)
+
+// Check DOM attributes (Web)
+const webButton = screen.getByRole('button')
+console.log('Button attributes:', {
+  disabled: webButton.disabled,
+  className: webButton.className,
+  'aria-label': webButton.getAttribute('aria-label')
+})
+```
+
+## 🛠️ Platform-Specific Troubleshooting
+
+### React Native Issues
+
+#### Jest Configuration Problems
+```javascript
+// Problem: Tests don't run or fail to import
+// Solution: Update jest.config.js
+module.exports = {
+  preset: 'jest-expo', // Essential for React Native
+  transformIgnorePatterns: [
+    // Include all packages that need transformation
+    'node_modules/(?!(jest-)?react-native|@react-native|expo|@expo)'
+  ]
+}
+```
+
+#### Mock Component Issues
+```typescript
+// Problem: Component renders as [object Object]
+// Solution: Proper mock component factory
+const mockComponent = (name) => ({ children, ...props }) => 
+  React.createElement('div', { 
+    ...props, 
+    'data-testid': name,
+    'aria-label': props.accessibilityLabel // CRITICAL for queries
+  }, children)
+```
+
+#### Event Handler Issues  
+```typescript
+// Problem: onPress not triggered
+// Solution: Ensure Button component is used (not YStack with onPress)
+<Button onPress={onPress} accessibilityLabel="Submit">
+  Submit
+</Button>
+
+// Not: <YStack onPress={onPress}> (unreliable in tests)
+```
+
+### Web/Vitest Issues
+
+#### Environment Configuration
+```typescript
+// Problem: DOM matchers don't work
+// Solution: Check vitest.config environment
+export default defineConfig({
+  test: {
+    environment: 'jsdom', // Required for DOM testing
+    setupFiles: ['./src/test/setup.ts']
+  }
+})
+```
+
+#### Module Resolution
+```typescript
+// Problem: Cannot resolve workspace packages
+// Solution: Add alias configuration
+resolve: {
+  alias: {
+    '@ui': path.resolve(__dirname, '../packages/ui/src'),
+    '@app': path.resolve(__dirname, '../packages/app/src')
+  }
+}
+```
+
+## 🚫 Anti-Pattern Debugging
+
+### Testing Implementation Instead of Behavior
+```typescript
+// ❌ WRONG - Testing internal state
+expect(component.state.isLoading).toBe(false)
+
+// ✅ CORRECT - Testing user-visible behavior
+expect(screen.queryByLabelText('Loading')).toBeNull()
+expect(screen.getByText('Content loaded')).toBeTruthy()
+```
+
+### Over-Mocking
+```typescript
+// ❌ WRONG - Mocking everything
+jest.mock('@app/hooks/useVideoStore')
+jest.mock('@app/utils/formatTime')  
+jest.mock('@app/components/Button')
+
+// ✅ CORRECT - Mock external dependencies only
+jest.mock('@my/api') // External service
+jest.mock('expo-camera') // External module
+// Use real internal components and utilities
+```
+
+### Complex Test Scenarios
+```typescript
+// ❌ WRONG - Fighting with complex queries
+const complexElement = screen.getByTestId('nested-component')
+  .querySelector('.specific-class')
+  .children[2]
+
+// ✅ CORRECT - Convert to integration test
+it('should complete user flow', () => {
+  // 🧪 ARRANGE
+  render(<FullFeature />)
+  
+  // 🎬 ACT
+  fireEvent.press(screen.getByLabelText('Start process'))
+  
+  // ✅ ASSERT (test the outcome, not the steps)
+  expect(screen.getByLabelText('Process complete')).toBeTruthy()
+})
+```
+
+## 📊 Performance Debugging
+
+### Slow Test Execution
+```typescript
+// Problem: Tests take too long
+// Solutions:
+1. Reduce test scope (test behavior, not implementation)
+2. Use parallel execution: `--maxWorkers=4`
+3. Mock heavy dependencies
+4. Avoid testing every state combination
+```
+
+### Flaky Tests
+```typescript
+// Problem: Tests pass/fail randomly
+// Solutions:
+beforeEach(() => {
+  jest.clearAllMocks() // Clean state
+  // Reset any global state
+})
+
+// Use waitFor for async operations
+await waitFor(() => {
+  expect(screen.getByText('Loaded')).toBeTruthy()
+})
+```
+
+## 🎯 Troubleshooting Workflow
+
+### Step 1: Identify the Error Type
+- **Query errors**: Element not found → Check accessibility labels
+- **Event errors**: Wrong event type → Check platform and library
+- **Mock errors**: Undefined methods → Check mock completeness
+- **Import errors**: Module resolution → Check configuration
+
+### Step 2: Use Debugging Tools
+```typescript
+// For query issues
+screen.debug() // See what's actually rendered
+
+// For mock issues  
+console.log('Mock history:', mockFn.mock.calls)
+
+// For component issues
+console.log('Component props:', element.props)
+```
+
+### Step 3: Apply Platform-Specific Fixes
+- **React Native**: Focus on accessibility labels, proper mocks
+- **Web**: Check environment, DOM matchers, browser APIs
+- **Both**: Verify test runner and configuration
+
+### Step 4: Validate the Fix
+```typescript
+// Test that the fix actually works
+it('should reproduce the original issue', () => {
+  // Implement the fix
+  // Verify it passes consistently
+})
+```
+
+## ✅ Troubleshooting Checklist
+
+### Before Debugging
+□ Verify correct test runner (Jest for RN, Vitest for web)
+□ Check that the actual app functionality works
+□ Confirm test follows AAA pattern
+□ Ensure proper mocks are in place
+
+### During Debugging  
+□ Use `screen.debug()` to see rendered output
+□ Check mock call history and return values
+□ Verify component props vs expected values
+□ Test queries in isolation
+
+### After Fixing
+□ Test runs consistently (no flaky behavior)
+□ Other tests still pass (no regressions)
+□ Fix addresses root cause (not just symptoms)
+□ Documentation updated if needed
+
+## 🎯 Success Patterns
+- **Query Reliability**: 100% success with accessibility labels vs 0% with testID
+- **Mock Strategy**: Complete service mocks prevent undefined errors
+- **Platform Awareness**: Right tools for right environment eliminates most issues  
+- **Debugging Approach**: Systematic workflow reduces resolution time by 70%

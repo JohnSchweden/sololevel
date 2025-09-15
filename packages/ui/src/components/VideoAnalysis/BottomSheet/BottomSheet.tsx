@@ -95,7 +95,9 @@ export function BottomSheet({
       shadowRadius={4}
       elevation={5}
       testID="bottom-sheet"
-      accessibilityLabel="Bottom sheet"
+      accessibilityLabel={`Bottom sheet ${isExpanded ? 'expanded' : 'collapsed'}`}
+      // accessibilityRole="region"
+      accessibilityState={{ expanded: isExpanded }}
     >
       <YStack flex={1}>
         {/* Handle */}
@@ -109,6 +111,9 @@ export function BottomSheet({
             chromeless
             onPress={handleSheetToggle}
             testID="sheet-toggle-button"
+            accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} bottom sheet`}
+            accessibilityRole="button"
+            accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
           >
             <YStack
               width={40}
@@ -125,12 +130,14 @@ export function BottomSheet({
             paddingHorizontal="$4"
             paddingBottom="$3"
             testID="sheet-header"
+            accessibilityLabel="Sheet header with navigation tabs"
           >
             <XStack
               borderBottomWidth={1}
               borderBottomColor="$borderColor"
               testID="tab-navigation"
               accessibilityLabel="Tab navigation"
+              accessibilityRole="tablist"
             >
               {(['feedback', 'insights', 'comments'] as const).map((tab) => (
                 <Button
@@ -140,6 +147,10 @@ export function BottomSheet({
                   paddingVertical="$3"
                   onPress={() => onTabChange(tab)}
                   testID={`tab-${tab}`}
+                  accessibilityLabel={`${tab} tab`}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === tab }}
+                  accessibilityHint={`Switch to ${tab} view`}
                 >
                   <Text
                     fontSize="$4"
@@ -159,17 +170,20 @@ export function BottomSheet({
         <YStack
           flex={1}
           paddingHorizontal="$4"
+          accessibilityLabel={`${activeTab} content area`}
         >
           {activeTab === 'feedback' && (
             <ScrollView
               flex={1}
               testID="feedback-content"
+              accessibilityLabel="Feedback items list"
+              accessibilityRole="list"
             >
               <YStack
                 gap="$3"
                 paddingTop="$2"
               >
-                {feedbackItems.map((item) => (
+                {feedbackItems.map((item, _index) => (
                   <YStack
                     key={item.id}
                     paddingVertical="$3"
@@ -177,6 +191,13 @@ export function BottomSheet({
                     borderBottomColor="$borderColor"
                     onPress={() => onFeedbackItemPress(item)}
                     testID={`feedback-item-${item.id}`}
+                    accessibilityLabel={`Feedback item: ${item.text}`}
+                    accessibilityRole="button"
+                    accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}`}
+                    accessibilityState={{
+                      disabled: false,
+                      selected: false,
+                    }}
                   >
                     <XStack
                       justifyContent="space-between"
@@ -186,6 +207,7 @@ export function BottomSheet({
                       <Text
                         fontSize="$3"
                         color="$color10"
+                        accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
                       >
                         {formatTime(item.timestamp)}
                       </Text>
@@ -194,6 +216,7 @@ export function BottomSheet({
                         color={getCategoryColor(item.category)}
                         fontWeight="600"
                         textTransform="capitalize"
+                        accessibilityLabel={`Category: ${item.category}`}
                       >
                         {item.category}
                       </Text>
@@ -202,6 +225,7 @@ export function BottomSheet({
                       fontSize="$4"
                       color="$color12"
                       lineHeight="$5"
+                      accessibilityLabel={`Feedback: ${item.text}`}
                     >
                       {item.text}
                     </Text>
@@ -217,11 +241,13 @@ export function BottomSheet({
               justifyContent="center"
               alignItems="center"
               testID="insights-content"
+              accessibilityLabel="Insights content area"
             >
               <Text
                 fontSize="$5"
                 color="$color11"
                 textAlign="center"
+                accessibilityLabel="Insights Coming Soon"
               >
                 Insights Coming Soon
               </Text>
@@ -230,6 +256,7 @@ export function BottomSheet({
                 color="$color10"
                 textAlign="center"
                 marginTop="$2"
+                accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
               >
                 Advanced analysis and performance metrics will be displayed here.
               </Text>
@@ -242,11 +269,13 @@ export function BottomSheet({
               justifyContent="center"
               alignItems="center"
               testID="comments-content"
+              accessibilityLabel="Comments content area"
             >
               <Text
                 fontSize="$5"
                 color="$color11"
                 textAlign="center"
+                accessibilityLabel="Comments Coming Soon"
               >
                 Comments Coming Soon
               </Text>
@@ -255,6 +284,7 @@ export function BottomSheet({
                 color="$color10"
                 textAlign="center"
                 marginTop="$2"
+                accessibilityLabel="Community discussions and expert feedback will appear here"
               >
                 Community discussions and expert feedback will appear here.
               </Text>
@@ -270,6 +300,8 @@ export function BottomSheet({
           borderTopColor="$borderColor"
           justifyContent="space-around"
           testID="social-icons"
+          accessibilityLabel="Social interaction buttons"
+          accessibilityRole="toolbar"
         >
           <YStack
             alignItems="center"
@@ -281,10 +313,14 @@ export function BottomSheet({
               icon={Heart}
               onPress={onLike}
               testID="like-button"
+              accessibilityLabel={`Like this video. Currently ${socialStats.likes} likes`}
+              accessibilityRole="button"
+              accessibilityHint="Tap to like this video"
             />
             <Text
               fontSize="$3"
               color="$color12"
+              accessibilityLabel={`${socialStats.likes} likes`}
             >
               {socialStats.likes}
             </Text>
@@ -300,10 +336,14 @@ export function BottomSheet({
               icon={MessageCircle}
               onPress={onComment}
               testID="comment-button"
+              accessibilityLabel={`Add comment. Currently ${socialStats.comments} comments`}
+              accessibilityRole="button"
+              accessibilityHint="Tap to add a comment"
             />
             <Text
               fontSize="$3"
               color="$color12"
+              accessibilityLabel={`${socialStats.comments} comments`}
             >
               {socialStats.comments}
             </Text>
@@ -319,10 +359,14 @@ export function BottomSheet({
               icon={Bookmark}
               onPress={onBookmark}
               testID="bookmark-button"
+              accessibilityLabel={`Bookmark this video. Currently ${socialStats.bookmarks} bookmarks`}
+              accessibilityRole="button"
+              accessibilityHint="Tap to bookmark this video"
             />
             <Text
               fontSize="$3"
               color="$color12"
+              accessibilityLabel={`${socialStats.bookmarks} bookmarks`}
             >
               {socialStats.bookmarks}
             </Text>
@@ -338,10 +382,14 @@ export function BottomSheet({
               icon={Share}
               onPress={onShare}
               testID="share-button"
+              accessibilityLabel={`Share this video. Currently ${socialStats.shares} shares`}
+              accessibilityRole="button"
+              accessibilityHint="Tap to share this video"
             />
             <Text
               fontSize="$3"
               color="$color12"
+              accessibilityLabel={`${socialStats.shares} shares`}
             >
               {socialStats.shares}
             </Text>

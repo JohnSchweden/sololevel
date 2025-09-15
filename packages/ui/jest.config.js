@@ -2,6 +2,13 @@ module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts', '<rootDir>/jest.setup.js'],
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],
+
+  // 🚀 PARALLEL EXECUTION CONFIGURATION (High Impact)
+  maxWorkers: '50%', // Use 50% of available cores for parallel execution
+  // Alternative options:
+  // maxWorkers: 4, // Fixed number of workers
+  // maxWorkers: '25%', // Percentage of available cores
+  // maxWorkers: 1, // Disable parallel execution
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!**/*.d.ts',

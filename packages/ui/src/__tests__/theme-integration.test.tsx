@@ -18,7 +18,7 @@ describe('Theme Integration Tests', () => {
       renderWithProviderNative(<ProcessingOverlay {...mockProps} />)
 
       // Component should render without errors with theme
-      expect(screen.getByLabelText('Processing overlay')).toBeTruthy()
+      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
       expect(screen.getByLabelText('Cancel processing')).toBeTruthy()
     })
 

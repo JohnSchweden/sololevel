@@ -221,6 +221,20 @@ jest.mock('../stores/analysisStatus', () => ({
     subscribeToJob: jest.fn(),
     unsubscribeFromJob: jest.fn(),
   })),
+  useAnalysisJobStatus: jest.fn(() => ({
+    job: null,
+    exists: false,
+    isQueued: false,
+    isProcessing: false,
+    isCompleted: false,
+    isFailed: false,
+    progress: 0,
+    error: null,
+    results: null,
+    poseData: null,
+    isSubscribed: false,
+    lastUpdated: Date.now(),
+  })),
 }))
 
 // Mock Tamagui components
@@ -249,6 +263,38 @@ jest.mock('@tamagui/lucide-icons', () => ({
   MoreVertical: ({ testID, ...props }: any) => {
     const React = require('react')
     return React.createElement('View', { testID: testID || 'more-vertical', ...props }, '⋮')
+  },
+}))
+
+// Mock ConnectionErrorBanner component
+jest.mock('../components/ConnectionErrorBanner', () => ({
+  ConnectionErrorBanner: ({ isVisible, error, reconnectAttempts, onRetry, onDismiss }: any) => {
+    const React = require('react')
+
+    if (!isVisible) {
+      return null
+    }
+
+    return React.createElement('View', { testID: 'connection-error-banner' }, [
+      React.createElement('Text', { key: 'title' }, 'Connection Lost'),
+      React.createElement('Text', { key: 'error' }, error || 'Real-time updates unavailable'),
+      reconnectAttempts > 0 &&
+        React.createElement(
+          'Text',
+          { key: 'attempts' },
+          `Reconnection attempt ${reconnectAttempts}`
+        ),
+      React.createElement(
+        'TouchableOpacity',
+        { key: 'retry', testID: 'retry-connection-button', onPress: onRetry },
+        'Retry'
+      ),
+      React.createElement(
+        'TouchableOpacity',
+        { key: 'dismiss', testID: 'dismiss-error-button', onPress: onDismiss },
+        'Dismiss'
+      ),
+    ])
   },
 }))
 
@@ -296,6 +342,32 @@ jest.mock('@my/ui', () => {
       React.createElement('View', { testID: testID || 'video-title', ...props }, 'Video Title'),
   }
 })
+
+// Mock useAnalysisRealtime hooks
+jest.mock('../hooks/useAnalysisRealtime', () => ({
+  useAnalysisRealtime: jest.fn(() => ({
+    isSubscribed: true,
+    analysisId: 123,
+  })),
+  usePoseDataStream: jest.fn(() => ({
+    isStreaming: false,
+    currentPose: null,
+    poseHistory: [],
+    processingQuality: 'medium',
+  })),
+  useVideoAnalysisRealtime: jest.fn(() => ({
+    analysisJob: null,
+    isAnalysisSubscribed: false,
+    currentPose: null,
+    poseHistory: [],
+    isPoseStreaming: false,
+    processingQuality: 'medium',
+    isConnected: true,
+    reconnectAttempts: 0,
+    connectionError: null,
+    isFullyConnected: false,
+  })),
+}))
 
 // Mock React Native StyleSheet
 jest.mock('react-native/Libraries/StyleSheet/StyleSheet', () => ({

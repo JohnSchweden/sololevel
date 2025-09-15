@@ -1,4 +1,4 @@
-name: Tests
+name: CI/CD Pipeline
 
 on:
   push:
@@ -40,8 +40,8 @@ jobs:
       - name: Type check
         run: yarn type-check
 
-      - name: Run unit tests with coverage
-        run: yarn test:coverage
+      - name: Run unit tests with parallel execution and coverage
+        run: yarn test:coverage --maxWorkers=4
 
       - name: Upload test results and coverage
         uses: actions/upload-artifact@v4
@@ -147,8 +147,8 @@ jobs:
       - name: Wait for server
         run: yarn workspace next-app exec wait-on --timeout 30000 http://localhost:8151
 
-      - name: Run Playwright tests
-        run: yarn playwright test
+      - name: Run Playwright tests with parallel execution
+        run: yarn playwright test --workers=4
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -198,7 +198,7 @@ jobs:
         run: yarn build:e2e:ios
 
       - name: Run iOS Detox tests
-        run: yarn test:e2e:ios
+        run: yarn test:e2e:ios --maxWorkers=2
 
       - name: Upload iOS test results
         uses: actions/upload-artifact@v4
@@ -262,7 +262,7 @@ jobs:
             chmod +x ./e2e/scripts/wait-for-emulator.sh
             ./e2e/scripts/wait-for-emulator.sh
             yarn build:e2e:android
-            yarn test:e2e:android
+            yarn test:e2e:android --maxWorkers=2
 
       - name: Upload Android test results
         uses: actions/upload-artifact@v4

@@ -1,0 +1,483 @@
+---
+description: Testing environment setup, mocks, and configuration for Jest and Vitest
+globs: ["**/jest.config.*", "**/vitest.config.*", "**/*setup*", "**/__mocks__/**"]
+parent: "quality/testing-unified"
+priority: high
+---
+
+# Testing Environment Setup & Configuration
+
+## 🎯 Overview
+Comprehensive setup for both Jest (React Native) and Vitest (Web) environments with essential mocks and configuration.
+
+## ⚡ Quick Environment Selection
+
+| Environment | Tool | Use Cases |
+|-------------|------|-----------|
+| **React Native/Expo** | Jest with `jest-expo` | Native components, Tamagui, mobile-specific |
+| **Web/Next.js** | Vitest with `jsdom` | Web components, DOM APIs, browser-specific |
+| **Node.js/Utilities** | Vitest with `node` | Pure functions, services, utilities |
+
+## 🔧 Jest Setup (React Native)
+
+### Configuration File
+```javascript
+// jest.config.js (React Native/Expo)
+module.exports = {
+  preset: 'jest-expo',
+  setupFilesAfterEnv: [
+    '<rootDir>/jest.setup.js',
+    '@testing-library/jest-native/extend-expect'
+  ],
+  testEnvironment: 'jsdom',
+  transformIgnorePatterns: [
+    'node_modules/(?!(jest-)?react-native|@react-native|expo|@expo|@unimodules|unimodules|sentry-expo|native-base|react-clone-referenced-element)'
+  ],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.stories.tsx'
+  ]
+}
+```
+
+### Essential Jest Setup File
+```typescript
+// jest.setup.js (React Native)
+import 'react-native-gesture-handler/jestSetup'
+
+// Mock Tamagui components (CRITICAL for React Native)
+const mockComponent = (name) => ({ children, ...props }) => 
+  React.createElement('div', { 
+    ...props, 
+    'data-testid': name,
+    // Preserve accessibility props for reliable queries
+    'aria-label': props.accessibilityLabel 
+  }, children)
+
+const mockTextComponent = ({ children, ...props }) => 
+  React.createElement('span', { 
+    ...props,
+    'aria-label': props.accessibilityLabel 
+  }, children)
+
+jest.mock('tamagui', () => ({
+  // Essential UI components
+  Spinner: mockComponent('Spinner'),
+  ScrollView: mockComponent('ScrollView'), 
+  Pressable: mockComponent('Pressable'),
+  Button: mockComponent('Button'),
+  Circle: mockComponent('Circle'),
+  YStack: mockComponent('YStack'),
+  XStack: mockComponent('XStack'),
+  
+  // Text components
+  SizableText: mockTextComponent,
+  Text: mockTextComponent,
+  Paragraph: mockTextComponent,
+  H1: mockTextComponent,
+  H2: mockTextComponent,
+  
+  // Layout components
+  View: mockComponent('View'),
+  Stack: mockComponent('Stack'),
+  
+  // Form components  
+  Input: mockComponent('Input'),
+  TextArea: mockComponent('TextArea'),
+  
+  // Feedback components
+  Dialog: mockComponent('Dialog'),
+  Sheet: mockComponent('Sheet'),
+  AlertDialog: mockComponent('AlertDialog'),
+  
+  // Utility exports
+  styled: jest.fn(),
+  createTamagui: jest.fn(),
+  TamaguiProvider: ({ children }) => children
+}))
+
+// Mock Expo modules
+jest.mock('expo-camera', () => ({
+  CameraView: mockComponent('CameraView'),
+  useCameraPermissions: jest.fn(() => [true, jest.fn()]),
+  Camera: {
+    Constants: {
+      Type: { back: 0, front: 1 },
+      FlashMode: { off: 0, on: 1, auto: 2 }
+    }
+  }
+}))
+
+jest.mock('expo-av', () => ({
+  Video: mockComponent('Video'),
+  Audio: {
+    Recording: jest.fn(),
+    setAudioModeAsync: jest.fn()
+  }
+}))
+
+jest.mock('expo-file-system', () => ({
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  readAsStringAsync: jest.fn().mockResolvedValue(''),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
+  documentDirectory: 'file:///test-documents/',
+  cacheDirectory: 'file:///test-cache/'
+}))
+
+// Mock React Native modules (resolved TurboModule issues)
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter')
+
+// Fix touch target tests (window.getComputedStyle mock)
+Object.defineProperty(window, 'getComputedStyle', {
+  value: () => ({ getPropertyValue: () => 'auto' })
+})
+
+// Mock console methods to reduce test noise (optional)
+global.console = {
+  ...console,
+  warn: jest.fn(),
+  error: jest.fn()
+}
+```
+
+### Manual Mocks for Complex Modules
+```javascript
+// packages/ui/__mocks__/@my/config.js
+const shadows = {
+  small: { shadowColor: 'rgba(0,0,0,0.1)', elevation: 1 },
+  medium: { shadowColor: 'rgba(0,0,0,0.15)', elevation: 2 },
+  large: { shadowColor: 'rgba(0,0,0,0.2)', elevation: 4 }
+}
+
+module.exports = {
+  shadows,
+  config: { 
+    tokens: {}, 
+    themes: {
+      light: {},
+      dark: {}
+    } 
+  },
+  __esModule: true,
+  default: { 
+    shadows, 
+    config: { 
+      tokens: {}, 
+      themes: {} 
+    } 
+  }
+}
+```
+
+## 🌐 Vitest Setup (Web)
+
+### Configuration File
+```typescript
+// vitest.config.mjs (Web/Next.js)
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom', // or 'node' for utilities
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true, // optional: enables describe/it globals
+    coverage: {
+      reporter: ['text', 'html', 'json'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/*.stories.tsx'
+      ]
+    }
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
+      '@ui': '/packages/ui/src',
+      '@app': '/packages/app/src',
+      '@api': '/packages/api/src'
+    }
+  }
+})
+```
+
+### Essential Vitest Setup File
+```typescript
+// src/test/setup.ts (Web)
+import '@testing-library/jest-dom'
+import { vi, beforeEach } from 'vitest'
+
+// Mock browser APIs
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock fetch globally
+global.fetch = vi.fn()
+
+// Mock Next.js modules
+vi.mock('next/router', () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    pathname: '/',
+    query: {},
+    asPath: '/'
+  }))
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn()
+  })),
+  usePathname: vi.fn(() => '/'),
+  useSearchParams: vi.fn(() => new URLSearchParams())
+}))
+
+// Clean up after each test
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+```
+
+## 🎭 Service Layer Mocking
+
+### Video Storage Service Mock
+```typescript
+// __mocks__/@app/services/VideoStorageService.ts
+export const VideoStorageService = {
+  saveVideo: jest.fn().mockResolvedValue({
+    localUri: 'file:///videos/test.mp4',
+    filename: 'test-video.mp4',
+    size: 1024000,
+    metadata: {
+      duration: 30,
+      format: 'mp4',
+      resolution: { width: 1920, height: 1080 }
+    }
+  }),
+  
+  deleteVideo: jest.fn().mockResolvedValue(undefined),
+  
+  getVideoInfo: jest.fn().mockResolvedValue({
+    exists: true,
+    size: 1024000,
+    modificationTime: Date.now()
+  })
+}
+```
+
+### API Client Mock
+```typescript
+// __mocks__/@my/api.ts
+export const supabase = {
+  from: jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue({ data: [], error: null }),
+    update: jest.fn().mockResolvedValue({ data: [], error: null }),
+    delete: jest.fn().mockResolvedValue({ data: [], error: null }),
+    eq: jest.fn().mockReturnThis(),
+    gt: jest.fn().mockReturnThis(),
+    lt: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis()
+  })),
+  
+  auth: {
+    signIn: jest.fn().mockResolvedValue({ data: { user: { id: '1' } }, error: null }),
+    signOut: jest.fn().mockResolvedValue({ error: null }),
+    getUser: jest.fn().mockResolvedValue({ data: { user: { id: '1' } }, error: null })
+  },
+  
+  storage: {
+    from: jest.fn(() => ({
+      upload: jest.fn().mockResolvedValue({ data: { path: 'videos/test.mp4' }, error: null }),
+      download: jest.fn().mockResolvedValue({ data: new Blob(), error: null })
+    }))
+  }
+}
+```
+
+## 🔌 External Library Mocks
+
+### React Query Mock (Vitest)
+```typescript
+// Mock TanStack Query for web tests
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query')
+  return {
+    ...actual,
+    useQuery: vi.fn(() => ({
+      data: null,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn()
+    })),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isLoading: false,
+      error: null
+    }))
+  }
+})
+```
+
+### Zustand Mock (Jest)
+```typescript
+// Mock Zustand stores
+jest.mock('@app/stores/videoStore', () => ({
+  useVideoStore: jest.fn(() => ({
+    videos: [],
+    currentVideo: null,
+    isRecording: false,
+    startRecording: jest.fn(),
+    stopRecording: jest.fn(),
+    addVideo: jest.fn()
+  }))
+}))
+```
+
+## 🌍 Environment Variables & Configuration
+
+### Test Environment Variables
+```typescript
+// Set up test environment variables
+process.env.NODE_ENV = 'test'
+process.env.SUPABASE_URL = 'https://test.supabase.co'
+process.env.SUPABASE_ANON_KEY = 'test-key'
+process.env.EXPO_PUBLIC_API_URL = 'https://test-api.com'
+
+// For Vitest
+vi.stubEnv('NODE_ENV', 'test')
+vi.stubEnv('API_URL', 'https://test-api.com')
+```
+
+## 🛠️ Troubleshooting Setup Issues
+
+### Common Jest Issues
+
+#### TurboModule Errors
+```typescript
+// Fix: Add to jest.setup.js
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter')
+jest.mock('react-native/Libraries/Core/DeviceEventManager')
+```
+
+#### Transform Errors
+```javascript
+// Fix: Update transformIgnorePatterns
+transformIgnorePatterns: [
+  'node_modules/(?!(jest-)?react-native|@react-native|expo|@expo|@unimodules|unimodules|sentry-expo|native-base|react-clone-referenced-element|@react-native-community|@react-navigation)'
+]
+```
+
+### Common Vitest Issues  
+
+#### Module Resolution
+```typescript
+// Fix: Add to vitest.config
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
+    '~': path.resolve(__dirname, '.')
+  }
+}
+```
+
+#### TypeScript Issues
+```typescript
+// Fix: Add to vitest.config
+test: {
+  typecheck: {
+    tsconfig: './tsconfig.test.json'
+  }
+}
+```
+
+## 📦 Package-Specific Setup
+
+### UI Package Setup
+```javascript
+// packages/ui/jest.config.js
+module.exports = {
+  preset: 'jest-expo',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testEnvironment: 'jsdom',
+  // Manual mocks in __mocks__ directory
+  moduleNameMapper: {
+    '^@my/config$': '<rootDir>/__mocks__/@my/config.js'
+  }
+}
+```
+
+### App Package Setup  
+```javascript
+// packages/app/jest.config.js
+module.exports = {
+  preset: 'jest-expo',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testEnvironment: 'jsdom'
+}
+```
+
+## ✅ Setup Validation Checklist
+
+### Jest (React Native) Setup
+□ `jest-expo` preset configured
+□ Essential Tamagui components mocked in jest.setup.js
+□ Expo modules properly mocked (Camera, FileSystem, etc.)
+□ `window.getComputedStyle` mock added for touch targets
+□ TurboModule errors resolved
+□ Manual mocks in `__mocks__` directories for complex modules
+
+### Vitest (Web) Setup  
+□ Correct environment: `jsdom` for components, `node` for utilities
+□ Browser APIs mocked (ResizeObserver, IntersectionObserver, matchMedia)
+□ Next.js modules mocked if using Next.js
+□ Path aliases configured for workspace packages
+□ Test globals enabled or explicit imports used
+
+### General Setup
+□ Coverage reporting configured appropriately
+□ Environment variables set for test environment
+□ Service layer mocks return proper data structures
+□ External library mocks configured (React Query, Zustand, etc.)
+□ Console methods mocked to reduce test noise (optional)
+
+## 🎯 Setup Success Patterns
+- **Mock Reliability**: Essential mocks prevent component rendering failures
+- **Query Success**: Accessibility label preservation in Tamagui mocks enables 100% query success
+- **Environment Isolation**: Proper environment configuration prevents test interference
+- **Performance**: Parallel execution and proper cleanup enable fast test runs
