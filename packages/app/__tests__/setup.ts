@@ -326,6 +326,29 @@ jest.mock('tamagui', () => {
   }
 })
 
+// Mock @my/ui/components/VideoAnalysis components
+jest.mock('@my/ui/components/VideoAnalysis', () => {
+  const React = require('react')
+  return {
+    ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'ProcessingOverlay', ...props },
+        children
+      ),
+    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
+    VideoContainer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoContainer', ...props }, children),
+    VideoPlayerArea: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'VideoPlayerArea', ...props },
+        children
+      ),
+  }
+})
+
 // Mock Tamagui icons
 jest.mock('@tamagui/lucide-icons', () => ({
   ChevronLeft: ({ testID, ...props }: any) => {

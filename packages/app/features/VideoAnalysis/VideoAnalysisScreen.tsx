@@ -11,7 +11,7 @@ import {
   VideoContainer,
   VideoPlayer,
   VideoPlayerArea,
-} from '@my/ui/components/VideoAnalysis'
+} from '@ui/components/VideoAnalysis'
 
 // Simplified version - comment out complex components for now
 // import { BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
