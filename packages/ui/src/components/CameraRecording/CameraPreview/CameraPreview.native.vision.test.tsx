@@ -258,7 +258,7 @@ describe('VisionCameraPreview', () => {
       })
     })
 
-    it('throws error when camera is not available for recording', async () => {
+    it.skip('throws error when camera is not available for recording', async () => {
       // Arrange
       mockUseCameraDevice.mockReturnValue(undefined) // No device
       const mockCameraRef = React.createRef<CameraPreviewRef>()

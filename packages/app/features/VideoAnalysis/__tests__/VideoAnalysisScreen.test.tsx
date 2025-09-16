@@ -39,12 +39,12 @@ jest.mock('@my/ui', () => ({
       children
     )
   },
-  VideoAnalysisPlayer: ({ children, ...props }: any) => {
+  VideoPlayer: ({ children, ...props }: any) => {
     const React = require('react')
     return React.createElement(
       'View',
       {
-        'data-testid': 'video-analysis-player',
+        'data-testid': 'video-player',
         ...props,
       },
       children
