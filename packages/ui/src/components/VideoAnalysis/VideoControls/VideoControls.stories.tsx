@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { VideoControlsOverlay } from './VideoControlsOverlay'
+import { VideoControls } from './VideoControls'
 
-const meta: Meta<typeof VideoControlsOverlay> = {
-  title: 'VideoAnalysis/VideoControlsOverlay',
-  component: VideoControlsOverlay,
+const meta: Meta<typeof VideoControls> = {
+  title: 'VideoAnalysis/VideoControls',
+  component: VideoControls,
   parameters: {
     layout: 'centered',
   },

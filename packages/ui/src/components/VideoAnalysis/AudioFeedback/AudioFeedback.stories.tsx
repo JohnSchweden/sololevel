@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { AudioFeedbackOverlay } from './AudioFeedbackOverlay'
+import { AudioFeedback } from './AudioFeedback'
 
-const meta: Meta<typeof AudioFeedbackOverlay> = {
-  title: 'VideoAnalysis/AudioFeedbackOverlay',
-  component: AudioFeedbackOverlay,
+const meta: Meta<typeof AudioFeedback> = {
+  title: 'VideoAnalysis/AudioFeedback',
+  component: AudioFeedback,
   parameters: {
     layout: 'centered',
   },

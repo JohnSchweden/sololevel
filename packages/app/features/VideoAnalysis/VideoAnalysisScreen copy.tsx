@@ -7,12 +7,8 @@ import { log } from '@my/ui'
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'
 import {
-  AudioFeedback,
-  FeedbackBubbles,
-  MotionCaptureOverlay,
   ProcessingOverlay,
   VideoContainer,
-  VideoControls,
   VideoPlayer,
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
@@ -165,53 +161,6 @@ export function VideoAnalysisScreen({
                 isPlaying={true}
               />
             )}
-
-            {/* Overlay Components */}
-            <MotionCaptureOverlay
-              poseData={[]} // TODO: Connect to pose detection data
-              isVisible={true}
-            />
-
-            <FeedbackBubbles
-              messages={[]} // TODO: Connect to feedback messages
-              onBubbleTap={(message) => {
-                log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
-              }}
-            />
-
-            <AudioFeedback
-              audioUrl={null} // TODO: Connect to audio feedback
-              isPlaying={false}
-              currentTime={0}
-              duration={0}
-              onPlayPause={() => {
-                log.info('[VideoAnalysisScreen] Audio play/pause')
-              }}
-              onSeek={(time) => {
-                log.info('[VideoAnalysisScreen] Audio seek', { time })
-              }}
-              onClose={() => {
-                log.info('[VideoAnalysisScreen] Audio close')
-              }}
-              isVisible={false}
-            />
-
-            <VideoControls
-              isPlaying={true}
-              currentTime={0}
-              duration={120} // TODO: Connect to actual video duration
-              showControls={true}
-              onPlay={() => {
-                log.info('[VideoAnalysisScreen] Video play')
-              }}
-              onPause={() => {
-                log.info('[VideoAnalysisScreen] Video pause')
-              }}
-              onSeek={(time) => {
-                log.info('[VideoAnalysisScreen] Video seek', { time })
-              }}
-              title="Video Analysis"
-            />
           </YStack>
         )}
       </VideoPlayerArea>

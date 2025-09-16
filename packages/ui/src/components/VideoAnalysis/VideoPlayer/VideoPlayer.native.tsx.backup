@@ -3,11 +3,11 @@ import Video from 'react-native-video'
 import { YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
-// import { AudioFeedbackOverlay } from '../AudioFeedbackOverlay/AudioFeedbackOverlay'
+// import { AudioFeedback } from '../AudioFeedback/AudioFeedback'
 // import { FeedbackBubbles } from '../FeedbackBubbles/FeedbackBubbles'
 // // Import overlay components
 // import { MotionCaptureOverlay } from '../MotionCaptureOverlay/MotionCaptureOverlay'
-// import { VideoControlsOverlay } from '../VideoControlsOverlay/VideoControlsOverlay'
+// import { VideoControls } from '../VideoControls/VideoControls'
 
 export function VideoPlayerNative({
   videoUri,
@@ -159,7 +159,7 @@ export function VideoPlayerNative({
         onBubbleTap={onFeedbackBubbleTap}
       />
 
-      <AudioFeedbackOverlay
+      <AudioFeedback
         audioUrl={audioUrl}
         isPlaying={isAudioPlaying || false}
         currentTime={0} // Will be updated from store
@@ -175,7 +175,7 @@ export function VideoPlayerNative({
         showProgressBar={true}
       /> */}
 
-      {/* <VideoControlsOverlay
+      {/* <VideoControls
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}

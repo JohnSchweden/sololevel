@@ -1,7 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
-import { VideoControlsOverlay } from './VideoControlsOverlay'
+import { VideoControls } from './VideoControls'
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
@@ -18,7 +18,7 @@ const mockProps = {
   onSeek: jest.fn(),
 }
 
-describe('VideoControlsOverlay', () => {
+describe('VideoControls', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
@@ -29,7 +29,7 @@ describe('VideoControlsOverlay', () => {
       const testProps = { ...mockProps }
 
       // 🎬 ACT: Render the component
-      renderWithProviders(<VideoControlsOverlay {...testProps} />)
+      renderWithProviders(<VideoControls {...testProps} />)
 
       // ✅ ASSERT: Component renders without crashing and shows controls
       expect(screen.getByLabelText('Video controls overlay visible')).toBeTruthy()
@@ -40,7 +40,7 @@ describe('VideoControlsOverlay', () => {
       const pausedProps = { ...mockProps, isPlaying: false }
 
       // 🎬 ACT: Render the component
-      renderWithProviders(<VideoControlsOverlay {...pausedProps} />)
+      renderWithProviders(<VideoControls {...pausedProps} />)
 
       // ✅ ASSERT: Play button is displayed for paused video
       expect(screen.getByLabelText('Play video')).toBeTruthy()
@@ -51,7 +51,7 @@ describe('VideoControlsOverlay', () => {
       const playingProps = { ...mockProps, isPlaying: true }
 
       // 🎬 ACT: Render the component
-      renderWithProviders(<VideoControlsOverlay {...playingProps} />)
+      renderWithProviders(<VideoControls {...playingProps} />)
 
       // ✅ ASSERT: Pause button is displayed for playing video
       expect(screen.getByLabelText('Pause video')).toBeTruthy()
@@ -63,7 +63,7 @@ describe('VideoControlsOverlay', () => {
       const playProps = { ...mockProps, onPlay, isPlaying: false }
 
       // 🎬 ACT: Render component and press play button
-      renderWithProviders(<VideoControlsOverlay {...playProps} />)
+      renderWithProviders(<VideoControls {...playProps} />)
       fireEvent.click(screen.getByLabelText('Play video'))
 
       // ✅ ASSERT: Play handler is called exactly once
@@ -76,7 +76,7 @@ describe('VideoControlsOverlay', () => {
       const pauseProps = { ...mockProps, onPause, isPlaying: true }
 
       // 🎬 ACT: Render component and press pause button
-      renderWithProviders(<VideoControlsOverlay {...pauseProps} />)
+      renderWithProviders(<VideoControls {...pauseProps} />)
       fireEvent.click(screen.getByLabelText('Pause video'))
 
       // ✅ ASSERT: Pause handler is called exactly once
@@ -89,7 +89,7 @@ describe('VideoControlsOverlay', () => {
       const seekProps = { ...mockProps, onSeek }
 
       // 🎬 ACT: Render component and tap progress bar
-      renderWithProviders(<VideoControlsOverlay {...seekProps} />)
+      renderWithProviders(<VideoControls {...seekProps} />)
       const progressBar = screen.getByLabelText('Video progress: 25% complete')
       fireEvent.click(progressBar)
 
@@ -102,7 +102,7 @@ describe('VideoControlsOverlay', () => {
       const visibleProps = { ...mockProps, showControls: true }
 
       // 🎬 ACT: Render component with visible controls
-      renderWithProviders(<VideoControlsOverlay {...visibleProps} />)
+      renderWithProviders(<VideoControls {...visibleProps} />)
 
       // ✅ ASSERT: Controls overlay is visible and accessible
       const overlay = screen.getByLabelText('Video controls overlay visible')
@@ -114,7 +114,7 @@ describe('VideoControlsOverlay', () => {
       const hiddenProps = { ...mockProps, showControls: false }
 
       // 🎬 ACT: Render component with hidden controls
-      renderWithProviders(<VideoControlsOverlay {...hiddenProps} />)
+      renderWithProviders(<VideoControls {...hiddenProps} />)
 
       // ✅ ASSERT: Controls overlay is hidden but still present in DOM
       const overlay = screen.getByLabelText('Video controls overlay hidden')
@@ -125,7 +125,7 @@ describe('VideoControlsOverlay', () => {
   describe('Time Display Tests', () => {
     it('displays current time correctly', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={90}
         />
@@ -136,7 +136,7 @@ describe('VideoControlsOverlay', () => {
 
     it('displays duration correctly', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           duration={180}
         />
@@ -147,7 +147,7 @@ describe('VideoControlsOverlay', () => {
 
     it('handles zero time values', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={0}
           duration={0}
@@ -162,7 +162,7 @@ describe('VideoControlsOverlay', () => {
 
     it('formats time correctly for hours', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={3661}
           duration={7200}
@@ -177,7 +177,7 @@ describe('VideoControlsOverlay', () => {
   describe('Progress Bar Tests', () => {
     it('displays correct progress percentage', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={30}
           duration={120}
@@ -190,7 +190,7 @@ describe('VideoControlsOverlay', () => {
 
     it('handles zero duration gracefully', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={30}
           duration={0}
@@ -203,7 +203,7 @@ describe('VideoControlsOverlay', () => {
 
     it('clamps progress to 100%', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={150}
           duration={120}
@@ -217,21 +217,21 @@ describe('VideoControlsOverlay', () => {
 
   describe('Theme Integration Tests', () => {
     it('applies correct button colors', () => {
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       const playButton = screen.getByLabelText('Play video')
       expect(playButton).toBeTruthy()
     })
 
     it('uses correct progress bar colors', () => {
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       const progressBar = screen.getByLabelText('Video progress: 25% complete')
       expect(progressBar).toBeTruthy()
     })
 
     it('maintains proper spacing', () => {
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       const overlay = screen.getByLabelText('Video controls overlay visible')
       expect(overlay).toBeTruthy()
@@ -240,7 +240,7 @@ describe('VideoControlsOverlay', () => {
 
   describe('Accessibility Tests', () => {
     it('has proper accessibility labels', () => {
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       // Test that key interactive elements are accessible by their labels
       expect(screen.getByLabelText('Play video')).toBeTruthy()
@@ -251,7 +251,7 @@ describe('VideoControlsOverlay', () => {
     })
 
     it('maintains minimum touch target sizes', () => {
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       // Since isPlaying is false in mockProps, the button should have testID 'play-button'
       const playButton = screen.getByLabelText('Play video')
@@ -264,14 +264,14 @@ describe('VideoControlsOverlay', () => {
 
     it('announces playback state changes', () => {
       const { rerender } = renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           isPlaying={false}
         />
       )
 
       rerender(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           isPlaying={true}
         />
@@ -284,14 +284,14 @@ describe('VideoControlsOverlay', () => {
   describe('Animation Tests', () => {
     it('animates control visibility smoothly', () => {
       const { rerender } = renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           showControls={false}
         />
       )
 
       rerender(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           showControls={true}
         />
@@ -303,7 +303,7 @@ describe('VideoControlsOverlay', () => {
 
     it('auto-hides controls after timeout', async () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           showControls={true}
         />
@@ -319,19 +319,19 @@ describe('VideoControlsOverlay', () => {
     it('renders quickly with different time values', () => {
       const startTime = performance.now()
 
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      renderWithProviders(<VideoControls {...mockProps} />)
 
       const endTime = performance.now()
       expect(endTime - startTime).toBeLessThan(50)
     })
 
     it('handles rapid time updates efficiently', () => {
-      const { rerender } = renderWithProviders(<VideoControlsOverlay {...mockProps} />)
+      const { rerender } = renderWithProviders(<VideoControls {...mockProps} />)
 
       // Simulate rapid time updates (60fps)
       for (let i = 0; i < 60; i++) {
         rerender(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={i}
           />
@@ -345,7 +345,7 @@ describe('VideoControlsOverlay', () => {
   describe('Error Handling Tests', () => {
     it('handles negative time values', () => {
       renderWithProviders(
-        <VideoControlsOverlay
+        <VideoControls
           {...mockProps}
           currentTime={-10}
           duration={120}
@@ -364,7 +364,7 @@ describe('VideoControlsOverlay', () => {
         onSeek: jest.fn(),
       }
 
-      renderWithProviders(<VideoControlsOverlay {...propsWithoutCallbacks} />)
+      renderWithProviders(<VideoControls {...propsWithoutCallbacks} />)
 
       expect(screen.getByLabelText('Video controls overlay visible')).toBeTruthy()
     })
@@ -375,7 +375,7 @@ describe('VideoControlsOverlay', () => {
       it('calls onPlay when play button is pressed using React Native patterns', () => {
         const mockOnPlay = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             isPlaying={false}
             onPlay={mockOnPlay}
@@ -391,7 +391,7 @@ describe('VideoControlsOverlay', () => {
       it('calls onPause when pause button is pressed using React Native patterns', () => {
         const mockOnPause = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             isPlaying={true}
             onPause={mockOnPause}
@@ -406,7 +406,7 @@ describe('VideoControlsOverlay', () => {
 
       it('toggles button state and accessibility label when playing state changes', () => {
         const { rerender } = renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             isPlaying={false}
           />
@@ -417,7 +417,7 @@ describe('VideoControlsOverlay', () => {
 
         // Change to playing state
         rerender(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             isPlaying={true}
           />
@@ -432,7 +432,7 @@ describe('VideoControlsOverlay', () => {
       it('calls onSeek with correct rewind time when rewind button is pressed', () => {
         const mockOnSeek = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={30}
             onSeek={mockOnSeek}
@@ -448,7 +448,7 @@ describe('VideoControlsOverlay', () => {
       it('prevents rewind below zero seconds', () => {
         const mockOnSeek = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={5}
             onSeek={mockOnSeek}
@@ -464,7 +464,7 @@ describe('VideoControlsOverlay', () => {
       it('calls onSeek with correct fast-forward time when fast-forward button is pressed', () => {
         const mockOnSeek = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={30}
             duration={120}
@@ -481,7 +481,7 @@ describe('VideoControlsOverlay', () => {
       it('prevents fast-forward beyond video duration', () => {
         const mockOnSeek = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={115}
             duration={120}
@@ -500,7 +500,7 @@ describe('VideoControlsOverlay', () => {
       it('calls onSeek when progress bar is pressed', () => {
         const mockOnSeek = jest.fn()
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             duration={120}
             onSeek={mockOnSeek}
@@ -515,7 +515,7 @@ describe('VideoControlsOverlay', () => {
 
       it('updates progress bar accessibility label based on current progress', () => {
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={30}
             duration={120}
@@ -528,7 +528,7 @@ describe('VideoControlsOverlay', () => {
 
       it('handles zero duration gracefully in progress calculation', () => {
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={30}
             duration={0}
@@ -543,7 +543,7 @@ describe('VideoControlsOverlay', () => {
     describe('Time Display Accuracy', () => {
       it('displays current time and duration correctly', () => {
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={90}
             duration={150}
@@ -557,7 +557,7 @@ describe('VideoControlsOverlay', () => {
 
       it('handles hour-long videos correctly', () => {
         renderWithProviders(
-          <VideoControlsOverlay
+          <VideoControls
             {...mockProps}
             currentTime={3665}
             duration={7200}

@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react-native'
-import { AudioFeedbackOverlay } from './AudioFeedbackOverlay'
+import { AudioFeedback } from './AudioFeedback'
 
 const mockProps = {
   audioUrl: 'https://example.com/audio.mp3',
@@ -12,20 +12,20 @@ const mockProps = {
   isVisible: true,
 }
 
-describe('AudioFeedbackOverlay', () => {
+describe('AudioFeedback', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders audio feedback overlay when visible with audio URL', () => {
-    const { toJSON } = render(<AudioFeedbackOverlay {...mockProps} />)
+  it('renders audio feedback when visible with audio URL', () => {
+    const { toJSON } = render(<AudioFeedback {...mockProps} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
   it('does not render when not visible', () => {
     const { toJSON } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         isVisible={false}
       />
@@ -36,7 +36,7 @@ describe('AudioFeedbackOverlay', () => {
 
   it('does not render when no audio URL', () => {
     const { toJSON } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         audioUrl={null}
       />
@@ -46,14 +46,14 @@ describe('AudioFeedbackOverlay', () => {
   })
 
   it('shows play button when paused', () => {
-    const { toJSON } = render(<AudioFeedbackOverlay {...mockProps} />)
+    const { toJSON } = render(<AudioFeedback {...mockProps} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
   it('shows pause button when playing', () => {
     const { toJSON } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         isPlaying={true}
       />
@@ -63,32 +63,32 @@ describe('AudioFeedbackOverlay', () => {
   })
 
   it('displays correct time format', () => {
-    const { toJSON } = render(<AudioFeedbackOverlay {...mockProps} />)
+    const { toJSON } = render(<AudioFeedback {...mockProps} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
   it('shows progress bar with correct fill', () => {
-    const { toJSON } = render(<AudioFeedbackOverlay {...mockProps} />)
+    const { toJSON } = render(<AudioFeedback {...mockProps} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
   it('handles different progress states', () => {
     const { toJSON: start } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         currentTime={0}
       />
     )
     const { toJSON: middle } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         currentTime={60}
       />
     )
     const { toJSON: end } = render(
-      <AudioFeedbackOverlay
+      <AudioFeedback
         {...mockProps}
         currentTime={120}
       />
@@ -100,13 +100,13 @@ describe('AudioFeedbackOverlay', () => {
   })
 
   it('handles close button interaction', () => {
-    render(<AudioFeedbackOverlay {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
     expect(mockProps.onClose).toBeDefined()
   })
 
   it('handles play/pause button interaction', () => {
-    render(<AudioFeedbackOverlay {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
     expect(mockProps.onPlayPause).toBeDefined()
   })

@@ -12,7 +12,7 @@ import { Pressable } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
 import { AppHeader } from '../../AppHeader/AppHeader'
 
-export interface VideoControlsOverlayProps {
+export interface VideoControlsProps {
   isPlaying: boolean
   currentTime: number
   duration: number
@@ -26,7 +26,7 @@ export interface VideoControlsOverlayProps {
   title?: string
 }
 
-export function VideoControlsOverlay({
+export function VideoControls({
   isPlaying,
   currentTime,
   duration,
@@ -37,7 +37,7 @@ export function VideoControlsOverlay({
   onToggleFullscreen,
   onControlsVisibilityChange,
   title = 'Video Analysis',
-}: VideoControlsOverlayProps) {
+}: VideoControlsProps) {
   const [controlsVisible, setControlsVisible] = useState(showControls)
   const [isScrubbing, setIsScrubbing] = useState(false)
   const [showMenu, setShowMenu] = useState(false)

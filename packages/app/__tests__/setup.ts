@@ -112,18 +112,10 @@ jest.mock('@my/ui', () => {
         { 'data-testid': testID || 'FeedbackBubbles', ...props },
         children
       ),
-    AudioFeedbackOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'AudioFeedbackOverlay', ...props },
-        children
-      ),
-    VideoControlsOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'VideoControlsOverlay', ...props },
-        children
-      ),
+    AudioFeedback: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
+    VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
     BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
     SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
@@ -169,18 +161,10 @@ jest.mock('@ui/components/VideoAnalysis', () => {
         { 'data-testid': testID || 'FeedbackBubbles', ...props },
         children
       ),
-    AudioFeedbackOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'AudioFeedbackOverlay', ...props },
-        children
-      ),
-    VideoControlsOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'VideoControlsOverlay', ...props },
-        children
-      ),
+    AudioFeedback: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
+    VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
     BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
     SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>

@@ -9,8 +9,8 @@ export type {
 export { ProcessingOverlay } from './ProcessingOverlay/ProcessingOverlay'
 export type { ProcessingOverlayProps } from './ProcessingOverlay/ProcessingOverlay'
 
-export { VideoControlsOverlay } from './VideoControlsOverlay/VideoControlsOverlay'
-export type { VideoControlsOverlayProps } from './VideoControlsOverlay/VideoControlsOverlay'
+export { VideoControls } from './VideoControls/VideoControls'
+export type { VideoControlsProps } from './VideoControls/VideoControls'
 
 export { MotionCaptureOverlay } from './MotionCaptureOverlay/MotionCaptureOverlay'
 export type { MotionCaptureOverlayProps } from './MotionCaptureOverlay/MotionCaptureOverlay'
@@ -18,8 +18,8 @@ export type { MotionCaptureOverlayProps } from './MotionCaptureOverlay/MotionCap
 export { FeedbackBubbles } from './FeedbackBubbles/FeedbackBubbles'
 export type { FeedbackBubblesProps } from './FeedbackBubbles/FeedbackBubbles'
 
-export { AudioFeedbackOverlay } from './AudioFeedbackOverlay/AudioFeedbackOverlay'
-export type { AudioFeedbackOverlayProps } from './AudioFeedbackOverlay/AudioFeedbackOverlay'
+export { AudioFeedback } from './AudioFeedback/AudioFeedback'
+export type { AudioFeedbackProps } from './AudioFeedback/AudioFeedback'
 
 export { VideoPlayer } from './VideoPlayer'
 export type {

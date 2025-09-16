@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
 import { CoachAvatar } from '../CoachAvatar/CoachAvatar'
 
-export interface AudioFeedbackOverlayProps {
+export interface AudioFeedbackProps {
   audioUrl: string | null
   isPlaying: boolean
   currentTime: number
@@ -19,7 +19,7 @@ export interface AudioFeedbackOverlayProps {
   showProgressBar?: boolean
 }
 
-export function AudioFeedbackOverlay({
+export function AudioFeedback({
   audioUrl,
   isPlaying,
   currentTime,
@@ -33,7 +33,7 @@ export function AudioFeedbackOverlay({
   onTimeUpdate,
   autoHideDelay = 3000,
   showProgressBar = true,
-}: AudioFeedbackOverlayProps) {
+}: AudioFeedbackProps) {
   const autoHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastInteractionRef = useRef<number>(Date.now())
 
