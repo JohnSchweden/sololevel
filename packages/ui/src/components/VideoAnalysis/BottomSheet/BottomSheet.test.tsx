@@ -3,6 +3,9 @@ import '@testing-library/jest-dom'
 import { BottomSheet } from './BottomSheet'
 // TestProviders import removed as it's not used
 
+// Skip tests that use Slider components for now
+// TODO: Fix Slider mocking in test environment
+
 // Test providers setup
 
 const mockFeedbackItems = [
@@ -34,10 +37,13 @@ const mockProps = {
   activeTab: 'feedback' as const,
   feedbackItems: mockFeedbackItems,
   socialStats: mockSocialStats,
+  currentVideoTime: 0,
+  videoDuration: 120,
   onTabChange: jest.fn(),
   onSheetExpand: jest.fn(),
   onSheetCollapse: jest.fn(),
   onFeedbackItemPress: jest.fn(),
+  onVideoSeek: jest.fn(),
   onLike: jest.fn(),
   onComment: jest.fn(),
   onBookmark: jest.fn(),
@@ -611,6 +617,226 @@ describe('BottomSheet', () => {
         expect(screen.getByLabelText('Feedback items list')).toBeTruthy()
         expect(screen.getByLabelText('feedback content area')).toBeTruthy()
       })
+    })
+  })
+
+  // US-VF-08: Enhanced Feedback Panel Component Tests
+  describe('US-VF-08: Enhanced Feedback Panel Component', () => {
+    it('renders video progress bar when expanded', () => {
+      // 🧪 ARRANGE: Set up component in expanded state with video duration and feedback tab
+      const progressProps = {
+        ...mockProps,
+        isExpanded: true,
+        videoDuration: 120,
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...progressProps} />)
+
+      // ✅ ASSERT: Video progress bar is rendered
+      const progressBar = screen.getByLabelText('Video progress bar')
+      expect(progressBar).toBeTruthy()
+    })
+
+    it('displays current video time and duration in progress bar', () => {
+      // 🧪 ARRANGE: Set up component with specific video time and feedback tab
+      // formatTime function expects milliseconds, so convert seconds to milliseconds
+      const timeProps = {
+        ...mockProps,
+        isExpanded: true,
+        currentVideoTime: 45 * 1000, // 45 seconds in milliseconds
+        videoDuration: 120 * 1000, // 120 seconds in milliseconds
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...timeProps} />)
+
+      // ✅ ASSERT: Time display shows correct format (MM:SS) using accessibility labels
+      const currentTime = screen.getByLabelText('Current time: 00:45')
+      const duration = screen.getByLabelText('Total duration: 02:00')
+      expect(currentTime).toBeTruthy()
+      expect(duration).toBeTruthy()
+    })
+
+    it('calls onVideoSeek when progress bar is interacted with', () => {
+      // 🧪 ARRANGE: Set up component with seek handler and feedback tab
+      const mockOnVideoSeek = jest.fn()
+      const seekProps = {
+        ...mockProps,
+        isExpanded: true,
+        currentVideoTime: 30, // 30 seconds
+        videoDuration: 120, // 120 seconds
+        activeTab: 'feedback' as const,
+        onVideoSeek: mockOnVideoSeek,
+      }
+
+      // 🎬 ACT: Render and interact with progress bar
+      render(<BottomSheet {...seekProps} />)
+      const progressBar = screen.getByLabelText('Video progress bar')
+
+      // Simulate a press event on the progress bar with locationX
+      fireEvent.press(progressBar, {
+        nativeEvent: {
+          locationX: 75, // Simulate clicking at 75% position (75px of 100px width = 75%)
+        },
+      })
+
+      // ✅ ASSERT: Seek handler is called with calculated time (75% of 120 seconds = 90 seconds)
+      expect(mockOnVideoSeek).toHaveBeenCalledWith(90)
+    })
+
+    it('highlights current feedback item based on video time (karaoke-style)', () => {
+      // 🧪 ARRANGE: Set up component with video time matching second feedback item timestamp (2000ms)
+      const karaokeProps = {
+        ...mockProps,
+        isExpanded: true,
+        currentVideoTime: 2, // 2 seconds matches second feedback item timestamp (2000ms)
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...karaokeProps} />)
+
+      // ✅ ASSERT: Second feedback item is highlighted (accessibility label should indicate it's currently active)
+      const highlightedItem = screen.getByLabelText(
+        'Feedback item: Bend your knees a little bit (currently active)'
+      )
+      expect(highlightedItem).toBeTruthy()
+    })
+
+    it('does not highlight feedback items when video time does not match', () => {
+      // 🧪 ARRANGE: Set up component with video time before any feedback (100ms)
+      const noHighlightProps = {
+        ...mockProps,
+        isExpanded: true,
+        currentVideoTime: 0.1, // 0.1 seconds = 100ms, before first feedback timestamp (1000ms)
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...noHighlightProps} />)
+
+      // ✅ ASSERT: No feedback items are highlighted (should not have "(currently active)" in accessibility label)
+      const firstItem = screen.getByLabelText('Feedback item: Great posture!')
+      const secondItem = screen.getByLabelText('Feedback item: Bend your knees a little bit')
+
+      expect(firstItem).toBeTruthy()
+      expect(secondItem).toBeTruthy()
+
+      // Should not find any items with "(currently active)" in their label
+      expect(screen.queryByLabelText(/currently active/)).toBeFalsy()
+    })
+
+    it('maintains sticky navigation when scrolling feedback list', () => {
+      // 🧪 ARRANGE: Set up component with many feedback items to test scrolling behavior
+      const manyFeedbackItems = Array.from({ length: 20 }, (_, index) => ({
+        id: `${index + 1}`,
+        timestamp: (index + 1) * 1000,
+        text: `Feedback item ${index + 1}`,
+        type: 'positive' as const,
+        category: 'posture' as const,
+      }))
+
+      const stickyProps = {
+        ...mockProps,
+        isExpanded: true,
+        feedbackItems: manyFeedbackItems,
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...stickyProps} />)
+
+      // ✅ ASSERT: Tab navigation is positioned at the top and remains accessible
+      const tabNavigation = screen.getByLabelText('Tab navigation')
+      expect(tabNavigation).toBeTruthy()
+      expect(tabNavigation.props.backgroundColor).toBe('$background')
+    })
+
+    it('shows feedback items in chronological order', () => {
+      // 🧪 ARRANGE: Set up component with feedback items in reverse chronological order
+      const unorderedFeedbackItems = [
+        {
+          id: '3',
+          timestamp: 3000,
+          text: 'Third feedback',
+          type: 'correction' as const,
+          category: 'grip' as const,
+        },
+        {
+          id: '1',
+          timestamp: 1000,
+          text: 'First feedback',
+          type: 'positive' as const,
+          category: 'posture' as const,
+        },
+        {
+          id: '2',
+          timestamp: 2000,
+          text: 'Second feedback',
+          type: 'suggestion' as const,
+          category: 'movement' as const,
+        },
+      ]
+
+      const orderedProps = {
+        ...mockProps,
+        isExpanded: true,
+        feedbackItems: unorderedFeedbackItems,
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...orderedProps} />)
+
+      // ✅ ASSERT: Feedback items are displayed in chronological order (sorted by timestamp)
+      const firstItem = screen.getByLabelText('Feedback item: First feedback')
+      const secondItem = screen.getByLabelText('Feedback item: Second feedback')
+      const thirdItem = screen.getByLabelText('Feedback item: Third feedback')
+
+      expect(firstItem).toBeTruthy()
+      expect(secondItem).toBeTruthy()
+      expect(thirdItem).toBeTruthy()
+    })
+
+    it('handles empty feedback list gracefully', () => {
+      // 🧪 ARRANGE: Set up component with empty feedback list
+      const emptyProps = {
+        ...mockProps,
+        isExpanded: true,
+        feedbackItems: [],
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...emptyProps} />)
+
+      // ✅ ASSERT: Component renders without crashing and feedback content is empty
+      const feedbackContent = screen.getByLabelText('Feedback items list')
+      expect(feedbackContent).toBeTruthy()
+
+      // Should not find any feedback items when list is empty
+      expect(screen.queryByLabelText(/Feedback item:/)).toBeFalsy()
+    })
+
+    it('supports keyboard navigation for progress bar', () => {
+      // 🧪 ARRANGE: Set up component with video duration and feedback tab
+      const keyboardProps = {
+        ...mockProps,
+        isExpanded: true,
+        videoDuration: 120,
+        activeTab: 'feedback' as const,
+      }
+
+      // 🎬 ACT: Render the component
+      render(<BottomSheet {...keyboardProps} />)
+
+      // ✅ ASSERT: Progress bar is accessible and has proper accessibility props
+      const progressBar = screen.getByLabelText('Video progress bar')
+      expect(progressBar).toBeTruthy()
+      expect(progressBar.props.accessibilityHint).toBe('Tap to seek to different time in video')
     })
   })
 })

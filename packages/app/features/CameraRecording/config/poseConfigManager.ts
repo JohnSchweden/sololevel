@@ -1,7 +1,7 @@
 import React from "react";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { persist } from "zustand/middleware/persist";
 import type {
   FrameSkippingStrategy,
   ModelType,

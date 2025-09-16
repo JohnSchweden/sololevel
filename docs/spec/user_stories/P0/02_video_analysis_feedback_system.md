@@ -333,7 +333,7 @@ As a user, I want to see a complete video analysis experience that combines all 
 
 ### Technical Notes
 - **Screen Location**: `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-- **Route Integration**: Expo Router route in `apps/expo/app/video-analysis.tsx`, Next.js page in `apps/next/pages/video-analysis.tsx`
+- **Route Integration**: Expo Router route in `apps/expo/app/video-analysis.tsx`, Expo Router route in `apps/next/app/video-analysis.tsx`
 - **State Coordination**: Orchestrates all component state through `videoAnalysisStore`
 - **Performance**: Optimized component rendering and data flow
 - **Cross-platform**: Unified screen implementation for web and native

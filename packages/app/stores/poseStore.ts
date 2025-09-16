@@ -1,8 +1,7 @@
 import React from "react";
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
+import { persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { persist } from "zustand/middleware/persist";
 import type { PerformanceMetrics } from "../features/CameraRecording/types/performance";
 import type {
   ModelLoadingState,

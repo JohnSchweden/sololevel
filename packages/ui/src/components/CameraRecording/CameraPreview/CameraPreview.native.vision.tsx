@@ -29,8 +29,18 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const cameraRef = useRef<Camera>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
-    const [_isInitialized, _setIsInitialized] = useState(false)
+    const [isInitialized, setIsInitialized] = useState(false)
+    const [isCameraReady, setIsCameraReady] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
+    const [isMounted, setIsMounted] = useState(false)
+
+    // Track component mount state to prevent operations when unmounted
+    useEffect(() => {
+      setIsMounted(true)
+      return () => {
+        setIsMounted(false)
+      }
+    }, [])
 
     // Get camera device based on type
     const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
@@ -52,17 +62,42 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       }
     }, [])
 
+    // Helper function to check if camera is ready
+    const checkCameraReady = (): boolean => {
+      if (!isMounted) {
+        log.warn('VisionCamera', 'Component not mounted, skipping camera operations')
+        return false
+      }
+      if (!cameraRef.current) {
+        log.warn('VisionCamera', 'Camera ref is null')
+        return false
+      }
+      if (!device) {
+        log.warn('VisionCamera', 'No camera device available')
+        return false
+      }
+      if (!isInitialized) {
+        log.warn('VisionCamera', 'Camera not initialized yet')
+        return false
+      }
+      if (!isCameraReady) {
+        log.warn('VisionCamera', 'Camera not ready for operations')
+        return false
+      }
+      return true
+    }
+
     // Expose camera control methods via ref
     useImperativeHandle(
       ref,
       () => ({
         startRecording: async (): Promise<void> => {
-          if (!cameraRef.current || !device) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for recording')
           }
 
           try {
-            cameraRef.current.startRecording({
+            cameraRef.current!.startRecording({
               onRecordingFinished: async (video) => {
                 log.info('VisionCamera', 'Recording finished', {
                   path: video.path,
@@ -127,12 +162,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         stopRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for stopping recording')
           }
 
           try {
-            await cameraRef.current.stopRecording()
+            await cameraRef.current!.stopRecording()
             log.info('VisionCamera', 'Recording stopped')
           } catch (error) {
             log.error('VisionCamera', 'Failed to stop recording', error)
@@ -141,12 +176,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         pauseRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for pausing recording')
           }
 
           try {
-            await cameraRef.current.pauseRecording()
+            await cameraRef.current!.pauseRecording()
             log.info('VisionCamera', 'Recording paused')
           } catch (error) {
             log.error('VisionCamera', 'Failed to pause recording', error)
@@ -155,12 +190,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         resumeRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for resuming recording')
           }
 
           try {
-            await cameraRef.current.resumeRecording()
+            await cameraRef.current!.resumeRecording()
             log.info('VisionCamera', 'Recording resumed')
           } catch (error) {
             log.error('VisionCamera', 'Failed to resume recording', error)
@@ -169,12 +204,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         takePicture: async (): Promise<string | null> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for taking picture')
           }
 
           try {
-            const photo = await cameraRef.current.takePhoto({
+            const photo = await cameraRef.current!.takePhoto({
               enableAutoRedEyeReduction: true,
             })
             log.info('VisionCamera', 'Picture taken', { path: photo.path })
@@ -197,14 +232,14 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         },
 
         setZoom: async (zoom: number): Promise<void> => {
-          if (!cameraRef.current || !device) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for zoom control')
           }
 
           try {
             // VisionCamera zoom range is device-specific
-            const minZoom = device.minZoom
-            const maxZoom = device.maxZoom
+            const minZoom = device!.minZoom
+            const maxZoom = device!.maxZoom
             const clampedZoom = Math.max(minZoom, Math.min(maxZoom, zoom))
 
             // Update internal zoom state to apply to Camera component
@@ -229,15 +264,20 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           return currentZoomLevel
         },
       }),
-      [device, currentZoomLevel, onZoomChange, onError]
+      [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady]
     )
 
     // Handle camera initialization
     const handleCameraInitialized = () => {
       log.info('VisionCamera', 'Camera initialized')
-      _setIsInitialized(true)
+      setIsInitialized(true)
       setCameraError(null)
-      onCameraReady?.()
+      // Wait a short moment to ensure native view is fully ready
+      setTimeout(() => {
+        setIsCameraReady(true)
+        log.info('VisionCamera', 'Camera fully ready for operations')
+        onCameraReady?.()
+      }, 100)
     }
 
     // Handle camera errors
@@ -246,7 +286,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       log.error('VisionCamera', 'Camera error', error)
 
       setCameraError(errorMessage)
-      _setIsInitialized(false)
+      setIsInitialized(false)
+      setIsCameraReady(false)
       onError?.(errorMessage)
     }
 
@@ -269,7 +310,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       if (!permissionGranted) {
         const errorMessage = 'Camera permission is required to use this feature'
         setCameraError(errorMessage)
-        _setIsInitialized(false)
+        setIsInitialized(false)
+        setIsCameraReady(false)
         onError?.(errorMessage)
       } else {
         setCameraError(null)
@@ -350,7 +392,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             height: '100%',
           }}
           device={device}
-          isActive={true}
+          isActive={isInitialized && isCameraReady}
           video={true}
           audio={true}
           zoom={currentZoomLevel}

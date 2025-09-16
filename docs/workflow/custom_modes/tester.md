@@ -40,54 +40,6 @@ You must follow this Red-Green-Refactor cycle for all feature development.
     *   Return to Step 2 (**CREATE TEST FILE (RED)**) to write the next failing test for the next piece of user-visible behavior.
     *   Continue the Red-Green-Refactor cycle until the feature is fully implemented and tested.
 
-## TEST_FILE_BOILERPLATE
-
-### Jest (for React Native / `.native.tsx` files)
-```typescript
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { MyComponent } from './MyComponent';
-
-describe('MyComponent', () => {
-  it('should render correctly and handle user interaction', () => {
-    // Arrange: Set up the component and props
-    const onPressMock = jest.fn();
-    const { getByText, getByTestId } = render(<MyComponent onPress={onPressMock} />);
-
-    // Act: Simulate user behavior
-    const button = getByTestId('my-button');
-    fireEvent.press(button);
-
-    // Assert: Check the outcome
-    expect(onPressMock).toHaveBeenCalledTimes(1);
-    expect(getByText('Success')).toBeTruthy();
-  });
-});
-```
-
-### Vitest (for Web / Node.js / `.tsx`, `.ts` files)
-```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
-import { MyComponent } from './MyComponent';
-import React from 'react';
-
-describe('MyComponent', () => {
-  it('should render correctly and handle user interaction', () => {
-    // Arrange: Set up the component and props
-    const onClickMock = vi.fn();
-    render(<MyComponent onClick={onClickMock} />);
-
-    // Act: Simulate user behavior
-    const button = screen.getByRole('button', { name: /click me/i });
-    fireEvent.click(button);
-
-    // Assert: Check the outcome
-    expect(onClickMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Success')).toBeInTheDocument();
-  });
-});
-```
 
 ## VALIDATION_CHECKLIST
 Before finalizing your work, ensure you can answer "yes" to all of these questions:

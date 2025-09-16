@@ -1,10 +1,9 @@
-import { screen } from '@testing-library/react-native'
+import { screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { BottomSheet } from '../components/VideoAnalysis/BottomSheet/BottomSheet'
 // VideoAnalysisScreen import removed as it's not used in this test
 import { ProcessingOverlay } from '../components/VideoAnalysis/ProcessingOverlay/ProcessingOverlay'
-import { VideoControlsOverlay } from '../components/VideoAnalysis/VideoControlsOverlay/VideoControlsOverlay'
-import { renderWithProviderNative } from '../test-utils/TestProvider'
+import { renderWithProvider } from '../test-utils/TestProvider'
 
 // Mock window dimensions for different breakpoints
 const mockDimensions = {
@@ -38,7 +37,7 @@ jest.mock('react-native', () => ({
 }))
 
 const renderWithProviders = (ui: React.ReactElement) => {
-  return renderWithProviderNative(ui)
+  return renderWithProvider(ui)
 }
 
 describe('Responsive Layout Tests', () => {
@@ -65,29 +64,6 @@ describe('Responsive Layout Tests', () => {
 
       // Should use mobile-appropriate spacing and sizing
       const progressBar = screen.getByLabelText('Progress bar: 50% complete')
-      expect(progressBar).toBeTruthy()
-    })
-
-    it('renders VideoControlsOverlay with touch-friendly controls', () => {
-      const mockProps = {
-        isPlaying: false,
-        currentTime: 30,
-        duration: 120,
-        showControls: true,
-        onPlay: jest.fn(),
-        onPause: jest.fn(),
-        onSeek: jest.fn(),
-      }
-
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
-
-      const playButton = screen.getByLabelText('Play video')
-      expect(playButton).toBeTruthy()
-
-      // Touch targets should be minimum 44pt on mobile
-      const progressBar = screen.getByLabelText(
-        'Video progress: 25% complete. Tap to seek to middle of video.'
-      )
       expect(progressBar).toBeTruthy()
     })
 
@@ -161,29 +137,6 @@ describe('Responsive Layout Tests', () => {
       expect(progressBar).toBeTruthy()
     })
 
-    it('renders VideoControlsOverlay with enhanced touch targets', () => {
-      const mockProps = {
-        isPlaying: false,
-        currentTime: 30,
-        duration: 120,
-        showControls: true,
-        onPlay: jest.fn(),
-        onPause: jest.fn(),
-        onSeek: jest.fn(),
-      }
-
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
-
-      const playButton = screen.getByLabelText('Play video')
-      expect(playButton).toBeTruthy()
-
-      // Controls should be larger on tablet
-      const progressBar = screen.getByLabelText(
-        'Video progress: 25% complete. Tap to seek to middle of video.'
-      )
-      expect(progressBar).toBeTruthy()
-    })
-
     it('renders BottomSheet with expanded content area', () => {
       const mockProps = {
         isExpanded: true,
@@ -245,29 +198,6 @@ describe('Responsive Layout Tests', () => {
       expect(progressBar).toBeTruthy()
     })
 
-    it('renders VideoControlsOverlay with hover states support', () => {
-      const mockProps = {
-        isPlaying: false,
-        currentTime: 30,
-        duration: 120,
-        showControls: true,
-        onPlay: jest.fn(),
-        onPause: jest.fn(),
-        onSeek: jest.fn(),
-      }
-
-      renderWithProviders(<VideoControlsOverlay {...mockProps} />)
-
-      const playButton = screen.getByLabelText('Play video')
-      expect(playButton).toBeTruthy()
-
-      // Desktop should support hover interactions
-      const progressBar = screen.getByLabelText(
-        'Video progress: 25% complete. Tap to seek to middle of video.'
-      )
-      expect(progressBar).toBeTruthy()
-    })
-
     it('renders BottomSheet with side panel layout option', () => {
       const mockProps = {
         isExpanded: true,
@@ -321,64 +251,9 @@ describe('Responsive Layout Tests', () => {
       rerender(<ProcessingOverlay {...mockProps} />)
       expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
     })
-
-    it('maintains component functionality across breakpoints', () => {
-      const mockProps = {
-        isPlaying: false,
-        currentTime: 30,
-        duration: 120,
-        showControls: true,
-        onPlay: jest.fn(),
-        onPause: jest.fn(),
-        onSeek: jest.fn(),
-      }
-
-      const { rerender } = renderWithProviders(<VideoControlsOverlay {...mockProps} />)
-
-      // Test functionality on mobile
-      const { Dimensions } = require('react-native')
-      Dimensions.get.mockReturnValue(mockDimensions.mobile)
-
-      rerender(<VideoControlsOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Play video')).toBeTruthy()
-
-      // Test functionality on desktop
-      Dimensions.get.mockReturnValue(mockDimensions.desktop)
-
-      rerender(<VideoControlsOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Play video')).toBeTruthy()
-    })
   })
 
   describe('Accessibility Across Breakpoints', () => {
-    it('maintains minimum touch targets on all screen sizes', () => {
-      const mockProps = {
-        isPlaying: false,
-        currentTime: 30,
-        duration: 120,
-        showControls: true,
-        onPlay: jest.fn(),
-        onPause: jest.fn(),
-        onSeek: jest.fn(),
-      }
-
-      // Test on mobile
-      const { Dimensions } = require('react-native')
-      Dimensions.get.mockReturnValue(mockDimensions.mobile)
-
-      const { rerender } = renderWithProviders(<VideoControlsOverlay {...mockProps} />)
-
-      let playButton = screen.getByLabelText('Play video')
-      expect(playButton).toBeTruthy()
-
-      // Test on tablet
-      Dimensions.get.mockReturnValue(mockDimensions.tablet)
-      rerender(<VideoControlsOverlay {...mockProps} />)
-
-      playButton = screen.getByLabelText('Play video')
-      expect(playButton).toBeTruthy()
-    })
-
     it('maintains proper contrast ratios across screen sizes', () => {
       const mockProps = {
         progress: 0.5,

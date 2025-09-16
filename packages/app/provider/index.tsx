@@ -10,6 +10,7 @@ const getActionSheetProvider = () => {
   }
 }
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
+import { enableMapSet } from 'immer'
 import { useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -29,6 +30,11 @@ export function Provider({
   defaultTheme?: string
   locale?: string
 }) {
+  // Initialize Immer MapSet plugin for Zustand stores that use Map/Set objects
+  useEffect(() => {
+    enableMapSet()
+  }, [])
+
   const colorScheme = useColorScheme()
   const theme = defaultTheme || (colorScheme === 'dark' ? 'dark' : 'light')
 
@@ -46,6 +52,12 @@ export function Provider({
     useAuthStore.getState().initialize()
     useFeatureFlagsStore.getState().loadFlags()
   }, [])
+
+  // Add test hook for Immer MapSet plugin verification (development only)
+  if (__DEV__) {
+    // This will be used by tests to verify MapSet plugin is enabled
+    ;(global as any).__immerMapSetEnabled = true
+  }
 
   // Debug hook placeholder (no console in linted builds)
   useEffect(() => {

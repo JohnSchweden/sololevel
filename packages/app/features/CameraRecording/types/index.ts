@@ -22,6 +22,7 @@ export type ScreenState = 'camera' | 'videoPlayer'
 export interface CameraRecordingScreenProps {
   // Navigation
   onNavigateBack?: () => void
+  onNavigateToVideoAnalysis?: (videoUri: string) => void
   onTabChange?: (tab: 'coach' | 'record' | 'insights') => void
 
   // Camera state - optional for placeholder component

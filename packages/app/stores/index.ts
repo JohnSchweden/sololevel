@@ -1,6 +1,12 @@
 // Export all stores
 export { useAuthStore } from './auth'
 export type { AuthActions, AuthState, AuthStore } from './auth'
+export { useVideoAnalysisStore } from './videoAnalysisStore'
+export type {
+  VideoAnalysisActions,
+  VideoAnalysisState,
+  VideoAnalysisStore,
+} from './videoAnalysisStore'
 
 export { useThemeStore } from './theme'
 export type { ThemeActions, ThemeMode, ThemeState, ThemeStore } from './theme'

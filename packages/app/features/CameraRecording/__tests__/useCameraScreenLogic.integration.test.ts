@@ -39,19 +39,8 @@ jest.mock('../hooks/useRecordingStateMachine', () => ({
   })),
 }))
 
-// Mock the screen state transition hook
-jest.mock('../hooks/useScreenStateTransition', () => ({
-  useScreenStateTransition: jest.fn(() => ({
-    screenState: 'camera',
-    videoData: null,
-    isVideoPlayerMode: false,
-    isCameraMode: true,
-    handleRecordingStateChange: jest.fn(),
-    handleVideoRecorded: jest.fn(),
-    handleRestartRecording: jest.fn(),
-    handleContinueToAnalysis: jest.fn(),
-  })),
-}))
+// Note: useScreenStateTransition is not used by useCameraScreenLogic
+// Screen state management is handled separately
 
 // Mock the tab persistence hook
 const mockSetActiveTab = jest.fn()
@@ -73,35 +62,31 @@ describe('useCameraScreenLogic Integration', () => {
     jest.clearAllMocks()
   })
 
-  describe('Screen State Integration', () => {
-    it('should start in camera mode', () => {
+  describe('Recording State Integration', () => {
+    it('should start with idle recording state', () => {
       const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
 
-      expect(result.current.screenState).toBe('camera')
-      expect(result.current.isCameraMode).toBe(true)
-      expect(result.current.isVideoPlayerMode).toBe(false)
-      expect(result.current.videoData).toBeNull()
+      expect(result.current.recordingState).toBe('idle')
+      expect(result.current.isRecording).toBe(false)
+      expect(result.current.duration).toBe(0)
+      expect(result.current.formattedDuration).toBe('0:00')
     })
 
-    it('should provide video player actions', () => {
+    it('should provide recording actions', () => {
       const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
 
-      expect(typeof result.current.handleRestartRecording).toBe('function')
-      expect(typeof result.current.handleContinueToAnalysis).toBe('function')
+      expect(typeof result.current.handleStartRecording).toBe('function')
+      expect(typeof result.current.handlePauseRecording).toBe('function')
+      expect(typeof result.current.handleResumeRecording).toBe('function')
+      expect(typeof result.current.handleStopRecording).toBe('function')
     })
 
-    it('should handle screen state transitions when recording stops', () => {
-      // This test verifies that the integration is set up correctly
-      // The actual state transition is tested in the useScreenStateTransition unit tests
+    it('should handle video recording completion', () => {
+      // This test verifies that the video recording integration is set up correctly
       const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
 
-      // Verify that the screen state transition hook is properly integrated
-      expect(result.current.screenState).toBeDefined()
-      expect(result.current.isVideoPlayerMode).toBeDefined()
-      expect(result.current.isCameraMode).toBeDefined()
-      expect(result.current.videoData).toBeDefined()
-      expect(typeof result.current.handleRestartRecording).toBe('function')
-      expect(typeof result.current.handleContinueToAnalysis).toBe('function')
+      // Verify that the video recording handler is properly integrated
+      expect(typeof result.current.handleVideoRecorded).toBe('function')
     })
   })
 
@@ -163,6 +148,42 @@ describe('useCameraScreenLogic Integration', () => {
       })
 
       expect(onNavigateBack).toHaveBeenCalled()
+    })
+
+    it('should navigate to video analysis screen after recording stops', () => {
+      const onNavigateToVideoAnalysis = jest.fn()
+      const mockProps = {
+        ...defaultProps,
+        onNavigateToVideoAnalysis,
+        cameraRef: { current: null },
+      }
+
+      // Mock the recording state machine to return a stopped state with video URI
+      const mockUseRecordingStateMachine = jest.requireMock('../hooks/useRecordingStateMachine')
+      mockUseRecordingStateMachine.useRecordingStateMachine.mockReturnValueOnce({
+        recordingState: 'stopped',
+        duration: 5000,
+        formattedDuration: '0:05',
+        startRecording: jest.fn(),
+        pauseRecording: jest.fn(),
+        resumeRecording: jest.fn(),
+        stopRecording: jest.fn(),
+        resetRecording: jest.fn(),
+        canRecord: false,
+        canPause: false,
+        canResume: false,
+        canStop: false,
+      })
+
+      const { result } = renderHook(() => useCameraScreenLogic(mockProps))
+
+      // Simulate video recording completion
+      act(() => {
+        result.current.handleVideoRecorded('/path/to/recorded/video.mp4')
+      })
+
+      // The test should fail initially since navigation logic is not implemented yet
+      expect(onNavigateToVideoAnalysis).toHaveBeenCalledWith('/path/to/recorded/video.mp4')
     })
 
     it('should handle tab changes', () => {

@@ -19,6 +19,7 @@ export interface RecordingControlsProps {
   duration: number
   zoomLevel: 1 | 2 | 3
   canSwapCamera: boolean
+  canStop?: boolean
   formattedDuration?: string
 
   onPause?: () => void
@@ -41,6 +42,7 @@ export function RecordingControls({
   duration,
   zoomLevel,
   canSwapCamera,
+  canStop = false,
   formattedDuration,
   onPause,
   onResume,
@@ -167,7 +169,7 @@ export function RecordingControls({
         {/* Stop Button */}
         <Button
           onPress={onStop}
-          disabled={disabled}
+          disabled={disabled || !canStop}
           backgroundColor="transparent" // Transparent
           borderRadius="$4"
           minHeight={60}
@@ -185,8 +187,8 @@ export function RecordingControls({
           icon={
             <Square
               size="$2"
-              color="red" // Red
-              fill="red" // Red
+              color={!canStop ? 'rgba(255,255,255,0.5)' : 'red'} // Red when enabled, gray when disabled
+              fill={!canStop ? 'rgba(255,255,255,0.5)' : 'red'} // Red when enabled, gray when disabled
             />
           }
         />

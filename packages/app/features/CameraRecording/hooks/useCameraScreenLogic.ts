@@ -2,11 +2,12 @@ import { log } from '@ui/utils/logger'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
-import { type VideoData, useScreenStateTransition } from './useScreenStateTransition'
 import { useTabPersistence } from './useTabPersistence'
 
 export const useCameraScreenLogic = ({
   onNavigateBack,
+  onNavigateToVideoAnalysis,
+  onTabChange,
   cameraRef,
 }: CameraRecordingScreenProps & {
   cameraRef?: any
@@ -18,7 +19,16 @@ export const useCameraScreenLogic = ({
 
   // Camera swap visual feedback state
   const [isCameraSwapping, setIsCameraSwapping] = useState(false)
+  const [isMounted, setIsMounted] = useState(true)
   const CAMERA_SWAP_TRANSITION_DURATION = 300 // 300ms for smooth transition
+
+  // Track component mount state
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
 
   const handleResetZoom = useCallback(() => {
     setZoomLevel(1)
@@ -27,45 +37,71 @@ export const useCameraScreenLogic = ({
   const { activeTab, setActiveTab, isLoading: isTabLoading } = useTabPersistence()
   const [cameraReady, setCameraReady] = useState(false)
 
-  // Screen state transition management
-  const {
-    screenState,
-    videoData,
-    isVideoPlayerMode,
-    isCameraMode,
-    handleRecordingStateChange,
-    handleVideoRecorded,
-    handleRestartRecording,
-    handleContinueToAnalysis,
-  } = useScreenStateTransition({
-    onNavigateToVideoPlayer: useCallback((videoData: VideoData) => {
-      log.info('useCameraScreenLogic', 'Navigating to video player', videoData)
-      // TODO: Handle navigation to video player mode
-    }, []),
-    onNavigateToCamera: useCallback(() => {
-      log.info('useCameraScreenLogic', 'Navigating back to camera')
-      // TODO: Handle navigation back to camera mode
-    }, []),
-    onVideoRecorded: useCallback((videoUri: string) => {
+  // Handle video recording completion
+  const handleVideoRecorded = useCallback(
+    (videoUri: string) => {
       log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
-    }, []),
-  })
+      // Navigate to video analysis screen with the recorded video
+      onNavigateToVideoAnalysis?.(videoUri)
+    },
+    [onNavigateToVideoAnalysis]
+  )
 
-  log.debug('useCameraScreenLogic', 'Current screen state', {
-    screenState,
-    isVideoPlayerMode,
-    isCameraMode,
-  })
+  // Handle recording state changes - simplified since we don't need screen transitions
+  const handleRecordingStateChange = useCallback((state: RecordingState, duration: number) => {
+    log.info('useCameraScreenLogic', 'Recording state changed', { state, duration })
+  }, [])
 
   // Stabilize camera controls to prevent dependency array size changes
   const cameraControls = useMemo(() => {
     // Always return an object to maintain consistent dependency array sizes
     if (cameraRef?.current && cameraReady) {
       return {
-        startRecording: cameraRef.current.startRecording,
-        stopRecording: cameraRef.current.stopRecording,
-        pauseRecording: cameraRef.current.pauseRecording,
-        resumeRecording: cameraRef.current.resumeRecording,
+        startRecording: async () => {
+          // Additional safety check before calling camera method
+          if (!isMounted) {
+            log.warn('useCameraScreenLogic', 'Component not mounted, cannot start recording')
+            throw new Error('Component not mounted')
+          }
+          if (!cameraRef?.current) {
+            log.warn('useCameraScreenLogic', 'Camera ref is null, cannot start recording')
+            throw new Error('Camera not available')
+          }
+          return cameraRef.current.startRecording()
+        },
+        stopRecording: async () => {
+          if (!isMounted) {
+            log.warn('useCameraScreenLogic', 'Component not mounted, cannot stop recording')
+            throw new Error('Component not mounted')
+          }
+          if (!cameraRef?.current) {
+            log.warn('useCameraScreenLogic', 'Camera ref is null, cannot stop recording')
+            throw new Error('Camera not available')
+          }
+          return cameraRef.current.stopRecording()
+        },
+        pauseRecording: async () => {
+          if (!isMounted) {
+            log.warn('useCameraScreenLogic', 'Component not mounted, cannot pause recording')
+            throw new Error('Component not mounted')
+          }
+          if (!cameraRef?.current) {
+            log.warn('useCameraScreenLogic', 'Camera ref is null, cannot pause recording')
+            throw new Error('Camera not available')
+          }
+          return cameraRef.current.pauseRecording()
+        },
+        resumeRecording: async () => {
+          if (!isMounted) {
+            log.warn('useCameraScreenLogic', 'Component not mounted, cannot resume recording')
+            throw new Error('Component not mounted')
+          }
+          if (!cameraRef?.current) {
+            log.warn('useCameraScreenLogic', 'Camera ref is null, cannot resume recording')
+            throw new Error('Camera not available')
+          }
+          return cameraRef.current.resumeRecording()
+        },
         isReady: true,
       }
     }
@@ -85,7 +121,7 @@ export const useCameraScreenLogic = ({
       },
       isReady: false,
     }
-  }, [cameraRef, cameraReady])
+  }, [cameraRef, cameraReady, isMounted])
 
   // Log when camera controls become available
   useEffect(() => {
@@ -176,6 +212,10 @@ export const useCameraScreenLogic = ({
   )
 
   const handleStartRecording = useCallback(async () => {
+    if (!isMounted) {
+      log.warn('handleStartRecording', 'Component not mounted, cannot start recording')
+      return
+    }
     if (!canRecord) return
     if (!cameraReady) {
       log.warn('handleStartRecording', 'Camera not ready yet, cannot start recording')
@@ -186,7 +226,7 @@ export const useCameraScreenLogic = ({
     } catch (error) {
       log.warn('handleStartRecording', `Recording not supported on this platform: ${error}`)
     }
-  }, [canRecord, cameraReady, startRecording])
+  }, [isMounted, canRecord, cameraReady, startRecording])
 
   const handlePauseRecording = useCallback(async () => {
     if (!canPause) return
@@ -282,10 +322,13 @@ export const useCameraScreenLogic = ({
     setShowNavigationDialog(false)
   }, [])
 
-  const handleTabChange = useCallback((tab: 'coach' | 'record' | 'insights') => {
-    setActiveTab(tab)
-    onNavigateBackRef.current?.() // Navigate back when switching tabs
-  }, [])
+  const handleTabChange = useCallback(
+    (tab: 'coach' | 'record' | 'insights') => {
+      setActiveTab(tab)
+      onTabChange?.(tab) // Call the tab change callback
+    },
+    [onTabChange]
+  )
 
   const handleCameraReady = useCallback(() => {
     setCameraReady(true)
@@ -312,6 +355,7 @@ export const useCameraScreenLogic = ({
     isRecording,
     headerTitle,
     cameraReady,
+    canStop,
 
     // Tab persistence state
     isTabLoading,
@@ -319,12 +363,6 @@ export const useCameraScreenLogic = ({
     // Camera swap visual feedback
     isCameraSwapping,
     cameraSwapTransitionDuration: CAMERA_SWAP_TRANSITION_DURATION,
-
-    // Screen state transition
-    screenState,
-    videoData,
-    isVideoPlayerMode,
-    isCameraMode,
 
     // Camera actions
     handleCameraSwap,
@@ -346,9 +384,7 @@ export const useCameraScreenLogic = ({
     setShowSideSheet,
     setShowNavigationDialog,
 
-    // Video player actions
+    // Recording actions
     handleVideoRecorded,
-    handleRestartRecording,
-    handleContinueToAnalysis,
   }
 }

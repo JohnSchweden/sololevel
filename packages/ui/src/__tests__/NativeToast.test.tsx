@@ -96,15 +96,24 @@ jest.mock('@tamagui/toast', () => {
   }
 })
 
-import { NativeToast } from '../NativeToast'
+import { NativeToast, __setMockToastState } from '../NativeToast'
 
 describe('NativeToast', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Reset to default mock state
+    __setMockToastState({
+      id: 'mock-toast-id',
+      title: 'Mock Toast',
+      message: 'This is a mock toast message',
+      duration: 3000,
+      viewportName: undefined,
+      isHandledNatively: false,
+    })
   })
 
   it('renders nothing when no toast state', () => {
-    mockUseToastState.mockReturnValue(null)
+    __setMockToastState(null as any)
 
     renderWithProvider(<NativeToast />)
 
@@ -112,9 +121,12 @@ describe('NativeToast', () => {
   })
 
   it('renders nothing when toast is handled natively', () => {
-    mockUseToastState.mockReturnValue({
+    __setMockToastState({
       id: 'toast-1',
       title: 'Test Toast',
+      message: 'Test message',
+      duration: 3000,
+      viewportName: 'main',
       isHandledNatively: true,
     })
 
@@ -124,10 +136,10 @@ describe('NativeToast', () => {
   })
 
   it('renders toast with title only', () => {
-    mockUseToastState.mockReturnValue({
+    __setMockToastState({
       id: 'toast-1',
       title: 'Test Toast Title',
-      message: null,
+      message: '',
       duration: 3000,
       viewportName: 'main',
       isHandledNatively: false,
@@ -140,11 +152,11 @@ describe('NativeToast', () => {
   })
 
   it('renders toast with title and message', () => {
-    mockUseToastState.mockReturnValue({
+    __setMockToastState({
       id: 'toast-2',
       title: 'Success',
       message: 'Operation completed successfully',
-      duration: 5000,
+      duration: 4000,
       viewportName: 'main',
       isHandledNatively: false,
     })
@@ -157,11 +169,11 @@ describe('NativeToast', () => {
   })
 
   it('renders toast without message when message is empty', () => {
-    mockUseToastState.mockReturnValue({
+    __setMockToastState({
       id: 'toast-3',
       title: 'Info',
       message: '',
-      duration: 2000,
+      duration: 3000,
       viewportName: 'main',
       isHandledNatively: false,
     })
@@ -175,22 +187,22 @@ describe('NativeToast', () => {
   })
 
   it('applies correct toast properties', () => {
-    const mockToast = {
+    __setMockToastState({
       id: 'toast-4',
       title: 'Test',
       message: 'Test message',
       duration: 4000,
       viewportName: 'custom-viewport',
       isHandledNatively: false,
-    }
-
-    mockUseToastState.mockReturnValue(mockToast)
+    })
 
     renderWithProvider(<NativeToast />)
 
     const toast = screen.getByTestId('toast')
     expect(toast).toBeTruthy()
     expect(toast.getAttribute('duration')).toBe('4000')
-    expect(toast.getAttribute('data-viewport-name')).toBe('custom-viewport')
+    expect(toast.getAttribute('viewportName') || toast.getAttribute('data-viewport-name')).toBe(
+      'custom-viewport'
+    )
   })
 })

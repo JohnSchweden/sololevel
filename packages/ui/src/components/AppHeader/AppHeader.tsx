@@ -3,7 +3,7 @@ import { Circle, Text, YStack } from 'tamagui'
 import { Button } from '../Button'
 
 // Generic app states that can be handled by the header
-export type AppHeaderMode = 'default' | 'camera' | 'recording' | 'analysis'
+export type AppHeaderMode = 'default' | 'camera' | 'camera-idle' | 'recording' | 'analysis'
 
 export interface AppHeaderProps {
   title: string
@@ -214,6 +214,15 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
   mode="camera"
   onMenuPress={() => console.log('Menu pressed')}
   onBackPress={() => console.log('Back pressed')}
+/>
+
+// Camera idle mode - shows notifications, shows menu
+<AppHeader
+  title="Camera Ready"
+  mode="camera-idle"
+  onMenuPress={() => console.log('Menu pressed')}
+  onNotificationPress={() => console.log('Notifications pressed')}
+  notificationBadgeCount={2}
 />
 
 // Recording mode - shows back button, timer, hides notifications

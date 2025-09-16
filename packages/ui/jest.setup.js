@@ -4,8 +4,35 @@ import '@testing-library/jest-dom'
 // This is a known issue with @testing-library/react-native until they update
 const originalConsoleError = console.error
 console.error = (...args) => {
-  if (typeof args[0] === 'string' && args[0].includes('react-test-renderer is deprecated')) {
-    return // Suppress this specific warning
+  if (typeof args[0] === 'string') {
+    // Suppress react-test-renderer deprecation warnings
+    if (args[0].includes('react-test-renderer is deprecated')) {
+      return // Suppress this specific warning
+    }
+    // Suppress React Native style prop warnings in web tests
+    if (
+      args[0].includes('React does not recognize the') &&
+      (args[0].includes('justifyContent') ||
+        args[0].includes('alignItems') ||
+        args[0].includes('borderWidth') ||
+        args[0].includes('borderColor') ||
+        args[0].includes('shadowColor') ||
+        args[0].includes('shadowOffset') ||
+        args[0].includes('shadowOpacity') ||
+        args[0].includes('shadowRadius') ||
+        args[0].includes('paddingHorizontal') ||
+        args[0].includes('textAlign') ||
+        args[0].includes('numberOfLines'))
+    ) {
+      return // Suppress React Native style prop warnings
+    }
+    // Suppress event handler warnings
+    if (
+      args[0].includes('Unknown event handler property') &&
+      (args[0].includes('onPressIn') || args[0].includes('onPressOut'))
+    ) {
+      return // Suppress unknown event handler warnings
+    }
   }
   originalConsoleError(...args)
 }
@@ -370,6 +397,14 @@ jest.mock('@tamagui/lucide-icons', () => ({
   FileVideo: () => 'FileVideo',
   Folder: () => 'Folder',
   Image: () => 'Image',
+  User: () => 'User',
+  Menu: () => 'Menu',
+  Bell: () => 'Bell',
+  Download: () => 'Download',
+  Maximize: () => 'Maximize',
+  Share: () => 'Share',
+  SkipBack: () => 'SkipBack',
+  SkipForward: () => 'SkipForward',
   // Add other icons as needed
 }))
 
@@ -430,7 +465,7 @@ jest.mock('@tamagui/core', () => {
 
   return {
     TamaguiProvider: ({ children }) => children,
-    styled: (_component, _config) => mockComponent,
+    styled: (_component, _config) => mockComponent('StyledComponent'),
     Stack: mockComponent('Stack'),
     XStack: mockComponent('XStack'),
     YStack: mockComponent('YStack'),
@@ -449,13 +484,23 @@ jest.mock('tamagui', () => {
   const React = require('react')
   const mockComponent = (name) =>
     React.forwardRef((props, ref) => {
-      const { testID, accessibilityLabel, accessibilityRole, ...otherProps } = props
+      const {
+        testID,
+        accessibilityLabel,
+        accessibilityRole,
+        'data-testid': dataTestId,
+        ...otherProps
+      } = props
       return React.createElement('div', {
         ...otherProps,
         ref,
-        'data-testid': testID || name,
+        'data-testid': dataTestId || testID || name,
         'aria-label': accessibilityLabel,
         role: accessibilityRole,
+        // Preserve original props for testing
+        'data-original-accessibility-label': accessibilityLabel,
+        'data-original-accessibility-role': accessibilityRole,
+        'data-original-test-id': testID,
       })
     })
 
@@ -471,23 +516,35 @@ jest.mock('tamagui', () => {
   })
 
   const mockButtonComponent = React.forwardRef((props, ref) => {
-    const { testID, onPress, accessibilityLabel, disabled, accessibilityRole, ...otherProps } =
-      props
-    return React.createElement('button', {
-      ...otherProps,
-      ref,
-      'data-testid': testID || 'Button',
-      'aria-label': accessibilityLabel,
-      'aria-disabled': disabled ? 'true' : 'false',
-      onClick: disabled ? undefined : onPress,
-      disabled: disabled,
-      role: accessibilityRole || 'button',
-    })
+    const {
+      testID,
+      onPress,
+      accessibilityLabel,
+      disabled,
+      accessibilityRole,
+      icon,
+      children,
+      ...otherProps
+    } = props
+    return React.createElement(
+      'button',
+      {
+        ...otherProps,
+        ref,
+        'data-testid': testID || 'Button',
+        'aria-label': accessibilityLabel,
+        'aria-disabled': disabled ? 'true' : 'false',
+        onClick: disabled ? undefined : onPress,
+        disabled: disabled,
+        role: accessibilityRole || 'button',
+      },
+      icon || children
+    )
   })
 
   return {
     TamaguiProvider: ({ children }) => children,
-    styled: (_component, _config) => mockComponent,
+    styled: (_component, _config) => mockComponent('StyledComponent'),
     createTamagui: jest.fn(() => ({})),
     Stack: mockComponent('Stack'),
     XStack: mockComponent('XStack'),
@@ -504,12 +561,34 @@ jest.mock('tamagui', () => {
       Description: mockComponent('DialogDescription'),
       Close: mockComponent('DialogClose'),
     }),
-    Sheet: {
-      Root: ({ children }) => children,
-      Overlay: mockComponent('SheetOverlay'),
-      Handle: mockComponent('SheetHandle'),
-      Frame: mockComponent('SheetFrame'),
-    },
+    Sheet: Object.assign(
+      ({ children, ...props }) => {
+        const React = require('react')
+        return React.createElement(
+          'div',
+          {
+            ...props,
+            'data-testid': 'sheet',
+          },
+          children
+        )
+      },
+      {
+        Overlay: mockComponent('SheetOverlay'),
+        Handle: mockComponent('SheetHandle'),
+        Frame: ({ children, ...props }) => {
+          const React = require('react')
+          return React.createElement(
+            'div',
+            {
+              ...props,
+              'data-testid': 'sheet-frame',
+            },
+            children
+          )
+        },
+      }
+    ),
     Circle: mockComponent('Circle'),
     Spinner: mockComponent('Spinner'),
     ScrollView: mockComponent('ScrollView'),
@@ -528,6 +607,7 @@ jest.mock('@tamagui/button', () => {
       accessibilityLabel,
       disabled,
       accessibilityRole,
+      icon,
       ...otherProps
     } = props
     return React.createElement(
@@ -542,7 +622,7 @@ jest.mock('@tamagui/button', () => {
         disabled: disabled,
         role: accessibilityRole || 'button',
       },
-      children
+      icon || children
     )
   })
   return {

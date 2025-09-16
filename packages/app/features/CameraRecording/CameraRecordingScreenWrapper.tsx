@@ -7,6 +7,7 @@ import { CameraRecordingScreenProps } from './types'
  */
 export function CameraRecordingScreenWrapper({
   onNavigateBack,
+  onNavigateToVideoAnalysis,
   onTabChange,
 }: CameraRecordingScreenProps) {
   const { flags } = useFeatureFlagsStore()
@@ -18,6 +19,7 @@ export function CameraRecordingScreenWrapper({
     return (
       <VisionCameraScreen
         onNavigateBack={onNavigateBack}
+        onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
         onTabChange={onTabChange}
       />
     )
@@ -28,6 +30,7 @@ export function CameraRecordingScreenWrapper({
   return (
     <ExpoCameraScreen
       onNavigateBack={onNavigateBack}
+      onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
       onTabChange={onTabChange}
     />
   )

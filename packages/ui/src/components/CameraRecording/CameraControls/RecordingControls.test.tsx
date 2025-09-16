@@ -39,6 +39,7 @@ describe('Recording Controls Component', () => {
     duration: 15000, // 15 seconds
     zoomLevel: 1 as const,
     canSwapCamera: true,
+    canStop: true,
     onPause: jest.fn(),
     onResume: jest.fn(),
     onStop: jest.fn(),

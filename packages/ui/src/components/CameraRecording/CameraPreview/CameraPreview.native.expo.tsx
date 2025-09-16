@@ -31,20 +31,50 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
+    const [isCameraReady, setIsCameraReady] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
+
+    // Track component mount state to prevent operations when unmounted
+    useEffect(() => {
+      setIsMounted(true)
+      return () => {
+        setIsMounted(false)
+      }
+    }, [])
+
+    // Helper function to check if camera is ready
+    const checkCameraReady = (): boolean => {
+      if (!isMounted) {
+        log.warn('ExpoCamera', 'Component not mounted, skipping camera operations')
+        return false
+      }
+      if (!cameraRef.current) {
+        log.warn('ExpoCamera', 'Camera ref is null')
+        return false
+      }
+      if (!isCameraReady) {
+        log.warn('ExpoCamera', 'Camera not ready for operations')
+        return false
+      }
+      return true
+    }
 
     // Expose camera control methods via ref
     useImperativeHandle(
       ref,
       () => ({
         startRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for recording')
           }
 
           // Remove internal cameraReady check - rely on parent component's check
           // The parent already ensures camera is ready before calling this method
 
           try {
+            if (!cameraRef.current) {
+              throw new Error('Camera ref is null after ready check')
+            }
             const video = await cameraRef.current.recordAsync()
             if (!video?.uri) {
               throw new Error('Recording failed: no video data received')
@@ -100,11 +130,14 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           }
         },
         stopRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for stopping recording')
           }
 
           try {
+            if (!cameraRef.current) {
+              throw new Error('Camera ref is null after ready check')
+            }
             await cameraRef.current.stopRecording()
             log.info('CameraRecording', 'Recording stopped')
           } catch (error) {
@@ -113,11 +146,14 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           }
         },
         pauseRecording: async (): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for pausing recording')
           }
 
           try {
+            if (!cameraRef.current) {
+              throw new Error('Camera ref is null after ready check')
+            }
             await cameraRef.current.toggleRecordingAsync()
             log.info('CameraRecording', 'Recording toggled (paused/resumed)')
           } catch (error) {
@@ -127,11 +163,14 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         },
         resumeRecording: async (): Promise<void> => {
           // toggleRecordingAsync handles both pause and resume
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for resuming recording')
           }
 
           try {
+            if (!cameraRef.current) {
+              throw new Error('Camera ref is null after ready check')
+            }
             await cameraRef.current.toggleRecordingAsync()
             log.info('CameraRecording', 'Recording toggled (resumed)')
           } catch (error) {
@@ -140,11 +179,14 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           }
         },
         takePicture: async (): Promise<string | null> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for taking picture')
           }
 
           try {
+            if (!cameraRef.current) {
+              throw new Error('Camera ref is null after ready check')
+            }
             const photo = await cameraRef.current.takePictureAsync()
             log.info('CameraRecording', 'Picture taken', { uri: photo.uri })
             return photo.uri
@@ -170,8 +212,8 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           return Promise.resolve()
         },
         setZoom: async (zoom: number): Promise<void> => {
-          if (!cameraRef.current) {
-            throw new Error('Camera not available')
+          if (!checkCameraReady()) {
+            throw new Error('Camera not ready for zoom control')
           }
 
           try {
@@ -210,7 +252,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           return currentZoomLevel
         },
       }),
-      [currentZoomLevel, onZoomChange] // Include currentZoomLevel in dependencies
+      [currentZoomLevel, onZoomChange, isCameraReady] // Include currentZoomLevel in dependencies
     )
 
     // Permission handling is now centralized in the parent component
@@ -223,8 +265,12 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     // Handle camera ready callback - simplified to just notify parent
     const handleCameraReady = () => {
       log.info('CameraPreview', 'Camera is ready')
-      // Remove state management - just notify parent
-      onCameraReady?.()
+      setIsCameraReady(true)
+      // Wait a short moment to ensure native view is fully ready
+      setTimeout(() => {
+        log.info('ExpoCamera', 'Camera fully ready for operations')
+        onCameraReady?.()
+      }, 100)
     }
 
     // Handle camera mount error
@@ -233,7 +279,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       log.error('CameraPreview', 'Camera mount error', error)
 
       setCameraError(errorMessage)
-      // Remove setCameraReady(false) - no longer managing this state
+      setIsCameraReady(false)
       onError?.(errorMessage)
     }
 
@@ -257,6 +303,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             })
             const errorMessage = 'Camera permission is required to use this feature'
             setCameraError(errorMessage)
+            setIsCameraReady(false)
             onError?.(errorMessage)
           }
         } else {

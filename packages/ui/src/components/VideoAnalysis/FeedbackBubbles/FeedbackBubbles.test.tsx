@@ -60,7 +60,8 @@ describe('FeedbackBubbles', () => {
       />
     )
 
-    expect(toJSON()).toBeTruthy()
+    // Component returns null for empty messages, so toJSON will be null
+    expect(toJSON()).toBeNull()
   })
 
   it('limits display to last 3 messages', () => {
@@ -137,7 +138,8 @@ describe('FeedbackBubbles', () => {
       />
     )
 
-    expect(toJSON()).toBeTruthy()
+    // Component returns null for inactive messages, so toJSON should be null
+    expect(toJSON()).toBeNull()
   })
 
   describe('Phase 2: Interactive Elements Tests', () => {
@@ -187,26 +189,26 @@ describe('FeedbackBubbles', () => {
         expect(mockOnBubbleTap).toHaveBeenCalledWith(mockMessages[2])
       })
 
-      it('calls onBubbleTap for inactive bubbles', () => {
-        const inactiveMessages = [
+      it('calls onBubbleTap for active bubbles', () => {
+        const activeMessages = [
           {
             ...mockMessages[0],
-            isActive: false,
+            isActive: true,
           },
         ]
 
         render(
           <FeedbackBubbles
-            messages={inactiveMessages}
+            messages={activeMessages}
             onBubbleTap={mockOnBubbleTap}
           />
         )
 
-        // Find the inactive bubble by its accessibility label
-        const inactiveBubble = screen.getByLabelText('Feedback: Great posture!')
-        fireEvent.press(inactiveBubble)
+        // Find the active bubble by its accessibility label
+        const activeBubble = screen.getByLabelText('Feedback: Great posture!')
+        fireEvent.press(activeBubble)
 
-        expect(mockOnBubbleTap).toHaveBeenCalledWith(inactiveMessages[0])
+        expect(mockOnBubbleTap).toHaveBeenCalledWith(activeMessages[0])
       })
     })
 
@@ -254,15 +256,15 @@ describe('FeedbackBubbles', () => {
       })
 
       it('handles empty messages array gracefully', () => {
-        const { root } = render(
+        const { toJSON } = render(
           <FeedbackBubbles
             messages={[]}
             onBubbleTap={mockOnBubbleTap}
           />
         )
 
-        expect(root).toBeTruthy()
-        expect(root.props.pointerEvents).toBe('auto')
+        // Component returns null for empty messages, so toJSON should be null
+        expect(toJSON()).toBeNull()
       })
 
       it('updates displayed messages when messages prop changes', () => {
@@ -292,7 +294,7 @@ describe('FeedbackBubbles', () => {
     })
 
     describe('Visual State Management', () => {
-      it('applies correct opacity for active vs inactive messages', () => {
+      it('applies correct opacity for active messages only', () => {
         const mixedMessages = [
           { ...mockMessages[0], isActive: true },
           { ...mockMessages[1], isActive: false },
@@ -305,12 +307,12 @@ describe('FeedbackBubbles', () => {
           />
         )
 
-        // Test that component renders both active and inactive bubbles
+        // Test that component renders only active bubbles (inactive are filtered out)
         expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy() // Active
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy() // Inactive
+        expect(screen.queryByLabelText('Feedback: Bend your knees a little bit')).toBeNull() // Inactive (filtered out)
 
-        // Both bubbles should be rendered, regardless of active state
-        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(2)
+        // Only active bubbles should be rendered
+        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(1)
       })
 
       it('applies correct scale for highlighted vs normal messages', () => {

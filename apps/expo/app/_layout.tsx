@@ -76,6 +76,13 @@ function RootLayoutNav() {
                       headerShown: false,
                     }}
                   />
+                  <Stack.Screen
+                    name="video-analysis"
+                    options={{
+                      title: 'Video Analysis',
+                      headerShown: false,
+                    }}
+                  />
                 </Stack>
               )
             } catch (error) {

@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { subscribeWithSelector } from 'zustand/middleware'
+import { persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
-import { persist } from 'zustand/middleware/persist'
 
 // Minimal types for MVP - matching UI component expectations
 export interface Joint {

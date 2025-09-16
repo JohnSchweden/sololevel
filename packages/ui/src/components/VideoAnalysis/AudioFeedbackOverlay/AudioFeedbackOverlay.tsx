@@ -1,5 +1,7 @@
-import { Pause, Play, X } from '@tamagui/lucide-icons'
+import { Pause, Play, SkipBack, SkipForward, X } from '@tamagui/lucide-icons'
+import { useCallback, useEffect, useRef } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
+import { CoachAvatar } from '../CoachAvatar/CoachAvatar'
 
 export interface AudioFeedbackOverlayProps {
   audioUrl: string | null
@@ -10,6 +12,11 @@ export interface AudioFeedbackOverlayProps {
   onSeek: (time: number) => void
   onClose: () => void
   isVisible: boolean
+  onRewind?: () => void
+  onFastForward?: () => void
+  onTimeUpdate?: (time: number) => void
+  autoHideDelay?: number
+  showProgressBar?: boolean
 }
 
 export function AudioFeedbackOverlay({
@@ -18,12 +25,52 @@ export function AudioFeedbackOverlay({
   currentTime,
   duration,
   onPlayPause,
+  onSeek,
   onClose,
   isVisible,
-}: Pick<
-  AudioFeedbackOverlayProps,
-  'audioUrl' | 'isPlaying' | 'currentTime' | 'duration' | 'onPlayPause' | 'onClose' | 'isVisible'
->) {
+  onRewind,
+  onFastForward,
+  onTimeUpdate,
+  autoHideDelay = 3000,
+  showProgressBar = true,
+}: AudioFeedbackOverlayProps) {
+  const autoHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastInteractionRef = useRef<number>(Date.now())
+
+  const resetAutoHideTimer = useCallback(() => {
+    if (autoHideTimeoutRef.current) {
+      clearTimeout(autoHideTimeoutRef.current)
+    }
+    lastInteractionRef.current = Date.now()
+  }, [])
+
+  const startAutoHideTimer = useCallback(() => {
+    if (autoHideTimeoutRef.current) {
+      clearTimeout(autoHideTimeoutRef.current)
+    }
+    autoHideTimeoutRef.current = setTimeout(() => {
+      if (Date.now() - lastInteractionRef.current >= autoHideDelay) {
+        onClose()
+      }
+    }, autoHideDelay)
+  }, [autoHideDelay, onClose])
+
+  useEffect(() => {
+    if (isVisible && isPlaying) {
+      startAutoHideTimer()
+    } else {
+      if (autoHideTimeoutRef.current) {
+        clearTimeout(autoHideTimeoutRef.current)
+      }
+    }
+
+    return () => {
+      if (autoHideTimeoutRef.current) {
+        clearTimeout(autoHideTimeoutRef.current)
+      }
+    }
+  }, [isVisible, isPlaying, startAutoHideTimer])
+
   if (!isVisible || !audioUrl) {
     return null
   }
@@ -35,6 +82,32 @@ export function AudioFeedbackOverlay({
   }
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  const handleRewind = () => {
+    const newTime = Math.max(0, currentTime - 10)
+    onSeek(newTime)
+    onTimeUpdate?.(newTime)
+    resetAutoHideTimer()
+    onRewind?.()
+  }
+
+  const handleFastForward = () => {
+    const newTime = Math.min(duration, currentTime + 10)
+    onSeek(newTime)
+    onTimeUpdate?.(newTime)
+    resetAutoHideTimer()
+    onFastForward?.()
+  }
+
+  const handlePlayPause = () => {
+    onPlayPause()
+    resetAutoHideTimer()
+  }
+
+  const handleClose = () => {
+    onClose()
+    resetAutoHideTimer()
+  }
 
   return (
     <YStack
@@ -50,71 +123,114 @@ export function AudioFeedbackOverlay({
         padding="$3"
         testID="audio-controls"
       >
+        {/* Coach Avatar */}
+        <XStack
+          justifyContent="center"
+          marginBottom="$2"
+        >
+          <CoachAvatar
+            size={40}
+            isSpeaking={isPlaying}
+            testID="audio-coach-avatar"
+          />
+        </XStack>
+
+        {/* Main Controls */}
         <XStack
           alignItems="center"
-          gap="$3"
+          gap="$2"
+          justifyContent="center"
         >
+          <Button
+            size={36}
+            icon={SkipBack}
+            color="$white"
+            chromeless
+            onPress={handleRewind}
+            testID="audio-rewind-button"
+          />
+
           <Button
             size={44}
             icon={isPlaying ? Pause : Play}
             backgroundColor="$primary"
             borderRadius="$2"
-            onPress={onPlayPause}
+            onPress={handlePlayPause}
             testID="audio-play-pause-button"
           />
 
-          <YStack
-            flex={1}
-            height={4}
-            backgroundColor="$gray6"
-            borderRadius="$1"
-          >
-            <YStack
-              height="100%"
-              width={`${progress}%`}
-              backgroundColor="$primary"
-              borderRadius="$1"
-              testID="audio-progress-fill"
-            />
-          </YStack>
-
-          <Text
-            fontSize="$2"
+          <Button
+            size={36}
+            icon={SkipForward}
             color="$white"
-            minWidth={40}
-            testID="audio-time"
-          >
-            {formatTime(currentTime)}
-          </Text>
+            chromeless
+            onPress={handleFastForward}
+            testID="audio-fast-forward-button"
+          />
 
           <Button
             size={32}
             icon={X}
             color="$white"
             chromeless
-            onPress={onClose}
+            onPress={handleClose}
             testID="audio-close-button"
           />
         </XStack>
 
-        {/* Optional waveform visualization */}
-        <YStack
-          height={20}
-          backgroundColor="rgba(255,255,255,0.1)"
-          borderRadius="$2"
-          marginTop="$2"
-          justifyContent="center"
-          alignItems="center"
-          testID="audio-waveform"
+        {/* Progress Bar */}
+        {showProgressBar && (
+          <YStack marginTop="$2">
+            <YStack
+              height={4}
+              backgroundColor="$gray6"
+              borderRadius="$1"
+              testID="audio-progress-track"
+              onPress={(event) => {
+                // Simple click-to-seek implementation for React Native
+                const { locationX } = event.nativeEvent
+                // For React Native, we'll use a simpler approach with predefined seek points
+                // In a real implementation, you might want to measure the component differently
+                const estimatedWidth = 300 // Approximate width, could be passed as prop
+                const percentage = locationX / estimatedWidth
+                const newTime = Math.max(0, Math.min(duration, percentage * duration))
+                onSeek(newTime)
+                onTimeUpdate?.(newTime)
+                resetAutoHideTimer()
+              }}
+            >
+              <YStack
+                height="100%"
+                width={`${progress}%`}
+                backgroundColor="$primary"
+                borderRadius="$1"
+                testID="audio-progress-fill"
+              />
+            </YStack>
+          </YStack>
+        )}
+
+        {/* Time Display */}
+        <XStack
+          justifyContent="space-between"
+          marginTop="$1"
         >
           <Text
-            fontSize="$1"
-            color="$gray11"
-            opacity={0.7}
+            fontSize="$2"
+            color="$white"
+            testID="audio-current-time"
           >
-            Audio Waveform
+            {formatTime(currentTime)}
           </Text>
-        </YStack>
+          <Text
+            fontSize="$2"
+            color="$white"
+            opacity={0.7}
+            testID="audio-duration"
+          >
+            {formatTime(duration)}
+          </Text>
+        </XStack>
       </YStack>
     </YStack>
   )

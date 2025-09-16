@@ -10,7 +10,6 @@ import {
   NavigationDialog,
   RecordingControls,
   SideSheet,
-  VideoPlayer,
 } from '@my/ui/src/components/CameraRecording'
 import { useEffect, useRef, useState } from 'react'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
@@ -18,7 +17,11 @@ import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
-export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRecordingScreenProps) {
+export function CameraRecordingScreen({
+  onNavigateBack,
+  onNavigateToVideoAnalysis,
+  onTabChange,
+}: CameraRecordingScreenProps) {
   useKeepAwake()
 
   const cameraRef = useRef<CameraPreviewRef>(null)
@@ -54,16 +57,13 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     isRecording,
     headerTitle,
     cameraReady,
-    // Screen state transition
-    videoData,
-    isVideoPlayerMode,
-    isCameraMode,
     handleCameraSwap,
     handleZoomChange,
     handleStartRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleStopRecording,
+    canStop,
     handleBackPress,
     handleUploadVideo,
     handleVideoSelected,
@@ -75,18 +75,22 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
     handleCameraReady,
     setShowSideSheet,
     setShowNavigationDialog,
-    // Video player actions
     handleVideoRecorded,
-    handleRestartRecording,
-    handleContinueToAnalysis,
-  } = useCameraScreenLogic({ onNavigateBack, onTabChange, cameraRef })
+  } = useCameraScreenLogic({ onNavigateBack, onNavigateToVideoAnalysis, onTabChange, cameraRef })
 
   // Show timer and chevron left when in any recording state (RECORDING or PAUSED)
   const isInRecordingState =
     recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
 
-  // Update header title based on screen state
-  const displayHeaderTitle = isVideoPlayerMode ? 'Video Playback' : headerTitle
+  // Determine header mode based on recording state
+  const getHeaderMode = () => {
+    if (isInRecordingState) return 'recording'
+    if (recordingState === RecordingState.IDLE) return 'camera-idle'
+    return 'camera'
+  }
+
+  // Header title
+  const displayHeaderTitle = headerTitle
 
   // Track zoom level changes for debugging (removed console.log to prevent hydration issues)
 
@@ -95,7 +99,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       header={
         <AppHeader
           title={displayHeaderTitle}
-          mode={isInRecordingState ? 'recording' : 'camera'}
+          mode={getHeaderMode()}
           showTimer={isInRecordingState}
           timerValue={formattedDuration}
           onMenuPress={() => setShowSideSheet(true)}
@@ -112,50 +116,33 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
       }
     >
       <CameraPreviewArea isRecording={isRecording}>
-        {/* Conditional rendering: Camera Preview or Video Player */}
-        {isVideoPlayerMode && videoData ? (
-          // Video Player Mode
-          <VideoPlayer
-            videoUri={videoData.videoUri}
-            duration={videoData.duration}
-            onRestart={handleRestartRecording}
-            onContinue={handleContinueToAnalysis}
-            onShare={() => {
-              // TODO: Implement share functionality
-            }}
-            showControls={true}
-            autoPlay={true}
-          />
-        ) : (
-          // Camera Preview Mode
-          <CameraPreview
-            ref={cameraRef}
-            cameraType={cameraType}
-            isRecording={isRecording}
-            zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
-            // Debug: log zoom conversion
-            // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
-            onZoomChange={(continuousZoom) => {
-              // Convert continuous zoom (0-1) back to discrete (1-3)
-              // 0.0 → 1, 0.33 → 2, 0.67 → 3
-              const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
-              // Clamp to valid range
-              const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
-              handleZoomChange(clampedZoom)
-            }}
-            permissionGranted={permission?.granted ?? false}
-            onCameraReady={handleCameraReady}
-            onVideoRecorded={handleVideoRecorded}
-            onError={(_error: string) => {
-              // TODO: Handle camera errors with user feedback
-            }}
-          />
-        )}
+        {/* Camera Preview Mode */}
+        <CameraPreview
+          ref={cameraRef}
+          cameraType={cameraType}
+          isRecording={isRecording}
+          zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
+          // Debug: log zoom conversion
+          // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
+          onZoomChange={(continuousZoom) => {
+            // Convert continuous zoom (0-1) back to discrete (1-3)
+            // 0.0 → 1, 0.33 → 2, 0.67 → 3
+            const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
+            // Clamp to valid range
+            const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
+            handleZoomChange(clampedZoom)
+          }}
+          permissionGranted={permission?.granted ?? false}
+          onCameraReady={handleCameraReady}
+          onVideoRecorded={handleVideoRecorded}
+          onError={(_error: string) => {
+            // TODO: Handle camera errors with user feedback
+          }}
+        />
       </CameraPreviewArea>
 
-      {/* Camera Controls - Only show when in camera mode, not video player mode */}
-      {isCameraMode &&
-        permission?.granted &&
+      {/* Camera Controls */}
+      {permission?.granted &&
         (recordingState === RecordingState.IDLE ? (
           <CameraControlsOverlay position="bottom">
             <IdleControls
@@ -173,6 +160,7 @@ export function CameraRecordingScreen({ onNavigateBack, onTabChange }: CameraRec
               duration={duration}
               zoomLevel={zoomLevel}
               canSwapCamera={recordingState !== RecordingState.RECORDING}
+              canStop={canStop}
               onPause={handlePauseRecording}
               onResume={handleResumeRecording}
               onStop={handleStopRecording}

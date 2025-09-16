@@ -1,7 +1,7 @@
 import { supabase } from '@api/src/supabase'
 import type { AnalysisJob, PoseData } from '@api/src/validation/cameraRecordingSchemas'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePoseStore } from '../stores/MVPposeStore'
 import { useAnalysisStatusStore } from '../stores/analysisStatus'
 
@@ -152,87 +152,44 @@ export function useConnectionStatus() {
     lastError: null,
   })
 
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  const handleConnectionChange = useCallback((status: string, error?: any) => {
-    setConnectionStatus((prev) => ({
-      ...prev,
-      isConnected: status === 'SUBSCRIBED',
-      lastError: error ? error.message : null,
-    }))
-
-    // Implement exponential backoff for reconnection
-    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-      setConnectionStatus((prev) => {
-        const newAttempts = prev.reconnectAttempts + 1
-        const delay = Math.min(1000 * 2 ** newAttempts, 30000) // Max 30s
-
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
-        }
-
-        reconnectTimeoutRef.current = setTimeout(() => {
-          // Trigger reconnection attempt
-          setConnectionStatus((current) => ({
-            ...current,
-            reconnectAttempts: newAttempts,
-          }))
-        }, delay)
-
-        return {
-          ...prev,
-          reconnectAttempts: newAttempts,
-          lastError: error?.message || 'Connection failed',
-        }
-      })
-    } else if (status === 'SUBSCRIBED') {
-      // Reset reconnection attempts on successful connection
-      setConnectionStatus((prev) => ({
-        ...prev,
-        reconnectAttempts: 0,
-        lastError: null,
-      }))
-    }
-  }, [])
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     // Monitor global Supabase connection status
     // Note: Supabase v2 doesn't expose onConnStateChange directly
     // We'll monitor connection status through channel state changes
-    let isMonitoring = true
 
-    const checkConnection = () => {
-      if (!isMonitoring) return
+    // Create a test channel to monitor connection
+    const testChannel = supabase.realtime.channel('connection-test')
 
-      // Simple connection check by creating a test channel
-      const testChannel = supabase.channel('connection-test')
-
-      testChannel.subscribe((status) => {
-        if (isMonitoring) {
-          handleConnectionChange(status)
+    testChannel
+      .on('system', {}, (status) => {
+        console.log('Supabase connection status:', status)
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus((prev) => ({
+            ...prev,
+            isConnected: true,
+            lastError: null,
+            reconnectAttempts: 0,
+          }))
+        } else if (status === 'CHANNEL_ERROR') {
+          setConnectionStatus((prev) => ({
+            ...prev,
+            isConnected: false,
+            lastError: 'Channel connection failed',
+            reconnectAttempts: prev.reconnectAttempts + 1,
+          }))
         }
       })
-
-      // Cleanup test channel after a short delay
-      setTimeout(() => {
-        testChannel.unsubscribe()
-      }, 1000)
-    }
-
-    // Initial check
-    checkConnection()
-
-    // Periodic connection checks
-    const interval = setInterval(checkConnection, 10000) // Check every 10 seconds
+      .subscribe()
 
     return () => {
-      isMonitoring = false
-      clearInterval(interval)
+      testChannel.unsubscribe()
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
     }
-  }, [handleConnectionChange])
+  }, [])
 
   return connectionStatus
 }
@@ -242,33 +199,58 @@ export function useConnectionStatus() {
  * Provides all real-time functionality in a single hook
  */
 export function useVideoAnalysisRealtime(analysisId: number | null) {
+  // Re-enable real-time functionality with proper error handling
   const analysisRealtime = useAnalysisRealtime(analysisId)
   const poseDataStream = usePoseDataStream(analysisId)
   const connectionStatus = useConnectionStatus()
 
-  // Get current analysis job status
-  const analysisJob = useAnalysisStatusStore((state) =>
-    analysisId ? state.jobs.get(analysisId) : null
+  // Get current analysis job status - use stable selector with useCallback
+  const analysisJob = useAnalysisStatusStore(
+    useCallback((state) => (analysisId ? state.jobs.get(analysisId) : null), [analysisId])
   )
 
-  return {
-    // Analysis progress
-    analysisJob,
-    isAnalysisSubscribed: analysisRealtime.isSubscribed,
+  // Memoize the return object to prevent infinite re-renders
+  // Use stable dependencies - only track job ID and status, not the entire job object
+  const jobId = analysisJob?.id
+  const jobStatus = analysisJob?.status
+  const jobProgress = analysisJob?.progress_percentage
+  const jobError = analysisJob?.error_message
 
-    // Pose data streaming
-    currentPose: poseDataStream.currentPose,
-    poseHistory: poseDataStream.poseHistory,
-    isPoseStreaming: poseDataStream.isStreaming,
-    processingQuality: poseDataStream.processingQuality,
+  return useMemo(
+    () => ({
+      // Analysis progress
+      analysisJob,
+      isAnalysisSubscribed: analysisRealtime.isSubscribed,
 
-    // Connection status
-    isConnected: connectionStatus.isConnected,
-    reconnectAttempts: connectionStatus.reconnectAttempts,
-    connectionError: connectionStatus.lastError,
+      // Pose data streaming
+      currentPose: poseDataStream.currentPose,
+      poseHistory: poseDataStream.poseHistory,
+      isPoseStreaming: poseDataStream.isStreaming,
+      processingQuality: poseDataStream.processingQuality,
 
-    // Combined status
-    isFullyConnected:
-      connectionStatus.isConnected && analysisRealtime.isSubscribed && poseDataStream.isStreaming,
-  }
+      // Connection status
+      isConnected: connectionStatus.isConnected,
+      reconnectAttempts: connectionStatus.reconnectAttempts,
+      connectionError: connectionStatus.lastError,
+
+      // Combined status
+      isFullyConnected:
+        connectionStatus.isConnected && analysisRealtime.isSubscribed && poseDataStream.isStreaming,
+    }),
+    [
+      // Use stable job properties instead of the entire job object
+      jobId,
+      jobStatus,
+      jobProgress,
+      jobError,
+      analysisRealtime.isSubscribed,
+      poseDataStream.currentPose,
+      poseDataStream.poseHistory,
+      poseDataStream.isStreaming,
+      poseDataStream.processingQuality,
+      connectionStatus.isConnected,
+      connectionStatus.reconnectAttempts,
+      connectionStatus.lastError,
+    ]
+  )
 }
