@@ -1,18 +1,7 @@
 import { Pressable } from 'react-native'
 import { Text, View, XStack, YStack } from 'tamagui'
 import { CoachAvatar } from '../CoachAvatar/CoachAvatar'
-
-// Types imported from VideoPlayer.tsx
-interface FeedbackMessage {
-  id: string
-  timestamp: number
-  text: string
-  type: 'positive' | 'suggestion' | 'correction'
-  category: 'voice' | 'posture' | 'grip' | 'movement'
-  position: { x: number; y: number }
-  isHighlighted: boolean
-  isActive: boolean
-}
+import type { FeedbackMessage } from '../types'
 
 export interface FeedbackBubblesProps {
   messages: FeedbackMessage[]

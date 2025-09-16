@@ -88,33 +88,105 @@ jest.mock('@tamagui/lucide-icons', () => ({
   X: () => 'X',
 }))
 
-// Mock @my/ui components
+// Mock @my/ui components (consolidated)
 jest.mock('@my/ui', () => {
   const React = require('react')
   return {
-    ProcessingOverlay: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'ProcessingOverlay' }, children),
-    VideoPlayer: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'VideoPlayer' }, children),
-    MotionCaptureOverlay: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'MotionCaptureOverlay' }, children),
-    FeedbackBubbles: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'FeedbackBubbles' }, children),
-    AudioFeedbackOverlay: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'AudioFeedbackOverlay' }, children),
-    VideoControlsOverlay: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'VideoControlsOverlay' }, children),
-    BottomSheet: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'BottomSheet' }, children),
-    SocialIcons: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'SocialIcons' }, children),
-    VideoTitle: ({ children }: { children?: any }) =>
-      React.createElement('div', { 'data-testid': 'VideoTitle' }, children),
+    ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'ProcessingOverlay', ...props },
+        children
+      ),
+    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
+    MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'MotionCaptureOverlay', ...props },
+        children
+      ),
+    FeedbackBubbles: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'FeedbackBubbles', ...props },
+        children
+      ),
+    AudioFeedbackOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'AudioFeedbackOverlay', ...props },
+        children
+      ),
+    VideoControlsOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'VideoControlsOverlay', ...props },
+        children
+      ),
+    BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
+    SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
+    VideoTitle: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoTitle', ...props }, children),
+    VideoAnalysisPlayer: ({ testID, ...props }: any) =>
+      React.createElement(
+        'View',
+        { testID: testID || 'video-player-container', ...props },
+        'Video Player'
+      ),
     log: {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
     },
+  }
+})
+
+// Mock @ui/components/VideoAnalysis (the actual import path)
+jest.mock('@ui/components/VideoAnalysis', () => {
+  const React = require('react')
+  return {
+    ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'ProcessingOverlay', ...props },
+        children
+      ),
+    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
+    MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'MotionCaptureOverlay', ...props },
+        children
+      ),
+    FeedbackBubbles: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'FeedbackBubbles', ...props },
+        children
+      ),
+    AudioFeedbackOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'AudioFeedbackOverlay', ...props },
+        children
+      ),
+    VideoControlsOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'VideoControlsOverlay', ...props },
+        children
+      ),
+    BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
+    SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
+    VideoTitle: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoTitle', ...props }, children),
   }
 })
 
@@ -298,50 +370,7 @@ jest.mock('../components/ConnectionErrorBanner', () => ({
   },
 }))
 
-// Mock @my/ui components
-jest.mock('@my/ui', () => {
-  const React = require('react')
-  return {
-    ProcessingOverlay: ({ testID, ...props }: any) =>
-      React.createElement(
-        'View',
-        { testID: testID || 'processing-overlay', ...props },
-        'Processing'
-      ),
-    VideoAnalysisPlayer: ({ testID, ...props }: any) =>
-      React.createElement(
-        'View',
-        { testID: testID || 'video-player-container', ...props },
-        'Video Player'
-      ),
-    MotionCaptureOverlay: ({ testID, ...props }: any) =>
-      React.createElement(
-        'View',
-        { testID: testID || 'motion-capture-overlay', ...props },
-        'Motion Capture'
-      ),
-    FeedbackBubbles: ({ testID, ...props }: any) =>
-      React.createElement('View', { testID: testID || 'feedback-bubbles', ...props }, 'Feedback'),
-    AudioFeedbackOverlay: ({ testID, ...props }: any) =>
-      React.createElement(
-        'View',
-        { testID: testID || 'audio-feedback-overlay', ...props },
-        'Audio'
-      ),
-    VideoControlsOverlay: ({ testID, ...props }: any) =>
-      React.createElement(
-        'View',
-        { testID: testID || 'video-controls-overlay', ...props },
-        'Controls'
-      ),
-    BottomSheet: ({ testID, ...props }: any) =>
-      React.createElement('View', { testID: testID || 'bottom-sheet', ...props }, 'Bottom Sheet'),
-    SocialIcons: ({ testID, ...props }: any) =>
-      React.createElement('View', { testID: testID || 'social-icons', ...props }, 'Social'),
-    VideoTitle: ({ testID, ...props }: any) =>
-      React.createElement('View', { testID: testID || 'video-title', ...props }, 'Video Title'),
-  }
-})
+// Second @my/ui mock removed - consolidated into single mock above
 
 // Mock useAnalysisRealtime hooks
 jest.mock('../hooks/useAnalysisRealtime', () => ({

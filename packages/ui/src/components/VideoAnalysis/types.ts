@@ -1,4 +1,4 @@
-// Types from analysis-ui.md
+// All types for VideoAnalysis feature
 export interface PoseData {
   id: string
   timestamp: number
@@ -25,7 +25,7 @@ export interface FeedbackMessage {
   isActive: boolean
 }
 
-// Original VideoPlayer interface (from backup)
+// VideoPlayer-specific types
 export interface OriginalVideoPlayerProps {
   videoUri: string
   duration?: number
@@ -38,7 +38,6 @@ export interface OriginalVideoPlayerProps {
   autoPlay?: boolean
 }
 
-// Minimalist VideoPlayer interface
 export interface VideoPlayerProps {
   videoUri: string
   isPlaying: boolean

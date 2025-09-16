@@ -3,10 +3,7 @@ import { YStack } from 'tamagui'
 
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'
-import { ProcessingOverlay } from '@my/ui'
-import { VideoAnalysisPlayer } from '@my/ui'
-import { BottomSheet } from '@my/ui'
-import { SocialIcons } from '@my/ui'
+import { ProcessingOverlay, VideoAnalysisPlayer, BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
 
 // Real-time integration hooks
 import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'

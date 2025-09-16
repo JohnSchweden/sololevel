@@ -1,21 +1,6 @@
 import { Button, YStack } from 'tamagui'
 import { Circle } from 'tamagui'
-
-// Types are imported from VideoPlayer.tsx
-interface PoseData {
-  id: string
-  timestamp: number
-  joints: Joint[]
-  confidence: number
-}
-
-interface Joint {
-  id: string
-  x: number
-  y: number
-  confidence: number
-  connections: string[]
-}
+import type { PoseData } from '../types'
 
 export interface MotionCaptureOverlayProps {
   poseData: PoseData[]

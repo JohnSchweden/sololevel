@@ -1,18 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import { log } from '../../utils/logger'
-import type { VideoValidationResult } from '../../utils/videoValidation'
 import { validateVideoFile } from '../../utils/videoValidation'
-
-export interface VideoFilePickerProps {
-  isOpen: boolean
-  onVideoSelected: (file: File, metadata: VideoValidationResult['metadata']) => void
-  onCancel: () => void
-  maxDurationSeconds?: number
-  maxFileSizeBytes?: number
-  showUploadProgress?: boolean
-  uploadProgress?: number
-  disabled?: boolean
-}
+import type { VideoFilePickerProps } from './types'
 
 /**
  * Web Video File Picker using native HTML5 File API

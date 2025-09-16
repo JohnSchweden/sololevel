@@ -1,6 +1,4 @@
 import {
-  AppHeader,
-  BottomNavigation,
   CameraContainer,
   CameraControlsOverlay,
   CameraPreview,
@@ -11,8 +9,12 @@ import {
   PoseDetectionToggleCompact,
   PoseOverlay,
   RecordingControls,
-  SideSheet,
 } from '@ui/components/CameraRecording'
+
+// Import external components directly
+import { AppHeader } from '@ui/components/AppHeader'
+import { BottomNavigation } from '@ui/components/BottomNavigation'
+import { SideSheet } from '@ui/components/Sidesheet'
 // Test minimal hook to isolate issue
 import { log } from '@ui/utils/logger'
 import { useEffect, useRef, useState } from 'react'

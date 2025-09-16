@@ -1,6 +1,4 @@
 import {
-  AppHeader,
-  BottomNavigation,
   CameraContainer,
   CameraControlsOverlay,
   CameraPreview,
@@ -9,8 +7,12 @@ import {
   IdleControls,
   NavigationDialog,
   RecordingControls,
-  SideSheet,
 } from '@my/ui/src/components/CameraRecording'
+
+// Import external components directly
+import { AppHeader } from '@my/ui/src/components/AppHeader/AppHeader'
+import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
+import { SideSheet } from '@my/ui/src/components/Sidesheet/SideSheet'
 import { useEffect, useRef, useState } from 'react'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'

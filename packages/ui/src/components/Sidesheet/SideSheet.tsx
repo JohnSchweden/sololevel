@@ -2,11 +2,7 @@ import { shadows } from '@my/config'
 import { ChevronLeft, History } from '@tamagui/lucide-icons'
 import { Dialog, ScrollView, XStack, YStack } from 'tamagui'
 import { Button, Text } from 'tamagui'
-
-export interface SideSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+import type { SideSheetProps } from './types'
 
 /**
  * Side Sheet Navigation - Placeholder Implementation

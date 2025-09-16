@@ -2,19 +2,7 @@ import { shadows } from '@my/config'
 import React from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
-
-export interface BottomNavigationProps {
-  activeTab: 'coach' | 'record' | 'insights'
-  onTabChange: (tab: 'coach' | 'record' | 'insights') => void
-  disabled?: boolean
-}
-
-export interface NavigationTabProps {
-  label: string
-  isActive: boolean
-  onPress: () => void
-  disabled?: boolean
-}
+import type { BottomNavigationProps, NavigationTabProps } from './types'
 
 /**
  * Bottom Navigation Component

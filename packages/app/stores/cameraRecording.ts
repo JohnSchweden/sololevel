@@ -1,5 +1,5 @@
 // Hybrid camera recording store - switches between VisionCamera and Expo Camera implementations
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/ui'
 
 /**
  * Hybrid Camera Recording Store - switches between VisionCamera and Expo Camera implementations

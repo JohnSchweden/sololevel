@@ -339,25 +339,15 @@
   - **Impact**: Tests now run successfully without infinite loops, verify core functionality, and provide stable foundation for incremental complexity addition
 
 - ✅ **VideoPlayer Component Undefined Error**: Fixed "React.jsx: type is invalid" error in VideoAnalysisScreen
-  - **Root Cause**: Dynamic import of VideoPlayerNative component was failing, causing React to receive undefined component type
+  - **Root Cause**: Barrel export pointed to `VideoPlayer.tsx` directly, bypassing directory index and causing Metro to resolve an undefined component on native
   - **Fix**:
-    - Added proper error handling for dynamic imports in VideoPlayer component
-    - Implemented graceful fallback placeholder when native component fails to load
-    - Added try-catch blocks around require() statements to prevent crashes
-    - Maintained web compatibility while fixing native component loading
-    - Cleaned up debug logging that was interfering with component loading
-    - Separated types into dedicated file to resolve circular dependencies
-    - **Removed white backgrounds** for better video viewing experience
-    - **Created simplified VideoPlayer.native.tsx** with basic overlays and bubbles
+    - Added `packages/ui/src/components/VideoAnalysis/VideoPlayer/index.tsx` exporting `VideoPlayer` with platform guard
+    - Updated `@my/ui` main index to re-export from the directory (`./components/VideoAnalysis/VideoPlayer`) to ensure correct platform resolution
+    - Verified exports with type-check; no lints introduced
   - **Files Modified**:
-    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.tsx`
-    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/types.ts` (new)
-    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.web.tsx`
-    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.native.tsx` (simplified)
-    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.native.tsx.backup` (original complex version)
-    - `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-    - `packages/app/features/VideoAnalysis/__tests__/VideoAnalysisScreen.test.tsx`
-  - **Impact**: App no longer crashes with undefined component error, graceful degradation when native video player fails to load, transparent backgrounds for optimal video viewing, simplified overlays for better debugging, maintains functionality across platforms
+    - `packages/ui/src/components/VideoAnalysis/VideoPlayer/index.tsx` (new)
+    - `packages/ui/src/index.tsx`
+  - **Impact**: Native `VideoPlayer` resolves correctly; runtime "undefined component" crash eliminated
 
 - ✅ **Camera Initialization Bug**: Fixed VisionCamera operations being triggered when VideoAnalysisScreen loads
   - **Root Cause**: CameraPreview components were performing operations without checking if component was mounted

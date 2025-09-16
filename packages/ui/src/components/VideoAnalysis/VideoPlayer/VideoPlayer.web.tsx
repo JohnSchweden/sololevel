@@ -1,5 +1,5 @@
 import { YStack } from 'tamagui'
-import type { VideoPlayerProps } from './types'
+import type { VideoPlayerProps } from '../types'
 
 export function VideoPlayerWeb({ videoUri, isPlaying }: VideoPlayerProps) {
   return (

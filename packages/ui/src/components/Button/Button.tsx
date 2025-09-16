@@ -1,5 +1,6 @@
+import { styled } from '@tamagui/core'
 import type React from 'react'
-import { Button as TamaguiButton, styled } from 'tamagui'
+import { Button as TamaguiButton } from 'tamagui'
 
 // Create a properly typed Button with our custom variants
 export const Button = styled(TamaguiButton, {

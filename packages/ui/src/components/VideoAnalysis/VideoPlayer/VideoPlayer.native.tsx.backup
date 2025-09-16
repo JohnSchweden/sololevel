@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Video from 'react-native-video'
 import { YStack } from 'tamagui'
-import type { VideoPlayerProps } from './types'
+import type { VideoPlayerProps } from '../types'
 
 // import { AudioFeedbackOverlay } from '../AudioFeedbackOverlay/AudioFeedbackOverlay'
 // import { FeedbackBubbles } from '../FeedbackBubbles/FeedbackBubbles'

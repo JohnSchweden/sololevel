@@ -2,16 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
 // Logger for debugging
-import { log } from '@ui/utils/logger'
+import { log } from '@my/ui'
 
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'
-import { ProcessingOverlay } from '@my/ui'
-import { VideoPlayer } from '@my/ui'
+import {
+  ProcessingOverlay,
+  VideoContainer,
+  VideoPlayer,
+  VideoPlayerArea,
+} from '@ui/components/VideoAnalysis'
 
 // Simplified version - comment out complex components for now
-// import { BottomSheet } from '@my/ui'
-// import { SocialIcons } from '@my/ui'
+// import { BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
 
 // Real-time integration hooks - comment out for simplified version
 // import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
@@ -55,24 +58,28 @@ export function VideoAnalysisScreen({
   lastRenderTimeRef.current = now
 
   // Log component initialization and re-renders
-  log.info('[VideoAnalysisScreen] Component rendered', {
-    renderCount: renderCountRef.current,
-    timeSinceLastRender: `${timeSinceLastRender}ms`,
-    analysisJobId,
-    videoUri,
-  })
+  if (log && log.info) {
+    log.info('[VideoAnalysisScreen] Component rendered', {
+      renderCount: renderCountRef.current,
+      timeSinceLastRender: `${timeSinceLastRender}ms`,
+      analysisJobId,
+      videoUri,
+    })
+  }
 
   // DEBUG: Check all imported components
-  log.info('[VideoAnalysisScreen] Component type checks', {
-    YStackType: typeof YStack,
-    AppHeaderType: typeof AppHeader,
-    ProcessingOverlayType: typeof ProcessingOverlay,
-    VideoPlayerType: typeof VideoPlayer,
-    YStackUndefined: YStack === undefined,
-    AppHeaderUndefined: AppHeader === undefined,
-    ProcessingOverlayUndefined: ProcessingOverlay === undefined,
-    VideoPlayerUndefined: VideoPlayer === undefined,
-  })
+  if (log && log.info) {
+    log.info('[VideoAnalysisScreen] Component type checks', {
+      YStackType: typeof YStack,
+      AppHeaderType: typeof AppHeader,
+      ProcessingOverlayType: typeof ProcessingOverlay,
+      VideoPlayerType: typeof VideoPlayer,
+      YStackUndefined: YStack === undefined,
+      AppHeaderUndefined: AppHeader === undefined,
+      ProcessingOverlayUndefined: ProcessingOverlay === undefined,
+      VideoPlayerUndefined: VideoPlayer === undefined,
+    })
+  }
 
   // STEP 1: Ultra-minimalist version - just show video
   const [isProcessing, setIsProcessing] = useState(true)
@@ -81,14 +88,20 @@ export function VideoAnalysisScreen({
   const recordedVideoUri =
     videoUri || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
 
-  log.info('[VideoAnalysisScreen] Using video URI', { recordedVideoUri })
+  if (log && log.info) {
+    log.info('[VideoAnalysisScreen] Using video URI', { recordedVideoUri })
+  }
 
   // STEP 1: Simple processing simulation - complete after 3 seconds
   useEffect(() => {
-    log.info('[VideoAnalysisScreen] Starting processing simulation')
+    if (log && log.info) {
+      log.info('[VideoAnalysisScreen] Starting processing simulation')
+    }
 
     const timer = setTimeout(() => {
-      log.info('[VideoAnalysisScreen] Processing completed')
+      if (log && log.info) {
+        log.info('[VideoAnalysisScreen] Processing completed')
+      }
       setIsProcessing(false)
     }, 3000)
 
@@ -103,26 +116,17 @@ export function VideoAnalysisScreen({
   }, [])
 
   return (
-    <YStack
-      flex={1}
-      backgroundColor="transparent"
+    <VideoContainer
+      header={
+        <AppHeader
+          title="Video Analysis"
+          mode="analysis"
+          onBackPress={onBack}
+          onMenuPress={onMenuPress}
+        />
+      }
     >
-      {/* Header */}
-      <AppHeader
-        title="Video Analysis (Simplified)"
-        mode="analysis"
-        onBackPress={onBack}
-        onMenuPress={onMenuPress}
-      />
-
-      {/* Video Area */}
-      <YStack
-        flex={1}
-        position="relative"
-        backgroundColor="transparent"
-        justifyContent="center"
-        alignItems="center"
-      >
+      <VideoPlayerArea>
         {isProcessing ? (
           <YStack
             flex={1}
@@ -159,7 +163,7 @@ export function VideoAnalysisScreen({
             )}
           </YStack>
         )}
-      </YStack>
-    </YStack>
+      </VideoPlayerArea>
+    </VideoContainer>
   )
 }
