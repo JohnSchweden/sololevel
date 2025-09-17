@@ -1,4 +1,3 @@
-import { AppHeaderContainer } from '@my/ui/src/components/AppHeader/AppHeader'
 import {
   Download,
   Maximize,
@@ -8,6 +7,7 @@ import {
   SkipBack,
   SkipForward,
 } from '@tamagui/lucide-icons'
+import { AppHeaderContainer } from '@ui/components/AppHeader'
 import React, {
   useCallback,
   useEffect,
