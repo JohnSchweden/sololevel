@@ -131,7 +131,7 @@ describe('VideoControls', () => {
         />
       )
 
-      expect(screen.getByLabelText('Current time: 1:30')).toBeTruthy()
+      expect(screen.getByLabelText('Current time: 1:30, Total duration: 2:00')).toBeTruthy()
     })
 
     it('displays duration correctly', () => {
@@ -142,7 +142,7 @@ describe('VideoControls', () => {
         />
       )
 
-      expect(screen.getByLabelText('Total duration: 3:00')).toBeTruthy()
+      expect(screen.getByLabelText('Current time: 0:30, Total duration: 3:00')).toBeTruthy()
     })
 
     it('handles zero time values', () => {
@@ -154,10 +154,8 @@ describe('VideoControls', () => {
         />
       )
 
-      const currentTime = screen.getByLabelText('Current time: 0:00')
-      const totalTime = screen.getByLabelText('Total duration: 0:00')
-      expect(currentTime).toBeTruthy()
-      expect(totalTime).toBeTruthy()
+      const timeDisplay = screen.getByLabelText('Current time: 0:00, Total duration: 0:00')
+      expect(timeDisplay).toBeTruthy()
     })
 
     it('formats time correctly for hours', () => {
@@ -169,8 +167,7 @@ describe('VideoControls', () => {
         />
       )
 
-      expect(screen.getByLabelText('Current time: 1:01:01')).toBeTruthy()
-      expect(screen.getByLabelText('Total duration: 2:00:00')).toBeTruthy()
+      expect(screen.getByLabelText('Current time: 1:01:01, Total duration: 2:00:00')).toBeTruthy()
     })
   })
 
@@ -551,8 +548,7 @@ describe('VideoControls', () => {
         )
 
         // Check that time display elements are present and accessible
-        expect(screen.getByLabelText('Current time: 1:30')).toBeTruthy()
-        expect(screen.getByLabelText('Total duration: 2:30')).toBeTruthy()
+        expect(screen.getByLabelText('Current time: 1:30, Total duration: 2:30')).toBeTruthy()
       })
 
       it('handles hour-long videos correctly', () => {
@@ -565,8 +561,7 @@ describe('VideoControls', () => {
         )
 
         // Check that time display handles hour formatting correctly
-        expect(screen.getByLabelText('Current time: 1:01:05')).toBeTruthy()
-        expect(screen.getByLabelText('Total duration: 2:00:00')).toBeTruthy()
+        expect(screen.getByLabelText('Current time: 1:01:05, Total duration: 2:00:00')).toBeTruthy()
       })
     })
   })
