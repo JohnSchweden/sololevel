@@ -1,5 +1,11 @@
 // Generic app states that can be handled by the header
-export type AppHeaderMode = 'default' | 'camera' | 'camera-idle' | 'recording' | 'analysis'
+export type AppHeaderMode =
+  | 'default'
+  | 'camera'
+  | 'camera-idle'
+  | 'recording'
+  | 'analysis'
+  | 'videoSettings'
 
 export interface AppHeaderProps {
   title: string

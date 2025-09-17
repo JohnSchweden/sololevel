@@ -47,7 +47,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -64,7 +63,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={mockOnBack}
-          onMenuPress={mockOnMenuPress}
         />
       )
 
@@ -80,7 +78,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -90,7 +87,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="playing"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -108,7 +104,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={mockOnBack}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -125,7 +120,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={mockOnMenuPress}
         />
       )
 
@@ -142,7 +136,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -156,7 +149,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -172,7 +164,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -183,7 +174,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
             analysisJobId={1}
             initialStatus={state}
             onBack={jest.fn()}
-            onMenuPress={jest.fn()}
           />
         )
       })
@@ -200,7 +190,6 @@ describe('VideoAnalysisScreen Gesture Handling Integration Tests', () => {
             analysisJobId={1}
             initialStatus="ready"
             onBack={jest.fn()}
-            onMenuPress={jest.fn()}
           />
         )
 

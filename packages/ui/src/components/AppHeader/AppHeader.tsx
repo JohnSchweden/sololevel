@@ -1,4 +1,4 @@
-import { Bell, ChevronLeft, Menu } from '@tamagui/lucide-icons'
+import { Bell, ChevronLeft, Menu, MoreHorizontal } from '@tamagui/lucide-icons'
 import { Circle, Text, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
@@ -23,8 +23,10 @@ export function AppHeader({
   // Derive state from mode
   const isRecording = mode === 'recording' || cameraProps?.isRecording
   const isAnalysis = mode === 'analysis'
-  const showBackButton = isRecording || isAnalysis
-  const showNotifications = mode !== 'recording' && mode !== 'camera' && !isAnalysis
+  const isVideoSettings = mode === 'videoSettings'
+  const showBackButton = isRecording || isAnalysis || isVideoSettings
+  const showNotifications =
+    mode !== 'recording' && mode !== 'camera' && !isAnalysis && !isVideoSettings
   return (
     <>
       {/* Left Section - Back Button (for recording/analysis) or Menu Button (for other modes) */}
@@ -100,17 +102,24 @@ export function AppHeader({
         )}
       </YStack>
 
-      {/* Right Section - Menu Button (for analysis) or Notification Button with Badge (for other modes) */}
-      {isAnalysis ? (
+      {/* Right Section - Menu Button (for analysis/videoSettings) or Notification Button with Badge (for other modes) */}
+      {isAnalysis || isVideoSettings ? (
         <Button
           chromeless
           size="$3"
           onPress={onMenuPress}
           icon={
-            <Menu
-              size="$1.5"
-              color="white"
-            />
+            isVideoSettings ? (
+              <MoreHorizontal
+                size="$1.5"
+                color="white"
+              />
+            ) : (
+              <Menu
+                size="$1.5"
+                color="white"
+              />
+            )
           }
           minWidth={44}
           minHeight={44}
@@ -124,7 +133,7 @@ export function AppHeader({
             backgroundColor: 'rgba(255,255,255,0.2)',
           }}
           accessibilityRole="button"
-          accessibilityLabel="Open side menu"
+          accessibilityLabel={isVideoSettings ? 'Open video settings menu' : 'Open side menu'}
         />
       ) : showNotifications ? (
         <YStack position="relative">

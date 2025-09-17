@@ -33,7 +33,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -47,7 +46,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="processing"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -61,7 +59,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -75,7 +72,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -91,7 +87,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -105,7 +100,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -119,7 +113,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -135,7 +128,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -149,7 +141,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -165,7 +156,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="processing"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -176,7 +166,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
             analysisJobId={i + 1}
             initialStatus={i % 2 === 0 ? 'processing' : 'ready'}
             onBack={jest.fn()}
-            onMenuPress={jest.fn()}
           />
         )
       }
@@ -191,7 +180,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={1}
           initialStatus="ready"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -201,7 +189,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={2}
           initialStatus="processing"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 
@@ -210,7 +197,6 @@ describe('VideoAnalysisScreen Integration Tests', () => {
           analysisJobId={3}
           initialStatus="paused"
           onBack={jest.fn()}
-          onMenuPress={jest.fn()}
         />
       )
 

@@ -18,7 +18,6 @@ export const ProcessingState: Story = {
     analysisJobId: 1,
     initialStatus: 'processing',
     onBack: () => console.log('Back pressed'),
-    onMenuPress: () => console.log('Menu pressed'),
   },
   decorators: [
     (Story) => (
@@ -42,7 +41,6 @@ export const ReadyState: Story = {
     analysisJobId: 1,
     initialStatus: 'ready',
     onBack: () => console.log('Back pressed'),
-    onMenuPress: () => console.log('Menu pressed'),
   },
   decorators: [
     (Story) => (
@@ -66,7 +64,6 @@ export const PlayingState: Story = {
     analysisJobId: 1,
     initialStatus: 'playing',
     onBack: () => console.log('Back pressed'),
-    onMenuPress: () => console.log('Menu pressed'),
   },
   decorators: [
     (Story) => (
@@ -90,7 +87,6 @@ export const PausedState: Story = {
     analysisJobId: 1,
     initialStatus: 'paused',
     onBack: () => console.log('Back pressed'),
-    onMenuPress: () => console.log('Menu pressed'),
   },
   decorators: [
     (Story) => (
@@ -114,7 +110,6 @@ export const WithCallbacks: Story = {
     analysisJobId: 1,
     initialStatus: 'ready',
     onBack: () => alert('Back button pressed!'),
-    onMenuPress: () => alert('Menu button pressed!'),
   },
   decorators: [
     (Story) => (

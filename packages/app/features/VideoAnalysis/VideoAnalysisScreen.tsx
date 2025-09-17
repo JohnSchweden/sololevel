@@ -13,6 +13,7 @@ import {
   ProcessingOverlay,
   VideoContainer,
   VideoControls,
+  VideoControlsRef,
   VideoPlayer,
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
@@ -87,6 +88,7 @@ export function VideoAnalysisScreen({
 
   // STEP 1: Ultra-minimalist version - just show video
   const [isProcessing, setIsProcessing] = useState(true)
+  const videoControlsRef = useRef<VideoControlsRef>(null)
 
   // STEP 1: Use provided videoUri or fallback
   const recordedVideoUri =
@@ -119,17 +121,19 @@ export function VideoAnalysisScreen({
     // For now, just log - controls will be added later
   }, [])
 
+  // Handler for menu press from AppHeader - triggers fly-out menu in VideoControls
+  const handleMenuPress = useCallback(() => {
+    log.info('[VideoAnalysisScreen] handleMenuPress called')
+    // First call the parent's onMenuPress callback if provided
+    onMenuPress?.()
+    // Then trigger the fly-out menu in VideoControls
+    if (videoControlsRef.current) {
+      videoControlsRef.current.triggerMenu()
+    }
+  }, [onMenuPress])
+
   return (
-    <VideoContainer
-      header={
-        <AppHeader
-          title="Video Analysis"
-          mode="analysis"
-          onBackPress={onBack}
-          onMenuPress={onMenuPress}
-        />
-      }
-    >
+    <VideoContainer>
       <VideoPlayerArea>
         {isProcessing ? (
           <YStack
@@ -199,8 +203,9 @@ export function VideoAnalysisScreen({
 
             {/* Video Controls Overlay */}
             <VideoControls
+              ref={videoControlsRef}
               isPlaying={true}
-              currentTime={0}
+              currentTime={15}
               duration={60} // TODO: Connect to actual video duration
               showControls={true}
               onPlay={() => {
@@ -212,7 +217,14 @@ export function VideoAnalysisScreen({
               onSeek={(time) => {
                 log.info('[VideoAnalysisScreen] Video seek', { time })
               }}
-              title="Video Analysis"
+              headerComponent={
+                <AppHeader
+                  title="Video Analysis"
+                  mode="videoSettings"
+                  onBackPress={onBack}
+                  onMenuPress={handleMenuPress}
+                />
+              }
             />
           </YStack>
         )}

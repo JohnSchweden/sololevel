@@ -10,7 +10,7 @@ export { ProcessingOverlay } from './ProcessingOverlay/ProcessingOverlay'
 export type { ProcessingOverlayProps } from './ProcessingOverlay/ProcessingOverlay'
 
 export { VideoControls } from './VideoControls/VideoControls'
-export type { VideoControlsProps } from './VideoControls/VideoControls'
+export type { VideoControlsProps, VideoControlsRef } from './VideoControls/VideoControls'
 
 export { MotionCaptureOverlay } from './MotionCaptureOverlay/MotionCaptureOverlay'
 export type { MotionCaptureOverlayProps } from './MotionCaptureOverlay/MotionCaptureOverlay'
