@@ -6,7 +6,11 @@ export default function VideoAnalysis() {
   const { videoUri } = useLocalSearchParams<{ videoUri: string }>()
 
   const handleBack = () => {
-    router.back()
+    // Navigate back to camera with reset to idle state
+    router.replace({
+      pathname: '/',
+      params: { resetToIdle: 'true' },
+    })
   }
 
   const handleMenuPress = () => {

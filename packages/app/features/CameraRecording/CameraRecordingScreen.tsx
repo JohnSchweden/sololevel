@@ -9,12 +9,14 @@ export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onTabChange,
+  resetToIdle,
 }: CameraRecordingScreenProps) {
   return (
     <CameraRecordingScreenWrapper
       onNavigateBack={onNavigateBack}
       onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
       onTabChange={onTabChange}
+      resetToIdle={resetToIdle}
     />
   )
 }

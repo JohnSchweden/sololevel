@@ -1,17 +1,8 @@
-// Platform-agnostic safe area hook
-const useSafeAreaInsets = () => {
-  // Default safe area values for cross-platform compatibility
-  return {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  }
-}
-
 import type { ReactNode } from 'react'
-import { XStack, YStack } from 'tamagui'
+import { YStack } from 'tamagui'
 import type { GetProps } from 'tamagui'
+import { AppHeaderContainer } from '../../AppHeader/AppHeader'
+import { BottomNavigationContainer } from '../../BottomNavigation/BottomNavigation'
 
 export interface VideoContainerProps {
   children?: ReactNode
@@ -31,8 +22,6 @@ export function VideoContainer({
   bottomNavigation,
   backgroundColor = '$background',
 }: VideoContainerProps) {
-  const insets = useSafeAreaInsets()
-
   return (
     <YStack
       flex={1}
@@ -52,40 +41,11 @@ export function VideoContainer({
       </YStack>
 
       {/* Header Section - Mobile optimized */}
-      {header && (
-        <XStack
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          paddingTop={insets.top + 20}
-          height={80 + insets.top}
-          paddingHorizontal="$3"
-          alignItems="center"
-          justifyContent="space-between"
-          zIndex={10}
-        >
-          {header}
-        </XStack>
-      )}
+      {header && <AppHeaderContainer>{header}</AppHeaderContainer>}
 
       {/* Bottom Navigation - Mobile optimized */}
       {bottomNavigation && (
-        <XStack
-          position="absolute"
-          bottom={0}
-          left={0}
-          right={0}
-          paddingBottom={insets.bottom}
-          height={72 + insets.bottom}
-          backgroundColor="$overlayGlass"
-          paddingHorizontal="$4"
-          alignItems="center"
-          justifyContent="space-between"
-          zIndex={10}
-        >
-          {bottomNavigation}
-        </XStack>
+        <BottomNavigationContainer>{bottomNavigation}</BottomNavigationContainer>
       )}
     </YStack>
   )

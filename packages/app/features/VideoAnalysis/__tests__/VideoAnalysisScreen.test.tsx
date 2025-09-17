@@ -37,35 +37,67 @@ jest.mock('@my/ui', () => ({
 jest.mock('@ui/components/VideoAnalysis', () => ({
   AudioFeedback: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'AudioFeedback', ...props },
+      children
+    )
   },
   FeedbackBubbles: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'FeedbackBubbles', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'FeedbackBubbles', ...props },
+      children
+    )
   },
   MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'MotionCaptureOverlay', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'MotionCaptureOverlay', ...props },
+      children
+    )
   },
   ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'ProcessingOverlay', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'ProcessingOverlay', ...props },
+      children
+    )
   },
   VideoContainer: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'VideoContainer', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'VideoContainer', ...props },
+      children
+    )
   },
   VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'VideoControls', ...props },
+      children
+    )
   },
   VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'VideoPlayer', ...props },
+      children
+    )
   },
   VideoPlayerArea: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
-    return React.createElement('div', { 'data-testid': testID || 'VideoPlayerArea', ...props }, children)
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'VideoPlayerArea', ...props },
+      children
+    )
   },
 }))
 

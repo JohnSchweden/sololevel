@@ -1,3 +1,14 @@
+// Platform-agnostic safe area hook for bottom navigation
+const useSafeAreaInsets = () => {
+  // Default safe area values for cross-platform compatibility
+  return {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  }
+}
+
 import { shadows } from '@my/config'
 import React from 'react'
 import { Platform } from 'react-native'
@@ -116,6 +127,37 @@ export function TabBar({ children }: TabBarProps) {
       alignItems="center"
       justifyContent="space-between"
       {...shadows.small}
+    >
+      {children}
+    </XStack>
+  )
+}
+
+/**
+ * Centralized Bottom Navigation Container
+ * Provides consistent bottom navigation styling and layout across the app
+ * Mobile-optimized with safe area handling and touch targets
+ */
+export function BottomNavigationContainer({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const insets = useSafeAreaInsets()
+
+  return (
+    <XStack
+      position="absolute"
+      bottom={0}
+      left={0}
+      right={0}
+      paddingBottom={insets.bottom}
+      height={72 + insets.bottom}
+      backgroundColor="$overlayGlass"
+      paddingHorizontal="$4"
+      alignItems="center"
+      justifyContent="space-between"
+      zIndex={10}
     >
       {children}
     </XStack>

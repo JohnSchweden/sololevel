@@ -386,5 +386,6 @@ export const useCameraScreenLogic = ({
 
     // Recording actions
     handleVideoRecorded,
+    resetRecording,
   }
 }

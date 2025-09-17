@@ -1,5 +1,5 @@
 import { Bell, ChevronLeft, Menu } from '@tamagui/lucide-icons'
-import { Circle, Text, YStack } from 'tamagui'
+import { Circle, Text, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
 
@@ -22,16 +22,18 @@ export function AppHeader({
 }: AppHeaderProps) {
   // Derive state from mode
   const isRecording = mode === 'recording' || cameraProps?.isRecording
-  const showNotifications = mode !== 'recording' && mode !== 'camera'
+  const isAnalysis = mode === 'analysis'
+  const showBackButton = isRecording || isAnalysis
+  const showNotifications = mode !== 'recording' && mode !== 'camera' && !isAnalysis
   return (
     <>
-      {/* Left Section - Menu/Back Button */}
+      {/* Left Section - Back Button (for recording/analysis) or Menu Button (for other modes) */}
       <Button
         chromeless
         size="$3"
-        onPress={isRecording ? onBackPress : onMenuPress}
+        onPress={showBackButton ? onBackPress : onMenuPress}
         icon={
-          isRecording ? (
+          showBackButton ? (
             <ChevronLeft
               size="$1.5"
               color="white"
@@ -55,7 +57,13 @@ export function AppHeader({
           backgroundColor: 'rgba(255,255,255,0.2)',
         }}
         accessibilityRole="button"
-        accessibilityLabel={isRecording ? 'Stop recording and go back' : 'Open side menu'}
+        accessibilityLabel={
+          showBackButton
+            ? isRecording
+              ? 'Stop recording and go back'
+              : 'Go back to previous screen'
+            : 'Open side menu'
+        }
       />
 
       {/* Center Section - Title or Timer */}
@@ -92,8 +100,33 @@ export function AppHeader({
         )}
       </YStack>
 
-      {/* Right Section - Notification Button with Badge */}
-      {showNotifications && (
+      {/* Right Section - Menu Button (for analysis) or Notification Button with Badge (for other modes) */}
+      {isAnalysis ? (
+        <Button
+          chromeless
+          size="$3"
+          onPress={onMenuPress}
+          icon={
+            <Menu
+              size="$1.5"
+              color="white"
+            />
+          }
+          minWidth={44}
+          minHeight={44}
+          borderRadius="$4"
+          backgroundColor="transparent"
+          hoverStyle={{
+            backgroundColor: 'rgba(255,255,255,0.1)',
+          }}
+          pressStyle={{
+            scale: 0.95,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Open side menu"
+        />
+      ) : showNotifications ? (
         <YStack position="relative">
           <Button
             chromeless
@@ -146,8 +179,52 @@ export function AppHeader({
             </Circle>
           )}
         </YStack>
-      )}
+      ) : null}
     </>
+  )
+}
+
+// Platform-agnostic safe area hook for header configuration
+const useSafeAreaInsets = () => {
+  // Default safe area values for cross-platform compatibility
+  return {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  }
+}
+
+/**
+ * Centralized App Header Container
+ * Provides consistent header styling and layout across the app
+ * Mobile-optimized with safe area handling and touch targets
+ */
+export function AppHeaderContainer({
+  children,
+  backgroundColor = 'transparent',
+}: {
+  children: React.ReactNode
+  backgroundColor?: any
+}) {
+  const insets = useSafeAreaInsets()
+
+  return (
+    <XStack
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      paddingTop={insets.top + 20}
+      height={80 + insets.top}
+      paddingHorizontal="$3"
+      alignItems="center"
+      justifyContent="space-between"
+      zIndex={10}
+      backgroundColor={backgroundColor}
+    >
+      {children}
+    </XStack>
   )
 }
 

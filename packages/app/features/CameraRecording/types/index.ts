@@ -41,6 +41,9 @@ export interface CameraRecordingScreenProps {
   onPauseRecording?: () => void
   onStopRecording?: () => void
   onUploadVideo?: () => void
+
+  // Navigation state management
+  resetToIdle?: boolean
 }
 
 export interface PoseKeypoint {

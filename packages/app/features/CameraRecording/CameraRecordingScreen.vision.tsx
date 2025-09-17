@@ -34,6 +34,7 @@ export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onTabChange,
+  resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
 
@@ -126,7 +127,16 @@ export function CameraRecordingScreen({
     setShowSideSheet,
     setShowNavigationDialog,
     handleVideoRecorded,
+    resetRecording,
   } = useCameraScreenLogic({ onNavigateBack, onNavigateToVideoAnalysis, onTabChange, cameraRef })
+
+  // Handle reset to idle state when navigating back from video analysis
+  useEffect(() => {
+    if (resetToIdle && recordingState !== RecordingState.IDLE) {
+      log.info('CameraRecordingScreen', 'Resetting to idle state due to navigation')
+      resetRecording()
+    }
+  }, [resetToIdle, recordingState, resetRecording])
 
   // Show timer and chevron left when in any recording state (RECORDING or PAUSED)
   const isInRecordingState =

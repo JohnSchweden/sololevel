@@ -156,6 +156,7 @@ export function VideoAnalysisScreen({
         ) : (
           <YStack
             flex={1}
+            position="relative"
             onPress={handleVideoTap}
             testID="video-player-container"
           >
@@ -196,10 +197,11 @@ export function VideoAnalysisScreen({
               isVisible={false}
             />
 
+            {/* Video Controls Overlay */}
             <VideoControls
               isPlaying={true}
               currentTime={0}
-              duration={120} // TODO: Connect to actual video duration
+              duration={60} // TODO: Connect to actual video duration
               showControls={true}
               onPlay={() => {
                 log.info('[VideoAnalysisScreen] Video play')

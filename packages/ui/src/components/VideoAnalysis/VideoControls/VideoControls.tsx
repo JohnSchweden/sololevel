@@ -127,7 +127,13 @@ export function VideoControls({
   return (
     <Pressable
       onPress={handlePress}
-      style={{ flex: 1 }}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
       testID="video-controls-pressable"
     >
       <YStack
@@ -145,7 +151,7 @@ export function VideoControls({
         accessibilityState={{ expanded: controlsVisible }}
       >
         {/* Header */}
-        <XStack paddingBottom="$2">
+        <XStack>
           <AppHeader
             mode="analysis"
             title={title}
@@ -164,7 +170,7 @@ export function VideoControls({
             chromeless
             icon={<SkipBack />}
             size={60}
-            backgroundColor="rgba(0,0,0,0.6)"
+            backgroundColor="rgba(255, 255, 255, 0.60)"
             borderRadius={30}
             onPress={() => {
               showControlsAndResetTimer()
@@ -179,7 +185,7 @@ export function VideoControls({
             chromeless
             icon={isPlaying ? <Pause /> : <Play />}
             size={80}
-            backgroundColor="rgba(0,0,0,0.6)"
+            backgroundColor="rgba(255,255,255,0.60)"
             borderRadius={40}
             onPress={() => {
               showControlsAndResetTimer()
@@ -195,7 +201,7 @@ export function VideoControls({
             chromeless
             icon={<SkipForward />}
             size={60}
-            backgroundColor="rgba(0,0,0,0.6)"
+            backgroundColor="rgba(255,255,255,0.60)"
             borderRadius={30}
             onPress={() => {
               showControlsAndResetTimer()
@@ -220,7 +226,7 @@ export function VideoControls({
           >
             <Text
               fontSize="$3"
-              color="$color12"
+              color="white"
               testID="current-time"
               accessibilityLabel={`Current time: ${formatTime(currentTime)}`}
             >
@@ -228,7 +234,7 @@ export function VideoControls({
             </Text>
             <Text
               fontSize="$3"
-              color="$color12"
+              color="white"
               testID="total-time"
               accessibilityLabel={`Total duration: ${formatTime(duration)}`}
             >
@@ -301,7 +307,7 @@ export function VideoControls({
               chromeless
               icon={<Maximize />}
               size={44}
-              color="$color12"
+              color="white"
               onPress={() => {
                 showControlsAndResetTimer()
                 onToggleFullscreen?.()
@@ -333,6 +339,7 @@ export function VideoControls({
               fontSize="$6"
               fontWeight="600"
               textAlign="center"
+              color="white"
             >
               Video Options
             </Text>
