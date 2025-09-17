@@ -10,7 +10,6 @@ import {
   AudioFeedback,
   FeedbackBubbles,
   MotionCaptureOverlay,
-  ProcessingOverlay,
   VideoContainer,
   VideoControls,
   VideoControlsRef,
@@ -149,104 +148,81 @@ export function VideoAnalysisScreen({
   return (
     <VideoContainer>
       <VideoPlayerArea>
-        {isProcessing ? (
-          <YStack
-            flex={1}
-            backgroundColor="$backgroundSubtle"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <ProcessingOverlay
-              progress={45}
-              currentStep="Processing video analysis..."
-              estimatedTime={30}
-              onCancel={() => {
-                log.info('[VideoAnalysisScreen] Processing cancelled')
-                onBack?.()
-              }}
-              onViewResults={() => {
-                log.info('[VideoAnalysisScreen] View results clicked')
-                /* Analysis complete, already showing results */
-              }}
-              isComplete={false}
-            />
-          </YStack>
-        ) : (
-          <YStack
-            flex={1}
-            position="relative"
-            onPress={handleVideoTap}
-            testID="video-player-container"
-          >
-            {recordedVideoUri && (
-              <VideoPlayer
-                videoUri={recordedVideoUri}
-                isPlaying={isPlaying}
-                onPause={handlePause}
-                onLoad={handleVideoLoad}
-                onProgress={handleVideoProgress}
-                seekToTime={pendingSeek}
-                onSeekComplete={() => {
-                  // After native seek completes, align UI state and clear request
-                  if (pendingSeek !== null) {
-                    setCurrentTime(pendingSeek)
-                  }
-                  setPendingSeek(null)
-                }}
-              />
-            )}
-
-            {/* Overlay Components */}
-            <MotionCaptureOverlay
-              poseData={[]} // TODO: Connect to pose detection data
-              isVisible={true}
-            />
-
-            <FeedbackBubbles
-              messages={[]} // TODO: Connect to feedback messages
-              onBubbleTap={(message) => {
-                log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
-              }}
-            />
-
-            <AudioFeedback
-              audioUrl={null} // TODO: Connect to audio feedback
-              isPlaying={false}
-              currentTime={0}
-              duration={0}
-              onPlayPause={() => {
-                log.info('[VideoAnalysisScreen] Audio play/pause')
-              }}
-              onSeek={(time) => {
-                log.info('[VideoAnalysisScreen] Audio seek', { time })
-              }}
-              onClose={() => {
-                log.info('[VideoAnalysisScreen] Audio close')
-              }}
-              isVisible={false}
-            />
-
-            {/* Video Controls Overlay */}
-            <VideoControls
-              ref={videoControlsRef}
+        <YStack
+          flex={1}
+          position="relative"
+          onPress={handleVideoTap}
+          testID="video-player-container"
+        >
+          {recordedVideoUri && (
+            <VideoPlayer
+              videoUri={recordedVideoUri}
               isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              showControls={true}
-              onPlay={handlePlay}
               onPause={handlePause}
-              onSeek={handleSeek}
-              headerComponent={
-                <AppHeader
-                  title="Video Analysis"
-                  mode="videoSettings"
-                  onBackPress={onBack}
-                  onMenuPress={handleMenuPress}
-                />
-              }
+              onLoad={handleVideoLoad}
+              onProgress={handleVideoProgress}
+              seekToTime={pendingSeek}
+              onSeekComplete={() => {
+                // After native seek completes, align UI state and clear request
+                if (pendingSeek !== null) {
+                  setCurrentTime(pendingSeek)
+                }
+                setPendingSeek(null)
+              }}
             />
-          </YStack>
-        )}
+          )}
+
+          {/* Overlay Components */}
+          <MotionCaptureOverlay
+            poseData={[]} // TODO: Connect to pose detection data
+            isVisible={true}
+          />
+
+          <FeedbackBubbles
+            messages={[]} // TODO: Connect to feedback messages
+            onBubbleTap={(message) => {
+              log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
+            }}
+          />
+
+          <AudioFeedback
+            audioUrl={null} // TODO: Connect to audio feedback
+            isPlaying={false}
+            currentTime={0}
+            duration={0}
+            onPlayPause={() => {
+              log.info('[VideoAnalysisScreen] Audio play/pause')
+            }}
+            onSeek={(time) => {
+              log.info('[VideoAnalysisScreen] Audio seek', { time })
+            }}
+            onClose={() => {
+              log.info('[VideoAnalysisScreen] Audio close')
+            }}
+            isVisible={false}
+          />
+
+          {/* Video Controls Overlay */}
+          <VideoControls
+            ref={videoControlsRef}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            showControls={isProcessing || !isPlaying}
+            isProcessing={isProcessing}
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onSeek={handleSeek}
+            headerComponent={
+              <AppHeader
+                title="Video Analysis"
+                mode="videoSettings"
+                onBackPress={onBack}
+                onMenuPress={handleMenuPress}
+              />
+            }
+          />
+        </YStack>
       </VideoPlayerArea>
     </VideoContainer>
   )

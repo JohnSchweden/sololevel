@@ -1,6 +1,6 @@
 import {
   Download,
-  Maximize,
+  Maximize2,
   Pause,
   Play,
   Share,
@@ -16,8 +16,8 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from 'react'
-import { Pressable } from 'react-native'
-import { Button, Text, XStack, YStack } from 'tamagui'
+import { PanResponder, Pressable, View } from 'react-native'
+import { Button, Spinner, Text, XStack, YStack } from 'tamagui'
 
 export interface VideoControlsRef {
   triggerMenu: () => void
@@ -28,6 +28,7 @@ export interface VideoControlsProps {
   currentTime: number
   duration: number
   showControls: boolean
+  isProcessing?: boolean
   onPlay: () => void
   onPause: () => void
   onSeek: (time: number) => void
@@ -45,6 +46,7 @@ export const VideoControls = React.memo(
         currentTime,
         duration,
         showControls,
+        isProcessing = false,
         onPlay,
         onPause,
         onSeek,
@@ -57,8 +59,9 @@ export const VideoControls = React.memo(
     ) => {
       const [controlsVisible, setControlsVisible] = useState(showControls)
       const [isScrubbing, setIsScrubbing] = useState(false)
+      const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null)
       const [showMenu, setShowMenu] = useState(false)
-      const [progressBarWidth, setProgressBarWidth] = useState(300) // default width
+      const [progressBarWidth, setProgressBarWidth] = useState(0) // will be set on layout
       const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
       // Auto-hide controls after 3 seconds when playing
@@ -126,7 +129,13 @@ export const VideoControls = React.memo(
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
       }
 
-      const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
+      // Use scrubbing position during scrubbing, otherwise use current time
+      const progress =
+        isScrubbing && scrubbingPosition !== null
+          ? scrubbingPosition
+          : duration > 0
+            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+            : 0
       const progressPercentage = Math.round(progress)
 
       const handleMenuPress = useCallback(() => {
@@ -142,6 +151,46 @@ export const VideoControls = React.memo(
         setShowMenu(false)
         // Could add specific handlers for different menu actions here
       }, [])
+
+      // PanResponder for scrubbing functionality
+      const panResponder = useRef(
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onMoveShouldSetPanResponder: () => true,
+          onPanResponderGrant: (event) => {
+            // Only allow scrubbing if progress bar width is initialized and we have valid duration
+            if (progressBarWidth <= 0 || duration <= 0) return
+
+            setIsScrubbing(true)
+            showControlsAndResetTimer()
+            // Get initial touch position relative to progress bar
+            const { locationX } = event.nativeEvent
+            const seekPercentage = Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
+            setScrubbingPosition(seekPercentage)
+            const seekTime = (seekPercentage / 100) * duration
+            onSeek(seekTime)
+          },
+          onPanResponderMove: (event) => {
+            // Only allow scrubbing if progress bar width is initialized, we have valid duration, and we're actively scrubbing
+            if (progressBarWidth <= 0 || duration <= 0 || !isScrubbing) return
+
+            // Update scrubber position during drag
+            const { locationX } = event.nativeEvent
+            const seekPercentage = Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
+            setScrubbingPosition(seekPercentage)
+            const seekTime = (seekPercentage / 100) * duration
+            onSeek(seekTime)
+          },
+          onPanResponderRelease: () => {
+            setIsScrubbing(false)
+            setScrubbingPosition(null)
+          },
+          onPanResponderTerminate: () => {
+            setIsScrubbing(false)
+            setScrubbingPosition(null)
+          },
+        })
+      ).current
 
       // Expose handleMenuPress function to parent component via ref
       useImperativeHandle(
@@ -167,7 +216,7 @@ export const VideoControls = React.memo(
           <YStack
             position="absolute"
             inset={0}
-            backgroundColor="rgba(0,0,0,0.3)"
+            backgroundColor="rgba(0,0,0,0.6)"
             justifyContent="flex-end"
             padding="$4"
             opacity={controlsVisible ? 1 : 0}
@@ -182,64 +231,104 @@ export const VideoControls = React.memo(
             {headerComponent && <AppHeaderContainer>{headerComponent}</AppHeaderContainer>}
 
             {/* Center Controls - Absolutely positioned in vertical center */}
-            <XStack
-              position="absolute"
-              left={0}
-              right={0}
-              top="50%"
-              transform="translateY(-50%)"
-              justifyContent="center"
-              alignItems="center"
-              gap="$4"
-              accessibilityLabel="Video playback controls"
-            >
-              <Button
-                chromeless
-                icon={<SkipBack />}
-                size={60}
-                backgroundColor="rgba(255, 255, 255, 0.60)"
-                borderRadius={30}
-                onPress={() => {
-                  showControlsAndResetTimer()
-                  onSeek(Math.max(0, currentTime - 10))
-                }}
-                testID="rewind-button"
-                accessibilityLabel="Rewind 10 seconds"
-                accessibilityRole="button"
-                accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
-              />
-              <Button
-                chromeless
-                icon={isPlaying ? <Pause /> : <Play />}
-                size={80}
-                backgroundColor="rgba(255,255,255,0.60)"
-                borderRadius={40}
-                onPress={() => {
-                  showControlsAndResetTimer()
-                  isPlaying ? onPause() : onPlay()
-                }}
-                testID={isPlaying ? 'pause-button' : 'play-button'}
-                accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
-                accessibilityRole="button"
-                accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
-                accessibilityState={{ selected: isPlaying }}
-              />
-              <Button
-                chromeless
-                icon={<SkipForward />}
-                size={60}
-                backgroundColor="rgba(255,255,255,0.60)"
-                borderRadius={30}
-                onPress={() => {
-                  showControlsAndResetTimer()
-                  onSeek(Math.min(duration, currentTime + 10))
-                }}
-                testID="fast-forward-button"
-                accessibilityLabel="Fast forward 10 seconds"
-                accessibilityRole="button"
-                accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
-              />
-            </XStack>
+            {isProcessing ? (
+              <YStack
+                position="absolute"
+                inset={0}
+                backgroundColor="rgba(0,0,0,0.0)"
+                justifyContent="center"
+                alignItems="center"
+                gap="$4"
+                testID="processing-overlay"
+                accessibilityLabel="Processing overlay"
+              >
+                <YStack
+                  width={60}
+                  height={60}
+                  //backgroundColor="$blue9"
+                  //borderRadius={30}
+                  justifyContent="center"
+                  alignItems="center"
+                  testID="processing-spinner"
+                  accessibilityLabel="Processing spinner"
+                  accessibilityRole="progressbar"
+                  accessibilityState={{ busy: true }}
+                >
+                  <Spinner
+                    size="large"
+                    color="white"
+                  />
+                </YStack>
+                <Text
+                  fontSize="$4"
+                  fontWeight="600"
+                  color="white"
+                  textAlign="center"
+                  accessibilityLabel="Processing video analysis"
+                >
+                  Analysing video...
+                </Text>
+              </YStack>
+            ) : (
+              <XStack
+                position="absolute"
+                left={0}
+                right={0}
+                top="50%"
+                transform="translateY(-50%)"
+                justifyContent="center"
+                alignItems="center"
+                gap="$4"
+                accessibilityLabel="Video playback controls"
+              >
+                <Button
+                  chromeless
+                  icon={<SkipBack />}
+                  size={60}
+                  backgroundColor="rgba(255, 255, 255, 0.60)"
+                  borderRadius={30}
+                  onPress={() => {
+                    showControlsAndResetTimer()
+                    onSeek(Math.max(0, currentTime - 10))
+                  }}
+                  testID="rewind-button"
+                  accessibilityLabel="Rewind 10 seconds"
+                  accessibilityRole="button"
+                  accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
+                />
+                <Button
+                  chromeless
+                  icon={isPlaying ? <Pause /> : <Play />}
+                  size={80}
+                  backgroundColor="rgba(255,255,255,0.60)"
+                  borderRadius={40}
+                  onPress={() => {
+                    showControlsAndResetTimer()
+                    isPlaying ? onPause() : onPlay()
+                  }}
+                  testID={isPlaying ? 'pause-button' : 'play-button'}
+                  accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+                  accessibilityRole="button"
+                  accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
+                  accessibilityState={{ selected: isPlaying }}
+                />
+                <Button
+                  chromeless
+                  icon={<SkipForward />}
+                  size={60}
+                  backgroundColor="rgba(255,255,255,0.60)"
+                  borderRadius={30}
+                  onPress={() => {
+                    showControlsAndResetTimer()
+                    onSeek(Math.min(duration, currentTime + 10))
+                  }}
+                  testID="fast-forward-button"
+                  accessibilityLabel="Fast forward 10 seconds"
+                  accessibilityRole="button"
+                  accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
+                />
+              </XStack>
+            )}
 
             {/* Bottom Controls */}
             <YStack accessibilityLabel="Video timeline and controls">
@@ -283,7 +372,7 @@ export const VideoControls = React.memo(
                 {/* Fullscreen Button - Right side */}
                 <Button
                   chromeless
-                  icon={<Maximize />}
+                  icon={<Maximize2 />}
                   size={44}
                   color="white"
                   onPress={() => {
@@ -336,40 +425,32 @@ export const VideoControls = React.memo(
                     height={24}
                     marginLeft={-12}
                     marginTop={-10}
-                    backgroundColor="$yellow9"
+                    backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
                     borderRadius={12}
                     borderWidth={3}
                     borderColor="white"
-                    opacity={controlsVisible ? 1 : 0.7}
+                    opacity={controlsVisible || isScrubbing ? 1 : 0.7}
                     animation="quick"
                     testID="scrubber-handle"
                     zIndex={10}
+                    shadowColor="rgba(0,0,0,0.3)"
+                    shadowOffset={{ width: 0, height: 2 }}
+                    shadowOpacity={isScrubbing ? 0.5 : 0}
+                    shadowRadius={4}
                   />
                 </YStack>
 
-                {/* Invisible touch area for scrubbing */}
-                <Pressable
+                {/* PanResponder touch area for scrubbing - aligned with progress bar */}
+                <View
                   style={{
                     position: 'absolute',
-                    top: -10,
+                    top: 0,
                     left: 0,
                     right: 0,
-                    height: 44,
+                    height: 40,
                     backgroundColor: 'transparent',
                   }}
-                  onPressIn={(event) => {
-                    setIsScrubbing(true)
-                    showControlsAndResetTimer()
-                    // Calculate seek position based on touch location
-                    const { locationX } = event.nativeEvent
-                    const seekPercentage = Math.max(
-                      0,
-                      Math.min(100, (locationX / progressBarWidth) * 100)
-                    )
-                    const seekTime = (seekPercentage / 100) * duration
-                    onSeek(seekTime)
-                  }}
-                  onPressOut={() => setIsScrubbing(false)}
+                  {...panResponder.panHandlers}
                   accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
                   accessibilityRole="progressbar"
                   accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
