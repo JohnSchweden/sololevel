@@ -41,6 +41,15 @@ export interface OriginalVideoPlayerProps {
 export interface VideoPlayerProps {
   videoUri: string
   isPlaying: boolean
+  /**
+   * Deprecated: do not drive playback with currentTime; use seekToTime for user-initiated scrubs
+   */
   currentTime?: number
   onPause?: () => void
+  onLoad?: (data: { duration: number }) => void
+  onProgress?: (data: { currentTime: number }) => void
+  /** Time to seek to when user scrubs; set to null to do nothing */
+  seekToTime?: number | null
+  /** Called after native player performs the seek */
+  onSeekComplete?: () => void
 }

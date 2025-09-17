@@ -1,18 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Video from 'react-native-video'
 import { YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
-export function VideoPlayerNative({ videoUri, isPlaying, currentTime, onPause }: VideoPlayerProps) {
+export const VideoPlayerNative = React.memo(function VideoPlayerNative({
+  videoUri,
+  isPlaying,
+  currentTime: _currentTime, // Deprecated: kept for backward compatibility
+  onPause,
+  onLoad,
+  onProgress,
+  seekToTime,
+  onSeekComplete,
+}: VideoPlayerProps) {
   const videoRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const lastProgressUpdateRef = useRef<number>(0)
 
   // Handle video loading
-  const handleLoad = (_data: any) => {
+  const handleLoad = (data: any) => {
     setIsLoading(false)
     setError(null)
-    // Duration is handled by parent component
+    // Notify parent component of video duration
+    if (onLoad && data?.duration) {
+      onLoad({ duration: data.duration })
+    }
   }
 
   // Handle video errors
@@ -21,9 +34,16 @@ export function VideoPlayerNative({ videoUri, isPlaying, currentTime, onPause }:
     setError(error?.error?.localizedDescription || 'Video failed to load')
   }
 
-  // Handle time updates - no longer needed since overlays moved to screen level
-  const handleProgress = (_data: any) => {
-    // Progress updates are now handled at screen level
+  // Handle time updates - notify parent component (throttled to prevent excessive re-renders)
+  const handleProgress = (data: any) => {
+    if (onProgress && data?.currentTime !== undefined) {
+      const now = Date.now()
+      // Only update progress every 250ms to prevent excessive re-renders
+      if (now - lastProgressUpdateRef.current >= 250) {
+        lastProgressUpdateRef.current = now
+        onProgress({ currentTime: data.currentTime })
+      }
+    }
   }
 
   // Handle video end
@@ -31,12 +51,14 @@ export function VideoPlayerNative({ videoUri, isPlaying, currentTime, onPause }:
     onPause?.()
   }
 
-  // Seek to specific time when currentTime changes
+  // Perform user-initiated seek only when seekToTime is provided
   useEffect(() => {
-    if (videoRef.current && currentTime !== undefined && currentTime >= 0) {
-      videoRef.current.seek(currentTime)
+    if (videoRef.current && seekToTime !== undefined && seekToTime !== null && seekToTime >= 0) {
+      videoRef.current.seek(seekToTime)
+      onSeekComplete?.()
     }
-  }, [currentTime])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seekToTime])
 
   return (
     <YStack
@@ -120,4 +142,6 @@ export function VideoPlayerNative({ videoUri, isPlaying, currentTime, onPause }:
       )}
     </YStack>
   )
-}
+})
+
+export const VideoPlayer = VideoPlayerNative

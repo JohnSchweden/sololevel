@@ -53,36 +53,16 @@ export function VideoAnalysisScreen({
   onBack,
   onMenuPress,
 }: VideoAnalysisScreenProps) {
-  // DEBUG: Track component re-renders with logger
+  // DEBUG: Track component re-renders with logger (reduced logging for performance)
   const renderCountRef = useRef(0)
-  const lastRenderTimeRef = useRef(Date.now())
-
   renderCountRef.current++
-  const now = Date.now()
-  const timeSinceLastRender = now - lastRenderTimeRef.current
-  lastRenderTimeRef.current = now
 
-  // Log component initialization and re-renders
-  if (log && log.info) {
+  // Only log every 10th render to reduce performance impact
+  if (renderCountRef.current % 10 === 1 && log && log.info) {
     log.info('[VideoAnalysisScreen] Component rendered', {
       renderCount: renderCountRef.current,
-      timeSinceLastRender: `${timeSinceLastRender}ms`,
       analysisJobId,
-      videoUri,
-    })
-  }
-
-  // DEBUG: Check all imported components
-  if (log && log.info) {
-    log.info('[VideoAnalysisScreen] Component type checks', {
-      YStackType: typeof YStack,
-      AppHeaderType: typeof AppHeader,
-      ProcessingOverlayType: typeof ProcessingOverlay,
-      VideoPlayerType: typeof VideoPlayer,
-      YStackUndefined: YStack === undefined,
-      AppHeaderUndefined: AppHeader === undefined,
-      ProcessingOverlayUndefined: ProcessingOverlay === undefined,
-      VideoPlayerUndefined: VideoPlayer === undefined,
+      videoUri: videoUri ? 'provided' : 'fallback',
     })
   }
 
@@ -90,13 +70,15 @@ export function VideoAnalysisScreen({
   const [isProcessing, setIsProcessing] = useState(true)
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
+  // Video playback state
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [pendingSeek, setPendingSeek] = useState<number | null>(null)
+
   // STEP 1: Use provided videoUri or fallback
   const recordedVideoUri =
     videoUri || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-
-  if (log && log.info) {
-    log.info('[VideoAnalysisScreen] Using video URI', { recordedVideoUri })
-  }
 
   // STEP 1: Simple processing simulation - complete after 3 seconds
   useEffect(() => {
@@ -109,12 +91,44 @@ export function VideoAnalysisScreen({
         log.info('[VideoAnalysisScreen] Processing completed')
       }
       setIsProcessing(false)
+      // Auto-start video playback when processing is complete
+      setIsPlaying(true)
     }, 3000)
 
     return () => clearTimeout(timer)
   }, [])
 
-  // STEP 1: Simple event handlers
+  // Video control handlers
+  const handlePlay = useCallback(() => {
+    log.info('[VideoAnalysisScreen] handlePlay called')
+    setIsPlaying(true)
+  }, [])
+
+  const handlePause = useCallback(() => {
+    log.info('[VideoAnalysisScreen] handlePause called')
+    setIsPlaying(false)
+  }, [])
+
+  const handleSeek = useCallback((time: number) => {
+    log.info('[VideoAnalysisScreen] handleSeek called', { time })
+    setPendingSeek(time)
+  }, [])
+
+  const handleVideoLoad = useCallback((data: { duration: number }) => {
+    log.info('[VideoAnalysisScreen] handleVideoLoad called', { duration: data.duration })
+    setDuration(data.duration)
+  }, [])
+
+  const handleVideoProgress = useCallback((data: { currentTime: number }) => {
+    // Only update if not seeking to avoid conflicts
+    setCurrentTime((prevTime) => {
+      // Avoid unnecessary state updates if time hasn't changed significantly
+      if (Math.abs(data.currentTime - prevTime) < 0.1) {
+        return prevTime
+      }
+      return data.currentTime
+    })
+  }, [])
 
   const handleVideoTap = useCallback(() => {
     log.info('[VideoAnalysisScreen] handleVideoTap called')
@@ -167,7 +181,18 @@ export function VideoAnalysisScreen({
             {recordedVideoUri && (
               <VideoPlayer
                 videoUri={recordedVideoUri}
-                isPlaying={true}
+                isPlaying={isPlaying}
+                onPause={handlePause}
+                onLoad={handleVideoLoad}
+                onProgress={handleVideoProgress}
+                seekToTime={pendingSeek}
+                onSeekComplete={() => {
+                  // After native seek completes, align UI state and clear request
+                  if (pendingSeek !== null) {
+                    setCurrentTime(pendingSeek)
+                  }
+                  setPendingSeek(null)
+                }}
               />
             )}
 
@@ -204,19 +229,13 @@ export function VideoAnalysisScreen({
             {/* Video Controls Overlay */}
             <VideoControls
               ref={videoControlsRef}
-              isPlaying={true}
-              currentTime={15}
-              duration={60} // TODO: Connect to actual video duration
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
               showControls={true}
-              onPlay={() => {
-                log.info('[VideoAnalysisScreen] Video play')
-              }}
-              onPause={() => {
-                log.info('[VideoAnalysisScreen] Video pause')
-              }}
-              onSeek={(time) => {
-                log.info('[VideoAnalysisScreen] Video seek', { time })
-              }}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onSeek={handleSeek}
               headerComponent={
                 <AppHeader
                   title="Video Analysis"
