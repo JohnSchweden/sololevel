@@ -16,7 +16,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from 'react'
-import { PanResponder, Pressable, View } from 'react-native'
+import { Pressable, PanResponder, View } from 'react-native'
 import { Button, Spinner, Text, XStack, YStack } from 'tamagui'
 
 export interface VideoControlsRef {
@@ -61,7 +61,7 @@ export const VideoControls = React.memo(
       const [isScrubbing, setIsScrubbing] = useState(false)
       const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null)
       const [showMenu, setShowMenu] = useState(false)
-      const [progressBarWidth, setProgressBarWidth] = useState(0) // will be set on layout
+      const [progressBarWidth, setProgressBarWidth] = useState(300) // default width
       const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
       // Auto-hide controls after 3 seconds when playing
@@ -130,12 +130,9 @@ export const VideoControls = React.memo(
       }
 
       // Use scrubbing position during scrubbing, otherwise use current time
-      const progress =
-        isScrubbing && scrubbingPosition !== null
-          ? scrubbingPosition
-          : duration > 0
-            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
-            : 0
+      const progress = isScrubbing && scrubbingPosition !== null
+        ? scrubbingPosition
+        : duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
       const progressPercentage = Math.round(progress)
 
       const handleMenuPress = useCallback(() => {
@@ -152,34 +149,42 @@ export const VideoControls = React.memo(
         // Could add specific handlers for different menu actions here
       }, [])
 
+      // Helper to compute seek percentage safely
+      const computeSeekPercentage = useCallback(
+        (locationX: number) => {
+          if (!progressBarWidth || progressBarWidth <= 0) return 0
+          return Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
+        },
+        [progressBarWidth]
+      )
+
       // PanResponder for scrubbing functionality
-      const panResponder = useRef(
-        PanResponder.create({
+      const panResponder = React.useMemo(
+        () => PanResponder.create({
           onStartShouldSetPanResponder: () => true,
           onMoveShouldSetPanResponder: () => true,
           onPanResponderGrant: (event) => {
-            // Only allow scrubbing if progress bar width is initialized and we have valid duration
-            if (progressBarWidth <= 0 || duration <= 0) return
-
             setIsScrubbing(true)
             showControlsAndResetTimer()
-            // Get initial touch position relative to progress bar
+            // Get initial touch position
             const { locationX } = event.nativeEvent
-            const seekPercentage = Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
+            const seekPercentage = computeSeekPercentage(locationX)
             setScrubbingPosition(seekPercentage)
-            const seekTime = (seekPercentage / 100) * duration
-            onSeek(seekTime)
+            // Avoid seeking to 0 when duration isn't known yet
+            if (duration > 0) {
+              const seekTime = (seekPercentage / 100) * duration
+              onSeek(seekTime)
+            }
           },
           onPanResponderMove: (event) => {
-            // Only allow scrubbing if progress bar width is initialized, we have valid duration, and we're actively scrubbing
-            if (progressBarWidth <= 0 || duration <= 0 || !isScrubbing) return
-
             // Update scrubber position during drag
             const { locationX } = event.nativeEvent
-            const seekPercentage = Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
+            const seekPercentage = computeSeekPercentage(locationX)
             setScrubbingPosition(seekPercentage)
-            const seekTime = (seekPercentage / 100) * duration
-            onSeek(seekTime)
+            if (duration > 0) {
+              const seekTime = (seekPercentage / 100) * duration
+              onSeek(seekTime)
+            }
           },
           onPanResponderRelease: () => {
             setIsScrubbing(false)
@@ -189,8 +194,9 @@ export const VideoControls = React.memo(
             setIsScrubbing(false)
             setScrubbingPosition(null)
           },
-        })
-      ).current
+        }),
+        [computeSeekPercentage, duration, onSeek, showControlsAndResetTimer]
+      )
 
       // Expose handleMenuPress function to parent component via ref
       useImperativeHandle(
@@ -230,7 +236,7 @@ export const VideoControls = React.memo(
             {/* Header */}
             {headerComponent && <AppHeaderContainer>{headerComponent}</AppHeaderContainer>}
 
-            {/* Center Controls - Absolutely positioned in vertical center */}
+            {/* Center Controls - Absolutely positioned in vertical center of full screen */}
             {isProcessing ? (
               <YStack
                 position="absolute"
@@ -275,7 +281,7 @@ export const VideoControls = React.memo(
                 left={0}
                 right={0}
                 top="50%"
-                transform="translateY(-50%)"
+                y="-50%"
                 justifyContent="center"
                 alignItems="center"
                 gap="$4"
@@ -425,7 +431,7 @@ export const VideoControls = React.memo(
                     height={24}
                     marginLeft={-12}
                     marginTop={-10}
-                    backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
+                    backgroundColor={isScrubbing ? "$yellow10" : "$yellow9"}
                     borderRadius={12}
                     borderWidth={3}
                     borderColor="white"
@@ -440,14 +446,14 @@ export const VideoControls = React.memo(
                   />
                 </YStack>
 
-                {/* PanResponder touch area for scrubbing - aligned with progress bar */}
+                {/* PanResponder touch area for scrubbing */}
                 <View
                   style={{
                     position: 'absolute',
-                    top: 0,
+                    top: -10,
                     left: 0,
                     right: 0,
-                    height: 40,
+                    height: 44,
                     backgroundColor: 'transparent',
                   }}
                   {...panResponder.panHandlers}
@@ -456,11 +462,6 @@ export const VideoControls = React.memo(
                   accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
                   accessibilityHint="Tap and drag to scrub through video"
                   testID="progress-scrubber"
-                  aria-label={`Video progress: ${progressPercentage}% complete`}
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progressPercentage}
                 />
               </YStack>
             </YStack>
@@ -533,3 +534,4 @@ export const VideoControls = React.memo(
     }
   )
 )
+

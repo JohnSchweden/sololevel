@@ -33,6 +33,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const [isCameraReady, setIsCameraReady] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
     const [isMounted, setIsMounted] = useState(false)
+    const [sessionId, setSessionId] = useState<string>(Date.now().toString()) // Track camera session for reset
 
     // Track component mount state to prevent operations when unmounted
     useEffect(() => {
@@ -41,6 +42,31 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         setIsMounted(false)
       }
     }, [])
+
+    // Reset camera session when transitioning to idle state (not recording)
+    useEffect(() => {
+      if (!isRecording) {
+        log.info('VisionCamera', 'Recording finished, resetting camera session')
+        // Generate new session ID to force camera reinitialization
+        setSessionId(Date.now().toString())
+        // Reset camera ready state to force reinitialization
+        setIsCameraReady(false)
+        setIsInitialized(false)
+      }
+    }, [isRecording])
+
+    // Cleanup camera session on unmount
+    useEffect(() => {
+      return () => {
+        if (cameraRef.current && isMounted) {
+          log.info('VisionCamera', 'Cleaning up camera session on unmount')
+          // Reset states to prevent memory leaks
+          setIsCameraReady(false)
+          setIsInitialized(false)
+          setCameraError(null)
+        }
+      }
+    }, [isMounted])
 
     // Get camera device based on type
     const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
@@ -264,7 +290,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           return currentZoomLevel
         },
       }),
-      [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady]
+      [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady, sessionId, isMounted]
     )
 
     // Handle camera initialization
@@ -385,6 +411,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         position="relative"
       >
         <Camera
+          key={sessionId} // Force remount when session changes to reset camera state
           ref={cameraRef}
           style={{
             flex: 1,
