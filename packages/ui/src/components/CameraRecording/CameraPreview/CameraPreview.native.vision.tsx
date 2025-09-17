@@ -290,7 +290,16 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           return currentZoomLevel
         },
       }),
-      [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady, sessionId, isMounted]
+      [
+        device,
+        currentZoomLevel,
+        onZoomChange,
+        onError,
+        isInitialized,
+        isCameraReady,
+        sessionId,
+        isMounted,
+      ]
     )
 
     // Handle camera initialization

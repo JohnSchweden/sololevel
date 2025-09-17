@@ -16,7 +16,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from 'react'
-import { Pressable, PanResponder, View } from 'react-native'
+import { PanResponder, Pressable, View } from 'react-native'
 import { Button, Spinner, Text, XStack, YStack } from 'tamagui'
 
 export interface VideoControlsRef {
@@ -130,9 +130,12 @@ export const VideoControls = React.memo(
       }
 
       // Use scrubbing position during scrubbing, otherwise use current time
-      const progress = isScrubbing && scrubbingPosition !== null
-        ? scrubbingPosition
-        : duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
+      const progress =
+        isScrubbing && scrubbingPosition !== null
+          ? scrubbingPosition
+          : duration > 0
+            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+            : 0
       const progressPercentage = Math.round(progress)
 
       const handleMenuPress = useCallback(() => {
@@ -160,41 +163,42 @@ export const VideoControls = React.memo(
 
       // PanResponder for scrubbing functionality
       const panResponder = React.useMemo(
-        () => PanResponder.create({
-          onStartShouldSetPanResponder: () => true,
-          onMoveShouldSetPanResponder: () => true,
-          onPanResponderGrant: (event) => {
-            setIsScrubbing(true)
-            showControlsAndResetTimer()
-            // Get initial touch position
-            const { locationX } = event.nativeEvent
-            const seekPercentage = computeSeekPercentage(locationX)
-            setScrubbingPosition(seekPercentage)
-            // Avoid seeking to 0 when duration isn't known yet
-            if (duration > 0) {
-              const seekTime = (seekPercentage / 100) * duration
-              onSeek(seekTime)
-            }
-          },
-          onPanResponderMove: (event) => {
-            // Update scrubber position during drag
-            const { locationX } = event.nativeEvent
-            const seekPercentage = computeSeekPercentage(locationX)
-            setScrubbingPosition(seekPercentage)
-            if (duration > 0) {
-              const seekTime = (seekPercentage / 100) * duration
-              onSeek(seekTime)
-            }
-          },
-          onPanResponderRelease: () => {
-            setIsScrubbing(false)
-            setScrubbingPosition(null)
-          },
-          onPanResponderTerminate: () => {
-            setIsScrubbing(false)
-            setScrubbingPosition(null)
-          },
-        }),
+        () =>
+          PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderGrant: (event) => {
+              setIsScrubbing(true)
+              showControlsAndResetTimer()
+              // Get initial touch position
+              const { locationX } = event.nativeEvent
+              const seekPercentage = computeSeekPercentage(locationX)
+              setScrubbingPosition(seekPercentage)
+              // Avoid seeking to 0 when duration isn't known yet
+              if (duration > 0) {
+                const seekTime = (seekPercentage / 100) * duration
+                onSeek(seekTime)
+              }
+            },
+            onPanResponderMove: (event) => {
+              // Update scrubber position during drag
+              const { locationX } = event.nativeEvent
+              const seekPercentage = computeSeekPercentage(locationX)
+              setScrubbingPosition(seekPercentage)
+              if (duration > 0) {
+                const seekTime = (seekPercentage / 100) * duration
+                onSeek(seekTime)
+              }
+            },
+            onPanResponderRelease: () => {
+              setIsScrubbing(false)
+              setScrubbingPosition(null)
+            },
+            onPanResponderTerminate: () => {
+              setIsScrubbing(false)
+              setScrubbingPosition(null)
+            },
+          }),
         [computeSeekPercentage, duration, onSeek, showControlsAndResetTimer]
       )
 
@@ -431,7 +435,7 @@ export const VideoControls = React.memo(
                     height={24}
                     marginLeft={-12}
                     marginTop={-10}
-                    backgroundColor={isScrubbing ? "$yellow10" : "$yellow9"}
+                    backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
                     borderRadius={12}
                     borderWidth={3}
                     borderColor="white"
@@ -534,4 +538,3 @@ export const VideoControls = React.memo(
     }
   )
 )
-
