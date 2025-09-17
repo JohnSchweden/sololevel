@@ -456,6 +456,11 @@ export const VideoControls = React.memo(
                   accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
                   accessibilityHint="Tap and drag to scrub through video"
                   testID="progress-scrubber"
+                  aria-label={`Video progress: ${progressPercentage}% complete`}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPercentage}
                 />
               </YStack>
             </YStack>
