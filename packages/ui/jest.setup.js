@@ -402,6 +402,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Bell: () => 'Bell',
   Download: () => 'Download',
   Maximize: () => 'Maximize',
+  Maximize2: () => 'Maximize2',
   Share: () => 'Share',
   SkipBack: () => 'SkipBack',
   SkipForward: () => 'SkipForward',
