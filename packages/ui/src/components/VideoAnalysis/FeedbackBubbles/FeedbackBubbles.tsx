@@ -1,6 +1,5 @@
 import { Pressable } from 'react-native'
-import { Text, View, XStack, YStack } from 'tamagui'
-import { CoachAvatar } from '../CoachAvatar/CoachAvatar'
+import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
 export interface FeedbackBubblesProps {
@@ -9,29 +8,31 @@ export interface FeedbackBubblesProps {
 }
 
 function SpeechBubble({ message, onTap }: { message: FeedbackMessage; onTap: () => void }) {
-  const getBubbleColor = () => {
+  const getBubbleBackgroundColor = () => {
+    // Glassy background with different opacities based on message type
     switch (message.type) {
       case 'positive':
-        return '$green9'
+        return 'rgba(34, 197, 94, 0.15)' // green with low opacity
       case 'suggestion':
-        return '$blue9'
+        return 'rgba(59, 130, 246, 0.15)' // blue with low opacity
       case 'correction':
-        return '$orange9'
+        return 'rgba(245, 101, 101, 0.15)' // red with low opacity
       default:
-        return '$color3'
+        return 'rgba(75, 85, 99, 0.15)' // gray with low opacity
     }
   }
 
-  const getBubbleBorderColor = () => {
+  const getTextColor = () => {
+    // Brighter text colors for better contrast on glassy background
     switch (message.type) {
       case 'positive':
-        return '$green8'
+        return '$green11'
       case 'suggestion':
-        return '$blue8'
+        return '$blue11'
       case 'correction':
-        return '$orange8'
+        return '$red11'
       default:
-        return '$color4'
+        return '$color12'
     }
   }
 
@@ -47,66 +48,55 @@ function SpeechBubble({ message, onTap }: { message: FeedbackMessage; onTap: () 
         disabled: !message.isActive,
       }}
     >
-      <XStack
-        alignItems="flex-start"
-        gap="$2"
+      <YStack
         testID={`bubble-content-${message.id}`}
         accessibilityLabel={`${message.type} feedback bubble`}
       >
-        {/* Coach Avatar */}
-        <CoachAvatar
-          size={32}
-          testID={`bubble-avatar-${message.id}`}
-        />
-
-        {/* Speech Bubble */}
-        <YStack position="relative">
-          <YStack
-            backgroundColor={getBubbleColor()}
-            borderColor={getBubbleBorderColor()}
-            borderWidth={1}
-            padding="$3"
-            paddingRight="$4"
-            borderRadius="$4"
-            maxWidth={250}
-            opacity={message.isActive ? 1 : 0.7}
-            scale={message.isHighlighted ? 1.05 : 1}
-            shadowColor="$shadowColor"
-            shadowOffset={{ width: 0, height: 2 }}
-            shadowOpacity={0.1}
-            shadowRadius={4}
-            testID={`bubble-text-container-${message.id}`}
+        {/* Feedback Bubble */}
+        <YStack
+          backgroundColor={getBubbleBackgroundColor()}
+          borderColor="$color12" // Thin white border
+          borderWidth={1}
+          padding="$3"
+          borderRadius="$6"
+          maxWidth={280}
+          opacity={message.isActive ? 1 : 0.7}
+          scale={message.isHighlighted ? 1.05 : 1}
+          // Glassy blur effect using backdrop-filter style
+          style={{
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)', // Safari support
+          }}
+          // Enhanced shadow for glassy effect
+          shadowColor="rgba(0, 0, 0, 0.1)"
+          shadowOffset={{ width: 0, height: 4 }}
+          shadowOpacity={0.3}
+          shadowRadius={8}
+          // Soft animation effects
+          animation="quick"
+          enterStyle={{
+            opacity: 0,
+            scale: 0.8,
+          }}
+          exitStyle={{
+            opacity: 0,
+            scale: 0.8,
+          }}
+          testID={`bubble-text-container-${message.id}`}
+        >
+          <Text
+            fontSize="$4"
+            color={getTextColor()}
+            fontWeight={message.isHighlighted ? '600' : '400'}
+            lineHeight="$5"
+            textAlign="center"
+            testID={`bubble-text-${message.id}`}
+            accessibilityLabel={message.text}
           >
-            <Text
-              fontSize="$4"
-              color="$color1"
-              fontWeight={message.isHighlighted ? '600' : '400'}
-              lineHeight="$5"
-              testID={`bubble-text-${message.id}`}
-              accessibilityLabel={message.text}
-            >
-              {message.text}
-            </Text>
-          </YStack>
-
-          {/* Speech Bubble Tail */}
-          <View
-            position="absolute"
-            left={-6}
-            top={12}
-            width={0}
-            height={0}
-            borderLeftWidth={6}
-            borderRightWidth={0}
-            borderTopWidth={6}
-            borderBottomWidth={6}
-            borderLeftColor={getBubbleColor()}
-            borderTopColor="transparent"
-            borderBottomColor="transparent"
-            testID={`bubble-tail-${message.id}`}
-          />
+            {message.text}
+          </Text>
         </YStack>
-      </XStack>
+      </YStack>
     </Pressable>
   )
 }
@@ -133,33 +123,37 @@ export function FeedbackBubbles({ messages, onBubbleTap }: FeedbackBubblesProps)
   return (
     <YStack
       position="absolute"
-      top={20}
+      bottom={120} // Position below video controls (controls are at bottom={80})
       left={20}
       right={20}
-      bottom={100}
+      zIndex={0}
       pointerEvents="box-none"
       testID="feedback-bubbles"
       accessibilityLabel="Feedback bubbles container"
     >
-      {visibleMessages.map((message) => (
-        <YStack
-          key={message.id}
-          position="absolute"
-          left={`${message.position.x * 100}%`}
-          top={`${message.position.y * 100}%`}
-          pointerEvents="auto"
-          zIndex={message.isHighlighted ? 10 : 5}
-          animation="quick"
-          opacity={message.isActive ? 1 : 0}
-          scale={message.isHighlighted ? 1.05 : 1}
-          testID={`bubble-position-${message.id}`}
-        >
-          <SpeechBubble
-            message={message}
-            onTap={() => onBubbleTap(message)}
-          />
-        </YStack>
-      ))}
+      <YStack
+        flexDirection="row"
+        flexWrap="wrap"
+        justifyContent="center"
+        gap="$2"
+        pointerEvents="auto"
+      >
+        {visibleMessages.map((message) => (
+          <YStack
+            key={message.id}
+            zIndex={message.isHighlighted ? 10 : 5}
+            animation="quick"
+            opacity={message.isActive ? 1 : 0}
+            scale={message.isHighlighted ? 1.05 : 1}
+            testID={`bubble-position-${message.id}`}
+          >
+            <SpeechBubble
+              message={message}
+              onTap={() => onBubbleTap(message)}
+            />
+          </YStack>
+        ))}
+      </YStack>
     </YStack>
   )
 }
