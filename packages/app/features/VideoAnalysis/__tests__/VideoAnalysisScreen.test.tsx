@@ -59,6 +59,14 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
       children
     )
   },
+  CoachAvatar: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
+    const React = require('react')
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'CoachAvatar', ...props },
+      children
+    )
+  },
   ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
     return React.createElement(
