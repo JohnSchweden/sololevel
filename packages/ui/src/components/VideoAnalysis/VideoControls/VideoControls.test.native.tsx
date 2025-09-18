@@ -4,8 +4,8 @@
  * Environment: Web browser simulation with native component mocks
  */
 
-import React from 'react'
 import { fireEvent, screen } from '@testing-library/react'
+import React from 'react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 import { VideoControls } from './VideoControls'
@@ -90,7 +90,12 @@ describe('VideoControls - React Native Environment Tests', () => {
 
   describe('Processing State Management - Native', () => {
     it('hides regular controls when processing in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} isProcessing={true} />)
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isProcessing={true}
+        />
+      )
 
       // Test that regular controls are hidden when processing
       const playButton = screen.queryByTestId('play-button')
@@ -102,7 +107,12 @@ describe('VideoControls - React Native Environment Tests', () => {
     })
 
     it('processing overlay has correct accessibility attributes in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} isProcessing={true} />)
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isProcessing={true}
+        />
+      )
 
       // Test processing overlay accessibility
       const processingOverlay = screen.getByTestId('processing-overlay')
@@ -110,13 +120,24 @@ describe('VideoControls - React Native Environment Tests', () => {
     })
 
     it('maintains processing overlay during playback state changes in React Native', () => {
-      const { rerender } = renderWithProviders(<VideoControls {...mockProps} isProcessing={true} />)
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isProcessing={true}
+        />
+      )
 
       // Verify processing overlay is present initially
       expect(screen.getByTestId('processing-overlay')).toBeTruthy()
 
       // Change playback state while processing
-      rerender(<VideoControls {...mockProps} isProcessing={true} isPlaying={true} />)
+      rerender(
+        <VideoControls
+          {...mockProps}
+          isProcessing={true}
+          isPlaying={true}
+        />
+      )
 
       // Processing overlay should still be present
       expect(screen.getByTestId('processing-overlay')).toBeTruthy()
@@ -124,7 +145,12 @@ describe('VideoControls - React Native Environment Tests', () => {
     })
 
     it('processing spinner indicates busy state in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} isProcessing={true} />)
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isProcessing={true}
+        />
+      )
 
       // Test that spinner has correct accessibility and visual properties
       const spinner = screen.getByTestId('processing-spinner')
@@ -158,7 +184,12 @@ describe('VideoControls - React Native Environment Tests', () => {
 
     it('handles PanResponder touch gestures for scrubbing in React Native', () => {
       const mockOnSeek = jest.fn()
-      renderWithProviders(<VideoControls {...mockProps} onSeek={mockOnSeek} />)
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          onSeek={mockOnSeek}
+        />
+      )
 
       // Find the progress scrubber by its testid attribute (React Native converts to lowercase)
       const progressScrubber = document.querySelector('[testid="progress-scrubber"]')

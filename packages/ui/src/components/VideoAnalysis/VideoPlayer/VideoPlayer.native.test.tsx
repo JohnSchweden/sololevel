@@ -4,8 +4,8 @@
  * Uses jest.native.config.js with React Native environment mocks (following monorepo pattern)
  */
 
-import React from 'react'
 import { screen } from '@testing-library/react'
+import React from 'react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 import { VideoPlayerNative } from './VideoPlayer.native'
@@ -21,45 +21,47 @@ const expectedOnLoadData = { duration: 120 }
 jest.mock('react-native-video', () => {
   const React = require('react')
 
-  const MockVideo = React.forwardRef(({ source, onLoad, onError, testID, paused, ...props }: any, ref: any) => {
-    // Simulate video load behavior
-    React.useEffect(() => {
-      if (source?.uri && mockVideoShouldLoad) {
-        if (mockVideoLoadDelay === 0) {
-          // Call immediately for synchronous testing
-          if (onLoad) {
-            onLoad(mockVideoLoadData)
+  const MockVideo = React.forwardRef(
+    ({ source, onLoad, onError, testID, paused, ...props }: any, ref: any) => {
+      // Simulate video load behavior
+      React.useEffect(() => {
+        if (source?.uri && mockVideoShouldLoad) {
+          if (mockVideoLoadDelay === 0) {
+            // Call immediately for synchronous testing
+            if (onLoad) {
+              onLoad(mockVideoLoadData)
+            }
+            return // Explicit return for synchronous case
           }
-          return // Explicit return for synchronous case
+          // Use timeout for delayed loading
+          const timer = setTimeout(() => {
+            if (onLoad) {
+              onLoad(mockVideoLoadData)
+            }
+          }, mockVideoLoadDelay)
+          return () => clearTimeout(timer)
         }
-        // Use timeout for delayed loading
-        const timer = setTimeout(() => {
-          if (onLoad) {
-            onLoad(mockVideoLoadData)
-          }
-        }, mockVideoLoadDelay)
-        return () => clearTimeout(timer)
-      }
-      return // Explicit return for early exit
-    }, [source?.uri, onLoad])
+        return // Explicit return for early exit
+      }, [source?.uri, onLoad])
 
-    // Expose seek method via ref
-    React.useImperativeHandle(ref, () => ({
-      seek: (_time: number) => {
-        // Mock seek operation
-        return true
-      }
-    }))
+      // Expose seek method via ref
+      React.useImperativeHandle(ref, () => ({
+        seek: (_time: number) => {
+          // Mock seek operation
+          return true
+        },
+      }))
 
-    // Create a div that mimics React Native View behavior in web testing
-    return React.createElement('div', {
-      ref,
-      'data-testid': testID || 'native-video-element',
-      'data-original-test-id': testID || 'native-video-element', // For debugging
-      style: { flex: 1 },
-      ...props
-    })
-  })
+      // Create a div that mimics React Native View behavior in web testing
+      return React.createElement('div', {
+        ref,
+        'data-testid': testID || 'native-video-element',
+        'data-original-test-id': testID || 'native-video-element', // For debugging
+        style: { flex: 1 },
+        ...props,
+      })
+    }
+  )
 
   return {
     __esModule: true,
@@ -164,7 +166,12 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
 
       // 🎬 ACT: Render with paused state, then change to playing
       const { rerender } = renderWithProviders(<VideoPlayerNative {...initialProps} />)
-      rerender(<VideoPlayerNative {...initialProps} isPlaying={true} />)
+      rerender(
+        <VideoPlayerNative
+          {...initialProps}
+          isPlaying={true}
+        />
+      )
 
       // ✅ ASSERT: Video should be rendered (paused prop should be false internally)
       expect(screen.getByTestId('native-video-element')).toBeTruthy()
@@ -185,7 +192,12 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
 
       // 🎬 ACT: Render with playing state, then change to paused
       const { rerender } = renderWithProviders(<VideoPlayerNative {...initialProps} />)
-      rerender(<VideoPlayerNative {...initialProps} isPlaying={false} />)
+      rerender(
+        <VideoPlayerNative
+          {...initialProps}
+          isPlaying={false}
+        />
+      )
 
       // ✅ ASSERT: Video should be rendered (paused prop should be true internally)
       expect(screen.getByTestId('native-video-element')).toBeTruthy()
@@ -208,7 +220,12 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
 
       // 🎬 ACT: Render with no seek, then provide seek time
       const { rerender } = renderWithProviders(<VideoPlayerNative {...initialProps} />)
-      rerender(<VideoPlayerNative {...initialProps} seekToTime={30} />)
+      rerender(
+        <VideoPlayerNative
+          {...initialProps}
+          seekToTime={30}
+        />
+      )
 
       // ✅ ASSERT: onSeekComplete should be called after seek
       expect(mockOnSeekComplete).toHaveBeenCalled()
@@ -228,10 +245,23 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
 
       // 🎬 ACT: Test multiple seeks
       const { rerender } = renderWithProviders(
-        <VideoPlayerNative {...baseProps} seekToTime={10} />
+        <VideoPlayerNative
+          {...baseProps}
+          seekToTime={10}
+        />
       )
-      rerender(<VideoPlayerNative {...baseProps} seekToTime={20} />)
-      rerender(<VideoPlayerNative {...baseProps} seekToTime={30} />)
+      rerender(
+        <VideoPlayerNative
+          {...baseProps}
+          seekToTime={20}
+        />
+      )
+      rerender(
+        <VideoPlayerNative
+          {...baseProps}
+          seekToTime={30}
+        />
+      )
 
       // ✅ ASSERT: onSeekComplete should be called for each seek
       expect(mockOnSeekComplete).toHaveBeenCalledTimes(3)

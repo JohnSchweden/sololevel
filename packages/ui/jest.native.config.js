@@ -3,7 +3,7 @@ module.exports = {
   setupFilesAfterEnv: [
     '<rootDir>/src/test-utils/setup.ts',
     '<rootDir>/jest.setup.js',
-    '<rootDir>/jest.native.setup.js'
+    '<rootDir>/jest.native.setup.js',
   ],
   testMatch: ['**/*.native.test.(ts|tsx|js)', '**/VideoControls.test.native.tsx'],
   testEnvironment: 'jsdom',

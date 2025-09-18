@@ -1,4 +1,4 @@
-import { fireEvent, screen, act } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import React from 'react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
