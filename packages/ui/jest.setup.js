@@ -496,6 +496,7 @@ jest.mock('tamagui', () => {
         ...otherProps,
         ref,
         'data-testid': dataTestId || testID || name,
+        testID: testID || name,
         'aria-label': accessibilityLabel,
         role: accessibilityRole,
         // Preserve original props for testing

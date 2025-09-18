@@ -25,18 +25,10 @@ const mockFeedbackItems = [
   },
 ]
 
-const mockSocialStats = {
-  likes: 1100,
-  comments: 13,
-  bookmarks: 1100,
-  shares: 224,
-}
-
 const mockProps = {
   isExpanded: false,
   activeTab: 'feedback' as const,
   feedbackItems: mockFeedbackItems,
-  socialStats: mockSocialStats,
   currentVideoTime: 0,
   videoDuration: 120,
   onTabChange: jest.fn(),
@@ -82,18 +74,6 @@ describe('FeedbackPanel', () => {
 
     // ✅ ASSERT: Component renders in expanded state with tabs visible
     expect(toJSON()).toBeTruthy()
-  })
-
-  it('displays correct social stats', () => {
-    // 🧪 ARRANGE: Set up component with social stats
-    const statsProps = { ...mockProps }
-
-    // 🎬 ACT: Render the component
-    render(<FeedbackPanel {...statsProps} />)
-
-    // ✅ ASSERT: Social stats are correctly passed and accessible
-    expect(mockProps.socialStats.likes).toBe(1100)
-    expect(mockProps.socialStats.comments).toBe(13)
   })
 
   it('handles tab switching', () => {
@@ -373,35 +353,6 @@ describe('FeedbackPanel', () => {
         // Test that the component renders without errors - interaction testing is complex with current mocks
         expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
         // Note: Feedback item press interaction requires proper YStack onPress handling
-      })
-    })
-
-    describe('Social Button Interactions', () => {
-      it('displays correct social stats counts', () => {
-        render(<FeedbackPanel {...mockProps} />)
-
-        // Should display social stats using accessibility labels
-        expect(screen.getByLabelText('1100 likes')).toBeTruthy()
-        expect(screen.getByLabelText('13 comments')).toBeTruthy()
-        expect(screen.getByLabelText('224 shares')).toBeTruthy()
-      })
-
-      it('renders social interaction buttons', () => {
-        render(<FeedbackPanel {...mockProps} />)
-
-        // Should render social buttons using accessibility labels
-        expect(screen.getByLabelText('Like this video. Currently 1100 likes')).toBeTruthy()
-        expect(screen.getByLabelText('Add comment. Currently 13 comments')).toBeTruthy()
-        expect(screen.getByLabelText('Bookmark this video. Currently 1100 bookmarks')).toBeTruthy()
-        expect(screen.getByLabelText('Share this video. Currently 224 shares')).toBeTruthy()
-      })
-
-      it('social buttons are properly sized for touch targets', () => {
-        render(<FeedbackPanel {...mockProps} />)
-
-        // Test that the component renders with social stats - buttons are present
-        expect(screen.getByTestId('feedback-panel')).toBeTruthy()
-        // Note: Individual button interaction testing requires proper testID handling
       })
     })
 

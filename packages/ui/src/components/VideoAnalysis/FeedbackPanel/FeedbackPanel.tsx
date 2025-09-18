@@ -128,7 +128,7 @@ export function FeedbackPanel({
       elevation={5}
       style={{ transition: 'all 0.5s ease-in-out' }}
       testID="feedback-panel"
-      aria-label={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
+      accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
       // accessibilityRole="region"
       aria-state={{ expanded: isExpanded }}
     >
@@ -139,13 +139,13 @@ export function FeedbackPanel({
           marginTop={-8}
           //paddingVertical="$2"
           testID="sheet-handle"
-          aria-label="Sheet handle"
+          accessibilityLabel="Sheet handle"
         >
           <Button
             chromeless
             onPress={handleSheetToggle}
             testID="sheet-toggle-button"
-            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
+            accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
             aria-role="button"
             accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
           >
@@ -259,13 +259,13 @@ export function FeedbackPanel({
             paddingHorizontal="$3"
             //paddingBottom="$2"
             testID="sheet-header"
-            aria-label="Sheet header with navigation tabs"
+            accessibilityLabel="Sheet header with navigation tabs"
           >
             <XStack
               borderBottomWidth={1}
               borderBottomColor="$borderColor"
               testID="tab-navigation"
-              aria-label="Tab navigation"
+              accessibilityLabel="Tab navigation"
               accessibilityRole="tablist"
               backgroundColor="$background"
               //paddingTop="$2"
@@ -278,7 +278,7 @@ export function FeedbackPanel({
                   //paddingVertical="$3"
                   onPress={() => onTabChange(tab)}
                   testID={`tab-${tab}`}
-                  aria-label={`${tab} tab`}
+                  accessibilityLabel={`${tab} tab`}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: activeTab === tab }}
                   accessibilityHint={`Switch to ${tab} view`}
@@ -327,7 +327,7 @@ export function FeedbackPanel({
                       borderRadius={0}
                       onPress={() => onFeedbackItemPress(item)}
                       testID={`feedback-item-${index + 1}`}
-                      aria-label={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
+                      accessibilityLabel={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
                       accessibilityRole="button"
                       accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}`}
                       accessibilityState={{
@@ -344,7 +344,7 @@ export function FeedbackPanel({
                         <Text
                           fontSize="$1"
                           color="$color10"
-                          aria-label={`Time: ${formatTime(item.timestamp)}`}
+                          accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
                         >
                           {formatTime(item.timestamp)}
                         </Text>
@@ -353,7 +353,7 @@ export function FeedbackPanel({
                           color={getCategoryColor(item.category)}
                           fontWeight="600"
                           textTransform="capitalize"
-                          aria-label={`Category: ${item.category}`}
+                          accessibilityLabel={`Category: ${item.category}`}
                         >
                           {item.category}
                         </Text>
@@ -362,7 +362,7 @@ export function FeedbackPanel({
                         fontSize="$4"
                         color={isHighlighted ? '$yellow11' : '$color12'}
                         lineHeight="$5"
-                        aria-label={`Feedback: ${item.text}`}
+                        accessibilityLabel={`Feedback: ${item.text}`}
                       >
                         {item.text}
                       </Text>
