@@ -1,6 +1,9 @@
 import { render } from '@testing-library/react-native'
 import { AudioFeedback } from './AudioFeedback'
 
+// Mock the require call for the coach avatar image
+jest.mock('../../../../../../apps/expo/assets/coach_avatar.png', () => 'mocked-coach-avatar')
+
 const mockProps = {
   audioUrl: 'https://example.com/audio.mp3',
   isPlaying: false,

@@ -1,6 +1,9 @@
 import { render } from '@testing-library/react-native'
 import { CoachAvatar } from './CoachAvatar'
 
+// Mock the require call for the coach avatar image
+jest.mock('../../../../../../apps/expo/assets/coach_avatar.png', () => 'mocked-coach-avatar')
+
 describe('CoachAvatar', () => {
   describe('Rendering', () => {
     it('should render the coach avatar with default props', () => {
