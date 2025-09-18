@@ -20,7 +20,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:coverage:report": "jest --coverage --coverageReporters=html"
+    "test:coverage:report": "jest --coverage --coverageReporters=html",
+    "test:native": "jest --config jest.native.config.js",
+    "test:native:watch": "jest --config jest.native.config.js --watch",
+    "test:native:coverage": "jest --config jest.native.config.js --coverage",
+    "test:all": "jest && jest --config jest.native.config.js"
   },
   "dependencies": {
     "@expo/react-native-action-sheet": "^4.1.1",

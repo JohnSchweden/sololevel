@@ -70,13 +70,14 @@ export const VideoControls = React.memo(
           clearTimeout(hideTimeoutRef.current)
         }
 
-        if (isPlaying && !isScrubbing) {
+        // Only start timer if playing and not scrubbing, and controls should be visible
+        if (isPlaying && !isScrubbing && showControls) {
           hideTimeoutRef.current = setTimeout(() => {
             setControlsVisible(false)
             onControlsVisibilityChange?.(false)
           }, 3000)
         }
-      }, [isPlaying, isScrubbing, onControlsVisibilityChange])
+      }, [isPlaying, isScrubbing, showControls, onControlsVisibilityChange])
 
       // Show controls and reset timer
       const showControlsAndResetTimer = useCallback(() => {
@@ -97,8 +98,17 @@ export const VideoControls = React.memo(
         setControlsVisible(showControls)
         if (showControls) {
           resetAutoHideTimer()
+          // Notify parent that controls are shown
+          onControlsVisibilityChange?.(true)
+        } else {
+          // Clear timer if controls are explicitly hidden
+          if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current)
+          }
+          // Also notify parent that controls are hidden
+          onControlsVisibilityChange?.(false)
         }
-      }, [showControls, resetAutoHideTimer])
+      }, [showControls, resetAutoHideTimer, onControlsVisibilityChange])
 
       // Reset timer when playing state changes
       useEffect(() => {
@@ -221,7 +231,7 @@ export const VideoControls = React.memo(
             right: 0,
             bottom: 0,
           }}
-          testID="video-controls-pressable"
+          testID="video-controls-container"
         >
           <YStack
             position="absolute"

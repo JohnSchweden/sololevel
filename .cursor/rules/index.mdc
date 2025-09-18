@@ -51,7 +51,7 @@ alwaysApply: false
 **Triggers**: `**/*.{test,spec}.*`, testing files, error handling
 **Rules to Apply**:
 - `quality/testing-unified`: Testing strategies
-- `quality/testing-workflow`: Step-by-step TDD guide for creating tests
+- `quality/testing-workflow`: Step-by-step TDD guide for creating tests (quality/testing-workflow.mdc)
 - `quality/error-handling`: Error handling patterns
 - `quality/performance`: Performance optimization
 - `quality/debugging`: Systematic debugging workflow
@@ -85,7 +85,7 @@ alwaysApply: false
 - packages/app/**/*, apps/**/* → navigation-expo-router + data-state-management + authentication
 
 # Testing
-- **/*.{test,spec}.* → testing-unified + testing-workflow + error-handling + performance + debugging
+- **/*.{test,spec}.* → quality/testing-unified + quality/testing-workflow + quality/error-handling + quality/performance + quality/debugging
 
 # Stories/documentation
 - **/*.stories.* → storybook + cross-platform-styling
@@ -122,7 +122,7 @@ alwaysApply: false
 - "zustand", "query", "state" → data-state-management
 
 # Testing
-- "test", "spec", "vitest" → testing-unified + testing-workflow + debugging
+- "test", "spec", "vitest" → quality/testing-unified + quality/testing-workflow + quality/debugging
 
 # Performance
 - "performance", "optimization" → performance

@@ -1,28 +1,41 @@
+---
+description: Unified testing strategy coordinator for Jest and Vitest environments
+globs: ["**/*.test.*", "**/*.spec.*"]
+alwaysApply: false
+references: ["quality/testing/testing-patterns", "quality/testing/testing-react-native", "quality/testing/testing-web", "quality/testing/testing-setup", "quality/testing/testing-troubleshooting", "quality/testing/testing-metrics"]
+---
 
 # Modern Testing Strategy (Unified Coordinator)
 
 ## 🎯 Core Philosophy
 **Test user behavior, not implementation. Focus on what users would notice if it broke.**
 
-### Test Runner Selection
-- **React Native/Expo**: Jest with `jest-expo` preset → See `quality/testing/testing-react-native.mdc`
-- **Web/Node.js**: Vitest → See `quality/testing/testing-web.mdc`
-- **NEVER mix**: Use Vitest for React Native testing
+### Package-Specific Test Runner Selection
+- **packages/ui** (Shared UI Components): Jest with jsdom → Web component testing → See `quality/testing/testing-web.mdc`
+- **packages/app** (Business Logic & Screens): Jest with jsdom → React Native app testing → See `quality/testing/testing-react-native.mdc`
+- **packages/api** (Backend Integration): Vitest → Node.js API testing → See `quality/testing/testing-web.mdc`
+- **apps/expo** (React Native App): Jest with jest-expo preset → Full RN app testing → See `quality/testing/testing-react-native.mdc`
+- **apps/next** (Web App): Vitest → Web app testing → See `quality/testing/testing-web.mdc`
+- **NEVER mix**: Don't use Vitest for React Native or Jest for pure Node.js testing
 
-### Critical Success Pattern (100% Success Rate)
-**React Native**: Use accessibility-based queries → See `quality/testing/testing-react-native.mdc`
+### Critical Success Patterns
+- **packages/ui**: DOM-based queries with `data-testid` → See `quality/testing/testing-web.mdc`
+- **packages/app**: Accessibility-based queries with `getByLabelText()` → See `quality/testing/testing-react-native.mdc`
+- **packages/api**: Standard Node.js testing patterns → See `quality/testing/testing-web.mdc`
 
 ## 📋 Quick Reference
 
 ### Before Writing Tests
-1. **READ** `quality/testing/testing-patterns.mdc` for AAA pattern and best practices
-2. **FOLLOW** environment-specific patterns from sub-rules
-3. **CONSULT** `docs/workflow/custom_modes/testing-workflow-enhanced.md` for React Native
+1. **IDENTIFY your package** and select the correct testing environment from the table above
+2. **READ** `quality/testing/testing-patterns.mdc` for AAA pattern and best practices
+3. **FOLLOW** the package-specific patterns listed above
+4. **CONSULT** `docs/workflow/custom_modes/tester.md` for TDD workflow and package guidance
 
 ### Test Efficiency Rules
 - **Ratio**: 1:2 test-to-code maximum → See `quality/testing/testing-patterns.mdc`
 - **Focus**: User-visible behavior only → See `quality/testing/testing-patterns.mdc`
 - **Mock**: External dependencies only → See `quality/testing/testing-setup.mdc`
+- **Environment**: Use package-appropriate mocks (DOM for ui, RN components for app, Node for api)
 - **Convert**: Complex failing tests to integration tests → See `quality/testing/testing-troubleshooting.mdc`
 
 ## 🔗 Sub-Rule Navigation
@@ -70,10 +83,16 @@
 - Review and maintenance guidelines
 
 ## 🚀 Quick Start Checklist
-□ Choose correct test runner (Jest for RN, Vitest for web)
+□ **Identify your package** and choose the correct testing environment:
+   - packages/ui: Jest + @testing-library/react + jsdom
+   - packages/app: Jest + @testing-library/react-native + jsdom
+   - packages/api: Vitest + native Node testing
+   - apps/expo: Jest + jest-expo + @testing-library/react-native
+   - apps/next: Vitest + @testing-library/react
 □ Follow AAA pattern with clear comments
-□ Use accessibility labels for React Native queries
-□ Mock external dependencies only
+□ Use appropriate query patterns for your package (data-testid for ui, getByLabelText for app)
+□ Mock external dependencies only (APIs, native modules, libraries)
+□ Use package-appropriate mocks (DOM for ui, RN components for app, Node for api)
 □ Maintain 1:2 test-to-code ratio
 □ Test user behavior, not implementation
 
@@ -83,10 +102,15 @@
 ## 🔄 Rule Updates
 This rule coordinates focused sub-rules. Update specific patterns in their respective sub-rule files:
 - Add new patterns to `testing-patterns.mdc`
-- Update React Native issues in `testing-react-native.mdc` 
+- Update React Native issues in `testing-react-native.mdc`
 - Add troubleshooting to `testing-troubleshooting.mdc`
 - Update metrics in `testing-metrics.mdc`
 
-**Last Coordinated**: September 2025 - Accessibility-first patterns proven successful
+**Last Coordinated**: September 2025 - Package-specific testing environments implemented
+- packages/ui: Web component testing (Jest + jsdom)
+- packages/app: React Native app testing (Jest + RN Testing Library)
+- packages/api: Node.js API testing (Vitest)
+- apps/expo: Full React Native app testing (Jest + jest-expo)
+- apps/next: Web app testing (Vitest)
 
 → See `quality/testing/testing-metrics.mdc` for performance and maintenance guidelines

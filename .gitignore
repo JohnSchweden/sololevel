@@ -55,6 +55,7 @@ packages/**/*.d.ts
 !packages/**/vitest.config.mjs
 !packages/**/vitest.config.mts
 !packages/**/jest.setup.js
+!packages/**/jest.native.setup.js
 !packages/**/vitest.setup.js
 !packages/*/src/types/*.d.ts
 !packages/types/**/*.d.ts
