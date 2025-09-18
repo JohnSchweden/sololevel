@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { BottomSheet } from '../components/VideoAnalysis/BottomSheet/BottomSheet'
+import { FeedbackPanel } from '../components/VideoAnalysis/FeedbackPanel/FeedbackPanel'
 // VideoAnalysisScreen import removed as it's not used in this test
 import { ProcessingOverlay } from '../components/VideoAnalysis/ProcessingOverlay/ProcessingOverlay'
 import { renderWithProvider } from '../test-utils/TestProvider'
@@ -67,7 +67,7 @@ describe('Responsive Layout Tests', () => {
       expect(progressBar).toBeTruthy()
     })
 
-    it('renders BottomSheet with mobile gesture support', () => {
+    it('renders FeedbackPanel with mobile gesture support', () => {
       const mockProps = {
         isExpanded: true,
         activeTab: 'feedback' as const,
@@ -83,9 +83,9 @@ describe('Responsive Layout Tests', () => {
         onShare: jest.fn(),
       }
 
-      renderWithProviders(<BottomSheet {...mockProps} />)
+      renderWithProviders(<FeedbackPanel {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
+      const bottomSheet = screen.getByLabelText('Feedback panel expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Should show drag handle for mobile gesture interaction
@@ -137,7 +137,7 @@ describe('Responsive Layout Tests', () => {
       expect(progressBar).toBeTruthy()
     })
 
-    it('renders BottomSheet with expanded content area', () => {
+    it('renders FeedbackPanel with expanded content area', () => {
       const mockProps = {
         isExpanded: true,
         activeTab: 'feedback' as const,
@@ -161,9 +161,9 @@ describe('Responsive Layout Tests', () => {
         onShare: jest.fn(),
       }
 
-      renderWithProviders(<BottomSheet {...mockProps} />)
+      renderWithProviders(<FeedbackPanel {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
+      const bottomSheet = screen.getByLabelText('Feedback panel expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Should show more content on tablet
@@ -198,7 +198,7 @@ describe('Responsive Layout Tests', () => {
       expect(progressBar).toBeTruthy()
     })
 
-    it('renders BottomSheet with side panel layout option', () => {
+    it('renders FeedbackPanel with side panel layout option', () => {
       const mockProps = {
         isExpanded: true,
         activeTab: 'feedback' as const,
@@ -214,9 +214,9 @@ describe('Responsive Layout Tests', () => {
         onShare: jest.fn(),
       }
 
-      renderWithProviders(<BottomSheet {...mockProps} />)
+      renderWithProviders(<FeedbackPanel {...mockProps} />)
 
-      const bottomSheet = screen.getByLabelText('Bottom sheet expanded')
+      const bottomSheet = screen.getByLabelText('Feedback panel expanded')
       expect(bottomSheet).toBeTruthy()
 
       // Desktop could show as side panel instead of bottom sheet
@@ -308,17 +308,17 @@ describe('Responsive Layout Tests', () => {
         onShare: jest.fn(),
       }
 
-      const { rerender } = renderWithProviders(<BottomSheet {...mockProps} />)
+      const { rerender } = renderWithProviders(<FeedbackPanel {...mockProps} />)
 
       // Simulate multiple layout changes
       const { Dimensions } = require('react-native')
 
       for (const size of [mockDimensions.mobile, mockDimensions.tablet, mockDimensions.desktop]) {
         Dimensions.get.mockReturnValue(size)
-        rerender(<BottomSheet {...mockProps} />)
+        rerender(<FeedbackPanel {...mockProps} />)
       }
 
-      expect(screen.getByLabelText('Bottom sheet expanded')).toBeTruthy()
+      expect(screen.getByLabelText('Feedback panel expanded')).toBeTruthy()
     })
   })
 })

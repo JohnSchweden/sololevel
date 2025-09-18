@@ -41,12 +41,13 @@ describe('VideoControls', () => {
         <VideoControls
           {...mockProps}
           isPlaying={true}
+          showControls={false} // Allow timer to start
           onControlsVisibilityChange={mockOnControlsVisibilityChange}
         />
       )
 
-      // Controls should be visible initially
-      expect(screen.getByLabelText('Video controls overlay visible')).toBeTruthy()
+      // Controls should be hidden initially (showControls=false)
+      expect(screen.getByLabelText('Video controls overlay hidden')).toBeTruthy()
 
       // Advance timer by 3 seconds
       act(() => {
@@ -63,6 +64,7 @@ describe('VideoControls', () => {
         <VideoControls
           {...mockProps}
           isPlaying={true}
+          showControls={false} // Allow timer to start
           onControlsVisibilityChange={mockOnControlsVisibilityChange}
         />
       )
@@ -77,8 +79,8 @@ describe('VideoControls', () => {
         fireEvent.click(screen.getByLabelText('Pause video'))
       })
 
-      // The callback should have been called twice: once for initial showControls=true, once for user interaction
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledTimes(2)
+      // The callback should have been called: once for initial state, once for user interaction, once for timer reset
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledTimes(3)
       expect(mockOnControlsVisibilityChange).toHaveBeenLastCalledWith(true)
 
       // Reset the mock to check only future calls
@@ -167,7 +169,7 @@ describe('VideoControls', () => {
         <VideoControls
           {...mockProps}
           isPlaying={true}
-          showControls={true}
+          showControls={false} // Start with controls hidden to test timer
           onControlsVisibilityChange={mockOnControlsVisibilityChange}
         />
       )
@@ -177,10 +179,10 @@ describe('VideoControls', () => {
         jest.advanceTimersByTime(3000)
       })
 
-      // Timer should hide controls
+      // Timer should try to hide controls
       expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
 
-      // But showControls prop should override
+      // But showControls prop should override and show controls again
       rerender(
         <VideoControls
           {...mockProps}
@@ -190,15 +192,10 @@ describe('VideoControls', () => {
         />
       )
 
-      // Timer should hide controls (call with false)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      // showControls=true should show controls (call with true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenLastCalledWith(true)
 
-      // Wait for state update to take effect
-      act(() => {
-        // Force a re-render to ensure state updates
-      })
-
-      // But the component should still show controls due to showControls prop override
+      // The component should show controls due to showControls prop override
       // Check that pause button is visible (indicating controls are shown, since isPlaying=true)
       expect(screen.getByLabelText('Pause video')).toBeTruthy()
     })

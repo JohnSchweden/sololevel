@@ -330,7 +330,7 @@ As a user, I want to view and interact with a detailed feedback timeline in a bo
 - The tab navigation becomes sticky on scroll
 
 ### Acceptance Criteria
-- Given I am on the video playback screen with the existing BottomSheet component
+- Given I am on the video playback screen with the existing FeedbackPanel component
 - When I slide the bottom sheet handle up
 - Then the sheet expands and the video resizes to fit the remaining space
 - And I can see a tabbed view with a timeline of feedback
@@ -339,8 +339,8 @@ As a user, I want to view and interact with a detailed feedback timeline in a bo
 - And the tabs ("Feedback", "Insights", "Comments") remain visible at the top of the sheet when I scroll the content
 
 ### Technical Notes
-- **UI**: Existing custom bottom sheet implementation with Tamagui components, extending to 40% screen height
-- **Layout**: Dynamic video player resizing with letterboxing when bottom sheet expands
+- **UI**: Existing custom feedback panel implementation with Tamagui components, extending to 40% screen height
+- **Layout**: Dynamic video player resizing with letterboxing when feedback panel expands
 - **Tabs**: Tamagui Tabs component for "Feedback", "Insights", and "Comments" navigation
 - **Progress Bar**: Custom draggable progress bar above tabs for precise video scrubbing
 - **State Integration**: Subscribes to existing `videoAnalysisStore` for feedback data and timeline synchronization
@@ -348,7 +348,7 @@ As a user, I want to view and interact with a detailed feedback timeline in a bo
 - **Performance**: Virtualized feedback list with smooth scrolling for large datasets
 - **Cross-platform**: Unified bottom sheet behavior for Expo (native) and Next.js (web)
 - **Accessibility**: WCAG 2.2 AA compliance with screen reader support and keyboard navigation
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/BottomSheet/`
+- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/FeedbackPanel/`
 - **Sticky Navigation**: Tab navigation becomes sticky on scroll with smooth transitions
 
 ---

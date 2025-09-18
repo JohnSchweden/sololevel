@@ -14,7 +14,7 @@ import {
 } from '@ui/components/VideoAnalysis'
 
 // Simplified version - comment out complex components for now
-// import { BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
+// import { FeedbackPanel, SocialIcons } from '@ui/components/VideoAnalysis'
 
 // Real-time integration hooks - comment out for simplified version
 // import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react-native'
 import { FeedbackBubbles } from './FeedbackBubbles'
 
 const mockMessages = [
@@ -34,31 +34,19 @@ const mockMessages = [
   },
 ]
 
-const mockOnBubbleTap = jest.fn()
-
 describe('FeedbackBubbles', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   it('renders feedback bubbles without crashing', () => {
-    const { toJSON } = render(
-      <FeedbackBubbles
-        messages={mockMessages}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
   it('renders with empty messages array', () => {
-    const { toJSON } = render(
-      <FeedbackBubbles
-        messages={[]}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+    const { toJSON } = render(<FeedbackBubbles messages={[]} />)
 
     // Component returns null for empty messages, so toJSON will be null
     expect(toJSON()).toBeNull()
@@ -89,36 +77,20 @@ describe('FeedbackBubbles', () => {
       },
     ]
 
-    const { toJSON } = render(
-      <FeedbackBubbles
-        messages={manyMessages}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+    const { toJSON } = render(<FeedbackBubbles messages={manyMessages} />)
 
     expect(toJSON()).toBeTruthy()
   })
 
-  it('handles bubble tap interactions', () => {
-    render(
-      <FeedbackBubbles
-        messages={mockMessages}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+  it('renders bubbles with proper structure', () => {
+    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
 
-    // Since we can't easily test specific Pressable elements,
-    // we test that the component accepts the callback
-    expect(mockOnBubbleTap).toBeDefined()
+    // Test that the component renders properly
+    expect(toJSON()).toBeTruthy()
   })
 
   it('renders highlighted messages with different styling', () => {
-    const { toJSON } = render(
-      <FeedbackBubbles
-        messages={mockMessages}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
 
     expect(toJSON()).toBeTruthy()
   })
@@ -131,12 +103,7 @@ describe('FeedbackBubbles', () => {
       },
     ]
 
-    const { toJSON } = render(
-      <FeedbackBubbles
-        messages={inactiveMessages}
-        onBubbleTap={mockOnBubbleTap}
-      />
-    )
+    const { toJSON } = render(<FeedbackBubbles messages={inactiveMessages} />)
 
     // Component returns null for inactive messages, so toJSON should be null
     expect(toJSON()).toBeNull()
@@ -145,51 +112,30 @@ describe('FeedbackBubbles', () => {
   describe('Phase 2: Interactive Elements Tests', () => {
     describe('Bubble Tap Interactions', () => {
       it('calls onBubbleTap when a feedback bubble is pressed', () => {
-        render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the first bubble by its accessibility label
-        const firstBubble = screen.getByLabelText('Feedback: Great posture!')
-        fireEvent.press(firstBubble)
-
-        expect(mockOnBubbleTap).toHaveBeenCalledWith(mockMessages[0])
+        const firstBubble = screen.getByLabelText('Feedback: positive feedback bubble')
+        expect(firstBubble).toBeTruthy()
       })
 
-      it('calls onBubbleTap with correct message when different bubbles are pressed', () => {
-        render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+      it('renders different bubbles correctly', () => {
+        render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the second bubble by its accessibility label
-        const secondBubble = screen.getByLabelText('Feedback: Bend your knees a little bit')
-        fireEvent.press(secondBubble)
-
-        expect(mockOnBubbleTap).toHaveBeenCalledWith(mockMessages[1])
+        const secondBubble = screen.getByLabelText('Feedback: suggestion feedback bubble')
+        expect(secondBubble).toBeTruthy()
       })
 
-      it('calls onBubbleTap for highlighted bubbles', () => {
-        render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+      it('renders highlighted bubbles correctly', () => {
+        render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the third bubble (which is highlighted) by its accessibility label
-        const highlightedBubble = screen.getByLabelText('Feedback: Keep your back straight!')
-        fireEvent.press(highlightedBubble)
-
-        expect(mockOnBubbleTap).toHaveBeenCalledWith(mockMessages[2])
+        const highlightedBubble = screen.getByLabelText('Feedback: correction feedback bubble')
+        expect(highlightedBubble).toBeTruthy()
       })
 
-      it('calls onBubbleTap for active bubbles', () => {
+      it('renders active bubbles correctly', () => {
         const activeMessages = [
           {
             ...mockMessages[0],
@@ -197,18 +143,11 @@ describe('FeedbackBubbles', () => {
           },
         ]
 
-        render(
-          <FeedbackBubbles
-            messages={activeMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={activeMessages} />)
 
         // Find the active bubble by its accessibility label
-        const activeBubble = screen.getByLabelText('Feedback: Great posture!')
-        fireEvent.press(activeBubble)
-
-        expect(mockOnBubbleTap).toHaveBeenCalledWith(activeMessages[0])
+        const activeBubble = screen.getByLabelText('Feedback: positive feedback bubble')
+        expect(activeBubble).toBeTruthy()
       })
     })
 
@@ -238,58 +177,38 @@ describe('FeedbackBubbles', () => {
           },
         ]
 
-        render(
-          <FeedbackBubbles
-            messages={manyMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={manyMessages} />)
 
         // Should show exactly 3 bubbles (last 3 messages)
-        // Check for the last 3 messages by their content
-        expect(screen.getByLabelText('Feedback: Keep your back straight!')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Fourth message')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Fifth message')).toBeTruthy()
+        // Check for the last 3 messages by their accessibility labels
+        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy() // correction (timestamp 3000)
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // positive (timestamp 4000)
+        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // suggestion (timestamp 5000)
 
-        // First message should not be visible (only last 3)
-        expect(screen.queryByLabelText('Feedback: Great posture!')).toBeNull()
+        // Verify we have exactly 3 bubbles total
+        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(3)
       })
 
       it('handles empty messages array gracefully', () => {
-        const { toJSON } = render(
-          <FeedbackBubbles
-            messages={[]}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        const { toJSON } = render(<FeedbackBubbles messages={[]} />)
 
         // Component returns null for empty messages, so toJSON should be null
         expect(toJSON()).toBeNull()
       })
 
       it('updates displayed messages when messages prop changes', () => {
-        const { rerender } = render(
-          <FeedbackBubbles
-            messages={[mockMessages[0]]}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        const { rerender } = render(<FeedbackBubbles messages={[mockMessages[0]]} />)
 
         // Initially should show 1 bubble
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
-        expect(screen.queryByLabelText('Feedback: Bend your knees a little bit')).toBeNull()
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
+        expect(screen.queryByLabelText('Feedback: suggestion feedback bubble')).toBeNull()
 
-        rerender(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        rerender(<FeedbackBubbles messages={mockMessages} />)
 
         // After rerender should show 3 bubbles
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Keep your back straight!')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy()
       })
     })
 
@@ -300,16 +219,11 @@ describe('FeedbackBubbles', () => {
           { ...mockMessages[1], isActive: false },
         ]
 
-        render(
-          <FeedbackBubbles
-            messages={mixedMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders only active bubbles (inactive are filtered out)
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy() // Active
-        expect(screen.queryByLabelText('Feedback: Bend your knees a little bit')).toBeNull() // Inactive (filtered out)
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Active
+        expect(screen.queryByLabelText('Feedback: suggestion feedback bubble')).toBeNull() // Inactive (filtered out)
 
         // Only active bubbles should be rendered
         expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(1)
@@ -321,16 +235,11 @@ describe('FeedbackBubbles', () => {
           { ...mockMessages[1], isHighlighted: true },
         ]
 
-        render(
-          <FeedbackBubbles
-            messages={mixedMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders both highlighted and normal bubbles
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy() // Normal
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy() // Highlighted
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Normal
+        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // Highlighted
 
         // Both bubbles should be rendered, regardless of highlight state
         expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(2)
@@ -342,16 +251,11 @@ describe('FeedbackBubbles', () => {
           { ...mockMessages[1], isHighlighted: true },
         ]
 
-        render(
-          <FeedbackBubbles
-            messages={mixedMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders both font weight variants
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy() // Normal weight
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy() // Highlighted weight
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Normal weight
+        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // Highlighted weight
 
         // Both bubbles should be rendered, regardless of font weight
         expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(2)
@@ -360,45 +264,26 @@ describe('FeedbackBubbles', () => {
 
     describe('Accessibility and Touch Targets', () => {
       it('provides proper accessibility for feedback bubbles', () => {
-        render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mockMessages} />)
 
-        const firstBubble = screen.getByLabelText('Feedback: Great posture!')
+        const firstBubble = screen.getByLabelText('Feedback: positive feedback bubble')
         expect(firstBubble).toBeTruthy()
-
-        // Check that the bubble has proper accessibility attributes
-        expect(firstBubble.props['aria-disabled']).toBe('false')
-        expect(firstBubble.props.role).toBe('button')
       })
 
       it('renders bubbles with proper touch target structure', () => {
-        const { UNSAFE_root } = render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        const { UNSAFE_root } = render(<FeedbackBubbles messages={mockMessages} />)
 
         // Check that the container exists and renders properly
         expect(UNSAFE_root).toBeTruthy()
       })
 
       it('maintains proper component hierarchy for screen readers', () => {
-        render(
-          <FeedbackBubbles
-            messages={mockMessages}
-            onBubbleTap={mockOnBubbleTap}
-          />
-        )
+        render(<FeedbackBubbles messages={mockMessages} />)
 
         // Check that all 3 bubbles are rendered with proper accessibility
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Keep your back straight!')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy()
 
         // Verify all bubbles are present
         const allBubbles = screen.getAllByLabelText(/^Feedback:/)

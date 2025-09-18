@@ -289,7 +289,7 @@ interface VideoPlayerStore {
     showSkeleton: boolean;
     showFeedbackBubbles: boolean;
     showAudioControls: boolean;
-    bottomSheetHeight: number;
+    feedbackPanelHeight: number;
     activeTab: 'feedback' | 'insights' | 'comments';
   };
   
@@ -302,7 +302,7 @@ interface VideoPlayerStore {
     showControls: () => void;
     hideControls: () => void;
     toggleFullscreen: () => void;
-    setBottomSheetHeight: (height: number) => void;
+    setFeedbackPanelHeight: (height: number) => void;
     setActiveTab: (tab: string) => void;
   };
 }

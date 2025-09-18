@@ -51,6 +51,14 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
       children
     )
   },
+  FeedbackPanel: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
+    const React = require('react')
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'FeedbackPanel', ...props },
+      children
+    )
+  },
   MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
     return React.createElement(

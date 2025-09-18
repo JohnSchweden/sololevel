@@ -3,7 +3,7 @@ import { YStack } from 'tamagui'
 
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'
-import { ProcessingOverlay, VideoAnalysisPlayer, BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
+import { ProcessingOverlay, VideoAnalysisPlayer, FeedbackPanel, SocialIcons } from '@ui/components/VideoAnalysis'
 
 // Real-time integration hooks
 import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
@@ -136,7 +136,7 @@ export function VideoAnalysisScreen({
   // Screen state
   const [currentTime, setCurrentTime] = useState(0)
   const [showControls, setShowControls] = useState(true)
-  const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false)
+  const [feedbackPanelExpanded, setFeedbackPanelExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<'feedback' | 'insights' | 'comments'>('feedback')
 
   // Derived state from real-time data
@@ -482,16 +482,16 @@ export function VideoAnalysisScreen({
         )}
 
         {/* Bottom Sheet */}
-        <BottomSheet
-          isExpanded={bottomSheetExpanded}
+        <FeedbackPanel
+          isExpanded={feedbackPanelExpanded}
           activeTab={activeTab}
           feedbackItems={feedbackItems}
           socialStats={socialStats}
           currentVideoTime={currentTime}
           videoDuration={0} // Will be updated when video loads
           onTabChange={setActiveTab}
-          onSheetExpand={() => setBottomSheetExpanded(true)}
-          onSheetCollapse={() => setBottomSheetExpanded(false)}
+          onSheetExpand={() => setFeedbackPanelExpanded(true)}
+          onSheetCollapse={() => setFeedbackPanelExpanded(false)}
           onFeedbackItemPress={handleFeedbackItemPress}
           onVideoSeek={handleSeek}
           onLike={() => handleSocialAction('like')}

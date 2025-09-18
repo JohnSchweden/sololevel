@@ -116,8 +116,8 @@ jest.mock('@my/ui', () => {
       React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
     VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
-    BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
+    FeedbackPanel: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'FeedbackPanel', ...props }, children),
     SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
     VideoTitle: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
@@ -165,8 +165,8 @@ jest.mock('@ui/components/VideoAnalysis', () => {
       React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
     VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
-    BottomSheet: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'BottomSheet', ...props }, children),
+    FeedbackPanel: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'FeedbackPanel', ...props }, children),
     SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
     VideoTitle: ({ children, testID, ...props }: { children?: any; testID?: string }) =>

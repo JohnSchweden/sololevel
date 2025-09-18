@@ -18,7 +18,7 @@ interface SocialStats {
   shares: number
 }
 
-export interface BottomSheetProps {
+export interface FeedbackPanelProps {
   isExpanded: boolean
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
@@ -36,23 +36,23 @@ export interface BottomSheetProps {
   onShare: () => void
 }
 
-export function BottomSheet({
+export function FeedbackPanel({
   isExpanded,
   activeTab,
   feedbackItems,
   socialStats,
   currentVideoTime = 0,
-  videoDuration = 0,
+  //videoDuration = 0,
   onTabChange,
   onSheetExpand,
   onSheetCollapse,
   onFeedbackItemPress,
-  onVideoSeek,
+  //onVideoSeek,
   onLike,
   onComment,
   onBookmark,
   onShare,
-}: BottomSheetProps) {
+}: FeedbackPanelProps) {
   const formatTime = (milliseconds: number) => {
     // Convert milliseconds to seconds for duration formatting
     const totalSeconds = Math.floor(milliseconds / 1000)
@@ -116,7 +116,7 @@ export function BottomSheet({
       bottom={0}
       left={0}
       right={0}
-      height={isExpanded ? '70%' : '15%'}
+      height={isExpanded ? '50%' : '5%'}
       backgroundColor="$background"
       borderTopLeftRadius={20}
       borderTopRightRadius={20}
@@ -125,8 +125,9 @@ export function BottomSheet({
       shadowOpacity={0.1}
       shadowRadius={4}
       elevation={5}
-      testID="bottom-sheet"
-      accessibilityLabel={`Bottom sheet ${isExpanded ? 'expanded' : 'collapsed'}`}
+      zIndex={9999} // Maximum z-index to ensure visibility
+      testID="feedback-panel"
+      accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
       // accessibilityRole="region"
       accessibilityState={{ expanded: isExpanded }}
     >
@@ -142,20 +143,20 @@ export function BottomSheet({
             chromeless
             onPress={handleSheetToggle}
             testID="sheet-toggle-button"
-            accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} bottom sheet`}
+            accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
             accessibilityRole="button"
             accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
           >
             <YStack
               width={40}
               height={4}
-              backgroundColor="$gray6"
+              backgroundColor="$color12"
               borderRadius={2}
             />
           </Button>
         </YStack>
 
-        {/* Video Progress Bar */}
+        {/* Video Progress Bar
         {isExpanded && videoDuration > 0 && activeTab === 'feedback' && (
           <YStack
             paddingHorizontal="$4"
@@ -181,7 +182,7 @@ export function BottomSheet({
               <YStack
                 flex={1}
                 height={4}
-                backgroundColor="$gray6"
+                backgroundColor="$color12"
                 borderRadius="$1"
                 testID="video-progress-bar"
                 onPress={(event) => {
@@ -248,7 +249,7 @@ export function BottomSheet({
               </Text>
             </XStack>
           </YStack>
-        )}
+        )} */}
 
         {/* Header with Tabs */}
         {isExpanded && (

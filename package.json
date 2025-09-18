@@ -93,6 +93,7 @@
   "dependencies": {
     "@babel/core": "^7.28.3",
     "@babel/runtime": "^7.26.10",
+    "@tamagui/sheet": "^1.132.25",
     "check-dependency-version-consistency": "^4.1.0",
     "expo": "53.0.22",
     "expo-modules-core": "^2.5.0",

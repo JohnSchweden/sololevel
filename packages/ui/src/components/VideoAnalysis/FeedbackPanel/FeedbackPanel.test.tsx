@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import '@testing-library/jest-dom'
-import { BottomSheet } from './BottomSheet'
+import { FeedbackPanel } from './FeedbackPanel'
 // TestProviders import removed as it's not used
 
 // Skip tests that use Slider components for now
@@ -50,17 +50,17 @@ const mockProps = {
   onShare: jest.fn(),
 }
 
-describe('BottomSheet', () => {
+describe('FeedbackPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders bottom sheet without crashing', () => {
+  it('renders feedback panel without crashing', () => {
     // 🧪 ARRANGE: Set up component with required props
     const testProps = { ...mockProps }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...testProps} />)
+    const { toJSON } = render(<FeedbackPanel {...testProps} />)
 
     // ✅ ASSERT: Component renders successfully
     expect(toJSON()).toBeTruthy()
@@ -71,7 +71,7 @@ describe('BottomSheet', () => {
     const collapsedProps = { ...mockProps, isExpanded: false }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...collapsedProps} />)
+    const { toJSON } = render(<FeedbackPanel {...collapsedProps} />)
 
     // ✅ ASSERT: Component renders in collapsed state
     expect(toJSON()).toBeTruthy()
@@ -82,7 +82,7 @@ describe('BottomSheet', () => {
     const expandedProps = { ...mockProps, isExpanded: true }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...expandedProps} />)
+    const { toJSON } = render(<FeedbackPanel {...expandedProps} />)
 
     // ✅ ASSERT: Component renders in expanded state with tabs visible
     expect(toJSON()).toBeTruthy()
@@ -93,7 +93,7 @@ describe('BottomSheet', () => {
     const statsProps = { ...mockProps }
 
     // 🎬 ACT: Render the component
-    render(<BottomSheet {...statsProps} />)
+    render(<FeedbackPanel {...statsProps} />)
 
     // ✅ ASSERT: Social stats are correctly passed and accessible
     expect(mockProps.socialStats.likes).toBe(1100)
@@ -105,7 +105,7 @@ describe('BottomSheet', () => {
     const tabProps = { ...mockProps, isExpanded: true }
 
     // 🎬 ACT: Render the component
-    render(<BottomSheet {...tabProps} />)
+    render(<FeedbackPanel {...tabProps} />)
 
     // ✅ ASSERT: Tab switching functionality is properly configured
     expect(mockProps.onTabChange).toBeDefined()
@@ -116,7 +116,7 @@ describe('BottomSheet', () => {
     const socialProps = { ...mockProps }
 
     // 🎬 ACT: Render the component
-    render(<BottomSheet {...socialProps} />)
+    render(<FeedbackPanel {...socialProps} />)
 
     // ✅ ASSERT: All social interaction handlers are properly configured
     expect(mockProps.onLike).toBeDefined()
@@ -130,7 +130,7 @@ describe('BottomSheet', () => {
     const feedbackProps = { ...mockProps, isExpanded: true }
 
     // 🎬 ACT: Render the component
-    render(<BottomSheet {...feedbackProps} />)
+    render(<FeedbackPanel {...feedbackProps} />)
 
     // ✅ ASSERT: Feedback item interaction handler is properly configured
     expect(mockProps.onFeedbackItemPress).toBeDefined()
@@ -141,7 +141,7 @@ describe('BottomSheet', () => {
     const feedbackTabProps = { ...mockProps, isExpanded: true, activeTab: 'feedback' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...feedbackTabProps} />)
+    const { toJSON } = render(<FeedbackPanel {...feedbackTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with feedback content
     expect(toJSON()).toBeTruthy()
@@ -152,7 +152,7 @@ describe('BottomSheet', () => {
     const insightsTabProps = { ...mockProps, isExpanded: true, activeTab: 'insights' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...insightsTabProps} />)
+    const { toJSON } = render(<FeedbackPanel {...insightsTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with insights content
     expect(toJSON()).toBeTruthy()
@@ -163,7 +163,7 @@ describe('BottomSheet', () => {
     const commentsTabProps = { ...mockProps, isExpanded: true, activeTab: 'comments' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<BottomSheet {...commentsTabProps} />)
+    const { toJSON } = render(<FeedbackPanel {...commentsTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with comments content
     expect(toJSON()).toBeTruthy()
@@ -174,7 +174,7 @@ describe('BottomSheet', () => {
       it('calls onSheetExpand when sheet handle is pressed and sheet is collapsed', () => {
         const mockOnSheetExpand = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
             onSheetExpand={mockOnSheetExpand}
@@ -182,7 +182,7 @@ describe('BottomSheet', () => {
         )
 
         // Find the expand button by its accessibility label
-        const expandButton = screen.getByLabelText('Expand bottom sheet')
+        const expandButton = screen.getByLabelText('Expand feedback panel')
         fireEvent.press(expandButton)
 
         expect(mockOnSheetExpand).toHaveBeenCalledTimes(1)
@@ -191,7 +191,7 @@ describe('BottomSheet', () => {
       it('calls onSheetCollapse when sheet handle is pressed and sheet is expanded', () => {
         const mockOnSheetCollapse = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             onSheetCollapse={mockOnSheetCollapse}
@@ -199,7 +199,7 @@ describe('BottomSheet', () => {
         )
 
         // Find the collapse button by its accessibility label
-        const collapseButton = screen.getByLabelText('Collapse bottom sheet')
+        const collapseButton = screen.getByLabelText('Collapse feedback panel')
         fireEvent.press(collapseButton)
 
         expect(mockOnSheetCollapse).toHaveBeenCalledTimes(1)
@@ -207,30 +207,30 @@ describe('BottomSheet', () => {
 
       it('changes sheet height when expanded state changes', () => {
         const { rerender } = render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
           />
         )
 
         // Initially collapsed (15% height)
-        const bottomSheet = screen.getByLabelText('Bottom sheet collapsed')
+        const bottomSheet = screen.getByLabelText('Feedback panel collapsed')
         expect(bottomSheet).toBeTruthy()
 
-        // Expand sheet (70% height)
+        // Expand sheet (50% height)
         rerender(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
         )
 
-        expect(bottomSheet.props.height).toBe('70%')
+        expect(bottomSheet.props.height).toBe('50%')
       })
 
       it('shows tab navigation only when expanded', () => {
         const { rerender } = render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
           />
@@ -241,7 +241,7 @@ describe('BottomSheet', () => {
 
         // Expand sheet
         rerender(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
@@ -256,7 +256,7 @@ describe('BottomSheet', () => {
       it('calls onTabChange when feedback tab is pressed', () => {
         const mockOnTabChange = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="insights"
@@ -274,7 +274,7 @@ describe('BottomSheet', () => {
       it('calls onTabChange when insights tab is pressed', () => {
         const mockOnTabChange = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -291,7 +291,7 @@ describe('BottomSheet', () => {
       it('calls onTabChange when comments tab is pressed', () => {
         const mockOnTabChange = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -307,7 +307,7 @@ describe('BottomSheet', () => {
 
       it('displays correct content based on active tab', () => {
         const { rerender } = render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -320,7 +320,7 @@ describe('BottomSheet', () => {
 
         // Switch to insights tab
         rerender(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="insights"
@@ -336,7 +336,7 @@ describe('BottomSheet', () => {
     describe('Feedback Item Interactions', () => {
       it('displays feedback items with correct content', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -354,7 +354,7 @@ describe('BottomSheet', () => {
 
       it('handles empty feedback items gracefully', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -370,7 +370,7 @@ describe('BottomSheet', () => {
       it('calls onFeedbackItemPress when a feedback item is pressed', () => {
         const mockOnFeedbackItemPress = jest.fn()
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -386,7 +386,7 @@ describe('BottomSheet', () => {
 
     describe('Social Button Interactions', () => {
       it('displays correct social stats counts', () => {
-        render(<BottomSheet {...mockProps} />)
+        render(<FeedbackPanel {...mockProps} />)
 
         // Should display social stats using accessibility labels
         expect(screen.getByLabelText('1100 likes')).toBeTruthy()
@@ -395,7 +395,7 @@ describe('BottomSheet', () => {
       })
 
       it('renders social interaction buttons', () => {
-        render(<BottomSheet {...mockProps} />)
+        render(<FeedbackPanel {...mockProps} />)
 
         // Should render social buttons using accessibility labels
         expect(screen.getByLabelText('Like this video. Currently 1100 likes')).toBeTruthy()
@@ -405,10 +405,10 @@ describe('BottomSheet', () => {
       })
 
       it('social buttons are properly sized for touch targets', () => {
-        render(<BottomSheet {...mockProps} />)
+        render(<FeedbackPanel {...mockProps} />)
 
         // Test that the component renders with social stats - buttons are present
-        expect(screen.getByLabelText('Bottom sheet collapsed')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback panel collapsed')).toBeTruthy()
         // Note: Individual button interaction testing requires proper testID handling
       })
     })
@@ -416,28 +416,28 @@ describe('BottomSheet', () => {
     describe('Accessibility and Touch Targets', () => {
       it('provides proper accessibility labels for interactive elements', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
         )
 
         // Check accessibility labels
-        expect(screen.getByLabelText('Bottom sheet expanded')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback panel expanded')).toBeTruthy()
         expect(screen.getByLabelText('Sheet handle')).toBeTruthy()
         expect(screen.getByLabelText('Tab navigation')).toBeTruthy()
       })
 
       it('renders interactive elements with proper structure', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
         )
 
         // Should have multiple interactive elements
-        expect(screen.getByLabelText('Bottom sheet expanded')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback panel expanded')).toBeTruthy()
         expect(screen.getByLabelText('feedback tab')).toBeTruthy()
         expect(screen.getByLabelText('insights tab')).toBeTruthy()
         expect(screen.getByLabelText('comments tab')).toBeTruthy()
@@ -445,14 +445,14 @@ describe('BottomSheet', () => {
 
       it('maintains proper component structure for accessibility', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
           />
         )
 
         // Should render main container with accessibility label
-        expect(screen.getByLabelText('Bottom sheet collapsed')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback panel collapsed')).toBeTruthy()
 
         // Should have sheet handle for interaction
         expect(screen.getByLabelText('Sheet handle')).toBeTruthy()
@@ -462,13 +462,13 @@ describe('BottomSheet', () => {
     describe('Enhanced Accessibility-Based Interactions', () => {
       it('calls onSheetExpand when expand button is pressed using accessibility label', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
           />
         )
 
-        const expandButton = screen.getByLabelText('Expand bottom sheet')
+        const expandButton = screen.getByLabelText('Expand feedback panel')
         fireEvent.press(expandButton)
 
         expect(mockProps.onSheetExpand).toHaveBeenCalledTimes(1)
@@ -476,13 +476,13 @@ describe('BottomSheet', () => {
 
       it('calls onSheetCollapse when collapse button is pressed using accessibility label', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
         )
 
-        const collapseButton = screen.getByLabelText('Collapse bottom sheet')
+        const collapseButton = screen.getByLabelText('Collapse feedback panel')
         fireEvent.press(collapseButton)
 
         expect(mockProps.onSheetCollapse).toHaveBeenCalledTimes(1)
@@ -490,7 +490,7 @@ describe('BottomSheet', () => {
 
       it('calls onTabChange when tabs are pressed using accessibility labels', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -510,7 +510,7 @@ describe('BottomSheet', () => {
 
       it('calls social interaction callbacks using accessibility labels', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
@@ -538,7 +538,7 @@ describe('BottomSheet', () => {
 
       it('calls onFeedbackItemPress when feedback items are pressed using accessibility labels', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -561,7 +561,7 @@ describe('BottomSheet', () => {
 
       it('provides proper accessibility state for selected tabs', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="insights"
@@ -580,29 +580,29 @@ describe('BottomSheet', () => {
 
       it('provides proper accessibility state for expanded/collapsed sheet', () => {
         const { rerender } = render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={false}
           />
         )
 
-        const collapsedSheet = screen.getByLabelText('Bottom sheet collapsed')
+        const collapsedSheet = screen.getByLabelText('Feedback panel collapsed')
         expect(collapsedSheet.props.accessibilityState.expanded).toBe(false)
 
         rerender(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
           />
         )
 
-        const expandedSheet = screen.getByLabelText('Bottom sheet expanded')
+        const expandedSheet = screen.getByLabelText('Feedback panel expanded')
         expect(expandedSheet.props.accessibilityState.expanded).toBe(true)
       })
 
       it('provides enhanced accessibility labels for all interactive elements', () => {
         render(
-          <BottomSheet
+          <FeedbackPanel
             {...mockProps}
             isExpanded={true}
             activeTab="feedback"
@@ -610,7 +610,7 @@ describe('BottomSheet', () => {
         )
 
         // Check enhanced accessibility labels
-        expect(screen.getByLabelText('Bottom sheet expanded')).toBeTruthy()
+        expect(screen.getByLabelText('Feedback panel expanded')).toBeTruthy()
         expect(screen.getByLabelText('Sheet header with navigation tabs')).toBeTruthy()
         expect(screen.getByLabelText('Tab navigation')).toBeTruthy()
         expect(screen.getByLabelText('Social interaction buttons')).toBeTruthy()
@@ -622,71 +622,6 @@ describe('BottomSheet', () => {
 
   // US-VF-08: Enhanced Feedback Panel Component Tests
   describe('US-VF-08: Enhanced Feedback Panel Component', () => {
-    it('renders video progress bar when expanded', () => {
-      // 🧪 ARRANGE: Set up component in expanded state with video duration and feedback tab
-      const progressProps = {
-        ...mockProps,
-        isExpanded: true,
-        videoDuration: 120,
-        activeTab: 'feedback' as const,
-      }
-
-      // 🎬 ACT: Render the component
-      render(<BottomSheet {...progressProps} />)
-
-      // ✅ ASSERT: Video progress bar is rendered
-      const progressBar = screen.getByLabelText('Video progress bar')
-      expect(progressBar).toBeTruthy()
-    })
-
-    it('displays current video time and duration in progress bar', () => {
-      // 🧪 ARRANGE: Set up component with specific video time and feedback tab
-      // formatTime function expects milliseconds, so convert seconds to milliseconds
-      const timeProps = {
-        ...mockProps,
-        isExpanded: true,
-        currentVideoTime: 45 * 1000, // 45 seconds in milliseconds
-        videoDuration: 120 * 1000, // 120 seconds in milliseconds
-        activeTab: 'feedback' as const,
-      }
-
-      // 🎬 ACT: Render the component
-      render(<BottomSheet {...timeProps} />)
-
-      // ✅ ASSERT: Time display shows correct format (MM:SS) using accessibility labels
-      const currentTime = screen.getByLabelText('Current time: 00:45')
-      const duration = screen.getByLabelText('Total duration: 02:00')
-      expect(currentTime).toBeTruthy()
-      expect(duration).toBeTruthy()
-    })
-
-    it('calls onVideoSeek when progress bar is interacted with', () => {
-      // 🧪 ARRANGE: Set up component with seek handler and feedback tab
-      const mockOnVideoSeek = jest.fn()
-      const seekProps = {
-        ...mockProps,
-        isExpanded: true,
-        currentVideoTime: 30, // 30 seconds
-        videoDuration: 120, // 120 seconds
-        activeTab: 'feedback' as const,
-        onVideoSeek: mockOnVideoSeek,
-      }
-
-      // 🎬 ACT: Render and interact with progress bar
-      render(<BottomSheet {...seekProps} />)
-      const progressBar = screen.getByLabelText('Video progress bar')
-
-      // Simulate a press event on the progress bar with locationX
-      fireEvent.press(progressBar, {
-        nativeEvent: {
-          locationX: 75, // Simulate clicking at 75% position (75px of 100px width = 75%)
-        },
-      })
-
-      // ✅ ASSERT: Seek handler is called with calculated time (75% of 120 seconds = 90 seconds)
-      expect(mockOnVideoSeek).toHaveBeenCalledWith(90)
-    })
-
     it('highlights current feedback item based on video time (karaoke-style)', () => {
       // 🧪 ARRANGE: Set up component with video time matching second feedback item timestamp (2000ms)
       const karaokeProps = {
@@ -697,7 +632,7 @@ describe('BottomSheet', () => {
       }
 
       // 🎬 ACT: Render the component
-      render(<BottomSheet {...karaokeProps} />)
+      render(<FeedbackPanel {...karaokeProps} />)
 
       // ✅ ASSERT: Second feedback item is highlighted (accessibility label should indicate it's currently active)
       const highlightedItem = screen.getByLabelText(
@@ -716,7 +651,7 @@ describe('BottomSheet', () => {
       }
 
       // 🎬 ACT: Render the component
-      render(<BottomSheet {...noHighlightProps} />)
+      render(<FeedbackPanel {...noHighlightProps} />)
 
       // ✅ ASSERT: No feedback items are highlighted (should not have "(currently active)" in accessibility label)
       const firstItem = screen.getByLabelText('Feedback item: Great posture!')
@@ -747,7 +682,7 @@ describe('BottomSheet', () => {
       }
 
       // 🎬 ACT: Render the component
-      render(<BottomSheet {...stickyProps} />)
+      render(<FeedbackPanel {...stickyProps} />)
 
       // ✅ ASSERT: Tab navigation is positioned at the top and remains accessible
       const tabNavigation = screen.getByLabelText('Tab navigation')
@@ -789,7 +724,7 @@ describe('BottomSheet', () => {
       }
 
       // 🎬 ACT: Render the component
-      render(<BottomSheet {...orderedProps} />)
+      render(<FeedbackPanel {...orderedProps} />)
 
       // ✅ ASSERT: Feedback items are displayed in chronological order (sorted by timestamp)
       const firstItem = screen.getByLabelText('Feedback item: First feedback')
@@ -811,7 +746,7 @@ describe('BottomSheet', () => {
       }
 
       // 🎬 ACT: Render the component
-      render(<BottomSheet {...emptyProps} />)
+      render(<FeedbackPanel {...emptyProps} />)
 
       // ✅ ASSERT: Component renders without crashing and feedback content is empty
       const feedbackContent = screen.getByLabelText('Feedback items list')
@@ -819,24 +754,6 @@ describe('BottomSheet', () => {
 
       // Should not find any feedback items when list is empty
       expect(screen.queryByLabelText(/Feedback item:/)).toBeFalsy()
-    })
-
-    it('supports keyboard navigation for progress bar', () => {
-      // 🧪 ARRANGE: Set up component with video duration and feedback tab
-      const keyboardProps = {
-        ...mockProps,
-        isExpanded: true,
-        videoDuration: 120,
-        activeTab: 'feedback' as const,
-      }
-
-      // 🎬 ACT: Render the component
-      render(<BottomSheet {...keyboardProps} />)
-
-      // ✅ ASSERT: Progress bar is accessible and has proper accessibility props
-      const progressBar = screen.getByLabelText('Video progress bar')
-      expect(progressBar).toBeTruthy()
-      expect(progressBar.props.accessibilityHint).toBe('Tap to seek to different time in video')
     })
   })
 })

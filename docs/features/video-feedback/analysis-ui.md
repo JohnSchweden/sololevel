@@ -110,7 +110,7 @@ YStack fle ={1} backgroundColor="$background"
 ├── ActionButtons:  Stack gap="$3" marginTop="$6" paddingHorizontal="$4" (processing state only)
 │   ├── CancelButton: Button variant="outlined" size="$4" fle ={1}
 │   └── ViewResultsButton: Button variant="primary" size="$4" fle ={1} disabled={!isComplete}
-└── BottomSheet: YStack position="absolute" bottom={0} left={0} right={0} height="40%" backgroundColor="$background" borderTopLeftRadius="$4" borderTopRightRadius="$4" (e pandable)
+└── FeedbackPanel: YStack position="absolute" bottom={0} left={0} right={0} height="40%" backgroundColor="$background" borderTopLeftRadius="$4" borderTopRightRadius="$4" (expandable)
     ├── SheetHandle: YStack width={40} height={4} backgroundColor="$color11" borderRadius={2} alignSelf="center" marginTop="$2" marginBottom="$3"
     ├── VideoProgressBar: YStack height={4} backgroundColor="$purple9" borderRadius={2} marginHorizontal="$4" marginBottom="$3" (when e panded)
     ├── TabNavigation:  Stack paddingHorizontal="$4" paddingBottom="$3" borderBottomWidth={1} borderBottomColor="$borderColor"
@@ -132,7 +132,7 @@ YStack fle ={1} backgroundColor="$background"
   - [x] **Layout Components**: YStack,  Stack, ScrollView, SafeAreaView
   - [x] **Interactive Components**: Button, Progress, Spinner, Pressable
   - [x] **Display Components**: Te t, Image, Circle, Avatar
-  - [x] **Overlay Components**: Positioned overlays, BottomSheet, Canvas/SVG
+  - [x] **Overlay Components**: Positioned overlays, FeedbackPanel, Canvas/SVG
   - [x] **Custom Components**: VideoPlayer, ProgressBar, FeedbackBubble, MotionCaptureOverlay, SocialIconGroup
   - [x] **State-Specific Components**:
     - ProcessingOverlay: Spinner + Progress + Status te t
@@ -140,7 +140,7 @@ YStack fle ={1} backgroundColor="$background"
     - VideoControlsOverlay: Play/pause + seek controls
     - FeedbackBubbles: Speech bubble components with positioning
     - AudioFeedbackOverlay: Audio playback controls with progress and waveform
-    - BottomSheet: E pandable panel with tabs and timeline
+    - FeedbackPanel: E pandable panel with tabs and timeline
     - SocialIcons: Like, comment, bookmark, share with counts
 
 - [x] **Design System Integration**: Theme tokens and styling consistency
@@ -260,7 +260,7 @@ YStack fle ={1} backgroundColor="$background"
   - [x] ProcessingOverlay: ✅ **100%** - AI pipeline stage display with progress validation and accessibility
   - [x] VideoControlsOverlay: ✅ **100%** - Media control implementation with time formatting, accessibility, and React Native patterns
   - [x] MotionCaptureOverlay: ✅ **100%** - Pose data rendering and skeleton visualization with confidence filtering
-  - [x] BottomSheet: ⚠️ **85%** - Tab navigation and content accessibility (basic button interactions, gesture support overclaimed)
+  - [x] FeedbackPanel: ⚠️ **85%** - Tab navigation and content accessibility (basic button interactions, gesture support overclaimed)
   - [x] FeedbackBubbles: ✅ **100%** - Message display and interaction handling with tap support
   - [x] AudioFeedbackOverlay: ✅ **100%** - TTS audio playback and control implementation with progress tracking
   - [x] SocialIcons: ✅ **100%** - Social interaction handling with count formatting and accessibility
@@ -310,7 +310,7 @@ YStack fle ={1} backgroundColor="$background"
   - [x] Overlay visibility state management: ⚠️ **60%** - Basic opacity changes, smooth transitions missing
   - [x] Real-time pose data updates: ⚠️ **60%** - Basic rendering, performance monitoring missing
 
-- [x] **BottomSheet Interactive Elements**: ⚠️ **70% accurate** - Basic implementation with button interactions
+- [x] **FeedbackPanel Interactive Elements**: ⚠️ **70% accurate** - Basic implementation with button interactions
   - [x] Sheet expand/collapse interactions: ⚠️ **60%** - Height state management via button toggle, drag gestures missing
   - [x] Tab switching functionality: ✅ **100%** - Feedback/insights/comments with proper state transitions
   - [x] Social button interactions: ✅ **100%** - Like, comment, bookmark, share with count updates
@@ -587,7 +587,7 @@ interface FeedbackMessage {
 }
 
 // Bottom Sheet Components
-interface BottomSheetProps {
+interface FeedbackPanelProps {
   isE panded: boolean
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
@@ -657,10 +657,10 @@ interface VideoControlsOverlayProps {
 // - Fullscreen button interactions and accessibility hints
 ```
 
-### BottomSheet Interactive Implementation (✅ IMPLEMENTED)
+### FeedbackPanel Interactive Implementation (✅ IMPLEMENTED)
 ```typescript
-// BottomSheet component handles expandable feedback panel
-interface BottomSheetProps {
+// FeedbackPanel component handles expandable feedback panel
+interface FeedbackPanelProps {
   isExpanded: boolean
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
@@ -715,7 +715,7 @@ interface SocialIconsProps {
 **Validated Component Implementation:**
 1. **ProcessingOverlay**: ✅ Complete with progress tracking, stage indicators, action buttons, time estimation
 2. **VideoControlsOverlay**: ✅ Complete with play/pause, seek, time formatting, accessibility, fullscreen
-3. **BottomSheet**: ✅ Complete with tabs, social icons, feedback items, expand/collapse, drag gestures
+3. **FeedbackPanel**: ✅ Complete with tabs, social icons, feedback items, expand/collapse, drag gestures
 4. **MotionCaptureOverlay**: ✅ Complete with pose data rendering, confidence filtering, joint interactions, skeleton connections
 5. **FeedbackBubbles**: ✅ Complete with message filtering (last 3), positioning, tap interactions, visual states
 6. **AudioFeedbackOverlay**: ✅ Complete with playback controls, progress bar, waveform placeholder, close functionality
@@ -776,10 +776,10 @@ interface SocialIconsProps {
 
 **⚠️ PARTIALLY IMPLEMENTED (2/5 components - 40%)**
 4. **MotionCaptureOverlay**: Core functionality works, but lacks smooth transitions and performance monitoring
-5. **BottomSheet**: Core functionality works, but lacks drag gestures (only button toggle implemented)
+5. **FeedbackPanel**: Core functionality works, but lacks drag gestures (only button toggle implemented)
 
 **Key Missing Features:**
-- Drag gestures for BottomSheet (claimed but not implemented)
+- Drag gestures for FeedbackPanel (claimed but not implemented)
 - Smooth transitions/animations (basic opacity changes only)
 - Performance monitoring (no monitoring code found)
 - Advanced gesture support (pinch, multi-touch, long press)
@@ -792,7 +792,7 @@ interface SocialIconsProps {
    - ProcessingOverlay: ✅ **100%** - AI pipeline stages and accessibility complete
    - VideoControlsOverlay: ✅ **100%** - Media controls and time formatting complete
    - MotionCaptureOverlay: ✅ **100%** - Pose data rendering and confidence filtering complete
-   - BottomSheet: ⚠️ **85%** - Tab navigation complete, gesture support overclaimed
+   - FeedbackPanel: ⚠️ **85%** - Tab navigation complete, gesture support overclaimed
    - FeedbackBubbles: ✅ **100%** - Message display and interactions complete
    - AudioFeedbackOverlay: ✅ **100%** - TTS playback controls complete
    - SocialIcons: ✅ **100%** - Social interactions and count formatting complete
@@ -826,7 +826,7 @@ interface SocialIconsProps {
 - Proper Tamagui design system integration
 
 **Phase 1 Minor Issues:**
-- BottomSheet gesture support overclaimed (button toggle only)
+- FeedbackPanel gesture support overclaimed (button toggle only)
 - Performance monitoring claims not implemented
 - Advanced animation tokens overclaimed (basic tokens only)
 

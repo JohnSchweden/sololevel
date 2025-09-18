@@ -46,6 +46,7 @@ export interface VideoPlayerProps {
    */
   currentTime?: number
   onPause?: () => void
+  onEnd?: () => void
   onLoad?: (data: { duration: number }) => void
   onProgress?: (data: { currentTime: number }) => void
   /** Time to seek to when user scrubs; set to null to do nothing */

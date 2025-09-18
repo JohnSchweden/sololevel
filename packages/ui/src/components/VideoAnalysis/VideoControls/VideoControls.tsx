@@ -3,6 +3,7 @@ import {
   Maximize2,
   Pause,
   Play,
+  RotateCcw,
   Share,
   SkipBack,
   SkipForward,
@@ -29,8 +30,10 @@ export interface VideoControlsProps {
   duration: number
   showControls: boolean
   isProcessing?: boolean
+  videoEnded?: boolean
   onPlay: () => void
   onPause: () => void
+  onReplay?: () => void
   onSeek: (time: number) => void
   onToggleFullscreen?: () => void
   onControlsVisibilityChange?: (visible: boolean) => void
@@ -47,8 +50,10 @@ export const VideoControls = React.memo(
         duration,
         showControls,
         isProcessing = false,
+        videoEnded = false,
         onPlay,
         onPause,
+        onReplay,
         onSeek,
         onToggleFullscreen,
         onControlsVisibilityChange,
@@ -64,14 +69,14 @@ export const VideoControls = React.memo(
       const [progressBarWidth, setProgressBarWidth] = useState(300) // default width
       const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-      // Auto-hide controls after 3 seconds when playing
+      // Auto-hide controls after 3 seconds when playing (only if showControls allows it)
       const resetAutoHideTimer = useCallback(() => {
         if (hideTimeoutRef.current) {
           clearTimeout(hideTimeoutRef.current)
         }
 
-        // Only start timer if playing and not scrubbing, and controls should be visible
-        if (isPlaying && !isScrubbing && showControls) {
+        // Only start timer if playing and not scrubbing, and showControls doesn't force visibility
+        if (isPlaying && !isScrubbing && !showControls) {
           hideTimeoutRef.current = setTimeout(() => {
             setControlsVisible(false)
             onControlsVisibilityChange?.(false)
@@ -318,18 +323,30 @@ export const VideoControls = React.memo(
                 />
                 <Button
                   chromeless
-                  icon={isPlaying ? <Pause /> : <Play />}
+                  icon={videoEnded ? <RotateCcw /> : isPlaying ? <Pause /> : <Play />}
                   size={80}
                   backgroundColor="rgba(255,255,255,0.60)"
                   borderRadius={40}
                   onPress={() => {
                     showControlsAndResetTimer()
-                    isPlaying ? onPause() : onPlay()
+                    if (videoEnded && onReplay) {
+                      onReplay()
+                    } else {
+                      isPlaying ? onPause() : onPlay()
+                    }
                   }}
-                  testID={isPlaying ? 'pause-button' : 'play-button'}
-                  accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+                  testID={videoEnded ? 'replay-button' : isPlaying ? 'pause-button' : 'play-button'}
+                  accessibilityLabel={
+                    videoEnded ? 'Replay video' : isPlaying ? 'Pause video' : 'Play video'
+                  }
                   accessibilityRole="button"
-                  accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
+                  accessibilityHint={
+                    videoEnded
+                      ? 'Restart video from beginning'
+                      : isPlaying
+                        ? 'Pause video playback'
+                        : 'Start video playback'
+                  }
                   accessibilityState={{ selected: isPlaying }}
                 />
                 <Button

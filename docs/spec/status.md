@@ -66,7 +66,7 @@
   - FeedbackBubbles component for AI commentary with positioning and tap interactions
   - AudioFeedbackOverlay component with TTS playback controls and progress
   - VideoControlsOverlay component with play/pause, seek, time display, and auto-hide behavior
-  - BottomSheet component for feedback timeline with tabs and social interactions
+  - FeedbackPanel component for feedback timeline with tabs and social interactions
   - SocialIcons component for engagement metrics with formatted counts
   - VideoTitle component for AI-powered title generation and editing
   - VideoAnalysisScreen integration - main screen orchestrating all components

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
 // Logger for debugging
@@ -10,6 +10,7 @@ import {
   AudioFeedback,
   CoachAvatar,
   FeedbackBubbles,
+  FeedbackPanel,
   MotionCaptureOverlay,
   VideoContainer,
   VideoControls,
@@ -20,9 +21,6 @@ import {
 
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
-
-// Simplified version - comment out complex components for now
-// import { BottomSheet, SocialIcons } from '@ui/components/VideoAnalysis'
 
 // Real-time integration hooks - comment out for simplified version
 // import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
@@ -78,9 +76,24 @@ export function VideoAnalysisScreen({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [pendingSeek, setPendingSeek] = useState<number | null>(null)
+  const [videoEnded, setVideoEnded] = useState(false)
 
   // Coach avatar state
   const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
+
+  // Feedback Panel state for US-VF-08
+  const [feedbackPanelExpanded, setFeedbackPanelExpanded] = useState(false)
+  const [activeFeedbackTab, setActiveFeedbackTab] = useState<'feedback' | 'insights' | 'comments'>(
+    'feedback'
+  )
+
+  // Social stats for feedback panel
+  const [socialStats, setSocialStats] = useState({
+    likes: 1247,
+    comments: 89,
+    bookmarks: 234,
+    shares: 1567,
+  })
 
   // Feedback messages state
   const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([
@@ -115,6 +128,17 @@ export function VideoAnalysisScreen({
       isActive: true,
     },
   ])
+
+  // Transform feedback messages for FeedbackPanel format (US-VF-08)
+  const feedbackItems = useMemo(() => {
+    return feedbackMessages.map((message) => ({
+      id: message.id,
+      timestamp: message.timestamp,
+      text: message.text,
+      type: message.type as 'positive' | 'suggestion' | 'correction',
+      category: message.category as 'voice' | 'posture' | 'grip' | 'movement',
+    }))
+  }, [feedbackMessages])
 
   // Sequential bubble display state
   const [currentBubbleIndex, setCurrentBubbleIndex] = useState<number | null>(null)
@@ -175,11 +199,19 @@ export function VideoAnalysisScreen({
   const handlePlay = useCallback(() => {
     log.info('[VideoAnalysisScreen] handlePlay called')
     setIsPlaying(true)
+    setVideoEnded(false) // Reset ended state when user plays
   }, [])
 
   const handlePause = useCallback(() => {
     log.info('[VideoAnalysisScreen] handlePause called')
     setIsPlaying(false)
+    setVideoEnded(false) // Reset ended state when user pauses
+  }, [])
+
+  const handleVideoEnd = useCallback(() => {
+    log.info('[VideoAnalysisScreen] handleVideoEnd called')
+    setIsPlaying(false)
+    setVideoEnded(true)
   }, [])
 
   const handleSeek = useCallback(
@@ -191,9 +223,17 @@ export function VideoAnalysisScreen({
         pendingSeek,
       })
       setPendingSeek(time)
+      setVideoEnded(false) // Reset ended state when seeking
     },
     [currentTime, isPlaying, pendingSeek]
   )
+
+  const handleReplay = useCallback(() => {
+    log.info('[VideoAnalysisScreen] handleReplay called')
+    setPendingSeek(0) // Seek to beginning
+    setVideoEnded(false)
+    setIsPlaying(true)
+  }, [])
 
   const handleVideoLoad = useCallback((data: { duration: number }) => {
     log.info('[VideoAnalysisScreen] handleVideoLoad called', { duration: data.duration })
@@ -360,27 +400,27 @@ export function VideoAnalysisScreen({
     [feedbackMessages, currentBubbleIndex, bubbleVisible, showBubble]
   )
 
-  // Handler for feedback bubble taps
-  const handleFeedbackBubbleTap = useCallback((message: FeedbackMessage) => {
-    log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
+  // // Handler for feedback bubble taps
+  // const handleFeedbackBubbleTap = useCallback((message: FeedbackMessage) => {
+  //   log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
 
-    // Seek to the timestamp of the tapped feedback message
-    const seekTime = message.timestamp / 1000 // Convert from milliseconds to seconds
-    setPendingSeek(seekTime)
+  //   // Seek to the timestamp of the tapped feedback message
+  //   const seekTime = message.timestamp / 1000 // Convert from milliseconds to seconds
+  //   setPendingSeek(seekTime)
 
-    // Highlight the tapped message
-    setFeedbackMessages((prevMessages) =>
-      prevMessages.map((msg) => ({
-        ...msg,
-        isHighlighted: msg.id === message.id,
-      }))
-    )
+  //   // Highlight the tapped message
+  //   setFeedbackMessages((prevMessages) =>
+  //     prevMessages.map((msg) => ({
+  //       ...msg,
+  //       isHighlighted: msg.id === message.id,
+  //     }))
+  //   )
 
-    // Make coach speak when feedback bubble is tapped
-    setIsCoachSpeaking(true)
-    // Stop speaking after 3 seconds
-    setTimeout(() => setIsCoachSpeaking(false), 3000)
-  }, [])
+  //   // Make coach speak when feedback bubble is tapped
+  //   setIsCoachSpeaking(true)
+  //   // Stop speaking after 3 seconds
+  //   setTimeout(() => setIsCoachSpeaking(false), 3000)
+  // }, [])
 
   // Handle video progress and bubble timing
   const handleVideoProgress = useCallback(
@@ -435,8 +475,71 @@ export function VideoAnalysisScreen({
     [feedbackMessages, currentBubbleIndex, bubbleVisible, showBubble, isPlaying]
   )
 
+  // Feedback Panel handlers for US-VF-08
+  const handleFeedbackPanelExpand = useCallback(() => {
+    log.info('[VideoAnalysisScreen] Feedback panel expanding')
+    setFeedbackPanelExpanded(true)
+  }, [])
+
+  const handleFeedbackPanelCollapse = useCallback(() => {
+    log.info('[VideoAnalysisScreen] Feedback panel collapsing')
+    setFeedbackPanelExpanded(false)
+  }, [])
+
+  const handleFeedbackTabChange = useCallback((tab: 'feedback' | 'insights' | 'comments') => {
+    log.info('[VideoAnalysisScreen] Feedback tab changed', { tab })
+    setActiveFeedbackTab(tab)
+  }, [])
+
+  const handleFeedbackItemPress = useCallback((item: any) => {
+    log.info('[VideoAnalysisScreen] Feedback item pressed', {
+      itemId: item.id,
+      timestamp: item.timestamp,
+    })
+
+    // Seek to the feedback item's timestamp
+    const seekTime = item.timestamp / 1000 // Convert from milliseconds to seconds
+    setPendingSeek(seekTime)
+
+    // Highlight the pressed feedback item
+    setFeedbackMessages((prevMessages) =>
+      prevMessages.map((msg) => ({
+        ...msg,
+        isHighlighted: msg.id === item.id,
+      }))
+    )
+
+    // Make coach speak when feedback item is pressed
+    setIsCoachSpeaking(true)
+    setTimeout(() => setIsCoachSpeaking(false), 3000)
+  }, [])
+
+  const handleSocialAction = useCallback((action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    log.info('[VideoAnalysisScreen] Social action', { action })
+
+    setSocialStats((prev) => ({
+      ...prev,
+      [action === 'like'
+        ? 'likes'
+        : action === 'comment'
+          ? 'comments'
+          : action === 'bookmark'
+            ? 'bookmarks'
+            : 'shares']:
+        prev[
+          action === 'like'
+            ? 'likes'
+            : action === 'comment'
+              ? 'comments'
+              : action === 'bookmark'
+                ? 'bookmarks'
+                : 'shares'
+        ] + 1,
+    }))
+  }, [])
+
   return (
-    <VideoContainer>
+    <VideoContainer hasFeedbackPanel={true}>
       <VideoPlayerArea>
         <YStack
           flex={1}
@@ -449,6 +552,7 @@ export function VideoAnalysisScreen({
               videoUri={recordedVideoUri}
               isPlaying={isPlaying}
               onPause={handlePause}
+              onEnd={handleVideoEnd}
               onLoad={handleVideoLoad}
               onProgress={handleVideoProgress}
               seekToTime={pendingSeek}
@@ -494,7 +598,7 @@ export function VideoAnalysisScreen({
                 ? [feedbackMessages[currentBubbleIndex]]
                 : []
             }
-            onBubbleTap={handleFeedbackBubbleTap}
+            // onBubbleTap={handleFeedbackBubbleTap}
           />
 
           <AudioFeedback
@@ -514,6 +618,25 @@ export function VideoAnalysisScreen({
             isVisible={false}
           />
 
+          {/* Feedback Panel for US-VF-08 */}
+          <FeedbackPanel
+            isExpanded={feedbackPanelExpanded}
+            activeTab={activeFeedbackTab}
+            feedbackItems={feedbackItems}
+            socialStats={socialStats}
+            currentVideoTime={currentTime}
+            videoDuration={duration}
+            onTabChange={handleFeedbackTabChange}
+            onSheetExpand={handleFeedbackPanelExpand}
+            onSheetCollapse={handleFeedbackPanelCollapse}
+            onFeedbackItemPress={handleFeedbackItemPress}
+            onVideoSeek={handleSeek}
+            onLike={() => handleSocialAction('like')}
+            onComment={() => handleSocialAction('comment')}
+            onBookmark={() => handleSocialAction('bookmark')}
+            onShare={() => handleSocialAction('share')}
+          />
+
           {/* Coach Avatar - positioned in bottom-right corner below video controls */}
           <CoachAvatar
             isSpeaking={isCoachSpeaking}
@@ -526,10 +649,12 @@ export function VideoAnalysisScreen({
             isPlaying={isPlaying}
             currentTime={currentTime}
             duration={duration}
-            showControls={isProcessing || !isPlaying}
+            showControls={isProcessing || !isPlaying || videoEnded}
             isProcessing={isProcessing}
+            videoEnded={videoEnded}
             onPlay={handlePlay}
             onPause={handlePause}
+            onReplay={handleReplay}
             onSeek={handleSeek}
             headerComponent={
               <AppHeader

@@ -1,24 +1,22 @@
-import { Pressable } from 'react-native'
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
 export interface FeedbackBubblesProps {
   messages: FeedbackMessage[]
-  onBubbleTap: (message: FeedbackMessage) => void
 }
 
-function SpeechBubble({ message, onTap }: { message: FeedbackMessage; onTap: () => void }) {
+function SpeechBubble({ message }: { message: FeedbackMessage }) {
   const getBubbleBackgroundColor = () => {
-    // Glassy background with different opacities based on message type
+    // Glassy background with transparent theme-inspired colors
     switch (message.type) {
       case 'positive':
-        return 'rgba(34, 197, 94, 0.15)' // green with low opacity
+        return 'rgba(34, 197, 94, 0.15)' // transparent green
       case 'suggestion':
-        return 'rgba(59, 130, 246, 0.15)' // blue with low opacity
+        return 'rgba(59, 130, 246, 0.15)' // transparent blue
       case 'correction':
-        return 'rgba(245, 101, 101, 0.15)' // red with low opacity
+        return 'rgba(239, 68, 68, 0.15)' // transparent red
       default:
-        return 'rgba(75, 85, 99, 0.15)' // gray with low opacity
+        return 'rgba(107, 114, 128, 0.15)' // transparent gray
     }
   }
 
@@ -37,71 +35,59 @@ function SpeechBubble({ message, onTap }: { message: FeedbackMessage; onTap: () 
   }
 
   return (
-    <Pressable
-      onPress={onTap}
+    <YStack
       testID={`feedback-bubble-${message.id}`}
-      accessibilityLabel={`Feedback: ${message.text}`}
-      accessibilityRole="button"
-      accessibilityHint={`Tap to view details about ${message.category} feedback`}
-      accessibilityState={{
-        selected: message.isHighlighted,
-        disabled: !message.isActive,
-      }}
+      accessibilityLabel={`Feedback: ${message.type} feedback bubble`}
     >
+      {/* Feedback Bubble */}
       <YStack
-        testID={`bubble-content-${message.id}`}
-        accessibilityLabel={`${message.type} feedback bubble`}
+        backgroundColor={getBubbleBackgroundColor()}
+        borderColor="$color12" // Thin white border
+        borderWidth={1}
+        padding="$3"
+        borderRadius="$6"
+        maxWidth={280}
+        opacity={message.isActive ? 1 : 0.7}
+        scale={message.isHighlighted ? 1.05 : 1}
+        // Glassy blur effect using backdrop-filter style
+        style={{
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)', // Safari support
+        }}
+        // Enhanced shadow for glassy effect
+        shadowColor="$color12"
+        shadowOffset={{ width: 0, height: 4 }}
+        shadowOpacity={0.1}
+        shadowRadius={6}
+        // Soft animation effects
+        animation="quick"
+        enterStyle={{
+          opacity: 0,
+          scale: 0.8,
+        }}
+        exitStyle={{
+          opacity: 0,
+          scale: 0.8,
+        }}
+        testID={`bubble-text-container-${message.id}`}
       >
-        {/* Feedback Bubble */}
-        <YStack
-          backgroundColor={getBubbleBackgroundColor()}
-          borderColor="$color12" // Thin white border
-          borderWidth={1}
-          padding="$3"
-          borderRadius="$6"
-          maxWidth={280}
-          opacity={message.isActive ? 1 : 0.7}
-          scale={message.isHighlighted ? 1.05 : 1}
-          // Glassy blur effect using backdrop-filter style
-          style={{
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)', // Safari support
-          }}
-          // Enhanced shadow for glassy effect
-          shadowColor="rgba(0, 0, 0, 0.1)"
-          shadowOffset={{ width: 0, height: 4 }}
-          shadowOpacity={0.3}
-          shadowRadius={8}
-          // Soft animation effects
-          animation="quick"
-          enterStyle={{
-            opacity: 0,
-            scale: 0.8,
-          }}
-          exitStyle={{
-            opacity: 0,
-            scale: 0.8,
-          }}
-          testID={`bubble-text-container-${message.id}`}
+        <Text
+          fontSize="$4"
+          color={getTextColor()}
+          fontWeight={message.isHighlighted ? '600' : '400'}
+          lineHeight="$5"
+          textAlign="center"
+          testID={`bubble-text-${message.id}`}
+          accessibilityLabel={message.text}
         >
-          <Text
-            fontSize="$4"
-            color={getTextColor()}
-            fontWeight={message.isHighlighted ? '600' : '400'}
-            lineHeight="$5"
-            textAlign="center"
-            testID={`bubble-text-${message.id}`}
-            accessibilityLabel={message.text}
-          >
-            {message.text}
-          </Text>
-        </YStack>
+          {message.text}
+        </Text>
       </YStack>
-    </Pressable>
+    </YStack>
   )
 }
 
-export function FeedbackBubbles({ messages, onBubbleTap }: FeedbackBubblesProps) {
+export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
   // Filter messages to show (limit to prevent overcrowding)
   // Prioritize highlighted and active messages, then show most recent
   const sortedMessages = messages
@@ -147,10 +133,7 @@ export function FeedbackBubbles({ messages, onBubbleTap }: FeedbackBubblesProps)
             scale={message.isHighlighted ? 1.05 : 1}
             testID={`bubble-position-${message.id}`}
           >
-            <SpeechBubble
-              message={message}
-              onTap={() => onBubbleTap(message)}
-            />
+            <SpeechBubble message={message} />
           </YStack>
         ))}
       </YStack>

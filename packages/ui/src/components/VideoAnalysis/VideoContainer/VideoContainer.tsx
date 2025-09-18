@@ -9,6 +9,7 @@ export interface VideoContainerProps {
   header?: ReactNode
   bottomNavigation?: ReactNode
   backgroundColor?: GetProps<typeof YStack>['backgroundColor']
+  hasFeedbackPanel?: boolean
 }
 
 /**
@@ -21,6 +22,7 @@ export function VideoContainer({
   header,
   bottomNavigation,
   backgroundColor = '$background',
+  hasFeedbackPanel = false,
 }: VideoContainerProps) {
   return (
     <YStack
@@ -35,7 +37,7 @@ export function VideoContainer({
         left={0}
         right={0}
         bottom={0}
-        overflow="hidden"
+        overflow={hasFeedbackPanel ? 'visible' : 'hidden'}
       >
         {children}
       </YStack>

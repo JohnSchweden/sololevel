@@ -99,7 +99,6 @@ const manyMessages = [
 export const Default: Story = {
   args: {
     messages: mockMessages,
-    onBubbleTap: (message) => console.log('Bubble tapped:', message),
   },
   decorators: [
     (Story) => (
@@ -120,7 +119,6 @@ export const Default: Story = {
 export const Highlighted: Story = {
   args: {
     messages: highlightedMessages,
-    onBubbleTap: (message) => console.log('Bubble tapped:', message),
   },
   decorators: [
     (Story) => (
@@ -141,7 +139,6 @@ export const Highlighted: Story = {
 export const Inactive: Story = {
   args: {
     messages: inactiveMessages,
-    onBubbleTap: (message) => console.log('Bubble tapped:', message),
   },
   decorators: [
     (Story) => (
@@ -162,7 +159,6 @@ export const Inactive: Story = {
 export const ManyMessages: Story = {
   args: {
     messages: manyMessages,
-    onBubbleTap: (message) => console.log('Bubble tapped:', message),
   },
   decorators: [
     (Story) => (
@@ -183,7 +179,6 @@ export const ManyMessages: Story = {
 export const Empty: Story = {
   args: {
     messages: [],
-    onBubbleTap: (message) => console.log('Bubble tapped:', message),
   },
   decorators: [
     (Story) => (

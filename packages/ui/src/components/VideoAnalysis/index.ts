@@ -27,8 +27,8 @@ export type {
   OriginalVideoPlayerProps,
 } from './types'
 
-export { BottomSheet } from './BottomSheet/BottomSheet'
-export type { BottomSheetProps } from './BottomSheet/BottomSheet'
+export { FeedbackPanel } from './FeedbackPanel/FeedbackPanel'
+export type { FeedbackPanelProps } from './FeedbackPanel/FeedbackPanel'
 
 export { SocialIcons } from './SocialIcons/SocialIcons'
 export type { SocialIconsProps } from './SocialIcons/SocialIcons'

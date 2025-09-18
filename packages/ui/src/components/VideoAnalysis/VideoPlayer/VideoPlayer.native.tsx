@@ -7,7 +7,7 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   videoUri,
   isPlaying,
   currentTime: _currentTime, // Deprecated: kept for backward compatibility
-  onPause,
+  onEnd,
   onLoad,
   onProgress,
   seekToTime,
@@ -48,7 +48,7 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
 
   // Handle video end
   const handleEnd = () => {
-    onPause?.()
+    onEnd?.()
   }
 
   // Perform user-initiated seek only when seekToTime is provided

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { BottomSheet } from './BottomSheet'
+import { FeedbackPanel } from './FeedbackPanel'
 
-const meta: Meta<typeof BottomSheet> = {
-  title: 'VideoAnalysis/BottomSheet',
-  component: BottomSheet,
+const meta: Meta<typeof FeedbackPanel> = {
+  title: 'VideoAnalysis/FeedbackPanel',
+  component: FeedbackPanel,
   parameters: {
     layout: 'fullscreen',
   },
@@ -58,8 +58,8 @@ export const Collapsed: Story = {
     feedbackItems: mockFeedbackItems,
     socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
-    onSheetExpand: () => console.log('Sheet expanded'),
-    onSheetCollapse: () => console.log('Sheet collapsed'),
+    onSheetExpand: () => console.log('Panel expanded'),
+    onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
     onLike: () => console.log('Liked'),
     onComment: () => console.log('Commented'),
@@ -89,8 +89,8 @@ export const ExpandedFeedback: Story = {
     feedbackItems: mockFeedbackItems,
     socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
-    onSheetExpand: () => console.log('Sheet expanded'),
-    onSheetCollapse: () => console.log('Sheet collapsed'),
+    onSheetExpand: () => console.log('Panel expanded'),
+    onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
     onLike: () => console.log('Liked'),
     onComment: () => console.log('Commented'),
@@ -120,8 +120,8 @@ export const ExpandedInsights: Story = {
     feedbackItems: mockFeedbackItems,
     socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
-    onSheetExpand: () => console.log('Sheet expanded'),
-    onSheetCollapse: () => console.log('Sheet collapsed'),
+    onSheetExpand: () => console.log('Panel expanded'),
+    onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
     onLike: () => console.log('Liked'),
     onComment: () => console.log('Commented'),
@@ -151,8 +151,8 @@ export const ExpandedComments: Story = {
     feedbackItems: mockFeedbackItems,
     socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
-    onSheetExpand: () => console.log('Sheet expanded'),
-    onSheetCollapse: () => console.log('Sheet collapsed'),
+    onSheetExpand: () => console.log('Panel expanded'),
+    onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
     onLike: () => console.log('Liked'),
     onComment: () => console.log('Commented'),
@@ -187,8 +187,8 @@ export const HighEngagement: Story = {
       shares: 1567,
     },
     onTabChange: (tab) => console.log('Tab changed to:', tab),
-    onSheetExpand: () => console.log('Sheet expanded'),
-    onSheetCollapse: () => console.log('Sheet collapsed'),
+    onSheetExpand: () => console.log('Panel expanded'),
+    onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
     onLike: () => console.log('Liked'),
     onComment: () => console.log('Commented'),
