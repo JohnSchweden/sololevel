@@ -9,7 +9,8 @@ export interface VideoContainerProps {
   header?: ReactNode
   bottomNavigation?: ReactNode
   backgroundColor?: GetProps<typeof YStack>['backgroundColor']
-  hasFeedbackPanel?: boolean
+  useFlexLayout?: boolean // When true, doesn't use absolute positioning for content
+  flex?: number // Flex value for flex layout mode
 }
 
 /**
@@ -22,8 +23,37 @@ export function VideoContainer({
   header,
   bottomNavigation,
   backgroundColor = '$background',
-  hasFeedbackPanel = false,
+  useFlexLayout = false,
+  flex,
 }: VideoContainerProps) {
+  if (useFlexLayout) {
+    // Flex layout mode - no absolute positioning, children flow normally
+    return (
+      <YStack
+        flex={flex ?? 1}
+        backgroundColor={backgroundColor}
+        position="relative"
+      >
+        {/* Video Player Area - flows in flex layout */}
+        <YStack
+          flex={1}
+          overflow="hidden"
+        >
+          {children}
+        </YStack>
+
+        {/* Header Section - Mobile optimized */}
+        {header && <AppHeaderContainer>{header}</AppHeaderContainer>}
+
+        {/* Bottom Navigation - Mobile optimized */}
+        {bottomNavigation && (
+          <BottomNavigationContainer>{bottomNavigation}</BottomNavigationContainer>
+        )}
+      </YStack>
+    )
+  }
+
+  // Default full-screen mode with absolute positioning
   return (
     <YStack
       flex={1}
@@ -37,7 +67,7 @@ export function VideoContainer({
         left={0}
         right={0}
         bottom={0}
-        overflow={hasFeedbackPanel ? 'visible' : 'hidden'}
+        overflow="hidden"
       >
         {children}
       </YStack>
@@ -56,16 +86,21 @@ export function VideoContainer({
 export interface VideoPlayerAreaProps {
   children?: ReactNode
   isPlaying?: boolean
+  flex?: number
 }
 
 /**
  * Video Player Area with Absolute Positioning Support
  * Provides relative positioning for overlays and controls
  */
-export function VideoPlayerArea({ children, isPlaying: _isPlaying = false }: VideoPlayerAreaProps) {
+export function VideoPlayerArea({
+  children,
+  isPlaying: _isPlaying = false,
+  flex,
+}: VideoPlayerAreaProps) {
   return (
     <YStack
-      flex={1}
+      flex={flex ?? 1}
       position="relative"
       backgroundColor="transparent"
     >

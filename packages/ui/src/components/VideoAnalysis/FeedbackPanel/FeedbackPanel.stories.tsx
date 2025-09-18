@@ -44,27 +44,15 @@ const mockFeedbackItems = [
   },
 ]
 
-const mockSocialStats = {
-  likes: 1100,
-  comments: 13,
-  bookmarks: 1100,
-  shares: 224,
-}
-
 export const Collapsed: Story = {
   args: {
     isExpanded: false,
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
-    socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
     onSheetExpand: () => console.log('Panel expanded'),
     onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
-    onLike: () => console.log('Liked'),
-    onComment: () => console.log('Commented'),
-    onBookmark: () => console.log('Bookmarked'),
-    onShare: () => console.log('Shared'),
   },
   decorators: [
     (Story) => (
@@ -87,15 +75,10 @@ export const ExpandedFeedback: Story = {
     isExpanded: true,
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
-    socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
     onSheetExpand: () => console.log('Panel expanded'),
     onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
-    onLike: () => console.log('Liked'),
-    onComment: () => console.log('Commented'),
-    onBookmark: () => console.log('Bookmarked'),
-    onShare: () => console.log('Shared'),
   },
   decorators: [
     (Story) => (
@@ -118,15 +101,10 @@ export const ExpandedInsights: Story = {
     isExpanded: true,
     activeTab: 'insights',
     feedbackItems: mockFeedbackItems,
-    socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
     onSheetExpand: () => console.log('Panel expanded'),
     onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
-    onLike: () => console.log('Liked'),
-    onComment: () => console.log('Commented'),
-    onBookmark: () => console.log('Bookmarked'),
-    onShare: () => console.log('Shared'),
   },
   decorators: [
     (Story) => (
@@ -149,15 +127,10 @@ export const ExpandedComments: Story = {
     isExpanded: true,
     activeTab: 'comments',
     feedbackItems: mockFeedbackItems,
-    socialStats: mockSocialStats,
     onTabChange: (tab) => console.log('Tab changed to:', tab),
     onSheetExpand: () => console.log('Panel expanded'),
     onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
-    onLike: () => console.log('Liked'),
-    onComment: () => console.log('Commented'),
-    onBookmark: () => console.log('Bookmarked'),
-    onShare: () => console.log('Shared'),
   },
   decorators: [
     (Story) => (
@@ -180,20 +153,10 @@ export const HighEngagement: Story = {
     isExpanded: false,
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
-    socialStats: {
-      likes: 5432,
-      comments: 89,
-      bookmarks: 234,
-      shares: 1567,
-    },
     onTabChange: (tab) => console.log('Tab changed to:', tab),
     onSheetExpand: () => console.log('Panel expanded'),
     onSheetCollapse: () => console.log('Panel collapsed'),
     onFeedbackItemPress: (item) => console.log('Feedback item pressed:', item),
-    onLike: () => console.log('Liked'),
-    onComment: () => console.log('Commented'),
-    onBookmark: () => console.log('Bookmarked'),
-    onShare: () => console.log('Shared'),
   },
   decorators: [
     (Story) => (

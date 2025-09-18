@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { LayoutAnimation, Platform } from 'react-native'
 import { YStack } from 'tamagui'
 
 // Logger for debugging
@@ -12,6 +13,7 @@ import {
   FeedbackBubbles,
   FeedbackPanel,
   MotionCaptureOverlay,
+  SocialIcons,
   VideoContainer,
   VideoControls,
   VideoControlsRef,
@@ -81,22 +83,49 @@ export function VideoAnalysisScreen({
   // Coach avatar state
   const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
 
-  // Feedback Panel state for US-VF-08
-  const [feedbackPanelExpanded, setFeedbackPanelExpanded] = useState(false)
+  // Feedback Panel state for US-VF-08 - using panelFraction for dynamic sizing
+  const [panelFraction, setPanelFraction] = useState(0.05) // 5% collapsed, 50% expanded
+
+  // Calculate scale factor for video controls based on panel expansion
+  // When collapsed (panelFraction=0.05), video area is 95% → scale = 1.0
+  // When expanded (panelFraction=0.4), video area is 60% → scale = 0.6/0.95 ≈ 0.63
+  const videoAreaScale = useMemo(() => {
+    const collapsedVideoArea = 1 - 0.05 // 0.95
+    const currentVideoArea = 1 - panelFraction
+    return Math.max(0.6, currentVideoArea / collapsedVideoArea) // Min scale of 0.6 to prevent too small controls
+  }, [panelFraction])
   const [activeFeedbackTab, setActiveFeedbackTab] = useState<'feedback' | 'insights' | 'comments'>(
     'feedback'
   )
+  const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
 
-  // Social stats for feedback panel
-  const [socialStats, setSocialStats] = useState({
-    likes: 1247,
-    comments: 89,
-    bookmarks: 234,
-    shares: 1567,
-  })
+  // Animate layout changes when panelFraction changes
+  useEffect(() => {
+    console.log(
+      'VideoAnalysisScreen panelFraction changed:',
+      panelFraction,
+      'Platform:',
+      Platform.OS
+    )
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      LayoutAnimation.configureNext({
+        duration: 500,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+        update: {
+          type: LayoutAnimation.Types.spring,
+          springDamping: 0.7,
+          initialVelocity: 0,
+        },
+      })
+      console.log('VideoAnalysisScreen LayoutAnimation configured')
+    }
+  }, [panelFraction])
 
   // Feedback messages state
-  const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([
+  const [feedbackMessages] = useState<FeedbackMessage[]>([
     {
       id: '1',
       timestamp: 2000, // 2 seconds into video
@@ -478,12 +507,12 @@ export function VideoAnalysisScreen({
   // Feedback Panel handlers for US-VF-08
   const handleFeedbackPanelExpand = useCallback(() => {
     log.info('[VideoAnalysisScreen] Feedback panel expanding')
-    setFeedbackPanelExpanded(true)
+    setPanelFraction(0.4) // 50% expanded
   }, [])
 
   const handleFeedbackPanelCollapse = useCallback(() => {
     log.info('[VideoAnalysisScreen] Feedback panel collapsing')
-    setFeedbackPanelExpanded(false)
+    setPanelFraction(0.05) // 5% collapsed
   }, [])
 
   const handleFeedbackTabChange = useCallback((tab: 'feedback' | 'insights' | 'comments') => {
@@ -502,171 +531,176 @@ export function VideoAnalysisScreen({
     setPendingSeek(seekTime)
 
     // Highlight the pressed feedback item
-    setFeedbackMessages((prevMessages) =>
-      prevMessages.map((msg) => ({
-        ...msg,
-        isHighlighted: msg.id === item.id,
-      }))
-    )
+    setSelectedFeedbackId(item.id)
 
     // Make coach speak when feedback item is pressed
     setIsCoachSpeaking(true)
     setTimeout(() => setIsCoachSpeaking(false), 3000)
   }, [])
 
-  const handleSocialAction = useCallback((action: 'like' | 'comment' | 'bookmark' | 'share') => {
-    log.info('[VideoAnalysisScreen] Social action', { action })
-
-    setSocialStats((prev) => ({
-      ...prev,
-      [action === 'like'
-        ? 'likes'
-        : action === 'comment'
-          ? 'comments'
-          : action === 'bookmark'
-            ? 'bookmarks'
-            : 'shares']:
-        prev[
-          action === 'like'
-            ? 'likes'
-            : action === 'comment'
-              ? 'comments'
-              : action === 'bookmark'
-                ? 'bookmarks'
-                : 'shares'
-        ] + 1,
-    }))
-  }, [])
-
   return (
-    <VideoContainer hasFeedbackPanel={true}>
-      <VideoPlayerArea>
-        <YStack
-          flex={1}
-          position="relative"
-          onPress={handleVideoTap}
-          testID="video-player-container"
-        >
-          {recordedVideoUri && (
-            <VideoPlayer
-              videoUri={recordedVideoUri}
-              isPlaying={isPlaying}
-              onPause={handlePause}
-              onEnd={handleVideoEnd}
-              onLoad={handleVideoLoad}
-              onProgress={handleVideoProgress}
-              seekToTime={pendingSeek}
-              onSeekComplete={() => {
-                log.info('[VideoAnalysisScreen] onSeekComplete called', {
-                  pendingSeek,
-                  currentTime,
-                  isPlaying,
-                })
-
-                // After native seek completes, align UI state and clear request
-                if (pendingSeek !== null) {
-                  setCurrentTime(pendingSeek)
-                  log.info('[VideoAnalysisScreen] Setting current time after seek', {
-                    newCurrentTime: pendingSeek,
-                    previousCurrentTime: currentTime,
+    <YStack
+      flex={1}
+      animation="slow"
+      style={{ transition: 'all 0.5s ease-in-out' }}
+    >
+      <VideoContainer
+        useFlexLayout={true}
+        flex={1 - panelFraction}
+      >
+        <VideoPlayerArea>
+          <YStack
+            flex={1}
+            position="relative"
+            onPress={handleVideoTap}
+            marginBottom={-34}
+            testID="video-player-container"
+          >
+            {recordedVideoUri && (
+              <VideoPlayer
+                videoUri={recordedVideoUri}
+                isPlaying={isPlaying}
+                onPause={handlePause}
+                onEnd={handleVideoEnd}
+                onLoad={handleVideoLoad}
+                onProgress={handleVideoProgress}
+                seekToTime={pendingSeek}
+                onSeekComplete={() => {
+                  log.info('[VideoAnalysisScreen] onSeekComplete called', {
+                    pendingSeek,
+                    currentTime,
+                    isPlaying,
                   })
 
-                  // Check for feedback bubbles at the seeked timestamp
-                  const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
-                  log.info('[VideoAnalysisScreen] Checking for bubbles at seeked time', {
-                    seekedTimeMs,
-                    seekedTimeSeconds: seekedTimeMs / 1000,
-                  })
-                  checkAndShowBubbleAtTime(seekedTimeMs)
-                }
+                  // After native seek completes, align UI state and clear request
+                  if (pendingSeek !== null) {
+                    setCurrentTime(pendingSeek)
+                    log.info('[VideoAnalysisScreen] Setting current time after seek', {
+                      newCurrentTime: pendingSeek,
+                      previousCurrentTime: currentTime,
+                    })
 
-                log.info('[VideoAnalysisScreen] Clearing pending seek')
-                setPendingSeek(null)
-              }}
-            />
-          )}
+                    // Check for feedback bubbles at the seeked timestamp
+                    const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
+                    log.info('[VideoAnalysisScreen] Checking for bubbles at seeked time', {
+                      seekedTimeMs,
+                      seekedTimeSeconds: seekedTimeMs / 1000,
+                    })
+                    checkAndShowBubbleAtTime(seekedTimeMs)
+                  }
 
-          {/* Overlay Components */}
-          <MotionCaptureOverlay
-            poseData={[]} // TODO: Connect to pose detection data
-            isVisible={true}
-          />
-
-          <FeedbackBubbles
-            messages={
-              currentBubbleIndex !== null && bubbleVisible
-                ? [feedbackMessages[currentBubbleIndex]]
-                : []
-            }
-            // onBubbleTap={handleFeedbackBubbleTap}
-          />
-
-          <AudioFeedback
-            audioUrl={null} // TODO: Connect to audio feedback
-            isPlaying={false}
-            currentTime={0}
-            duration={0}
-            onPlayPause={() => {
-              log.info('[VideoAnalysisScreen] Audio play/pause')
-            }}
-            onSeek={(time) => {
-              log.info('[VideoAnalysisScreen] Audio seek', { time })
-            }}
-            onClose={() => {
-              log.info('[VideoAnalysisScreen] Audio close')
-            }}
-            isVisible={false}
-          />
-
-          {/* Feedback Panel for US-VF-08 */}
-          <FeedbackPanel
-            isExpanded={feedbackPanelExpanded}
-            activeTab={activeFeedbackTab}
-            feedbackItems={feedbackItems}
-            socialStats={socialStats}
-            currentVideoTime={currentTime}
-            videoDuration={duration}
-            onTabChange={handleFeedbackTabChange}
-            onSheetExpand={handleFeedbackPanelExpand}
-            onSheetCollapse={handleFeedbackPanelCollapse}
-            onFeedbackItemPress={handleFeedbackItemPress}
-            onVideoSeek={handleSeek}
-            onLike={() => handleSocialAction('like')}
-            onComment={() => handleSocialAction('comment')}
-            onBookmark={() => handleSocialAction('bookmark')}
-            onShare={() => handleSocialAction('share')}
-          />
-
-          {/* Coach Avatar - positioned in bottom-right corner below video controls */}
-          <CoachAvatar
-            isSpeaking={isCoachSpeaking}
-            testID="video-analysis-coach-avatar"
-          />
-
-          {/* Video Controls Overlay */}
-          <VideoControls
-            ref={videoControlsRef}
-            isPlaying={isPlaying}
-            currentTime={currentTime}
-            duration={duration}
-            showControls={isProcessing || !isPlaying || videoEnded}
-            isProcessing={isProcessing}
-            videoEnded={videoEnded}
-            onPlay={handlePlay}
-            onPause={handlePause}
-            onReplay={handleReplay}
-            onSeek={handleSeek}
-            headerComponent={
-              <AppHeader
-                title="Video Analysis"
-                mode="videoSettings"
-                onBackPress={onBack}
-                onMenuPress={handleMenuPress}
+                  log.info('[VideoAnalysisScreen] Clearing pending seek')
+                  setPendingSeek(null)
+                }}
               />
-            }
-          />
-        </YStack>
-      </VideoPlayerArea>
-    </VideoContainer>
+            )}
+
+            {/* Overlay Components */}
+            <MotionCaptureOverlay
+              poseData={[]} // TODO: Connect to pose detection data
+              isVisible={true}
+            />
+
+            <FeedbackBubbles
+              messages={
+                currentBubbleIndex !== null && bubbleVisible
+                  ? [feedbackMessages[currentBubbleIndex]]
+                  : []
+              }
+              // onBubbleTap={handleFeedbackBubbleTap}
+            />
+
+            <AudioFeedback
+              audioUrl={null} // TODO: Connect to audio feedback
+              isPlaying={false}
+              currentTime={0}
+              duration={0}
+              onPlayPause={() => {
+                log.info('[VideoAnalysisScreen] Audio play/pause')
+              }}
+              onSeek={(time) => {
+                log.info('[VideoAnalysisScreen] Audio seek', { time })
+              }}
+              onClose={() => {
+                log.info('[VideoAnalysisScreen] Audio close')
+              }}
+              isVisible={false}
+            />
+
+            {/* Coach Avatar - positioned in bottom-right corner below video controls */}
+            {/* Comment out CoachAvatar when FeedbackPanel is expanded */}
+            {panelFraction <= 0.1 && (
+              <CoachAvatar
+                isSpeaking={isCoachSpeaking}
+                size={90 * (1 - panelFraction)} // Scale avatar size proportionally with video area
+                testID="video-analysis-coach-avatar"
+                animation="quick"
+                enterStyle={{
+                  opacity: 0,
+                  scale: 0.8,
+                }}
+                exitStyle={{
+                  opacity: 0,
+                  scale: 0.8,
+                }}
+              />
+            )}
+
+            {/* Video Controls Overlay */}
+            <VideoControls
+              ref={videoControlsRef}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              showControls={isProcessing || !isPlaying || videoEnded}
+              isProcessing={isProcessing}
+              videoEnded={videoEnded}
+              scaleFactor={videoAreaScale}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onReplay={handleReplay}
+              onSeek={handleSeek}
+              headerComponent={
+                <AppHeader
+                  title="Video Analysis"
+                  mode="videoSettings"
+                  onBackPress={onBack}
+                  onMenuPress={handleMenuPress}
+                />
+              }
+            />
+          </YStack>
+        </VideoPlayerArea>
+      </VideoContainer>
+
+      {/* Social Icons - Only visible when feedback panel is expanded */}
+      <SocialIcons
+        likes={1200}
+        comments={89}
+        bookmarks={234}
+        shares={1500}
+        onLike={() => log.info('[VideoAnalysisScreen] Like button pressed')}
+        onComment={() => log.info('[VideoAnalysisScreen] Comment button pressed')}
+        onBookmark={() => log.info('[VideoAnalysisScreen] Bookmark button pressed')}
+        onShare={() => log.info('[VideoAnalysisScreen] Share button pressed')}
+        isVisible={panelFraction > 0.1}
+      />
+
+      {/* Feedback Panel for US-VF-08 - now a flex sibling */}
+      <FeedbackPanel
+        flex={panelFraction}
+        isExpanded={panelFraction > 0.1} // Expanded when > 10%
+        activeTab={activeFeedbackTab}
+        feedbackItems={feedbackItems}
+        currentVideoTime={currentTime}
+        videoDuration={duration}
+        selectedFeedbackId={selectedFeedbackId}
+        onTabChange={handleFeedbackTabChange}
+        onSheetExpand={handleFeedbackPanelExpand}
+        onSheetCollapse={handleFeedbackPanelCollapse}
+        onFeedbackItemPress={handleFeedbackItemPress}
+        onVideoSeek={handleSeek}
+      />
+    </YStack>
   )
 }

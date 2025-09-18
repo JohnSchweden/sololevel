@@ -1,5 +1,5 @@
-import { Bookmark, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { LayoutAnimation, Platform } from 'react-native'
 import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
 
 // Types imported from VideoPlayer.tsx
@@ -11,48 +11,55 @@ interface FeedbackItem {
   category: 'voice' | 'posture' | 'grip' | 'movement'
 }
 
-interface SocialStats {
-  likes: number
-  comments: number
-  bookmarks: number
-  shares: number
-}
-
 export interface FeedbackPanelProps {
+  flex?: number // Added for flex-based sizing
   isExpanded: boolean
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
-  socialStats: SocialStats
   currentVideoTime?: number
   videoDuration?: number
+  selectedFeedbackId?: string | null
   onTabChange: (tab: 'feedback' | 'insights' | 'comments') => void
   onSheetExpand: () => void
   onSheetCollapse: () => void
   onFeedbackItemPress: (item: FeedbackItem) => void
   onVideoSeek?: (time: number) => void
-  onLike: () => void
-  onComment: () => void
-  onBookmark: () => void
-  onShare: () => void
 }
 
 export function FeedbackPanel({
+  flex,
   isExpanded,
   activeTab,
   feedbackItems,
-  socialStats,
   currentVideoTime = 0,
+  selectedFeedbackId,
   //videoDuration = 0,
   onTabChange,
   onSheetExpand,
   onSheetCollapse,
   onFeedbackItemPress,
   //onVideoSeek,
-  onLike,
-  onComment,
-  onBookmark,
-  onShare,
 }: FeedbackPanelProps) {
+  // Trigger layout animation when flex changes
+  useEffect(() => {
+    console.log('FeedbackPanel flex changed:', flex, 'Platform:', Platform.OS)
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      LayoutAnimation.configureNext({
+        duration: 300,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+        update: {
+          type: LayoutAnimation.Types.spring,
+          springDamping: 0.8,
+          initialVelocity: 0,
+        },
+      })
+      console.log('LayoutAnimation configured')
+    }
+  }, [flex])
+
   const formatTime = (milliseconds: number) => {
     // Convert milliseconds to seconds for duration formatting
     const totalSeconds = Math.floor(milliseconds / 1000)
@@ -112,45 +119,40 @@ export function FeedbackPanel({
 
   return (
     <YStack
-      position="absolute"
-      bottom={0}
-      left={0}
-      right={0}
-      height={isExpanded ? '50%' : '5%'}
+      flex={flex}
       backgroundColor="$background"
-      borderTopLeftRadius={20}
-      borderTopRightRadius={20}
       shadowColor="$shadowColor"
       shadowOffset={{ width: 0, height: -2 }}
       shadowOpacity={0.1}
       shadowRadius={4}
       elevation={5}
-      zIndex={9999} // Maximum z-index to ensure visibility
+      style={{ transition: 'all 0.5s ease-in-out' }}
       testID="feedback-panel"
-      accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
+      aria-label={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
       // accessibilityRole="region"
-      accessibilityState={{ expanded: isExpanded }}
+      aria-state={{ expanded: isExpanded }}
     >
       <YStack flex={1}>
         {/* Handle */}
         <YStack
           alignItems="center"
-          paddingVertical="$2"
+          marginTop={-8}
+          //paddingVertical="$2"
           testID="sheet-handle"
-          accessibilityLabel="Sheet handle"
+          aria-label="Sheet handle"
         >
           <Button
             chromeless
             onPress={handleSheetToggle}
             testID="sheet-toggle-button"
-            accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
-            accessibilityRole="button"
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
+            aria-role="button"
             accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
           >
             <YStack
-              width={40}
-              height={4}
-              backgroundColor="$color12"
+              width={48}
+              height={5}
+              backgroundColor="$color8"
               borderRadius={2}
             />
           </Button>
@@ -254,36 +256,36 @@ export function FeedbackPanel({
         {/* Header with Tabs */}
         {isExpanded && (
           <YStack
-            paddingHorizontal="$4"
-            paddingBottom="$3"
+            paddingHorizontal="$3"
+            //paddingBottom="$2"
             testID="sheet-header"
-            accessibilityLabel="Sheet header with navigation tabs"
+            aria-label="Sheet header with navigation tabs"
           >
             <XStack
               borderBottomWidth={1}
               borderBottomColor="$borderColor"
               testID="tab-navigation"
-              accessibilityLabel="Tab navigation"
+              aria-label="Tab navigation"
               accessibilityRole="tablist"
               backgroundColor="$background"
-              paddingTop="$2"
+              //paddingTop="$2"
             >
               {(['feedback', 'insights', 'comments'] as const).map((tab) => (
                 <Button
                   key={tab}
                   chromeless
                   flex={1}
-                  paddingVertical="$3"
+                  //paddingVertical="$3"
                   onPress={() => onTabChange(tab)}
                   testID={`tab-${tab}`}
-                  accessibilityLabel={`${tab} tab`}
+                  aria-label={`${tab} tab`}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: activeTab === tab }}
                   accessibilityHint={`Switch to ${tab} view`}
                 >
                   <Text
                     fontSize="$4"
-                    fontWeight="600"
+                    fontWeight={activeTab === tab ? '600' : '400'}
                     color={activeTab === tab ? '$purple9' : '$color11'}
                     textTransform="capitalize"
                   >
@@ -310,21 +312,22 @@ export function FeedbackPanel({
             >
               <YStack
                 gap="$3"
-                paddingTop="$2"
+                paddingTop="$4"
               >
                 {sortedFeedbackItems.map((item, index) => {
-                  const isHighlighted = currentFeedbackItem?.id === item.id
+                  const isHighlighted =
+                    currentFeedbackItem?.id === item.id || selectedFeedbackId === item.id
                   return (
                     <YStack
                       key={item.id}
-                      paddingVertical="$3"
-                      borderBottomWidth={1}
-                      borderBottomColor="$borderColor"
-                      backgroundColor={isHighlighted ? '$primary' : 'transparent'}
-                      borderRadius={isHighlighted ? '$2' : 0}
+                      paddingVertical="$1"
+                      //borderBottomWidth={1}
+                      //borderBottomColor="$borderColor"
+                      backgroundColor="transparent"
+                      borderRadius={0}
                       onPress={() => onFeedbackItemPress(item)}
                       testID={`feedback-item-${index + 1}`}
-                      accessibilityLabel={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
+                      aria-label={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
                       accessibilityRole="button"
                       accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}`}
                       accessibilityState={{
@@ -333,32 +336,33 @@ export function FeedbackPanel({
                       }}
                     >
                       <XStack
-                        justifyContent="space-between"
+                        justifyContent="flex-start"
                         alignItems="center"
+                        gap="$3"
                         marginBottom="$1"
                       >
                         <Text
-                          fontSize="$3"
+                          fontSize="$1"
                           color="$color10"
-                          accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
+                          aria-label={`Time: ${formatTime(item.timestamp)}`}
                         >
                           {formatTime(item.timestamp)}
                         </Text>
                         <Text
-                          fontSize="$3"
+                          fontSize="$1"
                           color={getCategoryColor(item.category)}
                           fontWeight="600"
                           textTransform="capitalize"
-                          accessibilityLabel={`Category: ${item.category}`}
+                          aria-label={`Category: ${item.category}`}
                         >
                           {item.category}
                         </Text>
                       </XStack>
                       <Text
                         fontSize="$4"
-                        color={isHighlighted ? '$white' : '$color12'}
+                        color={isHighlighted ? '$yellow11' : '$color12'}
                         lineHeight="$5"
-                        accessibilityLabel={`Feedback: ${item.text}`}
+                        aria-label={`Feedback: ${item.text}`}
                       >
                         {item.text}
                       </Text>
@@ -425,110 +429,6 @@ export function FeedbackPanel({
             </YStack>
           )}
         </YStack>
-
-        {/* Social Icons */}
-        <XStack
-          paddingHorizontal="$4"
-          paddingVertical="$3"
-          borderTopWidth={1}
-          borderTopColor="$borderColor"
-          justifyContent="space-around"
-          testID="social-icons"
-          accessibilityLabel="Social interaction buttons"
-          accessibilityRole="toolbar"
-        >
-          <YStack
-            alignItems="center"
-            gap="$1"
-          >
-            <Button
-              chromeless
-              size={44}
-              icon={Heart}
-              onPress={onLike}
-              testID="like-button"
-              accessibilityLabel={`Like this video. Currently ${socialStats.likes} likes`}
-              accessibilityRole="button"
-              accessibilityHint="Tap to like this video"
-            />
-            <Text
-              fontSize="$3"
-              color="$color12"
-              accessibilityLabel={`${socialStats.likes} likes`}
-            >
-              {socialStats.likes}
-            </Text>
-          </YStack>
-
-          <YStack
-            alignItems="center"
-            gap="$1"
-          >
-            <Button
-              chromeless
-              size={44}
-              icon={MessageCircle}
-              onPress={onComment}
-              testID="comment-button"
-              accessibilityLabel={`Add comment. Currently ${socialStats.comments} comments`}
-              accessibilityRole="button"
-              accessibilityHint="Tap to add a comment"
-            />
-            <Text
-              fontSize="$3"
-              color="$color12"
-              accessibilityLabel={`${socialStats.comments} comments`}
-            >
-              {socialStats.comments}
-            </Text>
-          </YStack>
-
-          <YStack
-            alignItems="center"
-            gap="$1"
-          >
-            <Button
-              chromeless
-              size={44}
-              icon={Bookmark}
-              onPress={onBookmark}
-              testID="bookmark-button"
-              accessibilityLabel={`Bookmark this video. Currently ${socialStats.bookmarks} bookmarks`}
-              accessibilityRole="button"
-              accessibilityHint="Tap to bookmark this video"
-            />
-            <Text
-              fontSize="$3"
-              color="$color12"
-              accessibilityLabel={`${socialStats.bookmarks} bookmarks`}
-            >
-              {socialStats.bookmarks}
-            </Text>
-          </YStack>
-
-          <YStack
-            alignItems="center"
-            gap="$1"
-          >
-            <Button
-              chromeless
-              size={44}
-              icon={Share}
-              onPress={onShare}
-              testID="share-button"
-              accessibilityLabel={`Share this video. Currently ${socialStats.shares} shares`}
-              accessibilityRole="button"
-              accessibilityHint="Tap to share this video"
-            />
-            <Text
-              fontSize="$3"
-              color="$color12"
-              accessibilityLabel={`${socialStats.shares} shares`}
-            >
-              {socialStats.shares}
-            </Text>
-          </YStack>
-        </XStack>
       </YStack>
     </YStack>
   )

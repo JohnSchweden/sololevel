@@ -12,6 +12,27 @@ jest.mock('@ui/utils/logger', () => ({
   },
 }))
 
+// Mock LayoutAnimation from react-native
+jest.mock('react-native', () => ({
+  LayoutAnimation: {
+    configureNext: jest.fn(),
+    Types: {
+      easeInEaseOut: 'easeInEaseOut',
+    },
+    Properties: {
+      opacity: 'opacity',
+    },
+  },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn(),
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 375, height: 667 })),
+  },
+  // Add other react-native mocks as needed
+}))
+
 // Mock components needed for this specific test
 jest.mock('@my/ui', () => ({
   AppHeader: ({ children, ...props }: any) => {
@@ -83,6 +104,14 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
       children
     )
   },
+  SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
+    const React = require('react')
+    return React.createElement(
+      'div',
+      { 'data-testid': testID || 'SocialIcons', ...props },
+      children
+    )
+  },
   VideoContainer: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
     return React.createElement(
@@ -115,6 +144,7 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
       children
     )
   },
+  VideoControlsRef: jest.fn(),
 }))
 
 // Note: Using simplified tests that focus on core functionality

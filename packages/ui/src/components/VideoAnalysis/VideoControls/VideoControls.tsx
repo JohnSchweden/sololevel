@@ -1,6 +1,6 @@
 import {
   Download,
-  Maximize2,
+  //Maximize2,
   Pause,
   Play,
   RotateCcw,
@@ -31,6 +31,7 @@ export interface VideoControlsProps {
   showControls: boolean
   isProcessing?: boolean
   videoEnded?: boolean
+  scaleFactor?: number // Scale factor for proportional sizing when feedback panel is expanded
   onPlay: () => void
   onPause: () => void
   onReplay?: () => void
@@ -51,6 +52,7 @@ export const VideoControls = React.memo(
         showControls,
         isProcessing = false,
         videoEnded = false,
+        scaleFactor = 1.0,
         onPlay,
         onPause,
         onReplay,
@@ -309,9 +311,9 @@ export const VideoControls = React.memo(
                 <Button
                   chromeless
                   icon={<SkipBack />}
-                  size={60}
+                  size={60 * scaleFactor}
                   backgroundColor="rgba(255, 255, 255, 0.60)"
-                  borderRadius={30}
+                  borderRadius={30 * scaleFactor}
                   onPress={() => {
                     showControlsAndResetTimer()
                     onSeek(Math.max(0, currentTime - 10))
@@ -324,9 +326,9 @@ export const VideoControls = React.memo(
                 <Button
                   chromeless
                   icon={videoEnded ? <RotateCcw /> : isPlaying ? <Pause /> : <Play />}
-                  size={80}
+                  size={80 * scaleFactor}
                   backgroundColor="rgba(255,255,255,0.60)"
-                  borderRadius={40}
+                  borderRadius={40 * scaleFactor}
                   onPress={() => {
                     showControlsAndResetTimer()
                     if (videoEnded && onReplay) {
@@ -352,9 +354,9 @@ export const VideoControls = React.memo(
                 <Button
                   chromeless
                   icon={<SkipForward />}
-                  size={60}
+                  size={60 * scaleFactor}
                   backgroundColor="rgba(255,255,255,0.60)"
-                  borderRadius={30}
+                  borderRadius={30 * scaleFactor}
                   onPress={() => {
                     showControlsAndResetTimer()
                     onSeek(Math.min(duration, currentTime + 10))
@@ -369,11 +371,11 @@ export const VideoControls = React.memo(
 
             {/* Bottom Controls */}
             <YStack accessibilityLabel="Video timeline and controls">
-              {/* Time and Fullscreen Button Row - Above Progress Bar */}
+              {/* Time and Fullscreen Button Row */}
               <XStack
                 justifyContent="space-between"
                 alignItems="center"
-                marginBottom={-8}
+                paddingBottom="$6"
                 accessibilityLabel="Video time and controls"
               >
                 {/* Time Display - Left side */}
@@ -409,7 +411,7 @@ export const VideoControls = React.memo(
                 {/* Fullscreen Button - Right side */}
                 <Button
                   chromeless
-                  icon={<Maximize2 />}
+                  // icon={<Maximize2 />}
                   size={44}
                   color="white"
                   onPress={() => {
@@ -422,79 +424,85 @@ export const VideoControls = React.memo(
                   accessibilityHint="Tap to enter or exit fullscreen mode"
                 />
               </XStack>
+            </YStack>
 
-              {/* Progress Bar */}
+            {/* Progress Bar - Absolutely positioned at bottom, aligned with feedback panel */}
+            <YStack
+              position="absolute"
+              bottom={5}
+              //bottom={-10} // Extend slightly below video area to align with feedback panel
+              left={0}
+              right={0}
+              height={40}
+              justifyContent="center"
+              testID="progress-bar-container"
+              zIndex={30}
+            >
+              {/* Background track */}
               <YStack
-                height={40}
-                justifyContent="center"
-                testID="progress-bar-container"
+                height={28}
+                backgroundColor="$color3"
+                borderRadius={2}
+                position="relative"
+                testID="progress-track"
+                onLayout={(event) => {
+                  const { width } = event.nativeEvent.layout
+                  setProgressBarWidth(width)
+                }}
               >
-                {/* Background track */}
+                {/* Completed progress fill */}
                 <YStack
-                  height={4}
-                  backgroundColor="$color3"
+                  height="100%"
+                  width={`${progress}%`}
+                  backgroundColor="$yellow9"
                   borderRadius={2}
-                  position="relative"
-                  testID="progress-track"
-                  onLayout={(event) => {
-                    const { width } = event.nativeEvent.layout
-                    setProgressBarWidth(width)
-                  }}
-                >
-                  {/* Completed progress fill */}
-                  <YStack
-                    height="100%"
-                    width={`${progress}%`}
-                    backgroundColor="$yellow9"
-                    borderRadius={2}
-                    testID="progress-fill"
-                    position="absolute"
-                    left={0}
-                    top={0}
-                  />
+                  testID="progress-fill"
+                  position="absolute"
+                  left={0}
+                  top={0}
+                />
 
-                  {/* Visible scrubber handle - always shown */}
-                  <YStack
-                    position="absolute"
-                    left={`${progress}%`}
-                    top={0}
-                    width={24}
-                    height={24}
-                    marginLeft={-12}
-                    marginTop={-10}
-                    backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
-                    borderRadius={12}
-                    borderWidth={3}
-                    borderColor="white"
-                    opacity={controlsVisible || isScrubbing ? 1 : 0.7}
-                    animation="quick"
-                    testID="scrubber-handle"
-                    zIndex={10}
-                    shadowColor="rgba(0,0,0,0.3)"
-                    shadowOffset={{ width: 0, height: 2 }}
-                    shadowOpacity={isScrubbing ? 0.5 : 0}
-                    shadowRadius={4}
-                  />
-                </YStack>
-
-                {/* PanResponder touch area for scrubbing */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -10,
-                    left: 0,
-                    right: 0,
-                    height: 44,
-                    backgroundColor: 'transparent',
-                  }}
-                  {...panResponder.panHandlers}
-                  accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
-                  accessibilityRole="progressbar"
-                  accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
-                  accessibilityHint="Tap and drag to scrub through video"
-                  testID="progress-scrubber"
+                {/* Visible scrubber handle - always shown */}
+                <YStack
+                  position="absolute"
+                  left={`${progress}%`}
+                  top={0}
+                  width={24}
+                  height={24}
+                  marginLeft={-12}
+                  marginTop={-10}
+                  backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
+                  borderRadius={12}
+                  borderWidth={3}
+                  borderColor="white"
+                  opacity={controlsVisible || isScrubbing ? 1 : 0.7}
+                  animation="quick"
+                  testID="scrubber-handle"
+                  zIndex={10}
+                  shadowColor="rgba(0,0,0,0.3)"
+                  shadowOffset={{ width: 0, height: 2 }}
+                  shadowOpacity={isScrubbing ? 0.5 : 0}
+                  shadowRadius={4}
                 />
               </YStack>
+
+              {/* PanResponder touch area for scrubbing */}
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -10,
+                  left: 0,
+                  right: 0,
+                  height: 44,
+                  backgroundColor: 'transparent',
+                }}
+                {...panResponder.panHandlers}
+                accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
+                accessibilityRole="progressbar"
+                accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
+                accessibilityHint="Tap and drag to scrub through video"
+                testID="progress-scrubber"
+              />
             </YStack>
 
             {/* Fly-out Menu - Temporarily disabled for testing */}

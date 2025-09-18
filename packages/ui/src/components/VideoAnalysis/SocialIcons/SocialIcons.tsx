@@ -39,32 +39,60 @@ export function SocialIcons({
     return count.toString()
   }
 
+  const fontColor = '$color2' // Highest contrast color - adapts to theme
+  const iconColor = '$color2' // Same high contrast color for icons
+  const backgroundColor = 'transparent'
+  const marginBottom = -4
+
   return (
     <YStack
       position="absolute"
-      right={-60}
-      top={100}
-      gap="$4"
-      testID="social-icons-overlay"
+      right={16}
+      top="40%"
+      y="-50%"
+      gap="$2"
+      opacity={1}
+      animation="quick"
+      enterStyle={{
+        opacity: 0,
+        scale: 0.8,
+        x: 20,
+      }}
+      exitStyle={{
+        opacity: 0,
+        scale: 0.8,
+        x: 20,
+      }}
+      testID="social-icons-vertical"
+      accessibilityLabel="Social interaction buttons"
+      accessibilityRole="toolbar"
+      zIndex={10}
     >
       <YStack
         alignItems="center"
-        gap="$1"
+        //gap="$1"
+        backgroundColor={backgroundColor}
+        borderRadius={24}
+        //padding="$2"
+        animation="quick"
       >
         <Button
           chromeless
-          size={44}
+          size={36}
           icon={Heart}
+          color={iconColor}
+          marginBottom={marginBottom}
           onPress={onLike}
           testID="social-like-button"
-          backgroundColor="$color2"
-          borderRadius="$2"
-          pressStyle={{ scale: 0.95 }}
+          accessibilityLabel="Like this video"
+          accessibilityRole="button"
+          accessibilityHint="Tap to like this video"
         />
         <Text
-          fontSize="$3"
-          color="$color12"
-          fontWeight="600"
+          fontSize="$2"
+          color={fontColor}
+          testID="social-likes-count"
+          accessibilityLabel="Number of likes"
         >
           {formatCount(likes)}
         </Text>
@@ -72,22 +100,29 @@ export function SocialIcons({
 
       <YStack
         alignItems="center"
-        gap="$1"
+        //gap="$1"
+        backgroundColor={backgroundColor}
+        borderRadius={24}
+        //padding="$2"
+        animation="quick"
       >
         <Button
           chromeless
-          size={44}
+          size={36}
           icon={MessageCircle}
+          color={iconColor}
+          marginBottom={marginBottom}
           onPress={onComment}
           testID="social-comment-button"
-          backgroundColor="$color2"
-          borderRadius="$2"
-          pressStyle={{ scale: 0.95 }}
+          accessibilityLabel="Add comment"
+          accessibilityRole="button"
+          accessibilityHint="Tap to add a comment"
         />
         <Text
-          fontSize="$3"
-          color="$color12"
-          fontWeight="600"
+          fontSize="$2"
+          color={fontColor}
+          testID="social-comments-count"
+          accessibilityLabel="Number of comments"
         >
           {formatCount(comments)}
         </Text>
@@ -95,22 +130,29 @@ export function SocialIcons({
 
       <YStack
         alignItems="center"
-        gap="$1"
+        //gap="$1"
+        backgroundColor={backgroundColor}
+        borderRadius={24}
+        //padding="$1"
+        animation="quick"
       >
         <Button
           chromeless
-          size={44}
+          size={36}
           icon={Bookmark}
+          color={iconColor}
+          marginBottom={marginBottom}
           onPress={onBookmark}
           testID="social-bookmark-button"
-          backgroundColor="$color2"
-          borderRadius="$2"
-          pressStyle={{ scale: 0.95 }}
+          accessibilityLabel="Bookmark this video"
+          accessibilityRole="button"
+          accessibilityHint="Tap to bookmark this video"
         />
         <Text
-          fontSize="$3"
-          color="$color12"
-          fontWeight="600"
+          fontSize="$2"
+          color={fontColor}
+          testID="social-bookmarks-count"
+          accessibilityLabel="Number of bookmarks"
         >
           {formatCount(bookmarks)}
         </Text>
@@ -118,22 +160,29 @@ export function SocialIcons({
 
       <YStack
         alignItems="center"
-        gap="$1"
+        //gap="$1"
+        backgroundColor={backgroundColor}
+        borderRadius={24}
+        //padding="$2"
+        animation="quick"
       >
         <Button
           chromeless
-          size={44}
+          size={36}
           icon={Share}
+          color={iconColor}
+          marginBottom={marginBottom}
           onPress={onShare}
           testID="social-share-button"
-          backgroundColor="$color2"
-          borderRadius="$2"
-          pressStyle={{ scale: 0.95 }}
+          accessibilityLabel="Share this video"
+          accessibilityRole="button"
+          accessibilityHint="Tap to share this video"
         />
         <Text
-          fontSize="$3"
-          color="$color12"
-          fontWeight="600"
+          fontSize="$2"
+          color={fontColor}
+          testID="social-shares-count"
+          accessibilityLabel="Number of shares"
         >
           {formatCount(shares)}
         </Text>

@@ -8,6 +8,9 @@ export interface CoachAvatarProps {
   bottom?: number
   right?: number
   zIndex?: number
+  animation?: any
+  enterStyle?: any
+  exitStyle?: any
 }
 
 export function CoachAvatar({
@@ -15,9 +18,12 @@ export function CoachAvatar({
   isSpeaking = false,
   testID = 'coach-avatar',
   position = 'absolute',
-  bottom = 20,
+  bottom = 50,
   right = 20,
   zIndex = 0,
+  animation,
+  enterStyle,
+  exitStyle,
 }: CoachAvatarProps) {
   return (
     <View
@@ -25,6 +31,9 @@ export function CoachAvatar({
       bottom={bottom}
       right={right}
       zIndex={zIndex}
+      animation={animation}
+      enterStyle={enterStyle}
+      exitStyle={exitStyle}
     >
       <View
         width={size}
