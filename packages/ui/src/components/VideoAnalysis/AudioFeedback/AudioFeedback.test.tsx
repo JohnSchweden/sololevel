@@ -4,6 +4,15 @@ import { AudioFeedback } from './AudioFeedback'
 // Mock the require call for the coach avatar image
 jest.mock('../../../../../../apps/expo/assets/coach_avatar.png', () => 'mocked-coach-avatar')
 
+// Mock React Native's Image component
+jest.mock('react-native', () => ({
+  ...jest.requireActual('react-native'),
+  Image: ({ children, testID, ...props }: any) => {
+    const React = require('react')
+    return React.createElement('img', { 'data-testid': testID || 'image', ...props }, children)
+  },
+}))
+
 const mockProps = {
   audioUrl: 'https://example.com/audio.mp3',
   isPlaying: false,
