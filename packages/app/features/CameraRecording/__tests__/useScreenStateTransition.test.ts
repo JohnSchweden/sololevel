@@ -5,7 +5,7 @@ import { useScreenStateTransition } from '../hooks/useScreenStateTransition'
 import { RecordingState } from '../types'
 
 // Mock logger
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     warn: jest.fn(),

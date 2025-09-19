@@ -1,9 +1,20 @@
 /**
- * TDD Tests for Gemini TTS 2.0 Audio Synthesis
+ * TDD Tests for Gemini TTS Audio Generation
  * Tests the text-to-speech audio generation from SSML feedback
  */
 
-import { assertEquals, assertExists } from 'https://deno.land/std@0.208.0/assert/mod.ts'
+// Simple test assertions for Deno environment
+function assertEquals(actual: any, expected: any) {
+  if (actual !== expected) {
+    throw new Error(`Expected ${expected}, got ${actual}`)
+  }
+}
+
+function assertExists(value: any) {
+  if (value == null) {
+    throw new Error('Value should exist')
+  }
+}
 
 // Mock Gemini TTS for testing
 const mockGeminiTTS = {
@@ -23,7 +34,7 @@ const mockGeminiTTS = {
   },
 }
 
-Deno.test('Gemini TTS - Valid SSML Input', async () => {
+Deno.test('Gemini TTS Audio - Valid SSML Input', async () => {
   const ssml = '<speak>Hello! Your posture looks great today.</speak>'
 
   const audioUrl = await mockGeminiTTS.synthesizeSpeech(ssml)
@@ -34,25 +45,25 @@ Deno.test('Gemini TTS - Valid SSML Input', async () => {
   assertEquals(audioUrl.includes('.mp3'), true)
 })
 
-Deno.test('Gemini TTS - Invalid SSML Input', async () => {
+Deno.test('Gemini TTS Audio - Invalid SSML Input', async () => {
   try {
     await mockGeminiTTS.synthesizeSpeech('')
     throw new Error('Should have thrown')
   } catch (error) {
-    assertEquals(error.message, 'SSML text is required')
+    assertEquals((error as Error).message, 'SSML text is required')
   }
 })
 
-Deno.test('Gemini TTS - Malformed SSML', async () => {
+Deno.test('Gemini TTS Audio - Malformed SSML', async () => {
   try {
     await mockGeminiTTS.synthesizeSpeech('Hello world')
     throw new Error('Should have thrown')
   } catch (error) {
-    assertEquals(error.message, 'Valid SSML format required')
+    assertEquals((error as Error).message, 'Valid SSML format required')
   }
 })
 
-Deno.test('Gemini TTS - Complex SSML', async () => {
+Deno.test('Gemini TTS Audio - Complex SSML', async () => {
   const ssml = `<speak>
     Excellent work! <break time="500ms"/>
     Your posture scored 85 out of 100.

@@ -1,8 +1,8 @@
 import { useActionSheet } from '@expo/react-native-action-sheet'
+import { log } from '@my/logging'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import { Platform } from 'react-native'
-import { log } from '../../utils/logger'
 import type { VideoValidationResult } from '../../utils/videoValidation'
 import { validateVideoFile } from '../../utils/videoValidation'
 

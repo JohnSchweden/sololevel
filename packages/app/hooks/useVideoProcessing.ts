@@ -8,7 +8,7 @@ import {
   createAnalysisJobWithPoseProcessing,
   updateAnalysisJobWithPoseData,
 } from '@my/api'
-import { log } from '@ui/utils/logger'
+import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import type { PoseDetectionResult, PoseKeypointName } from '../features/CameraRecording/types/pose'
 import { VideoProcessingProgress, videoProcessingService } from '../services/videoProcessingService'

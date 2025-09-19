@@ -6,7 +6,8 @@
       "@ui/*": ["./packages/ui/src/*"],
       "@app/*": ["./packages/app/*"],
       "@api/*": ["./packages/api/*"],
-      "@config/*": ["./packages/config/src/*"]
+      "@config/*": ["./packages/config/src/*"],
+      "@logging/*": ["./packages/logging/src/*"]
     },
     "importHelpers": true,
     "allowJs": false,

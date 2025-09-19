@@ -3,7 +3,7 @@ import { act, render } from '@testing-library/react-native'
 import { VideoAnalysisScreen } from '../VideoAnalysisScreen'
 
 // Mock the logger to capture logs in tests
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     error: jest.fn(),

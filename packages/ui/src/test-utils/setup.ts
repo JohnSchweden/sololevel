@@ -321,7 +321,7 @@ jest.mock('@expo/react-native-action-sheet', () => ({
 }))
 
 // Mock UI utilities
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     error: jest.fn(),

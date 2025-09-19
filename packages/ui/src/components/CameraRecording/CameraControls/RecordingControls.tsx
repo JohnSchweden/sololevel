@@ -1,11 +1,11 @@
 import { shadows } from '@my/config'
+import { log } from '@my/logging'
 import { Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 // Use React Native Pressable with platform detection
 import { Platform, Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
-import { log } from '../../../utils/logger'
 
 export enum RecordingState {
   IDLE = 'idle',

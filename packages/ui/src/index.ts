@@ -21,7 +21,6 @@ export { useToastController } from './hooks/useToastController'
 export * from './NativeToast'
 
 // Utilities (keep these as they're lightweight)
-export * from './utils/logger'
 
 // Video utilities (keep these as they're lightweight)
 export * from './utils/videoValidation'

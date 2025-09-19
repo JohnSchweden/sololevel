@@ -1,5 +1,5 @@
+import { log } from '@my/logging'
 import { useCallback, useEffect } from 'react'
-import { log } from '../../utils/logger'
 import { validateVideoFile } from '../../utils/videoValidation'
 import type { VideoFilePickerProps } from './types'
 

@@ -11,7 +11,7 @@ import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
 import { useColorScheme } from 'react-native'
 
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/logging'
 log.info('_layout.tsx', 'Module loaded, React version:', React.version)
 // React internals should not be accessed in app code
 

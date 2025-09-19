@@ -3,7 +3,7 @@ import { LayoutAnimation, Platform } from 'react-native'
 import { YStack } from 'tamagui'
 
 // Logger for debugging
-import { log } from '@my/ui'
+import { log } from '@my/logging'
 
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'

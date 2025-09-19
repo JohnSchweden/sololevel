@@ -256,3 +256,62 @@ export const validateAnalysisResults = (data: unknown): AnalysisResults => {
 export const validatePoseData = (data: unknown): PoseData => {
   return PoseDataSchema.parse(data)
 }
+
+// Gemini AI Analysis Feedback Validation
+export const FeedbackCategorySchema = z.enum(['Movement', 'Posture', 'Speech', 'Vocal Variety'])
+
+export const FeedbackItemSchema = z.object({
+  timestamp: z.number().min(0),
+  category: FeedbackCategorySchema,
+  message: z.string().min(1).max(500), // Concise and actionable
+  confidence: z.number().min(0.7).max(1.0),
+  impact: z.number().min(0).max(1.0),
+})
+
+export const FeedbackListSchema = z.object({
+  feedback: z.array(FeedbackItemSchema).min(1).max(10), // 1-10 feedback items
+})
+
+export const GeminiAnalysisResultSchema = z.object({
+  textReport: z.string().min(1),
+  feedback: z.array(FeedbackItemSchema),
+  metrics: z
+    .object({
+      posture: z.number().min(0).max(100),
+      movement: z.number().min(0).max(100),
+      overall: z.number().min(0).max(100),
+    })
+    .optional(),
+  confidence: z.number().min(0).max(1.0),
+  rawResponse: z.unknown().optional(),
+})
+
+// Validation functions
+export const validateFeedbackItem = (data: unknown): z.infer<typeof FeedbackItemSchema> => {
+  return FeedbackItemSchema.parse(data)
+}
+
+export const validateFeedbackList = (data: unknown): z.infer<typeof FeedbackListSchema> => {
+  return FeedbackListSchema.parse(data)
+}
+
+export const validateGeminiAnalysisResult = (
+  data: unknown
+): z.infer<typeof GeminiAnalysisResultSchema> => {
+  return GeminiAnalysisResultSchema.parse(data)
+}
+
+// Safe validation functions (return null on error)
+export const safeValidateFeedbackList = (
+  data: unknown
+): z.infer<typeof FeedbackListSchema> | null => {
+  const result = FeedbackListSchema.safeParse(data)
+  return result.success ? result.data : null
+}
+
+export const safeValidateGeminiAnalysisResult = (
+  data: unknown
+): z.infer<typeof GeminiAnalysisResultSchema> | null => {
+  const result = GeminiAnalysisResultSchema.safeParse(data)
+  return result.success ? result.data : null
+}

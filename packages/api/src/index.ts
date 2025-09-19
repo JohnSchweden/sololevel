@@ -89,3 +89,6 @@ export {
   VideoRecordingSchema,
   VideoRecordingUpdateSchema,
 } from './validation/cameraRecordingSchemas'
+
+// Export AI prompts and prompt management
+export * from './prompts'

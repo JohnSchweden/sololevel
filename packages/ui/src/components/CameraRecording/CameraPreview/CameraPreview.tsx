@@ -1,6 +1,6 @@
+import { log } from '@my/logging'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { SizableText, YStack } from 'tamagui'
-import { log } from '../../../utils/logger'
 import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**

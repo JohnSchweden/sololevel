@@ -4,7 +4,7 @@
  * Integrates with camera recording state for seamless MVP experience
  */
 
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import { useCameraRecordingStore } from '../../../stores/cameraRecording'
 import { mvpConfig } from '../config/MVPConfig'

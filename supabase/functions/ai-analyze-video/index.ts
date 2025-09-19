@@ -14,34 +14,32 @@ declare function createClient(
   from: (table: string) => any
 }
 
+// Import centralized prompts system
+import { PromptManager, getSSMLGenerationPrompt } from '@my/api/src/prompts'
+
+// Import Gemini modules
+import { generateSSMLFromFeedback as geminiLLMFeedback } from './gemini-ssml-feedback'
+import { generateTTSFromSSML as geminiTTS20 } from './gemini-tts-audio'
+
+// Initialize prompt manager
+const promptManager = new PromptManager({
+  enableValidation: true,
+  throwOnValidationError: false,
+  logWarnings: true,
+})
+
 // Import Gemini 2.5 integration (temporarily commented out for debugging)
-// import { analyzeVideoWithGemini, validateGeminiConfig } from './gemini-integration'
+// import { analyzeVideoWithGemini, validateGeminiConfig } from './gemini-llm-analysis'
 
 // Initialize Supabase client with service role
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-// Logger utility
-const logger = {
-  info: (message: string, data?: any) => {
-    const logEntry = { level: 'INFO', message, data, timestamp: new Date().toISOString() }
-    Deno.stdout.write(new TextEncoder().encode(JSON.stringify(logEntry) + '\n'))
-  },
-  error: (message: string, error?: any) => {
-    const logEntry = {
-      level: 'ERROR',
-      message,
-      error: error?.message || error,
-      timestamp: new Date().toISOString(),
-    }
-    Deno.stderr.write(new TextEncoder().encode(JSON.stringify(logEntry) + '\n'))
-  },
-  warn: (message: string, data?: any) => {
-    const logEntry = { level: 'WARN', message, data, timestamp: new Date().toISOString() }
-    Deno.stdout.write(new TextEncoder().encode(JSON.stringify(logEntry) + '\n'))
-  },
-}
+// Import centralized logger for Edge Functions
+import { createLogger } from '../_shared/logger'
+
+const logger = createLogger('ai-analyze-video')
 
 // CORS headers
 const corsHeaders = {
@@ -312,7 +310,9 @@ async function processAIPipeline(
 
     // 5. Store results and update status
     const results = {
-      summary_text: analysis.summary,
+      text_report: analysis.textReport, // Full text analysis report
+      feedback: analysis.feedback, // Structured feedback items
+      summary_text: analysis.textReport.substring(0, 500), // Backward compatibility
       ssml: ssml,
       audio_url: audioUrl,
       processing_time: Date.now() - startTime,
@@ -422,27 +422,36 @@ async function gemini25VideoAnalysis(videoPath: string): Promise<any> {
   // Temporarily using placeholder for debugging
   logger.info(`Analyzing video with Gemini 2.5: ${videoPath}`)
 
+  // Return structure that matches GeminiVideoAnalysisResult interface
   return {
-    summary: 'Video analysis completed using AI-powered assessment',
-    insights: [
-      'Maintain proper posture throughout the movement',
-      'Focus on controlled eccentric phase',
-      'Ensure full range of motion without compensation',
+    textReport:
+      'Video analysis completed using AI-powered assessment. Maintain proper posture throughout the movement. Focus on controlled eccentric phase. Ensure full range of motion without compensation.',
+    feedback: [
+      {
+        timestamp: 2.5,
+        category: 'Posture' as const,
+        message: 'Maintain proper posture throughout the movement',
+        confidence: 0.85,
+        impact: 0.8,
+      },
+      {
+        timestamp: 7.8,
+        category: 'Movement' as const,
+        message: 'Focus on controlled eccentric phase',
+        confidence: 0.9,
+        impact: 0.7,
+      },
+      {
+        timestamp: 12.3,
+        category: 'Movement' as const,
+        message: 'Ensure full range of motion without compensation',
+        confidence: 0.8,
+        impact: 0.6,
+      },
     ],
     metrics: { posture: 82, movement: 85, overall: 83 },
+    confidence: 0.85,
   }
-}
-
-async function geminiLLMFeedback(analysis: any): Promise<string> {
-  // TODO: Implement real Gemini LLM feedback generation
-  // Temporarily using placeholder for debugging
-  return `<speak>Great job! Your posture scored ${analysis.metrics.posture} out of 100. ${analysis.insights.join('. ')}.</speak>`
-}
-
-async function geminiTTS20(_ssml: string): Promise<string> {
-  // TODO: Implement Gemini TTS 2.0
-  // Temporarily using placeholder for debugging
-  return `https://placeholder-audio.com/feedback_${Date.now()}.mp3`
 }
 
 async function updateAnalysisStatus(

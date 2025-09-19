@@ -1,4 +1,4 @@
-import { log } from '@ui/utils/logger'
+import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'

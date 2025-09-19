@@ -9,7 +9,7 @@ import { act, renderHook } from '@testing-library/react'
 import { useCameraScreenLogic } from '../hooks/useCameraScreenLogic'
 
 // Mock logger
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     warn: jest.fn(),

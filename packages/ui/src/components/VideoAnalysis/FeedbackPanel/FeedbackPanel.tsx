@@ -129,8 +129,8 @@ export function FeedbackPanel({
       style={{ transition: 'all 0.5s ease-in-out' }}
       testID="feedback-panel"
       accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
+      accessibilityState={{ expanded: isExpanded }}
       // accessibilityRole="region"
-      aria-state={{ expanded: isExpanded }}
     >
       <YStack flex={1}>
         {/* Handle */}
@@ -282,6 +282,7 @@ export function FeedbackPanel({
                   accessibilityRole="tab"
                   accessibilityState={{ selected: activeTab === tab }}
                   accessibilityHint={`Switch to ${tab} view`}
+                  data-testid={`tab-${tab}`}
                 >
                   <Text
                     fontSize="$4"

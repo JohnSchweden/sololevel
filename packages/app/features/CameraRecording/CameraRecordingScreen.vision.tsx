@@ -11,12 +11,12 @@ import {
   RecordingControls,
 } from '@ui/components/CameraRecording'
 
+// Test minimal hook to isolate issue
+import { log } from '@my/logging'
 // Import external components directly
 import { AppHeader } from '@ui/components/AppHeader'
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { SideSheet } from '@ui/components/Sidesheet'
-// Test minimal hook to isolate issue
-import { log } from '@ui/utils/logger'
 import { useEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { YStack } from 'tamagui'

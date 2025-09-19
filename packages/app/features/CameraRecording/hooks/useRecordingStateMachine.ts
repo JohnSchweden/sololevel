@@ -1,4 +1,4 @@
-import { log } from '@my/ui'
+import { log } from '@my/logging'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RecordingState } from '../types'
 

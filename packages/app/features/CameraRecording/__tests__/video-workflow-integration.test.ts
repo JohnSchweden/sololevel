@@ -3,7 +3,7 @@
  * Tests the complete video workflow from recording to playback at the app level
  */
 
-import { log } from '@ui/utils/logger'
+import { log } from '@my/logging'
 import { VideoStorageService } from '../services/videoStorageService'
 
 // Mock expo-file-system
@@ -18,7 +18,7 @@ jest.mock('expo-file-system', () => ({
 }))
 
 // Mock logger
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     error: jest.fn(),

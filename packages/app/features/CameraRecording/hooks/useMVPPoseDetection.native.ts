@@ -4,7 +4,7 @@
  * Mock implementation that can be easily replaced with real TensorFlow Lite integration
  */
 
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/logging'
 import type {
   MVPPoseDetectionConfig,
   MVPPoseDetectionResult,

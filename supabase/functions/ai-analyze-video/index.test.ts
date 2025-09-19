@@ -1,5 +1,17 @@
 // AI Analysis Edge Function Tests
-import { assertEquals, assertExists } from 'https://deno.land/std@0.208.0/assert/mod.ts'
+// Simple test assertions for Deno environment
+
+function indexAssertEquals(actual: any, expected: any) {
+  if (actual !== expected) {
+    throw new Error(`Expected ${expected}, got ${actual}`)
+  }
+}
+
+function indexAssertExists(value: any) {
+  if (value == null) {
+    throw new Error('Value should exist')
+  }
+}
 
 // Mock Supabase client for testing
 const mockSupabase = {

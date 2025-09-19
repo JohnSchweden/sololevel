@@ -1,5 +1,5 @@
 // Use logger instead of console
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/logging'
 
 log.debug('🔍 MINIMAL: Module loading START')
 

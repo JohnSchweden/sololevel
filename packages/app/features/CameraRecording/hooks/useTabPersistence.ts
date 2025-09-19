@@ -1,5 +1,5 @@
+import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { log } from '@ui/utils/logger'
 import { useCallback, useEffect, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'

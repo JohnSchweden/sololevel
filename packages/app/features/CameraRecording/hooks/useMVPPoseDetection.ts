@@ -4,7 +4,7 @@
  * Cross-platform interface that delegates to native or web implementations
  */
 
-import { log } from '@my/ui/src/utils/logger'
+import { log } from '@my/logging'
 log.debug('🔍 DEBUG: useMVPPoseDetection.ts module loading - START')
 
 // Test minimal imports first

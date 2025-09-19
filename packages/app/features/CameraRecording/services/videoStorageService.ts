@@ -1,4 +1,4 @@
-import { log } from '@ui/utils/logger'
+import { log } from '@my/logging'
 import * as FileSystem from 'expo-file-system'
 
 /**

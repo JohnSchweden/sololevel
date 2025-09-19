@@ -6,7 +6,7 @@
 /// <reference types="jest" />
 
 // Mock the logger
-jest.mock('@ui/utils/logger', () => ({
+jest.mock('@my/logging', () => ({
   log: {
     info: jest.fn(),
     error: jest.fn(),

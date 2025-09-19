@@ -51,6 +51,7 @@
         "npm:@storybook/react-native-web-vite@^9.1.2",
         "npm:@storybook/react-native@^9.1.0",
         "npm:@tamagui/cli@1.132.20",
+        "npm:@tamagui/sheet@^1.132.25",
         "npm:@testing-library/dom@^10.4.1",
         "npm:@testing-library/jest-dom@^6.8.0",
         "npm:@testing-library/react-hooks@^8.0.1",

@@ -1,6 +1,6 @@
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
+import { log } from '@my/logging'
 import { forwardRef, useMemo } from 'react'
-import { log } from '../../../utils/logger'
 import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**
