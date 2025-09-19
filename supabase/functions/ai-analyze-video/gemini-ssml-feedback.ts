@@ -4,7 +4,7 @@
  */
 
 // Import centralized logger for Edge Functions
-import { createLogger } from '../_shared/logger'
+import { createLogger } from '../_shared/logger.ts'
 
 const logger = createLogger('gemini-ssml-feedback')
 
@@ -31,7 +31,7 @@ export interface GeminiAnalysisResult {
  * Generate SSML from individual feedback messages
  * Uses structured feedback items instead of unstructured text
  */
-export async function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): Promise<string> {
+export function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): string {
   try {
     let ssmlContent = '<speak>'
 
@@ -76,7 +76,7 @@ export async function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): 
 /**
  * Generate basic SSML from text (fallback function)
  */
-export async function generateBasicSSML(text: string): Promise<string> {
+export function generateBasicSSML(text: string): string {
   try {
     logger.info(`Generating basic SSML from text: ${text.substring(0, 50)}...`)
     return `<speak><prosody rate="medium">${text}</prosody></speak>`
@@ -89,7 +89,7 @@ export async function generateBasicSSML(text: string): Promise<string> {
 /**
  * Validate feedback items structure
  */
-export function validateFeedbackItems(feedback: any[]): { isValid: boolean; errors: string[] } {
+export function validateFeedbackItems(feedback: FeedbackItem[]): { isValid: boolean; errors: string[] } {
   const errors: string[] = []
 
   if (!Array.isArray(feedback)) {

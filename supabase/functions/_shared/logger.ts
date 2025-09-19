@@ -4,7 +4,7 @@
  */
 
 // Deno environment detection
-const isProduction = Deno.env.get('NODE_ENV') === 'production'
+const isProduction = (globalThis as any).Deno?.env?.get('NODE_ENV') === 'production'
 const isDevelopment = !isProduction
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'

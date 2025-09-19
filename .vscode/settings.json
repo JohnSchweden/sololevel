@@ -85,5 +85,9 @@
   },
   "typescript.preferences.includePackageJsonAutoImports": "off",
   "typescript.suggest.autoImports": false,
-  "typescript.preferences.includeCompletionsForModuleExports": false
+  "typescript.preferences.includeCompletionsForModuleExports": false,
+  // Deno settings for Edge Functions only
+  "deno.enable": true,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.disablePaths": ["**/node_modules/**", "**/packages/**", "**/apps/**", "**/docs/**"]
 }

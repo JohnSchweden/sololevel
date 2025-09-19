@@ -49,14 +49,30 @@ interface PoseDetectionResult {
 /**
  * Convert MVP pose detection result to Edge Function format
  */
+// MVP Pose Detection interfaces for compatibility
+interface MVPKeypoint {
+  name?: string
+  id?: string
+  x: number
+  y: number
+  confidence: number
+}
+
+interface MVPPoseResult {
+  keypoints: MVPKeypoint[]
+  score?: number
+  timestamp: number
+  confidence: number
+}
+
 export function convertMVPPoseToEdgeFormat(
-  mvpPose: any, // MVPPoseDetectionResult from existing infrastructure
+  mvpPose: MVPPoseResult, // MVPPoseDetectionResult from existing infrastructure
   frameIndex: number,
   videoSource: 'live_recording' | 'uploaded_video' = 'uploaded_video'
 ): PoseDetectionResult {
   // Convert MVP keypoints to Edge Function joints format
-  const joints: Joint[] = mvpPose.keypoints.map((kp: any) => ({
-    id: kp.name || kp.id,
+  const joints: Joint[] = mvpPose.keypoints.map((kp: MVPKeypoint) => ({
+    id: kp.name || kp.id || 'unknown',
     x: kp.x,
     y: kp.y,
     confidence: kp.confidence,
@@ -80,17 +96,17 @@ export function convertMVPPoseToEdgeFormat(
  * Process video frames using existing client-side infrastructure
  * This function would be called from the client app to save pose data to database
  */
-export async function processVideoFramesOnClient(
+export function processVideoFramesOnClient(
   _videoPath: string,
   _analysisId: number, // The analysis job ID to save pose data to
   _frameExtractionOptions: {
     frameRate?: number
     quality?: 'low' | 'medium' | 'high'
   } = {}
-): Promise<{
+): {
   frames: string[] // base64 encoded frames
   success: boolean // whether pose data was saved to database
-}> {
+} {
   // This is a conceptual implementation - actual implementation would be in client app
   // using react-native-video-processing and existing useMVPPoseDetection hooks
 

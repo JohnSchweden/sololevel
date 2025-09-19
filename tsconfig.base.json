@@ -42,7 +42,8 @@
     ]
   },
   "exclude": [
-    "_"
+    "_",
+    "supabase/functions/**"
   ],
   "typeAcquisition": {
     "enable": true

@@ -4,7 +4,7 @@
  */
 
 // Import centralized logger for Edge Functions
-import { createLogger } from '../_shared/logger'
+import { createLogger } from '../_shared/logger.ts'
 
 const logger = createLogger('gemini-tts-audio')
 
@@ -31,7 +31,7 @@ export interface TTSAudioResult {
  * Generate TTS audio from SSML markup
  * Uses Gemini 2.0 TTS API to convert SSML to audio
  */
-export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): Promise<string> {
+export function generateTTSFromSSML(ssml: string, options?: TTSOptions): string {
   try {
     if (!ssml) {
       throw new Error('SSML text is required')

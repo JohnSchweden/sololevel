@@ -1,22 +1,22 @@
 // AI Analysis Edge Function Tests
 // Simple test assertions for Deno environment
 
-function indexAssertEquals(actual: any, expected: any) {
+function indexAssertEquals(actual: unknown, expected: unknown) {
   if (actual !== expected) {
     throw new Error(`Expected ${expected}, got ${actual}`)
   }
 }
 
-function indexAssertExists(value: any) {
+function indexAssertExists(value: unknown) {
   if (value == null) {
     throw new Error('Value should exist')
   }
 }
 
 // Mock Supabase client for testing
-const mockSupabase = {
-  from: (table: string) => ({
-    insert: (data: any) => ({
+const _mockSupabase = {
+  from: (_table: string) => ({
+    insert: (data: Record<string, unknown>) => ({
       select: () => ({
         single: () =>
           Promise.resolve({
@@ -25,8 +25,8 @@ const mockSupabase = {
           }),
       }),
     }),
-    select: (fields: string) => ({
-      eq: (field: string, value: any) => ({
+    select: (_fields: string) => ({
+      eq: (_field: string, _value: unknown) => ({
         single: () =>
           Promise.resolve({
             data: {
@@ -44,14 +44,14 @@ const mockSupabase = {
           }),
       }),
     }),
-    update: (data: any) => ({
-      eq: (field: string, value: any) => Promise.resolve({ error: null }),
+    update: (_data: Record<string, unknown>) => ({
+      eq: (_field: string, _value: unknown) => Promise.resolve({ error: null }),
     }),
   }),
 }
 
 // Test helper functions
-function createTestRequest(method: string, path: string, body?: any): Request {
+function createTestRequest(method: string, path: string, body?: Record<string, unknown>): Request {
   const url = `http://localhost:54321/functions/v1${path}`
   const init: RequestInit = {
     method,
@@ -74,7 +74,7 @@ async function getResponseData(response: Response) {
 
 // Test Suite: AI Pipeline API Contract Tests
 Deno.test('AI Analysis Edge Function - Health Check', async () => {
-  const request = createTestRequest('GET', '/ai-analyze-video/health')
+  const _request = createTestRequest('GET', '/ai-analyze-video/health')
 
   // Mock the handler function (would import from actual function in real test)
   const response = new Response(
@@ -90,11 +90,11 @@ Deno.test('AI Analysis Edge Function - Health Check', async () => {
     }
   )
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   const data = await getResponseData(response)
-  assertEquals(data.status, 'ok')
-  assertEquals(data.service, 'ai-analyze-video')
-  assertExists(data.timestamp)
+  indexAssertEquals(data.status, 'ok')
+  indexAssertEquals(data.service, 'ai-analyze-video')
+  indexAssertExists(data.timestamp)
 })
 
 Deno.test('AI Analysis Edge Function - Start Analysis with Video Processing', async () => {
@@ -105,7 +105,7 @@ Deno.test('AI Analysis Edge Function - Start Analysis with Video Processing', as
     frameData: ['base64frame1', 'base64frame2'],
   }
 
-  const request = createTestRequest('POST', '/ai-analyze-video', requestBody)
+  const _request = createTestRequest('POST', '/ai-analyze-video', requestBody)
 
   // Mock successful analysis job creation
   const response = new Response(
@@ -120,11 +120,11 @@ Deno.test('AI Analysis Edge Function - Start Analysis with Video Processing', as
     }
   )
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   const data = await getResponseData(response)
-  assertEquals(data.status, 'queued')
-  assertExists(data.analysisId)
-  assertEquals(data.message, 'Analysis job created successfully')
+  indexAssertEquals(data.status, 'queued')
+  indexAssertExists(data.analysisId)
+  indexAssertEquals(data.message, 'Analysis job created successfully')
 })
 
 Deno.test('AI Analysis Edge Function - Start Analysis with Live Recording', async () => {
@@ -147,7 +147,7 @@ Deno.test('AI Analysis Edge Function - Start Analysis with Live Recording', asyn
     existingPoseData: mockPoseData,
   }
 
-  const request = createTestRequest('POST', '/ai-analyze-video', requestBody)
+  const _request = createTestRequest('POST', '/ai-analyze-video', requestBody)
 
   const response = new Response(
     JSON.stringify({
@@ -161,10 +161,10 @@ Deno.test('AI Analysis Edge Function - Start Analysis with Live Recording', asyn
     }
   )
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   const data = await getResponseData(response)
-  assertEquals(data.status, 'queued')
-  assertExists(data.analysisId)
+  indexAssertEquals(data.status, 'queued')
+  indexAssertExists(data.analysisId)
 })
 
 Deno.test('AI Analysis Edge Function - Validation Errors', async () => {
@@ -174,20 +174,20 @@ Deno.test('AI Analysis Edge Function - Validation Errors', async () => {
     userId: 'user-123',
   }
 
-  const request = createTestRequest('POST', '/ai-analyze-video', invalidRequestBody)
+  const _request = createTestRequest('POST', '/ai-analyze-video', invalidRequestBody)
 
   const response = new Response(JSON.stringify({ error: 'videoPath and userId are required' }), {
     headers: { 'Content-Type': 'application/json' },
     status: 400,
   })
 
-  assertEquals(response.status, 400)
+  indexAssertEquals(response.status, 400)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'videoPath and userId are required')
+  indexAssertEquals(data.error, 'videoPath and userId are required')
 })
 
 Deno.test('AI Analysis Edge Function - Analysis Status Check', async () => {
-  const request = createTestRequest('GET', '/ai-analyze-video/status?id=1')
+  const _request = createTestRequest('GET', '/ai-analyze-video/status?id=1')
 
   const response = new Response(
     JSON.stringify({
@@ -209,26 +209,26 @@ Deno.test('AI Analysis Edge Function - Analysis Status Check', async () => {
     }
   )
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   const data = await getResponseData(response)
-  assertEquals(data.status, 'completed')
-  assertEquals(data.progress, 100)
-  assertExists(data.results)
-  assertExists(data.poseData)
-  assertExists(data.timestamps)
+  indexAssertEquals(data.status, 'completed')
+  indexAssertEquals(data.progress, 100)
+  indexAssertExists(data.results)
+  indexAssertExists(data.poseData)
+  indexAssertExists(data.timestamps)
 })
 
 Deno.test('AI Analysis Edge Function - Analysis Not Found', async () => {
-  const request = createTestRequest('GET', '/ai-analyze-video/status?id=999')
+  const _request = createTestRequest('GET', '/ai-analyze-video/status?id=999')
 
   const response = new Response(JSON.stringify({ error: 'Analysis not found' }), {
     headers: { 'Content-Type': 'application/json' },
     status: 404,
   })
 
-  assertEquals(response.status, 404)
+  indexAssertEquals(response.status, 404)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'Analysis not found')
+  indexAssertEquals(data.error, 'Analysis not found')
 })
 
 Deno.test('AI Analysis Edge Function - TTS Generation', async () => {
@@ -237,7 +237,7 @@ Deno.test('AI Analysis Edge Function - TTS Generation', async () => {
     analysisId: '1',
   }
 
-  const request = createTestRequest('POST', '/ai-analyze-video/tts', requestBody)
+  const _request = createTestRequest('POST', '/ai-analyze-video/tts', requestBody)
 
   const response = new Response(
     JSON.stringify({
@@ -252,30 +252,30 @@ Deno.test('AI Analysis Edge Function - TTS Generation', async () => {
     }
   )
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   const data = await getResponseData(response)
-  assertExists(data.audioUrl)
-  assertEquals(data.format, 'mp3')
-  assertEquals(data.duration, 30)
+  indexAssertExists(data.audioUrl)
+  indexAssertEquals(data.format, 'mp3')
+  indexAssertEquals(data.duration, 30)
 })
 
 Deno.test('AI Analysis Edge Function - TTS Validation Error', async () => {
   const requestBody = {} // Missing text and ssml
 
-  const request = createTestRequest('POST', '/ai-analyze-video/tts', requestBody)
+  const _request = createTestRequest('POST', '/ai-analyze-video/tts', requestBody)
 
   const response = new Response(JSON.stringify({ error: 'text or ssml is required' }), {
     headers: { 'Content-Type': 'application/json' },
     status: 400,
   })
 
-  assertEquals(response.status, 400)
+  indexAssertEquals(response.status, 400)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'text or ssml is required')
+  indexAssertEquals(data.error, 'text or ssml is required')
 })
 
-Deno.test('AI Analysis Edge Function - CORS Preflight', async () => {
-  const request = createTestRequest('OPTIONS', '/ai-analyze-video')
+Deno.test('AI Analysis Edge Function - CORS Preflight', () => {
+  const _request = createTestRequest('OPTIONS', '/ai-analyze-video')
 
   const response = new Response('ok', {
     headers: {
@@ -285,9 +285,9 @@ Deno.test('AI Analysis Edge Function - CORS Preflight', async () => {
     },
   })
 
-  assertEquals(response.status, 200)
-  assertEquals(response.headers.get('Access-Control-Allow-Origin'), '*')
-  assertEquals(
+  indexAssertEquals(response.status, 200)
+  indexAssertEquals(response.headers.get('Access-Control-Allow-Origin'), '*')
+  indexAssertEquals(
     response.headers.get('Access-Control-Allow-Methods'),
     'GET, POST, PUT, DELETE, OPTIONS'
   )
@@ -295,14 +295,14 @@ Deno.test('AI Analysis Edge Function - CORS Preflight', async () => {
 
 Deno.test('AI Analysis Edge Function - Video Source Detection', async () => {
   // Test that the function correctly identifies video source type
-  const uploadedVideoRequest = {
+  const _uploadedVideoRequest = {
     videoPath: '/test/uploaded.mp4',
     userId: 'user-123',
     videoSource: 'uploaded_video',
     frameData: ['frame1', 'frame2'],
   }
 
-  const liveRecordingRequest = {
+  const _liveRecordingRequest = {
     videoPath: '/test/recorded.mp4',
     userId: 'user-123',
     videoSource: 'live_recording',
@@ -327,20 +327,20 @@ Deno.test('AI Analysis Edge Function - Video Source Detection', async () => {
     headers: { 'Content-Type': 'application/json' },
   })
 
-  assertEquals(uploadedResponse.status, 200)
-  assertEquals(liveResponse.status, 200)
+  indexAssertEquals(uploadedResponse.status, 200)
+  indexAssertEquals(liveResponse.status, 200)
 
   const uploadedData = await getResponseData(uploadedResponse)
   const liveData = await getResponseData(liveResponse)
 
-  assertEquals(uploadedData.status, 'queued')
-  assertEquals(liveData.status, 'queued')
+  indexAssertEquals(uploadedData.status, 'queued')
+  indexAssertEquals(liveData.status, 'queued')
 })
 
 // Test Suite: Error Handling Tests
 Deno.test('AI Analysis Edge Function - Rate Limiting (Mock)', async () => {
   // Mock rate limiting scenario
-  const request = createTestRequest('POST', '/ai-analyze-video', {
+  const _request = createTestRequest('POST', '/ai-analyze-video', {
     videoPath: '/test/video.mp4',
     userId: 'user-with-too-many-jobs',
   })
@@ -353,14 +353,14 @@ Deno.test('AI Analysis Edge Function - Rate Limiting (Mock)', async () => {
     }
   )
 
-  assertEquals(response.status, 429)
+  indexAssertEquals(response.status, 429)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'Rate limit exceeded: maximum 3 concurrent analyses per user')
+  indexAssertEquals(data.error, 'Rate limit exceeded: maximum 3 concurrent analyses per user')
 })
 
 Deno.test('AI Analysis Edge Function - Video Processing Failure', async () => {
   // Mock video processing failure
-  const request = createTestRequest('POST', '/ai-analyze-video', {
+  const _request = createTestRequest('POST', '/ai-analyze-video', {
     videoPath: '/test/corrupted_video.mp4',
     userId: 'user-123',
     videoSource: 'uploaded_video',
@@ -375,16 +375,16 @@ Deno.test('AI Analysis Edge Function - Video Processing Failure', async () => {
     }
   )
 
-  assertEquals(response.status, 422)
+  indexAssertEquals(response.status, 422)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'Frame data is required for uploaded video processing')
+  indexAssertEquals(data.error, 'Frame data is required for uploaded video processing')
 })
 
 // Test Suite: Performance Tests
-Deno.test('AI Analysis Edge Function - Response Time', async () => {
+Deno.test('AI Analysis Edge Function - Response Time', () => {
   const startTime = Date.now()
 
-  const request = createTestRequest('GET', '/ai-analyze-video/health')
+  const _request = createTestRequest('GET', '/ai-analyze-video/health')
   const response = new Response(JSON.stringify({ status: 'ok' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
@@ -393,14 +393,14 @@ Deno.test('AI Analysis Edge Function - Response Time', async () => {
   const endTime = Date.now()
   const responseTime = endTime - startTime
 
-  assertEquals(response.status, 200)
+  indexAssertEquals(response.status, 200)
   // Health check should respond within 100ms
-  assertEquals(responseTime < 100, true)
+  indexAssertEquals(responseTime < 100, true)
 })
 
 // Test Suite: Authentication Tests (Mock)
 Deno.test('AI Analysis Edge Function - JWT Validation (Mock)', async () => {
-  const request = new Request('http://localhost:54321/functions/v1/ai-analyze-video', {
+  const _request = new Request('http://localhost:54321/functions/v1/ai-analyze-video', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -420,9 +420,9 @@ Deno.test('AI Analysis Edge Function - JWT Validation (Mock)', async () => {
     }
   )
 
-  assertEquals(response.status, 401)
+  indexAssertEquals(response.status, 401)
   const data = await getResponseData(response)
-  assertEquals(data.error, 'Unauthorized: Missing or invalid JWT token')
+  indexAssertEquals(data.error, 'Unauthorized: Missing or invalid JWT token')
 })
 
 /* To run tests:

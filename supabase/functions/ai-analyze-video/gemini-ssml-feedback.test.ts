@@ -4,13 +4,13 @@
  */
 
 // Simple test assertions for Deno environment
-function geminiSSMLAssertEquals(actual: any, expected: any) {
+function geminiSSMLAssertEquals(actual: unknown, expected: unknown) {
   if (actual !== expected) {
     throw new Error(`Expected ${expected}, got ${actual}`)
   }
 }
 
-function geminiSSMLAssertExists(value: any) {
+function geminiSSMLAssertExists(value: unknown) {
   if (value == null) {
     throw new Error('Value should exist')
   }

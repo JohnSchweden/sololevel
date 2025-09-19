@@ -3,14 +3,16 @@
  * Tests the real Gemini 2.5 video analysis functionality
  */
 
+import { FeedbackItem } from './gemini-ssml-feedback.ts'
+
 // Test assertions for Gemini LLM analysis tests
-const geminiAnalysisAssertEquals = (actual: any, expected: any) => {
+const geminiAnalysisAssertEquals = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
     throw new Error(`Expected ${expected}, got ${actual}`)
   }
 }
 
-const geminiAnalysisAssertExists = (value: any) => {
+const geminiAnalysisAssertExists = (value: unknown) => {
   if (value == null) {
     throw new Error('Value should exist')
   }
@@ -124,12 +126,12 @@ Practice power poses for 5 minutes daily to improve confidence.
     const textReport = textReportMatch && textReportMatch[1] ? textReportMatch[1].trim() : ''
 
     const jsonMatch = text.match(/```json([\s\S]*?)```/)
-    let feedback: any[] = []
+    let feedback: FeedbackItem[] = []
     if (jsonMatch && jsonMatch[1]) {
       try {
         const jsonData = JSON.parse(jsonMatch[1].trim())
         feedback = jsonData.feedback || []
-      } catch (e) {
+      } catch (_e) {
         feedback = []
       }
     }
@@ -170,7 +172,7 @@ Big Picture: Good presentation overall.
 
   const parseGeminiDualOutput = (text: string) => {
     // Try explicit markers first
-    let textReportMatch = text.match(/=== TEXT REPORT START ===([\s\S]*?)=== TEXT REPORT END ===/)
+    const textReportMatch = text.match(/=== TEXT REPORT START ===([\s\S]*?)=== TEXT REPORT END ===/)
     let textReport = textReportMatch && textReportMatch[1] ? textReportMatch[1].trim() : ''
 
     // Fallback: extract everything before JSON
@@ -182,12 +184,12 @@ Big Picture: Good presentation overall.
     }
 
     const jsonMatch = text.match(/```json([\s\S]*?)```/)
-    let feedback: any[] = []
+    let feedback: FeedbackItem[] = []
     if (jsonMatch && jsonMatch[1]) {
       try {
         const jsonData = JSON.parse(jsonMatch[1].trim())
         feedback = jsonData.feedback || []
-      } catch (e) {
+      } catch (_e) {
         feedback = []
       }
     }
@@ -232,7 +234,7 @@ Analysis completed successfully.
     const textReport = textReportMatch && textReportMatch[1] ? textReportMatch[1].trim() : ''
 
     const jsonMatch = text.match(/```json([\s\S]*?)```/)
-    let feedback: any[] = []
+    let feedback: FeedbackItem[] = []
     if (jsonMatch && jsonMatch[1]) {
       try {
         const jsonData = JSON.parse(jsonMatch[1].trim())
@@ -242,7 +244,7 @@ Analysis completed successfully.
         } else {
           feedback = jsonData.feedback || []
         }
-      } catch (e) {
+      } catch (_e) {
         feedback = []
       }
     }

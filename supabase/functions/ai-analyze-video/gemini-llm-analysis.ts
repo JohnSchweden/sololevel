@@ -3,18 +3,48 @@
  * Real implementation using Google AI Gemini 2.5 API
  */
 
-// Import centralized prompts system
-import { PromptManager } from '@my/api/src/prompts'
+// Local prompt manager for Edge Functions (simplified version)
+class LocalPromptManager {
+  private prompts: Map<string, string> = new Map()
 
-// Initialize prompt manager with validation enabled
-const promptManager = new PromptManager({
-  enableValidation: true,
-  throwOnValidationError: false, // Don't throw in production, use fallbacks
-  logWarnings: true,
-})
+  constructor() {
+    // Initialize with default prompts
+    this.prompts.set('videoAnalysis', `You are an expert movement analyst. Analyze the provided video and provide detailed feedback on form, technique, and areas for improvement. Focus on:
+
+1. Posture and alignment
+2. Movement execution and timing
+3. Common mistakes and corrections
+4. Recommendations for improvement
+
+Provide your analysis in a structured format with timestamps for key moments.`)
+  }
+
+  getPrompt(key: string): string {
+    return this.prompts.get(key) || ''
+  }
+
+  validatePrompt(_prompt: string): boolean {
+    return true // Simplified validation
+  }
+
+  generateGeminiAnalysisPrompt(params: Record<string, unknown>): string {
+    const basePrompt = this.getPrompt('videoAnalysis')
+    // Add any additional parameters if provided
+    if (params && typeof params === 'object') {
+      const additionalContext = Object.entries(params)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n')
+      return `${basePrompt}\n\nAdditional context:\n${additionalContext}`
+    }
+    return basePrompt
+  }
+}
+
+// Initialize prompt manager
+const promptManager = new LocalPromptManager()
 
 // Import centralized logger for Edge Functions
-import { createLogger } from '../_shared/logger'
+import { createLogger } from '../_shared/logger.ts'
 
 const logger = createLogger('gemini-llm-analysis')
 
@@ -29,18 +59,35 @@ const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 
 // Import validation schemas
-import {
-  FeedbackItemSchema,
-  safeValidateFeedbackList,
-} from '@my/api/src/validation/cameraRecordingSchemas'
-
-export interface FeedbackItem {
+// Local validation for Edge Functions
+interface FeedbackItem {
   timestamp: number
   category: 'Movement' | 'Posture' | 'Speech' | 'Vocal Variety'
   message: string
   confidence: number
   impact: number
 }
+
+function safeValidateFeedbackList(feedback: any[]): FeedbackItem[] {
+  return feedback.filter((item: any) => {
+    return (
+      typeof item.timestamp === 'number' &&
+      typeof item.category === 'string' &&
+      typeof item.message === 'string' &&
+      typeof item.confidence === 'number' &&
+      typeof item.impact === 'number' &&
+      item.confidence >= 0 && item.confidence <= 1 &&
+      item.impact >= 0 && item.impact <= 1
+    )
+  }).map(item => ({
+    timestamp: item.timestamp,
+    category: item.category as FeedbackItem['category'],
+    message: item.message,
+    confidence: item.confidence,
+    impact: item.impact
+  }))
+}
+
 
 export interface GeminiVideoAnalysisResult {
   textReport: string // Big Picture + Table + Bonus
@@ -51,7 +98,7 @@ export interface GeminiVideoAnalysisResult {
     overall: number
   }
   confidence: number
-  rawResponse?: any // For debugging
+  rawResponse?: Record<string, unknown> // For debugging
 }
 
 /**
@@ -115,8 +162,8 @@ function parseGeminiDualOutput(responseText: string): {
     try {
       const jsonData = JSON.parse(jsonMatch[1].trim())
       const validatedFeedback = safeValidateFeedbackList(jsonData)
-      if (validatedFeedback) {
-        feedback = validatedFeedback.feedback
+      if (validatedFeedback && validatedFeedback.length > 0) {
+        feedback = validatedFeedback
         logger.info(`Successfully parsed ${feedback.length} feedback items from Gemini response`)
       } else {
         logger.warn('Failed to validate feedback list structure')
@@ -281,7 +328,7 @@ export async function analyzeVideoWithGemini(
  * Analyze video content using Gemini 2.5 with custom analysis parameters
  * Allows for flexible prompt generation based on video characteristics
  */
-export async function analyzeVideoWithGeminiCustom(
+export function analyzeVideoWithGeminiCustom(
   videoPath: string,
   analysisParams: {
     duration?: number

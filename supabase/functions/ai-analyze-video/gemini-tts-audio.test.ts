@@ -4,13 +4,13 @@
  */
 
 // Simple test assertions for Deno environment
-function assertEquals(actual: any, expected: any) {
+function assertEquals(actual: unknown, expected: unknown) {
   if (actual !== expected) {
     throw new Error(`Expected ${expected}, got ${actual}`)
   }
 }
 
-function assertExists(value: any) {
+function assertExists(value: unknown) {
   if (value == null) {
     throw new Error('Value should exist')
   }

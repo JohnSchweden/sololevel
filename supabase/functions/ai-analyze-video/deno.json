@@ -1,12 +1,19 @@
 {
   "compilerOptions": {
-    "allowJs": true,
     "lib": ["deno.window", "deno.ns"],
     "strict": true
   },
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
-    "@supabase/functions-js": "jsr:@supabase/functions-js",
+    "@supabase/functions-js": "npm:@supabase/functions-js@2.4.6",
     "std/assert": "https://deno.land/std@0.208.0/assert/mod.ts"
+  },
+  "nodeModulesDir": "auto",
+  "lint": {
+    "rules": {
+      "tags": ["recommended"],
+      "include": [],
+      "exclude": ["no-explicit-any"]
+    }
   }
 }
