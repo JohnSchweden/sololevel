@@ -1,150 +1,87 @@
-graph TD
-    %% Legend:
-    %% 🚀 Entry Point: App Launch
-    %% 🟣 Main Screen: Camera View with all navigation options
-    %% 🟢 Side Sheet: Settings flow (C-series)
-    %% 🔴 Recording: Recording + Upload Video flows (F & G-series)
-    %% 🟡 Coach: Coach flow (E-series)
-    %% 🔵 Insights: Insights flow (H-series)
-    %% 🟣 Settings: Settings sub-screens
-    %% 
-    %% Wireframe Mapping:
-    %% G6A (Processing State) = 02a_video_processing.png
-    %% G8 (Video Playback) = 02b_video_playback.png  
-    %% G11A (Playing State) = 02c_video_ontap_played.png
-    %% G11B (Paused State) = 02d_video_ontap_paused.png
-    %% G9D (Bottom Sheet) = 02e_video_bottom_sheet.png
-    
-    %% Entry Points
-    A[App Launch] --> B[Main Screen - Camera View]
-    
+flowchart TD
+    %% Entry Point Section
+    subgraph EntryPoint ["🚀 Entry Point"]
+        A[App Launch]
+    end
+
+    %% Main Screen Section
+    subgraph MainScreen ["📱 Main Screen"]
+        B[Main Screen - Camera View]
+    end
+
+    %% Entry flow
+    A --> B
+
     %% Main Screen Actions
     B --> C[Side Sheet]
     B --> E[Coach Tab]
     B --> F[Native Media Picker]
     B --> G[Start Recording]
     B --> H[Insights Tab]
-    
-    %% Camera Controls - Left and Right positioning
     B --> F4[Upload Video]
     B --> G0E[Camera Swap Control]
-    
-    %% Grouping Boxes
-    subgraph SideSheetMenu ["🟢 Side Sheet Menu"]
-        C
+    B --> G0[Notifications Menu]
 
-        subgraph Videos ["🟢 Videos"]
-            C1
-            C4
-            C5
-            C6
-            C7
-            C8
+    %% Side Sheet Section
+    subgraph SideSheet ["📋 Side Sheet"]
+        C[Side Sheet]
+
+        subgraph Videos ["🎥 Videos"]
+            C1[Videos List Screen]
+            C4[Filter Screen]
+            C5[Select Video from List]
+            C6[Video Detail View]
+            C7[Playback with Feedback]
+            C8[View AI Insights]
         end
-        
-        subgraph Settings ["🟣 Settings"]
-            C3
-            C9
-            C10
-            C11
-            C12
-            C13
-            C14
-            C15
-        end
-    end
-    
-    subgraph RecordingFlow ["🔴 Recording/Feedback Flow"]
-        subgraph Upload ["🔵 Upload"]
-            F
-            F1
-            F2
-            F3
-        end
-                
-        subgraph CameraControls ["📷 Camera Controls"]
-            G0E
-            F
-            F1
-            F2
-            F3
-            F4
-            G
-            G1
-            G1A
-            G1B
-            G2
-            G3
-            G4
-        end
-        
-        subgraph Analysis ["🟠 Analysis"]
-            G5
-            G6
-        end
-        
-        subgraph FeedbackReview ["🔵 Feedback Review"]
-            G7
-            G8
-            G9
-            G10
-            G11
-            G12
+
+        subgraph Settings ["⚙️ Settings"]
+            C3[Settings Screen]
+            C9[Account Settings]
+            C10[Personalisation]
+            C11[Give Feedback]
+            C12[Data Controls]
+            C13[Security]
+            C14[About]
+            C15[Log Out]
         end
     end
-    
-    subgraph Coach ["🟡 Coach"]
-        E
-        E1
-        E2
-        E3
-        E4
-        E5
-    end
-    
-    subgraph Insights ["🔵 Insights"]
-        H
-        H1
-        H2
-        H3
-        H4
-        H5
-    end
-    
+
+    %% Notifications Section
     subgraph Notifications ["🔔 Notifications"]
-        G0
-        G0A
-        G0B
-        G0C
-        G0D
+        G0[Notifications Menu]
+        G0A[View Notifications]
+        G0B[Mark as Read]
+        G0C[Clear All]
+        G0D[Notification Settings]
     end
-    
+
     %% Side Sheet Flow
-    C --> C1[Videos List Screen]
-    C --> C3[Settings Screen]
+    C --> C1
+    C --> C3
     C1 --> C
     C3 --> B
-    
+
     %% Videos List Screen Actions
-    C1 --> C4[Filter Screen]
-    C1 --> C5[Select Video from List]
+    C1 --> C4
+    C1 --> C5
     C4 --> C1
-    
+
     %% Video Detail Flow
-    C5 --> C6[Video Detail View]
-    C6 --> C7[Playback with Feedback]
-    C7 --> C8[View AI Insights]
+    C5 --> C6
+    C6 --> C7
+    C7 --> C8
     C8 --> C6
     C6 --> C1
-    
+
     %% Settings Screen Actions
-    C3 --> C9[Account Settings]
-    C3 --> C10[Personalisation]
-    C3 --> C11[Give Feedback]
-    C3 --> C12[Data Controls]
-    C3 --> C13[Security]
-    C3 --> C14[About]
-    C3 --> C15[Log Out]
+    C3 --> C9
+    C3 --> C10
+    C3 --> C11
+    C3 --> C12
+    C3 --> C13
+    C3 --> C14
+    C3 --> C15
     C9 --> C3
     C10 --> C3
     C11 --> C3
@@ -152,131 +89,193 @@ graph TD
     C13 --> C3
     C14 --> C3
 
-
     %% Notifications Flow
-    B --> G0[Notifications Menu]
-    G0 --> G0A[View Notifications]
-    G0 --> G0B[Mark as Read]
-    G0 --> G0C[Clear All]
-    G0 --> G0D[Notification Settings]
+    G0 --> G0A
+    G0 --> G0B
+    G0 --> G0C
+    G0 --> G0D
     G0A --> G0
     G0B --> G0
     G0C --> G0
     G0D --> G0
     G0 --> B
-    
+
+    %% Recording & Upload Section
+    subgraph RecordingUpload ["🎥 Recording & Upload"]
+        F4[Upload Video]
+        G0E[Camera Swap Control]
+        F[Native Media Picker]
+        F1[Select Video]
+        F2[Select File]
+        F3[Cancel]
+        G[Start Recording]
+        G1[Recording Active State]
+        G1A[Zoom In]
+        G1B[Zoom Out]
+        G2[Pause Recording]
+        G3[Stop Recording]
+        G4[Resume Recording]
+        G5[Analysis Processing]
+    end
+
     %% Camera Controls Flow
-    F4 --> F[Native Media Picker]
+    F4 --> F
     G0E --> B
-    
+
     %% Recording Flow - Active State
-    G --> G1[Recording Active State]
-    G1 --> G1A[Zoom In]
-    G1 --> G1B[Zoom Out]
+    G --> G1
+    G1 --> G1A
+    G1 --> G1B
     G1A --> G1
     G1B --> G1
-    G1 --> G2[Pause Recording]
-    G1 --> G3[Stop Recording]
-    G2 --> G4[Resume Recording]
+    G1 --> G2
+    G1 --> G3
+    G2 --> G4
     G2 --> G3
     G4 --> G1
-    G3 --> G5[Analysis Processing]
-    
-    %% Upload Video
-    F --> F1[Select Video]
-    F --> F2[Select File]
-    F --> F3[Cancel]
-    F1 --> G5[Analysis Processing] 
-    F2 --> G5[Analysis Processing] 
+    G3 --> G5
+
+    %% Upload Video Flow
+    F --> F1
+    F --> F2
+    F --> F3
+    F1 --> G5
+    F2 --> G5
     F3 --> B
-    
-    %% Analysis Flow - Enhanced with Processing States
-    G5 --> G6[AI Processing with Spinner]
-    G6 --> G6A[Processing State - Wireframe 02a]
-    G6A --> G6B[Frame Extraction Stage 1/5]
-    G6A --> G6C[Pose Detection Stage 2/5]
-    G6A --> G6D[Video Analysis Stage 3/5]
-    G6A --> G6E[LLM Feedback Stage 4/5]
-    G6A --> G6F[TTS Generation Stage 5/5]
-    G6B --> G6C
-    G6C --> G6D
-    G6D --> G6E
-    G6E --> G6F
-    G6F --> G7[Feedback Review Screen]
-    
-    %% Processing State Navigation
-    G6A --> G6A1[Cancel Processing]
-    G6A --> G6A2[View Results - When Complete]
-    G6A1 --> B
-    G6A2 --> G7
-    
-    %% Feedback Review Flow - Enhanced with Wireframe States
-    G7 --> G8[Video Playback with Overlay]
-    G7 --> G9[View AI Feedback Timeline]
-    G7 --> G10[View Performance Insights]
-    
-    %% Video Playback Sub-states (Wireframe 02b)
-    G8 --> G8A[Motion Capture Overlay Active]
-    G8 --> G8B[Feedback Bubbles Display]
-    G8 --> G8C[Audio Commentary Playback]
+
+    %% Analysis Section
+    subgraph Analysis ["🧠 Analysis"]
+        G5[Analysis Processing]
+        G6[AI Processing with Spinner]
+        G5A[Cancel Analysis]
+        G7[Feedback Review Screen]
+    end
+
+    %% Analysis Flow
+    G5 --> G6
+    G5 --> G5A
+    G6 --> G7
+    G5A --> B
+
+    %% Feedback Review Section
+    subgraph FeedbackReview ["🎬 Feedback Review"]
+        G7[Feedback Review Screen]
+        G8[Video Playback with Overlay]
+        G9[View AI Feedback Timeline]
+        G10[View Performance Insights]
+        G8A[Motion Capture Overlay Active]
+        G8B[Feedback Bubbles Display]
+        G8C[Audio Commentary Playback]
+        A1[Audio Feedback Available]
+        A2[Audio Controls Play/Pause/Seek]
+        A3[Audio End Auto-Resume Video]
+        G11[Play/Pause Controls]
+        G12[Seek Timeline]
+        G11A[Video Playing State]
+        G11B[Video Paused State]
+        G9A[Feedback Tab Active]
+        G9B[Insights Tab Active]
+        G9C[Comments Tab Active]
+        G9D[Bottom Sheet Expanded 40% Height]
+        G9E[Bottom Sheet Collapsed]
+        P1[Open Feedback Panel Bottom Sheet]
+        P2[Panel Expands Video Resizes]
+        P3[Draggable Progress Scrubber]
+    end
+
+    %% Feedback Review Flow
+    G7 --> G8
+    G7 --> G9
+    G7 --> G10
+
+    %% Video Playback Sub-states
+    G8 --> G8A
+    G8 --> G8B
+    G8 --> G8C
+    G8 --> A1
+    A1 --> A2
+    A2 --> A3
     G8A --> G8
     G8B --> G8
     G8C --> G8
-    
-    %% Video Controls Sub-states (Wireframes 02c/02d)
-    G8 --> G11[Play/Pause Controls]
-    G8 --> G12[Seek Timeline]
-    G11 --> G11A[Video Playing State - 02c]
-    G11 --> G11B[Video Paused State - 02d]
+
+    %% Video Controls Sub-states
+    G8 --> G11
+    G8 --> G12
+    G11 --> G11A
+    G11 --> G11B
     G11A --> G8
     G11B --> G8
     G12 --> G8
-    
-    %% Bottom Sheet Sub-states (Wireframe 02e)
-    G9 --> G9A[Feedback Tab Active]
-    G9 --> G9B[Insights Tab Active]
-    G9 --> G9C[Comments Tab Active]
-    G9 --> G9D[Bottom Sheet Expanded - 40% Height]
-    G9 --> G9E[Bottom Sheet Collapsed]
+
+    %% Bottom Sheet Sub-states
+    G9 --> G9A
+    G9 --> G9B
+    G9 --> G9C
+    G9 --> G9D
+    G9 --> G9E
+    G7 --> P1
+    P1 --> P2
+    P2 --> P3
     G9A --> G9
     G9B --> G9
     G9C --> G9
     G9D --> G9E
     G9E --> G9D
-    
+
     %% Navigation between main states
     G9 --> G7
     G10 --> G7
     G8 --> G7
 
+    %% Coach Section
+    subgraph Coach ["🏆 Coach"]
+        E[Coach Tab]
+        E1[Chat Mode]
+        E2[Mirror Mode]
+        E3[Type Message]
+        E4[Send Message]
+        E5[Receive Avatar Response]
+    end
+
+    %% Insights Section
+    subgraph Insights ["📊 Insights"]
+        H[Insights Tab]
+        H1[View Performance Score]
+        H2[View Radar Chart]
+        H3[View Category Breakdown]
+        H4[View Detailed Feedback]
+        H5[View Action Plan]
+    end
+
     %% Coach Tab Flow
-    E --> E1[Chat Mode]
-    E --> E2[Mirror Mode]
-    E1 --> E3[Type Message]
-    E3 --> E4[Send Message]
-    E4 --> E5[Receive Avatar Response]
+    E --> E1
+    E --> E2
+    E1 --> E3
+    E3 --> E4
+    E4 --> E5
     E5 --> E3
     E1 --> E
     E2 --> E
-    
+
     %% Insights Tab Flow
-    H --> H1[View Performance Score]
-    H --> H2[View Radar Chart]
-    H --> H3[View Category Breakdown]
-    H --> H4[View Detailed Feedback]
-    H --> H5[View Action Plan]
+    H --> H1
+    H --> H2
+    H --> H3
+    H --> H4
+    H --> H5
     H1 --> H
     H2 --> H
     H3 --> H
     H4 --> H
     H5 --> H
-    
-    %% Navigation Back
+
+    %% Navigation Back to Main
     E --> B
     G7 --> B
     H --> B
     
-    %% Styling
+    %% Styling Classes
     classDef entryPoint fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef mainScreen fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef sideSheet fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
@@ -288,12 +287,14 @@ graph TD
     classDef settings fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef notifications fill:#fff8e1,stroke:#f57f17,stroke-width:2px
     classDef cameraControls fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    
+    %% Apply Classes
     class A entryPoint
     class B mainScreen
-    class C,C1,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15 sideSheet
-    class G5,G6,G6A,G6B,G6C,G6D,G6E,G6F,G6A1,G6A2,G7,G8,G8A,G8B,G8C,G9,G9A,G9B,G9C,G9D,G9E,G10,G11,G11A,G11B,G12 recording
-    class G5,G6,G6A,G6B,G6C,G6D,G6E,G6F,G6A1,G6A2 analysis
+    class C,C1,C4,C5,C6,C7,C8 sideSheet
+    class G5,G5A,G6 analysis
     class G7,G8,G8A,G8B,G8C,G9,G9A,G9B,G9C,G9D,G9E,G10,G11,G11A,G11B,G12 feedback
+    class A1,A2,A3,P1,P2,P3 recording
     class E,E1,E2,E3,E4,E5 coach
     class H,H1,H2,H3,H4,H5 insights
     class C3,C9,C10,C11,C12,C13,C14,C15 settings

@@ -65,6 +65,14 @@ interface VideoProcessingRequest {
   videoSource?: 'live_recording' | 'uploaded_video'
   frameData?: string[] // Base64 encoded frames for uploaded videos
   existingPoseData?: PoseDetectionResult[] // For live recordings
+  // Timing parameters for AI analysis
+  startTime?: number
+  endTime?: number
+  duration?: number
+  feedbackCount?: number
+  targetTimestamps?: number[]
+  minGap?: number
+  firstTimestamp?: number
 }
 
 interface PoseDetectionResult {
@@ -128,7 +136,8 @@ Deno.serve(async (req) => {
 
     // Route: POST /ai-analyze-video - Main AI analysis endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video') {
-      return await handleAIAnalyzeVideo(req)
+      const requestBody = await req.json()
+      return await handleAIAnalyzeVideo(req, requestBody)
     }
 
     // Route: GET /ai-analyze-video/status - Analysis status endpoint
@@ -183,15 +192,23 @@ Deno.serve(async (req) => {
   }
 })
 
-async function handleAIAnalyzeVideo(req: Request): Promise<Response> {
+async function handleAIAnalyzeVideo(req: Request, requestBody?: any): Promise<Response> {
   try {
-    const requestData: VideoProcessingRequest = await req.json()
+    const requestData: VideoProcessingRequest = requestBody || await req.json()
     const {
       videoPath,
       userId,
       videoSource = 'uploaded_video',
       frameData,
       existingPoseData,
+      // Extract timing parameters
+      startTime,
+      endTime,
+      duration,
+      feedbackCount,
+      targetTimestamps,
+      minGap,
+      firstTimestamp,
     } = requestData
 
     // Validate required fields
@@ -245,7 +262,15 @@ async function handleAIAnalyzeVideo(req: Request): Promise<Response> {
     logger.info('Successfully created analysis job', { jobId: analysisJob.id })
 
     // Start AI pipeline processing in background
-    processAIPipeline(analysisJob.id, videoPath, videoSource, frameData, existingPoseData).catch(
+    processAIPipeline(analysisJob.id, videoPath, videoSource, frameData, existingPoseData, {
+      startTime,
+      endTime,
+      duration,
+      feedbackCount,
+      targetTimestamps,
+      minGap,
+      firstTimestamp,
+    }).catch(
       (error) => {
         logger.error('AI Pipeline processing failed', error)
         updateAnalysisStatus(
@@ -395,7 +420,16 @@ async function processAIPipeline(
   videoPath: string,
   videoSource: string,
   _frameData?: string[],
-  _existingPoseData?: PoseDetectionResult[]
+  _existingPoseData?: PoseDetectionResult[],
+  timingParams?: {
+    startTime?: number
+    endTime?: number
+    duration?: number
+    feedbackCount?: number
+    targetTimestamps?: number[]
+    minGap?: number
+    firstTimestamp?: number
+  }
 ): Promise<void> {
   const startTime = Date.now()
 
@@ -424,9 +458,18 @@ async function processAIPipeline(
     })
 
     logger.info('About to call _analyzeVideoWithGemini function')
+
+    logger.info('Timing parameters received', {
+      startTime: timingParams?.startTime,
+      endTime: timingParams?.endTime,
+      duration: timingParams?.duration,
+      feedbackCount: timingParams?.feedbackCount,
+      targetTimestamps: timingParams?.targetTimestamps,
+    })
+
     let analysis
     try {
-      analysis = await _analyzeVideoWithGemini(videoPath, undefined, async (progress: number) => {
+      analysis = await _analyzeVideoWithGemini(videoPath, timingParams, async (progress: number) => {
         logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
         await updateAnalysisStatus(analysisId, 'processing', null, progress)
       })

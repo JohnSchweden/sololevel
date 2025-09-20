@@ -28,19 +28,38 @@ graph TB
     %% Backend (Supabase)
     subgraph "Supabase Backend"
         Auth["🔐 Auth\nJWT, Sessions"]
-        DB[("🗄️ PostgreSQL\nRLS On")] 
-        Storage["📁 Storage\nVideos, Audio, Assets"]
-        Realtime["⚡ Realtime\nSubscriptions"]
-        EdgeFns["🧩 Edge Functions\nPrivileged Logic"]
+        subgraph DBGroup["🗄️ PostgreSQL (RLS On)"]
+            DB[("public schema")]
+            VR["📄 video_recordings\n(id, user_id, storage_path, filename, duration, source_type, created_at)"]
+            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_report_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)"]
+        end
+        Storage["📁 Storage\nraw (uploads) • processed (artifacts: AAC/MP3)"]
+        subgraph RTGroup["⚡ Realtime"]
+            RT1["Postgres Changes\npublic.analysis_jobs (UPDATE)"]
+            RT2["Broadcast Channel\npose-data-{analysisId} (event: pose-frame)"]
+        end
+        subgraph EdgeFns["🧩 Edge Functions\nPrivileged Logic"]
+            E1["ai-analyze-video"]
+            E1a["POST /ai-analyze-video"]
+            E1b["GET /ai-analyze-video/status?id=<id>"]
+            E1c["POST /ai-analyze-video/tts"]
+            E1d["GET /ai-analyze-video/health"]
+            Obs["📝 Logger\n_supabase/functions/_shared/logger.ts_"]
+        end
     end
 
     %% AI Pipeline (Hybrid: Client + Edge)
-    subgraph "AI Analysis Pipeline"
-        Pose["🕺 Pose Detection"]
-        VideoProc["📹 Video Processing\n(react-native-video-processing)"]
-        Voice["🎤 Voice Analysis"]
-        LLM["🧠 LLM Feedback"]
-        TTS["🔊 Text-to-Speech"]
+    subgraph "AI Analysis Pipeline (Hybrid)"
+        subgraph ClientSide["Client Responsibilities"]
+            Pose["🕺 Pose Detection\n• Live: VisionCamera + MoveNet\n• Uploads: react-native-video-processing + MoveNet\n• Pose stored for UI overlays (pose_data)"]
+        end
+        subgraph EdgeSide["Edge Responsibilities"]
+            LLM["🧠 Gemini 2.5 Video Analysis\n(uses stored video content)"]
+            SSML["🔤 SSML Generation\n(Gemini LLM)"]
+            TTS["🔊 TTS Generation\n(Gemini 2.0 → AAC/MP3 in processed)"]
+            RPC1["RPC: store_enhanced_analysis_results"]
+            RPC2["RPC: get_enhanced_analysis_with_feedback"]
+        end
     end
 
     %% Dev, Build, and Quality
@@ -81,22 +100,23 @@ graph TB
     APIPkg --> Auth
     APIPkg --> DB
     APIPkg --> Storage
-    APIPkg --> Realtime
+    APIPkg --> RTGroup
     APIPkg --> EdgeFns
 
     %% AI Flow
-    EdgeFns --> Pose
-    EdgeFns --> VideoProc
-    EdgeFns --> Voice
-    EdgeFns --> LLM
-    EdgeFns --> TTS
-    VideoProc --> Pose
+    ClientSide --> EdgeSide
 
     %% Data Movement
     Storage <--> EdgeFns
-    EdgeFns --> DB
-    DB --> Realtime
-    Realtime --> TSQ
+    EdgeFns --> DBGroup
+    EdgeSide --> Storage
+    EdgeSide --> RPC1
+    EdgeSide --> RPC2
+    DBGroup --> RTGroup
+    RTGroup --> TSQ
+    Auth --> VR
+    Auth --> AJ
+    VR --> AJ
 
     %% Tooling Relationships
     Turbo --> ExpoApp
@@ -126,8 +146,8 @@ graph TB
     class ExpoApp,NextApp,ExpoRouter layerClient
     class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
     class Zustand,TSQ layerState
-    class Auth,DB,Storage,Realtime,EdgeFns layerBackend
-    class Pose,VideoProc,Voice,LLM,TTS layerAI
+    class Auth,DBGroup,Storage,RTGroup,EdgeFns layerBackend
+    class Pose,LLM,SSML,TTS,RPC1,RPC2 layerAI
     class Turbo,Yarn,TS,Biome,Vitest,Playwright,GHA,EAS,Vercel layerDev
 
     %% Legend

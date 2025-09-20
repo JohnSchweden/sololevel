@@ -5,7 +5,9 @@
 
 import {
   PoseData,
+  computeVideoTimingParams,
   createAnalysisJobWithPoseProcessing,
+  startGeminiVideoAnalysis,
   updateAnalysisJobWithPoseData,
 } from '@my/api'
 import { log } from '@my/logging'
@@ -89,9 +91,30 @@ export function useVideoProcessing() {
         // Step 5: Update analysis job with pose data
         await updateAnalysisJobWithPoseData(analysisJob.id, poseData)
 
-        log.info(`Video processing completed for job ${analysisJob.id}`)
+        // Step 6: Compute video timing parameters and start AI analysis
+        const videoDuration = poseData.metadata.duration
+        const timingParams = computeVideoTimingParams(videoDuration)
 
-        // Step 6: Clean up
+        log.info(`Computed timing params for video analysis`, {
+          duration: videoDuration,
+          feedbackCount: timingParams.feedbackCount,
+          targetTimestamps: timingParams.targetTimestamps,
+        })
+
+        // Start Gemini video analysis with computed timing parameters
+        const analysisResponse = await startGeminiVideoAnalysis({
+          videoPath,
+          userId: 'current-user', // TODO: Get from auth context
+          videoSource: 'uploaded_video',
+          timingParams,
+        })
+
+        log.info(`AI analysis started for job ${analysisJob.id}`, {
+          analysisId: analysisResponse.analysisId,
+          status: analysisResponse.status,
+        })
+
+        // Step 7: Clean up
         videoProcessingService.cleanup()
 
         setState({

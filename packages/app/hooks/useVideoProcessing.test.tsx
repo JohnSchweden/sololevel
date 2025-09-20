@@ -15,7 +15,11 @@ jest.mock('@my/logging', () => ({
 }))
 
 // Get the mocked functions from the __mocks__ directory
-import { __mockCreateAnalysisJob, __mockUpdateAnalysisJob } from '@my/api'
+import {
+  __mockComputeVideoTimingParams,
+  __mockCreateAnalysisJob,
+  __mockUpdateAnalysisJob,
+} from '@my/api'
 
 import { renderHook, waitFor } from '@testing-library/react'
 
@@ -37,8 +41,23 @@ jest.mock('../services/videoProcessingService', () => ({
   videoProcessingService: mockVideoProcessingService,
 }))
 
+// Mock the computeVideoTimingParams function
+jest.mock('@my/api', () => ({
+  computeVideoTimingParams: jest.fn(),
+  createAnalysisJobWithPoseProcessing: jest.fn(),
+  updateAnalysisJobWithPoseData: jest.fn(),
+  startGeminiVideoAnalysis: jest.fn(),
+  __mockCreateAnalysisJob: jest.fn(),
+  __mockUpdateAnalysisJob: jest.fn(),
+  __mockComputeVideoTimingParams: jest.fn(),
+  // Add other required exports to prevent import errors
+  supabase: {},
+  log: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+}))
+
 // Import after mocking
 const { useVideoProcessing } = require('./useVideoProcessing')
+const { computeVideoTimingParams } = require('@my/api')
 
 // Ensure the mock functions are properly defined
 mockOnProgress.mockImplementation(() => {})
@@ -57,6 +76,30 @@ mockCleanup.mockImplementation(() => {})
 describe('useVideoProcessing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Mock computeVideoTimingParams to return mock timing parameters
+    ;(computeVideoTimingParams as jest.MockedFunction<any>).mockReturnValue({
+      duration: 6,
+      startTime: 0,
+      endTime: 6,
+      feedbackCount: 2,
+      targetTimestamps: [3, 6],
+      minGap: 4,
+      firstTimestamp: 3,
+    })
+
+    // Mock the imported mock functions that the test expects to be called
+    __mockCreateAnalysisJob.mockResolvedValue({ id: 123 })
+    __mockUpdateAnalysisJob.mockResolvedValue({})
+
+    // Also mock the actual functions used by the hook
+    const mockCreateAnalysisJob = require('@my/api').createAnalysisJobWithPoseProcessing
+    ;(mockCreateAnalysisJob as jest.MockedFunction<any>).mockResolvedValue({ id: 123 })
+
+    const mockUpdateAnalysisJob = require('@my/api').updateAnalysisJobWithPoseData
+    ;(mockUpdateAnalysisJob as jest.MockedFunction<any>).mockResolvedValue({})
+
+    const mockStartGeminiVideoAnalysis = require('@my/api').startGeminiVideoAnalysis
+    ;(mockStartGeminiVideoAnalysis as jest.MockedFunction<any>).mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -111,9 +154,13 @@ describe('useVideoProcessing', () => {
 
       const processResult = await result.current.processVideo(1, 'test-video.mp4')
 
-      expect(__mockCreateAnalysisJob).toHaveBeenCalledWith(1)
+      // Check that the API functions were called correctly
+      const mockCreateAnalysisJob = require('@my/api').createAnalysisJobWithPoseProcessing
+      const mockUpdateAnalysisJob = require('@my/api').updateAnalysisJobWithPoseData
+
+      expect(mockCreateAnalysisJob).toHaveBeenCalledWith(1)
       expect(mockProcessVideoForPoseDetection).toHaveBeenCalledWith('test-video.mp4')
-      expect(__mockUpdateAnalysisJob).toHaveBeenCalledWith(123, expect.any(Object))
+      expect(mockUpdateAnalysisJob).toHaveBeenCalledWith(123, expect.any(Object))
       expect(mockCleanup).toHaveBeenCalled()
 
       expect(processResult).toEqual({

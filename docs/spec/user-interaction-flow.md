@@ -112,7 +112,7 @@ graph TD
         H5
     end
 
-    subgraph Notifications ["🔔 Notifications"]
+    subgraph Notifications ["🔔 Notifications (Planned/Partial)"]
         G0
         G0A
         G0B
@@ -127,7 +127,7 @@ graph TD
     C3 --> B
 
     %% Videos List Screen Actions
-    C1 --> C4[Filter Screen]
+    C1 --> C4[Filter Screen (Planned/Partial)]
     C1 --> C5[Select Video from List]
     C4 --> C1
 
@@ -170,7 +170,7 @@ graph TD
     F4 --> F[Native Media Picker]
     G0E --> B
 
-    %% Recording Flow - Active State
+    %% Recording Flow - Active State (Live Pose Streaming optional)
     G --> G1[Recording Active State]
     G1 --> G1A[Zoom In]
     G1 --> G1B[Zoom Out]
@@ -181,26 +181,40 @@ graph TD
     G2 --> G4[Resume Recording]
     G2 --> G3
     G4 --> G1
-    G3 --> G5[Analysis Processing]
+    G3 --> L1[Live Pose Streaming (pose-data-{analysisId})]
+    L1 --> G5[Analysis Processing]
 
-    %% Upload Video
+    %% Upload Video (Signed URL, Progress, Retry/Cancel)
     F --> F1[Select Video]
     F --> F2[Select File]
     F --> F3[Cancel]
-    F1 --> G5[Analysis Processing]
-    F2 --> G5[Analysis Processing]
+    F1 --> U1[Create Signed Upload URL]
+    F2 --> U1
+    U1 --> U2[Upload to Storage: raw]
+    U2 --> U3[Track Progress / Retry / Cancel]
+    U3 --> U4[Create video_recording]
+    U4 --> G5[Analysis Processing]
     F3 --> B
 
-    %% Analysis Flow
+    %% Analysis Flow (Realtime + Polling Fallback)
     G5 --> G6[AI Processing with Spinner]
-    G6 --> G7[Feedback Review Screen]
+    G6 --> R1[Subscribe: analysis_jobs (Realtime)]
+    G6 --> R2[Fallback: GET /ai-analyze-video/status]
+    R1 --> G7[Feedback Review Screen]
+    R2 --> G7[Feedback Review Screen]
 
-    %% Feedback Review Flow
+    %% Feedback Review Flow (Video + Audio + Panel Resize)
     G7 --> G8[Video Playback with Overlay]
     G7 --> G9[View AI Feedback Timeline]
     G7 --> G10[View Performance Insights]
+    G8 --> A1[Audio Feedback Available → Auto-Pause Video]
+    A1 --> A2[Audio Controls: Play/Pause/Seek]
+    A2 --> A3[Audio End → Auto-Resume Video]
     G8 --> G11[Play/Pause Controls]
     G8 --> G12[Seek Timeline]
+    G7 --> P1[Open Feedback Panel (Bottom Sheet)]
+    P1 --> P2[Panel Expands → Video Resizes (Letterboxing)]
+    P2 --> P3[Draggable Progress Scrubber (Synced to Playback)]
     G11 --> G8
     G12 --> G8
     G9 --> G7

@@ -585,6 +585,118 @@ export async function addAnalysisMetrics(
   }
 }
 
+// AI Analysis Edge Service Types and Functions
+export interface VideoTimingParams {
+  duration?: number
+  startTime?: number
+  endTime?: number
+  feedbackCount?: number
+  targetTimestamps?: number[]
+  minGap?: number
+  firstTimestamp?: number
+}
+
+export interface AIAnalysisRequest {
+  videoPath: string
+  userId: string
+  videoSource?: 'live_recording' | 'uploaded_video'
+  timingParams?: VideoTimingParams
+}
+
+export interface AIAnalysisResponse {
+  analysisId: number
+  status: 'queued'
+  message: string
+}
+
+/**
+ * Compute video timing parameters using Python logic
+ * This mirrors the logic from the Python Gemini strategy
+ */
+export function computeVideoTimingParams(
+  duration: number,
+  startTime = 0,
+  endTime?: number
+): VideoTimingParams {
+  // Use full video if endTime not specified
+  const actualEndTime = endTime ?? duration
+  const actualStartTime = startTime
+
+  // Calculate feedback count: max(1, min(10, round(duration / 5.0)))
+  const feedbackCount = Math.max(1, Math.min(10, Math.round(actualEndTime / 5.0)))
+
+  // Calculate first timestamp with special logic for edge cases
+  let firstTimestamp: number
+  if (actualStartTime <= 0.0001 && actualEndTime < 5.0) {
+    firstTimestamp = actualEndTime
+  } else if (actualStartTime <= 0.0001) {
+    firstTimestamp = 5.0
+  } else {
+    firstTimestamp = actualStartTime
+  }
+
+  // Calculate minimum gap: max(4.0, 0.06 * duration)
+  const minGap = Math.max(4.0, 0.06 * actualEndTime)
+
+  // Generate target timestamps list
+  let targetTimestamps: number[]
+  if (feedbackCount === 1) {
+    targetTimestamps = [Math.min(actualEndTime, Math.max(firstTimestamp, actualStartTime))]
+  } else {
+    const span = Math.max(0.0, actualEndTime - Math.max(firstTimestamp, actualStartTime))
+    if (span <= 0.0) {
+      targetTimestamps = Array(feedbackCount).fill(actualEndTime)
+    } else {
+      const step = span / feedbackCount
+      targetTimestamps = Array.from(
+        { length: feedbackCount },
+        (_, i) => Math.max(firstTimestamp, actualStartTime) + step * i
+      )
+    }
+  }
+
+  return {
+    duration: Math.round(actualEndTime),
+    startTime: actualStartTime,
+    endTime: actualEndTime,
+    feedbackCount,
+    targetTimestamps: targetTimestamps.map((t) => Math.round(t * 100) / 100), // Round to 2 decimal places
+    minGap: Math.round(minGap),
+    firstTimestamp,
+  }
+}
+
+/**
+ * Start Gemini video analysis with timing parameters
+ */
+export async function startGeminiVideoAnalysis(
+  request: AIAnalysisRequest
+): Promise<AIAnalysisResponse> {
+  const { videoPath, userId, videoSource = 'uploaded_video', timingParams } = request
+
+  const { data, error } = await supabase.functions.invoke('ai-analyze-video', {
+    body: {
+      videoPath,
+      userId,
+      videoSource,
+      startTime: timingParams?.startTime,
+      endTime: timingParams?.endTime,
+      duration: timingParams?.duration,
+      feedbackCount: timingParams?.feedbackCount,
+      targetTimestamps: timingParams?.targetTimestamps,
+      minGap: timingParams?.minGap,
+      firstTimestamp: timingParams?.firstTimestamp,
+    },
+  })
+
+  if (error) {
+    throw new Error(`AI Analysis failed: ${error.message}`)
+  }
+
+  return data as AIAnalysisResponse
+}
+
 // Mock exports for testing (defined in __mocks__ directory)
 export const __mockCreateAnalysisJob = (() => {}) as any
 export const __mockUpdateAnalysisJob = (() => {}) as any
+export const __mockComputeVideoTimingParams = (() => {}) as any

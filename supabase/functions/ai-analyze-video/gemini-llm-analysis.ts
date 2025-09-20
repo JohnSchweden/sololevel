@@ -476,62 +476,16 @@ export async function analyzeVideoWithGemini(
     }
 
     // Step 4: Generate analysis prompt via local template (prompts-local)
-    // Use provided params or calculate based on video segment logic
-    const startTime = _analysisParams?.startTime
-    const endTime = _analysisParams?.endTime
-    let duration = _analysisParams?.duration
-
-    // If we have endTime and startTime, calculate duration
-    if (endTime !== undefined && startTime !== undefined) {
-      duration = Math.max(0.0, endTime - startTime)
-    }
-
-    // Calculate feedback parameters using Python logic
-    let feedbackCount = _analysisParams?.feedbackCount
-    let firstTimestamp = _analysisParams?.firstTimestamp
-    let minGap = _analysisParams?.minGap
-    let targetTimestamps = _analysisParams?.targetTimestamps
-
-    if (duration !== undefined && startTime !== undefined && endTime !== undefined) {
-      // Calculate feedback count: max(1, min(10, round(duration / 5.0)))
-      feedbackCount = Math.max(1, Math.min(10, Math.round(duration / 5.0)))
-
-      // Calculate first timestamp with special logic for edge cases
-      if (startTime <= 0.0001 && endTime < 5.0) {
-        firstTimestamp = endTime
-      } else if (startTime <= 0.0001) {
-        firstTimestamp = 5.0
-      } else {
-        firstTimestamp = startTime
-      }
-
-      // Calculate minimum gap: max(4.0, 0.06 * duration)
-      minGap = Math.max(4.0, 0.06 * duration)
-
-      // Generate target timestamps list
-      if (feedbackCount === 1) {
-        targetTimestamps = [Math.min(endTime, Math.max(firstTimestamp!, startTime))]
-      } else {
-        const span = Math.max(0.0, endTime - Math.max(firstTimestamp!, startTime))
-        if (span <= 0.0) {
-          targetTimestamps = Array(feedbackCount).fill(endTime)
-        } else {
-          const step = span / feedbackCount
-          targetTimestamps = Array.from({ length: feedbackCount }, (_, i) =>
-            Math.max(firstTimestamp!, startTime) + step * i
-          )
-        }
-      }
-    }
-
+    // Use timing parameters computed by client (from analysisService.ts)
+    // Fallback to defaults if not provided (for backward compatibility)
     const mappedParams = {
-      duration: duration ? Math.round(duration) : _analysisParams?.duration,
-      start_time: startTime,
-      end_time: endTime,
-      feedback_count: feedbackCount,
-      target_timestamps: targetTimestamps?.map(t => Math.round(t * 100) / 100), // Round to 2 decimal places
-      min_gap: minGap ? Math.round(minGap) : _analysisParams?.minGap,
-      first_timestamp: firstTimestamp,
+      duration: _analysisParams?.duration || 6, // Default 30 seconds
+      start_time: _analysisParams?.startTime || 0,
+      end_time: _analysisParams?.endTime || _analysisParams?.duration || 6,
+      feedback_count: _analysisParams?.feedbackCount || 1, // Default 3 feedback items
+      target_timestamps: _analysisParams?.targetTimestamps,
+      min_gap: _analysisParams?.minGap,
+      first_timestamp: _analysisParams?.firstTimestamp,
     }
     const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
     logger.info(`Generated analysis prompt: ${prompt.length} characters`)

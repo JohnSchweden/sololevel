@@ -49,9 +49,19 @@ export type {
 export {
   createAnalysisJobWithPoseProcessing,
   updateAnalysisJobWithPoseData,
+  startGeminiVideoAnalysis,
+  computeVideoTimingParams,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,
   __mockUpdateAnalysisJob,
+  __mockComputeVideoTimingParams,
+} from './services/analysisService'
+
+// AI Analysis Edge service types
+export type {
+  VideoTimingParams,
+  AIAnalysisRequest,
+  AIAnalysisResponse,
 } from './services/analysisService'
 // Realtime service functions
 export {

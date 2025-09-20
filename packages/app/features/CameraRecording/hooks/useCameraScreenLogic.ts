@@ -1,3 +1,4 @@
+import { computeVideoTimingParams, startGeminiVideoAnalysis } from '@my/api'
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
@@ -36,16 +37,6 @@ export const useCameraScreenLogic = ({
   // Tab persistence across app sessions
   const { activeTab, setActiveTab, isLoading: isTabLoading } = useTabPersistence()
   const [cameraReady, setCameraReady] = useState(false)
-
-  // Handle video recording completion
-  const handleVideoRecorded = useCallback(
-    (videoUri: string) => {
-      log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
-      // Navigate to video analysis screen with the recorded video
-      onNavigateToVideoAnalysis?.(videoUri)
-    },
-    [onNavigateToVideoAnalysis]
-  )
 
   // Handle recording state changes - simplified since we don't need screen transitions
   const handleRecordingStateChange = useCallback((state: RecordingState, duration: number) => {
@@ -156,6 +147,47 @@ export const useCameraScreenLogic = ({
     }, []),
     onResetZoom: handleResetZoom,
   })
+
+  // Handle video recording completion - placed after duration is available
+  const handleVideoRecorded = useCallback(
+    async (videoUri: string) => {
+      log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
+
+      try {
+        // Use the current duration from the recording state
+        const recordingDuration = duration / 1000 // Convert from milliseconds to seconds
+        const timingParams = computeVideoTimingParams(recordingDuration)
+
+        log.info('useCameraScreenLogic', 'Computed timing params for recorded video', {
+          duration: recordingDuration,
+          feedbackCount: timingParams.feedbackCount,
+          targetTimestamps: timingParams.targetTimestamps,
+        })
+
+        // Start Gemini video analysis with computed timing parameters
+        // For live recordings, we use the videoUri as the path
+        const analysisResponse = await startGeminiVideoAnalysis({
+          videoPath: videoUri, // For live recordings, this is the local file URI
+          userId: 'current-user', // TODO: Get from auth context
+          videoSource: 'live_recording',
+          timingParams,
+        })
+
+        log.info('useCameraScreenLogic', 'AI analysis started for recorded video', {
+          analysisId: analysisResponse.analysisId,
+          status: analysisResponse.status,
+        })
+
+        // Navigate to video analysis screen with the recorded video
+        onNavigateToVideoAnalysis?.(videoUri)
+      } catch (error) {
+        log.error('useCameraScreenLogic', 'Failed to start AI analysis for recorded video', error)
+        // Still navigate to video analysis screen even if AI analysis fails
+        onNavigateToVideoAnalysis?.(videoUri)
+      }
+    },
+    [onNavigateToVideoAnalysis, duration]
+  )
 
   const handleCameraSwap = useCallback(async () => {
     if (recordingState === RecordingState.RECORDING) {

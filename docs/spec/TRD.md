@@ -57,7 +57,7 @@ flowchart TD
   W[Next.js Web] -- TanStack Query/Auth --> S
   A -- Upload --> ST[(Supabase Storage: raw/processed)]
   W -- Upload --> ST
-  A & W -- Invoke --> EF[Edge Functions: ai-analyze-video, tts]
+  A & W -- Invoke --> EF[Edge Functions: ai-analyze-video (subroutes)]
   EF -- Read/Write --> ST
   EF -- Read/Write --> DB[(PostgreSQL)]
   EF -- Call --> AI[AI Providers (Pose/ASR/LLM/TTS)]
@@ -153,48 +153,73 @@ flowchart TD
 
 * **Database Schema (Supabase, public schema)**:
   - `profiles` (user_id uuid PK/FK auth.users, username text unique, created_at)
-  - `analyses` (
+  - `video_recordings` (
       id bigint identity PK,
       user_id uuid FK -> auth.users,
-      video_url text, status text check in ('queued','processing','completed','failed'),
-      summary_text text, ssml text, audio_url text,
+      storage_path text, filename text, original_filename text,
+      duration_seconds int, source_type text, created_at timestamptz default now()
+    ) RLS enabled
+  - `analysis_jobs` (
+      id bigint identity PK,
+      user_id uuid FK -> auth.users,
+      video_recording_id bigint FK -> video_recordings(id) on delete cascade,
+      status text check in ('queued','processing','completed','failed'),
+      progress_percentage int,
+      processing_started_at timestamptz, processing_completed_at timestamptz,
+      error_message text,
+      results jsonb, pose_data jsonb,
+      full_report_text text, summary_text text, ssml text, audio_url text,
+      processing_time_ms int, video_source_type text,
+      created_at timestamptz default now(), updated_at timestamptz default now()
+    ) RLS enabled
+  - `analysis_feedback` (
+      id bigint identity PK,
+      analysis_job_id bigint FK -> analysis_jobs(id) on delete cascade,
+      timestamp_seconds numeric,
+      category text, message text,
+      confidence numeric, impact numeric,
       created_at timestamptz default now()
     ) RLS enabled
-  - `analysis_metrics` (
-      id bigint identity PK,
-      analysis_id bigint FK -> analyses(id) on delete cascade,
-      metric_key text, metric_value numeric, unit text
-    ) RLS enabled
-  - Storage buckets: `raw` (uploads), `processed` (thumbnails, audio in AAC/MP3 format)
+  - `analysis_metrics` (optional / Phase 2 analytics)
+  - Storage buckets: `raw` (uploads), `processed` (thumbnails, artifacts: AAC/MP3 audio)
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
+
+**Post-MVP Database Refactoring Note:**
+After MVP, the `analysis_jobs` table should be split for better normalization and scalability:
+- Move feedback content (`full_report_text`, `summary_text`, `ssml`, `audio_url`) to a new `analyses` table
+- Create `analysis_feedbacks` table for individual feedback items with timestamps
+- Keep `analysis_jobs` focused on job status, progress, and processing metadata
+- This will improve query performance and enable more flexible feedback analysis
 
 * **API Specifications (Edge Functions)**:
   - `POST /functions/v1/ai-analyze-video`
-    - Request: `{ videoPath: string, userId?: string }`
-    - Response: `{ analysisId: string }`
-  - `GET /functions/v1/analysis-status?id=...`
-    - Response: `{ id, status, progress?: number }`
-  - `POST /functions/v1/tts`
-    - Request: `{ ssml: string, voice?: string }`
-    - Response: `{ audioUrl: string }`
-  - Notes: Prefer Supabase Realtime over polling for completion.
+    - Request: `{ videoPath: string, userId: string, videoSource?: 'live_recording' | 'uploaded_video' }`
+    - Response: `{ analysisId: number, status: 'queued' }`
+  - `GET /functions/v1/ai-analyze-video/status?id=<id>`
+    - Response: `{ id, status, progress, error?, results?, ssml?, audioUrl?, summary?, timestamps }`
+  - `POST /functions/v1/ai-analyze-video/tts`
+    - Request: `{ ssml?: string, text?: string, analysisId?: number }`
+    - Response: `{ audioUrl: string, duration?: number, format: 'mp3'|'aac' }`
+  - `GET /functions/v1/ai-analyze-video/health`
+    - Response: `{ status: 'ok'|'warning', version, message, env: { supabaseUrl: boolean, supabaseServiceKey: boolean } }`
+  - Notes: Prefer Supabase Realtime over polling; status endpoint is a fallback.
 
-* **AI Pipeline Flow**:
+* **AI Pipeline Flow (Hybrid)**:
 
 ```mermaid
 flowchart TD
     A[Video Upload] --> B{Video Source}
     B -->|Live Recording| C[VisionCamera Pose Data]
     B -->|Uploaded Video| D[react-native-video-processing]
-    D --> E[Frame Extraction]
-    E --> F[MoveNet Lightning Pose Detection]
+    D --> E[Client Frame Extraction]
+    E --> F[Client MoveNet Pose Detection]
     F --> G[Pose Data Unification]
     C --> G
-    G --> H[Video/Voice Analysis<br/>Gemini 2.5]
+    G --> H[Edge Video Analysis<br/>Gemini 2.5 (stored video)]
     H --> I[SSML Generation<br/>Gemini LLM]
-    I --> J[TTS Generation<br/>Gemini 2.0]
-    J --> K[Feedback Assembly]
-    K --> L[Realtime Update]
+    I --> J[TTS Generation<br/>Gemini 2.0 → AAC/MP3 in processed]
+    J --> K[Store Results (store_enhanced_analysis_results)]
+    K --> L[Realtime Update (analysis_jobs UPDATE)]
 ```
 
 * **Algorithms and Logic (Overview)**:
@@ -221,6 +246,15 @@ flowchart TD
   - **Performance**: Compressed formats reduce load times and memory consumption on mobile devices
   - **User Experience**: Require user interaction to initiate audio playback (autoplay restrictions)
 
+* **Realtime & Polling**:
+  - Realtime: Subscribe to Postgres changes on `public.analysis_jobs` (UPDATE, filter `id=eq.<id>`)
+  - Live Pose (optional): Broadcast channel `pose-data-<id>` with event `pose-frame`
+  - Polling fallback: `GET /ai-analyze-video/status?id=<id>` with exponential backoff (e.g., 1s → 2s → 4s up to 30s)
+
+* **TTS Status (MVP Stub)**:
+  - Current implementation returns placeholder MP3 URL during development
+  - Target: persist generated AAC/MP3 in `processed` bucket and store URL in `analysis_jobs.audio_url`
+
 * **Error Handling**:
   - Use discriminated union results in client hooks
   - Edge: validate inputs with Zod, timeouts/retries for providers, structured error codes
@@ -230,13 +264,9 @@ flowchart TD
 
 ## Security Considerations
 * **General Security**: See `core/monorepo-foundation.mdc` and `quality/security-best-practices.mdc`
-* **Product-specific Threats**:
-  - Unauthorized access to videos/artifacts → mitigate with signed URLs short TTL and RLS
-  - Prompt/response injection in LLM calls → sanitize inputs, allowlist outputs, cap tokens
-  - Abuse (large uploads, job storms) → size limits, rate limiting, quotas per user
-* **Product-specific Security**:
-  - Owner-only access to analyses via RLS policies
-  - Do not store raw PII in logs
+* **Edge Function Secrets**: Service-role key used server-side only; never exposed to client
+* **CORS**: Allow `authorization, x-client-info, apikey, content-type`; Methods: `GET, POST, PUT, DELETE, OPTIONS`
+* **Health Endpoint Exposure**: `/ai-analyze-video/health` returns sanitized env booleans only
 
 ---
 
@@ -274,7 +304,7 @@ flowchart TD
 ---
 
 ## Monitoring and Maintenance
-* **Logging**: Structured logs in Edge; request ids; client breadcrumbs for uploads
+* **Logging**: Structured logs in Edge (`supabase/functions/_shared/logger.ts`); request ids; client breadcrumbs for uploads
 * **Monitoring Tools**: Supabase logs and metrics; optional Sentry for client/app
 * **Alerting**: Error rate thresholds on Edge; slow job alerts > 15s
 * **Maintenance Plan**: Weekly dependency updates; provider cost audits
