@@ -305,14 +305,14 @@ enabled = false
 enabled = true
 # Configure one of the supported request policies: `oneshot`, `per_worker`.
 # Use `oneshot` for hot reload, or `per_worker` for load testing.
-policy = "oneshot"
+policy = "per_worker"
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083
 # The Deno major version to use.
 deno_version = 1
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Environment variables for Edge Functions
+# Note: Environment variables should be set in .env file or via SUPABASE_ENV_ prefix
 
 [analytics]
 enabled = true
@@ -332,6 +332,11 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+[functions.ai-analyze-video]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/ai-analyze-video/index.ts"
 
 [functions.hello-world]
 enabled = true

@@ -29,7 +29,15 @@
       "yarn workspace @my/api add",
       "yarn workspace @my/api remove",
       "yarn workspace @my/config add",
-      "yarn workspace @my/config remove"
+      "yarn workspace @my/config remove",
+      "echo * > .env",
+      "echo * >> .env",
+      "echo * > .env.local",
+      "echo * >> .env.local",
+      "echo * > .env.development",
+      "echo * >> .env.development",
+      "echo * > .env.production",
+      "echo * >> .env.production"
     ]
   },
 

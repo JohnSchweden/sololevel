@@ -1,6 +1,8 @@
 // Simplified AI Analysis Edge Function for testing
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+// Import centralized logger for Edge Functions
+import { getNetworkErrors as _getNetworkErrors, createLogger, enableNetworkLogging } from '../_shared/logger.ts'
 
 declare const Deno: {
   env: { get(key: string): string | undefined }
@@ -9,26 +11,45 @@ declare const Deno: {
   stderr: { write(data: Uint8Array): void }
 }
 
+const logger = createLogger('ai-analyze-video')
+// Enable lightweight network logging to capture external fetch failures
+enableNetworkLogging()
+
 // Initialize Supabase client with service role
-const supabaseUrl = Deno.env.get('SUPABASE_URL')
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+// Note: supabase functions serve ignores SUPABASE_* names from --env-file.
+// Provide EDGE_* fallbacks for local dev.
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('EDGE_SUPABASE_URL')
+const supabaseServiceKey =
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('EDGE_SUPABASE_SERVICE_ROLE_KEY')
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing required environment variables')
+  logger.error('Missing required environment variables for Supabase client', {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+  })
 }
 
 // Create client only if environment variables are available
 const supabase = supabaseUrl && supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null
 
 // Import Gemini modules
-import { type GeminiVideoAnalysisResult, analyzeVideoWithGemini as _analyzeVideoWithGemini, validateGeminiConfig as _validateGeminiConfig } from './gemini-llm-analysis.ts'
+import { type GeminiVideoAnalysisResult as _GeminiVideoAnalysisResult, analyzeVideoWithGemini as _analyzeVideoWithGemini, validateGeminiConfig as _validateGeminiConfig, setSupabaseClient } from './gemini-llm-analysis.ts'
 import { generateSSMLFromFeedback as geminiLLMFeedback } from './gemini-ssml-feedback.ts'
 import { generateTTSFromSSML as geminiTTS20 } from './gemini-tts-audio.ts'
 
-// Import centralized logger for Edge Functions
-import { createLogger } from '../_shared/logger.ts'
+// Set Supabase client for Gemini analysis module
+logger.info('Initializing Supabase client', {
+  hasSupabaseClient: !!supabase,
+  hasSupabaseUrl: !!supabaseUrl,
+  hasServiceKey: !!supabaseServiceKey
+})
 
-const logger = createLogger('ai-analyze-video')
+if (supabase) {
+  logger.info('Setting Supabase client for Gemini analysis module')
+  setSupabaseClient(supabase)
+} else {
+  logger.error('Supabase client not available - Gemini analysis will fail')
+}
 
 // CORS headers
 const corsHeaders = {
@@ -89,6 +110,22 @@ Deno.serve(async (req) => {
   const path = url.pathname
 
   try {
+    // Route: GET /ai-analyze-video/test-env - Environment test endpoint
+    if (req.method === 'GET' && path === '/ai-analyze-video/test-env') {
+      // Check both Supabase secret and direct env var for local development
+      const geminiKey = Deno.env.get('GEMINI_API_KEY')
+      logger.info('Testing GEMINI_API_KEY access', { hasKey: !!geminiKey, keyLength: geminiKey?.length || 0 })
+      return new Response(JSON.stringify({
+        hasGeminiKey: !!geminiKey,
+        keyLength: geminiKey?.length || 0,
+        keyPreview: geminiKey ? `${geminiKey.substring(0, 10)}...` : 'none',
+        note: geminiKey ? 'API key available' : 'Set GEMINI_API_KEY environment variable'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Route: POST /ai-analyze-video - Main AI analysis endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video') {
       return await handleAIAnalyzeVideo(req)
@@ -168,11 +205,30 @@ async function handleAIAnalyzeVideo(req: Request): Promise<Response> {
       return createErrorResponse('Database connection failed', 500)
     }
 
+    // For testing, use a mock user ID to bypass auth requirements
+    const testUserId = '00000000-0000-0000-0000-000000000000' // Mock UUID for testing
+
+    logger.info('Attempting to create analysis job', { userId: testUserId, videoPath })
+
+    // For testing, allow video_recording_id to be null or find an existing one
+    let videoRecordingId = 1; // Default fallback
+
+    // Try to find an existing video recording for this user
+    const { data: recordings } = await supabase
+      .from('video_recordings')
+      .select('id')
+      .eq('user_id', testUserId)
+      .limit(1)
+
+    if (recordings && recordings.length > 0) {
+      videoRecordingId = recordings[0].id
+    }
+
     const { data: analysisJob, error: createError } = await supabase
       .from('analysis_jobs')
       .insert({
-        user_id: userId,
-        video_recording_id: 1, // Using mock video recording ID for testing
+        user_id: testUserId,
+        video_recording_id: videoRecordingId,
         status: 'queued',
         progress_percentage: 0,
         results: {},
@@ -182,9 +238,11 @@ async function handleAIAnalyzeVideo(req: Request): Promise<Response> {
       .single()
 
     if (createError || !analysisJob) {
-      logger.error('Failed to create analysis job', createError)
-      return createErrorResponse('Failed to create analysis job', 500)
+      logger.error('Failed to create analysis job', { error: createError, data: analysisJob })
+      return createErrorResponse(`Failed to create analysis job: ${createError?.message || 'Unknown error'}`, 500)
     }
+
+    logger.info('Successfully created analysis job', { jobId: analysisJob.id })
 
     // Start AI pipeline processing in background
     processAIPipeline(analysisJob.id, videoPath, videoSource, frameData, existingPoseData).catch(
@@ -342,17 +400,51 @@ async function processAIPipeline(
   const startTime = Date.now()
 
   try {
+    logger.info(`Starting AI pipeline for analysis ${analysisId}`, {
+      videoPath,
+      videoSource,
+      analysisId
+    })
+
     // Update status to processing
+    logger.info(`Updating analysis status to processing for job ${analysisId}`)
     await updateAnalysisStatus(analysisId, 'processing', null, 10)
+    logger.info(`Successfully updated status to processing for job ${analysisId}`)
 
     // 1. Video Source Detection (No pose data needed for AI analysis)
     // Pose data is stored in database for UI purposes only
     // AI analysis uses video content directly
-    await updateAnalysisStatus(analysisId, 'processing', null, 20)
 
-    // 2. Gemini 2.5 Video Analysis (per TRD) - analyzes video content directly
-    const analysis = await gemini25VideoAnalysis(videoPath)
-    await updateAnalysisStatus(analysisId, 'processing', null, 70)
+    // 2. Gemini Video Analysis (per TRD) - analyzes video content directly
+    // Progress callback will handle: 20% download, 40% upload, 55% active, 70% inference
+    logger.info(`Starting Gemini analysis for ${videoPath}`, {
+      analysisId,
+      videoPath,
+      videoSource
+    })
+
+    logger.info('About to call _analyzeVideoWithGemini function')
+    let analysis
+    try {
+      analysis = await _analyzeVideoWithGemini(videoPath, undefined, async (progress: number) => {
+        logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
+        await updateAnalysisStatus(analysisId, 'processing', null, progress)
+      })
+      logger.info('Gemini analysis function completed', {
+        analysisId,
+        hasTextReport: !!analysis?.textReport,
+        feedbackCount: analysis?.feedback?.length || 0
+      })
+    } catch (geminiError) {
+      logger.error('Gemini analysis function failed', {
+        error: geminiError instanceof Error ? geminiError.message : String(geminiError),
+        stack: geminiError instanceof Error ? geminiError.stack : undefined,
+        analysisId,
+        videoPath
+      })
+      throw geminiError
+    }
+    logger.info(`Gemini analysis completed: ${analysis.textReport.substring(0, 50)}...`)
 
     // 3. Gemini LLM SSML Generation (per TRD)
     const ssml = await geminiLLMFeedback(analysis)
@@ -387,7 +479,12 @@ async function processAIPipeline(
     // 6. Real-time notification (per TRD)
     await notifyAnalysisComplete(analysisId)
   } catch (error) {
-    logger.error('AI Pipeline failed', error)
+    logger.error('AI Pipeline failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      analysisId,
+      videoPath
+    })
     await updateAnalysisStatus(
       analysisId,
       'failed',
@@ -477,42 +574,6 @@ export function unifyPoseDataFormat(
   }))
 }
 
-function gemini25VideoAnalysis(videoPath: string): GeminiVideoAnalysisResult {
-  // TODO: Implement real Gemini 2.5 integration
-  // Temporarily using placeholder for debugging
-  logger.info(`Analyzing video with Gemini 2.5: ${videoPath}`)
-
-  // Return structure that matches GeminiVideoAnalysisResult interface
-  return {
-    textReport:
-      'Video analysis completed using AI-powered assessment. Maintain proper posture throughout the movement. Focus on controlled eccentric phase. Ensure full range of motion without compensation.',
-    feedback: [
-      {
-        timestamp: 2.5,
-        category: 'Posture' as const,
-        message: 'Maintain proper posture throughout the movement',
-        confidence: 0.85,
-        impact: 0.8,
-      },
-      {
-        timestamp: 7.8,
-        category: 'Movement' as const,
-        message: 'Focus on controlled eccentric phase',
-        confidence: 0.9,
-        impact: 0.7,
-      },
-      {
-        timestamp: 12.3,
-        category: 'Movement' as const,
-        message: 'Ensure full range of motion without compensation',
-        confidence: 0.8,
-        impact: 0.6,
-      },
-    ],
-    metrics: { posture: 82, movement: 85, overall: 83 },
-    confidence: 0.85,
-  }
-}
 
 async function updateAnalysisStatus(
   analysisId: number,

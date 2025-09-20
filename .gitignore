@@ -78,3 +78,8 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Test assets (large video files)
+test-assets/videos/*.mp4
+test-assets/videos/*.mov
+test-assets/videos/*.avi

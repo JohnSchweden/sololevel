@@ -2,6 +2,11 @@
 
 # Command validator for Cursor rules
 # Usage: source this script to enable command blocking
+#
+# SECURITY: Blocks commands that can modify environment files (.env*)
+# This prevents accidental overwriting of sensitive configuration like:
+# - echo "SUPABASE_SERVICE_ROLE_KEY=..." > .env
+# - echo "..." >> .env
 
 # Function to load blocked commands from .cursorrules
 load_blocked_commands() {
@@ -59,6 +64,19 @@ is_blocked() {
         fi
     done
     return 1
+}
+
+# Override echo command for .env protection
+echo() {
+    local full_cmd="echo $@"
+    if is_blocked "$full_cmd"; then
+        echo "🚫 BLOCKED: '$full_cmd' is not allowed"
+        echo "   This command would modify environment files (.env*)"
+        echo "   Use a text editor instead to modify .env files"
+        echo ""
+        return 1
+    fi
+    command echo "$@"
 }
 
 # Override yarn command

@@ -3,60 +3,43 @@
  * Real implementation using Google AI Gemini 2.5 API
  */
 
-// Local prompt manager for Edge Functions (simplified version)
-class LocalPromptManager {
-  private prompts: Map<string, string> = new Map()
+// Import local edge-safe prompts (fallback until JSR package is published)
+import { getGeminiAnalysisPrompt as _getGeminiAnalysisPrompt } from './prompts-local.ts'
 
-  constructor() {
-    // Initialize with default prompts
-    this.prompts.set('videoAnalysis', `You are an expert movement analyst. Analyze the provided video and provide detailed feedback on form, technique, and areas for improvement. Focus on:
-
-1. Posture and alignment
-2. Movement execution and timing
-3. Common mistakes and corrections
-4. Recommendations for improvement
-
-Provide your analysis in a structured format with timestamps for key moments.`)
-  }
-
-  getPrompt(key: string): string {
-    return this.prompts.get(key) || ''
-  }
-
-  validatePrompt(_prompt: string): boolean {
-    return true // Simplified validation
-  }
-
-  generateGeminiAnalysisPrompt(params: Record<string, unknown>): string {
-    const basePrompt = this.getPrompt('videoAnalysis')
-    // Add any additional parameters if provided
-    if (params && typeof params === 'object') {
-      const additionalContext = Object.entries(params)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n')
-      return `${basePrompt}\n\nAdditional context:\n${additionalContext}`
-    }
-    return basePrompt
-  }
-}
-
-// Initialize prompt manager
-const promptManager = new LocalPromptManager()
+// Import Supabase client
+import { createClient as _createClient } from 'jsr:@supabase/supabase-js@2'
 
 // Import centralized logger for Edge Functions
 import { createLogger } from '../_shared/logger.ts'
 
 const logger = createLogger('gemini-llm-analysis')
 
-// Gemini 2.5 API Configuration
+// Initialize Supabase client (will be passed from main function)
+let supabase: any = null
+
+export function setSupabaseClient(client: any) {
+  supabase = client
+}
+
+// Gemini API Configuration
 declare const Deno: {
   env: {
     get(key: string): string | undefined
   }
 }
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
+// Try multiple sources so local Supabase picks it up:
+// - GEMINI_API_KEY (recommended)
+// - SUPABASE_ENV_GEMINI_API_KEY (supported by supabase/config.toml note)
+const GEMINI_API_KEY =
+  Deno.env.get('GEMINI_API_KEY') ||
+  Deno.env.get('SUPABASE_ENV_GEMINI_API_KEY') ||
+  undefined
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-pro'
+const GEMINI_FILES_UPLOAD_URL = `${GEMINI_API_BASE}/upload/v1beta/files`
+const _GEMINI_FILES_API_URL = `${GEMINI_API_BASE}/v1beta/files`
+const GEMINI_GENERATE_URL = `${GEMINI_API_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent`
+const GEMINI_FILES_MAX_MB = Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '20')
 
 // Import validation schemas
 // Local validation for Edge Functions
@@ -68,24 +51,28 @@ interface FeedbackItem {
   impact: number
 }
 
-function safeValidateFeedbackList(feedback: any[]): FeedbackItem[] {
-  return feedback.filter((item: any) => {
+function safeValidateFeedbackList(feedback: unknown[]): FeedbackItem[] {
+  return feedback.filter((item: unknown) => {
+    const obj = item as Record<string, unknown>
     return (
-      typeof item.timestamp === 'number' &&
-      typeof item.category === 'string' &&
-      typeof item.message === 'string' &&
-      typeof item.confidence === 'number' &&
-      typeof item.impact === 'number' &&
-      item.confidence >= 0 && item.confidence <= 1 &&
-      item.impact >= 0 && item.impact <= 1
+      typeof obj.timestamp === 'number' &&
+      typeof obj.category === 'string' &&
+      typeof obj.message === 'string' &&
+      typeof obj.confidence === 'number' &&
+      typeof obj.impact === 'number' &&
+      obj.confidence >= 0 && obj.confidence <= 1 &&
+      obj.impact >= 0 && obj.impact <= 1
     )
-  }).map(item => ({
-    timestamp: item.timestamp,
-    category: item.category as FeedbackItem['category'],
-    message: item.message,
-    confidence: item.confidence,
-    impact: item.impact
-  }))
+  }).map(item => {
+    const obj = item as Record<string, unknown>
+    return {
+      timestamp: obj.timestamp as number,
+      category: obj.category as FeedbackItem['category'],
+      message: obj.message as string,
+      confidence: obj.confidence as number,
+      impact: obj.impact as number
+    }
+  })
 }
 
 
@@ -99,6 +86,234 @@ export interface GeminiVideoAnalysisResult {
   }
   confidence: number
   rawResponse?: Record<string, unknown> // For debugging
+}
+
+/**
+ * Download video from Supabase Storage
+ */
+async function downloadFromStorage(supabase: any, videoPath: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  logger.info(`Resolving video source: ${videoPath}`)
+  const _startResolveMs = Date.now()
+
+  // If HTTP(S) URL, fetch directly
+  if (/^https?:\/\//i.test(videoPath)) {
+    const res = await fetch(videoPath)
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '')
+      throw new Error(`Failed to fetch video URL: ${res.status} ${res.statusText} ${errText}`)
+    }
+    const arrBuf = await res.arrayBuffer()
+    const bytes = new Uint8Array(arrBuf)
+    const mimeType = res.headers.get('content-type') || 'video/mp4'
+    logger.info(`Video fetched via HTTP: ${(bytes.length / 1024 / 1024).toFixed(2)}MB, type: ${mimeType}`)
+
+    const videoSizeMB = bytes.length / (1024 * 1024)
+    if (videoSizeMB > GEMINI_FILES_MAX_MB) {
+      throw new Error(`Video is too large (${videoSizeMB.toFixed(2)}MB). Gemini Files API limit is ${GEMINI_FILES_MAX_MB}MB.`)
+    }
+    return { bytes, mimeType }
+  }
+
+  // Supabase Storage path handling: "bucket/object/path.mp4" or legacy "videos/path.mp4"
+  let bucket = 'videos'
+  let objectPath = videoPath
+
+  const normalized = videoPath.replace(/^\/*/, '')
+  const firstSlash = normalized.indexOf('/')
+  if (firstSlash > 0) {
+    bucket = normalized.slice(0, firstSlash)
+    objectPath = normalized.slice(firstSlash + 1)
+  }
+
+  logger.info(`Downloading from storage bucket: ${bucket}, object: ${objectPath}`)
+  const downloadStartMs = Date.now()
+
+  const { data: videoData, error: storageError } = await supabase.storage
+    .from(bucket)
+    .download(objectPath)
+
+  if (storageError || !videoData) {
+    logger.error('Storage download error', { bucket, objectPath, error: storageError?.message })
+    throw new Error(`Failed to download video from storage (${bucket}/${objectPath}): ${storageError?.message}`)
+  }
+
+  const videoBuffer = await videoData.arrayBuffer()
+  const bytes = new Uint8Array(videoBuffer)
+  const mimeType = videoData.type || 'video/mp4'
+
+  logger.info(`Video downloaded: ${(bytes.length / 1024 / 1024).toFixed(2)}MB, type: ${mimeType}, elapsedMs: ${Date.now() - downloadStartMs}`)
+
+  const videoSizeMB = bytes.length / (1024 * 1024)
+  if (videoSizeMB > GEMINI_FILES_MAX_MB) {
+    throw new Error(`Video is too large (${videoSizeMB.toFixed(2)}MB). Gemini Files API limit is ${GEMINI_FILES_MAX_MB}MB.`)
+  }
+
+  return { bytes, mimeType }
+}
+
+/**
+ * Upload video to Gemini Files API
+ */
+async function uploadToGemini(fileBytes: Uint8Array, mimeType: string, displayName: string): Promise<{ name: string; uri: string; mimeType: string }> {
+  logger.info(`Uploading video to Gemini Files API: ${displayName}`, {
+    bytes: fileBytes.length,
+    mimeType,
+    keyLength: (GEMINI_API_KEY?.length ?? 0)
+  })
+  const uploadStartMs = Date.now()
+
+  // Build multipart/related payload manually: JSON metadata part + binary file part
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const encoder = new TextEncoder()
+
+  const jsonMeta = JSON.stringify({ file: { display_name: displayName, mime_type: mimeType } })
+
+  const part1Header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`
+  const part1 = encoder.encode(part1Header + jsonMeta + '\r\n')
+
+  const part2Header = `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+  const part2HeaderBytes = encoder.encode(part2Header)
+  const part2FooterBytes = encoder.encode('\r\n')
+
+  const closing = encoder.encode(`--${boundary}--\r\n`)
+
+  // Concatenate parts into a single Uint8Array
+  const totalLen = part1.length + part2HeaderBytes.length + fileBytes.length + part2FooterBytes.length + closing.length
+  const body = new Uint8Array(totalLen)
+  let offset = 0
+  body.set(part1, offset); offset += part1.length
+  body.set(part2HeaderBytes, offset); offset += part2HeaderBytes.length
+  body.set(fileBytes, offset); offset += fileBytes.length
+  body.set(part2FooterBytes, offset); offset += part2FooterBytes.length
+  body.set(closing, offset)
+
+  const response = await fetch(`${GEMINI_FILES_UPLOAD_URL}?key=${GEMINI_API_KEY}&uploadType=multipart`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  })
+
+  logger.info(`Gemini upload response status: ${response.status}, elapsedMs: ${Date.now() - uploadStartMs}`)
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    logger.error('Gemini Files upload failed', { status: response.status, errorText: errorText?.slice(0, 500) })
+    throw new Error(`Gemini Files upload failed: ${response.status} - ${errorText}`)
+  }
+
+  const uploadResult = await response.json()
+  // API may return either { name: "files/...", uri: "..." } or { file: { name, uri } }
+  const fileName = uploadResult?.name || uploadResult?.file?.name
+  const fileUri = uploadResult?.uri || uploadResult?.file?.uri
+
+  if (!fileName) {
+    logger.error('Gemini Files upload: unexpected response without name', uploadResult)
+    throw new Error('No file name returned from Gemini Files API')
+  }
+
+  const uri = fileUri || `${GEMINI_API_BASE}/v1beta/${fileName}`
+  logger.info(`Video uploaded to Gemini Files: ${fileName}`, { uriPresent: !!fileUri })
+  return { name: fileName, uri, mimeType }
+}
+
+/**
+ * Poll file status until ACTIVE
+ */
+async function pollFileActive(fileName: string): Promise<void> {
+  logger.info(`Polling file status for: ${fileName}`)
+  
+  const maxAttempts = 60 // up to 60s
+  const pollInterval = 1000 // 1 second
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Google Files API returns name like "files/abc123". The GET endpoint is v1beta/{name}
+    const resourcePath = fileName.startsWith('files/') ? fileName : `files/${fileName}`
+    const res = await fetch(`${GEMINI_API_BASE}/v1beta/${resourcePath}?key=${GEMINI_API_KEY}`)
+    
+    if (res.status === 404) {
+      // File may not be visible yet; wait and retry
+      logger.info(`File status check ${attempt + 1}: 404 (not ready yet)`)
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      continue
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      logger.error('File status check failed', { status: res.status, body: text?.slice(0, 300) })
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      continue
+    }
+    
+    const info = await res.json()
+    logger.info(`File status check ${attempt + 1}: ${info.state}`)
+    
+    if (info.state === 'ACTIVE') {
+      logger.info(`File is now ACTIVE: ${fileName}`)
+      return
+    }
+    
+    if (info.state === 'FAILED') {
+      throw new Error(`File processing failed: ${fileName}`)
+    }
+    
+    // Wait before next poll
+    await new Promise(resolve => setTimeout(resolve, pollInterval))
+  }
+  
+  throw new Error(`File did not become ACTIVE within ${maxAttempts} seconds: ${fileName}`)
+}
+
+/**
+ * Generate content with Gemini using uploaded file
+ */
+async function generateWithGemini(fileRef: { name: string; uri: string; mimeType: string }, prompt: string): Promise<string> {
+  logger.info(`Generating content with Gemini (${GEMINI_MODEL}) using file: ${fileRef.name}`)
+  
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          // v1beta expects fileData with fileUri
+          { fileData: { fileUri: fileRef.uri, mimeType: fileRef.mimeType } },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 2048,
+    },
+  }
+
+  const response = await fetch(`${GEMINI_GENERATE_URL}?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  logger.info(`Gemini generate response status: ${response.status}`)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    logger.error(`Gemini generate error:`, errorText)
+    throw new Error(`Gemini generate error: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  if (!generatedText) {
+    throw new Error('No response generated from Gemini API')
+  }
+
+  logger.info(`Gemini generation completed: ${generatedText.length} characters`)
+  return generatedText
 }
 
 /**
@@ -136,57 +351,83 @@ function extractMetricsFromText(textReport: string): {
 function parseGeminiDualOutput(responseText: string): {
   textReport: string
   feedback: FeedbackItem[]
+  metrics: any
 } {
   let textReport = ''
   let feedback: FeedbackItem[] = []
+  let metrics: any = {}
 
-  // Extract text report between separators
-  const textReportMatch = responseText.match(
-    /=== TEXT REPORT START ===([\s\S]*?)=== TEXT REPORT END ===/
-  )
-  if (textReportMatch && textReportMatch[1]) {
-    textReport = textReportMatch[1].trim()
+  // Preferred format: === TEXT REPORT START/END ===
+  const reportMatchNew = responseText.match(/===\s*TEXT REPORT START\s*===\s*([\s\S]*?)===\s*TEXT REPORT END\s*===/i)
+  if (reportMatchNew && reportMatchNew[1]) {
+    textReport = reportMatchNew[1].trim()
   } else {
-    // Fallback: extract everything before the first JSON block
-    const jsonStartIndex = responseText.indexOf('```json')
-    if (jsonStartIndex > 0) {
-      textReport = responseText.substring(0, jsonStartIndex).trim()
+    // Legacy format: --- ANALYSIS REPORT: ... FEEDBACK JSON:
+    const reportMatchLegacy = responseText.match(/---\s*ANALYSIS REPORT:\s*([\s\S]*?)(?=FEEDBACK JSON:|$)/i)
+    if (reportMatchLegacy && reportMatchLegacy[1]) {
+      textReport = reportMatchLegacy[1].trim()
     } else {
-      textReport = responseText.trim()
+      textReport = responseText.split('---')[0]?.trim() || responseText.trim()
     }
   }
 
-  // Extract JSON feedback
-  const jsonMatch = responseText.match(/```json([\s\S]*?)```/)
-  if (jsonMatch && jsonMatch[1]) {
+  // Preferred feedback JSON block: === JSON DATA START/END === with fenced code
+  const jsonBlockMatch = responseText.match(/===\s*JSON DATA START\s*===\s*([\s\S]*?)===\s*JSON DATA END\s*===/i)
+  if (jsonBlockMatch && jsonBlockMatch[1]) {
     try {
-      const jsonData = JSON.parse(jsonMatch[1].trim())
-      const validatedFeedback = safeValidateFeedbackList(jsonData)
-      if (validatedFeedback && validatedFeedback.length > 0) {
-        feedback = validatedFeedback
-        logger.info(`Successfully parsed ${feedback.length} feedback items from Gemini response`)
-      } else {
-        logger.warn('Failed to validate feedback list structure')
-        feedback = []
+      const block = jsonBlockMatch[1].replace(/```json\s*|```/g, '').trim()
+      const parsed = JSON.parse(block)
+      const list = Array.isArray(parsed) ? parsed : (parsed.feedback || [])
+      const validated = safeValidateFeedbackList(list)
+      if (validated.length > 0) {
+        feedback = validated
+        logger.info(`Parsed feedback items (new format): ${feedback.length}`)
       }
     } catch (error) {
-      logger.error('Failed to parse JSON feedback', error)
-      feedback = []
+      logger.error('Failed to parse JSON DATA block', error)
     }
   } else {
-    logger.warn('No JSON feedback block found in Gemini response')
+    // Legacy feedback block: FEEDBACK JSON:
+    const feedbackMatch = responseText.match(/FEEDBACK JSON:\s*([\s\S]*?)(?=METRICS JSON:|$)/i)
+    if (feedbackMatch && feedbackMatch[1]) {
+      try {
+        const feedbackText = feedbackMatch[1].trim()
+        const cleanJson = feedbackText.replace(/```json\s*|\s*```/g, '').trim()
+        const jsonData = JSON.parse(cleanJson)
+        const validatedFeedback = safeValidateFeedbackList(jsonData)
+        if (validatedFeedback && validatedFeedback.length > 0) {
+          feedback = validatedFeedback
+          logger.info(`Successfully parsed ${feedback.length} feedback items from Gemini response (legacy)`)
+        }
+      } catch (error) {
+        logger.error('Failed to parse feedback JSON (legacy)', error)
+      }
+    }
   }
 
-  return { textReport, feedback }
+  // Metrics optional: try to extract if present in either format
+  const metricsMatch = responseText.match(/METRICS JSON:\s*([\s\S]*?)---/i)
+  if (metricsMatch && metricsMatch[1]) {
+    try {
+      const metricsText = metricsMatch[1].trim()
+      const cleanJson = metricsText.replace(/```json\s*|\s*```/g, '').trim()
+      metrics = JSON.parse(cleanJson)
+      logger.info('Successfully parsed metrics from Gemini response')
+    } catch (error) {
+      logger.error('Failed to parse metrics JSON', error)
+    }
+  }
+
+  return { textReport, feedback, metrics }
 }
 
 /**
- * Analyze video content using Gemini 2.5
- * This replaces the placeholder implementation with real AI analysis
+ * Analyze video content using Gemini with Files API
+ * This uses the proper Files API approach for video analysis
  */
 export async function analyzeVideoWithGemini(
   videoPath: string,
-  analysisParams?: {
+  _analysisParams?: {
     duration?: number
     startTime?: number
     endTime?: number
@@ -194,7 +435,8 @@ export async function analyzeVideoWithGemini(
     targetTimestamps?: number[]
     minGap?: number
     firstTimestamp?: number
-  }
+  },
+  progressCallback?: (progress: number) => Promise<void>
 ): Promise<GeminiVideoAnalysisResult> {
   if (!GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY environment variable is required')
@@ -204,69 +446,105 @@ export async function analyzeVideoWithGemini(
     throw new Error('Video path is required for analysis')
   }
 
+  if (!supabase) {
+    throw new Error('Supabase client not available for video download')
+  }
+
   try {
-    logger.info(`Starting Gemini 2.5 analysis for video: ${videoPath}`)
+    logger.info(`Starting Gemini analysis (${GEMINI_MODEL}) for video: ${videoPath}`)
 
-    // For now, we'll use a text-based analysis since video analysis requires
-    // more complex setup with Google AI Studio. In production, this would:
-    // 1. Upload video to Google Cloud Storage
-    // 2. Use Gemini 2.5's video understanding capabilities
-    // 3. Process the multimodal response
-
-    // Generate analysis prompt using centralized prompt system
-    const prompt = promptManager.generateGeminiAnalysisPrompt({
-      duration: analysisParams?.duration ?? 30,
-      start_time: analysisParams?.startTime ?? 0,
-      end_time: analysisParams?.endTime ?? 30,
-      feedback_count: analysisParams?.feedbackCount ?? 3,
-      target_timestamps: analysisParams?.targetTimestamps ?? [5, 15, 25],
-      min_gap: analysisParams?.minGap ?? 5,
-      first_timestamp: analysisParams?.firstTimestamp ?? 0,
-    })
-
-    logger.info(`Generated Gemini analysis prompt with ${prompt.length} characters`)
-
-    // Call Gemini 2.5 API (text-based for now)
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`)
+    // Step 1: Download video (20% progress)
+    const { bytes, mimeType } = await downloadFromStorage(supabase, videoPath)
+    
+    if (progressCallback) {
+      await progressCallback(20)
     }
 
-    const data = await response.json()
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!generatedText) {
-      throw new Error('No response generated from Gemini API')
+    // Step 2: Upload video to Gemini Files API (40% progress)
+    const displayName = `analysis_${Date.now()}.mp4`
+    const fileRef = await uploadToGemini(bytes, mimeType, displayName)
+    
+    if (progressCallback) {
+      await progressCallback(40)
     }
 
-    // Parse the dual-output response (text report + JSON feedback)
-    const { textReport, feedback } = parseGeminiDualOutput(generatedText)
+    // Step 3: Poll until file is ACTIVE (55% progress)
+    await pollFileActive(fileRef.name)
+    
+    if (progressCallback) {
+      await progressCallback(55)
+    }
 
-    // Extract metrics from text report or use defaults
-    const metrics = extractMetricsFromText(textReport)
+    // Step 4: Generate analysis prompt via local template (prompts-local)
+    // Use provided params or calculate based on video segment logic
+    const startTime = _analysisParams?.startTime
+    const endTime = _analysisParams?.endTime
+    let duration = _analysisParams?.duration
+
+    // If we have endTime and startTime, calculate duration
+    if (endTime !== undefined && startTime !== undefined) {
+      duration = Math.max(0.0, endTime - startTime)
+    }
+
+    // Calculate feedback parameters using Python logic
+    let feedbackCount = _analysisParams?.feedbackCount
+    let firstTimestamp = _analysisParams?.firstTimestamp
+    let minGap = _analysisParams?.minGap
+    let targetTimestamps = _analysisParams?.targetTimestamps
+
+    if (duration !== undefined && startTime !== undefined && endTime !== undefined) {
+      // Calculate feedback count: max(1, min(10, round(duration / 5.0)))
+      feedbackCount = Math.max(1, Math.min(10, Math.round(duration / 5.0)))
+
+      // Calculate first timestamp with special logic for edge cases
+      if (startTime <= 0.0001 && endTime < 5.0) {
+        firstTimestamp = endTime
+      } else if (startTime <= 0.0001) {
+        firstTimestamp = 5.0
+      } else {
+        firstTimestamp = startTime
+      }
+
+      // Calculate minimum gap: max(4.0, 0.06 * duration)
+      minGap = Math.max(4.0, 0.06 * duration)
+
+      // Generate target timestamps list
+      if (feedbackCount === 1) {
+        targetTimestamps = [Math.min(endTime, Math.max(firstTimestamp!, startTime))]
+      } else {
+        const span = Math.max(0.0, endTime - Math.max(firstTimestamp!, startTime))
+        if (span <= 0.0) {
+          targetTimestamps = Array(feedbackCount).fill(endTime)
+        } else {
+          const step = span / feedbackCount
+          targetTimestamps = Array.from({ length: feedbackCount }, (_, i) =>
+            Math.max(firstTimestamp!, startTime) + step * i
+          )
+        }
+      }
+    }
+
+    const mappedParams = {
+      duration: duration ? Math.round(duration) : _analysisParams?.duration,
+      start_time: startTime,
+      end_time: endTime,
+      feedback_count: feedbackCount,
+      target_timestamps: targetTimestamps?.map(t => Math.round(t * 100) / 100), // Round to 2 decimal places
+      min_gap: minGap ? Math.round(minGap) : _analysisParams?.minGap,
+      first_timestamp: firstTimestamp,
+    }
+    const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
+    logger.info(`Generated analysis prompt: ${prompt.length} characters`)
+
+    // Step 5: Generate content with Gemini (70% progress)
+    const generatedText = await generateWithGemini(fileRef, prompt)
+    
+    if (progressCallback) {
+      await progressCallback(70)
+    }
+
+    // Step 6: Parse the response
+    const { textReport, feedback, metrics } = parseGeminiDualOutput(generatedText)
 
     // Validate and normalize the response
     const result: GeminiVideoAnalysisResult = {
@@ -283,44 +561,16 @@ export async function analyzeVideoWithGemini(
                 impact: 0.5,
               },
             ],
-      metrics: metrics,
+      metrics: metrics || extractMetricsFromText(textReport),
       confidence: 0.85, // Default confidence for AI analysis
-      rawResponse: data, // Keep for debugging
     }
 
-    logger.info(`Gemini 2.5 analysis completed: ${result.textReport.substring(0, 100)}...`)
+    logger.info(`${GEMINI_MODEL} analysis completed: ${result.textReport.substring(0, 100)}...`)
 
     return result
   } catch (error) {
-    logger.error('Gemini 2.5 analysis failed', error)
-
-    // Return a basic fallback result
-    return {
-      textReport:
-        'Video analysis completed with basic feedback. Please ensure proper form during exercise and focus on controlled movements.',
-      feedback: [
-        {
-          timestamp: 2,
-          category: 'Movement',
-          message: 'Please ensure proper form during exercise',
-          confidence: 0.7,
-          impact: 0.6,
-        },
-        {
-          timestamp: 5,
-          category: 'Posture',
-          message: 'Focus on controlled movements',
-          confidence: 0.7,
-          impact: 0.5,
-        },
-      ],
-      metrics: {
-        posture: 70,
-        movement: 75,
-        overall: 72,
-      },
-      confidence: 0.6,
-    }
+    logger.error(`${GEMINI_MODEL} analysis failed`, error)
+    throw error
   }
 }
 
@@ -366,3 +616,4 @@ export function validateGeminiConfig(): { valid: boolean; message: string } {
     message: 'Gemini API configuration is valid',
   }
 }
+
