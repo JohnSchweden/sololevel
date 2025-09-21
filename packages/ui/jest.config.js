@@ -1,6 +1,8 @@
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts', '<rootDir>/jest.setup.js'],
+  cache: true,
+  cacheDirectory: '<rootDir>/node_modules/.cache/jest',
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],
 
   // 🚀 PARALLEL EXECUTION CONFIGURATION (High Impact)

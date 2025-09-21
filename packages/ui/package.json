@@ -13,6 +13,7 @@
     "dist"
   ],
   "scripts": {
+    "test:fast": "jest --passWithNoTests --no-coverage",
     "build": "echo 'ui package - built by tsc in root'",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",

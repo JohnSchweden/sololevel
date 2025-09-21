@@ -38,11 +38,11 @@
       "persistent": true
     },
 
-    // 🚀 TESTING PIPELINE WITH PARALLEL EXECUTION (High Impact)
+    // 🚀 TESTING PIPELINE
     "test": {
       "dependsOn": ["build"],
       "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**", "node_modules/.vitest/**", "node_modules/.cache/jest/**"]
     },
     "test:watch": {
       "dependsOn": ["build"],

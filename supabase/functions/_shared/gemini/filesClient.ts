@@ -109,55 +109,61 @@ export async function uploadToGemini(
 /**
  * Poll file status until ACTIVE
  */
-export async function pollFileActive(fileName: string, config: GeminiConfig): Promise<void> {
+export async function pollFileActive(
+  fileName: string,
+  config: GeminiConfig,
+  options?: { maxAttempts?: number; pollInterval?: number }
+): Promise<void> {
   logger.info(`Polling file status for: ${fileName}`)
 
-  const maxAttempts = 60 // up to 60s
-  const pollInterval = 1000 // 1 second
+  const maxAttempts = options?.maxAttempts ?? 60 // up to 60s
+  const pollInterval = options?.pollInterval ?? 1000 // 1 second
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let res: Response
     try {
       // Google Files API returns name like "files/abc123". The GET endpoint is v1beta/{name}
       const resourcePath = fileName.startsWith('files/') ? fileName : `files/${fileName}`
-      const res = await fetch(`${config.apiBase}/v1beta/${resourcePath}?key=${config.apiKey}`)
-
-      if (res.status === 404) {
-        // File may not be visible yet; wait and retry
-        logger.info(`File status check ${attempt + 1}: 404 (not ready yet)`)
-        await new Promise((resolve) => setTimeout(resolve, pollInterval))
-        continue
-      }
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        logger.error('File status check failed', { status: res.status, body: text?.slice(0, 300) })
-        await new Promise((resolve) => setTimeout(resolve, pollInterval))
-        continue
-      }
-
-      const info = await res.json()
-      logger.info(`File status check ${attempt + 1}: ${info.state}`)
-
-      if (info.state === 'ACTIVE') {
-        logger.info(`File is now ACTIVE: ${fileName}`)
-        return
-      }
-
-      if (info.state === 'FAILED') {
-        throw new Error(`File processing failed: ${fileName}`)
-      }
-
-      // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, pollInterval))
+      res = await fetch(`${config.apiBase}/v1beta/${resourcePath}?key=${config.apiKey}`)
     } catch (error) {
-      // Handle network errors, timeouts, etc. - retry after delay
+      // Handle network errors during fetch - retry after delay
       logger.error('Network error during file polling', {
         attempt: attempt + 1,
         error: error instanceof Error ? error.message : String(error),
       })
       await new Promise((resolve) => setTimeout(resolve, pollInterval))
+      continue
     }
+
+    if (res.status === 404) {
+      // File may not be visible yet; wait and retry
+      logger.info(`File status check ${attempt + 1}: 404 (not ready yet)`)
+      await new Promise((resolve) => setTimeout(resolve, pollInterval))
+      continue
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      logger.error('File status check failed', { status: res.status, body: text?.slice(0, 300) })
+      await new Promise((resolve) => setTimeout(resolve, pollInterval))
+      continue
+    }
+
+    const info = await res.json()
+    logger.info(`File status check ${attempt + 1}: ${info.state}`)
+
+    if (info.state === 'ACTIVE') {
+      logger.info(`File is now ACTIVE: ${fileName}`)
+      return
+    }
+
+    if (info.state === 'FAILED') {
+      throw new Error(`File processing failed: ${fileName}`)
+    }
+
+    // Wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, pollInterval))
   }
 
-  throw new Error(`File did not become ACTIVE within ${maxAttempts} seconds: ${fileName}`)
+  throw new Error(`File did not become ACTIVE within ${maxAttempts * (options?.pollInterval ?? 1000) / 1000} seconds: ${fileName}`)
 }
