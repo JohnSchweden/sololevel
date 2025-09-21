@@ -1,0 +1,80 @@
+/**
+ * Gemini Content Generation Client
+ * Handles content generation requests to Gemini API
+ */
+
+import { createLogger } from '../logger.ts'
+import type { GeminiConfig } from './config.ts'
+import type { GeminiFileReference } from './filesClient.ts'
+
+const logger = createLogger('gemini-generate')
+
+/**
+ * Generation request parameters
+ */
+export interface GenerateRequest {
+  fileRef: GeminiFileReference
+  prompt: string
+  temperature?: number
+  topK?: number
+  topP?: number
+  maxOutputTokens?: number
+}
+
+/**
+ * Generate content with Gemini using uploaded file
+ */
+export async function generateContent(
+  request: GenerateRequest,
+  config: GeminiConfig
+): Promise<string> {
+  logger.info(
+    `Generating content with Gemini (${config.model}) using file: ${request.fileRef.name}`
+  )
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: request.prompt },
+          // v1beta expects fileData with fileUri
+          { fileData: { fileUri: request.fileRef.uri, mimeType: request.fileRef.mimeType } },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: request.temperature ?? 0.7,
+      topK: request.topK ?? 40,
+      topP: request.topP ?? 0.95,
+      maxOutputTokens: request.maxOutputTokens ?? 2048,
+    },
+  }
+
+  const response = await fetch(`${config.generateUrl}?key=${config.apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  logger.info(`Gemini generate response status: ${response.status}`)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    logger.error(`Gemini generate error:`, errorText)
+    throw new Error(
+      `Gemini generate error: ${response.status} ${response.statusText} - ${errorText}`
+    )
+  }
+
+  const data = await response.json()
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  if (!generatedText) {
+    throw new Error('No response generated from Gemini API')
+  }
+
+  logger.info(`Gemini generation completed: ${generatedText.length} characters`)
+  return generatedText
+}

@@ -155,6 +155,10 @@ import { supabase } from '@api/supabase'
 - `yarn build:web` → `--filter=next-app`
 - `yarn build:native` → `--filter=expo-app`
 - `yarn test` → `--exclude expo-app` (excludes native from unit tests)
+- Supabase:
+  - `yarn workspace @my/supabase-functions test` (Vitest for _shared)
+  - `yarn workspace @my/supabase-functions test:deno` (Deno for Edge)
+  - `yarn test:db` (pgTAP database tests)
 
 Enforcement:
 - CI validates Node and Yarn versions; local installs should use Corepack.

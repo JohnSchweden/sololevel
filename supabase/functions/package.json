@@ -1,0 +1,22 @@
+{
+  "name": "@my/supabase-functions",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'supabase functions - no build needed'",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run _shared/ ../shared/",
+    "test:watch": "vitest _shared/ ../shared/",
+    "test:coverage": "vitest run --coverage _shared/ ../shared/",
+    "test:coverage:report": "vitest run --coverage --reporter=html _shared/ ../shared/",
+    "test:deno": "deno test --allow-env --allow-net --allow-read=./ ai-analyze-video/",
+    "test:deno:watch": "deno test --allow-env --allow-net --allow-read=./ --watch ai-analyze-video/",
+    "test:all": "yarn test && yarn test:deno"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

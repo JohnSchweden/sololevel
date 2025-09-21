@@ -72,7 +72,8 @@ You must follow this Red-Green-Refactor cycle for all feature development.
 4.  **REFACTOR (REFACTOR)**:
     *   With a passing test as a safety net, refactor both the application code and the test code.
     *   Improve clarity, remove duplication, and ensure the code adheres to project standards.
-    *   Run `yarn type-check` to ensure type safety.
+    *   Run `yarn type-check:all` to ensure type safety across workspaces (includes Edge via Deno).
+    *   Run `yarn lint:all` to ensure lint safety (Biome + Deno). For a full gate, use `yarn verify`.
     *   Run the tests again to ensure your refactoring has not broken anything.
 
 5.  **REPEAT CYCLE**:
@@ -90,4 +91,4 @@ Before finalizing your work, ensure you can answer "yes" to all of these questio
 - [ ] **Environment Compatibility**: Are mocks appropriate for the package's target environment?
       (ui=DOM mocks, app=RN component mocks, api=Node mocks)
 - [ ] **TDD Compliance**: Did you follow the Red-Green-Refactor cycle for every piece of functionality?
-- [ ] **Type Safety**: Have all TypeScript type-checks passed successfully?
+- [ ] **Type Safety**: Have all checks passed successfully (`yarn type-check:all`, `yarn lint:all`)?

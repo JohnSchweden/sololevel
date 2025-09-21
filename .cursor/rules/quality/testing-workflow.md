@@ -19,7 +19,10 @@ You must follow this Red-Green-Refactor cycle for all feature development.
     *   Break down the feature into the smallest testable parts.
 
 2.  **CREATE TEST FILE (RED)**:
-    *   Determine the correct test runner (Jest for `.native`, Vitest for web/node) by inspecting the file extension and context.
+    *   Determine the correct test runner by context:
+        *   Jest for `.native` (React Native)
+        *   Vitest for web/node and Supabase `_shared` utilities
+        *   Deno for Supabase Edge function entrypoints
     *   Create a new test file co-located with the source code (e.g., `feature.test.ts`).
     *   Write a single, simple test case for one piece of behavior.
     *   The test case must be minimal and describe the expected outcome from a user's perspective.

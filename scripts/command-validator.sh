@@ -96,4 +96,22 @@ yarn() {
     command yarn "$@"
 }
 
+# Override supabase command for database operations
+supabase() {
+    local full_cmd="supabase $@"
+    if is_blocked "$full_cmd"; then
+        echo "⚠️  WARNING: '$full_cmd' is flagged by .cursorrules"
+        echo "   This command can modify or reset your database"
+        echo "   Database operations are potentially destructive"
+        echo ""
+        read -p "Do you want to proceed anyway? (yes/no): " -r
+        if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+            echo "Command cancelled."
+            return 1
+        fi
+        echo "Proceeding with database command..."
+    fi
+    command supabase "$@"
+}
+
 echo "Command validator loaded. Blocked commands will require confirmation."

@@ -161,7 +161,9 @@ export function enableNetworkLogging(): () => void {
       let requestBody: any
       try {
         requestBody = init?.body
-      } catch {}
+      } catch {
+        // Ignore errors when accessing request body
+      }
 
       try {
         const res = await originalFetch(input as any, init as any)
@@ -171,7 +173,9 @@ export function enableNetworkLogging(): () => void {
         try {
           // Avoid large binary bodies; best-effort text
           responseBody = await clone.text()
-        } catch {}
+        } catch {
+          // Ignore errors when reading response body
+        }
         pushNetwork({
           method,
           url,
@@ -201,7 +205,9 @@ export function enableNetworkLogging(): () => void {
     return () => {
       try {
         globalObj.fetch = originalFetch
-      } catch {}
+      } catch {
+        // Ignore errors when restoring original fetch
+      }
     }
   } catch {
     return () => {}

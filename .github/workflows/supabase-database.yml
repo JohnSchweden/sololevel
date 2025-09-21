@@ -1,0 +1,64 @@
+name: Supabase Database Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-database.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-database.yml'
+
+jobs:
+  database-tests:
+    name: Database Schema Tests
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Setup Node.js for yarn commands
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Start Supabase local stack
+        run: yarn dlx supabase start
+
+      - name: Wait for database to be ready
+        run: |
+          timeout 60 bash -c 'until yarn dlx supabase db ping --db-url "postgresql://postgres:postgres@127.0.0.1:54322/postgres"; do sleep 2; done'
+
+      - name: Run database migrations
+        run: yarn dlx supabase db reset
+
+      - name: Run pgTAP database tests
+        run: yarn dlx supabase test db
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-test-results
+          path: |
+            supabase/test-results/
+            supabase/logs/

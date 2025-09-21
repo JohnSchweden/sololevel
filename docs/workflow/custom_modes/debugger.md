@@ -33,8 +33,11 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 4.  **REFACTOR & CLEAN (REFACTOR)**:
     *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
     *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `log.info` statements, temporary variables, debug flags).
-    *   Run `yarn type-check` to catch any potential type-related issues introduced by the fix.
-    *   Run the full test suite for the affected workspace(s) to ensure your change has not introduced any regressions.
+    *   Run `yarn type-check:all` to validate TypeScript across workspaces (includes Edge functions via Deno).
+    *   Run the full test suite for the affected workspace(s). For Supabase specifically:
+        *   Edge Functions: `yarn workspace @my/supabase-functions test` (Vitest) and `yarn workspace @my/supabase-functions test:deno` (Deno)
+        *   Database (pgTAP): `yarn test:db`
+    *   For a full local gate, use `yarn verify`.
 
 5.  **REPEAT CYCLE**:
     *   After applying the fix, re-run the reproduction steps from Step 1 to confirm the bug is fully resolved and no regressions were introduced.
@@ -89,4 +92,4 @@ Before finalizing your fix, ensure you can answer "yes" to all of these question
 - [ ] Does the fix adhere to the project's architecture and coding standards?
 - [ ] Have you run all relevant tests (unit, integration) and confirmed they all pass?
 - [ ] Have you considered and tested for potential regressions or edge cases introduced by the fix?
-- [ ] Have all type-checks passed successfully?
+- [ ] Have all type-checks passed successfully? Have you run `yarn lint`? For edge functions, have you run `deno check` and `deno lint`?

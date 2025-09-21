@@ -23,6 +23,11 @@ alwaysApply: false
 - File writes only to /tmp directory
 - Use EdgeRuntime.waitUntil() for background tasks
 
+### Testing
+- `_shared/` utilities: test with Vitest (`yarn workspace @my/supabase-functions test`)
+- Edge entrypoints: test with Deno (`yarn workspace @my/supabase-functions test:deno`)
+- Database schema & RLS: pgTAP via `yarn test:db`
+
 ## Environment Variables
 Pre-populated in Supabase:
 - SUPABASE_URL

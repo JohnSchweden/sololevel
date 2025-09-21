@@ -58,7 +58,7 @@ Use this cycle for creating or modifying any UI component.
 
 6.  **REFACTOR**:
     *   With both visual and logic tests passing, refactor the component and test code for clarity and reusability.
-    *   Run `yarn type-check` and all tests to ensure nothing has broken.
+    *   Run `yarn type-check:all` and all tests to ensure nothing has broken. For a full local gate, use `yarn verify`.
     *   Validate against the combined checklist below.
 
 7.  **REPEAT**:
@@ -83,7 +83,7 @@ Use this cycle for hooks, state management, API clients, or Edge Functions.
 
 4.  **REFACTOR**:
     *   With a passing test as a safety net, refactor the application and test code.
-    *   Run `yarn type-check` and all tests again.
+    *   Run `yarn type-check:all` and all tests again. For Supabase-specific checks, use `yarn workspace @my/supabase-functions test` (Vitest), `yarn workspace @my/supabase-functions test:deno` (Deno), and `yarn test:db` (pgTAP).
 
 5.  **REPEAT**:
     *   Return to Step 2 to write the next failing test until the feature is complete.
@@ -95,4 +95,4 @@ Use this cycle for hooks, state management, API clients, or Edge Functions.
 - [ ] Is the test-to-code ratio at or below 1:2?
 - [ ] Are mocks used only for external dependencies (APIs, libraries)?
 - [ ] Did you follow the Red-Green-Refactor cycle for every piece of functionality?
-- [ ] Have all type-checks passed successfully (`yarn type-check`)?
+- [ ] Have all type-checks passed successfully (`yarn type-check:all`)? Have you run `yarn lint:all`? For a complete gate, did `yarn verify` pass?

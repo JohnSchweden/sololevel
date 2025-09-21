@@ -3397,6 +3397,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@my/supabase-functions@workspace:supabase/functions":
+  version: 0.0.0-use.local
+  resolution: "@my/supabase-functions@workspace:supabase/functions"
+  dependencies:
+    "@types/node": "npm:^24.3.0"
+    "@vitest/coverage-v8": "npm:^3.2.4"
+    typescript: "npm:^5.9.2"
+    vitest: "npm:^3.2.4"
+  languageName: unknown
+  linkType: soft
+
 "@my/ui@npm:0.0.1, @my/ui@workspace:packages/ui":
   version: 0.0.0-use.local
   resolution: "@my/ui@workspace:packages/ui"

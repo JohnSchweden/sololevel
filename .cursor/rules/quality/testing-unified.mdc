@@ -14,6 +14,18 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
 - **packages/ui** (Shared UI Components): Jest with jsdom → Web component testing → See `quality/testing/testing-web.mdc`
 - **packages/app** (Business Logic & Screens): Jest with jsdom → React Native app testing → See `quality/testing/testing-react-native.mdc`
 - **packages/api** (Backend Integration): Vitest → Node.js API testing → See `quality/testing/testing-web.mdc`
+- **supabase/shared/** (Cross-platform utilities): Vitest → Node.js testing
+- **supabase/functions/_shared** (Domain-specific logic): Vitest → Node.js testing
+- **supabase/functions/** (Edge entrypoints): Deno test runner for Edge runtime behavior
+
+### Architectural Boundaries (Import Restrictions)
+**CRITICAL**: Maintain clean separation between shared utilities and domain logic:
+- ✅ **supabase/functions/** may import from `supabase/shared/`
+- ✅ **supabase/functions/_shared/** may import from `supabase/shared/`
+- ❌ **supabase/shared/** may NOT import from `supabase/functions/`
+- ❌ **supabase/shared/** may NOT import from `supabase/functions/_shared/`
+
+**Enforcement**: Import validation in CI/CD pipeline prevents architectural violations.
 - **apps/expo** (React Native App): Jest with jest-expo preset → Full RN app testing → See `quality/testing/testing-react-native.mdc`
 - **apps/next** (Web App): Vitest → Web app testing → See `quality/testing/testing-web.mdc`
 - **NEVER mix**: Don't use Vitest for React Native or Jest for pure Node.js testing
@@ -89,6 +101,9 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
    - packages/api: Vitest + native Node testing
    - apps/expo: Jest + jest-expo + @testing-library/react-native
    - apps/next: Vitest + @testing-library/react
+   - supabase/shared: Vitest (Node)
+   - supabase/functions/_shared: Vitest (Node)
+   - supabase/functions (Edge): Deno test runner
 □ Follow AAA pattern with clear comments
 □ Use appropriate query patterns for your package (data-testid for ui, getByLabelText for app)
 □ Mock external dependencies only (APIs, native modules, libraries)

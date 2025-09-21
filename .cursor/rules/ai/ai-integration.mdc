@@ -15,7 +15,6 @@ alwaysApply: false
 
 ## Video Processing Pipeline
 - Upload videos to Supabase Storage
-- Process via Edge Functions for frame extraction
 - Use signed URLs for secure access
 - Implement chunked upload for large files
 - Generate thumbnails and previews
@@ -29,7 +28,7 @@ alwaysApply: false
 ### Native Platform
 - React Native Vision Camera for capture
 - Frame processing with native modules
-- Consider expo-gl for TensorFlow Lite
+- Consider TensorFlow Lite
 
 ## Voice Analysis
 - Web Audio API for web platform

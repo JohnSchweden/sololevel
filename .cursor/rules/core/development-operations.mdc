@@ -120,7 +120,7 @@ yarn add -D <dev-tool>
 
 ## Quality Gates
 - Biome for linting/formatting
-- TypeScript strict mode; `yarn type-check` must pass pre-commit/CI
+- TypeScript strict mode; `yarn type-check:all` must pass pre-commit/CI (includes Edge via Deno)
 - Security: `yarn npm audit` on CI; resolve high severities promptly
 
 ### Testing Policy (from unified testing rule)
@@ -146,8 +146,8 @@ jobs:
       - run: corepack enable
       - run: yarn --version
       - run: yarn install --immutable
-      - run: yarn type-check
-      - run: yarn lint
+      - run: yarn type-check:all
+      - run: yarn lint:all
       - run: yarn build
       - run: yarn security:audit:ci
 ```

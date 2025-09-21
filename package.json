@@ -5,7 +5,8 @@
     "packages": [
       "./apps/*",
       "./packages/*",
-      "./packages/types/*"
+      "./packages/types/*",
+      "./supabase/functions"
     ]
   },
   "installConfig": {},
@@ -36,6 +37,11 @@
     "format:fix": "biome format --write .",
     "deno:check": "cd supabase/functions/ai-analyze-video && deno check",
     "deno:lint": "cd supabase/functions/ai-analyze-video && deno lint",
+    "deno:lint:fix": "cd supabase/functions/ai-analyze-video && deno lint --fix",
+    "type-check:all": "yarn type-check && yarn workspace @my/supabase-functions type-check && yarn deno:check",
+    "lint:all": "yarn lint && yarn deno:lint",
+    "lint:fix:all": "yarn lint:fix && yarn deno:lint:fix",
+    "verify": "yarn type-check:all && yarn lint:all && yarn test:ci",
     "dev:mvp": "turbo dev",
     "build:mvp": "turbo build",
     "type-check:mvp": "turbo type-check",
@@ -60,6 +66,10 @@
     "test:coverage": "yarn workspaces foreach --all --exclude expo-app run test:coverage --maxWorkers=4",
     "test:integration": "yarn workspaces foreach --all --exclude expo-app run test:integration --maxWorkers=2",
     "test:coverage:report": "yarn workspaces foreach --all --exclude expo-app run test:coverage:report",
+    "test:supabase": "yarn workspace @my/supabase-functions test:all",
+    "test:db": "yarn dlx supabase test db",
+    "test:db:local": "yarn dlx supabase start && yarn test:db",
+    "test:ci": "yarn test && yarn test:supabase && yarn test:db",
     "test:ai": "node scripts/test-ai-function.mjs",
     "test:e2e": "detox test",
     "test:e2e:ios": "detox test --configuration ios.sim.debug",

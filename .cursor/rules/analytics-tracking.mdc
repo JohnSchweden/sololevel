@@ -1,9 +1,7 @@
 ---
 description: Track rule usage analytics in .cursor/analytics.md
-globs: [".cursor/analytics.md"]
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Rule Usage Analytics
 
 Track and update rule usage automatically in `.cursor/analytics.md`.
