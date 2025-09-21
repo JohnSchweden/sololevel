@@ -1,5 +1,7 @@
+// @ts-ignore - JSR import for Deno runtime
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
+// Type declaration for Deno global in Edge Functions environment
 declare const Deno: {
   env: { get(key: string): string | undefined }
 }

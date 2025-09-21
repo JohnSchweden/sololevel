@@ -18,13 +18,18 @@ alwaysApply: false
 - Prefer Web APIs over external dependencies
 - Import with npm: or jsr: specifiers with versions
 - Use Deno.serve() not the old serve import
-- Shared utilities in `supabase/functions/_shared`
+- All shared utilities consolidated in `supabase/functions/_shared`
 - Handle multiple routes with Express/Hono
 - File writes only to /tmp directory
 - Use EdgeRuntime.waitUntil() for background tasks
 
+### Shared Code Organization (`supabase/functions/_shared`)
+- **Infrastructure Layer**: Gemini, HTTP, Logger, Storage, Supabase utilities
+- **Domain Layer**: DB operations, Notifications, Pipeline, Pose detection, Types
+- **Import Pattern**: Use `@shared/` aliases (configured in `functions/deno.json`)
+
 ### Testing
-- `_shared/` utilities: test with Vitest (`yarn workspace @my/supabase-functions test`)
+- All shared utilities: test with Vitest (`yarn workspace @my/supabase-functions test`)
 - Edge entrypoints: test with Deno (`yarn workspace @my/supabase-functions test:deno`)
 - Database schema & RLS: pgTAP via `yarn test:db`
 

@@ -5,19 +5,19 @@
  */
 
 // Import centralized logger for Edge Functions
-import { createLogger } from '../../shared/logger.ts'
+import { createLogger } from '../_shared/logger.ts'
 
 // Import local edge-safe prompts (fallback until JSR package is published)
 import { getGeminiAnalysisPrompt as _getGeminiAnalysisPrompt } from './prompts-local.ts'
 
 // Import extracted modules
-import { createValidatedGeminiConfig } from '../../shared/gemini/config.ts'
-import { pollFileActive, uploadToGemini } from '../../shared/gemini/filesClient.ts'
-import { generateContent } from '../../shared/gemini/generate.ts'
-import { getMockAnalysisResult } from '../../shared/gemini/mocks.ts'
-import { extractMetricsFromText, parseDualOutput } from '../../shared/gemini/parse.ts'
-import type { GeminiVideoAnalysisResult, VideoAnalysisParams } from '../../shared/gemini/types.ts'
-import { downloadVideo } from '../../shared/storage/download.ts'
+import { createValidatedGeminiConfig } from '../_shared/gemini/config.ts'
+import { pollFileActive, uploadToGemini } from '../_shared/gemini/filesClient.ts'
+import { generateContent } from '../_shared/gemini/generate.ts'
+import { getMockAnalysisResult } from '../_shared/gemini/mocks.ts'
+import { extractMetricsFromText, parseDualOutput } from '../_shared/gemini/parse.ts'
+import type { GeminiVideoAnalysisResult, VideoAnalysisParams } from '../_shared/gemini/types.ts'
+import { downloadVideo } from '../_shared/storage/download.ts'
 
 const logger = createLogger('gemini-llm-analysis')
 
@@ -175,8 +175,3 @@ export function analyzeVideoWithGeminiCustom(
 ): Promise<GeminiVideoAnalysisResult> {
   return analyzeVideoWithGemini(supabaseClient, videoPath, analysisParams)
 }
-
-// Re-export configuration validation for backward compatibility
-export { validateGeminiConfig } from '../../shared/gemini/config.ts'
-
-

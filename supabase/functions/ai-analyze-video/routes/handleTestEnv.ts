@@ -1,4 +1,4 @@
-import { corsHeaders } from '../../../shared/http/cors.ts'
+import { corsHeaders } from '../../_shared/http/cors.ts'
 
 declare const Deno: {
   env: { get(key: string): string | undefined }

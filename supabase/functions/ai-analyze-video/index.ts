@@ -1,10 +1,10 @@
 // Simplified AI Analysis Edge Function for testing
 
-import { corsHeaders } from '../../shared/http/cors.ts'
-import { createErrorResponse } from '../../shared/http/responses.ts'
+import { corsHeaders } from '../_shared/http/cors.ts'
+import { createErrorResponse } from '../_shared/http/responses.ts'
 // Import centralized logger for Edge Functions
-import { createLogger, enableNetworkLogging } from '../../shared/logger.ts'
-import { createServiceClientFromEnv } from '../../shared/supabase/client.ts'
+import { createLogger, enableNetworkLogging } from '../_shared/logger.ts'
+import { createServiceClientFromEnv } from '../_shared/supabase/client.ts'
 
 import { handleStartAnalysis } from './routes/handleStartAnalysis.ts'
 import { handleStatus } from './routes/handleStatus.ts'
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     // Route: POST /ai-analyze-video/tts - TTS generation endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video/tts') {
-      return handleTTS({ req, logger })
+      return handleTTS({ req, supabase, logger })
     }
 
     // Route: GET /ai-analyze-video/health - Health check

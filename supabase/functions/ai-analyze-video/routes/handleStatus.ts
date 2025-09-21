@@ -1,6 +1,6 @@
-import { corsHeaders } from '../../../shared/http/cors.ts'
-import { createErrorResponse } from '../../../shared/http/responses.ts'
 import { getEnhancedAnalysis } from '../../_shared/db/analysis.ts'
+import { corsHeaders } from '../../_shared/http/cors.ts'
+import { createErrorResponse } from '../../_shared/http/responses.ts'
 
 interface HandlerContext {
   url: URL

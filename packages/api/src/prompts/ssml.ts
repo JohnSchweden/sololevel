@@ -19,8 +19,8 @@ export const SSML_USER_PROMPT_DEFAULT = ``
 // and phrases, use natural speech patterns, add appropriate pauses and breaks for
 // comedic timing, and more dynamic changes in volume.`
 
-// SSML Generation Template
-export const SSML_GENERATION_TEMPLATE = `
+// SSML Generation PromptTemplate
+export const SSML_GENERATION_PROMPT_TEMPLATE = `
 {system_instruction}
 
 {user_prompt}
@@ -38,7 +38,7 @@ Return only the SSML content, starting with <speak> and ending with </speak>.`
 
 // Template renderer with defaults
 const ssmlTemplateRenderer = createTemplateRenderer(
-  SSML_GENERATION_TEMPLATE,
+  SSML_GENERATION_PROMPT_TEMPLATE,
   {
     system_instruction: SSML_SYSTEM_INSTRUCTION_DEFAULT,
     user_prompt: SSML_USER_PROMPT_DEFAULT,
@@ -66,5 +66,5 @@ export const SSML_PROMPTS = {
   SYSTEM_INSTRUCTION: SSML_SYSTEM_INSTRUCTION,
   SYSTEM_INSTRUCTION_DEFAULT: SSML_SYSTEM_INSTRUCTION_DEFAULT,
   USER_PROMPT_DEFAULT: SSML_USER_PROMPT_DEFAULT,
-  GENERATION_TEMPLATE: SSML_GENERATION_TEMPLATE,
+  GENERATION_TEMPLATE: SSML_GENERATION_PROMPT_TEMPLATE,
 } as const

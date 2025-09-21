@@ -4,7 +4,8 @@
     "types": ["node", "vitest/globals"],
     "allowImportingTsExtensions": true,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "skipLibCheck": true
   },
   "include": [
     "_shared/**/*",

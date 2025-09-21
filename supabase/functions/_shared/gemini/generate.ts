@@ -22,6 +22,17 @@ export interface GenerateRequest {
 }
 
 /**
+ * Text-only generation request parameters
+ */
+export interface GenerateTextOnlyRequest {
+  prompt: string
+  temperature?: number
+  topK?: number
+  topP?: number
+  maxOutputTokens?: number
+}
+
+/**
  * Generate content with Gemini using uploaded file
  */
 export async function generateContent(
@@ -76,5 +87,57 @@ export async function generateContent(
   }
 
   logger.info(`Gemini generation completed: ${generatedText.length} characters`)
+  return generatedText
+}
+
+/**
+ * Generate text-only content with Gemini (no file attachment)
+ */
+export async function generateTextOnlyContent(
+  request: GenerateTextOnlyRequest,
+  config: GeminiConfig
+): Promise<string> {
+  logger.info(`Generating text-only content with Gemini (${config.model})`)
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [{ text: request.prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: request.temperature ?? 0.7,
+      topK: request.topK ?? 40,
+      topP: request.topP ?? 0.95,
+      maxOutputTokens: request.maxOutputTokens ?? 2048,
+    },
+  }
+
+  const response = await fetch(`${config.generateUrl}?key=${config.apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  logger.info(`Gemini text-only generate response status: ${response.status}`)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    logger.error(`Gemini text-only generate error:`, errorText)
+    throw new Error(
+      `Gemini generate error: ${response.status} ${response.statusText} - ${errorText}`
+    )
+  }
+
+  const data = await response.json()
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  if (!generatedText) {
+    throw new Error('No response generated from Gemini API')
+  }
+
+  logger.info(`Gemini text-only generation completed: ${generatedText.length} characters`)
   return generatedText
 }

@@ -29,9 +29,34 @@ export interface GeminiAnalysisResult {
 
 /**
  * Generate SSML from individual feedback messages
- * Uses structured feedback items instead of unstructured text
+ * Uses the new Gemini SSML generator for better quality
  */
-export function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): string {
+export async function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): Promise<string> {
+  // Import the new SSML generator
+  const { generateSSMLFromStructuredFeedback } = await import('../_shared/gemini/ssml.ts')
+
+  try {
+    // Use the new Gemini-powered SSML generator
+    const ssml = await generateSSMLFromStructuredFeedback(analysis, {
+      voice: 'neutral',
+      speed: 'medium',
+      emphasis: 'moderate'
+    })
+
+    logger.info(`Generated SSML from ${analysis.feedback?.length || 0} feedback items using Gemini`)
+    return ssml
+  } catch (error) {
+    logger.warn('Failed to generate SSML from feedback items, using fallback', error)
+
+    // Fallback SSML generation (synchronous version of the old logic)
+    return generateSSMLFallback(analysis)
+  }
+}
+
+/**
+ * Synchronous fallback SSML generation (old logic)
+ */
+function generateSSMLFallback(analysis: GeminiAnalysisResult): string {
   try {
     let ssmlContent = '<speak>'
 
@@ -63,12 +88,12 @@ export function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): string
 
     ssmlContent += '</speak>'
 
-    logger.info(`Generated SSML from ${analysis.feedback?.length || 0} feedback items`)
+    logger.info(`Generated fallback SSML from ${analysis.feedback?.length || 0} feedback items`)
     return ssmlContent
   } catch (error) {
-    logger.warn('Failed to generate SSML from feedback items, using fallback', error)
+    logger.warn('Failed to generate fallback SSML', error)
 
-    // Fallback SSML generation
+    // Ultimate fallback
     return '<speak><prosody rate="medium">Analysis completed successfully.</prosody><break time="300ms"/><prosody volume="moderate">Keep up the great work!</prosody></speak>'
   }
 }

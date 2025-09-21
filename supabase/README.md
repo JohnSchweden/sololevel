@@ -9,18 +9,17 @@ supabase/
 ├── config.toml              # Supabase project configuration
 ├── seed.sql                 # Database seed data
 ├── migrations/              # Database schema migrations
-├── shared/                  # Cross-platform shared utilities
-│   ├── gemini/             # Google AI Gemini integration
-│   ├── http/               # HTTP utilities (CORS, responses)
-│   ├── logger.ts           # Centralized logging
-│   ├── storage/            # Storage utilities
-│   └── supabase/           # Supabase client utilities
 ├── functions/              # Edge Functions
-│   ├── _shared/            # Domain-specific shared code
+│   ├── _shared/            # All shared code (domain + infrastructure)
 │   │   ├── db/            # Database operations
+│   │   ├── gemini/        # Google AI Gemini integration
+│   │   ├── http/          # HTTP utilities (CORS, responses)
+│   │   ├── logger.ts      # Centralized logging
 │   │   ├── notifications.ts # Real-time notifications
 │   │   ├── pipeline/      # AI analysis pipeline
 │   │   ├── pose/          # Pose detection utilities
+│   │   ├── storage/       # Storage utilities
+│   │   ├── supabase/      # Supabase client utilities
 │   │   └── types/         # TypeScript interfaces
 │   ├── ai-analyze-video/   # Main AI video analysis function
 │   │   └── routes/        # Route handlers
@@ -33,20 +32,34 @@ supabase/
 
 ## 🏗️ Architecture Overview
 
-### Shared Utilities (`shared/`)
-Cross-cutting utilities that can be used by any service in the monorepo:
+### Shared Code (`functions/_shared/`)
+All shared utilities consolidated under Edge Functions (Deno-compatible):
+
+#### Infrastructure Layer:
 - **Gemini**: AI model integration for video analysis
 - **HTTP**: CORS headers and response utilities
 - **Logger**: Centralized logging with structured output
 - **Storage**: File download and upload utilities
 - **Supabase**: Client initialization and utilities
 
-### Domain-Specific Code (`functions/_shared/`)
-Business logic specific to video analysis:
-- **DB**: Database operations for analysis jobs
-- **Pipeline**: Orchestration of AI analysis workflow
-- **Pose**: Computer vision utilities for pose detection
-- **Types**: TypeScript interfaces for video processing
+#### Domain Layer:
+- **DB**: Database operations and queries
+- **Notifications**: Real-time notification handling
+- **Pipeline**: AI analysis pipeline orchestration
+- **Pose**: Pose detection and processing utilities
+- **Types**: TypeScript interfaces and schemas
+
+**Import Pattern**: Use `@shared/` prefix (configured in `functions/deno.json`):
+```typescript
+import { createLogger } from '@shared/logger'
+import { corsHeaders } from '@shared/http/cors'
+import { analyzeVideoWithGemini } from '../_shared/gemini/llm-analysis'
+```
+
+**Import Pattern**: Use relative paths `../_shared/`:
+```typescript
+import { createAnalysisJob } from '../_shared/db/analysis.ts'
+```
 
 ### Edge Functions (`functions/`)
 Serverless functions running on Supabase Edge Runtime:
@@ -55,9 +68,8 @@ Serverless functions running on Supabase Edge Runtime:
 ## 🧪 Testing Strategy
 
 ### Test Runners by Location
-- **`supabase/shared/`**: Vitest (Node.js testing)
-- **`supabase/functions/_shared/`**: Vitest (Node.js testing)
-- **`supabase/functions/`**: Deno test runner (Edge runtime)
+- **`supabase/functions/_shared/`**: Vitest (Node.js testing for all shared utilities)
+- **`supabase/functions/`**: Deno test runner (Edge runtime for functions)
 
 ### Running Tests
 ```bash

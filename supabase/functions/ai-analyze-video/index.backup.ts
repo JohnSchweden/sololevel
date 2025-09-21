@@ -17,7 +17,8 @@ import { generateSSMLFromFeedback as geminiLLMFeedback } from './gemini-ssml-fee
 import { generateTTSFromSSML as geminiTTS20 } from './gemini-tts-audio.ts'
 
 // Import Gemini 2.5 integration
-import { type GeminiVideoAnalysisResult, analyzeVideoWithGemini as _analyzeVideoWithGemini, validateGeminiConfig as _validateGeminiConfig } from './gemini-llm-analysis.ts'
+import { type GeminiVideoAnalysisResult, analyzeVideoWithGemini as _analyzeVideoWithGemini } from './gemini-llm-analysis.ts'
+import { validateGeminiConfig as _validateGeminiConfig } from '../_shared/gemini/config.ts'
 
 // Initialize Supabase client with service role
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!

@@ -166,11 +166,17 @@ comedic timing. Your purpose is to roast the user in a playful but biting manner
 export const SSML_SYSTEM_INSTRUCTION_DEFAULT: string = `You are a professional, sarcastic comedian with a sharp wit and a laid-back,
 confident US accent. ${SSML_SYSTEM_INSTRUCTION}`
 
-// SSML Generation Template
-export const SSML_GENERATION_TEMPLATE: string = `
-{system_instruction}
+// SSML User Prompts
+export const SSML_USER_PROMPT_DEFAULT = ``
+// `Generate an SSML text with wider ranges for pitch and rate to emphasise key words
+// and phrases, use natural speech patterns, add appropriate pauses and breaks for
+// comedic timing, and more dynamic changes in volume.`
 
-{user_prompt}
+// SSML Generation PromptTemplate
+export const SSML_GENERATION_PROMPT_TEMPLATE = `
+${SSML_SYSTEM_INSTRUCTION}
+
+${SSML_USER_PROMPT_DEFAULT}
 
 Feedback text to convert to SSML:
 "{feedback_text}"
@@ -252,7 +258,7 @@ export function getQwenAnalysisPrompt(params: QwenAnalysisParams = {}): string {
  */
 export function getSSMLGenerationPrompt(params: SSMLGenerationParams): string {
   const mergedParams = applyDefaults(params, SSML_DEFAULTS)
-  return renderTemplate(SSML_GENERATION_TEMPLATE, mergedParams)
+  return renderTemplate(SSML_GENERATION_PROMPT_TEMPLATE, mergedParams)
 }
 
 /**
