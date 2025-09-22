@@ -77,7 +77,7 @@ describe('downloadVideo', () => {
   })
 
   describe('Supabase Storage handling', () => {
-    it('should download from default videos bucket', async () => {
+    it('should download from default raw bucket', async () => {
       const mockFileData = {
         arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
         type: 'video/mp4'
@@ -89,7 +89,7 @@ describe('downloadVideo', () => {
 
       const result = await downloadVideo(mockSupabase as any, 'test.mp4')
 
-      expect(mockSupabase.storage.from).toHaveBeenCalledWith('videos')
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('raw')
       expect(result.mimeType).toBe('video/mp4')
       expect(result.bytes).toBeInstanceOf(Uint8Array)
     })
@@ -115,9 +115,9 @@ describe('downloadVideo', () => {
         download: vi.fn().mockResolvedValue({ data: null, error: { message: 'Storage error' } })
       })
 
-      await expect(downloadVideo(mockSupabase as any, 'videos/test.mp4'))
+      await expect(downloadVideo(mockSupabase as any, 'raw/test.mp4'))
         .rejects
-        .toThrow('Failed to download video from storage (videos/test.mp4): Storage error')
+        .toThrow('Failed to download video from storage (raw/test.mp4): Storage error')
     })
 
     it('should enforce file size limits for storage downloads', async () => {
@@ -131,7 +131,7 @@ describe('downloadVideo', () => {
         download: vi.fn().mockResolvedValue({ data: mockFileData, error: null })
       })
 
-      await expect(downloadVideo(mockSupabase as any, 'videos/large.mp4', 20))
+      await expect(downloadVideo(mockSupabase as any, 'raw/large.mp4', 20))
         .rejects
         .toThrow('Video is too large (30.00MB). Maximum allowed size is 20MB.')
     })
@@ -146,7 +146,7 @@ describe('downloadVideo', () => {
         download: vi.fn().mockResolvedValue({ data: mockFileData, error: null })
       })
 
-      const result = await downloadVideo(mockSupabase as any, 'videos/test.mp4')
+      const result = await downloadVideo(mockSupabase as any, 'raw/test.mp4')
 
       expect(result.mimeType).toBe('video/mp4')
     })

@@ -7,7 +7,7 @@ select plan(5);
 -- Use the seeded test user that exists in auth.users
 -- Insert test video recording first
 insert into public.video_recordings (user_id, filename, original_filename, file_size, duration_seconds, format, storage_path, upload_status)
-values ('00000000-0000-0000-0000-000000000000', 'test-video.mp4', 'test-video.mp4', 1048576, 30, 'mp4', 'videos/test-video.mp4', 'completed');
+values ('00000000-0000-0000-0000-000000000000', 'test-video.mp4', 'test-video.mp4', 1048576, 30, 'mp4', 'raw/test-video.mp4', 'completed');
 
 -- Insert test analysis job
 insert into public.analysis_jobs (user_id, video_recording_id, status)

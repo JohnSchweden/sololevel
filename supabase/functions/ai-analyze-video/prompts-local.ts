@@ -49,6 +49,8 @@ function renderTemplate(template: string, params: Record<string, unknown>): stri
   return result
 }
 
+
+
 // Gemini Analysis Prompt Template (migrated from Python)
 export const GEMINI_ANALYSIS_PROMPT_TEMPLATE: string = `
 **Role**
@@ -114,6 +116,9 @@ Suggest **one specific, practical drill** I can practice for 5 minutes a day thi
 
 **Important**: Output EXACTLY {feedback_count} items. All timestamps must be between {start_time} and {end_time} seconds.`
 
+
+
+
 // Qwen Analysis Prompt Template
 export const QWEN_ANALYSIS_PROMPT_TEMPLATE: string = `You are an expert presentation coach analyzing a video segment.
 
@@ -159,9 +164,12 @@ Guidelines:
 
 Analyze this video chunk from {start_time}s to {end_time}s (duration: {duration}s):`
 
+
+
 // SSML System Instructions
 export const SSML_SYSTEM_INSTRUCTION: string = `You use modern US slang and deliver punchlines with perfect
-comedic timing. Your purpose is to roast the user in a playful but biting manner.`
+comedic timing. Your purpose is to roast the user in a playful but biting manner.
+`
 
 export const SSML_SYSTEM_INSTRUCTION_DEFAULT: string = `You are a professional, sarcastic comedian with a sharp wit and a laid-back,
 confident US accent. ${SSML_SYSTEM_INSTRUCTION}`
@@ -188,6 +196,21 @@ Please generate SSML markup that enhances this feedback with:
 - Natural speech patterns
 
 Return only the SSML content, starting with <speak> and ending with </speak>.`
+
+
+
+
+// TTS Generation Prompt Template
+export const TTS_GENERATION_PROMPT_TEMPLATE = `
+${SSML_SYSTEM_INSTRUCTION}
+Enhances this feedback with:
+- Appropriate pauses and breaks for comedic timing
+- Emphasis on key words and phrases
+- Prosody adjustments for sarcastic tone
+- Natural speech patterns`
+
+
+
 
 // Default values for analysis prompts
 const GEMINI_DEFAULTS = {

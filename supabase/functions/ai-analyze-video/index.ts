@@ -29,7 +29,6 @@ enableNetworkLogging()
 // Initialize Supabase client from environment
 const supabase = createServiceClientFromEnv(logger)
 
-// deno-lint-ignore require-await
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -58,6 +57,77 @@ Deno.serve(async (req) => {
     // Route: POST /ai-analyze-video/tts - TTS generation endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video/tts') {
       return handleTTS({ req, supabase, logger })
+    }
+
+    // Route: POST /ai-analyze-video/upload-test - Test file upload endpoint
+    if (req.method === 'POST' && path === '/ai-analyze-video/upload-test') {
+      try {
+        logger.info('Upload test endpoint called')
+
+        // For simplicity, accept JSON with base64 encoded file
+        const body = await req.json()
+        const { fileName, fileData, contentType, bucket = 'processed' } = body
+
+        if (!fileName || !fileData || !contentType) {
+          return new Response(JSON.stringify({
+            error: 'Missing required fields: fileName, fileData, contentType'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          })
+        }
+
+        // Decode base64 file data
+        const fileBytes = Uint8Array.from(atob(fileData), c => c.charCodeAt(0))
+
+        // Import and use the upload function
+        const { uploadProcessedArtifact } = await import('../_shared/storage/upload.ts')
+
+        let uploadResult
+
+        // Use appropriate upload function based on bucket
+        if (bucket === 'processed') {
+          // Use the standard upload function for processed bucket (audio files)
+          uploadResult = await uploadProcessedArtifact(
+            supabase,
+            fileName,
+            fileBytes,
+            contentType,
+            bucket
+          )
+        } else if (bucket === 'raw') {
+          // For raw bucket (video files), use the same function but with raw bucket validation
+          uploadResult = await uploadProcessedArtifact(
+            supabase,
+            fileName,
+            fileBytes,
+            contentType,
+            bucket
+          )
+        } else {
+          throw new Error(`Unsupported bucket: ${bucket}`)
+        }
+
+        logger.info('Upload test successful', { fileName, size: fileBytes.length })
+
+        return new Response(JSON.stringify({
+          success: true,
+          uploadResult
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+
+      } catch (error) {
+        logger.error('Upload test failed', error)
+        return new Response(JSON.stringify({
+          error: 'Upload test failed',
+          message: error instanceof Error ? error.message : String(error)
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        })
+      }
     }
 
     // Route: GET /ai-analyze-video/health - Health check

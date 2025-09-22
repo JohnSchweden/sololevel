@@ -26,7 +26,7 @@ describe('TTSService', () => {
       customParams: {
         voice: 'en-US-Neural2-F',
         speed: 'medium',
-        format: 'aac',
+        format: 'mp3',
       },
     }
 
@@ -44,9 +44,9 @@ describe('TTSService', () => {
       const result = await service.synthesize(mockContext)
 
       expect(result).toEqual({
-        audioUrl: 'https://mock-tts-audio.example.com/generated-audio.m4a',
+        audioUrl: 'https://mock-tts-audio.example.com/generated-audio.mp3',
         duration: 5.2,
-        format: 'aac',
+        format: 'mp3',
       })
     })
 
@@ -67,7 +67,7 @@ describe('TTSService', () => {
     it('should call Gemini function with correct parameters', async () => {
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3, 4, 5]),
-        contentType: 'audio/aac',
+        contentType: 'audio/mpeg',
         prompt: 'Test TTS prompt'
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
@@ -78,41 +78,41 @@ describe('TTSService', () => {
         voice: 'en-US-Neural2-F',
         speed: 'medium',
         pitch: 0,
-        format: 'aac',
+        format: 'mp3',
       })
-      expect(result.audioUrl).toMatch(/^data:audio\/aac;base64,/)
+      expect(result.audioUrl).toMatch(/^data:audio\/mpeg;base64,/)
       expect(result.promptUsed).toBe(mockResult.prompt)
-      expect(result.format).toBe('aac')
+      expect(result.format).toBe('mp3')
     })
 
     it('should handle TTS result with prompt', async () => {
       const mockTTSWithPrompt = {
         bytes: new Uint8Array([1, 2, 3]),
-        contentType: 'audio/aac',
+        contentType: 'audio/mpeg',
         prompt: 'TTS generation prompt'
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockTTSWithPrompt)
 
       const result = await service.synthesize(mockContext)
 
-      expect(result.audioUrl).toMatch(/^data:audio\/aac;base64,/)
+      expect(result.audioUrl).toMatch(/^data:audio\/mpeg;base64,/)
       expect(result.promptUsed).toBe(mockTTSWithPrompt.prompt)
-      expect(result.format).toBe('aac')
+      expect(result.format).toBe('mp3')
     })
 
     it('should handle TTS bytes result', async () => {
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3, 4]),
-        contentType: 'audio/aac',
+        contentType: 'audio/mpeg',
         prompt: 'Mock prompt text'
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
 
       const result = await service.synthesize(mockContext)
 
-      expect(result.audioUrl).toMatch(/^data:audio\/aac;base64,/)
+      expect(result.audioUrl).toMatch(/^data:audio\/mpeg;base64,/)
       expect(result.promptUsed).toBe('Mock prompt text')
-      expect(result.format).toBe('aac')
+      expect(result.format).toBe('mp3')
     })
 
     it('should handle empty SSML', async () => {
@@ -122,15 +122,15 @@ describe('TTSService', () => {
 
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3]),
-        contentType: 'audio/aac',
+        contentType: 'audio/mpeg',
         prompt: 'Test prompt'
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
 
       const result = await service.synthesize(emptyContext)
 
-      expect(result.audioUrl).toMatch(/^data:audio\/aac;base64,/)
-      expect(result.format).toBe('aac')
+      expect(result.audioUrl).toMatch(/^data:audio\/mpeg;base64,/)
+      expect(result.format).toBe('mp3')
     })
 
     it('should throw error when Gemini function fails', async () => {
@@ -183,7 +183,7 @@ describe('TTSService', () => {
         { ssml: '<speak>test</speak>' },
         { ssml: '<speak>test</speak>', customParams: { voice: 'test' } },
         { ssml: '<speak>test</speak>', customParams: { speed: 'fast' as const } },
-        { ssml: '<speak>test</speak>', customParams: { format: 'aac' as const } },
+        { ssml: '<speak>test</speak>', customParams: { format: 'wav' as const } },
         { ssml: '<speak>test</speak>', customParams: { format: 'mp3' as const } },
       ]
 

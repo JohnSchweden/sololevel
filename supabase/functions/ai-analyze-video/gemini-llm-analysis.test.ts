@@ -47,7 +47,7 @@ const geminiAnalysisAssertExists = (value: unknown) => {
 }
 
 Deno.test('Gemini LLM Analysis - Valid Video Path', async () => {
-  const videoPath = '/videos/test-exercise.mp4'
+  const videoPath = '/raw/test-exercise.mp4'
 
   // Use mock mode to avoid actual API calls
   const result = await analyzeVideoWithGemini(mockSupabase as any, videoPath)
@@ -70,7 +70,7 @@ Deno.test('Gemini LLM Analysis - Invalid Video Path', async () => {
 
 Deno.test('Gemini LLM Analysis - Missing Supabase Client', async () => {
   try {
-    await analyzeVideoWithGemini(null as any, '/videos/test.mp4')
+    await analyzeVideoWithGemini(null as any, '/raw/test.mp4')
     throw new Error('Should have thrown')
   } catch (error) {
     geminiAnalysisAssertEquals((error as Error).message, 'Supabase client not available for video download')
@@ -78,7 +78,7 @@ Deno.test('Gemini LLM Analysis - Missing Supabase Client', async () => {
 })
 
 Deno.test('Gemini LLM Analysis - Analysis Result Structure', async () => {
-  const videoPath = '/videos/test.mp4'
+  const videoPath = '/raw/test.mp4'
   const result = await analyzeVideoWithGemini(mockSupabase as any, videoPath)
 
   // Verify expected structure

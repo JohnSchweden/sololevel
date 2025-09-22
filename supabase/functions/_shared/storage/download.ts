@@ -49,8 +49,8 @@ export async function downloadVideo(
     return { bytes, mimeType }
   }
 
-  // Supabase Storage path handling: "bucket/object/path.mp4" or legacy "videos/path.mp4"
-  let bucket = 'videos'
+  // Supabase Storage path handling: "bucket/object/path.mp4" or legacy "raw/path.mp4"
+  let bucket = 'raw'
   let objectPath = videoPath
 
   const normalized = videoPath.replace(/^\/*/, '')

@@ -73,13 +73,13 @@ describe('generateTTSAudio', () => {
           'x-goog-api-key': 'test-api-key',
           'Content-Type': 'application/json'
         },
-        body: expect.stringContaining('"responseModalities":["text","audio"]')
+        body: expect.stringContaining('"responseModalities":["AUDIO"]')
       }
     )
 
     expect(result).toEqual({
-      bytes: new Uint8Array([109, 111, 99, 107, 45, 97, 117, 100, 105, 111, 45, 98, 121, 116, 101, 115]), // atob('mock-audio-bytes')
-      contentType: 'audio/mpeg',
+      bytes: expect.any(Uint8Array), // WAV header + PCM data (44 + 16 bytes)
+      contentType: 'audio/wav',
       prompt: expect.stringContaining('Gemini TTS synthesis')
     })
   })
@@ -160,8 +160,7 @@ describe('generateTTSAudio', () => {
 
     expect(requestBody.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName)
       .toBe('Sadachbia') // defaultVoiceName from config
-    expect(requestBody.generationConfig.speechConfig.speakingRate).toBe(1.0) // default speakingRate
-    expect(requestBody.generationConfig.speechConfig.pitch).toBe(0) // default pitch
+    // Note: speakingRate and pitch removed per web research examples
   })
 
   it('should handle network errors', async () => {

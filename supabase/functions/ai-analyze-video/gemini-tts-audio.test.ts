@@ -36,7 +36,7 @@ const validOptions: TTSOptions = {
   voice: 'en-US-Neural2-F',
   speed: 'medium',
   pitch: 0,
-  format: 'aac'
+  format: 'wav'
 }
 
 Deno.test('generateTTSFromSSML - mock mode returns mock data', async () => {

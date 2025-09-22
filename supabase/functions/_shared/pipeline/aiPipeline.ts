@@ -1,4 +1,4 @@
-import { type AnalysisResults, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
+import { type AnalysisResults, storeAudioSegmentForFeedback, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
 import { notifyAnalysisComplete } from '../notifications.ts'
 import {
   ISSMLService,
@@ -204,6 +204,34 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
 
     // Extract audio prompt (if available from the service)
     audioPrompt = (ttsResult as any).promptUsed || undefined
+
+    // Store audio segment to persist prompts (SSML and audio prompts)
+    // This ensures both ssml_prompt and audio_prompt are stored in analysis_audio_segments
+    try {
+      const segmentId = await storeAudioSegmentForFeedback(
+        supabase,
+        analysisId.toString(),
+        -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
+        ssmlResult.ssml,
+        ttsResult.audioUrl,
+        {
+          audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
+          audioFormat: ttsResult.format || 'wav',
+          ssmlPrompt: ssmlPrompt || undefined, // Store the SSML generation prompt
+          audioPrompt: audioPrompt || undefined // Store the TTS system instruction
+        },
+        logger
+      )
+
+      if (segmentId) {
+        logger.info('Stored TTS audio segment in pipeline', { segmentId, analysisId })
+      } else {
+        logger.info('Failed to store TTS audio segment in pipeline', { analysisId })
+      }
+    } catch (segmentError) {
+      logger.info('Failed to store TTS audio segment in pipeline', { analysisId, error: segmentError })
+      // Don't fail the pipeline for segment storage errors
+    }
 
     // 5. Store results and update status
     const results: AnalysisResults = {

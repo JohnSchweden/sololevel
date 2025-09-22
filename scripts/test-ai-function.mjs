@@ -56,29 +56,29 @@ if (!supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-async function ensureVideosBucket() {
+async function ensureRawBucket() {
   try {
-    // Check if videos bucket exists
+    // Check if raw bucket exists
     const { data: buckets } = await supabase.storage.listBuckets()
-    const videosBucket = buckets?.find(b => b.name === 'videos')
+    const rawBucket = buckets?.find(b => b.name === 'raw')
 
-    if (!videosBucket) {
-      console.log('📦 Creating videos bucket...')
-      const { error } = await supabase.storage.createBucket('videos', {
+    if (!rawBucket) {
+      console.log('📦 Creating raw bucket...')
+      const { error } = await supabase.storage.createBucket('raw', {
         public: false,
-        allowedMimeTypes: ['video/mp4', 'video/mov', 'video/avi'],
-        fileSizeLimit: 104857600 // 100MB
+        allowedMimeTypes: ['video/mp4', 'video/quicktime'],
+        fileSizeLimit: 524288000 // 500MB
       })
 
       if (error) {
-        console.log('⚠️ Could not create videos bucket:', error.message)
+        console.log('⚠️ Could not create raw bucket:', error.message)
         console.log('Continuing anyway - bucket might already exist')
       } else {
-        console.log('✅ Created videos bucket')
+        console.log('✅ Created raw bucket')
       }
     }
   } catch (error) {
-    console.log('⚠️ Could not check/create videos bucket:', error.message)
+    console.log('⚠️ Could not check/create raw bucket:', error.message)
   }
 }
 
@@ -93,7 +93,7 @@ async function uploadTestVideo() {
     // Upload to Supabase Storage
     const fileName = `test-${Date.now()}.mp4`
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('videos')
+      .from('raw')
       .upload(fileName, videoBuffer, {
         contentType: 'video/mp4',
         upsert: true
@@ -104,8 +104,8 @@ async function uploadTestVideo() {
       return null
     }
 
-    console.log(`✅ Uploaded to: videos/${fileName}`)
-    return `videos/${fileName}`
+    console.log(`✅ Uploaded to: raw/${fileName}`)
+    return `raw/${fileName}`
   } catch (error) {
     console.error('❌ File read/upload error:', error.message)
     return null
@@ -179,8 +179,8 @@ async function pollStatus(analysisId, maxAttempts = 60) {
 async function main() {
   console.log('🎬 AI Function Test Script\n')
 
-  // Ensure videos bucket exists
-  await ensureVideosBucket()
+  // Ensure raw bucket exists
+  await ensureRawBucket()
 
   // Get user ID (ensure test user exists)
   let userId = process.argv[2]

@@ -1,14 +1,9 @@
 <speak>
     <prosody rate="medium" pitch="medium" volume="medium">
-        <break time="0.5s"/>
-        <prosody rate="medium" pitch="medium" volume="medium">
-            Posture feedback:
-            <break time="0.3s"/>
-            Ditch the flip-flops.
-            <break time="0.2s"/>
-            Seriously.
-            <break time="0.3s"/>
-            They undermine your credibility and presence.
-        </prosody>
+        Ditch the flip-flops.
+        <break time="0.2s"/>
+        Seriously.
+        <break time="0.3s"/>
+        They undermine your credibility and presence.
     </prosody>
 </speak>

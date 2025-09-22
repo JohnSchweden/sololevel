@@ -6,10 +6,28 @@
 import { generateTTSFromSSML } from '../../../ai-analyze-video/gemini-tts-audio.ts'
 import { createValidatedGeminiConfig } from '../../gemini/config.ts'
 import { createLogger } from '../../logger.ts'
-import { AUDIO_FORMATS, AudioFormat, resolveAudioFormat } from '../../media/audio.ts'
+import { AUDIO_FORMATS, AudioFormat, getEnvDefaultFormat, resolveAudioFormat } from '../../media/audio.ts'
 import { generateAudioStoragePath, uploadProcessedArtifact } from '../../storage/upload.ts'
 
 const logger = createLogger('tts-service')
+
+/**
+ * Detect audio format from MIME type
+ */
+function detectAudioFormat(contentType: string): AudioFormat {
+  const normalized = contentType.toLowerCase()
+
+  if ((AUDIO_FORMATS.wav.mimes as readonly string[]).includes(normalized)) {
+    return 'wav'
+  }
+  if ((AUDIO_FORMATS.mp3.mimes as readonly string[]).includes(normalized)) {
+    return 'mp3'
+  }
+
+  const fallback = getEnvDefaultFormat()
+  logger.warn(`Unexpected content type: ${contentType}, defaulting to ${fallback} format`)
+  return fallback
+}
 
 export interface TTSContext {
   ssml: string
@@ -83,8 +101,8 @@ export class GeminiTTSService implements ITTSService {
           ttsResult.contentType
         )
 
-        audioUrl = uploadResult.publicUrl || `storage://processed/${path}`
-        format = ttsResult.contentType === AUDIO_FORMATS.aac.mime ? 'aac' : 'mp3'
+        audioUrl = uploadResult.signedUrl || `storage://audio/${path}`
+        format = detectAudioFormat(ttsResult.contentType)
 
         logger.info('TTS audio uploaded to storage', {
           path,
@@ -102,7 +120,7 @@ export class GeminiTTSService implements ITTSService {
           audioUrl = `data:${ttsResult.contentType};base64,mock-audio-data`
           logger.warn('Failed to encode audio bytes, using mock data URL', error)
         }
-        format = ttsResult.contentType === AUDIO_FORMATS.aac.mime ? 'aac' : 'mp3'
+        format = detectAudioFormat(ttsResult.contentType)
 
         logger.warn('No Supabase client provided, using data URL (not suitable for production)', {
           format,

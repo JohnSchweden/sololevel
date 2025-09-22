@@ -9,7 +9,7 @@ import { getMockTTSResult } from '../_shared/gemini/mocks.ts'
 import { generateTTSAudio } from '../_shared/gemini/tts.ts'
 // Import centralized logger for Edge Functions
 import { createLogger } from '../_shared/logger.ts'
-import { AUDIO_FORMATS, AudioFormat } from '../_shared/media/audio.ts'
+import { AudioFormat } from '../_shared/media/audio.ts'
 
 const logger = createLogger('gemini-tts-audio')
 
@@ -44,22 +44,11 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
 
   // Real mode: Generate TTS using shared module
   try {
-    // Map options to Gemini TTS format
-    const speakingRate = {
-      slow: 0.7,
-      medium: 1.0,
-      fast: 1.3,
-      normal: 1.0 // Alias for medium
-    }[options?.speed || 'medium'] ?? 1.0
-
-    const responseMimeType = AUDIO_FORMATS[options?.format || 'mp3'].mime
-
+    // Generate TTS audio using shared module (speakingRate/pitch removed per web research)
     const result = await generateTTSAudio({
       ssml,
       voiceName: options?.voice,
-      speakingRate,
-      pitch: options?.pitch,
-      responseMimeType
+      format: options?.format || 'wav' // Default to WAV to trigger PCM→WAV conversion
     }, config)
 
     logger.info(`Gemini TTS generation completed: ${result.bytes.length} bytes`)

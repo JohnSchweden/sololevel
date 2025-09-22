@@ -32,7 +32,7 @@
 ## Requirements
 * **Functional Requirements**:
   1. Video capture or upload (MP4/MOV), max 60s; show duration and size
-  2. Background upload to Supabase Storage with progress and retry
+  2. Background upload to Supabase Storage `raw` bucket with progress and retry
   3. AI analysis pipeline (video + LLM feedback + TTS audio) via Edge Function
   4. Feedback surface: text summary, SSML/audio commentary, metrics/radar
   5. History list and detail views with share options
@@ -128,9 +128,9 @@ flowchart TD
 * **TTS Pipeline:** Audio commentary via gemini TTS 2.0 → Convert to AAC/MP3 format for optimal mobile/web compatibility
 * **Data Flow**:
   1. Client records or selects a video
-  2. Client uploads to Storage bucket `raw` via signed URL
+  2. Client uploads to Storage bucket `raw` via authenticated upload (RLS-enforced user scoping)
   3. Client calls `ai-analyze-video` with storage path; receives job id
-  4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, converts audio to AAC/MP3, writes to DB and `processed` storage
+  4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, converts audio to MP3/WAV, writes to DB and `processed` storage
   5. Client subscribes to analysis row via Realtime; UI updates when complete
 * **Third-Party Integrations**:
   - **Native**: TensorFlow Lite + MoveNet Lightning model
@@ -181,7 +181,9 @@ flowchart TD
       created_at timestamptz default now()
     ) RLS enabled
   - `analysis_metrics` (optional / Phase 2 analytics)
-  - Storage buckets: `raw` (uploads), `processed` (thumbnails, artifacts: AAC/MP3 audio)
+  - Storage buckets:
+    - `raw`: Private bucket for user-uploaded video files (MP4/MOV, 500MB limit, authenticated client uploads with user-scoped RLS)
+    - `processed`: Private bucket for AI-generated artifacts (MP3/WAV audio, 100MB limit, service-role only)
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
 
 * **Audio Format Configuration (Centralized)**:
@@ -257,9 +259,9 @@ flowchart TD
   - Live Pose (optional): Broadcast channel `pose-data-<id>` with event `pose-frame`
   - Polling fallback: `GET /ai-analyze-video/status?id=<id>` with exponential backoff (e.g., 1s → 2s → 4s up to 30s)
 
-* **TTS Status (MVP Stub)**:
-  - Current implementation returns placeholder MP3 URL during development
-  - Target: persist generated AAC/MP3 in `processed` bucket and store URL in `analysis_jobs.audio_url`
+* **TTS Status**:
+  - Full implementation: Gemini TTS generates MP3/WAV audio stored in `processed` bucket
+  - Audio URLs are signed and stored in `analysis_jobs.audio_url`
 
 * **Error Handling**:
   - Use discriminated union results in client hooks

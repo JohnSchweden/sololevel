@@ -3,7 +3,9 @@
 ## Recent Updates
 
 - **TTS Architecture Refactoring**: Refactored TTS system to follow consistent modular architecture pattern. Moved Gemini TTS API logic to `_shared/gemini/tts.ts`, slimmed orchestrator to thin wrapper in `ai-analyze-video/gemini-tts-audio.ts`, added comprehensive tests, and updated documentation. Now matches SSML and LLM analysis patterns.
-- **Audio Format Standardization**: Updated TTS system to use AAC as primary format (MP3 fallback) across all components, aligning with TRD specifications. Updated database defaults, service interfaces, route handlers, and tests.
+- **Audio Format Standardization**: Updated TTS system to use MP3 as primary format (WAV fallback) across all components. Updated database defaults, service interfaces, route handlers, and tests.
+- **Storage Bucket Migration**: Implemented raw/processed bucket separation per TRD. Created private `raw` bucket (500MB, MP4/MOV, authenticated client uploads with user-scoped RLS) and `processed` bucket (100MB, MP3/WAV, service-role only). Added MIME/extension validation triggers, comprehensive RLS policies, and pgTAP tests. Updated all code/scripts to use new bucket names and paths.
+- **TTS System Prompt & Persistence**: Wired `TTS_GENERATION_PROMPT_TEMPLATE` as system instruction in `_shared/gemini/tts.ts` and return it from the TTS generator so it is persisted to DB as `audio_prompt` via `store_analysis_audio_segment_for_feedback`. Fixed non-per-feedback TTS path and pipeline to consistently persist both SSML and audio prompts via audio segments.
 
 ## Completed Features
 
@@ -34,7 +36,10 @@
   - Complete AI pipeline architecture analysis (analysis-backend.md)
   - TRD-compliant database schema design (analyses, analysis_metrics, profiles tables)
   - RLS policies for secure data access and user isolation
-  - Supabase Storage strategy (raw/processed buckets with proper access control)
+  - Supabase Storage strategy:
+    - `raw` bucket: Private, 500MB limit, MP4/MOV only, authenticated client uploads with user-scoped RLS
+    - `processed` bucket: Private, 100MB limit, MP3/WAV only, service-role Edge Function uploads
+    - MIME/extension validation triggers and comprehensive pgTAP tests
   - Edge Functions architecture for AI analysis pipeline
   - Real-time integration patterns for live analysis updates
   - AI pipeline integration specifications (MoveNet, Gemini 2.5, TTS 2.0)

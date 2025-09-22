@@ -14,7 +14,7 @@ async function testDirectCall() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        videoPath: 'videos/test-1758303541112.mp4',
+        videoPath: 'raw/test-1758303541112.mp4',
         userId: '550e8400-e29b-41d4-a716-446655440000',
         videoSource: 'uploaded_video'
       })

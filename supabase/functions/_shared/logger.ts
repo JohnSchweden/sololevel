@@ -4,8 +4,8 @@
  */
 
 // Deno environment detection
-const isProduction = (globalThis as any).Deno?.env?.get('NODE_ENV') === 'production'
-const isDevelopment = !isProduction
+const _env = ((globalThis as any).Deno?.env?.get('NODE_ENV') || '').toLowerCase()
+const isDevelopment = _env === 'development' || _env === 'dev' || _env === 'local' || _env === 'test'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
@@ -52,19 +52,17 @@ function pushNetwork(record: NetworkRecord) {
 }
 
 function formatMessage(
-  level: LogLevel,
+  _level: LogLevel,
   message: string,
   data?: any,
   module?: string
 ): [string] | [string, any] {
-  const timestamp = new Date().toISOString()
   const modulePrefix = module ? `[${module}] ` : ''
-  const prefix = `${modulePrefix}[${timestamp}] ${level.toUpperCase()}:`
 
   if (data !== undefined) {
-    return [`${prefix} ${message}`, data]
+    return [`${modulePrefix}${message}`, data]
   }
-  return [`${prefix} ${message}`]
+  return [`${modulePrefix}${message}`]
 }
 
 /**

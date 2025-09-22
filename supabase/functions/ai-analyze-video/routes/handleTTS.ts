@@ -3,7 +3,7 @@ import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
 import { AudioFormat, resolveAudioFormat } from '../../_shared/media/audio.ts'
 import { GeminiSSMLService, MockSSMLService } from '../../_shared/services/speech/SSMLService.ts'
-import { GeminiTTSService } from '../../_shared/services/speech/TTSService.ts'
+import { GeminiTTSService, MockTTSService } from '../../_shared/services/speech/TTSService.ts'
 import type { VideoAnalysisResult } from '../../_shared/services/video/VideoAnalysisService.ts'
 import { generateSSMLFromFeedback } from '../gemini-ssml-feedback.ts'
 
@@ -52,6 +52,10 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
     const body: TTSRequest = await req.json()
     const { analysisId, ssml, text, perFeedbackItem = false, format, preferredFormats } = body
     logger.info('TTS request parsed:', { analysisId, ssml: !!ssml, text: !!text, perFeedbackItem, format, preferredFormats })
+
+    // Debug: log current environment defaults
+    const { getEnvDefaultFormat } = await import('../../_shared/media/audio.ts')
+    logger.info('Environment TTS defaults:', { defaultFormat: getEnvDefaultFormat() })
 
     // Handle analysis-based per-feedback-item generation
     if (analysisId && perFeedbackItem) {
@@ -121,8 +125,10 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
 
           logger.info(`Generated SSML for feedback item ${feedbackItem.id}: ${ssmlResult.ssml.substring(0, 100)}...`)
 
-          // Generate TTS audio for this SSML using real Google Cloud TTS
-          const ttsService = new GeminiTTSService()
+          // Generate TTS audio for this SSML using Gemini TTS (or mock in test mode)
+          const ttsService = useMockServices
+            ? new MockTTSService()
+            : new GeminiTTSService()
           const ttsResult = await ttsService.synthesize({
             ssml: ssmlResult.ssml,
             supabase,
@@ -277,6 +283,7 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
     // Store results in database if analysisId was provided
     if (analysisId && !perFeedbackItem) {
       try {
+        // Update analysis results
         await updateAnalysisResults(
           supabase,
           analysisId,
@@ -294,6 +301,34 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
           'tts',
           logger
         )
+
+        // Store audio segment to persist prompts (SSML and audio prompts)
+        // For non-per-feedback TTS, create a synthetic feedback item for the entire analysis
+        try {
+          const segmentId = await storeAudioSegmentForFeedback(
+            supabase,
+            analysisId.toString(),
+            -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
+            finalSSML,
+            ttsResult.audioUrl,
+            {
+              audioDurationMs: Math.ceil(finalSSML.length / 50) * 1000, // Rough estimate
+              audioFormat: ttsResult.format || 'wav',
+              ssmlPrompt: finalSSML, // Store the actual SSML content as ssml_prompt
+              audioPrompt: ttsResult.promptUsed || `Convert SSML to speech` // Store the TTS system instruction
+            },
+            logger
+          )
+
+          if (segmentId) {
+            logger.info('Stored TTS audio segment for full analysis', { segmentId, analysisId })
+          } else {
+            logger.warn('Failed to store TTS audio segment for full analysis', { analysisId })
+          }
+        } catch (segmentError) {
+          logger.warn('Failed to store TTS audio segment for full analysis', { analysisId, error: segmentError })
+          // Don't fail the request for segment storage errors
+        }
       } catch (dbError) {
         logger.warn('Failed to update analysis with TTS results', { analysisId, error: dbError })
         // Don't fail the request for database errors
@@ -306,6 +341,7 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
         duration: ttsResult.duration,
         format: ttsResult.format,
         sourceType,
+        promptUsed: ttsResult.promptUsed, // Include prompt for consistency with other stages
         debug: {
           ssmlLength: finalSSML.length,
           analysisId: analysisId || null
