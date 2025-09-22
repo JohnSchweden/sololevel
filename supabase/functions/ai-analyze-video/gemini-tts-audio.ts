@@ -30,8 +30,9 @@ export interface TTSAudioResult {
 /**
  * Generate TTS audio from SSML markup
  * Uses Gemini 2.0 TTS API to convert SSML to audio
+ * Returns both the audio URL and the prompt used
  */
-export function generateTTSFromSSML(ssml: string, options?: TTSOptions): string {
+export function generateTTSFromSSML(ssml: string, options?: TTSOptions): { audioUrl: string; prompt: string } {
   try {
     if (!ssml) {
       throw new Error('SSML text is required')
@@ -58,13 +59,16 @@ export function generateTTSFromSSML(ssml: string, options?: TTSOptions): string 
 
     // For now, return a placeholder URL
     const audioUrl = `https://placeholder-tts-audio.com/tts_${Date.now()}.mp3`
+    const prompt = `Generate TTS audio from the following SSML markup using Gemini TTS API:\n\n${ssml}\n\nOptions: ${JSON.stringify(options || {})}`
 
     logger.info('TTS audio generated successfully', { audioUrl })
-    return audioUrl
+    return { audioUrl, prompt }
   } catch (error) {
     logger.error('Failed to generate TTS audio', error)
-    // Return fallback URL
-    return `https://placeholder-tts-audio.com/fallback_${Date.now()}.mp3`
+    // Return fallback URL and error prompt
+    const audioUrl = `https://placeholder-tts-audio.com/fallback_${Date.now()}.mp3`
+    const prompt = `Generate TTS audio from the following SSML markup using Gemini TTS API:\n\n${ssml}\n\nOptions: ${JSON.stringify(options || {})} (fallback due to error)`
+    return { audioUrl, prompt }
   }
 }
 
@@ -78,7 +82,8 @@ export async function generateTTSFromText(text: string, options?: TTSOptions): P
     // Convert plain text to basic SSML
     const ssml = `<speak><prosody rate="medium">${text}</prosody></speak>`
 
-    return await generateTTSFromSSML(ssml, options)
+    const result = await generateTTSFromSSML(ssml, options)
+    return result.audioUrl
   } catch (error) {
     logger.error('Failed to generate TTS from text', error)
     return `https://placeholder-tts-audio.com/text_fallback_${Date.now()}.mp3`

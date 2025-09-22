@@ -31,7 +31,7 @@ graph TB
         subgraph DBGroup["🗄️ PostgreSQL (RLS On)"]
             DB[("public schema")]
             VR["📄 video_recordings\n(id, user_id, storage_path, filename, duration, source_type, created_at)"]
-            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_report_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)"]
+            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_feedback_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)"]
         end
         Storage["📁 Storage\nraw (uploads) • processed (artifacts: AAC/MP3)"]
         subgraph RTGroup["⚡ Realtime"]

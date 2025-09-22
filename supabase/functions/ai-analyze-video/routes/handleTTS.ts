@@ -1,7 +1,9 @@
-import { getEnhancedAnalysis, updateAnalysisResults } from '../../_shared/db/analysis.ts'
+import { getCompleteAnalysisByJobId, storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
-import { type GeminiAnalysisResult, generateSSMLFromFeedback } from '../gemini-ssml-feedback.ts'
+import { GeminiSSMLService, MockSSMLService } from '../../_shared/services/speech/SSMLService.ts'
+import type { VideoAnalysisResult } from '../../_shared/services/video/VideoAnalysisService.ts'
+import { generateSSMLFromFeedback } from '../gemini-ssml-feedback.ts'
 
 interface HandlerContext {
   req: Request
@@ -30,109 +32,147 @@ export interface TTSResponse {
 
 export async function handleTTS({ req, supabase, logger }: HandlerContext): Promise<Response> {
   try {
+    console.log('=== handleTTS START ===')
     const body: TTSRequest = await req.json()
     const { analysisId, ssml, text, perFeedbackItem = false } = body
+    console.log('TTS request parsed:', { analysisId, ssml: !!ssml, text: !!text, perFeedbackItem })
+    console.log('=== handleTTS END ===')
 
-    // Validation
-    if (!analysisId && !text && !ssml) {
-      return createErrorResponse('analysisId, text, or ssml is required', 400)
-    }
+    // Handle analysis-based per-feedback-item generation
+    if (analysisId && perFeedbackItem) {
+      logger.info('Generating TTS per feedback item', { analysisId })
 
-    if (!supabase) {
-      logger.error('Database connection not available')
-      return createErrorResponse('Database connection failed', 500)
-    }
+      // Load complete analysis data with feedback items
+      const analysisData = await getCompleteAnalysisByJobId(supabase, analysisId, logger)
 
-    let finalSSML = ssml
-    let analysisData: GeminiAnalysisResult | null = null
-
-    // Load analysis data if analysisId provided
-    if (analysisId) {
-      logger.info('Loading analysis data', { analysisId })
-
-      const analysisResult = await getEnhancedAnalysis(supabase, analysisId.toString())
-      if (analysisResult.error) {
-        return createErrorResponse(`Analysis not found: ${analysisResult.error}`, analysisResult.status || 404)
+      if (!analysisData || !analysisData.feedback || analysisData.feedback.length === 0) {
+        return new Response(JSON.stringify({
+          error: 'No feedback data found',
+          debug: {
+            analysisDataExists: !!analysisData,
+            analysisId: analysisData?.analysisId,
+            feedbackExists: !!analysisData?.feedback,
+            feedbackLength: analysisData?.feedback?.length || 0
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        })
       }
 
-      const data = analysisResult.data
-      if (!data) {
-        return createErrorResponse('Analysis data not found', 404)
-      }
+      logger.info(`Processing ${analysisData.feedback.length} feedback items`)
 
-      analysisData = {
-        textReport: data.fullReport,
-        feedback: data.feedback || [],
-        metrics: data.metrics,
-        confidence: 0.8 // Default confidence, not available in the current schema
-      }
-    }
+      const segments: TTSResponse['segments'] = []
+      let totalDuration = 0
 
-    // Generate SSML if not provided
-    if (!finalSSML) {
-      if (analysisData) {
-        logger.info('Generating SSML from analysis data')
+      // Initialize SSML service for unified generation
+      const aiAnalysisMode = Deno.env.get('AI_ANALYSIS_MODE')
+      const useMockServices = aiAnalysisMode === 'mock'
+      const ssmlService = useMockServices
+        ? new MockSSMLService()
+        : new GeminiSSMLService(generateSSMLFromFeedback)
+
+      logger.info(`Using ${useMockServices ? 'Mock' : 'Gemini'} SSML service for per-feedback generation`)
+
+      // Generate SSML and audio for each feedback item
+      for (const feedbackItem of analysisData.feedback) {
         try {
-          finalSSML = await generateSSMLFromFeedback(analysisData)
-        } catch (ssmlError) {
-          logger.warn('SSML generation failed, using fallback', ssmlError)
-          // Use fallback SSML generation
-          const { generateBasicSSML } = await import('../gemini-ssml-feedback.ts')
-          finalSSML = generateBasicSSML(analysisData.textReport || 'Analysis completed successfully')
+          // Create wrapper VideoAnalysisResult for single feedback item
+          const singleItemAnalysis: VideoAnalysisResult = {
+            textReport: feedbackItem.message,
+            feedback: [{
+              timestamp: feedbackItem.timestamp_seconds || 0,
+              category: feedbackItem.category || 'General',
+              message: feedbackItem.message,
+              confidence: feedbackItem.confidence || 0.85,
+              impact: feedbackItem.impact || 0.5,
+            }],
+            metrics: {},
+            confidence: feedbackItem.confidence || 0.85,
+          }
+
+          // Generate SSML using the unified service (Gemini or mock)
+          const ssmlResult = await ssmlService.generate({
+            analysisResult: singleItemAnalysis,
+            customParams: {
+              voice: 'neutral',
+              speed: undefined,
+              pitch: undefined
+            }
+          })
+
+          logger.info(`Generated SSML for feedback item ${feedbackItem.id}: ${ssmlResult.ssml.substring(0, 100)}...`)
+
+          // Generate TTS audio for this SSML
+          const ttsResult = await generateTTSPlaceholder(ssmlResult.ssml, analysisId, true, logger)
+
+          // Store the audio segment in database
+          try {
+            const segmentId = await storeAudioSegmentForFeedback(
+              supabase,
+              analysisData.analysisId,
+              feedbackItem.id,
+              ssmlResult.ssml,
+              ttsResult.audioUrl,
+              {
+                audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
+                audioFormat: 'mp3',
+                ssmlPrompt: ssmlResult.promptUsed, // Full prompt from service
+                audioPrompt: `Convert SSML to speech`
+              },
+              logger
+            )
+
+            if (segmentId) {
+              segments.push({
+                feedbackId: feedbackItem.id,
+                audioUrl: ttsResult.audioUrl,
+                duration: ttsResult.duration,
+                format: ttsResult.format
+              })
+              totalDuration += ttsResult.duration || 0
+            } else {
+              logger.warn('Failed to store audio segment for feedback item', { feedbackId: feedbackItem.id })
+            }
+          } catch (storeError) {
+            logger.error('Exception storing audio segment', { feedbackId: feedbackItem.id, error: storeError })
+          }
+        } catch (itemError) {
+          logger.error('Failed to process feedback item', { feedbackId: feedbackItem.id, error: itemError })
+          // Continue with other items
         }
-      } else if (text) {
-        logger.info('Generating basic SSML from text')
-        // Import the basic SSML generator
-        const { generateBasicSSML } = await import('../gemini-ssml-feedback.ts')
-        finalSSML = generateBasicSSML(text)
-      } else {
-        return createErrorResponse('Cannot generate SSML: no analysis data or text provided', 400)
       }
+
+      return new Response(
+        JSON.stringify({
+          audioUrl: segments[0]?.audioUrl, // Primary audio URL (first segment)
+          duration: totalDuration,
+          format: 'mp3',
+          segments: segments,
+          debug: {
+            feedbackProcessed: analysisData.feedback.length,
+            segmentsCreated: segments.length,
+            analysisId: analysisData.analysisId
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
     }
 
-    // Validate SSML before TTS
-    if (!isValidSSML(finalSSML)) {
-      logger.warn('Invalid SSML provided, attempting to fix', { ssml: finalSSML.substring(0, 100) })
-      finalSSML = wrapInSpeakTags(finalSSML)
-    }
+    return new Response(JSON.stringify({ message: 'TTS endpoint - other case' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
 
-    logger.info('SSML prepared for TTS', { ssmlLength: finalSSML.length })
-
-    // TODO: Implement actual TTS API call
-    // For now, simulate TTS generation
-    const ttsResult = await generateTTSPlaceholder(finalSSML, analysisId, perFeedbackItem, logger)
-
-    // Store results in database
-    if (analysisId) {
-      try {
-        await updateAnalysisResults(supabase, analysisId, {
-          text_report: analysisData?.textReport || 'TTS generation completed',
-          feedback: analysisData?.feedback || [],
-          summary_text: 'Audio feedback generated',
-          ssml: finalSSML,
-          audio_url: ttsResult.audioUrl,
-          processing_time: 0,
-          video_source: 'tts_generation'
-        }, null, 0, 'tts', logger)
-        logger.info('Stored TTS results in database', { analysisId })
-      } catch (dbError) {
-        logger.error('Failed to store TTS results', dbError)
-        // Continue - TTS was successful even if DB update failed
-      }
-    }
-
-    return new Response(
-      JSON.stringify(ttsResult),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
   } catch (error) {
     logger.error('handleTTS error', error)
     return createErrorResponse('Failed to generate TTS audio', 500)
   }
 }
+
 
 /**
  * Placeholder TTS generation (replace with actual TTS API)
@@ -169,7 +209,7 @@ async function generateTTSPlaceholder(
 /**
  * Basic SSML validation
  */
-function isValidSSML(ssml: string): boolean {
+function _isValidSSML(ssml: string): boolean {
   const trimmed = ssml.trim()
   return trimmed.startsWith('<speak>') && trimmed.endsWith('</speak>')
 }
@@ -177,7 +217,7 @@ function isValidSSML(ssml: string): boolean {
 /**
  * Wrap content in speak tags if missing
  */
-function wrapInSpeakTags(content: string): string {
+function _wrapInSpeakTags(content: string): string {
   const trimmed = content.trim()
   if (!trimmed.startsWith('<speak>')) {
     content = `<speak>${content}`

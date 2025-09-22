@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       // Test if the enhanced storage function exists
       const { data, error } = await supabase.rpc('store_enhanced_analysis_results', {
         analysis_job_id: 1,
-        p_full_report_text: 'Test report',
+        p_full_feedback_text: 'Test feedback',
         p_summary_text: 'Test summary',
         p_ssml: '<speak>Test</speak>',
         p_audio_url: 'test.mp3',

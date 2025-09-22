@@ -357,12 +357,16 @@ describe('Analysis Service - Video Processing Extensions', () => {
 
         expect(result.data).toBe(true)
         expect(result.error).toBeNull()
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_analysis_results', {
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
           analysis_job_id: 123,
           p_summary_text: analysisResults.summary_text,
           p_ssml: analysisResults.ssml,
           p_audio_url: analysisResults.audio_url,
           p_metrics: JSON.stringify(analysisResults.metrics),
+          p_feedback: '[]',
+          p_full_feedback_text: analysisResults.summary_text,
+          p_processing_time_ms: null,
+          p_video_source_type: null,
         })
       })
 
@@ -376,12 +380,16 @@ describe('Analysis Service - Video Processing Extensions', () => {
         const result = await storeAnalysisResults(456, partialResults)
 
         expect(result.data).toBe(true)
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_analysis_results', {
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
           analysis_job_id: 456,
           p_summary_text: 'Good form overall',
           p_ssml: undefined,
           p_audio_url: undefined,
           p_metrics: '{}',
+          p_feedback: '[]',
+          p_full_feedback_text: 'Good form overall',
+          p_processing_time_ms: null,
+          p_video_source_type: null,
         })
       })
 
@@ -440,8 +448,8 @@ describe('Analysis Service - Video Processing Extensions', () => {
 
         expect(result.data).toEqual(mockAnalysisData)
         expect(result.error).toBeNull()
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('get_analysis_with_metrics', {
-          analysis_job_id: 123,
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('get_complete_analysis', {
+          job_id: 123,
         })
       })
 

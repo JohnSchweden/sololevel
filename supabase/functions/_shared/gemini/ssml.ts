@@ -32,20 +32,23 @@ export interface SSMLGenerationOptions {
   voice?: 'male' | 'female' | 'neutral'
   speed?: 'slow' | 'medium' | 'fast'
   emphasis?: 'strong' | 'moderate' | 'reduced'
+  prompt?: string
 }
 
 /**
  * Generate SSML markup from structured feedback using Gemini
+ * Returns both the SSML and the prompt used
  */
 export async function generateSSMLFromStructuredFeedback(
   analysis: GeminiAnalysisResult,
   options: SSMLGenerationOptions = {}
-): Promise<string> {
+): Promise<{ ssml: string; prompt: string }> {
   const config = createValidatedGeminiConfig()
 
   if (config.analysisMode === 'mock') {
     logger.info('SSML generation: mock mode - using fallback formatter')
-    return generateSSMLFallback(analysis, options)
+    const ssml = generateSSMLFallback(analysis, options)
+    return { ssml, prompt: 'mock-mode-no-prompt' }
   }
 
   try {
@@ -59,19 +62,22 @@ export async function generateSSMLFromStructuredFeedback(
       maxOutputTokens: 1024,
     }
 
-    const ssmlText = await generateTextOnlyContent(request, config)
+    const generationResult = await generateTextOnlyContent(request, config)
 
     // Validate the generated SSML
-    if (!isValidSSML(ssmlText)) {
+    if (!isValidSSML(generationResult.text)) {
       logger.warn('Generated SSML is invalid, using fallback')
-      return generateSSMLFallback(analysis, options)
+      const ssml = generateSSMLFallback(analysis, options)
+      return { ssml, prompt }
     }
 
-    logger.info(`Generated SSML: ${ssmlText.length} characters`)
-    return ssmlText
+    logger.info(`Generated SSML: ${generationResult.text.length} characters`)
+    return { ssml: generationResult.text, prompt }
   } catch (error) {
     logger.error('SSML generation failed, using fallback', error)
-    return generateSSMLFallback(analysis, options)
+    const ssml = generateSSMLFallback(analysis, options)
+    const prompt = buildSSMLPrompt(analysis, options)
+    return { ssml, prompt }
   }
 }
 
@@ -79,9 +85,14 @@ export async function generateSSMLFromStructuredFeedback(
  * Build prompt for SSML generation
  */
 function buildSSMLPrompt(analysis: GeminiAnalysisResult, options: SSMLGenerationOptions): string {
-  const { voice = 'neutral', speed = 'medium', emphasis = 'moderate' } = options
+  const { voice = 'neutral', speed = 'medium', emphasis = 'moderate', prompt: customPrompt } = options
 
-  let prompt = `Generate SSML markup for text-to-speech from the following exercise analysis feedback.
+  // Use custom prompt if provided (e.g., from prompts-local.ts)
+  if (customPrompt) {
+    return customPrompt
+  }
+
+  let generatedPrompt = `Generate SSML markup for text-to-speech from the following exercise analysis feedback.
 
 Requirements:
 - Use <speak> as root element
@@ -95,21 +106,21 @@ Analysis Data:
 `
 
   if (analysis.metrics) {
-    prompt += `- Overall performance: ${analysis.metrics.overall}/100\n`
-    prompt += `- Posture score: ${analysis.metrics.posture}/100\n`
-    prompt += `- Movement score: ${analysis.metrics.movement}/100\n`
+    generatedPrompt += `- Overall performance: ${analysis.metrics.overall}/100\n`
+    generatedPrompt += `- Posture score: ${analysis.metrics.posture}/100\n`
+    generatedPrompt += `- Movement score: ${analysis.metrics.movement}/100\n`
   }
 
-  prompt += `\nFeedback items:\n`
+  generatedPrompt += `\nFeedback items:\n`
   analysis.feedback.forEach((item, index) => {
-    prompt += `${index + 1}. [${item.category}] ${item.message} (confidence: ${item.confidence}, impact: ${item.impact})\n`
+    generatedPrompt += `${index + 1}. [${item.category}] ${item.message} (confidence: ${item.confidence}, impact: ${item.impact})\n`
   })
 
-  prompt += `
+  generatedPrompt += `
 
 Generate only the SSML markup, no explanations. Start with <speak> and end with </speak>.`
 
-  return prompt
+  return generatedPrompt
 }
 
 /**

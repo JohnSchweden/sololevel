@@ -44,14 +44,16 @@ export function parseDualOutput(responseText: string): {
   textReport: string
   feedback: FeedbackItem[]
   metrics: any
+  jsonData: any
 } {
   let textReport = ''
   let feedback: FeedbackItem[] = []
   let metrics: any = {}
+  let jsonData: any = {}
 
-  // Preferred format: === TEXT REPORT START/END ===
+  // Preferred format: === TEXT FEEDBACK START/END ===
   const reportMatchNew = responseText.match(
-    /===\s*TEXT REPORT START\s*===\s*([\s\S]*?)===\s*TEXT REPORT END\s*===/i
+    /===\s*TEXT FEEDBACK START\s*===\s*([\s\S]*?)===\s*TEXT FEEDBACK END\s*===/i
   )
   if (reportMatchNew && reportMatchNew[1]) {
     textReport = reportMatchNew[1].trim()
@@ -74,8 +76,11 @@ export function parseDualOutput(responseText: string): {
   if (jsonBlockMatch && jsonBlockMatch[1]) {
     try {
       const block = jsonBlockMatch[1].replace(/```json\s*|```/g, '').trim()
-      const parsed = JSON.parse(block)
-      const list = Array.isArray(parsed) ? parsed : parsed.feedback || []
+      jsonData = JSON.parse(block)
+      logger.info(`Parsed JSON DATA block: ${typeof jsonData}`)
+
+      // Extract feedback from the parsed JSON data
+      const list = Array.isArray(jsonData) ? jsonData : jsonData.feedback || []
       const validated = safeValidateFeedbackList(list)
       if (validated.length > 0) {
         feedback = validated
@@ -83,6 +88,7 @@ export function parseDualOutput(responseText: string): {
       }
     } catch (error) {
       logger.error('Failed to parse JSON DATA block', error)
+      jsonData = {} // Fallback to empty object
     }
   } else {
     // Legacy feedback block: FEEDBACK JSON:
@@ -118,5 +124,5 @@ export function parseDualOutput(responseText: string): {
     }
   }
 
-  return { textReport, feedback, metrics }
+  return { textReport, feedback, metrics, jsonData }
 }

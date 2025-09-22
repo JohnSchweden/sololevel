@@ -79,7 +79,7 @@ Roast me, motherfuckaaa!!!
 **Output Format**
 Create two distinct outputs with clear separators:
 
-**=== TEXT REPORT START ===
+**=== TEXT FEEDBACK START ===
 [Your detailed analysis here]
 
 **Big Picture**
@@ -94,7 +94,7 @@ Provide a brief, overarching summary of the core theme to tie all the feedback t
 
 **Bonus**
 Suggest **one specific, practical drill** I can practice for 5 minutes a day this week to improve on the #1 highest-impact feedback point.
-=== TEXT REPORT END ===**
+=== TEXT FEEDBACK END ===**
 
 **=== JSON DATA START ===
 \`\`\`json

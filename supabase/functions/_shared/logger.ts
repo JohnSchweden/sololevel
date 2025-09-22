@@ -86,7 +86,10 @@ export function createLogger(moduleName: string): LoggerLike {
     },
 
     info(message: string, data?: any) {
-      console.log(...formatMessage('info', message, data, moduleName))
+      // Only log to console in development to avoid duplicate logs in Supabase
+      if (isDevelopment) {
+        console.log(...formatMessage('info', message, data, moduleName))
+      }
       pushConsole({
         level: 'info',
         message,

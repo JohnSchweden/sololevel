@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/assert@*": "1.0.14",
+    "jsr:@std/dotenv@*": "0.225.5",
     "jsr:@std/internal@^1.0.10": "1.0.10",
     "jsr:@supabase/supabase-js@2": "2.57.4",
     "npm:@supabase/auth-js@2.71.1": "2.71.1",
@@ -21,6 +22,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/dotenv@0.225.5": {
+      "integrity": "9ce6f9d0ec3311f74a32535aa1b8c62ed88b1ab91b7f0815797d77a6f60c922f"
     },
     "@std/internal@1.0.10": {
       "integrity": "e3be62ce42cab0e177c27698e5d9800122f67b766a0bea6ca4867886cbde8cf7"

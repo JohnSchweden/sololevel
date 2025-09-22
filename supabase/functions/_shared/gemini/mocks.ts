@@ -7,7 +7,7 @@ import type { GeminiVideoAnalysisResult } from './types.ts'
 /**
  * Prepared mock response for MVP testing - maintains full pipeline flow
  */
-export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT REPORT START ===
+export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
 **Big Picture**: Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
 
 **Detailed Analysis**:
@@ -33,7 +33,7 @@ export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT REPORT START ===
 - Practice transitioning between different presentation sections
 
 **Bonus Tip**: Great job with your introduction! The confident opening set a positive tone for your entire presentation.
-=== TEXT REPORT END ===
+=== TEXT FEEDBACK END ===
 
 === JSON DATA START ===
 {

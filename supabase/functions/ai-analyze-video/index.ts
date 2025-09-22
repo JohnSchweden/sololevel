@@ -14,11 +14,6 @@ import { handleTestEnv } from './routes/handleTestEnv.ts'
 
 // Import Gemini modules for pipeline injection
 import { analyzeVideoWithGemini as _analyzeVideoWithGemini } from './gemini-llm-analysis.ts'
-import { generateSSMLFromFeedback as geminiLLMFeedback } from './gemini-ssml-feedback.ts'
-import { generateTTSFromSSML as geminiTTS20 } from './gemini-tts-audio.ts'
-
-// Inject dependencies into pipeline for testability
-import { injectGeminiDependencies } from '../_shared/pipeline/aiPipeline.ts'
 
 declare const Deno: {
   env: { get(key: string): string | undefined }
@@ -33,9 +28,6 @@ enableNetworkLogging()
 
 // Initialize Supabase client from environment
 const supabase = createServiceClientFromEnv(logger)
-
-// Inject Gemini dependencies into pipeline
-injectGeminiDependencies(_analyzeVideoWithGemini, geminiLLMFeedback, geminiTTS20)
 
 // deno-lint-ignore require-await
 Deno.serve(async (req) => {
@@ -109,7 +101,7 @@ Deno.serve(async (req) => {
 /* To invoke locally:
 
   1. Run `supabase start`
-  2. Run `supabase functions serve ai-analyze-video`
+  2. Run `yarn dlx supabase functions serve ai-analyze-video --env-file .env`
   3. Make HTTP requests:
 
   # Health check

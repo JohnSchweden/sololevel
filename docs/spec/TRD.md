@@ -168,7 +168,7 @@ flowchart TD
       processing_started_at timestamptz, processing_completed_at timestamptz,
       error_message text,
       results jsonb, pose_data jsonb,
-      full_report_text text, summary_text text, ssml text, audio_url text,
+      full_feedback_text text, summary_text text, ssml text, audio_url text,
       processing_time_ms int, video_source_type text,
       created_at timestamptz default now(), updated_at timestamptz default now()
     ) RLS enabled
@@ -183,13 +183,6 @@ flowchart TD
   - `analysis_metrics` (optional / Phase 2 analytics)
   - Storage buckets: `raw` (uploads), `processed` (thumbnails, artifacts: AAC/MP3 audio)
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
-
-**Post-MVP Database Refactoring Note:**
-After MVP, the `analysis_jobs` table should be split for better normalization and scalability:
-- Move feedback content (`full_report_text`, `summary_text`, `ssml`, `audio_url`) to a new `analyses` table
-- Create `analysis_feedbacks` table for individual feedback items with timestamps
-- Keep `analysis_jobs` focused on job status, progress, and processing metadata
-- This will improve query performance and enable more flexible feedback analysis
 
 * **API Specifications (Edge Functions)**:
   - `POST /functions/v1/ai-analyze-video`

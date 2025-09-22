@@ -480,6 +480,7 @@ export async function getAnalysisStats(): Promise<{
 
 /**
  * Store analysis results using TRD-compliant schema (Phase 1)
+ * Updated to support new normalized schema when available
  */
 export async function storeAnalysisResults(
   analysisJobId: number,
@@ -491,11 +492,15 @@ export async function storeAnalysisResults(
     // Convert metrics to JSONB format for the function
     const metricsJsonb = metrics ? JSON.stringify(metrics) : '{}'
 
-    const { error } = await supabase.rpc('store_analysis_results', {
+    const { error } = await (supabase.rpc as any)('store_enhanced_analysis_results', {
       analysis_job_id: analysisJobId,
+      p_full_feedback_text: summary_text || undefined,
       p_summary_text: summary_text || undefined,
       p_ssml: ssml || undefined,
       p_audio_url: audio_url || undefined,
+      p_processing_time_ms: null,
+      p_video_source_type: null,
+      p_feedback: '[]',
       p_metrics: metricsJsonb,
     })
 
@@ -532,8 +537,8 @@ export async function getAnalysisWithMetrics(analysisJobId: number): Promise<{
   error: string | null
 }> {
   try {
-    const { data, error } = await supabase.rpc('get_analysis_with_metrics', {
-      analysis_job_id: analysisJobId,
+    const { data, error } = await (supabase.rpc as any)('get_complete_analysis', {
+      job_id: analysisJobId,
     })
 
     if (error) {
@@ -543,7 +548,7 @@ export async function getAnalysisWithMetrics(analysisJobId: number): Promise<{
 
     // Return first result (function returns array)
     const result = Array.isArray(data) ? data[0] : data
-    return { data: result || null, error: null }
+    return { data: (result as any) || null, error: null }
   } catch (error) {
     log.error('Unexpected error getting analysis with metrics:', error)
     return {

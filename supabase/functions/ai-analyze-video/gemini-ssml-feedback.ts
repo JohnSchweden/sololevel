@@ -5,6 +5,7 @@
 
 // Import centralized logger for Edge Functions
 import { createLogger } from '../_shared/logger.ts'
+import { getSSMLGenerationPrompt } from './prompts-local.ts'
 
 const logger = createLogger('gemini-ssml-feedback')
 
@@ -36,15 +37,27 @@ export async function generateSSMLFromFeedback(analysis: GeminiAnalysisResult): 
   const { generateSSMLFromStructuredFeedback } = await import('../_shared/gemini/ssml.ts')
 
   try {
-    // Use the new Gemini-powered SSML generator
-    const ssml = await generateSSMLFromStructuredFeedback(analysis, {
-      voice: 'neutral',
-      speed: 'medium',
-      emphasis: 'moderate'
+    // Generate the SSML prompt from prompts-local.ts as single source of truth
+    const feedbackText = analysis.feedback?.map(f => f.message).join(' ') ||
+                        analysis.textReport ||
+                        'Analysis completed successfully'
+
+    const ssmlPrompt = getSSMLGenerationPrompt({
+      feedback_text: feedbackText
     })
 
-    logger.info(`Generated SSML from ${analysis.feedback?.length || 0} feedback items using Gemini`)
-    return ssml
+    logger.info('Generated SSML prompt from prompts-local.ts for full analysis')
+
+    // Use the new Gemini-powered SSML generator with prompt from prompts-local.ts
+    const ssmlResult = await generateSSMLFromStructuredFeedback(analysis, {
+      voice: 'neutral',
+      speed: 'medium',
+      emphasis: 'moderate',
+      prompt: ssmlPrompt, // Use prompt from prompts-local.ts
+    })
+
+    logger.info(`Generated SSML from ${analysis.feedback?.length || 0} feedback items using Gemini with prompts-local.ts`)
+    return ssmlResult.ssml
   } catch (error) {
     logger.warn('Failed to generate SSML from feedback items, using fallback', error)
 

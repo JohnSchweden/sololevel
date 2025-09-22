@@ -31,6 +31,9 @@ export interface GeminiVideoAnalysisResult {
   }
   confidence: number
   rawResponse?: Record<string, unknown> // For debugging
+  rawText?: string // Raw text output from the LLM
+  promptUsed?: string // The actual prompt string sent to the LLM
+  jsonData?: any // Parsed JSON block from JSON DATA START/END
 }
 
 /**

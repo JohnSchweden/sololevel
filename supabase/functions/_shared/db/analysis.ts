@@ -1,11 +1,11 @@
 import type { AnalysisJob, PoseDetectionResult } from '../types/ai-analyze-video.ts'
 
 export interface AnalysisResults {
-  text_report: string
+  text_feedback: string
   feedback: unknown[]
   summary_text: string
-  ssml: string
-  audio_url: string
+  ssml?: string
+  audio_url?: string
   processing_time: number
   video_source: string
   metrics?: Record<string, unknown>
@@ -81,58 +81,158 @@ export async function updateAnalysisStatus(
   }
 }
 
-// Update analysis results using enhanced storage function with fallback
+// Update analysis results using new normalized schema
 export async function updateAnalysisResults(
   supabase: any,
   analysisId: number,
   results: AnalysisResults,
-  poseData: PoseDetectionResult[] | null,
+  _poseData: PoseDetectionResult[] | null,
   processingTimeMs?: number,
   videoSourceType?: string,
-  _logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+  _logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void },
+  // New parameters for normalized schema
+  rawGeneratedText?: string,
+  fullFeedbackJson?: any,
+  feedbackPrompt?: string,
+  ssmlPrompt?: string,
+  audioPrompt?: string
 ): Promise<void> {
   if (!supabase) {
     _logger?.error('Database connection not available for results update')
     return
   }
 
-  // Extract data for enhanced storage
-  const fullReportText = results.text_report
+  // Extract data for new normalized storage
+  const fullFeedbackText = results.text_feedback
   const summaryText = results.summary_text
-  const ssml = results.ssml
-  const audioUrl = results.audio_url
   const feedback = results.feedback || []
   const metrics = results.metrics || {}
 
-  // Use enhanced storage function with fallback
-  const { error } = await supabase.rpc('store_enhanced_analysis_results', {
-    analysis_job_id: analysisId,
-    p_full_report_text: fullReportText,
-    p_summary_text: summaryText,
-    p_ssml: ssml,
-    p_audio_url: audioUrl,
-    p_processing_time_ms: processingTimeMs,
-    p_video_source_type: videoSourceType,
-    p_feedback: feedback,
-    p_metrics: metrics
-  })
+  try {
+    // Create analysis record using new function
+    const { data: analysisIdResult, error: analysisError } = await supabase.rpc('store_analysis_results', {
+      p_job_id: analysisId,
+      p_full_feedback_text: fullFeedbackText,
+      p_summary_text: summaryText,
+      p_raw_generated_text: rawGeneratedText,
+      p_full_feedback_json: fullFeedbackJson,
+      p_feedback_prompt: feedbackPrompt
+    })
 
-  if (error) {
-    _logger?.error('Failed to update enhanced analysis results, falling back to basic update', error)
-    // Fallback to basic update if enhanced function fails
-    await supabase
+    if (analysisError) {
+      throw analysisError
+    }
+
+    _logger?.info('Created analysis record', { analysisId: analysisIdResult, jobId: analysisId })
+
+    // NOTE: SSML and audio data should now be stored via storeAudioSegmentForFeedback()
+    // with proper linkage to individual feedback items, not analysis-level storage
+    // The old store_analysis_audio_segment RPC is deprecated for new usage
+
+    // Insert feedback items into analysis_feedback table
+    if (feedback.length > 0 && analysisIdResult) {
+      const feedbackInserts = feedback.map((item: any) => ({
+        analysis_id: analysisIdResult, // Now references analyses.id (UUID)
+        timestamp_seconds: item.timestamp || item.timestamp_seconds,
+        category: item.category,
+        message: item.message,
+        confidence: item.confidence,
+        impact: item.impact
+      }))
+
+      const { error: feedbackError } = await supabase
+        .from('analysis_feedback')
+        .insert(feedbackInserts)
+
+      if (feedbackError) {
+        _logger?.error('Failed to insert feedback items', feedbackError)
+        // Don't fail the whole operation for feedback errors
+      }
+    }
+
+    // Insert metrics if provided
+    if (Object.keys(metrics).length > 0) {
+      const metricInserts = Object.entries(metrics).map(([key, value]) => {
+        let metricValue: number
+        let unit = 'count'
+
+        if (typeof value === 'number') {
+          metricValue = value
+        } else if (typeof value === 'string' && /^\d+(\.\d+)?$/.test(value)) {
+          metricValue = parseFloat(value)
+        } else {
+          metricValue = 0
+        }
+
+        // Determine unit based on key
+        if (key.includes('percentage') || key.includes('score')) {
+          unit = 'percentage'
+        } else if (key.includes('time') || key.includes('duration')) {
+          unit = 'seconds'
+        } else if (key.includes('angle')) {
+          unit = 'degrees'
+        } else if (key.includes('distance')) {
+          unit = 'pixels'
+        }
+
+        return {
+          analysis_id: analysisId,
+          metric_key: key,
+          metric_value: metricValue,
+          unit
+        }
+      })
+
+      const { error: metricsError } = await supabase
+        .from('analysis_metrics')
+        .insert(metricInserts)
+        .onConflictDoUpdate({
+          target: ['analysis_id', 'metric_key'],
+          set: { metric_value: supabase.raw('excluded.metric_value'), unit: supabase.raw('excluded.unit'), updated_at: supabase.raw('now()') }
+        })
+
+      if (metricsError) {
+        _logger?.error('Failed to insert metrics', metricsError)
+        // Don't fail the whole operation for metrics errors
+      }
+    }
+
+    // Update job status and processing time
+    const { error: jobUpdateError } = await supabase
       .from('analysis_jobs')
       .update({
-        results,
-        pose_data: poseData,
-        full_report_text: fullReportText,
-        summary_text: summaryText,
-        ssml: ssml,
-        audio_url: audioUrl,
         processing_time_ms: processingTimeMs,
         video_source_type: videoSourceType,
+        status: 'completed',
+        processing_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq('id', analysisId)
+
+    if (jobUpdateError) {
+      _logger?.error('Failed to update job status', jobUpdateError)
+    }
+
+  } catch (error) {
+    _logger?.error('Failed to store analysis results in new schema, falling back to legacy', error)
+
+    // Fallback to legacy storage for backward compatibility
+    const { error: legacyError } = await supabase.rpc('store_enhanced_analysis_results', {
+      analysis_job_id: analysisId,
+      p_full_feedback_text: results.text_feedback,
+      p_summary_text: results.summary_text,
+      p_ssml: results.ssml,
+      p_audio_url: results.audio_url,
+      p_processing_time_ms: processingTimeMs,
+      p_video_source_type: videoSourceType,
+      p_feedback: results.feedback || [],
+      p_metrics: results.metrics || {}
+    })
+
+    if (legacyError) {
+      _logger?.error('Legacy fallback also failed', legacyError)
+      throw error // Re-throw original error if both fail
+    }
   }
 }
 
@@ -142,17 +242,57 @@ export async function getEnhancedAnalysis(
   analysisId: string,
   _logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
 ) {
-  // Use enhanced query function to get structured feedback and metrics
+  try {
+    // Use new normalized query function
+    const { data: analysisData, error } = await supabase.rpc('get_complete_analysis', {
+      job_id: Number.parseInt(analysisId)
+    })
+
+    if (!error && analysisData && analysisData.length > 0) {
+      const job = analysisData[0]
+      return {
+        data: {
+          id: job.job_status ? parseInt(analysisId) : job.analysis_id,
+          status: job.job_status || 'unknown',
+          progress: job.job_progress_percentage || 0,
+          error: null,
+          results: job.audio_segments || [],
+          poseData: null,
+          fullFeedback: job.full_feedback_text,
+          summary: job.summary_text,
+          rawGeneratedText: job.raw_generated_text,
+          fullFeedbackJson: job.full_feedback_json,
+          feedbackPrompt: job.feedback_prompt,
+          ssml: job.audio_segments?.[0]?.feedback_ssml,
+          audioUrl: job.audio_segments?.[0]?.feedback_audio_url,
+          ssmlPrompt: job.audio_segments?.[0]?.ssml_prompt,
+          audioPrompt: job.audio_segments?.[0]?.audio_prompt,
+          processingTimeMs: null, // Will be in job table
+          videoSourceType: null, // Will be in job table
+          timestamps: {
+            created: null,
+            processingStarted: null,
+            processingCompleted: null,
+          },
+          metrics: {}, // Will be queried separately if needed
+        },
+      }
+    }
+  } catch (newSchemaError) {
+    _logger?.info('New schema query failed, falling back to legacy', newSchemaError)
+  }
+
+  // Fallback to legacy enhanced query function
   const { data: analysisData, error } = await supabase.rpc('get_enhanced_analysis_with_feedback', {
     analysis_job_id: Number.parseInt(analysisId)
   })
 
   if (error || !analysisData || analysisData.length === 0) {
-    // Fallback to basic query if enhanced function fails
+    // Final fallback to basic query
     const { data: analysisJob, error: fallbackError } = await supabase
       .from('analysis_jobs')
       .select(
-        'id, status, progress_percentage, error_message, results, pose_data, created_at, processing_started_at, processing_completed_at, full_report_text, summary_text, ssml, audio_url, processing_time_ms, video_source_type'
+        'id, status, progress_percentage, error_message, results, pose_data, created_at, processing_started_at, processing_completed_at, full_feedback_text, summary_text, ssml, audio_url, processing_time_ms, video_source_type'
       )
       .eq('id', analysisId)
       .single()
@@ -169,7 +309,7 @@ export async function getEnhancedAnalysis(
         error: analysisJob.error_message,
         results: analysisJob.results,
         poseData: analysisJob.pose_data,
-        fullReport: analysisJob.full_report_text,
+        fullFeedback: analysisJob.full_feedback_text,
         summary: analysisJob.summary_text,
         ssml: analysisJob.ssml,
         audioUrl: analysisJob.audio_url,
@@ -180,33 +320,32 @@ export async function getEnhancedAnalysis(
           started: analysisJob.processing_started_at,
           completed: analysisJob.processing_completed_at,
         },
-      }
+      },
     }
   }
 
-  // Return enhanced data with structured feedback and metrics
+  // Transform legacy enhanced data
   const analysis = analysisData[0]
   return {
     data: {
       id: analysis.analysis_id,
       status: analysis.status,
       progress: analysis.progress_percentage,
-      error: null, // Would need to query separately if needed
-      results: analysis.metrics, // Legacy compatibility
-      poseData: null, // Would need to query separately if needed
-      fullReport: analysis.full_report_text,
+      error: null,
+      results: analysis.feedback,
+      poseData: null,
+      fullFeedback: analysis.full_feedback_text,
       summary: analysis.summary_text,
       ssml: analysis.ssml,
       audioUrl: analysis.audio_url,
       processingTimeMs: analysis.processing_time_ms,
       videoSourceType: analysis.video_source_type,
-      feedback: analysis.feedback,
-      metrics: analysis.metrics,
       timestamps: {
         created: analysis.created_at,
         updated: analysis.updated_at,
       },
-    }
+      metrics: analysis.metrics,
+    },
   }
 }
 
@@ -248,4 +387,105 @@ export async function findOrCreateVideoRecording(
 
   _logger?.info('Created new test video recording', { recordingId: newRecording.id })
   return newRecording.id
+}
+
+// Get complete analysis data by job ID (with fallback for auth-restricted RPC)
+export async function getCompleteAnalysisByJobId(
+  supabase: any,
+  jobId: number,
+  logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+): Promise<{ analysisId: string; feedback: any[]; fullFeedbackText: string; summaryText: string } | null> {
+  logger?.info('Getting complete analysis by job ID', { jobId })
+
+  try {
+    // For Edge Functions, skip RPC and use direct queries (RPC has auth restrictions)
+    // TODO: Fix RPC auth context for proper production usage
+    logger?.info('Using direct query (RPC auth context issues in Edge Functions)')
+
+    // Get analysis record
+    const { data: analysis, error: analysisError } = await supabase
+      .from('analyses')
+      .select('*')
+      .eq('job_id', jobId)
+      .single()
+
+    if (analysisError || !analysis) {
+      logger?.error('Failed to get analysis record', analysisError)
+      return null
+    }
+
+    // Get feedback items
+    const { data: feedback, error: feedbackError } = await supabase
+      .from('analysis_feedback')
+      .select('*')
+      .eq('analysis_id', analysis.id)
+      .order('timestamp_seconds', { ascending: true })
+
+    if (feedbackError) {
+      logger?.error('Failed to get feedback items', feedbackError)
+      return null
+    }
+
+    logger?.info('Retrieved complete analysis data via direct query', {
+      analysisId: analysis.id,
+      feedbackCount: feedback?.length || 0
+    })
+
+    return {
+      analysisId: analysis.id,
+      feedback: feedback || [],
+      fullFeedbackText: analysis.full_feedback_text,
+      summaryText: analysis.summary_text
+    }
+  } catch (error) {
+    logger?.error('Error getting complete analysis', error)
+    return null
+  }
+}
+
+// Store audio segment for specific feedback item
+export async function storeAudioSegmentForFeedback(
+  supabase: any,
+  analysisId: string,
+  feedbackId: number,
+  ssml: string,
+  audioUrl: string,
+  options?: {
+    audioDurationMs?: number
+    audioFormat?: string
+    ssmlPrompt?: string
+    audioPrompt?: string
+  },
+  logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+): Promise<number | null> {
+  logger?.info('Storing audio segment for feedback item', {
+    analysisId,
+    feedbackId,
+    ssmlLength: ssml.length,
+    audioUrl
+  })
+
+  try {
+    const { data: segmentId, error } = await supabase.rpc('store_analysis_audio_segment_for_feedback', {
+      p_analysis_id: analysisId,
+      p_analysis_feedback_id: feedbackId,
+      p_feedback_ssml: ssml,
+      p_audio_url: audioUrl,
+      p_audio_duration_ms: options?.audioDurationMs || null,
+      p_audio_format: options?.audioFormat || 'mp3',
+      p_ssml_prompt: options?.ssmlPrompt || null,
+      p_audio_prompt: options?.audioPrompt || null
+    })
+
+    if (error) {
+      logger?.error('Failed to store audio segment', error)
+      return null
+    }
+
+    logger?.info('Successfully stored audio segment', { segmentId, feedbackId })
+    return segmentId
+  } catch (error) {
+    logger?.error('Error storing audio segment', error)
+    return null
+  }
 }

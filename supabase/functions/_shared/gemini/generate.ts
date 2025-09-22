@@ -34,11 +34,12 @@ export interface GenerateTextOnlyRequest {
 
 /**
  * Generate content with Gemini using uploaded file
+ * Returns both the generated text and the raw API response
  */
 export async function generateContent(
   request: GenerateRequest,
   config: GeminiConfig
-): Promise<string> {
+): Promise<{ text: string; rawResponse: Record<string, unknown>; prompt: string }> {
   logger.info(
     `Generating content with Gemini (${config.model}) using file: ${request.fileRef.name}`
   )
@@ -87,16 +88,21 @@ export async function generateContent(
   }
 
   logger.info(`Gemini generation completed: ${generatedText.length} characters`)
-  return generatedText
+  return {
+    text: generatedText,
+    rawResponse: data,
+    prompt: request.prompt
+  }
 }
 
 /**
  * Generate text-only content with Gemini (no file attachment)
+ * Returns both the generated text and the raw API response
  */
 export async function generateTextOnlyContent(
   request: GenerateTextOnlyRequest,
   config: GeminiConfig
-): Promise<string> {
+): Promise<{ text: string; rawResponse: Record<string, unknown>; prompt: string }> {
   logger.info(`Generating text-only content with Gemini (${config.model})`)
 
   const requestBody = {
@@ -139,5 +145,9 @@ export async function generateTextOnlyContent(
   }
 
   logger.info(`Gemini text-only generation completed: ${generatedText.length} characters`)
-  return generatedText
+  return {
+    text: generatedText,
+    rawResponse: data,
+    prompt: request.prompt
+  }
 }

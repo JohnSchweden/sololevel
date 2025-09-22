@@ -14,6 +14,23 @@ export interface VideoProcessingRequest {
   targetTimestamps?: number[]
   minGap?: number
   firstTimestamp?: number
+  // Pipeline stage control
+  stages?: {
+    runVideoAnalysis?: boolean
+    runLLMFeedback?: boolean
+    runSSML?: boolean
+    runTTS?: boolean
+  }
+}
+
+export interface VideoAnalysisParams {
+  startTime?: number
+  endTime?: number
+  duration?: number
+  feedbackCount?: number
+  targetTimestamps?: number[]
+  minGap?: number
+  firstTimestamp?: number
 }
 
 export interface PoseDetectionResult {
@@ -95,6 +112,17 @@ export function parseVideoProcessingRequest(body: unknown): VideoProcessingReque
 
   if (data.targetTimestamps && Array.isArray(data.targetTimestamps)) {
     request.targetTimestamps = data.targetTimestamps.filter(item => typeof item === 'number')
+  }
+
+  // Pipeline stages control
+  if (data.stages && typeof data.stages === 'object') {
+    const stages = data.stages as Record<string, unknown>
+    request.stages = {}
+
+    if (typeof stages.runVideoAnalysis === 'boolean') request.stages.runVideoAnalysis = stages.runVideoAnalysis
+    if (typeof stages.runLLMFeedback === 'boolean') request.stages.runLLMFeedback = stages.runLLMFeedback
+    if (typeof stages.runSSML === 'boolean') request.stages.runSSML = stages.runSSML
+    if (typeof stages.runTTS === 'boolean') request.stages.runTTS = stages.runTTS
   }
 
   return request

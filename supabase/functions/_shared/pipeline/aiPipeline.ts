@@ -1,7 +1,15 @@
 import { type AnalysisResults, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
 import { notifyAnalysisComplete } from '../notifications.ts'
+import {
+  ISSMLService,
+  ITTSService,
+  IVideoAnalysisService,
+  type SSMLContext,
+  type TTSContext,
+  type VideoAnalysisContext,
+} from '../services/index.ts'
 
-interface PipelineContext {
+export interface PipelineContext {
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
   analysisId: number
@@ -18,33 +26,42 @@ interface PipelineContext {
     minGap?: number
     firstTimestamp?: number
   }
+  stages?: {
+    runVideoAnalysis?: boolean
+    runLLMFeedback?: boolean
+    runSSML?: boolean
+    runTTS?: boolean
+  }
+  // Service instances (dependency injection)
+  services: {
+    videoAnalysis: IVideoAnalysisService
+    ssml: ISSMLService
+    tts: ITTSService
+  }
 }
 
-// Import Gemini modules (these will be injected to allow testing)
-let _analyzeVideoWithGemini: any = null
-let geminiLLMFeedback: any = null
-let geminiTTS20: any = null
-
-// Dependency injection for testability
-export function injectGeminiDependencies(
-  analyzeVideoWithGemini: any,
-  llmFeedback: any,
-  tts20: any
-) {
-  _analyzeVideoWithGemini = analyzeVideoWithGemini
-  geminiLLMFeedback = llmFeedback
-  geminiTTS20 = tts20
-}
+// Service-based architecture - no more global function injection needed
+// Services are now properly instantiated with dependency injection in route handlers
 
 export async function processAIPipeline(context: PipelineContext): Promise<void> {
-  const { supabase, logger, analysisId, videoPath, videoSource, timingParams } = context
+  const {
+    supabase,
+    logger,
+    analysisId,
+    videoPath,
+    videoSource,
+    timingParams,
+    stages = { runVideoAnalysis: true, runLLMFeedback: true, runSSML: true, runTTS: true },
+    services
+  } = context
   const startTime = Date.now()
 
   try {
     logger.info(`Starting AI pipeline for analysis ${analysisId}`, {
       videoPath,
       videoSource,
-      analysisId
+      analysisId,
+      stages
     })
 
     // Update status to processing
@@ -56,15 +73,13 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     // Pose data is stored in database for UI purposes only
     // AI analysis uses video content directly
 
-    // 2. Gemini Video Analysis - analyzes video content directly
+    // 2. Video Analysis - analyzes video content directly
     // Progress callback will handle: 20% download, 40% upload, 55% active, 70% inference
-    logger.info(`Starting Gemini analysis for ${videoPath}`, {
+    logger.info(`Starting video analysis for ${videoPath}`, {
       analysisId,
       videoPath,
       videoSource
     })
-
-    logger.info('About to call _analyzeVideoWithGemini function')
 
     logger.info('Timing parameters received', {
       startTime: timingParams?.startTime,
@@ -75,42 +90,124 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     })
 
     let analysis
-    try {
-      analysis = await _analyzeVideoWithGemini(supabase, videoPath, timingParams, async (progress: number) => {
-        logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
-        await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
-      })
-      logger.info('Gemini analysis function completed', {
-        analysisId,
-        hasTextReport: !!analysis?.textReport,
-        feedbackCount: analysis?.feedback?.length || 0
-      })
-    } catch (geminiError) {
-      logger.error('Gemini analysis function failed', {
-        error: geminiError instanceof Error ? geminiError.message : String(geminiError),
-        stack: geminiError instanceof Error ? geminiError.stack : undefined,
-        analysisId,
-        videoPath
-      })
-      throw geminiError
-    }
-    logger.info(`Gemini analysis completed: ${analysis.textReport.substring(0, 50)}...`)
+    let rawGeneratedText: string | undefined
+    let fullFeedbackJson: any
+    let feedbackPrompt: string | undefined
+    let ssmlPrompt: string | undefined = undefined
+    let audioPrompt: string | undefined = undefined
 
-    // 3. Gemini LLM SSML Generation
-    const ssml = await geminiLLMFeedback(analysis)
+    try {
+      logger.info('Starting video analysis service call...')
+      analysis = await services.videoAnalysis.analyze({
+        supabase,
+        videoPath,
+        analysisParams: timingParams,
+        progressCallback: async (progress: number) => {
+          logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
+          await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
+        }
+      } as VideoAnalysisContext)
+      logger.info('Video analysis service call completed successfully')
+
+      // Extract prompts and raw data from analysis result
+      rawGeneratedText = analysis.rawText || undefined
+      fullFeedbackJson = analysis.jsonData || {}
+      feedbackPrompt = analysis.promptUsed || undefined
+    } catch (videoError) {
+      logger.error('Video analysis failed', videoError)
+      throw videoError
+    }
+
+    logger.info('Video analysis completed', {
+      analysisId,
+      hasTextReport: !!analysis?.textReport,
+      feedbackCount: analysis?.feedback?.length || 0,
+      hasRawData: !!rawGeneratedText,
+      hasPrompt: !!feedbackPrompt
+    })
+
+    logger.info(`Video analysis completed: ${analysis.textReport.substring(0, 50)}...`)
+
+    // Early exit: Stop after video analysis if LLM feedback is disabled
+    if (!stages.runLLMFeedback) {
+      logger.info(`Stopping pipeline after video analysis (LLM feedback disabled)`)
+      const results: AnalysisResults = {
+        text_feedback: analysis.textReport,
+        feedback: analysis.feedback,
+        summary_text: analysis.textReport.substring(0, 500),
+        processing_time: Date.now() - startTime,
+        video_source: videoSource,
+      }
+      await updateAnalysisResults(
+        supabase,
+        analysisId,
+        results,
+        null,
+        Date.now() - startTime,
+        videoSource,
+        logger,
+        rawGeneratedText,
+        fullFeedbackJson,
+        feedbackPrompt
+      )
+      await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
+      await notifyAnalysisComplete(analysisId, logger)
+      return
+    }
+
+    // 3. SSML Generation
+    logger.info(`Starting SSML generation for analysis ${analysisId}`)
+    const ssmlResult = await services.ssml.generate({ analysisResult: analysis } as SSMLContext)
+    logger.info(`SSML generation completed: ${ssmlResult.ssml?.substring(0, 100)}...`)
     await updateAnalysisStatus(supabase, analysisId, 'processing', null, 85, logger)
 
-    // 4. Gemini TTS 2.0 Audio Generation
-    const audioUrl = await geminiTTS20(ssml)
+    // Extract SSML prompt (if available from the service)
+    ssmlPrompt = (ssmlResult as any).promptUsed || undefined
+
+    // Early exit: Stop after SSML generation if TTS is disabled
+    if (!stages.runTTS) {
+      logger.info(`Stopping pipeline after SSML generation (TTS disabled)`)
+      const results: AnalysisResults = {
+        text_feedback: analysis.textReport,
+        feedback: analysis.feedback,
+        summary_text: analysis.textReport.substring(0, 500),
+        ssml: ssmlResult.ssml,
+        processing_time: Date.now() - startTime,
+        video_source: videoSource,
+      }
+      await updateAnalysisResults(
+        supabase,
+        analysisId,
+        results,
+        null,
+        Date.now() - startTime,
+        videoSource,
+        logger,
+        rawGeneratedText,
+        fullFeedbackJson,
+        feedbackPrompt,
+        ssmlPrompt,
+        audioPrompt
+      )
+      await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
+      await notifyAnalysisComplete(analysisId, logger)
+      return
+    }
+
+    // 4. TTS Audio Generation
+    const ttsResult = await services.tts.synthesize({ ssml: ssmlResult.ssml } as TTSContext)
     await updateAnalysisStatus(supabase, analysisId, 'processing', null, 95, logger)
+
+    // Extract audio prompt (if available from the service)
+    audioPrompt = (ttsResult as any).promptUsed || undefined
 
     // 5. Store results and update status
     const results: AnalysisResults = {
-      text_report: analysis.textReport, // Full text analysis report
+      text_feedback: analysis.textReport, // Full text analysis feedback
       feedback: analysis.feedback, // Structured feedback items
       summary_text: analysis.textReport.substring(0, 500), // Backward compatibility
-      ssml: ssml,
-      audio_url: audioUrl,
+      ssml: ssmlResult.ssml,
+      audio_url: ttsResult.audioUrl || 'placeholder-url',
       processing_time: Date.now() - startTime,
       video_source: videoSource,
     }
@@ -124,7 +221,12 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       null,
       Date.now() - startTime,
       videoSource,
-      logger
+      logger,
+      rawGeneratedText,
+      fullFeedbackJson,
+      feedbackPrompt,
+      ssmlPrompt,
+      audioPrompt
     )
     await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
 

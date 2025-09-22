@@ -5,41 +5,37 @@ begin;
 select plan(6);
 
 -- Test RLS is enabled on critical tables
-select is(
-  (select row_security from information_schema.tables where table_schema = 'public' and table_name = 'analysis_jobs'),
-  true,
+select ok(
+  (select relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'analysis_jobs'),
   'RLS should be enabled on analysis_jobs table'
 );
 
-select is(
-  (select row_security from information_schema.tables where table_schema = 'public' and table_name = 'analysis_metrics'),
-  true,
+select ok(
+  (select relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'analysis_metrics'),
   'RLS should be enabled on analysis_metrics table'
 );
 
 -- Test that policies exist for analysis_jobs
-select isnt_empty(
-  $$select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_jobs'$$,
+select ok(
+  (select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_jobs') > 0,
   'analysis_jobs should have RLS policies defined'
 );
 
 -- Test that policies exist for analysis_metrics
-select isnt_empty(
-  $$select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_metrics'$$,
+select ok(
+  (select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_metrics') > 0,
   'analysis_metrics should have RLS policies defined'
 );
 
 -- Test policy structure (at least one SELECT policy should exist for authenticated users)
-select results_eq(
-  $$select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_jobs' and cmd = 'SELECT' and roles @> ARRAY['authenticated']$$,
-  ARRAY[1::bigint],
+select ok(
+  (select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_jobs' and cmd = 'SELECT' and 'authenticated' = any(roles)) >= 1,
   'analysis_jobs should have at least one SELECT policy for authenticated users'
 );
 
 -- Test policy structure for analysis_metrics
-select results_eq(
-  $$select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_metrics' and cmd = 'SELECT' and roles @> ARRAY['authenticated']$$,
-  ARRAY[1::bigint],
+select ok(
+  (select count(*) from pg_policies where schemaname = 'public' and tablename = 'analysis_metrics' and cmd = 'SELECT' and 'authenticated' = any(roles)) >= 1,
   'analysis_metrics should have at least one SELECT policy for authenticated users'
 );
 

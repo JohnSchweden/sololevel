@@ -2,7 +2,20 @@ import { createAnalysisJob, findOrCreateVideoRecording } from '../../_shared/db/
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
 import { processAIPipeline } from '../../_shared/pipeline/aiPipeline.ts'
+import {
+  GeminiSSMLService,
+  GeminiTTSService,
+  GeminiVideoAnalysisService,
+  MockSSMLService,
+  MockTTSService,
+  MockVideoAnalysisService
+} from '../../_shared/services/index.ts'
 import { type VideoProcessingRequest, parseVideoProcessingRequest } from '../../_shared/types/ai-analyze-video.ts'
+
+// Import Gemini functions for service instantiation
+import { analyzeVideoWithGemini } from '../gemini-llm-analysis.ts'
+import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
+import { generateTTSFromSSML as geminiTTS20 } from '../gemini-tts-audio.ts'
 
 interface HandlerContext {
   req: Request
@@ -27,6 +40,8 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
       targetTimestamps,
       minGap,
       firstTimestamp,
+      // Extract pipeline stages
+      stages,
     } = requestData
 
     // Validate required fields (now handled by parseVideoProcessingRequest)
@@ -47,25 +62,47 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
 
     const analysisJob = await createAnalysisJob(supabase, testUserId, videoRecordingId, logger)
 
-    // Start AI pipeline processing in background
-    processAIPipeline({
-      supabase,
-      logger,
-      analysisId: analysisJob.id,
-      videoPath,
-      videoSource,
-      frameData,
-      existingPoseData,
-      timingParams: {
-        startTime,
-        endTime,
-        duration,
-        feedbackCount,
-        targetTimestamps,
-        minGap,
-        firstTimestamp,
-      }
-    }).catch(
+  // Create service instances based on configuration
+  const aiAnalysisMode = Deno.env.get('AI_ANALYSIS_MODE')
+  const useMockServices = aiAnalysisMode === 'mock'
+
+  logger.info(`AI_ANALYSIS_MODE: ${aiAnalysisMode}, using mock services: ${useMockServices}`)
+
+  const services = {
+    videoAnalysis: useMockServices
+      ? new MockVideoAnalysisService()
+      : new GeminiVideoAnalysisService(analyzeVideoWithGemini),
+    ssml: useMockServices
+      ? new MockSSMLService()
+      : new GeminiSSMLService(geminiLLMFeedback),
+    tts: useMockServices
+      ? new MockTTSService()
+      : new GeminiTTSService(geminiTTS20),
+  }
+
+  logger.info(`Service types: videoAnalysis=${useMockServices ? 'Mock' : 'Gemini'}, ssml=${useMockServices ? 'Mock' : 'Gemini'}, tts=${useMockServices ? 'Mock' : 'Gemini'}`)
+
+  // Start AI pipeline processing in background
+  processAIPipeline({
+    supabase,
+    logger,
+    analysisId: analysisJob.id,
+    videoPath,
+    videoSource,
+    frameData,
+    existingPoseData,
+    timingParams: {
+      startTime,
+      endTime,
+      duration,
+      feedbackCount,
+      targetTimestamps,
+      minGap,
+      firstTimestamp,
+    },
+    stages,
+    services
+  }).catch(
       (error) => {
         logger.error('AI Pipeline processing failed', error)
         // Error handling is done inside processAIPipeline

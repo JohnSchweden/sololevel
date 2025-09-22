@@ -120,7 +120,7 @@ export async function analyzeVideoWithGemini(
     logger.info(`Generated analysis prompt: ${prompt.length} characters`)
 
     // Step 5: Generate content with Gemini (70% progress)
-    const generatedText = await generateContent({
+    const generationResult = await generateContent({
       fileRef,
       prompt,
       temperature: 0.7,
@@ -134,7 +134,7 @@ export async function analyzeVideoWithGemini(
     }
 
     // Step 6: Parse the response
-    const { textReport, feedback, metrics } = parseDualOutput(generatedText)
+    const { textReport, feedback, metrics, jsonData } = parseDualOutput(generationResult.text)
 
     // Validate and normalize the response
     const result: GeminiVideoAnalysisResult = {
@@ -153,6 +153,10 @@ export async function analyzeVideoWithGemini(
             ],
       metrics: metrics || extractMetricsFromText(textReport),
       confidence: 0.85, // Default confidence for AI analysis
+      rawText: generationResult.text,
+      rawResponse: generationResult.rawResponse,
+      promptUsed: generationResult.prompt,
+      jsonData: jsonData,
     }
 
     logger.info(`${config.model} analysis completed: ${result.textReport.substring(0, 100)}...`)
