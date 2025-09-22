@@ -3,6 +3,8 @@
  * Mocks Deno environment for Node.js testing
  */
 
+import { vi } from 'vitest'
+
 // Mock Deno global
 Object.defineProperty(globalThis, 'Deno', {
   value: {
@@ -28,4 +30,4 @@ Object.defineProperty(globalThis, 'Deno', {
 })
 
 // Mock fetch for tests
-global.fetch = vi.fn() as any
+globalThis.fetch = vi.fn() as any

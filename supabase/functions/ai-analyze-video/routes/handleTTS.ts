@@ -1,7 +1,9 @@
-import { getCompleteAnalysisByJobId, storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { getCompleteAnalysisByJobId, storeAudioSegmentForFeedback, updateAnalysisResults } from '../../_shared/db/analysis.ts'
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
+import { AudioFormat, resolveAudioFormat } from '../../_shared/media/audio.ts'
 import { GeminiSSMLService, MockSSMLService } from '../../_shared/services/speech/SSMLService.ts'
+import { GeminiTTSService } from '../../_shared/services/speech/TTSService.ts'
 import type { VideoAnalysisResult } from '../../_shared/services/video/VideoAnalysisService.ts'
 import { generateSSMLFromFeedback } from '../gemini-ssml-feedback.ts'
 
@@ -16,27 +18,40 @@ export interface TTSRequest {
   ssml?: string
   text?: string
   perFeedbackItem?: boolean
+  format?: AudioFormat // Preferred audio format
+  preferredFormats?: AudioFormat[] // Ordered list of preferred formats
 }
 
 export interface TTSResponse {
   audioUrl: string
   duration?: number
-  format: 'mp3' | 'aac'
+  format: AudioFormat // Audio format from central configuration
   segments?: Array<{
     feedbackId: number
     audioUrl: string
     duration?: number
-    format: 'mp3' | 'aac'
+    format: AudioFormat // Audio format from central configuration
   }>
 }
 
 export async function handleTTS({ req, supabase, logger }: HandlerContext): Promise<Response> {
   try {
-    console.log('=== handleTTS START ===')
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          ...corsHeaders,
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        },
+        status: 200,
+      })
+    }
+
+    logger.info('Starting handleTTS request')
     const body: TTSRequest = await req.json()
-    const { analysisId, ssml, text, perFeedbackItem = false } = body
-    console.log('TTS request parsed:', { analysisId, ssml: !!ssml, text: !!text, perFeedbackItem })
-    console.log('=== handleTTS END ===')
+    const { analysisId, ssml, text, perFeedbackItem = false, format, preferredFormats } = body
+    logger.info('TTS request parsed:', { analysisId, ssml: !!ssml, text: !!text, perFeedbackItem, format, preferredFormats })
 
     // Handle analysis-based per-feedback-item generation
     if (analysisId && perFeedbackItem) {
@@ -72,7 +87,10 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
         ? new MockSSMLService()
         : new GeminiSSMLService(generateSSMLFromFeedback)
 
-      logger.info(`Using ${useMockServices ? 'Mock' : 'Gemini'} SSML service for per-feedback generation`)
+      // Resolve format once for consistency across all segments
+      const resolvedFormat = resolveAudioFormat(preferredFormats || (format ? [format] : undefined), 'gemini')
+
+      logger.info(`Using ${useMockServices ? 'Mock' : 'Gemini'} SSML service for per-feedback generation, format: ${resolvedFormat}`)
 
       // Generate SSML and audio for each feedback item
       for (const feedbackItem of analysisData.feedback) {
@@ -103,8 +121,16 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
 
           logger.info(`Generated SSML for feedback item ${feedbackItem.id}: ${ssmlResult.ssml.substring(0, 100)}...`)
 
-          // Generate TTS audio for this SSML
-          const ttsResult = await generateTTSPlaceholder(ssmlResult.ssml, analysisId, true, logger)
+          // Generate TTS audio for this SSML using real Google Cloud TTS
+          const ttsService = new GeminiTTSService()
+          const ttsResult = await ttsService.synthesize({
+            ssml: ssmlResult.ssml,
+            supabase,
+            analysisId,
+            customParams: {
+              format: resolvedFormat
+            }
+          })
 
           // Store the audio segment in database
           try {
@@ -116,9 +142,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
               ttsResult.audioUrl,
               {
                 audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
-                audioFormat: 'mp3',
+                audioFormat: ttsResult.format || resolvedFormat,
                 ssmlPrompt: ssmlResult.promptUsed, // Full prompt from service
-                audioPrompt: `Convert SSML to speech`
+                audioPrompt: ttsResult.promptUsed || `Convert SSML to speech`
               },
               logger
             )
@@ -128,7 +154,7 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
                 feedbackId: feedbackItem.id,
                 audioUrl: ttsResult.audioUrl,
                 duration: ttsResult.duration,
-                format: ttsResult.format
+                format: ttsResult.format || resolvedFormat
               })
               totalDuration += ttsResult.duration || 0
             } else {
@@ -147,7 +173,7 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
         JSON.stringify({
           audioUrl: segments[0]?.audioUrl, // Primary audio URL (first segment)
           duration: totalDuration,
-          format: 'mp3',
+          format: resolvedFormat, // Use resolved format from negotiation
           segments: segments,
           debug: {
             feedbackProcessed: analysisData.feedback.length,
@@ -162,10 +188,134 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
       )
     }
 
-    return new Response(JSON.stringify({ message: 'TTS endpoint - other case' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+    // Validate required parameters
+    if (!analysisId && !text && !ssml) {
+      return new Response(JSON.stringify({
+        error: 'analysisId, text, or ssml is required'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Check for database connection
+    if (!supabase) {
+      return new Response(JSON.stringify({
+        error: 'Database connection failed'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
+
+    // Handle different input types
+    let finalSSML: string
+    let sourceType: 'analysis' | 'text' | 'ssml' = 'text'
+
+    if (analysisId && !perFeedbackItem) {
+      // Load analysis data and generate SSML from feedback
+      logger.info('Generating TTS from analysis data', { analysisId })
+      const analysisData = await getCompleteAnalysisByJobId(supabase, analysisId, logger)
+
+      if (!analysisData || !analysisData.feedback || analysisData.feedback.length === 0) {
+        return new Response(JSON.stringify({
+          error: 'Analysis not found or no feedback data available'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        })
+      }
+
+      // Generate SSML from analysis feedback
+      const aiAnalysisMode = Deno.env.get('AI_ANALYSIS_MODE')
+      const useMockServices = aiAnalysisMode === 'mock'
+      const ssmlService = useMockServices
+        ? new MockSSMLService()
+        : new GeminiSSMLService(generateSSMLFromFeedback)
+
+      const ssmlResult = await ssmlService.generate({
+        analysisResult: analysisData as unknown as VideoAnalysisResult,
+        customParams: {}
+      })
+
+      finalSSML = ssmlResult.ssml
+      sourceType = 'analysis'
+
+    } else if (ssml) {
+      // Use provided SSML directly
+      logger.info('Using provided SSML for TTS')
+      finalSSML = _isValidSSML(ssml) ? ssml : `<speak>${ssml}</speak>`
+      sourceType = 'ssml'
+
+    } else if (text) {
+      // Generate SSML from text
+      logger.info('Generating SSML from text input')
+      finalSSML = `<speak>${text}</speak>`
+      sourceType = 'text'
+
+    } else {
+      return new Response(JSON.stringify({
+        error: 'Invalid request parameters'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Generate TTS audio
+    logger.info('Generating TTS audio', { sourceType, ssmlLength: finalSSML.length })
+    const ttsService = new GeminiTTSService()
+    const ttsResult = await ttsService.synthesize({
+      ssml: finalSSML,
+      supabase,
+      analysisId: analysisId && !perFeedbackItem ? analysisId : undefined,
+      customParams: {
+        format: resolveAudioFormat(preferredFormats || (format ? [format] : undefined), 'gemini')
+      }
     })
+
+    // Store results in database if analysisId was provided
+    if (analysisId && !perFeedbackItem) {
+      try {
+        await updateAnalysisResults(
+          supabase,
+          analysisId,
+          {
+            text_feedback: finalSSML,
+            feedback: [],
+            summary_text: `TTS generated from ${sourceType}`,
+            ssml: finalSSML,
+            audio_url: ttsResult.audioUrl,
+            processing_time: Date.now(),
+            video_source: 'tts_generation'
+          },
+          null,
+          Date.now(),
+          'tts',
+          logger
+        )
+      } catch (dbError) {
+        logger.warn('Failed to update analysis with TTS results', { analysisId, error: dbError })
+        // Don't fail the request for database errors
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        audioUrl: ttsResult.audioUrl,
+        duration: ttsResult.duration,
+        format: ttsResult.format,
+        sourceType,
+        debug: {
+          ssmlLength: finalSSML.length,
+          analysisId: analysisId || null
+        }
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    )
 
   } catch (error) {
     logger.error('handleTTS error', error)
@@ -174,37 +324,6 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
 }
 
 
-/**
- * Placeholder TTS generation (replace with actual TTS API)
- */
-async function generateTTSPlaceholder(
-  ssml: string,
-  analysisId?: number,
-  perFeedbackItem: boolean = false,
-  logger?: any
-): Promise<TTSResponse> {
-  // Simulate TTS processing time
-  await new Promise(resolve => setTimeout(resolve, 100))
-
-  const audioId = analysisId || Date.now()
-  const format = 'mp3' as const
-
-  logger.info('Generated placeholder TTS audio', { audioId, format, ssmlLength: ssml.length })
-
-  // For MVP, return a single audio file
-  // TODO: Implement per-feedback-item audio generation
-  return {
-    audioUrl: `https://placeholder-tts-audio.com/analysis_${audioId}.${format}`,
-    duration: Math.ceil(ssml.length / 50), // Rough estimate based on text length
-    format,
-    segments: perFeedbackItem ? [{
-      feedbackId: 1,
-      audioUrl: `https://placeholder-tts-audio.com/analysis_${audioId}_segment_1.${format}`,
-      duration: 5,
-      format
-    }] : undefined
-  }
-}
 
 /**
  * Basic SSML validation

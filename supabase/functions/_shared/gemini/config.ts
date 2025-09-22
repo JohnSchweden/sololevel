@@ -24,14 +24,20 @@ export interface GeminiConfig {
   apiKey: string | undefined
   /** Gemini model to use */
   model: string
+  /** Gemini TTS model for audio generation */
+  ttsModel: string
   /** Files upload endpoint URL */
   filesUploadUrl: string
   /** Generate content endpoint URL */
   generateUrl: string
+  /** TTS generate content endpoint URL */
+  ttsGenerateUrl: string
   /** Maximum file size in MB */
   filesMaxMb: number
   /** Analysis mode: 'real' for API calls, 'mock' for testing */
   analysisMode: 'real' | 'mock'
+  /** Default voice name for TTS generation */
+  defaultVoiceName: string
 }
 
 /**
@@ -40,14 +46,19 @@ export interface GeminiConfig {
 export function getGeminiConfig(): GeminiConfig {
   const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('SUPABASE_ENV_GEMINI_API_KEY')
 
+  const ttsModel = Deno.env.get('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts'
+
   return {
     apiBase: 'https://generativelanguage.googleapis.com',
     apiKey,
     model: Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-pro',
+    ttsModel,
     filesUploadUrl: 'https://generativelanguage.googleapis.com/upload/v1beta/files',
     generateUrl: `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-pro'}:generateContent`,
+    ttsGenerateUrl: `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent`,
     filesMaxMb: Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '20'),
     analysisMode: (Deno.env.get('AI_ANALYSIS_MODE') || 'real') as 'real' | 'mock',
+    defaultVoiceName: Deno.env.get('DEFAULT_VOICE_NAME') || 'Sadachbia',
   }
 }
 
@@ -55,6 +66,21 @@ export function getGeminiConfig(): GeminiConfig {
  * Validate Gemini API configuration
  */
 export function validateGeminiConfig(config: GeminiConfig): { valid: boolean; message: string } {
+  // Validate TTS model
+  if (!config.ttsModel || config.ttsModel.trim().length === 0) {
+    return {
+      valid: false,
+      message: 'TTS model is not configured',
+    }
+  }
+
+  if (!config.ttsModel.includes('tts')) {
+    return {
+      valid: false,
+      message: 'TTS model name should contain "tts" for clarity',
+    }
+  }
+
   // Mock mode doesn't require API key
   if (config.analysisMode === 'mock') {
     return {

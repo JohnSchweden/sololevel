@@ -11,7 +11,7 @@ CREATE OR REPLACE FUNCTION "public"."store_analysis_audio_segment_for_feedback"(
   "p_feedback_ssml" "text",
   "p_audio_url" "text",
   "p_audio_duration_ms" integer DEFAULT NULL::integer,
-  "p_audio_format" "text" DEFAULT 'mp3'::"text",
+  "p_audio_format" "text" DEFAULT 'aac'::"text",
   "p_ssml_prompt" "text" DEFAULT NULL::"text",
   "p_audio_prompt" "text" DEFAULT NULL::"text"
 ) RETURNS bigint

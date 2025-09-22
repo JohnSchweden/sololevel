@@ -135,7 +135,7 @@ flowchart TD
 * **Third-Party Integrations**:
   - **Native**: TensorFlow Lite + MoveNet Lightning model
   - **Web**: TensorFlow.js + MoveNet Lightning model (unified cross-platform)
-  - **TTS Provider**: gemini TTS 2.0 for audio commentary (output converted to AAC/MP3)
+  - **TTS Provider**: Gemini 2.5 Flash Preview TTS via `_shared/gemini/tts.ts` for audio commentary (output converted to AAC/MP3); modular architecture with shared config and mock support
   - **MMM Provider**: gemini 2.5 for feedback text generation
   - **Performance**: WebGPU/WebGL acceleration for web, native GPU acceleration for mobile
 
@@ -184,6 +184,19 @@ flowchart TD
   - Storage buckets: `raw` (uploads), `processed` (thumbnails, artifacts: AAC/MP3 audio)
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
 
+* **Audio Format Configuration (Centralized)**:
+  - **Single Source of Truth**: `supabase/functions/_shared/media/audio.ts`
+  - **Supported Formats**: `aac` (audio/aac, primary), `mp3` (audio/mpeg)
+  - **Provider Capabilities**:
+    - Gemini: AAC, MP3
+    - Azure: AAC, MP3
+    - ElevenLabs: AAC, MP3
+  - **Environment Variables**:
+    - `SUPABASE_TTS_DEFAULT_FORMAT=aac` (default format for TTS generation)
+    - `SUPABASE_TTS_ALLOWED_FORMATS=aac,mp3` (comma-separated allowed formats, AAC primary)
+  - **Format Resolution**: `resolveAudioFormat(preferredOrder, provider)` negotiates best format based on preferences and provider capabilities
+  - **Storage Paths**: Use `generateAudioStoragePath()` for consistent file naming with proper extensions
+
 * **API Specifications (Edge Functions)**:
   - `POST /functions/v1/ai-analyze-video`
     - Request: `{ videoPath: string, userId: string, videoSource?: 'live_recording' | 'uploaded_video' }`
@@ -191,8 +204,8 @@ flowchart TD
   - `GET /functions/v1/ai-analyze-video/status?id=<id>`
     - Response: `{ id, status, progress, error?, results?, ssml?, audioUrl?, summary?, timestamps }`
   - `POST /functions/v1/ai-analyze-video/tts`
-    - Request: `{ ssml?: string, text?: string, analysisId?: number }`
-    - Response: `{ audioUrl: string, duration?: number, format: 'mp3'|'aac' }`
+    - Request: `{ ssml?: string, text?: string, analysisId?: number, format?: 'mp3'|'aac'|'wav', preferredFormats?: AudioFormat[] }`
+    - Response: `{ audioUrl: string, duration?: number, format: AudioFormat }`
   - `GET /functions/v1/ai-analyze-video/health`
     - Response: `{ status: 'ok'|'warning', version, message, env: { supabaseUrl: boolean, supabaseServiceKey: boolean } }`
   - Notes: Prefer Supabase Realtime over polling; status endpoint is a fallback.
@@ -228,7 +241,7 @@ flowchart TD
   5. **Metrics Aggregation**: Normalized 0–100 scales from pose keypoints and movement analysis; compose radar values
   6. **LLM Prompt**: Builds structured feedback with key takeaways and next steps using unified pose data
   7. **SSML Generation**: Gemini LLM creates structured speech markup from feedback
-  8. **TTS Generation**: Gemini 2.0 converts SSML to audio; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
+  8. **TTS Generation**: Gemini 2.5 Flash Preview TTS converts SSML to audio via `_shared/gemini/tts.ts`; orchestrator in `ai-analyze-video/gemini-tts-audio.ts` handles mock/real mode routing; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
 
 * **Audio Playback Strategy**:
   - **Format Optimization**: Convert TTS output from WAV to AAC/MP3 for 75%+ file size reduction

@@ -1,3 +1,4 @@
+import { getEnvDefaultFormat } from '../media/audio.ts'
 import type { AnalysisJob, PoseDetectionResult } from '../types/ai-analyze-video.ts'
 
 export interface AnalysisResults {
@@ -94,8 +95,8 @@ export async function updateAnalysisResults(
   rawGeneratedText?: string,
   fullFeedbackJson?: any,
   feedbackPrompt?: string,
-  ssmlPrompt?: string,
-  audioPrompt?: string
+  _ssmlPrompt?: string,
+  _audioPrompt?: string
 ): Promise<void> {
   if (!supabase) {
     _logger?.error('Database connection not available for results update')
@@ -472,7 +473,7 @@ export async function storeAudioSegmentForFeedback(
       p_feedback_ssml: ssml,
       p_audio_url: audioUrl,
       p_audio_duration_ms: options?.audioDurationMs || null,
-      p_audio_format: options?.audioFormat || 'mp3',
+      p_audio_format: options?.audioFormat || getEnvDefaultFormat(),
       p_ssml_prompt: options?.ssmlPrompt || null,
       p_audio_prompt: options?.audioPrompt || null
     })

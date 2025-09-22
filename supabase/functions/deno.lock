@@ -1038,6 +1038,9 @@
       "integrity": "sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg=="
     }
   },
+  "redirects": {
+    "https://deno.land/types/index.d.ts": "https://deno.com/types/index.d.ts"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@supabase/supabase-js@2",

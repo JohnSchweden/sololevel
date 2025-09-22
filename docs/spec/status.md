@@ -1,5 +1,10 @@
 # Project Status
 
+## Recent Updates
+
+- **TTS Architecture Refactoring**: Refactored TTS system to follow consistent modular architecture pattern. Moved Gemini TTS API logic to `_shared/gemini/tts.ts`, slimmed orchestrator to thin wrapper in `ai-analyze-video/gemini-tts-audio.ts`, added comprehensive tests, and updated documentation. Now matches SSML and LLM analysis patterns.
+- **Audio Format Standardization**: Updated TTS system to use AAC as primary format (MP3 fallback) across all components, aligning with TRD specifications. Updated database defaults, service interfaces, route handlers, and tests.
+
 ## Completed Features
 
 - **Camera Recording Features**
@@ -47,6 +52,33 @@
 
 
 ## In Progress
+
+## US-TTS-01: TTS Migration to Gemini 2.5 Flash Preview
+**Status**: In Progress
+**Priority**: High
+**Description**: Migrate TTS system from Google Cloud Text-to-Speech v2 to Gemini 2.5 Flash Preview TTS for unified API usage and better SSML handling
+
+### Requirements
+- Replace Google Cloud TTS v2 with Gemini 2.5 Flash Preview TTS
+- Use GEMINI_API_KEY instead of GOOGLE_TTS_ACCESS_TOKEN
+- Maintain SSML support and AAC/MP3 format options
+- Update all TTS-related code, tests, and configuration
+- Ensure backward compatibility with existing audio storage
+
+### Technical Implementation
+- **API Endpoint**: `POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent`
+- **Authentication**: `x-goog-api-key` header with GEMINI_API_KEY
+- **Request Format**: Gemini GenerateContent format with text/SSML parts
+- **Response Format**: Base64 encoded audio in inline_data
+- **Audio Formats**: audio/mpeg (primary), audio/ogg; codecs=opus (optional)
+
+### Acceptance Criteria
+- Given TTS is requested with SSML content
+- When generateTTSFromSSML is called
+- Then Gemini 2.5 Flash Preview TTS API is used
+- And audio is generated and stored successfully
+- And existing audio playback components continue to work
+- And format defaults to MP3 with AAC fallback if needed
 
 ## US-TEST-01: Edge Function Refactoring Tests
 **Status**: Completed

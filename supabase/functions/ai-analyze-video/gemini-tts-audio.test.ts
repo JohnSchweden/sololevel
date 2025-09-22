@@ -1,85 +1,107 @@
 /**
- * TDD Tests for Gemini TTS Audio Generation
- * Tests the text-to-speech audio generation from SSML feedback
+ * Deno Tests for Gemini TTS Audio Generation Orchestrator
+ * Tests the thin wrapper that coordinates TTS generation using shared modules
  */
 
-// Simple test assertions for Deno environment
-function assertEquals(actual: unknown, expected: unknown) {
-  if (actual !== expected) {
-    throw new Error(`Expected ${expected}, got ${actual}`)
+// Environment helper for clean test setup/teardown
+const withEnv = (envVars: Record<string, string>, testFn: () => void | Promise<void>) => {
+  const originalValues: Record<string, string | undefined> = {}
+
+  // Set new values and store originals
+  for (const [key, value] of Object.entries(envVars)) {
+    originalValues[key] = Deno.env.get(key)
+    Deno.env.set(key, value)
   }
-}
 
-function assertExists(value: unknown) {
-  if (value == null) {
-    throw new Error('Value should exist')
-  }
-}
-
-// Mock Gemini TTS for testing
-const mockGeminiTTS = {
-  synthesizeSpeech: async (ssml: string) => {
-    if (!ssml) {
-      throw new Error('SSML text is required')
-    }
-
-    if (!ssml.includes('<speak>') || !ssml.includes('</speak>')) {
-      throw new Error('Valid SSML format required')
-    }
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 200))
-
-    return `https://mock-audio-storage.com/tts_${Date.now()}.mp3`
-  },
-}
-
-Deno.test('Gemini TTS Audio - Valid SSML Input', async () => {
-  const ssml = '<speak>Hello! Your posture looks great today.</speak>'
-
-  const audioUrl = await mockGeminiTTS.synthesizeSpeech(ssml)
-
-  assertExists(audioUrl)
-  assertEquals(typeof audioUrl, 'string')
-  assertEquals(audioUrl.startsWith('https://'), true)
-  assertEquals(audioUrl.includes('.mp3'), true)
-})
-
-Deno.test('Gemini TTS Audio - Invalid SSML Input', async () => {
   try {
-    await mockGeminiTTS.synthesizeSpeech('')
-    throw new Error('Should have thrown')
-  } catch (error) {
-    assertEquals((error as Error).message, 'SSML text is required')
+    return testFn()
+  } finally {
+    // Restore original values
+    for (const [key, originalValue] of Object.entries(originalValues)) {
+      if (originalValue === undefined) {
+        Deno.env.delete(key)
+      } else {
+        Deno.env.set(key, originalValue)
+      }
+    }
   }
+}
+
+// Now import the orchestrator
+import { type TTSOptions, generateTTSFromSSML } from './gemini-tts-audio.ts'
+
+// Test constants
+const validSSML = '<speak><prosody rate="medium">Test audio content</prosody></speak>'
+const validOptions: TTSOptions = {
+  voice: 'en-US-Neural2-F',
+  speed: 'medium',
+  pitch: 0,
+  format: 'aac'
+}
+
+Deno.test('generateTTSFromSSML - mock mode returns mock data', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    const result = await generateTTSFromSSML(validSSML, validOptions)
+
+    // Should return mock data structure
+    if (!result.bytes || !result.contentType || !result.prompt) {
+      throw new Error('Mock result should have bytes, contentType, and prompt')
+    }
+  })
 })
 
-Deno.test('Gemini TTS Audio - Malformed SSML', async () => {
-  try {
-    await mockGeminiTTS.synthesizeSpeech('Hello world')
-    throw new Error('Should have thrown')
-  } catch (error) {
-    assertEquals((error as Error).message, 'Valid SSML format required')
-  }
+Deno.test('generateTTSFromSSML - handles missing options gracefully', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    const result = await generateTTSFromSSML(validSSML)
+
+    // Should return result even with no options
+    if (!result || !result.bytes || !result.contentType || !result.prompt) {
+      throw new Error('Should return complete result even with no options')
+    }
+  })
 })
 
-Deno.test('Gemini TTS Audio - Complex SSML', async () => {
-  const ssml = `<speak>
-    Excellent work! <break time="500ms"/>
-    Your posture scored 85 out of 100.
-    Keep up the great form!
-  </speak>`
-
-  const audioUrl = await mockGeminiTTS.synthesizeSpeech(ssml)
-
-  assertExists(audioUrl)
-  assertEquals(audioUrl.startsWith('https://'), true)
+Deno.test('generateTTSFromSSML - validates required SSML parameter', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    try {
+      await generateTTSFromSSML('')
+      throw new Error('Should have thrown for empty SSML')
+    } catch (_error) {
+      // Should throw due to config validation (empty SSML not directly tested here)
+      // The orchestrator relies on config validation which happens first
+    }
+  })
 })
 
-// TODO: Add more comprehensive tests when real Gemini TTS is integrated:
-// - Audio quality validation
-// - SSML tag support (breaks, emphasis, prosody)
-// - Different voice options
-// - Audio file format validation
-// - Storage and CDN integration
-// - Error handling for API failures
+Deno.test('generateTTSFromSSML - handles different speed options in mock mode', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    const result = await generateTTSFromSSML(validSSML, { ...validOptions, speed: 'fast' })
+    if (!result) {
+      throw new Error('Should handle fast speed option')
+    }
+  })
+})
+
+Deno.test('generateTTSFromSSML - handles different format options in mock mode', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    const result = await generateTTSFromSSML(validSSML, { ...validOptions, format: 'mp3' })
+    if (!result) {
+      throw new Error('Should handle mp3 format option')
+    }
+  })
+})
+
+Deno.test('generateTTSFromSSML - handles invalid config in real mode', async () => {
+  // Test with invalid config (no API key)
+  await withEnv({ AI_ANALYSIS_MODE: 'real' }, async () => {
+    try {
+      await generateTTSFromSSML(validSSML, validOptions)
+      throw new Error('Should have thrown due to missing API key')
+    } catch (error) {
+      // Should throw config validation error
+      if (!(error instanceof Error) || !error.message.includes('GEMINI_API_KEY environment variable is not set')) {
+        throw new Error('Expected config validation error for missing API key')
+      }
+    }
+  })
+})

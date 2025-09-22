@@ -195,7 +195,11 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     }
 
     // 4. TTS Audio Generation
-    const ttsResult = await services.tts.synthesize({ ssml: ssmlResult.ssml } as TTSContext)
+    const ttsResult = await services.tts.synthesize({
+      ssml: ssmlResult.ssml,
+      supabase,
+      analysisId
+    } as TTSContext)
     await updateAnalysisStatus(supabase, analysisId, 'processing', null, 95, logger)
 
     // Extract audio prompt (if available from the service)

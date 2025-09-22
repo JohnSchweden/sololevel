@@ -15,7 +15,6 @@ import { type VideoProcessingRequest, parseVideoProcessingRequest } from '../../
 // Import Gemini functions for service instantiation
 import { analyzeVideoWithGemini } from '../gemini-llm-analysis.ts'
 import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
-import { generateTTSFromSSML as geminiTTS20 } from '../gemini-tts-audio.ts'
 
 interface HandlerContext {
   req: Request
@@ -77,7 +76,7 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
       : new GeminiSSMLService(geminiLLMFeedback),
     tts: useMockServices
       ? new MockTTSService()
-      : new GeminiTTSService(geminiTTS20),
+      : new GeminiTTSService(),
   }
 
   logger.info(`Service types: videoAnalysis=${useMockServices ? 'Mock' : 'Gemini'}, ssml=${useMockServices ? 'Mock' : 'Gemini'}, tts=${useMockServices ? 'Mock' : 'Gemini'}`)

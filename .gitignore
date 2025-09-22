@@ -85,12 +85,10 @@ test-assets/videos/*.mov
 test-assets/videos/*.avi
 
 # Supabase function tests and config (not deployed to edge runtime)
-supabase/functions/**/*.test.ts
+#supabase/functions/**/*.test.ts
 supabase/functions/**/*.test.js
 supabase/functions/**/vitest.config.*
 supabase/functions/**/jest.config.*
-supabase/shared/**/*.test.ts
-supabase/shared/**/*.test.js
 supabase/functions/**/*.backup.*
 supabase/functions/**/*.bak
 

@@ -9,7 +9,7 @@
     "test:watch": "vitest _shared/ ../shared/",
     "test:coverage": "vitest run --coverage _shared/ ../shared/",
     "test:coverage:report": "vitest run --coverage --reporter=html _shared/ ../shared/",
-    "test:deno": "deno test --allow-env --allow-net --allow-read=./ ai-analyze-video/ --ignore=ai-analyze-video/routes/handleTTS.test.ts",
+    "test:deno": "deno test --allow-env --allow-net --allow-read=./ ai-analyze-video/",
     "test:deno:watch": "deno test --allow-env --allow-net --allow-read=./ --watch ai-analyze-video/",
     "test:all": "yarn test && yarn test:deno"
   },
