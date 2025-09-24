@@ -26,8 +26,6 @@ Deno.serve(async (req) => {
         analysis_job_id: 1,
         p_full_feedback_text: 'Test feedback',
         p_summary_text: 'Test summary',
-        p_ssml: '<speak>Test</speak>',
-        p_audio_url: 'test.mp3',
         p_processing_time_ms: 1000,
         p_video_source_type: 'uploaded_video',
         p_feedback: [],

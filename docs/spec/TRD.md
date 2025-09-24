@@ -34,7 +34,7 @@
   1. Video capture or upload (MP4/MOV), max 60s; show duration and size
   2. Background upload to Supabase Storage `raw` bucket with progress and retry
   3. AI analysis pipeline (video + LLM feedback + TTS audio) via Edge Function
-  4. Feedback surface: text summary, SSML/audio commentary, metrics/radar
+  4. Feedback surface: text summary, per-feedback SSML/audio commentary, metrics/radar
   5. History list and detail views with share options
   6. Auth (email/social) and basic profile
 * **Non-Functional Requirements**:
@@ -125,12 +125,12 @@ flowchart TD
 * **Video Analysis:** Gemini flash 2.5 first then pro 2.5
 * **Voice Analysis:** Optional ASR/Voice metrics processing
 * **MMM Integration:** Gemini 2.5 text feedback generation together with video analysis
-* **TTS Pipeline:** Audio commentary via gemini TTS 2.0 → Convert to AAC/MP3 format for optimal mobile/web compatibility
+* **TTS Pipeline:** Per-feedback audio commentary via gemini TTS 2.0 → Convert to AAC/MP3 format for optimal mobile/web compatibility
 * **Data Flow**:
   1. Client records or selects a video
   2. Client uploads to Storage bucket `raw` via authenticated upload (RLS-enforced user scoping)
   3. Client calls `ai-analyze-video` with storage path; receives job id
-  4. Edge function extracts frames, runs pose + voice, calls LLM, generates SSML/TTS, converts audio to MP3/WAV, writes to DB and `processed` storage
+  4. Edge function extracts frames, runs pose + voice, calls LLM, generates feedback + SSML/TTS per feedback item, converts audio to MP3/WAV, writes to DB and `processed` storage
   5. Client subscribes to analysis row via Realtime; UI updates when complete
 * **Third-Party Integrations**:
   - **Native**: TensorFlow Lite + MoveNet Lightning model
@@ -168,7 +168,7 @@ flowchart TD
       processing_started_at timestamptz, processing_completed_at timestamptz,
       error_message text,
       results jsonb, pose_data jsonb,
-      full_feedback_text text, summary_text text, ssml text, audio_url text,
+      full_feedback_text text, summary_text text,
       processing_time_ms int, video_source_type text,
       created_at timestamptz default now(), updated_at timestamptz default now()
     ) RLS enabled
@@ -204,7 +204,7 @@ flowchart TD
     - Request: `{ videoPath: string, userId: string, videoSource?: 'live_recording' | 'uploaded_video' }`
     - Response: `{ analysisId: number, status: 'queued' }`
   - `GET /functions/v1/ai-analyze-video/status?id=<id>`
-    - Response: `{ id, status, progress, error?, results?, ssml?, audioUrl?, summary?, timestamps }`
+    - Response: `{ id, status, progress, error?, results?, summary?, timestamps }`
   - `POST /functions/v1/ai-analyze-video/tts`
     - Request: `{ ssml?: string, text?: string, analysisId?: number, format?: 'mp3'|'aac'|'wav', preferredFormats?: AudioFormat[] }`
     - Response: `{ audioUrl: string, duration?: number, format: AudioFormat }`
@@ -242,7 +242,7 @@ flowchart TD
   4. **Video/Voice Analysis**: Gemini 2.5 processes video frames, pose data, and audio for comprehensive feedback
   5. **Metrics Aggregation**: Normalized 0–100 scales from pose keypoints and movement analysis; compose radar values
   6. **LLM Prompt**: Builds structured feedback with key takeaways and next steps using unified pose data
-  7. **SSML Generation**: Gemini LLM creates structured speech markup from feedback
+  7. **SSML Generation**: Gemini LLM creates structured speech markup per feedback item
   8. **TTS Generation**: Gemini 2.5 Flash Preview TTS converts SSML to audio via `_shared/gemini/tts.ts`; orchestrator in `ai-analyze-video/gemini-tts-audio.ts` handles mock/real mode routing; convert to AAC/MP3 format; store audio; save all artifacts/URLs to DB
 
 * **Audio Playback Strategy**:
@@ -260,8 +260,8 @@ flowchart TD
   - Polling fallback: `GET /ai-analyze-video/status?id=<id>` with exponential backoff (e.g., 1s → 2s → 4s up to 30s)
 
 * **TTS Status**:
-  - Full implementation: Gemini TTS generates MP3/WAV audio stored in `processed` bucket
-  - Audio URLs are signed and stored in `analysis_jobs.audio_url`
+  - Full implementation: Gemini TTS generates per-feedback MP3/WAV audio stored in `processed` bucket
+  - Audio URLs are signed and stored in `analysis_audio_segments.audio_url`
 
 * **Error Handling**:
   - Use discriminated union results in client hooks

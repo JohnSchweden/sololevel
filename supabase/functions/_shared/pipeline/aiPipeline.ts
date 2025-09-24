@@ -171,7 +171,6 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
         text_feedback: analysis.textReport,
         feedback: analysis.feedback,
         summary_text: analysis.textReport.substring(0, 500),
-        ssml: ssmlResult.ssml,
         processing_time: Date.now() - startTime,
         video_source: videoSource,
       }
@@ -238,8 +237,6 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       text_feedback: analysis.textReport, // Full text analysis feedback
       feedback: analysis.feedback, // Structured feedback items
       summary_text: analysis.textReport.substring(0, 500), // Backward compatibility
-      ssml: ssmlResult.ssml,
-      audio_url: ttsResult.audioUrl || 'placeholder-url',
       processing_time: Date.now() - startTime,
       video_source: videoSource,
     }

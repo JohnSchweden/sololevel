@@ -5,8 +5,6 @@ export interface AnalysisResults {
   text_feedback: string
   feedback: unknown[]
   summary_text: string
-  ssml?: string
-  audio_url?: string
   processing_time: number
   video_source: string
   metrics?: Record<string, unknown>
@@ -222,8 +220,6 @@ export async function updateAnalysisResults(
       analysis_job_id: analysisId,
       p_full_feedback_text: results.text_feedback,
       p_summary_text: results.summary_text,
-      p_ssml: results.ssml,
-      p_audio_url: results.audio_url,
       p_processing_time_ms: processingTimeMs,
       p_video_source_type: videoSourceType,
       p_feedback: results.feedback || [],
@@ -293,7 +289,7 @@ export async function getEnhancedAnalysis(
     const { data: analysisJob, error: fallbackError } = await supabase
       .from('analysis_jobs')
       .select(
-        'id, status, progress_percentage, error_message, results, pose_data, created_at, processing_started_at, processing_completed_at, full_feedback_text, summary_text, ssml, audio_url, processing_time_ms, video_source_type'
+        'id, status, progress_percentage, error_message, results, pose_data, created_at, processing_started_at, processing_completed_at, full_feedback_text, summary_text, processing_time_ms, video_source_type'
       )
       .eq('id', analysisId)
       .single()
@@ -312,8 +308,6 @@ export async function getEnhancedAnalysis(
         poseData: analysisJob.pose_data,
         fullFeedback: analysisJob.full_feedback_text,
         summary: analysisJob.summary_text,
-        ssml: analysisJob.ssml,
-        audioUrl: analysisJob.audio_url,
         processingTimeMs: analysisJob.processing_time_ms,
         videoSourceType: analysisJob.video_source_type,
         timestamps: {
@@ -337,8 +331,6 @@ export async function getEnhancedAnalysis(
       poseData: null,
       fullFeedback: analysis.full_feedback_text,
       summary: analysis.summary_text,
-      ssml: analysis.ssml,
-      audioUrl: analysis.audio_url,
       processingTimeMs: analysis.processing_time_ms,
       videoSourceType: analysis.video_source_type,
       timestamps: {

@@ -291,8 +291,6 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
             text_feedback: finalSSML,
             feedback: [],
             summary_text: `TTS generated from ${sourceType}`,
-            ssml: finalSSML,
-            audio_url: ttsResult.audioUrl,
             processing_time: Date.now(),
             video_source: 'tts_generation'
           },
