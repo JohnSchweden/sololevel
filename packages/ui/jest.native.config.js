@@ -5,7 +5,7 @@ module.exports = {
     '<rootDir>/jest.setup.js',
     '<rootDir>/jest.native.setup.js',
   ],
-  testMatch: ['**/*.native.test.(ts|tsx|js)', '**/VideoControls.test.native.tsx'],
+  testMatch: ['**/*.native*.test.(ts|tsx|js)', '**/VideoControls.test.native.tsx'],
   testEnvironment: 'jsdom',
 
   // Module name mapping for native environment

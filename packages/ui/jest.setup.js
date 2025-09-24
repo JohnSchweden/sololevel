@@ -367,6 +367,51 @@ jest.mock('expo-image-picker', () => ({
   },
 }))
 
+// Mock react-native-vision-camera
+jest.mock('react-native-vision-camera', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    Camera: React.forwardRef((props, ref) => {
+      const mockCamera = {
+        startRecording: jest.fn(async (options) => {
+          setTimeout(() => {
+            if (options.onRecordingFinished) {
+              options.onRecordingFinished({
+                path: 'file:///mock/recorded_video.mp4',
+                duration: 5000,
+              })
+            }
+          }, 100)
+        }),
+        stopRecording: jest.fn(),
+      }
+
+      // Set the ref immediately if provided
+      if (ref) {
+        if (typeof ref === 'function') {
+          ref(mockCamera)
+        } else if (ref.current !== undefined) {
+          ref.current = mockCamera
+        }
+      }
+
+      return React.createElement(View, {
+        ...props,
+        testID: 'vision-camera',
+      })
+    }),
+    useCameraDevice: jest.fn(() => ({ id: 'camera-1', position: 'back' })),
+    useFrameProcessor: jest.fn(() => ({ frameProcessor: jest.fn(), type: 'frame-processor' })),
+    useCameraFormat: jest.fn(() => ({
+      minFps: 24,
+      maxFps: 60,
+      videoWidth: 1280,
+      videoHeight: 720,
+    })),
+  }
+})
+
 // Mock Expo React Native Action Sheet
 jest.mock('@expo/react-native-action-sheet', () => ({
   useActionSheet: () => ({

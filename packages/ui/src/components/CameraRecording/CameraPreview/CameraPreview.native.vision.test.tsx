@@ -6,42 +6,7 @@ import { useCameraDevice, useFrameProcessor } from 'react-native-vision-camera'
 import type { CameraPreviewRef } from '../types'
 import { VisionCameraPreview } from './CameraPreview.native.vision'
 
-// Mock react-native-vision-camera
-jest.mock('react-native-vision-camera', () => {
-  const { View } = require('react-native')
-  return {
-    Camera: jest.fn().mockImplementation((props) => {
-      const mockCamera = {
-        startRecording: jest.fn(async (options) => {
-          // Simulate recording finished after a delay
-          setTimeout(() => {
-            if (options.onRecordingFinished) {
-              options.onRecordingFinished({
-                path: 'file:///mock/recorded_video.mp4',
-                duration: 5000, // 5 seconds in milliseconds
-              })
-            }
-          }, 100)
-        }),
-        stopRecording: jest.fn(),
-      }
-
-      // Set the ref immediately if provided
-      if (props.ref) {
-        props.ref.current = mockCamera
-      }
-
-      return (
-        <View
-          testID="vision-camera"
-          {...props}
-        />
-      )
-    }),
-    useCameraDevice: jest.fn(),
-    useFrameProcessor: jest.fn(),
-  }
-})
+// Mock is now centralized in jest.setup.js
 
 // Mock VideoStorageService
 jest.mock('@app/features/CameraRecording/services/videoStorageService', () => ({

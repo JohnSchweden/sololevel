@@ -1,6 +1,6 @@
-import { computeVideoTimingParams, startGeminiVideoAnalysis } from '@my/api'
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
 import { useTabPersistence } from './useTabPersistence'
@@ -148,45 +148,21 @@ export const useCameraScreenLogic = ({
     onResetZoom: handleResetZoom,
   })
 
-  // Handle video recording completion - placed after duration is available
+  // Handle video recording completion - navigate immediately, process in background
   const handleVideoRecorded = useCallback(
     async (videoUri: string) => {
       log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
 
-      try {
-        // Use the current duration from the recording state
-        const recordingDuration = duration / 1000 // Convert from milliseconds to seconds
-        const timingParams = computeVideoTimingParams(recordingDuration)
+      // 1) Navigate immediately to analysis screen so user sees processing state right away
+      onNavigateToVideoAnalysis?.(videoUri)
 
-        log.info('useCameraScreenLogic', 'Computed timing params for recorded video', {
-          duration: recordingDuration,
-          feedbackCount: timingParams.feedbackCount,
-          targetTimestamps: timingParams.targetTimestamps,
-        })
-
-        // Start Gemini video analysis with computed timing parameters
-        // For live recordings, we use the videoUri as the path
-        const analysisResponse = await startGeminiVideoAnalysis({
-          videoPath: videoUri, // For live recordings, this is the local file URI
-          userId: 'current-user', // TODO: Get from auth context
-          videoSource: 'live_recording',
-          timingParams,
-        })
-
-        log.info('useCameraScreenLogic', 'AI analysis started for recorded video', {
-          analysisId: analysisResponse.analysisId,
-          status: analysisResponse.status,
-        })
-
-        // Navigate to video analysis screen with the recorded video
-        onNavigateToVideoAnalysis?.(videoUri)
-      } catch (error) {
-        log.error('useCameraScreenLogic', 'Failed to start AI analysis for recorded video', error)
-        // Still navigate to video analysis screen even if AI analysis fails
-        onNavigateToVideoAnalysis?.(videoUri)
-      }
+      // 2) Start the upload and analysis pipeline in background
+      void startUploadAndAnalysis({
+        sourceUri: videoUri,
+        originalFilename: 'recorded_video.mp4',
+      })
     },
-    [onNavigateToVideoAnalysis, duration]
+    [onNavigateToVideoAnalysis]
   )
 
   const handleCameraSwap = useCallback(async () => {
@@ -311,15 +287,27 @@ export const useCameraScreenLogic = ({
     log.info('handleUploadVideo', 'Upload video clicked')
   }, [])
 
-  const handleVideoSelected = useCallback((file: File, metadata: any) => {
-    log.info('handleVideoSelected', 'Video selected for upload', {
-      fileName: file.name,
-      fileSize: file.size,
-      duration: metadata?.duration,
-    })
+  const handleVideoSelected = useCallback(
+    (file: File, metadata: any) => {
+      log.info('handleVideoSelected', 'Video selected for upload', {
+        fileName: file.name,
+        fileSize: file.size,
+        duration: metadata?.duration,
+      })
 
-    // TODO: Implement actual upload logic using VideoUploadService
-  }, [])
+      // 1) Navigate immediately to analysis screen so user sees processing state right away
+      onNavigateToVideoAnalysis?.(metadata?.localUri)
+
+      // 2) Start the upload and analysis pipeline in background
+      void startUploadAndAnalysis({
+        file,
+        originalFilename: metadata?.originalFilename || file.name || `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
+        durationSeconds: metadata?.duration,
+        format: metadata?.format === 'mov' ? 'mov' : 'mp4',
+      })
+    },
+    [onNavigateToVideoAnalysis]
+  )
 
   const handleSettingsOpen = useCallback(() => {
     // TODO: Implement camera settings modal
