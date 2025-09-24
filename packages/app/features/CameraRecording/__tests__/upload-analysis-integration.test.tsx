@@ -95,7 +95,7 @@ describe('upload-analysis-integration', () => {
 
     const { compressVideo } = require('../../../services/videoCompression')
     const { uriToBlob } = require('../../../utils/files')
-    const { uploadVideo, startGeminiVideoAnalysis } = require('@my/api')
+    const { uploadVideo } = require('@my/api')
 
     // Compression called with recorded URI
     expect(compressVideo).toHaveBeenCalledWith(mockVideoUri)
@@ -104,23 +104,17 @@ describe('upload-analysis-integration', () => {
     expect(uriToBlob).toHaveBeenCalledWith('file:///compressed/video.mp4')
 
     // Upload called with proper payload
-    expect(uploadVideo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        file: expect.any(Blob),
-        originalFilename: 'recorded_video.mp4',
-        durationSeconds: 30,
-        format: 'mp4',
-      })
-    )
+    expect(uploadVideo).toHaveBeenCalledWith({
+      file: expect.any(Blob),
+      originalFilename: 'video.mp4',
+      durationSeconds: 30,
+      format: 'mp4',
+      onProgress: expect.any(Function),
+      onError: expect.any(Function),
+      onUploadInitialized: expect.any(Function),
+    })
 
-    // Analysis started with storage path
-    expect(startGeminiVideoAnalysis).toHaveBeenCalledWith(
-      expect.objectContaining({
-        videoPath: 'user123/timestamp_compressed_video.mp4',
-        videoSource: 'live_recording',
-        timingParams: expect.any(Object),
-      })
-    )
+    // Analysis is now auto-started server-side after upload (not called from client)
 
     // Navigates to analysis screen immediately
     expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledWith(mockVideoUri)

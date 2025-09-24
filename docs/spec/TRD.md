@@ -151,6 +151,30 @@ flowchart TD
   - Stores (Zustand): `mediaStore` (recording/upload), `analysisStore` (current job/progress), `profileStore`
   - Server State (TanStack Query): `useAnalyzeVideo`, `useAnalysisHistory`, `useAnalysis(analysisId)`
 
+* **Authentication (MVP)**:
+  - **Auth Methods**: Email/password sign up/in/out; password reset; email verification; session restore on app launch
+  - **UI/Flows**: `SignIn`, `SignUp`, `ForgotPassword`, `VerifyEmail`; `AuthGate/ProtectedLayout` guards protected routes; redirects (login→home, logout→login)
+  - **Client Contracts (Supabase)**:
+    - Read: `auth.getSession()`; Listen: `auth.onAuthStateChange`
+    - Mutations: `auth.signInWithPassword`, `auth.signUp`, `auth.signOut`, `auth.resetPasswordForEmail`
+  - **State**: Global auth init at app start; loading states reflected in gate; no manual token storage
+  - **Security/RLS**: All access constrained by policies using `auth.uid()`; unauthenticated users blocked from `video_recordings`, `analysis_jobs`, `analysis_feedback`
+  - **Errors → UX**: `invalid_credentials`, `email_not_confirmed`, `rate_limited`, `network_error` mapped to user-safe messages
+  - **Deep Links**: Password reset verification route documented for native/web
+  - **Testing**:
+    - Unit: auth store init and onAuthStateChange (2–3 tests)
+    - Integration: protected route redirects when unauthenticated
+    - E2E: sign-in/out happy path per platform
+
+* **Authentication (Production, post‑MVP)**:
+  - **Providers**: Magic link (OTP) and OAuth (Apple/Google) via Supabase; feature‑flagged rollout
+  - **MFA & Sessions**: TOTP MFA, device list, session revocation; notify on new device
+  - **Abuse Controls**: Rate limiting, CAPTCHA on suspicious flows, exponential backoff
+  - **UX/Intl**: Localized forms/messages, inline validation, skeletons/loading
+  - **Security Hardening**: Secure storage on native (expo‑secure‑store), short session TTL + refresh, strict cookies on web
+  - **Privacy/Compliance**: Account deletion/data export; consent tracking; retention policies
+  - **Observability**: Auth dashboards (success/error rates), alerts on spikes, correlation IDs end‑to‑end
+
 * **Database Schema (Supabase, public schema)**:
   - `profiles` (user_id uuid PK/FK auth.users, username text unique, created_at)
   - `video_recordings` (
@@ -211,6 +235,14 @@ flowchart TD
   - `GET /functions/v1/ai-analyze-video/health`
     - Response: `{ status: 'ok'|'warning', version, message, env: { supabaseUrl: boolean, supabaseServiceKey: boolean } }`
   - Notes: Prefer Supabase Realtime over polling; status endpoint is a fallback.
+
+* **Client Auth Specifications (Supabase Auth)**:
+  - `auth.getSession()` → returns `{ session: Session | null }`
+  - `auth.onAuthStateChange((event, session) => void)` → updates global state
+  - `auth.signUp({ email, password })` → requires email verification per environment policy
+  - `auth.signInWithPassword({ email, password })`
+  - `auth.resetPasswordForEmail(email, { redirectTo })`
+  - `auth.signOut()`
 
 * **AI Pipeline Flow (Hybrid)**:
 
@@ -346,6 +378,30 @@ flowchart TD
 * **RLS**: Row Level Security
 
 ---
+
+### Upload and Analysis Pipeline
+
+**Upload Flow:**
+- Client initiates upload with compression (for URIs) or direct upload (for picked files)
+- Progress tracked via `useUploadProgressStore` with temporary task IDs
+- On upload initialization, `videoRecordingId` is assigned and propagated to UI
+- Backend automatically starts analysis when upload completes (no client trigger needed)
+
+**Analysis Flow:**
+- Backend triggers analysis job creation and processing upon upload completion
+- Client subscribes to analysis job updates via realtime APIs
+- UI transitions: Upload → Analysis → Results with seamless state management
+
+**Error Handling:**
+- Upload failures surfaced in `VideoAnalysisScreen` with retry/back options
+- Analysis failures handled via realtime job status updates
+- Network issues queue uploads for offline retry
+
+**State Management:**
+- Upload progress: `useUploadProgressStore` with selectors for active tasks (`getLatestActiveTask`, `getTaskByRecordingId`)
+- Analysis progress: `subscribeToAnalysisJob` with realtime updates
+- UI derives `videoRecordingId` from route props or latest active upload task
+- RecordingId propagation: optional `onRecordingIdAvailable` callback for route param updates
 
 ## Appendix
 * **References**:

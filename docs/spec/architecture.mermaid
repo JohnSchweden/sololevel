@@ -9,6 +9,7 @@ graph TB
         ExpoApp["📱 Expo App\nReact Native (iOS/Android)"]
         NextApp["🌐 Next.js App\nWeb (SSR/SSG)"]
         ExpoRouter["🧭 Expo Router\nUniversal Routing"]
+        AuthGate["🚪 AuthGate / Protected Layout\nRoute Guard"]
     end
 
     %% Shared Packages (Monorepo)
@@ -46,6 +47,11 @@ graph TB
             E1d["GET /ai-analyze-video/health"]
             Obs["📝 Logger\n_supabase/functions/_shared/logger.ts_"]
         end
+        subgraph Providers["🔗 OAuth / OTP (Post‑MVP)"]
+            Apple[" Apple"]
+            Google["G Google"]
+            MagicLink["✉️ Magic Link (OTP)"]
+        end
     end
 
     %% AI Pipeline (Hybrid: Client + Edge)
@@ -82,6 +88,7 @@ graph TB
     %% App Composition - UNIFIED ROUTING ✅
     ExpoApp --> ExpoRouter[Universal Router]
     NextApp --> ExpoRouter[Universal Router]
+    ExpoRouter --> AuthGate
     ExpoApp --> UIPkg
     NextApp --> UIPkg
     ExpoApp --> AppPkg
@@ -102,6 +109,11 @@ graph TB
     APIPkg --> Storage
     APIPkg --> RTGroup
     APIPkg --> EdgeFns
+
+    %% Auth Flows
+    AuthGate --> Auth
+    Auth --> DBGroup
+    Auth --> Providers
 
     %% AI Flow
     ClientSide --> EdgeSide

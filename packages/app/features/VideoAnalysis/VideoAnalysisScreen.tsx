@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
-import { YStack } from 'tamagui'
+import { Button, Circle, Text, YStack } from 'tamagui'
 
 // Logger for debugging
 import { log } from '@my/logging'
@@ -21,6 +21,7 @@ import {
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
 
+import { useUploadProgressStore } from '@app/stores/uploadProgress'
 // Import hooks for tracking upload and analysis progress
 import { type AnalysisJob, subscribeToAnalysisJob, useUploadProgress } from '@my/api'
 
@@ -77,8 +78,26 @@ export function VideoAnalysisScreen({
   const [isProcessing, setIsProcessing] = useState(initialStatus === 'processing')
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
+  const latestUploadTask = useUploadProgressStore((state) => state.getLatestActiveTask())
+
+  // Derive videoRecordingId from prop or store (for upload-initiated flows)
+  const derivedRecordingId = useMemo(() => {
+    if (videoRecordingId) return videoRecordingId
+
+    if (latestUploadTask?.videoRecordingId) {
+      log.info('[VideoAnalysisScreen] Derived recordingId from latest active upload task', {
+        taskId: latestUploadTask.id,
+        recordingId: latestUploadTask.videoRecordingId,
+      })
+      return latestUploadTask.videoRecordingId
+    }
+
+    return null
+  }, [videoRecordingId, latestUploadTask])
+
   // Track upload progress if we have a video recording ID
-  const { data: uploadProgress } = useUploadProgress(videoRecordingId || 0)
+  const uploadProgressRecordId = derivedRecordingId ?? latestUploadTask?.videoRecordingId
+  const { data: uploadProgress } = useUploadProgress(uploadProgressRecordId || 0)
 
   // Track analysis job progress via realtime subscription
   const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null)
@@ -107,6 +126,21 @@ export function VideoAnalysisScreen({
     return false
   }, [uploadProgress, analysisJob, initialStatus])
 
+  // Check for upload failure to show error UI
+  const { uploadFailed, uploadError } = useMemo(() => {
+    if (!uploadProgress) return { uploadFailed: false, uploadError: null }
+
+    if (uploadProgress.status === 'failed') {
+      // Get error from the store task
+      const task = useUploadProgressStore
+        .getState()
+        .getTaskByRecordingId(uploadProgressRecordId || 0)
+      return { uploadFailed: true, uploadError: task?.error || 'Upload failed' }
+    }
+
+    return { uploadFailed: false, uploadError: null }
+  }, [uploadProgress, derivedRecordingId])
+
   // Update processing state when shouldShowProcessing changes
   useEffect(() => {
     setIsProcessing(shouldShowProcessing)
@@ -114,7 +148,7 @@ export function VideoAnalysisScreen({
 
   // Set up realtime subscription for analysis job updates
   useEffect(() => {
-    if (!analysisJobId) return
+    if (!analysisJobId) return undefined
 
     log.info('[VideoAnalysisScreen] Setting up analysis job subscription', { analysisJobId })
 
@@ -591,134 +625,221 @@ export function VideoAnalysisScreen({
       animation="slow"
       style={{ transition: 'all 0.5s ease-in-out' }}
     >
-      <VideoContainer
-        useFlexLayout={true}
-        flex={1 - panelFraction}
-      >
-        <VideoPlayerArea>
+      {/* Upload Error State */}
+      {uploadFailed && uploadProgress && (
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          padding="$4"
+          backgroundColor="$background"
+        >
           <YStack
-            flex={1}
-            position="relative"
-            onPress={handleVideoTap}
-            marginBottom={-34}
-            testID="video-player-container"
+            alignItems="center"
+            gap="$4"
+            maxWidth={400}
           >
-            {recordedVideoUri && (
-              <VideoPlayer
-                videoUri={recordedVideoUri}
-                isPlaying={isPlaying}
-                onPause={handlePause}
-                onEnd={handleVideoEnd}
-                onLoad={handleVideoLoad}
-                onProgress={handleVideoProgress}
-                seekToTime={pendingSeek}
-                onSeekComplete={() => {
-                  log.info('[VideoAnalysisScreen] onSeekComplete called', {
-                    pendingSeek,
-                    currentTime,
-                    isPlaying,
-                  })
-
-                  // After native seek completes, align UI state and clear request
-                  if (pendingSeek !== null) {
-                    setCurrentTime(pendingSeek)
-                    log.info('[VideoAnalysisScreen] Setting current time after seek', {
-                      newCurrentTime: pendingSeek,
-                      previousCurrentTime: currentTime,
-                    })
-
-                    // Check for feedback bubbles at the seeked timestamp
-                    const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
-                    log.info('[VideoAnalysisScreen] Checking for bubbles at seeked time', {
-                      seekedTimeMs,
-                      seekedTimeSeconds: seekedTimeMs / 1000,
-                    })
-                    checkAndShowBubbleAtTime(seekedTimeMs)
-                  }
-
-                  log.info('[VideoAnalysisScreen] Clearing pending seek')
-                  setPendingSeek(null)
-                }}
+            {/* Error Icon */}
+            <YStack
+              width={80}
+              height={80}
+              borderRadius="$4"
+              backgroundColor="$red2"
+              alignItems="center"
+              justifyContent="center"
+              borderWidth={1}
+              borderColor="$red5"
+            >
+              <Circle
+                size={32}
+                backgroundColor="$red9"
               />
-            )}
+            </YStack>
 
-            {/* Overlay Components */}
-            <MotionCaptureOverlay
-              poseData={[]} // TODO: Connect to pose detection data
-              isVisible={true}
-            />
+            {/* Error Title */}
+            <Text
+              fontSize="$6"
+              fontWeight="600"
+              color="$color11"
+              textAlign="center"
+            >
+              Upload Failed
+            </Text>
 
-            <FeedbackBubbles
-              messages={
-                currentBubbleIndex !== null && bubbleVisible
-                  ? [feedbackMessages[currentBubbleIndex]]
-                  : []
-              }
-              // onBubbleTap={handleFeedbackBubbleTap}
-            />
+            {/* Error Message */}
+            <Text
+              fontSize="$4"
+              color="$color9"
+              textAlign="center"
+              lineHeight="$4"
+            >
+              {uploadError || 'The video upload failed. Please try again.'}
+            </Text>
 
-            <AudioFeedback
-              audioUrl={null} // TODO: Connect to audio feedback
-              isPlaying={false}
-              currentTime={0}
-              duration={0}
-              onPlayPause={() => {
-                log.info('[VideoAnalysisScreen] Audio play/pause')
-              }}
-              onSeek={(time) => {
-                log.info('[VideoAnalysisScreen] Audio seek', { time })
-              }}
-              onClose={() => {
-                log.info('[VideoAnalysisScreen] Audio close')
-              }}
-              isVisible={false}
-            />
-
-            {/* Coach Avatar - positioned in bottom-right corner below video controls */}
-            {/* Comment out CoachAvatar when FeedbackPanel is expanded */}
-            {panelFraction <= 0.1 && (
-              <CoachAvatar
-                isSpeaking={isCoachSpeaking}
-                size={90 * (1 - panelFraction)} // Scale avatar size proportionally with video area
-                testID="video-analysis-coach-avatar"
-                animation="quick"
-                enterStyle={{
-                  opacity: 0,
-                  scale: 0.8,
+            {/* Action Buttons */}
+            <YStack
+              gap="$3"
+              width="100%"
+            >
+              <Button
+                size="$5"
+                backgroundColor="$color9"
+                color="white"
+                fontWeight="600"
+                onPress={() => {
+                  // TODO: Implement retry logic - would need to re-run upload with original file/uri
+                  // For now, just navigate back
+                  onBack?.()
                 }}
-                exitStyle={{
-                  opacity: 0,
-                  scale: 0.8,
-                }}
-              />
-            )}
+                testID="upload-error-retry-button"
+              >
+                Try Again
+              </Button>
 
-            {/* Video Controls Overlay */}
-            <VideoControls
-              ref={videoControlsRef}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              showControls={isProcessing || !isPlaying || videoEnded}
-              isProcessing={isProcessing}
-              videoEnded={videoEnded}
-              scaleFactor={videoAreaScale}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onReplay={handleReplay}
-              onSeek={handleSeek}
-              headerComponent={
-                <AppHeader
-                  title="Video Analysis"
-                  mode="videoSettings"
-                  onBackPress={onBack}
-                  onMenuPress={handleMenuPress}
-                />
-              }
-            />
+              <Button
+                size="$5"
+                variant="outlined"
+                onPress={onBack}
+                testID="upload-error-back-button"
+              >
+                Back to Camera
+              </Button>
+            </YStack>
           </YStack>
-        </VideoPlayerArea>
-      </VideoContainer>
+        </YStack>
+      )}
+
+      {/* Main Analysis UI - only show when not in error state */}
+      {!uploadFailed && (
+        <VideoContainer
+          useFlexLayout={true}
+          flex={1 - panelFraction}
+        >
+          <VideoPlayerArea>
+            <YStack
+              flex={1}
+              position="relative"
+              onPress={handleVideoTap}
+              marginBottom={-34}
+              testID="video-player-container"
+            >
+              {recordedVideoUri && (
+                <VideoPlayer
+                  videoUri={recordedVideoUri}
+                  isPlaying={isPlaying}
+                  onPause={handlePause}
+                  onEnd={handleVideoEnd}
+                  onLoad={handleVideoLoad}
+                  onProgress={handleVideoProgress}
+                  seekToTime={pendingSeek}
+                  onSeekComplete={() => {
+                    log.info('[VideoAnalysisScreen] onSeekComplete called', {
+                      pendingSeek,
+                      currentTime,
+                      isPlaying,
+                    })
+
+                    // After native seek completes, align UI state and clear request
+                    if (pendingSeek !== null) {
+                      setCurrentTime(pendingSeek)
+                      log.info('[VideoAnalysisScreen] Setting current time after seek', {
+                        newCurrentTime: pendingSeek,
+                        previousCurrentTime: currentTime,
+                      })
+
+                      // Check for feedback bubbles at the seeked timestamp
+                      const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
+                      log.info('[VideoAnalysisScreen] Checking for bubbles at seeked time', {
+                        seekedTimeMs,
+                        seekedTimeSeconds: seekedTimeMs / 1000,
+                      })
+                      checkAndShowBubbleAtTime(seekedTimeMs)
+                    }
+
+                    log.info('[VideoAnalysisScreen] Clearing pending seek')
+                    setPendingSeek(null)
+                  }}
+                />
+              )}
+
+              {/* Overlay Components */}
+              <MotionCaptureOverlay
+                poseData={[]} // TODO: Connect to pose detection data
+                isVisible={true}
+              />
+
+              <FeedbackBubbles
+                messages={
+                  currentBubbleIndex !== null && bubbleVisible
+                    ? [feedbackMessages[currentBubbleIndex]]
+                    : []
+                }
+                // onBubbleTap={handleFeedbackBubbleTap}
+              />
+
+              <AudioFeedback
+                audioUrl={null} // TODO: Connect to audio feedback
+                isPlaying={false}
+                currentTime={0}
+                duration={0}
+                onPlayPause={() => {
+                  log.info('[VideoAnalysisScreen] Audio play/pause')
+                }}
+                onSeek={(time) => {
+                  log.info('[VideoAnalysisScreen] Audio seek', { time })
+                }}
+                onClose={() => {
+                  log.info('[VideoAnalysisScreen] Audio close')
+                }}
+                isVisible={false}
+              />
+
+              {/* Coach Avatar - positioned in bottom-right corner below video controls */}
+              {/* Comment out CoachAvatar when FeedbackPanel is expanded */}
+              {panelFraction <= 0.1 && (
+                <CoachAvatar
+                  isSpeaking={isCoachSpeaking}
+                  size={90 * (1 - panelFraction)} // Scale avatar size proportionally with video area
+                  testID="video-analysis-coach-avatar"
+                  animation="quick"
+                  enterStyle={{
+                    opacity: 0,
+                    scale: 0.8,
+                  }}
+                  exitStyle={{
+                    opacity: 0,
+                    scale: 0.8,
+                  }}
+                />
+              )}
+
+              {/* Video Controls Overlay */}
+              <VideoControls
+                ref={videoControlsRef}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                showControls={isProcessing || !isPlaying || videoEnded}
+                isProcessing={isProcessing}
+                videoEnded={videoEnded}
+                scaleFactor={videoAreaScale}
+                onPlay={handlePlay}
+                onPause={handlePause}
+                onReplay={handleReplay}
+                onSeek={handleSeek}
+                headerComponent={
+                  <AppHeader
+                    title="Video Analysis"
+                    mode="videoSettings"
+                    onBackPress={onBack}
+                    onMenuPress={handleMenuPress}
+                  />
+                }
+              />
+            </YStack>
+          </VideoPlayerArea>
+        </VideoContainer>
+      )}
 
       {/* Social Icons - Only visible when feedback panel is expanded */}
       <SocialIcons

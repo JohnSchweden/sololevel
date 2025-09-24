@@ -75,6 +75,10 @@ export interface UploadProgressStore {
   getUploadsByStatus: (status: UploadStatus) => UploadTask[]
   getTotalProgress: () => number
   getEstimatedTimeRemaining: () => number | null
+
+  // Selectors for UI state management
+  getLatestActiveTask: () => UploadTask | null
+  getTaskByRecordingId: (recordingId: number) => UploadTask | null
 }
 
 const createEmptyQueue = (): UploadQueue => ({
@@ -412,6 +416,27 @@ export const useUploadProgressStore = create<UploadProgressStore>()(
 
         const remainingBytes = state.totalBytesToUpload - state.totalBytesUploaded
         return Math.ceil(remainingBytes / state.networkSpeed)
+      },
+
+      // Get the latest active upload task (pending or uploading)
+      getLatestActiveTask: () => {
+        const state = get()
+        const activeTasks = Array.from(state.activeUploads.values()).filter(
+          (task) => task.status === 'pending' || task.status === 'uploading'
+        )
+        if (activeTasks.length === 0) return null
+        // Return the most recent by startTime
+        return activeTasks.sort((a, b) => b.startTime - a.startTime)[0]
+      },
+
+      // Get task by video recording ID
+      getTaskByRecordingId: (recordingId) => {
+        const state = get()
+        return (
+          Array.from(state.activeUploads.values()).find(
+            (task) => task.videoRecordingId === recordingId
+          ) || null
+        )
       },
     }))
   )

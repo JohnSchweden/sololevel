@@ -120,7 +120,7 @@ describe('useCameraScreenLogic', () => {
       // Verify the shared upload and analysis service was called
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledWith({
         sourceUri: mockVideoUri,
-        originalFilename: 'recorded_video.mp4',
+        onRecordingIdAvailable: expect.any(Function),
       })
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledTimes(1)
     })
@@ -153,6 +153,7 @@ describe('useCameraScreenLogic', () => {
         originalFilename: mockMetadata.originalFilename,
         durationSeconds: mockMetadata.duration,
         format: 'mp4',
+        onRecordingIdAvailable: expect.any(Function),
       })
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledTimes(1)
     })

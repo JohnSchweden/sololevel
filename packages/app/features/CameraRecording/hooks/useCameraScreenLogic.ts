@@ -159,7 +159,12 @@ export const useCameraScreenLogic = ({
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
         sourceUri: videoUri,
-        originalFilename: 'recorded_video.mp4',
+        onRecordingIdAvailable: (recordingId) => {
+          // TODO: Could update route params here if needed for direct linking
+          log.info('useCameraScreenLogic', 'RecordingId available for potential route update', {
+            recordingId,
+          })
+        },
       })
     },
     [onNavigateToVideoAnalysis]
@@ -301,12 +306,15 @@ export const useCameraScreenLogic = ({
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
         file,
-        originalFilename:
-          metadata?.originalFilename ||
-          file.name ||
-          `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
+        originalFilename: metadata?.originalFilename || file.name,
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
+        onRecordingIdAvailable: (recordingId) => {
+          // TODO: Could update route params here if needed for direct linking
+          log.info('useCameraScreenLogic', 'RecordingId available for potential route update', {
+            recordingId,
+          })
+        },
       })
     },
     [onNavigateToVideoAnalysis]

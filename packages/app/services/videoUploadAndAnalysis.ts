@@ -4,7 +4,6 @@
  */
 
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
-import { computeVideoTimingParams, startGeminiVideoAnalysis } from '@my/api'
 import { uploadVideo } from '@my/api'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
@@ -30,6 +29,25 @@ export interface VideoUploadAndAnalysisOptions {
     sessionId: number
     storagePath: string
   }) => void
+
+  // Optional: callback to propagate recordingId to navigation/route params
+  onRecordingIdAvailable?: (recordingId: number) => void
+}
+
+/**
+ * Extract a meaningful filename from a URI path
+ */
+function extractFilenameFromUri(uri: string): string {
+  try {
+    // Remove file:// prefix and get the path
+    const path = uri.replace(/^file:\/\//, '')
+    // Get the last part of the path
+    const filename = path.split('/').pop() || 'video.mp4'
+    // Ensure it has .mp4 extension
+    return filename.includes('.') ? filename : `${filename}.mp4`
+  } catch {
+    return 'video.mp4'
+  }
 }
 
 /**
@@ -123,6 +141,7 @@ async function uploadWithProgress(args: {
   videoToUpload: File | Blob
   metadata: VideoMetadata
   originalFilename?: string
+  defaultFilename: string
   tempTaskId: string
   onProgress?: (progress: number) => void
   onError?: (error: Error) => void
@@ -131,15 +150,18 @@ async function uploadWithProgress(args: {
     sessionId: number
     storagePath: string
   }) => void
+  onRecordingIdAvailable?: (recordingId: number) => void
 }): Promise<ReturnType<typeof uploadVideo>> {
   const {
     videoToUpload,
     metadata,
     originalFilename,
+    defaultFilename,
     tempTaskId,
     onProgress,
     onError,
     onUploadInitialized,
+    onRecordingIdAvailable,
   } = args
 
   log.info('startUploadAndAnalysis', 'Starting video upload to Supabase')
@@ -149,7 +171,7 @@ async function uploadWithProgress(args: {
 
   const uploadedVideo = await uploadVideo({
     file: videoToUpload,
-    originalFilename: originalFilename || `video.${metadata.format}`,
+    originalFilename: originalFilename || defaultFilename,
     durationSeconds: metadata.duration,
     format: metadata.format,
     onProgress: (progress: number) => {
@@ -173,6 +195,7 @@ async function uploadWithProgress(args: {
       })
       useUploadProgressStore.getState().setUploadTaskRecordingId(tempTaskId, recordingId)
       onUploadInitialized?.({ recordingId, sessionId, storagePath })
+      onRecordingIdAvailable?.(recordingId)
     },
   })
 
@@ -185,34 +208,7 @@ async function uploadWithProgress(args: {
   return uploadedVideo
 }
 
-/**
- * Compute timing parameters and kick off Gemini analysis for the uploaded video.
- */
-async function startAnalysis(
-  storagePath: string,
-  durationSeconds: number,
-  source: 'uploaded_video' | 'live_recording'
-) {
-  const timingParams = computeVideoTimingParams(durationSeconds)
-
-  log.info('startUploadAndAnalysis', 'Computed timing params for uploaded video', {
-    duration: durationSeconds,
-    feedbackCount: timingParams.feedbackCount,
-    targetTimestamps: timingParams.targetTimestamps,
-  })
-
-  const analysisResponse = await startGeminiVideoAnalysis({
-    videoPath: storagePath,
-    userId: 'current-user',
-    videoSource: source,
-    timingParams,
-  })
-
-  log.info('startUploadAndAnalysis', 'AI analysis started for uploaded video', {
-    analysisId: analysisResponse.analysisId,
-    status: analysisResponse.status,
-  })
-}
+// Analysis is now auto-started server-side after upload; no client trigger needed.
 
 /**
  * Orchestrates the complete video upload and analysis pipeline
@@ -230,6 +226,7 @@ export async function startUploadAndAnalysis(
     onProgress,
     onError,
     onUploadInitialized,
+    onRecordingIdAvailable,
   } = options
 
   // Input validation
@@ -238,7 +235,8 @@ export async function startUploadAndAnalysis(
   }
 
   // 1) Seed upload progress store with a temporary pending task so UI shows processing
-  const tempTaskId = seedUploadTask(originalFilename || 'video.mp4', file)
+  const defaultFilename = sourceUri ? extractFilenameFromUri(sourceUri) : 'video.mp4'
+  const tempTaskId = seedUploadTask(originalFilename || defaultFilename, file)
 
   // 2) Process video in background (compression → upload → analysis)
   try {
@@ -250,27 +248,22 @@ export async function startUploadAndAnalysis(
     })
 
     // Step 3: Upload with progress callbacks and store updates
-    const uploadedVideo = await uploadWithProgress({
+    await uploadWithProgress({
       videoToUpload,
       metadata,
       originalFilename,
+      defaultFilename,
       tempTaskId,
       onProgress,
       onError,
       onUploadInitialized,
+      onRecordingIdAvailable,
     })
 
     // Mark the temporary task as completed
     useUploadProgressStore.getState().setUploadStatus(tempTaskId, 'completed')
 
-    // Step 4: Start Gemini video analysis with computed timing
-    await startAnalysis(
-      uploadedVideo.storage_path,
-      metadata.duration,
-      file ? 'uploaded_video' : 'live_recording'
-    )
-
-    // Analysis is now running in background - VideoAnalysisScreen will subscribe to updates
+    // Analysis is auto-started in the backend after upload; UI will subscribe to updates
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     log.error('startUploadAndAnalysis', 'Failed to process video', errorMessage)

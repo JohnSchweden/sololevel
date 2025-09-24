@@ -2,6 +2,7 @@
 
 ## Recent Updates
 
+- **Auth Specs Added (Docs)**: Expanded TRD with MVP (email/password, reset, verification, AuthGate, RLS acceptance) and Production (OAuth, magic link, MFA, abuse controls) authentication specs. Updated architecture.mermaid with `AuthGate` node, Supabase Auth flow, and OAuth/OTP providers branch.
 - **Recording Optimization Complete**: Successfully optimized video recording settings to reduce file size before compression. Vision Camera now uses H.264 codec. Expo Camera uses 720p quality at 2Mbps bitrate with H.264 codec. All TypeScript types validated and tests pass. This reduces input payload to the video compression pipeline.
 - **Native Compression Guarded & Updated**: Replaced the native client compression dependency with `react-native-compressor` and added Expo Go ownership checks to avoid native module crashes. Updated unit tests cover the new behavior and ensure graceful fallbacks when compression is unavailable.
 - **TTS Architecture Refactoring**: Refactored TTS system to follow consistent modular architecture pattern. Moved Gemini TTS API logic to `_shared/gemini/tts.ts`, slimmed orchestrator to thin wrapper in `ai-analyze-video/gemini-tts-audio.ts`, added comprehensive tests, and updated documentation. Now matches SSML and LLM analysis patterns.
