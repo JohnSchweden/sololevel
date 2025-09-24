@@ -2,10 +2,14 @@
 
 ## Recent Updates
 
+- **Recording Optimization Complete**: Successfully optimized video recording settings to reduce file size before compression. Vision Camera now uses H.264 codec. Expo Camera uses 720p quality at 2Mbps bitrate with H.264 codec. All TypeScript types validated and tests pass. This reduces input payload to the video compression pipeline.
+- **Native Compression Guarded & Updated**: Replaced the native client compression dependency with `react-native-compressor` and added Expo Go ownership checks to avoid native module crashes. Updated unit tests cover the new behavior and ensure graceful fallbacks when compression is unavailable.
 - **TTS Architecture Refactoring**: Refactored TTS system to follow consistent modular architecture pattern. Moved Gemini TTS API logic to `_shared/gemini/tts.ts`, slimmed orchestrator to thin wrapper in `ai-analyze-video/gemini-tts-audio.ts`, added comprehensive tests, and updated documentation. Now matches SSML and LLM analysis patterns.
 - **Audio Format Standardization**: Updated TTS system to use MP3 as primary format (WAV fallback) across all components. Updated database defaults, service interfaces, route handlers, and tests.
 - **Storage Bucket Migration**: Implemented raw/processed bucket separation per TRD. Created private `raw` bucket (500MB, MP4/MOV, authenticated client uploads with user-scoped RLS) and `processed` bucket (100MB, MP3/WAV, service-role only). Added MIME/extension validation triggers, comprehensive RLS policies, and pgTAP tests. Updated all code/scripts to use new bucket names and paths.
 - **TTS System Prompt & Persistence**: Wired `TTS_GENERATION_PROMPT_TEMPLATE` as system instruction in `_shared/gemini/tts.ts` and return it from the TTS generator so it is persisted to DB as `audio_prompt` via `store_analysis_audio_segment_for_feedback`. Fixed non-per-feedback TTS path and pipeline to consistently persist both SSML and audio prompts via audio segments.
+
+- **Admin Auth Function**: Added `supabase/functions/admin-auth` Edge Function with `/admin-auth/create-user` using `supabase.auth.admin.createUser` (service role). Enables creating confirmed test users for end-to-end flows. Added `EDGE_*` env fallbacks in `env.example` to support `supabase functions serve`.
 
 ## Completed Features
 
@@ -111,6 +115,13 @@
 - 🔄 Remaining modules: Supabase client, Database layer, Pipeline orchestration, Notifications, Pose utilities, Route handlers (tests exist but need fixes for mock issues)
 
 ## Pending
+
+### Auth E2E Enablement ✅
+- **Authentication working**: Verified end-to-end sign-in flow with Supabase local
+- **Test user creation**: Users can be created via signup API + manual email confirmation
+- **Database access**: RLS policies working correctly for authenticated users
+- **Admin function created**: `admin-auth` Edge Function available for service-role user creation (local testing only)
+- **Environment setup**: EDGE_* fallbacks documented in env.example for function development
 
 # Validation Findings (Updated 2025-09-16)
 

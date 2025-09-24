@@ -17,9 +17,10 @@ import { log } from '@my/logging'
 import { AppHeader } from '@ui/components/AppHeader'
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { SideSheet } from '@ui/components/Sidesheet'
+import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
-import { YStack } from 'tamagui'
+import { Button, YStack } from 'tamagui'
 import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
@@ -37,6 +38,7 @@ export function CameraRecordingScreen({
   resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
+  const router = useRouter()
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -156,6 +158,7 @@ export function CameraRecordingScreen({
 
   return (
     <CameraContainer
+      testID="camera-container"
       header={
         <AppHeader
           title={displayHeaderTitle}
@@ -244,6 +247,10 @@ export function CameraRecordingScreen({
               disabled={!cameraReady}
               isCameraSwapping={isCameraSwapping}
               cameraSwapTransitionDuration={cameraSwapTransitionDuration}
+              testID="idle-controls"
+              recordButtonTestID="record-button"
+              uploadButtonTestID="upload-button"
+              cameraSwapButtonTestID="camera-swap-button"
             />
           </CameraControlsOverlay>
         ) : (
@@ -279,6 +286,30 @@ export function CameraRecordingScreen({
         open={showSideSheet}
         onOpenChange={setShowSideSheet}
       />
+
+      {/* Dev button for compression test */}
+      {__DEV__ && (
+        <YStack
+          position="absolute"
+          top={100}
+          left={20}
+          zIndex={10000}
+          backgroundColor="$red9"
+          padding="$2"
+          borderRadius="$4"
+        >
+          <Button
+            size="$4"
+            backgroundColor="transparent"
+            color="white"
+            onPress={() => router.push('/dev/compress-test')}
+            testID="dev-compress-test-button"
+            pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            🚀 DEV COMPRESSION TEST
+          </Button>
+        </YStack>
+      )}
     </CameraContainer>
   )
 }

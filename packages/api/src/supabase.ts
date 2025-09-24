@@ -2,11 +2,17 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 
 // Environment variables for Supabase
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey =
+let supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+let supabaseKey =
   process.env.EXPO_PUBLIC_SUPABASE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// For testing: use local Supabase if running in Jest
+if (process.env.JEST_WORKER_ID && !supabaseUrl && !supabaseKey) {
+  supabaseUrl = 'http://127.0.0.1:54321'
+  supabaseKey = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
+}
 
 // DEBUG: Log environment variables (without exposing keys)
 if (__DEV__) {

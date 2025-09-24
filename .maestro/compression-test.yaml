@@ -1,0 +1,22 @@
+appId: com.sololevel.app
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+# Tap outside shake menu to dismiss it
+- tapOn:
+    point: "10%,10%"
+    optional: true
+- tapOn:
+    id: "dev-compress-test-button"
+- tapOn:
+    id: "run-compression"
+- assertVisible:
+    id: "compression-status"
+- assertVisible:
+    id: "compression-details"

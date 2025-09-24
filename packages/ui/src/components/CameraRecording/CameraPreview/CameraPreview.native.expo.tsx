@@ -75,7 +75,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             if (!cameraRef.current) {
               throw new Error('Camera ref is null after ready check')
             }
-            const video = await cameraRef.current.recordAsync()
+            const video = await cameraRef.current.recordAsync({
+              codec: 'avc1',
+            })
             if (!video?.uri) {
               throw new Error('Recording failed: no video data received')
             }
@@ -396,6 +398,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       mode: 'video' as CameraMode,
       // Orientation-aware aspect ratio
       ratio: (orientation === 'landscape' ? '16:9' : '9:16') as CameraRatio,
+      // Recording optimization settings
+      videoQuality: '720p' as const,
+      videoBitrate: 2000000,
       permissionGranted,
     }
 

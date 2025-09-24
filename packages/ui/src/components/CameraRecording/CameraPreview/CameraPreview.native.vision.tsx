@@ -1,8 +1,13 @@
 import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { log } from '@my/logging'
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { Dimensions, View } from 'react-native'
-import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera'
+import {
+  Camera,
+  useCameraDevice,
+  useCameraFormat,
+  useFrameProcessor,
+} from 'react-native-vision-camera'
 import { SizableText, YStack } from 'tamagui'
 import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
@@ -34,6 +39,54 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
     const [isMounted, setIsMounted] = useState(false)
     const [sessionId, setSessionId] = useState<string>(Date.now().toString()) // Track camera session for reset
+
+    const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
+
+    const formatFilters = useMemo(
+      () => [
+        {
+          videoResolution: { width: 1280, height: 720 },
+        },
+        {
+          fps: 24,
+        },
+        {
+          videoAspectRatio: 16 / 9,
+        },
+      ],
+      []
+    )
+
+    const format = useCameraFormat(device, formatFilters)
+
+    const targetFps = useMemo(() => {
+      if (!format) {
+        return 24
+      }
+
+      if (24 < format.minFps) {
+        return format.minFps
+      }
+
+      if (24 > format.maxFps) {
+        return format.maxFps
+      }
+
+      return 24
+    }, [format])
+
+    useEffect(() => {
+      if (!device || !format) {
+        return
+      }
+
+      log.info('VisionCamera', 'Selected recording format', {
+        deviceId: device.id,
+        videoDimensions: `${format.videoWidth}x${format.videoHeight}`,
+        fpsRange: [format.minFps, format.maxFps],
+        targetFps,
+      })
+    }, [device, format, targetFps])
 
     // Track component mount state to prevent operations when unmounted
     useEffect(() => {
@@ -67,9 +120,6 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
         }
       }
     }, [isMounted])
-
-    // Get camera device based on type
-    const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
 
     // Frame processor for future pose detection integration
     const frameProcessor = useFrameProcessor((frame) => {
@@ -122,68 +172,109 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             throw new Error('Camera not ready for recording')
           }
 
-          try {
-            cameraRef.current!.startRecording({
-              onRecordingFinished: async (video) => {
-                log.info('VisionCamera', 'Recording finished', {
+          const createRecordingOptions = (codec: 'h264' | 'h265') => ({
+            videoCodec: codec,
+            onRecordingFinished: async (video: { path: string; duration?: number }) => {
+              log.info('VisionCamera', 'Recording finished', {
+                codec,
+                path: video.path,
+                duration: video.duration,
+                hasPath: !!video.path,
+                pathStartsWithFile: video.path?.startsWith('file://'),
+                pathLength: video.path?.length,
+              })
+
+              // Validate video path before saving
+              if (!video.path || !video.path.startsWith('file://')) {
+                log.error('VisionCamera', 'Invalid video path received', {
+                  codec,
                   path: video.path,
                   duration: video.duration,
-                  hasPath: !!video.path,
-                  pathStartsWithFile: video.path?.startsWith('file://'),
-                  pathLength: video.path?.length,
+                  expectedFormat: 'file://...',
+                })
+                onError?.('Invalid video path')
+                return
+              }
+
+              // Save video to local storage using expo-file-system
+              const filename = `recording_${Date.now()}.mp4`
+              try {
+                const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
+                  format: 'mp4',
+                  duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
                 })
 
-                // Validate video path before saving
-                if (!video.path || !video.path.startsWith('file://')) {
-                  log.error('VisionCamera', 'Invalid video path received', {
-                    path: video.path,
-                    duration: video.duration,
-                    expectedFormat: 'file://...',
-                  })
-                  onError?.('Invalid video path')
-                  return
-                }
+                log.info('VisionCamera', 'Video saved to local storage', {
+                  codec,
+                  originalPath: video.path,
+                  localUri: savedVideo.localUri,
+                  filename: savedVideo.filename,
+                  size: savedVideo.size,
+                  metadata: savedVideo.metadata,
+                })
 
-                // Save video to local storage using expo-file-system
-                const filename = `recording_${Date.now()}.mp4`
-                try {
-                  const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
-                    format: 'mp4',
-                    duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
-                  })
+                // Notify parent component about the saved video
+                onVideoRecorded?.(savedVideo.localUri)
 
-                  log.info('VisionCamera', 'Video saved to local storage', {
-                    originalPath: video.path,
-                    localUri: savedVideo.localUri,
-                    filename: savedVideo.filename,
-                    size: savedVideo.size,
-                    metadata: savedVideo.metadata,
-                  })
+                // Video saved successfully - parent component will handle navigation to player
+              } catch (saveError) {
+                log.error('VisionCamera', 'Failed to save video to local storage', {
+                  codec,
+                  videoPath: video.path,
+                  filename,
+                  error: saveError instanceof Error ? saveError.message : saveError,
+                  errorStack: saveError instanceof Error ? saveError.stack : undefined,
+                })
+                onError?.('Failed to save video')
+              }
+            },
+            onRecordingError: (error: Error) => {
+              log.error('VisionCamera', 'Recording error', {
+                codec,
+                message: error.message,
+              })
+              onError?.(error.message)
+            },
+          })
 
-                  // Notify parent component about the saved video
-                  onVideoRecorded?.(savedVideo.localUri)
+          const startRecordingWithCodec = (codec: 'h264' | 'h265') => {
+            cameraRef.current!.startRecording(createRecordingOptions(codec))
 
-                  // Video saved successfully - parent component will handle navigation to player
-                } catch (saveError) {
-                  log.error('VisionCamera', 'Failed to save video to local storage', {
-                    videoPath: video.path,
-                    filename,
-                    error: saveError instanceof Error ? saveError.message : saveError,
-                    errorStack: saveError instanceof Error ? saveError.stack : undefined,
-                  })
-                  onError?.('Failed to save video')
-                }
-              },
-              onRecordingError: (error) => {
-                log.error('VisionCamera', 'Recording error', error)
-                onError?.(error.message)
-              },
+            log.info('VisionCamera', 'Recording started', {
+              codec,
+              targetFps,
+              format: format
+                ? {
+                    width: format.videoWidth,
+                    height: format.videoHeight,
+                    minFps: format.minFps,
+                    maxFps: format.maxFps,
+                  }
+                : undefined,
             })
+          }
 
-            log.info('VisionCamera', 'Recording started')
+          try {
+            startRecordingWithCodec('h265')
           } catch (error) {
-            log.error('VisionCamera', 'Failed to start recording', error)
-            throw error
+            log.warn(
+              'VisionCamera',
+              'Failed to start recording with codec h265, attempting fallback',
+              {
+                message: error instanceof Error ? error.message : error,
+              }
+            )
+
+            try {
+              startRecordingWithCodec('h264')
+            } catch (fallbackError) {
+              log.error(
+                'VisionCamera',
+                'Failed to start recording with fallback codec h264',
+                fallbackError
+              )
+              throw fallbackError
+            }
           }
         },
 
@@ -429,6 +520,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           }}
           device={device}
           isActive={isInitialized && isCameraReady}
+          format={format}
+          fps={targetFps}
           video={true}
           audio={true}
           zoom={currentZoomLevel}

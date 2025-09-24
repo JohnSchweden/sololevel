@@ -35,7 +35,7 @@
     "@tamagui/lucide-icons": "1.132.20",
     "@tamagui/toast": "1.132.20",
     "@types/react": "^19.1.12",
-    "expo": "53.0.22",
+    "expo": "~53.0.23",
     "expo-camera": "^16.1.11",
     "expo-document-picker": "^13.1.6",
     "expo-file-system": "^18.0.4",

@@ -25,6 +25,58 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(() => Promise.resolve()),
 }))
 
+// Mock crypto for upload progress store
+Object.defineProperty(global, 'crypto', {
+  value: {
+    randomUUID: jest.fn(() => 'mock-uuid-123'),
+  },
+})
+
+// Enable Immer MapSet plugin for tests
+jest.mock('immer', () => {
+  const immer = jest.requireActual('immer')
+  immer.enableMapSet()
+  return immer
+})
+
+// Mock API functions used in the pipeline
+jest.mock('@my/api', () => ({
+  computeVideoTimingParams: jest.fn(() => ({
+    duration: 30,
+    feedbackCount: 3,
+    targetTimestamps: [10, 20, 30],
+  })),
+  startGeminiVideoAnalysis: jest.fn(() =>
+    Promise.resolve({
+      analysisId: 456,
+      status: 'queued',
+      message: 'Analysis queued successfully',
+    })
+  ),
+  uploadVideo: jest.fn(() =>
+    Promise.resolve({
+      id: 123,
+      filename: 'recorded_video.mp4',
+      storage_path: 'user123/timestamp_recorded_video.mp4',
+      upload_status: 'completed',
+    })
+  ),
+}))
+
+// Mock compression and file utilities
+jest.mock('../../../services/videoCompression', () => ({
+  compressVideo: jest.fn(() =>
+    Promise.resolve({
+      compressedUri: 'file:///compressed/video.mp4',
+      metadata: { size: 1024 * 1024, duration: 30 },
+    })
+  ),
+}))
+
+jest.mock('../../../utils/files', () => ({
+  uriToBlob: jest.fn(() => Promise.resolve(new Blob(['mock data'], { type: 'video/mp4' }))),
+}))
+
 // Mock recording state machine
 jest.mock('../hooks/useRecordingStateMachine', () => ({
   useRecordingStateMachine: jest.fn(() => ({
@@ -67,7 +119,7 @@ describe('Camera Recording Navigation Flow Integration', () => {
     jest.clearAllMocks()
   })
 
-  it('should navigate to video analysis screen when recording completes', () => {
+  it('should navigate to video analysis screen when recording completes', async () => {
     const mockOnNavigateToVideoAnalysis = jest.fn()
     const mockProps = {
       ...defaultProps,
@@ -76,9 +128,9 @@ describe('Camera Recording Navigation Flow Integration', () => {
 
     const { result } = renderHook(() => useCameraScreenLogic(mockProps))
 
-    // Simulate video recording completion
-    act(() => {
-      result.current.handleVideoRecorded('file:///recorded-video.mp4')
+    // Simulate video recording completion (now async with compression/upload/analysis)
+    await act(async () => {
+      await result.current.handleVideoRecorded('file:///recorded-video.mp4')
     })
 
     // Verify navigation callback was called with correct video URI
@@ -143,7 +195,7 @@ describe('Camera Recording Navigation Flow Integration', () => {
     expect(typeof result.current.handleTabChange).toBe('function')
   })
 
-  it('should handle multiple video recordings with navigation', () => {
+  it('should handle multiple video recordings with navigation', async () => {
     const mockOnNavigateToVideoAnalysis = jest.fn()
     const mockProps = {
       ...defaultProps,
@@ -152,13 +204,13 @@ describe('Camera Recording Navigation Flow Integration', () => {
 
     const { result } = renderHook(() => useCameraScreenLogic(mockProps))
 
-    // Simulate multiple video recordings
-    act(() => {
-      result.current.handleVideoRecorded('file:///video1.mp4')
+    // Simulate multiple video recordings (now async with compression/upload/analysis)
+    await act(async () => {
+      await result.current.handleVideoRecorded('file:///video1.mp4')
     })
 
-    act(() => {
-      result.current.handleVideoRecorded('file:///video2.mp4')
+    await act(async () => {
+      await result.current.handleVideoRecorded('file:///video2.mp4')
     })
 
     // Verify navigation was called for each video

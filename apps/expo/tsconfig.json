@@ -11,7 +11,7 @@
     "../../packages/ui/**/*.tsx",
     "../../packages/api/**/*.ts",
     "../../packages/api/**/*.tsx"
-  ],
+, "../../scripts/smoke-handleVideoRecorded.integration.smoke.tsx"  ],
   "exclude": [
     "**/node_modules",
     "**/dist",

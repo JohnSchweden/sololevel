@@ -9,7 +9,7 @@ This guide helps troubleshoot issues with switching between VisionCamera and Exp
 ```bash
 # Check which implementation is active
 yarn flag:expo  # Shows current status
-./scripts/toggle-camera.sh
+./scripts/toggles/toggle-camera.sh
 
 # Check environment variable
 cat .env.local
@@ -27,7 +27,7 @@ npx expo start --clear
 
 # Reset environment and restart
 rm .env.local
-./scripts/toggle-camera.sh vision  # or expo
+./scripts/toggles/toggle-camera.sh vision  # or expo
 npx expo start
 ```
 
@@ -158,7 +158,7 @@ rm -rf node_modules .env.local
 yarn install
 
 # Start with Expo Camera (safer)
-./scripts/toggle-camera.sh expo
+./scripts/toggles/toggle-camera.sh expo
 npx expo start --clear
 ```
 

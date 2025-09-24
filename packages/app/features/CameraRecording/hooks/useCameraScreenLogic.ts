@@ -301,7 +301,10 @@ export const useCameraScreenLogic = ({
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
         file,
-        originalFilename: metadata?.originalFilename || file.name || `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
+        originalFilename:
+          metadata?.originalFilename ||
+          file.name ||
+          `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
       })

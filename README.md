@@ -313,9 +313,9 @@ yarn flag:vision
 yarn flag:expo
 
 # Or use the direct script
-./scripts/toggle-camera.sh vision
-./scripts/toggle-camera.sh expo
-./scripts/toggle-camera.sh  # Check status
+./scripts/toggles/toggle-camera.sh vision
+./scripts/toggles/toggle-camera.sh expo
+./scripts/toggles/toggle-camera.sh  # Check status
 ```
 
 ### Manual Configuration

@@ -21,6 +21,9 @@ import {
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
 
+// Import hooks for tracking upload and analysis progress
+import { type AnalysisJob, subscribeToAnalysisJob, useUploadProgress } from '@my/api'
+
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
 
@@ -51,8 +54,9 @@ export interface VideoAnalysisScreenProps {
 
 export function VideoAnalysisScreen({
   analysisJobId,
+  videoRecordingId,
   videoUri,
-  // videoRecordingId and initialStatus are available but not used in current implementation
+  initialStatus = 'processing', // Default to processing when coming from recording
   onBack,
   onMenuPress,
 }: VideoAnalysisScreenProps) {
@@ -69,9 +73,62 @@ export function VideoAnalysisScreen({
     })
   }
 
-  // STEP 1: Ultra-minimalist version - just show video
-  const [isProcessing, setIsProcessing] = useState(true)
+  // STEP 1: Track processing state based on upload and analysis progress
+  const [isProcessing, setIsProcessing] = useState(initialStatus === 'processing')
   const videoControlsRef = useRef<VideoControlsRef>(null)
+
+  // Track upload progress if we have a video recording ID
+  const { data: uploadProgress } = useUploadProgress(videoRecordingId || 0)
+
+  // Track analysis job progress via realtime subscription
+  const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null)
+
+  // Determine if we should show processing based on upload and analysis state
+  const shouldShowProcessing = useMemo(() => {
+    // Show processing if upload is in progress
+    if (
+      uploadProgress &&
+      (uploadProgress.status === 'pending' || uploadProgress.status === 'uploading')
+    ) {
+      return true
+    }
+
+    // Show processing if analysis is queued or processing
+    if (analysisJob && (analysisJob.status === 'queued' || analysisJob.status === 'processing')) {
+      return true
+    }
+
+    // If we have no upload/analysis data yet, use initialStatus
+    if (!uploadProgress && !analysisJob) {
+      return initialStatus === 'processing'
+    }
+
+    // Hide processing if both upload and analysis are complete or failed
+    return false
+  }, [uploadProgress, analysisJob, initialStatus])
+
+  // Update processing state when shouldShowProcessing changes
+  useEffect(() => {
+    setIsProcessing(shouldShowProcessing)
+  }, [shouldShowProcessing])
+
+  // Set up realtime subscription for analysis job updates
+  useEffect(() => {
+    if (!analysisJobId) return
+
+    log.info('[VideoAnalysisScreen] Setting up analysis job subscription', { analysisJobId })
+
+    const unsubscribe = subscribeToAnalysisJob(analysisJobId, (job) => {
+      log.info('[VideoAnalysisScreen] Analysis job update received', {
+        jobId: job.id,
+        status: job.status,
+        progress: job.progress_percentage,
+      })
+      setAnalysisJob(job)
+    })
+
+    return unsubscribe
+  }, [analysisJobId])
 
   // Video playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -197,23 +254,13 @@ export function VideoAnalysisScreen({
   const recordedVideoUri =
     videoUri || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
 
-  // STEP 1: Simple processing simulation - complete after 3 seconds
+  // Auto-start video playback when processing is complete
   useEffect(() => {
-    if (log && log.info) {
-      log.info('[VideoAnalysisScreen] Starting processing simulation')
-    }
-
-    const timer = setTimeout(() => {
-      if (log && log.info) {
-        log.info('[VideoAnalysisScreen] Processing completed')
-      }
-      setIsProcessing(false)
-      // Auto-start video playback when processing is complete
+    if (!isProcessing && !isPlaying) {
+      log.info('[VideoAnalysisScreen] Processing completed, auto-starting video playback')
       setIsPlaying(true)
-    }, 3000)
-
-    return () => clearTimeout(timer)
-  }, [])
+    }
+  }, [isProcessing, isPlaying])
 
   // Cleanup bubble timer when component unmounts
   useEffect(() => {

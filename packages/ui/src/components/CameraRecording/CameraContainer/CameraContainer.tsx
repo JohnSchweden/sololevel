@@ -9,6 +9,7 @@ export interface CameraContainerProps {
   header?: ReactNode
   bottomNavigation?: ReactNode
   backgroundColor?: GetProps<typeof YStack>['backgroundColor']
+  testID?: string
 }
 
 /**
@@ -21,12 +22,14 @@ export function CameraContainer({
   header,
   bottomNavigation,
   backgroundColor = 'black',
+  testID,
 }: CameraContainerProps) {
   return (
     <YStack
       flex={1}
       backgroundColor={backgroundColor}
       position="relative"
+      testID={testID}
     >
       {/* Camera Preview Area - Full flex container */}
       <YStack

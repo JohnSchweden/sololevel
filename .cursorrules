@@ -46,7 +46,6 @@
       "echo * >> .env.production"
     ]
   },
-
   "_comment": "Command validation system with confirmation",
   "validation": {
     "enabled": true,

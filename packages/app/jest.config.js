@@ -37,6 +37,7 @@ module.exports = {
     '^@my/app/(.*)$': '<rootDir>/$1',
     '^@my/api/(.*)$': '<rootDir>/../api/src/$1',
     '^@my/config/(.*)$': '<rootDir>/../config/src/$1',
+    'react-native-compressor': '<rootDir>/__mocks__/react-native-compressor.ts',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?react-native|@react-native|@expo|expo|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@react-navigation|@shopify/react-native-skia|react-native-reanimated)',

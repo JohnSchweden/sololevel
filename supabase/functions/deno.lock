@@ -1041,6 +1041,13 @@
   "redirects": {
     "https://deno.land/types/index.d.ts": "https://deno.com/types/index.d.ts"
   },
+  "remote": {
+    "https://deno.land/x/opus@0.1.1/mod.ts": "147af5927fbc824e069a96494751d5aab7d58b4fa10d3281bf67afd79dee63e0",
+    "https://deno.land/x/opus@0.1.1/opus.ts": "66258c4487b956ba1ecc98d60d9cd62aef93fdd8a5c98d6fe9105f9e39daecc6",
+    "https://deno.land/x/opus@0.1.1/pack/opuswasm.js": "3f7117456651a6e426fe5e22ecf02325278cac1bd0f6f42e62f0b97ed0a87601",
+    "https://esm.sh/@ffmpeg/ffmpeg@0.12.10": "c6a5c19fd7fb2e8995e5bf08dde5b85eae3e9d192b2f53319eaa81138889ab9e",
+    "https://esm.sh/@ffmpeg/ffmpeg@0.12.10/denonext/ffmpeg.mjs": "04cfa881c933527f22a3d7f99a888b404b05c90f12acb9270c50082e0171a286"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@supabase/supabase-js@2",

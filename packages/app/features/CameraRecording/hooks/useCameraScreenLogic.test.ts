@@ -48,8 +48,8 @@ jest.mock('../../../utils/files', () => ({
 import { startGeminiVideoAnalysis, uploadVideo } from '@my/api'
 import { act, renderHook } from '@testing-library/react-hooks'
 import { compressVideo } from '../../../services/videoCompression'
-import { uriToBlob } from '../../../utils/files'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
+import { uriToBlob } from '../../../utils/files'
 import { useCameraScreenLogic } from './useCameraScreenLogic'
 
 const mockCompressVideo = compressVideo as jest.MockedFunction<typeof compressVideo>

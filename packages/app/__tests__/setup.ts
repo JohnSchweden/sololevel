@@ -1,5 +1,9 @@
 // Jest setup for app package
 import 'react-native-gesture-handler/jestSetup'
+import { enableMapSet } from 'immer'
+
+// Enable Immer MapSet plugin for Zustand stores
+enableMapSet()
 
 // Mock Expo modules
 jest.mock('expo-router', () => ({
@@ -182,9 +186,18 @@ jest.mock('@my/config', () => ({
   FeedbackItem: {},
 }))
 
-// Mock @api/src/supabase
-jest.mock('@api/src/supabase', () => ({
+// Mock @my/api
+jest.mock('@my/api', () => ({
   supabase: {
+    auth: {
+      signInWithPassword: jest.fn(() =>
+        Promise.resolve({ data: { user: { id: 'test-user-id' } }, error: null })
+      ),
+      getUser: jest.fn(() =>
+        Promise.resolve({ data: { user: { id: 'test-user-id' } }, error: null })
+      ),
+      signOut: jest.fn(() => Promise.resolve({ error: null })),
+    },
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn(),
@@ -193,7 +206,68 @@ jest.mock('@api/src/supabase', () => ({
     realtime: {
       onConnStateChange: jest.fn(),
     },
+    storage: {
+      from: jest.fn(() => ({
+        createSignedUploadUrl: jest.fn(() =>
+          Promise.resolve({
+            data: { signedUrl: 'http://test-signed-url', path: 'test-path' },
+            error: null,
+          })
+        ),
+        upload: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+    },
+    from: jest.fn(() => ({
+      insert: jest.fn(() => ({
+        select: jest.fn(() => ({
+          single: jest.fn(() =>
+            Promise.resolve({
+              data: { id: 123, filename: 'test.mp4' },
+              error: null,
+            })
+          ),
+        })),
+      })),
+      update: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          select: jest.fn(() => ({
+            single: jest.fn(() =>
+              Promise.resolve({
+                data: { id: 123, filename: 'test.mp4' },
+                error: null,
+              })
+            ),
+          })),
+        })),
+      })),
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: jest.fn(() =>
+            Promise.resolve({
+              data: { id: 123, filename: 'test.mp4' },
+              error: null,
+            })
+          ),
+        })),
+      })),
+    })),
+    rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    functions: {
+      invoke: jest.fn(() =>
+        Promise.resolve({
+          data: { analysisId: 123, status: 'queued' },
+          error: null,
+        })
+      ),
+    },
   },
+  getAnalysisJobByVideoId: jest.fn(() =>
+    Promise.resolve({
+      id: 123,
+      status: 'completed',
+      results: { test: 'results' },
+    })
+  ),
 }))
 
 // Mock TanStack Query
@@ -413,6 +487,13 @@ jest.mock('react-native/Libraries/StyleSheet/StyleSheet', () => ({
   absoluteFillObject: {},
   hairlineWidth: 1,
 }))
+
+// Mock crypto for UUID generation
+Object.defineProperty(global, 'crypto', {
+  value: {
+    randomUUID: jest.fn(() => 'test-uuid-' + Math.random().toString(36).substr(2, 9)),
+  },
+})
 
 // Mock console methods to reduce noise in tests
 global.console = {

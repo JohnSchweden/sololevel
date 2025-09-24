@@ -22,6 +22,11 @@ export interface IdleControlsProps {
   // Camera swap visual feedback
   isCameraSwapping?: boolean
   cameraSwapTransitionDuration?: number
+  // Test IDs for Detox testing
+  testID?: string
+  recordButtonTestID?: string
+  uploadButtonTestID?: string
+  cameraSwapButtonTestID?: string
 }
 
 /**
@@ -42,6 +47,10 @@ export function IdleControls({
   uploadProgress = 0,
   isCameraSwapping = false,
   cameraSwapTransitionDuration = 300, // Used for accessibility and future animation timing
+  testID,
+  recordButtonTestID = 'record-button',
+  uploadButtonTestID = 'upload-button',
+  cameraSwapButtonTestID = 'camera-swap-button',
 }: IdleControlsProps) {
   const [isRecordPressed, setIsRecordPressed] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
@@ -78,6 +87,7 @@ export function IdleControls({
     <YStack
       alignItems="center"
       gap="$4"
+      testID={testID}
     >
       {/* Main Control Row */}
       <XStack
@@ -92,6 +102,7 @@ export function IdleControls({
           size="$3"
           onPress={handleUploadVideo}
           disabled={disabled || showUploadProgress}
+          testID={uploadButtonTestID}
           icon={
             <Upload
               size="$1.5"
@@ -121,6 +132,7 @@ export function IdleControls({
           onPressOut={() => setIsRecordPressed(false)}
           disabled={disabled}
           style={{ zIndex: 10 }}
+          testID={recordButtonTestID}
           accessibilityRole="button"
           accessibilityLabel="Start recording"
           accessibilityHint="Press to start recording a new video"
@@ -160,6 +172,7 @@ export function IdleControls({
             }
           }}
           disabled={disabled || cameraSwapDisabled || isCameraSwapping}
+          testID={cameraSwapButtonTestID}
           icon={
             <SwitchCamera
               size="$1.5"

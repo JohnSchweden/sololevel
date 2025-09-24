@@ -15,6 +15,11 @@ export interface VideoUploadOptions {
   format: 'mp4' | 'mov'
   onProgress?: (progress: number) => void
   onError?: (error: Error) => void
+  onUploadInitialized?: (details: {
+    recordingId: number
+    sessionId: number
+    storagePath: string
+  }) => void
 }
 
 export interface UploadProgress {
@@ -36,9 +41,17 @@ export async function createSignedUploadUrl(
   filename: string,
   fileSize: number
 ): Promise<{ signedUrl: string; path: string }> {
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write('createSignedUploadUrl called\n')
+  }
+
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
     throw new Error('User not authenticated')
+  }
+
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write(`User authenticated: ${user.data.user.id}\n`)
   }
 
   // Basic file size validation (can be enhanced with more specific limits)
@@ -49,6 +62,13 @@ export async function createSignedUploadUrl(
   // Generate unique storage path
   const timestamp = Date.now()
   const path = `${user.data.user.id}/${timestamp}_${filename}`
+
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write(`Generated path: ${path}\n`)
+    process.stdout.write(
+      `Calling supabase.storage.from('${BUCKET_NAME}').createSignedUploadUrl...\n`
+    )
+  }
 
   // Create signed URL for upload
   const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUploadUrl(path, {
@@ -131,7 +151,22 @@ export async function createUploadSession(
  * Upload video file with progress tracking
  */
 export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRecording> {
-  const { file, originalFilename, durationSeconds, format, onProgress, onError } = options
+  const {
+    file,
+    originalFilename,
+    durationSeconds,
+    format,
+    onProgress,
+    onError,
+    onUploadInitialized,
+  } = options
+
+  // Debug output for testing
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write(
+      `uploadVideo called with file size: ${file.size}, filename: ${originalFilename}\n`
+    )
+  }
 
   try {
     // Validate file
@@ -147,7 +182,13 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     const filename = originalFilename || `video_${Date.now()}.${format}`
 
     // Create signed URL
+    if (typeof process !== 'undefined' && process.stdout) {
+      process.stdout.write('Creating signed upload URL...\n')
+    }
     const { signedUrl, path } = await createSignedUploadUrl(filename, file.size)
+    if (typeof process !== 'undefined' && process.stdout) {
+      process.stdout.write(`Signed URL created: ${signedUrl.substring(0, 50)}...\n`)
+    }
 
     // Create video recording record
     const recording = await createVideoRecording({
@@ -163,13 +204,36 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     // Create upload session
     const session = await createUploadSession(recording.id, signedUrl, file.size)
 
+    // Notify that upload is initialized with actual recording info
+    onUploadInitialized?.({
+      recordingId: recording.id,
+      sessionId: session.id,
+      storagePath: recording.storage_path,
+    })
+
     // Update recording status to uploading
     await updateVideoRecording(recording.id, {
       upload_status: 'uploading',
     })
 
     // Upload file with progress tracking
-    await uploadWithProgress(signedUrl, file, recording.id, session.id, onProgress)
+    if (typeof process !== 'undefined' && process.stdout) {
+      process.stdout.write('Starting uploadWithProgress...\n')
+    }
+    try {
+      await uploadWithProgress(signedUrl, file, recording.id, session.id, onProgress)
+      if (typeof process !== 'undefined' && process.stdout) {
+        process.stdout.write('uploadWithProgress completed successfully\n')
+      }
+    } catch (uploadError) {
+      const errorMessage =
+        uploadError instanceof Error ? uploadError.message : 'Unknown upload error'
+      if (typeof process !== 'undefined' && process.stdout) {
+        process.stdout.write(`uploadWithProgress failed: ${errorMessage}\n`)
+      }
+      await updateUploadProgress(recording.id, session.id, 0, 0)
+      throw uploadError
+    }
 
     // Update recording status to completed
     const completedRecording = await updateVideoRecording(recording.id, {
@@ -195,6 +259,41 @@ async function uploadWithProgress(
   sessionId: number,
   onProgress?: (progress: number) => void
 ): Promise<void> {
+  process.stdout.write('uploadWithProgress: starting upload\n')
+
+  // Use fetch for Node/jsdom environments or Jest tests where XMLHttpRequest doesn't perform real network calls
+  if (typeof XMLHttpRequest === 'undefined' || process.env.JEST_WORKER_ID) {
+    process.stdout.write('uploadWithProgress: using fetch path\n')
+
+    try {
+      process.stdout.write('uploadWithProgress: calling fetch...\n')
+      const response = await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'video/mp4',
+        },
+      })
+
+      process.stdout.write(`uploadWithProgress: fetch response status: ${response.status}\n`)
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`)
+      }
+
+      // Update progress to 100% on success
+      updateUploadProgress(recordingId, sessionId, file.size, 100)
+      onProgress?.(100)
+      process.stdout.write('uploadWithProgress: completed successfully\n')
+      return
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      process.stdout.write(`uploadWithProgress: fetch failed: ${errorMessage}\n`)
+      throw new Error(`Upload failed: ${errorMessage}`)
+    }
+  }
+
+  // Use XMLHttpRequest for web environments
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
 

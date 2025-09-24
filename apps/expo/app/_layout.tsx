@@ -10,6 +10,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
 import { useColorScheme } from 'react-native'
+//import * as Linking from 'expo-linking'
 
 import { log } from '@my/logging'
 log.info('_layout.tsx', 'Module loaded, React version:', React.version)
@@ -59,6 +60,19 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme()
   log.info('_layout.tsx', 'Color scheme:', colorScheme)
 
+  // // Auto-deeplink to Metro on simulator startup (prevents Expo Dev Launcher)
+  // const didOpen = useRef(false)
+  // useEffect(() => {
+  //   if (__DEV__ && !didOpen.current) {
+  //     didOpen.current = true
+  //     const devUrl = 'exp+sololevel://expo-development-client/?url=http://localhost:8081'
+  //     log.info('_layout.tsx', 'Auto-opening dev URL:', devUrl)
+  //     Linking.openURL(devUrl).catch((error) => {
+  //       log.warn('_layout.tsx', 'Failed to auto-open dev URL:', error)
+  //     })
+  //   }
+  // }, [])
+
   try {
     log.info('_layout.tsx', 'About to render Provider')
     return (
@@ -81,6 +95,13 @@ function RootLayoutNav() {
                     options={{
                       title: 'Video Analysis',
                       headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="dev/compress-test"
+                    options={{
+                      title: 'Compression Test',
+                      headerShown: true,
                     }}
                   />
                 </Stack>

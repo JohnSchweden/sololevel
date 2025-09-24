@@ -12,6 +12,12 @@ jest.mock('@my/logging', () => ({
   },
 }))
 
+// Mock @my/api hooks
+jest.mock('@my/api', () => ({
+  useUploadProgress: jest.fn(() => ({ data: null })),
+  subscribeToAnalysisJob: jest.fn(() => jest.fn()), // Returns unsubscribe function
+}))
+
 // Mock LayoutAnimation from react-native
 jest.mock('react-native', () => ({
   LayoutAnimation: {

@@ -50,6 +50,8 @@ export interface UploadProgressStore {
       'id' | 'progress' | 'bytesUploaded' | 'startTime' | 'endTime' | 'retryCount'
     >
   ) => string
+  initializeUploadTask: (taskId: string, metadata: { fileSize?: number }) => void
+  setUploadTaskRecordingId: (taskId: string, videoRecordingId: number) => void
   updateUploadProgress: (taskId: string, progress: Partial<UploadProgress>) => void
   setUploadStatus: (taskId: string, status: UploadStatus, error?: string) => void
   retryUpload: (taskId: string) => void
@@ -116,10 +118,56 @@ export const useUploadProgressStore = create<UploadProgressStore>()(
         })
 
         // Auto-process queue
-        get().processQueue()
+        // We don't automatically process; tasks are initialized explicitly when upload starts
 
         return taskId
       },
+
+      // Initialize upload task with real metadata and move to active state
+      initializeUploadTask: (taskId, metadata) =>
+        set((draft) => {
+          const pendingIndex = draft.queue.pending.findIndex((task) => task.id === taskId)
+          if (pendingIndex === -1) {
+            return
+          }
+
+          const task = draft.queue.pending[pendingIndex]
+          if (metadata.fileSize !== undefined) {
+            draft.totalBytesToUpload += metadata.fileSize - task.fileSize
+            task.fileSize = metadata.fileSize
+          }
+
+          task.status = 'uploading'
+          task.startTime = Date.now()
+
+          draft.queue.pending.splice(pendingIndex, 1)
+          draft.queue.active.push(task)
+          draft.activeUploads.set(taskId, task)
+          draft.isUploading = true
+        }),
+
+      setUploadTaskRecordingId: (taskId, videoRecordingId) =>
+        set((draft) => {
+          const task = draft.activeUploads.get(taskId)
+          if (task) {
+            task.videoRecordingId = videoRecordingId
+          }
+
+          const pendingTask = draft.queue.pending.find((t) => t.id === taskId)
+          if (pendingTask) {
+            pendingTask.videoRecordingId = videoRecordingId
+          }
+
+          const completedTask = draft.queue.completed.find((t) => t.id === taskId)
+          if (completedTask) {
+            completedTask.videoRecordingId = videoRecordingId
+          }
+
+          const failedTask = draft.queue.failed.find((t) => t.id === taskId)
+          if (failedTask) {
+            failedTask.videoRecordingId = videoRecordingId
+          }
+        }),
 
       // Update upload progress
       updateUploadProgress: (taskId, progressUpdate) =>

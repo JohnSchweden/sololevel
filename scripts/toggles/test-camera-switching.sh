@@ -15,7 +15,7 @@ test_implementation() {
     echo "Testing $impl implementation..."
     
     # Switch implementation
-    ./scripts/toggle-camera.sh $impl
+    ./toggle-camera.sh $impl
     
     # Check environment
     if [ -f ".env.local" ]; then
@@ -71,7 +71,7 @@ if [ "$VISION_PASSED" = true ] && [ "$EXPO_PASSED" = true ]; then
     echo "Next steps:"
     echo "1. Run 'yarn expo start' to test in Expo Go (uses Expo Camera)"
     echo "2. Build native app to test VisionCamera implementation"
-    echo "3. Use './scripts/toggle-camera.sh' to switch between implementations"
+    echo "3. Use './scripts/toggles/toggle-camera.sh' to switch between implementations"
 else
     echo ""
     echo "❌ Some tests failed. Check the troubleshooting guide:"

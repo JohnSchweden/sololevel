@@ -31,6 +31,7 @@ export {
 
 // Export services (explicit to avoid conflicts)
 // Video upload service
+export { uploadVideo } from './services/videoUploadService'
 export type {
   UploadProgress,
   UploadSession,
@@ -51,6 +52,8 @@ export {
   updateAnalysisJobWithPoseData,
   startGeminiVideoAnalysis,
   computeVideoTimingParams,
+  subscribeToAnalysisJob,
+  getAnalysisJobByVideoId,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,
   __mockUpdateAnalysisJob,

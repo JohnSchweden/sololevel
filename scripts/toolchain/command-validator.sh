@@ -8,6 +8,9 @@
 # - echo "SUPABASE_SERVICE_ROLE_KEY=..." > .env
 # - echo "..." >> .env
 
+# Global array for blocked commands
+declare -a BLOCKED_COMMANDS
+
 # Function to load blocked commands from .cursorrules
 load_blocked_commands() {
     local rules_file=".cursorrules"
@@ -18,7 +21,7 @@ load_blocked_commands() {
 
     # Use Node.js to parse JSON and extract blocked commands
     local commands
-    commands=$(node -e "
+    if ! commands=$(node -e "
         try {
             const fs = require('fs');
             const rules = JSON.parse(fs.readFileSync('$rules_file', 'utf8'));
@@ -28,15 +31,12 @@ load_blocked_commands() {
             console.error('Error parsing .cursorrules:', e.message);
             process.exit(1);
         }
-    " 2>/dev/null)
-
-    if [[ $? -ne 0 ]]; then
-        echo "Failed to parse .cursorrules"
+    " 2>&1); then
+        echo "Failed to execute Node.js command"
         return 1
     fi
 
     # Convert to bash array
-    BLOCKED_COMMANDS=()
     while IFS= read -r line; do
         if [[ -n "$line" ]]; then
             BLOCKED_COMMANDS+=("$line")
@@ -49,6 +49,11 @@ load_blocked_commands() {
 # Function to check if command is blocked
 is_blocked() {
     local cmd="$1"
+
+    # Ensure array is initialized
+    if [[ ! -v BLOCKED_COMMANDS ]]; then
+        declare -a BLOCKED_COMMANDS
+    fi
 
     # Load blocked commands if not already loaded
     if [[ ${#BLOCKED_COMMANDS[@]} -eq 0 ]]; then
