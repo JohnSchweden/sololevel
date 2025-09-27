@@ -11,6 +11,7 @@ import { handleStatus } from './routes/handleStatus.ts'
 import { handleTTS } from './routes/handleTTS.ts'
 // Import route handlers
 import { handleTestEnv } from './routes/handleTestEnv.ts'
+import { handleWebhookStart } from './routes/handleWebhookStart.ts'
 
 // Import Gemini modules for pipeline injection
 import { analyzeVideoWithGemini as _analyzeVideoWithGemini } from './gemini-llm-analysis.ts'
@@ -57,6 +58,11 @@ Deno.serve(async (req) => {
     // Route: POST /ai-analyze-video/tts - TTS generation endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video/tts') {
       return handleTTS({ req, supabase, logger })
+    }
+
+    // Route: POST /ai-analyze-video/webhook - DB webhook auto-pickup endpoint
+    if (req.method === 'POST' && path === '/ai-analyze-video/webhook') {
+      return handleWebhookStart({ req, supabase, logger })
     }
 
     // Route: POST /ai-analyze-video/upload-test - Test file upload endpoint

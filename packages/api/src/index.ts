@@ -8,8 +8,12 @@ export * from './validation'
 // Export error handling utilities
 export * from './supabase-errors'
 
-// Export auth utilities (to be implemented)
-// export * from './auth'
+// Export auth utilities
+export * from './auth/authClient'
+export * from './auth/authErrorMapping'
+
+// Export RLS utilities
+export * from './utils/rlsHelpers'
 
 // Export query hooks (explicit to avoid conflicts)
 export * from './hooks/useUser'

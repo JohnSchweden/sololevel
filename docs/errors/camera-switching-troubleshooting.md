@@ -23,12 +23,12 @@ cat .env.local
 **Solutions**:
 ```bash
 # Clear Metro cache and restart
-npx expo start --clear
+yarn native --clear
 
 # Reset environment and restart
 rm .env.local
 ./scripts/toggles/toggle-camera.sh vision  # or expo
-npx expo start
+yarn native
 ```
 
 #### 2. Permission Issues
@@ -47,7 +47,7 @@ npx expo start
 # Clean all caches
 yarn clean
 rm -rf node_modules/.cache
-npx expo start --clear
+yarn native --clear
 
 # Reinstall dependencies
 rm -rf node_modules yarn.lock
@@ -80,7 +80,7 @@ yarn why react-native-vision-camera
 yarn why expo-camera
 
 # Update Expo SDK if needed
-npx expo install --fix
+yarn expo install --fix
 ```
 
 ## Debug Commands
@@ -159,7 +159,7 @@ yarn install
 
 # Start with Expo Camera (safer)
 ./scripts/toggles/toggle-camera.sh expo
-npx expo start --clear
+yarn native --clear
 ```
 
 ## Support

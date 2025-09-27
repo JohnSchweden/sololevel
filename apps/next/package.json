@@ -7,7 +7,7 @@
     "dev": "yarn expo start --web",
     "build": "expo export --platform web",
     "start": "yarn expo start --web",
-    "serve": "npx serve dist -p 8151",
+    "serve": "yarn serve dist -p 8151",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
@@ -51,6 +51,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@expo/metro-config": "^0.20.17",
+    "@testing-library/jest-dom": "^6.8.0",
     "@types/babel__core": "^7",
     "@types/babel__plugin-transform-runtime": "^7",
     "@types/babel__preset-env": "^7",

@@ -50,8 +50,6 @@ export interface AnalysisResults {
 // TRD-compliant analysis result structure
 export interface TRDAnalysisResult {
   summary_text?: string
-  ssml?: string
-  audio_url?: string
   metrics?: Record<
     string,
     {
@@ -487,17 +485,13 @@ export async function storeAnalysisResults(
   results: TRDAnalysisResult
 ): Promise<{ data: boolean; error: string | null }> {
   try {
-    const { summary_text, ssml, audio_url, metrics } = results
-
-    // Convert metrics to JSONB format for the function
+    const { summary_text, metrics } = results
     const metricsJsonb = metrics ? JSON.stringify(metrics) : '{}'
 
     const { error } = await (supabase.rpc as any)('store_enhanced_analysis_results', {
       analysis_job_id: analysisJobId,
       p_full_feedback_text: summary_text || undefined,
       p_summary_text: summary_text || undefined,
-      p_ssml: ssml || undefined,
-      p_audio_url: audio_url || undefined,
       p_processing_time_ms: null,
       p_video_source_type: null,
       p_feedback: '[]',
@@ -528,16 +522,14 @@ export async function getAnalysisWithMetrics(analysisJobId: number): Promise<{
     status: string
     progress_percentage: number
     summary_text: string | null
-    ssml: string | null
-    audio_url: string | null
     created_at: string
     updated_at: string
-    metrics: any // Using any for now since JSONB can be complex
+    metrics: any
   } | null
   error: string | null
 }> {
   try {
-    const { data, error } = await (supabase.rpc as any)('get_complete_analysis', {
+    const { data, error } = await (supabase.rpc as any)('get_analysis_with_metrics', {
       job_id: analysisJobId,
     })
 
@@ -603,7 +595,7 @@ export interface VideoTimingParams {
 
 export interface AIAnalysisRequest {
   videoPath: string
-  userId: string
+  // userId is now extracted from JWT token on the server side
   videoSource?: 'live_recording' | 'uploaded_video'
   timingParams?: VideoTimingParams
 }
@@ -677,12 +669,11 @@ export function computeVideoTimingParams(
 export async function startGeminiVideoAnalysis(
   request: AIAnalysisRequest
 ): Promise<AIAnalysisResponse> {
-  const { videoPath, userId, videoSource = 'uploaded_video', timingParams } = request
+  const { videoPath, videoSource = 'uploaded_video', timingParams } = request
 
   const { data, error } = await supabase.functions.invoke('ai-analyze-video', {
     body: {
       videoPath,
-      userId,
       videoSource,
       startTime: timingParams?.startTime,
       endTime: timingParams?.endTime,

@@ -1,6 +1,21 @@
 // Mock React Native components that might be imported (hoisted)
 import { vi } from 'vitest'
 
+// Mock environment variables for consistent testing
+process.env.TEST_AUTH_ENABLED = 'false'
+process.env.TEST_AUTH_EMAIL = 'test@example.com'
+process.env.TEST_AUTH_PASSWORD = 'test-password'
+process.env.SUPABASE_URL = 'https://test.supabase.co'
+process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+
+if (!process.env.NODE_ENV) {
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: true,
+  })
+}
+
 // Mock react-native-svg before any imports
 vi.mock('react-native-svg', () => {
   const React = require('react')

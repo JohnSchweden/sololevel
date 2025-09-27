@@ -19,12 +19,25 @@ globs:
 ---
 
 ## Purpose
-Operational rules for day-to-day development: commands, Yarn 4 workspaces, dependency strategy, testing and CI gates. Pairs with `core/monorepo-foundation.mdc` for architecture and structure.
+Defines operational standards for daily development activities, including command usage, Yarn 4 workspace management, dependency handling, testing, and CI requirements. Complements architectural guidance in `core/monorepo-foundation.mdc`.
 
 ## Meta
-- Rule Owner: Platform
+- Rule Owner: Platform Team
 - Last Reviewed: 2025-09-06
-- Related: `core/monorepo-foundation.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `core/typescript-standards.mdc`
+- Related Documents: 
+  - `core/monorepo-foundation.mdc`
+  - `quality/testing-unified.mdc`
+  - `quality/error-handling.mdc`
+  - `quality/performance.mdc`
+  - `core/typescript-standards.mdc`
+
+## TL;DR — Do This First
+- Use Yarn 4 only; never use npm/pnpm/npx. Enable via `corepack enable`.
+- Install with `yarn install --immutable`. Start with `yarn dev`.
+- Run apps with `yarn native` (Expo) and `yarn web` (Next). Kill with `pkill -f "yarn native"` or `pkill -f "yarn web"`.
+- Scope work to workspaces: `yarn workspace <name> run <script>`.
+- Supabase CLI via `yarn dlx supabase <command>` only.
+- Before PR: `yarn type-check:all`, `yarn lint:all`, and `yarn build` must pass.
 
 ## Essential Commands
 ```bash
@@ -158,12 +171,13 @@ jobs:
   - Runs `yarn type-check` and `yarn lint` on every commit
 - Optionally add lint-staged to run Biome only on changed files
 
-## Typical Developer Loop
-1. `yarn dev` to start Turbo pipelines
-2. Implement feature in `packages/app` and/or `packages/ui`
-3. `yarn type-check` and unit tests locally
-4. Run web/native as needed: `yarn web`, `yarn native`
-5. Commit with lint-staged hooks; open PR with CI checks
+## Step-by-step Developer Workflow (think first, then execute)
+1. Enable toolchain and install once: `corepack enable` → `yarn install --immutable`.
+2. Start pipelines: `yarn dev`. Run the specific app via `yarn web` or `yarn native`.
+3. Implement in `packages/app` and/or `packages/ui`; use workspace scripts (`yarn workspace <name> run <script>`).
+4. Validate locally: `yarn type-check` → run unit/e2e tests as needed.
+5. Lint/format with Biome per hooks; ensure `yarn build` passes.
+6. Commit; open PR. CI must pass type-check, lint, build, and security audit.
 
 ## Workspace Commands Reference
 ```bash
@@ -201,6 +215,11 @@ yarn test --exclude expo-app              # Exclude native from tests
 - Integrity: `yarn workspaces foreach run build --check-cache`
 - Dedupe: `yarn dedupe`
 
+## Knowledge Boundaries (use only these sources)
+- Use repository rules/docs and workspace scripts; do not invent external commands.
+- Package management is Yarn 4 only. Supabase commands must be run via `yarn dlx supabase`.
+- Prefer workspace-scoped scripts over ad-hoc commands; follow path aliases and monorepo structure.
+
 ## Cross-Links
 - Architecture & structure → `core/monorepo-foundation.mdc`
 - Error handling patterns → `quality/error-handling.mdc`
@@ -210,4 +229,10 @@ yarn test --exclude expo-app              # Exclude native from tests
 ## Security & Maintenance
 - Use Renovate/Dependabot for regular dependency updates
 - Security auditing handled in Quality Gates section
+
+## REMEMBER
+- Yarn 4 only; no npm/pnpm/npx. CI installs with `yarn install --immutable`.
+- Use workspace-scoped commands and keep internal deps as `workspace:*`.
+- Supabase via `yarn dlx supabase` only.
+- PRs must pass type-check, lint, build, and security checks.
 

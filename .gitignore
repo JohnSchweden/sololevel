@@ -11,6 +11,10 @@ dist
 # cursor rules
 .cursor/analytics.md
 
+# playwright auth state (contains sensitive data)
+e2e/auth-state.json
+e2e/setup-failure.png
+
 # expo
 **/.expo/*
 

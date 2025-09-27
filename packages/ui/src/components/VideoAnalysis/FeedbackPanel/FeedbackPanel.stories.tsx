@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { FeedbackPanel } from './FeedbackPanel'
+import { FeedbackPanel, type FeedbackPanelProps } from './FeedbackPanel'
 
 const meta: Meta<typeof FeedbackPanel> = {
   title: 'VideoAnalysis/FeedbackPanel',
@@ -13,34 +13,45 @@ const meta: Meta<typeof FeedbackPanel> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const mockFeedbackItems = [
+const mockFeedbackItems: FeedbackPanelProps['feedbackItems'] = [
   {
-    id: '1',
-    timestamp: 1000,
-    text: 'Great posture! Keep your back straight and maintain good balance.',
-    type: 'positive' as const,
-    category: 'posture' as const,
+    id: 'feedback-1',
+    timestamp: 12,
+    text: 'Nice job keeping your shoulders relaxed!',
+    type: 'positive',
+    category: 'posture',
+    ssmlStatus: 'completed',
+    audioStatus: 'completed',
+    ssmlAttempts: 1,
+    audioAttempts: 1,
+    ssmlLastError: null,
+    audioLastError: null,
   },
   {
-    id: '2',
-    timestamp: 2000,
-    text: 'Try bending your knees slightly for better stability.',
-    type: 'suggestion' as const,
-    category: 'movement' as const,
+    id: 'feedback-2',
+    timestamp: 28,
+    text: 'Lift your chin slightly to improve posture alignment.',
+    type: 'suggestion',
+    category: 'voice',
+    ssmlStatus: 'processing',
+    audioStatus: 'queued',
+    ssmlAttempts: 2,
+    audioAttempts: 0,
+    ssmlLastError: null,
+    audioLastError: null,
   },
   {
-    id: '3',
-    timestamp: 3000,
-    text: 'Grip the club more firmly with your left hand.',
-    type: 'correction' as const,
-    category: 'grip' as const,
-  },
-  {
-    id: '4',
-    timestamp: 4000,
-    text: 'Your swing tempo is excellent. Keep that rhythm consistent.',
-    type: 'positive' as const,
-    category: 'movement' as const,
+    id: 'feedback-3',
+    timestamp: 45,
+    text: 'Try gripping the club without squeezing too hard.',
+    type: 'correction',
+    category: 'grip',
+    ssmlStatus: 'failed',
+    audioStatus: 'failed',
+    ssmlAttempts: 3,
+    audioAttempts: 2,
+    ssmlLastError: 'TTS provider timeout',
+    audioLastError: 'Audio upload failed',
   },
 ]
 

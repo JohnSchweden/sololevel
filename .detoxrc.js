@@ -14,23 +14,23 @@ module.exports = {
       type: 'ios.app',
       binaryPath: 'apps/expo/ios/build/Build/Products/Debug-iphonesimulator/sololevel.app',
       build:
-        'cd apps/expo && EXPO_NO_TELEMETRY=1 npx expo run:ios --configuration Debug --device "iPhone 15"',
+        'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn ios --configuration Debug --device "iPhone 15"',
     },
     'ios.release': {
       type: 'ios.app',
       binaryPath: 'apps/expo/ios/build/Build/Products/Release-iphonesimulator/sololevel.app',
       build:
-        'cd apps/expo && EXPO_NO_TELEMETRY=1 npx expo run:ios --configuration Release --device "iPhone 15"',
+        'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn ios --configuration Release --device "iPhone 15"',
     },
     'android.debug': {
       type: 'android.apk',
       binaryPath: 'apps/expo/android/app/build/outputs/apk/debug/app-debug.apk',
-      build: 'cd apps/expo && EXPO_NO_TELEMETRY=1 npx expo run:android --variant debug',
+      build: 'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn android --variant debug',
     },
     'android.release': {
       type: 'android.apk',
       binaryPath: 'apps/expo/android/app/build/outputs/apk/release/app-release.apk',
-      build: 'cd apps/expo && EXPO_NO_TELEMETRY=1 npx expo run:android --variant release',
+      build: 'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn android --variant release',
     },
   },
   devices: {

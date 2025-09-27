@@ -41,3 +41,6 @@ export function createServiceClientFromEnv(logger?: {
 
   return supabase
 }
+
+// Backward-compatible alias used by new functions' imports
+// Do NOT alias to createClient to avoid shadowing the SDK import and recursion

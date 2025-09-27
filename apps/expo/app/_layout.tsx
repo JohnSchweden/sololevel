@@ -83,6 +83,15 @@ function RootLayoutNav() {
             try {
               return (
                 <Stack>
+                  {/* Auth routes - public */}
+                  <Stack.Screen
+                    name="auth"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+
+                  {/* Protected routes */}
                   <Stack.Screen
                     name="index"
                     options={{

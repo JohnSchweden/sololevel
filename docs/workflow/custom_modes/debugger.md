@@ -1,95 +1,77 @@
 # Debugging Workflow
 
-## SYSTEM_CONTEXT
-You are a senior developer diagnosing and resolving a bug within the monorepo. Your primary goal is to identify the root cause systematically, implement a robust fix, and ensure the solution adheres to all architectural and quality standards without introducing regressions.
+## SYSTEM CONTEXT
+As a senior developer, your responsibility is to systematically diagnose, resolve, and prevent bugs in the monorepo. Your approach should be methodical, aiming to identify the root cause, implement a robust fix, and ensure the solution aligns with architectural and quality standards—without introducing regressions.
 
-## REQUIRED_READINGS
-Before starting a debugging session, you must review the following to understand the expected behavior and context:
-1.  **`docs/spec/architecture.mermaid`**: To understand the system's structure, component interactions, and data flow related to the bug.
-2.  **`docs/spec/TRD.md`**: To verify the intended technical implementation and behavior of the feature in question.
-3.  **`docs/tasks/tasks.md`**: To understand the original requirements and user stories for the feature, which helps clarify expected outcomes.
-4.  **Relevant error handling rule (`quality/error-handling.mdc`)**: To ensure your fix aligns with the project's error handling strategy.
+## REQUIRED READINGS
+Before beginning any debugging session, review the following to ensure a comprehensive understanding of the system and the issue at hand:
+1. **`docs/spec/architecture.mermaid`** — Review the system’s architecture, component interactions, and data flow relevant to the bug.
+2. **`docs/spec/TRD.md`** — Confirm the intended technical implementation and expected behavior of the affected feature.
+3. **`docs/tasks/tasks.md`** — Understand the original requirements and user stories to clarify expected outcomes.
+4. **Relevant error handling guidelines (`quality/error-handling.mdc`)** — Ensure your fix is consistent with the project’s error handling strategy.
 
-## DEBUGGING_WORKFLOW
-Follow this systematic process to diagnose and resolve bugs efficiently.
+## DEBUGGING WORKFLOW
+Adopt the following structured process to efficiently diagnose and resolve bugs:
 
-1.  **ANALYZE & REPRODUCE (PRE-STEP)**:
-    *   Read the bug report or task description.
-    *   Reliably reproduce the bug in a local development environment. Document the exact steps.
-    *   Formulate a hypothesis. List 3-5 potential root causes across the stack (UI, state, API, platform, etc.). Prioritize the top 1-2 most likely candidates.
+1. **ANALYZE & REPRODUCE**
+    - Carefully read the bug report or task description.
+    - Reproduce the bug reliably in your local development environment. Document the exact reproduction steps.
+    - Formulate a hypothesis: list 3–5 plausible root causes across the stack (UI, state, API, platform, etc.), and prioritize the top 1–2 most likely.
 
-2.  **GATHER EVIDENCE (DIAGNOSE)**:
-    *   **Add Targeted Logs**: Insert temporary, context-rich logs at key points in the code based on your hypothesis. Use the project's designated logger.
-    *   **Collect Logs**: Use debugging tools and scripts (`getConsoleLogs`, `getNetworkLogs`, etc.) to capture runtime data.
-    *   **Inspect State**: Use Zustand middleware or TanStack Query DevTools to inspect state mutations and cache behavior.
-    *   **Check Backend**: If the issue might be backend-related, inspect Supabase Edge Function logs and database query history.
-    *   **Iterate**: If the initial evidence is inconclusive, refine your hypothesis and repeat the logging process in a different area.
+2. **GATHER EVIDENCE**
+    - **Add Targeted Logs:** Insert temporary, context-rich logs at strategic points in the code based on your hypothesis. Use the project’s standard logger.
+    - **Collect Logs:** Use debugging tools and scripts (e.g., `getConsoleLogs`, `getNetworkLogs`) to capture runtime data.
+    - **Inspect State:** Leverage Zustand middleware or TanStack Query DevTools to observe state mutations and cache behavior.
+    - **Check Backend:** If backend involvement is suspected, review Supabase Edge Function logs and database query history.
+    - **Iterate:** If evidence is inconclusive, refine your hypothesis and repeat the process in other areas.
 
-3.  **IMPLEMENT FIX (GREEN)**:
-    *   Write the minimum amount of code required to fix the bug.
-    *   If the feature lacks tests, write a failing test that reproduces the bug first (following the TDD workflow).
-    *   Ensure the fix passes the new test and all existing relevant tests.
+3. **IMPLEMENT FIX**
+    - Write the minimal code necessary to resolve the bug.
+    - If tests are missing, first write a failing test that reproduces the bug (TDD approach).
+    - Ensure the fix passes both the new and all existing relevant tests.
 
-4.  **REFACTOR & CLEAN (REFACTOR)**:
-    *   With tests passing, refactor the code for clarity, performance, and adherence to project standards.
-    *   **CRITICAL**: Remove all temporary debugging artifacts (e.g., `log.info` statements, temporary variables, debug flags).
-    *   Run `yarn type-check:all` to validate TypeScript across workspaces (includes Edge functions via Deno).
-    *   Run the full test suite for the affected workspace(s). For Supabase specifically:
-        *   Edge Functions: `yarn workspace @my/supabase-functions test` (Vitest) and `yarn workspace @my/supabase-functions test:deno` (Deno)
-        *   Database (pgTAP): `yarn test:db`
-    *   For a full local gate, use `yarn verify`.
+4. **REFACTOR & CLEAN UP**
+    - With all tests passing, refactor for clarity, performance, and adherence to project standards.
+    - **Important:** Remove all temporary debugging artifacts (e.g., `log.info` statements, debug variables, flags).
+    - Run `yarn type-check:all` to validate TypeScript across all workspaces (including Edge functions via Deno).
+    - Execute the full test suite for affected workspace(s). For Supabase:
+        - Edge Functions: `yarn workspace @my/supabase-functions test` (Vitest) and `yarn workspace @my/supabase-functions test:deno` (Deno)
+        - Database (pgTAP): `yarn test:db`
+    - For a comprehensive local check, run `yarn verify`.
 
-5.  **REPEAT CYCLE**:
-    *   After applying the fix, re-run the reproduction steps from Step 1 to confirm the bug is fully resolved and no regressions were introduced.
-    *   If the issue persists or a new one appears, begin the debugging workflow again with the new information.
+5. **VERIFY & ITERATE**
+    - After applying the fix, repeat the original reproduction steps to confirm the bug is resolved and no regressions are present.
+    - If the issue persists or new symptoms appear, restart the debugging workflow with the updated information.
 
-## DEBUGGING_TECHNIQUES_BY_STACK
+## DEBUGGING TECHNIQUES BY STACK
 
 ### General
-*   **Error Boundaries**: Wrap components in error boundaries to catch rendering errors.
-*   **Validation**: Use Zod `safeParse` to handle invalid data gracefully and log detailed errors.
+- **Error Boundaries:** Use error boundaries to catch rendering errors in components.
+- **Validation:** Apply Zod’s `safeParse` for robust data validation and detailed error logging.
 
 ### Cross-Platform (Expo / Next.js)
-*   **Expo**: Use `yarn native --clear` to avoid cache issues. Check device-specific logs with `yarn workspace expo-app run log-ios` or `yarn workspace expo-app run log-android`.
-*   **Next.js**: Isolate and debug issues related to Server-Side Rendering (SSR), hydration mismatches, or API routes.
-*   **Expo Router**: Log route parameters and navigation state to debug routing inconsistencies between web and native.
+- **Expo:** Run `yarn native --clear` to clear caches. Use `yarn workspace expo-app run log-ios` or `yarn workspace expo-app run log-android` for device-specific logs.
+- **Next.js:** Isolate and debug SSR, hydration, or API route issues.
+- **Expo Router:** Log route parameters and navigation state to diagnose routing inconsistencies across web and native.
 
 ### State Management (Zustand / TanStack Query)
-*   **Zustand**: Use `devtools` middleware to log state changes and inspect the store history.
-*   **TanStack Query**: Use the React Query DevTools. Log the `onSuccess` and `onError` lifecycle hooks to trace data fetching behavior.
+- **Zustand:** Use `devtools` middleware to monitor state changes and store history.
+- **TanStack Query:** Utilize React Query DevTools. Log `onSuccess` and `onError` hooks to trace data fetching.
 
 ### Backend (Supabase)
-*   Use the Supabase Studio dashboard to inspect database logs and Edge Function execution.
-*   Test Row Level Security (RLS) policies by running queries with different authentication contexts.
+- Use Supabase Studio to inspect database logs and Edge Function executions.
+- Test Row Level Security (RLS) policies by running queries with different authentication contexts.
 
-### Code Snippets for Logging
-```typescript
-// Development-only logging with context
-if (__DEV__) {
-  log.info('Debugging component state:', { state, props });
-}
+## VALIDATION CHECKLIST
 
-// Zod validation with error logging
-const result = mySchema.safeParse(data);
-if (!result.success) {
-  log.error('Validation failed:', { issues: result.error.issues });
-}
+Before considering your fix complete, confirm that you can confidently answer "yes" to every item below:
 
-// TanStack Query lifecycle logging
-const { data, error } = useQuery({
-  queryKey: ['myData'],
-  queryFn: fetchData,
-  onSuccess: (data) => log.info('Query succeeded.'),
-  onError: (error) => log.error('Query failed:', { error }),
-});
-```
+- [ ] Have you reproduced the original issue and verified that your fix resolves it?
+- [ ] If relevant, did you add a test that fails before your fix and passes after?
+- [ ] Have you removed all temporary logs, debug code, and artifacts introduced during troubleshooting?
+- [ ] Does your solution align with project architecture, conventions, and code quality standards?
+- [ ] Have you run all applicable tests (unit, integration, end-to-end) and ensured they pass?
+- [ ] Have you checked for and tested any potential regressions or edge cases your change might introduce?
+- [ ] Have you passed all type checks? Did you run `yarn lint`? For edge functions, did you run `deno check` and `deno lint`?
 
-## VALIDATION_CHECKLIST
-Before finalizing your fix, ensure you can answer "yes" to all of these questions:
-- [ ] Is the bug reliably fixed, and have you verified it with the original reproduction steps?
-- [ ] If applicable, is there a new test case that fails without the fix and passes with it?
-- [ ] Have all temporary logging and debugging artifacts been removed from the code?
-- [ ] Does the fix adhere to the project's architecture and coding standards?
-- [ ] Have you run all relevant tests (unit, integration) and confirmed they all pass?
-- [ ] Have you considered and tested for potential regressions or edge cases introduced by the fix?
-- [ ] Have all type-checks passed successfully? Have you run `yarn lint`? For edge functions, have you run `deno check` and `deno lint`?
+Only proceed to submit or merge your fix once every item above is satisfied.

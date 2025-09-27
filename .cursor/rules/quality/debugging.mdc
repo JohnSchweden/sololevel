@@ -42,7 +42,7 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 *   **Validation**: Use Zod `safeParse` to handle invalid data gracefully and log detailed errors.
 
 ### Cross-Platform (Expo / Next.js)
-*   **Expo**: Use `expo start --clear` to avoid cache issues. Check device-specific logs with `npx react-native log-ios` or `log-android`.
+*   **Expo**: Use `expo start --clear` to avoid cache issues. Check device-specific logs with `yarn react-native log-ios` or `log-android`.
 *   **Next.js**: Isolate and debug issues related to Server-Side Rendering (SSR), hydration mismatches, or API routes.
 *   **Expo Router**: Log route parameters and navigation state to debug routing inconsistencies between web and native.
 

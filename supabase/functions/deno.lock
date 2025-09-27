@@ -1042,6 +1042,10 @@
     "https://deno.land/types/index.d.ts": "https://deno.com/types/index.d.ts"
   },
   "remote": {
+    "https://deno.land/std@0.192.0/fmt/colors.ts": "d67e3cd9f472535241a8e410d33423980bec45047e343577554d3356e1f0ef4e",
+    "https://deno.land/std@0.192.0/testing/_diff.ts": "1a3c044aedf77647d6cac86b798c6417603361b66b54c53331b312caeb447aea",
+    "https://deno.land/std@0.192.0/testing/_format.ts": "a69126e8a469009adf4cf2a50af889aca364c349797e63174884a52ff75cf4c7",
+    "https://deno.land/std@0.192.0/testing/asserts.ts": "e16d98b4d73ffc4ed498d717307a12500ae4f2cbe668f1a215632d19fcffc22f",
     "https://deno.land/x/opus@0.1.1/mod.ts": "147af5927fbc824e069a96494751d5aab7d58b4fa10d3281bf67afd79dee63e0",
     "https://deno.land/x/opus@0.1.1/opus.ts": "66258c4487b956ba1ecc98d60d9cd62aef93fdd8a5c98d6fe9105f9e39daecc6",
     "https://deno.land/x/opus@0.1.1/pack/opuswasm.js": "3f7117456651a6e426fe5e22ecf02325278cac1bd0f6f42e62f0b97ed0a87601",

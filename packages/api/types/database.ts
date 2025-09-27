@@ -30,7 +30,6 @@ export type Database = {
     Tables: {
       analysis_jobs: {
         Row: {
-          audio_url: string | null
           created_at: string
           error_message: string | null
           id: number
@@ -39,7 +38,6 @@ export type Database = {
           processing_started_at: string | null
           progress_percentage: number | null
           results: Json | null
-          ssml: string | null
           status: string
           summary_text: string | null
           updated_at: string
@@ -47,7 +45,6 @@ export type Database = {
           video_recording_id: number
         }
         Insert: {
-          audio_url?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -56,7 +53,6 @@ export type Database = {
           processing_started_at?: string | null
           progress_percentage?: number | null
           results?: Json | null
-          ssml?: string | null
           status?: string
           summary_text?: string | null
           updated_at?: string
@@ -64,7 +60,6 @@ export type Database = {
           video_recording_id: number
         }
         Update: {
-          audio_url?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -73,7 +68,6 @@ export type Database = {
           processing_started_at?: string | null
           progress_percentage?: number | null
           results?: Json | null
-          ssml?: string | null
           status?: string
           summary_text?: string | null
           updated_at?: string
@@ -275,13 +269,13 @@ export type Database = {
         Args: { analysis_job_id: number }
         Returns: {
           analysis_id: number
-          audio_url: string
           created_at: string
           metrics: Json
           progress_percentage: number
-          ssml: string
           status: string
           summary_text: string
+          ssml_status: string
+          audio_status: string
           updated_at: string
         }[]
       }
@@ -302,9 +296,7 @@ export type Database = {
       store_analysis_results: {
         Args: {
           analysis_job_id: number
-          p_audio_url?: string
           p_metrics?: Json
-          p_ssml?: string
           p_summary_text?: string
         }
         Returns: undefined

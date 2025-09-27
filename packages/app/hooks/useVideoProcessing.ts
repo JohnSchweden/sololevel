@@ -14,6 +14,7 @@ import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import type { PoseDetectionResult, PoseKeypointName } from '../features/CameraRecording/types/pose'
 import { VideoProcessingProgress, videoProcessingService } from '../services/videoProcessingService'
+import { useAuth } from './useAuth'
 
 export interface VideoProcessingState {
   isProcessing: boolean
@@ -37,6 +38,7 @@ export interface VideoProcessingResult {
  * Hook for processing uploaded videos with pose detection
  */
 export function useVideoProcessing() {
+  const { userId, isAuthenticated } = useAuth()
   const [state, setState] = useState<VideoProcessingState>({
     isProcessing: false,
     progress: null,
@@ -101,10 +103,14 @@ export function useVideoProcessing() {
           targetTimestamps: timingParams.targetTimestamps,
         })
 
+        // Ensure user is authenticated before starting analysis
+        if (!isAuthenticated || !userId) {
+          throw new Error('User must be authenticated to start video analysis')
+        }
+
         // Start Gemini video analysis with computed timing parameters
         const analysisResponse = await startGeminiVideoAnalysis({
           videoPath,
-          userId: 'current-user', // TODO: Get from auth context
           videoSource: 'uploaded_video',
           timingParams,
         })
@@ -160,7 +166,7 @@ export function useVideoProcessing() {
         throw error
       }
     },
-    []
+    [userId, isAuthenticated]
   )
 
   const reset = useCallback(() => {

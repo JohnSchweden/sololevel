@@ -1,0 +1,3 @@
+-- Migration 05: Create ssml_jobs table (deprecated by Phase 2)
+-- Historical record of initial queue implementation retained for audit purposes.
+-- Phase 2 removes this table in favor of status tracking on analysis_feedback.

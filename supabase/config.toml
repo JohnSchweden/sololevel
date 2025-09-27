@@ -349,3 +349,8 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/ai-analyze-video/index.ts"
 
+[functions.storage-upload-finalize]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/storage-upload-finalize/index.ts"
+

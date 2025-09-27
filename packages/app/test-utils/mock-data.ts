@@ -1,7 +1,7 @@
-import type { User } from '@my/api'
+import type { Tables } from '@my/api'
 
 // Mock user data variations
-export const mockUsers: Record<string, User> = {
+export const mockUsers: Record<string, Tables<'profiles'>> = {
   complete: {
     id: 1,
     user_id: 'user-complete',

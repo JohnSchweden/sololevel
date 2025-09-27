@@ -1,0 +1,2 @@
+-- Migration 06 previously introduced audio_jobs queue.
+-- Phase 2 replaces the queue with status tracking on analysis_feedback.

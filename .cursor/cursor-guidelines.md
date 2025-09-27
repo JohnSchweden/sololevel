@@ -31,7 +31,7 @@ Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, Type
 ### Expo / Metro
 
 * `expo start --clear`
-* Device logs: `npx react-native log-ios` / `npx react-native log-android`
+* Device logs: `yarn react-native log-ios` / `yarn react-native log-android`
 * Use `Platform.OS` logs for iOS vs Android issues
 
 ### Next.js

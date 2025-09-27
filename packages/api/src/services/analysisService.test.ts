@@ -342,8 +342,6 @@ describe('Analysis Service - Video Processing Extensions', () => {
         // RED: Write failing test first
         const analysisResults: TRDAnalysisResult = {
           summary_text: 'Excellent squat form with minor improvements needed',
-          ssml: '<speak>Your squat form was <emphasis level="strong">excellent</emphasis>!</speak>',
-          audio_url: 'https://storage.supabase.co/feedback/analysis-123.mp3',
           metrics: {
             form_score: { value: 85, unit: 'percentage' },
             balance_rating: { value: 92, unit: 'percentage' },
@@ -360,8 +358,6 @@ describe('Analysis Service - Video Processing Extensions', () => {
         expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
           analysis_job_id: 123,
           p_summary_text: analysisResults.summary_text,
-          p_ssml: analysisResults.ssml,
-          p_audio_url: analysisResults.audio_url,
           p_metrics: JSON.stringify(analysisResults.metrics),
           p_feedback: '[]',
           p_full_feedback_text: analysisResults.summary_text,
@@ -383,8 +379,6 @@ describe('Analysis Service - Video Processing Extensions', () => {
         expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
           analysis_job_id: 456,
           p_summary_text: 'Good form overall',
-          p_ssml: undefined,
-          p_audio_url: undefined,
           p_metrics: '{}',
           p_feedback: '[]',
           p_full_feedback_text: 'Good form overall',
@@ -429,8 +423,6 @@ describe('Analysis Service - Video Processing Extensions', () => {
           status: 'completed',
           progress_percentage: 100,
           summary_text: 'Great squat form!',
-          ssml: '<speak>Excellent work!</speak>',
-          audio_url: 'https://storage.com/audio.mp3',
           created_at: '2025-09-14T10:00:00Z',
           updated_at: '2025-09-14T10:05:00Z',
           metrics: {
@@ -448,7 +440,7 @@ describe('Analysis Service - Video Processing Extensions', () => {
 
         expect(result.data).toEqual(mockAnalysisData)
         expect(result.error).toBeNull()
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('get_complete_analysis', {
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('get_analysis_with_metrics', {
           job_id: 123,
         })
       })
@@ -483,8 +475,6 @@ describe('Analysis Service - Video Processing Extensions', () => {
           status: 'completed',
           progress_percentage: 100,
           summary_text: 'Test',
-          ssml: null,
-          audio_url: null,
           created_at: '2025-09-14T10:00:00Z',
           updated_at: '2025-09-14T10:00:00Z',
           metrics: {},

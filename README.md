@@ -339,7 +339,7 @@ export EXPO_PUBLIC_USE_VISION_CAMERA=false
 
 ### Troubleshooting
 
-1. **Clear Metro Cache**: `npx expo start --clear`
+1. **Clear Metro Cache**: `yarn native --clear`
 2. **Reset Environment**: Delete `.env.local` and restart
 3. **Check Feature Flag**: Verify `useVisionCamera` flag in dev tools
 4. **Expo Go**: Always uses Expo Camera implementation

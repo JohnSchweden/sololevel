@@ -14,6 +14,7 @@ import { enableMapSet } from 'immer'
 import { useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { initializeTestAuth } from '../auth/testAuthBootstrap'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useAuthStore } from '../stores/auth'
 import { useFeatureFlagsStore } from '../stores/feature-flags'
@@ -47,10 +48,13 @@ export function Provider({
     setActionSheetProvider(() => getActionSheetProvider())
   }, [])
 
-  // Initialize stores once
+  // Initialize stores and test auth once
   useEffect(() => {
     useAuthStore.getState().initialize()
     useFeatureFlagsStore.getState().loadFlags()
+
+    // Initialize test auth after auth store is ready
+    initializeTestAuth()
   }, [])
 
   // Add test hook for Immer MapSet plugin verification (development only)

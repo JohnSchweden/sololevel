@@ -235,13 +235,8 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
       throw uploadError
     }
 
-    // Update recording status to completed
-    const completedRecording = await updateVideoRecording(recording.id, {
-      upload_status: 'completed',
-      upload_progress: 100,
-    })
-
-    return completedRecording
+    // Do NOT finalize here; let Storage webhook finalize and enqueue analysis
+    return recording
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     onError?.(new Error(errorMessage))
@@ -340,10 +335,17 @@ export async function updateVideoRecording(
   id: number,
   updates: VideoRecordingUpdate
 ): Promise<VideoRecording> {
+  // Ensure user is authenticated and get user ID for RLS
+  const user = await supabase.auth.getUser()
+  if (!user.data.user) {
+    throw new Error('User not authenticated')
+  }
+
   const { data: recording, error } = await supabase
     .from('video_recordings')
     .update(updates)
     .eq('id', id)
+    .eq('user_id', user.data.user.id) // RLS: ensure user owns the record
     .select()
     .single()
 
@@ -364,22 +366,32 @@ async function updateUploadProgress(
   percentage: number
 ): Promise<void> {
   try {
-    // Update upload session
+    // Get authenticated user for RLS
+    const user = await supabase.auth.getUser()
+    if (!user.data.user) {
+      throw new Error('User not authenticated')
+    }
+
+    // Update upload session (with user_id filter for RLS)
     await supabase
       .from('upload_sessions')
       .update({
         bytes_uploaded: bytesUploaded,
       })
       .eq('id', sessionId)
+      .eq('user_id', user.data.user.id) // RLS: ensure user owns the session
 
-    // Update video recording progress
+    // Update video recording progress (with user_id filter for RLS)
     await supabase
       .from('video_recordings')
       .update({
         upload_progress: percentage,
       })
       .eq('id', recordingId)
-  } catch (_error) {}
+      .eq('user_id', user.data.user.id) // RLS: ensure user owns the recording
+  } catch (_error) {
+    // Silently fail for progress updates to avoid disrupting upload flow
+  }
 }
 
 /**
@@ -411,16 +423,23 @@ export async function getUploadProgress(recordingId: number): Promise<UploadProg
  * Cancel upload
  */
 export async function cancelUpload(recordingId: number): Promise<void> {
-  // Update recording status
+  // Get authenticated user for RLS
+  const user = await supabase.auth.getUser()
+  if (!user.data.user) {
+    throw new Error('User not authenticated')
+  }
+
+  // Update recording status (updateVideoRecording already has RLS)
   await updateVideoRecording(recordingId, {
     upload_status: 'failed',
   })
 
-  // Mark upload sessions as cancelled
+  // Mark upload sessions as cancelled (with user_id filter for RLS)
   await supabase
     .from('upload_sessions')
     .update({ status: 'cancelled' })
     .eq('video_recording_id', recordingId)
+    .eq('user_id', user.data.user.id) // RLS: ensure user owns the sessions
     .eq('status', 'active')
 }
 

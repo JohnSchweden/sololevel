@@ -5,6 +5,19 @@ import { enableMapSet } from 'immer'
 // Enable Immer MapSet plugin for Zustand stores
 enableMapSet()
 
+// Mock environment variables for consistent testing
+process.env.TEST_AUTH_ENABLED = 'false'
+process.env.TEST_AUTH_EMAIL = 'test@example.com'
+process.env.TEST_AUTH_PASSWORD = 'test-password'
+process.env.SUPABASE_URL = 'https://test.supabase.co'
+process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+if (!process.env.NODE_ENV) {
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: true,
+  })
+}
+
 // Mock Expo modules
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),

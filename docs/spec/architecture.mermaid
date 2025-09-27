@@ -9,13 +9,23 @@ graph TB
         ExpoApp["📱 Expo App\nReact Native (iOS/Android)"]
         NextApp["🌐 Next.js App\nWeb (SSR/SSG)"]
         ExpoRouter["🧭 Expo Router\nUniversal Routing"]
-        AuthGate["🚪 AuthGate / Protected Layout\nRoute Guard"]
+        subgraph AuthLayer["🔐 Authentication Layer"]
+            AuthGate["🚪 AuthGate Components\nRoute Protection + Loading States"]
+            NextMiddleware["⚙️ Next.js Middleware\nServer-side Auth Validation"]
+            SignInScreens["📝 Sign-in Screens\nExpo + Next.js"]
+        end
     end
 
     %% Shared Packages (Monorepo)
     subgraph "Shared Packages (@my/*)"
         UIPkg["🎨 @my/ui\nTamagui Components"]
         AppPkg["⚙️ @my/app\nBusiness Logic, Screens, Hooks"]
+        subgraph AuthPkg["🔐 Authentication (@my/app + @my/api)"]
+            UseAuth["🪝 useAuth Hook\nReact Hook + Zustand Store"]
+            AuthClient["🔌 Auth Client\nTyped Supabase Wrapper"]
+            TestBootstrap["🧪 Test Auth Bootstrap\nEnvironment-gated Auto Auth"]
+            RLSHelpers["🛡️ RLS Helpers\nSecurity Utilities"]
+        end
         APIPkg["🔌 @my/api\nSupabase Client & Integrations"]
         ConfigPkg["🧰 @my/config\nConfig & Types"]
     end
@@ -28,11 +38,14 @@ graph TB
 
     %% Backend (Supabase)
     subgraph "Supabase Backend"
-        Auth["🔐 Auth\nJWT, Sessions"]
-        subgraph DBGroup["🗄️ PostgreSQL (RLS On)"]
+        subgraph AuthBackend["🔐 Authentication Backend"]
+            Auth["🔑 Supabase Auth\nJWT, Sessions, User Management"]
+            AuthPolicies["🛡️ RLS Policies\nauth.uid() = user_id"]
+        end
+        subgraph DBGroup["🗄️ PostgreSQL (RLS Enforced)"]
             DB[("public schema")]
-            VR["📄 video_recordings\n(id, user_id, storage_path, filename, duration, source_type, created_at)"]
-            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_feedback_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)"]
+            VR["📄 video_recordings\n(id, user_id, storage_path, filename, duration, source_type, created_at)\n🔒 RLS: SELECT/INSERT/UPDATE WHERE user_id = auth.uid()"]
+            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_feedback_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)\n🔒 RLS: SELECT/INSERT/UPDATE WHERE user_id = auth.uid()"]
         end
         Storage["📁 Storage\nraw (uploads) • processed (artifacts: AAC/MP3)"]
         subgraph RTGroup["⚡ Realtime"]
@@ -41,7 +54,7 @@ graph TB
         end
         subgraph EdgeFns["🧩 Edge Functions\nPrivileged Logic"]
             E1["ai-analyze-video"]
-            E1a["POST /ai-analyze-video"]
+            E1a["POST /ai-analyze-video\n🔒 JWT → userId extraction"]
             E1b["GET /ai-analyze-video/status?id=<id>"]
             E1c["POST /ai-analyze-video/tts"]
             E1d["GET /ai-analyze-video/health"]
@@ -74,8 +87,12 @@ graph TB
         Yarn["🧶 Yarn 4\nWorkspaces"]
         TS["📝 TypeScript\nStrict"]
         Biome["✨ Biome\nLint/Format"]
-        Vitest["🧪 Vitest\nUnit"]
-        Playwright["🎭 Playwright\nE2E"]
+        subgraph TestingInfra["🧪 Testing Infrastructure"]
+            Vitest["🧪 Vitest\nUnit Tests"]
+            Jest["🃏 Jest\nReact Native Tests"]
+            Playwright["🎭 Playwright\nE2E + Pre-auth"]
+            TestUser["👤 Test User Seeding\nAutomated Setup"]
+        end
         GHA["⚙️ GitHub Actions\nCI"]
         EAS["📦 EAS\nNative Builds"]
         Vercel["▲ Vercel\nWeb Deploy"]
@@ -88,11 +105,14 @@ graph TB
     %% App Composition - UNIFIED ROUTING ✅
     ExpoApp --> ExpoRouter[Universal Router]
     NextApp --> ExpoRouter[Universal Router]
-    ExpoRouter --> AuthGate
+    ExpoRouter --> AuthLayer
+    AuthLayer --> UIPkg
+    AuthLayer --> AppPkg
     ExpoApp --> UIPkg
     NextApp --> UIPkg
     ExpoApp --> AppPkg
     NextApp --> AppPkg
+    AppPkg --> AuthPkg
     AppPkg --> APIPkg
     UIPkg --> ConfigPkg
     APIPkg --> ConfigPkg
@@ -104,21 +124,27 @@ graph TB
     NextApp --> TSQ
 
     %% Backend Access (via @my/api)
-    APIPkg --> Auth
+    APIPkg --> AuthBackend
     APIPkg --> DB
     APIPkg --> Storage
     APIPkg --> RTGroup
     APIPkg --> EdgeFns
 
-    %% Auth Flows
-    AuthGate --> Auth
-    Auth --> DBGroup
-    Auth --> Providers
+    %% Authentication Flows ✅
+    AuthLayer --> AuthPkg
+    AuthPkg --> AuthBackend
+    AuthClient --> Auth
+    UseAuth --> AuthClient
+    TestBootstrap --> AuthClient
+    RLSHelpers --> AuthPolicies
+    AuthBackend --> DBGroup
+    AuthBackend --> Providers
+    EdgeFns --> Auth[JWT Validation]
 
     %% AI Flow
     ClientSide --> EdgeSide
 
-    %% Data Movement
+    %% Data Movement (RLS Enforced)
     Storage <--> EdgeFns
     EdgeFns --> DBGroup
     EdgeSide --> Storage
@@ -126,8 +152,8 @@ graph TB
     EdgeSide --> RPC2
     DBGroup --> RTGroup
     RTGroup --> TSQ
-    Auth --> VR
-    Auth --> AJ
+    AuthPolicies --> VR[RLS Filter]
+    AuthPolicies --> AJ[RLS Filter]
     VR --> AJ
 
     %% Tooling Relationships
@@ -139,10 +165,12 @@ graph TB
     Yarn --> Turbo
     TS --> Turbo
     Biome --> Turbo
+    TestingInfra --> AuthPkg[Auth Testing]
     Vitest --> AppPkg
     Vitest --> APIPkg
-    Playwright --> ExpoApp
-    Playwright --> NextApp
+    Jest --> AuthPkg
+    Playwright --> AuthLayer[Pre-auth Setup]
+    TestUser --> Auth[Seeding]
     GHA --> Turbo
     EAS --> ExpoApp
     Vercel --> NextApp
@@ -154,23 +182,27 @@ graph TB
     classDef layerBackend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef layerAI fill:#fce4ec,stroke:#ad1457,stroke-width:2px
     classDef layerDev fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef layerAuth fill:#fff8e1,stroke:#f57f17,stroke-width:3px
 
     class ExpoApp,NextApp,ExpoRouter layerClient
+    class AuthLayer,AuthGate,NextMiddleware,SignInScreens layerAuth
     class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
+    class AuthPkg,UseAuth,AuthClient,TestBootstrap,RLSHelpers layerAuth
     class Zustand,TSQ layerState
-    class Auth,DBGroup,Storage,RTGroup,EdgeFns layerBackend
+    class AuthBackend,Auth,AuthPolicies,DBGroup,Storage,RTGroup,EdgeFns layerBackend
     class Pose,LLM,SSML,TTS,RPC1,RPC2 layerAI
-    class Turbo,Yarn,TS,Biome,Vitest,Playwright,GHA,EAS,Vercel layerDev
+    class Turbo,Yarn,TS,Biome,TestingInfra,Vitest,Jest,Playwright,TestUser,GHA,EAS,Vercel layerDev
 
     %% Legend
     subgraph "Legend"
         direction LR
         L1[Client]:::layerClient
-        L2[Shared]:::layerShared
-        L3[State/Data]:::layerState
-        L4[Supabase]:::layerBackend
-        L5[AI]:::layerAI
-        L6[Dev/CI]:::layerDev
+        L2[Authentication]:::layerAuth
+        L3[Shared]:::layerShared
+        L4[State/Data]:::layerState
+        L5[Supabase]:::layerBackend
+        L6[AI]:::layerAI
+        L7[Dev/CI]:::layerDev
     end
 
 

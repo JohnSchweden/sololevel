@@ -2,6 +2,7 @@
 import { CameraRecordingScreen } from '@app/features/CameraRecording'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect } from 'react'
+import { AuthGate } from '../components/AuthGate'
 
 export default function Screen() {
   const router = useRouter()
@@ -24,9 +25,11 @@ export default function Screen() {
   }, [resetToIdle, router])
 
   return (
-    <CameraRecordingScreen
-      onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
-      resetToIdle={resetToIdle === 'true'}
-    />
+    <AuthGate>
+      <CameraRecordingScreen
+        onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
+        resetToIdle={resetToIdle === 'true'}
+      />
+    </AuthGate>
   )
 }

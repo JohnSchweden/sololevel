@@ -28,7 +28,8 @@ import { type AnalysisJob, subscribeToAnalysisJob, useUploadProgress } from '@my
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
 
-// Real-time integration hooks - comment out for simplified version
+// Real-time integration hooks
+import { useFeedbackStatusIntegration } from './hooks/useFeedbackStatusIntegration'
 // import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
 // import { useVideoAnalysisStore } from '../../stores/videoAnalysisStore'
 // import { useAnalysisStatusStore } from '../../stores/analysisStatus'
@@ -164,6 +165,18 @@ export function VideoAnalysisScreen({
     return unsubscribe
   }, [analysisJobId])
 
+  // Set up feedback status integration for real-time SSML/audio status updates
+  // For now, we'll use the analysisJobId as a string for the analysisId
+  // In a real implementation, you'd get the actual analysisId from the job
+  const feedbackStatus = useFeedbackStatusIntegration(analysisJobId?.toString())
+
+  // Cleanup feedback subscriptions on unmount
+  useEffect(() => {
+    return () => {
+      feedbackStatus.cleanup()
+    }
+  }, [feedbackStatus])
+
   // Video playback state
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -250,15 +263,25 @@ export function VideoAnalysisScreen({
   ])
 
   // Transform feedback messages for FeedbackPanel format (US-VF-08)
+  // Use real-time feedback data if available, otherwise fall back to mock data
   const feedbackItems = useMemo(() => {
+    // If we have real-time feedback data, use it
+    if (feedbackStatus.feedbackItems.length > 0) {
+      return feedbackStatus.feedbackItems
+    }
+
+    // Otherwise, fall back to mock data for demo purposes
     return feedbackMessages.map((message) => ({
       id: message.id,
       timestamp: message.timestamp,
       text: message.text,
       type: message.type as 'positive' | 'suggestion' | 'correction',
       category: message.category as 'voice' | 'posture' | 'grip' | 'movement',
+      // Add mock status for demo
+      ssmlStatus: 'completed' as const,
+      audioStatus: 'completed' as const,
     }))
-  }, [feedbackMessages])
+  }, [feedbackMessages, feedbackStatus.feedbackItems])
 
   // Sequential bubble display state
   const [currentBubbleIndex, setCurrentBubbleIndex] = useState<number | null>(null)
@@ -868,6 +891,12 @@ export function VideoAnalysisScreen({
         onSheetCollapse={handleFeedbackPanelCollapse}
         onFeedbackItemPress={handleFeedbackItemPress}
         onVideoSeek={handleSeek}
+        onRetryFeedback={feedbackStatus.retryFailedFeedback}
+        onDismissError={(feedbackId) => {
+          log.info('[VideoAnalysisScreen] Dismissing error for feedback', { feedbackId })
+          // For now, just log the dismissal. In a full implementation,
+          // you might want to hide the error or mark it as acknowledged
+        }}
       />
     </YStack>
   )

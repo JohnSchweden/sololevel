@@ -29,25 +29,6 @@ export interface VideoUploadAndAnalysisOptions {
     sessionId: number
     storagePath: string
   }) => void
-
-  // Optional: callback to propagate recordingId to navigation/route params
-  onRecordingIdAvailable?: (recordingId: number) => void
-}
-
-/**
- * Extract a meaningful filename from a URI path
- */
-function extractFilenameFromUri(uri: string): string {
-  try {
-    // Remove file:// prefix and get the path
-    const path = uri.replace(/^file:\/\//, '')
-    // Get the last part of the path
-    const filename = path.split('/').pop() || 'video.mp4'
-    // Ensure it has .mp4 extension
-    return filename.includes('.') ? filename : `${filename}.mp4`
-  } catch {
-    return 'video.mp4'
-  }
 }
 
 /**
@@ -141,7 +122,6 @@ async function uploadWithProgress(args: {
   videoToUpload: File | Blob
   metadata: VideoMetadata
   originalFilename?: string
-  defaultFilename: string
   tempTaskId: string
   onProgress?: (progress: number) => void
   onError?: (error: Error) => void
@@ -150,18 +130,15 @@ async function uploadWithProgress(args: {
     sessionId: number
     storagePath: string
   }) => void
-  onRecordingIdAvailable?: (recordingId: number) => void
 }): Promise<ReturnType<typeof uploadVideo>> {
   const {
     videoToUpload,
     metadata,
     originalFilename,
-    defaultFilename,
     tempTaskId,
     onProgress,
     onError,
     onUploadInitialized,
-    onRecordingIdAvailable,
   } = args
 
   log.info('startUploadAndAnalysis', 'Starting video upload to Supabase')
@@ -171,7 +148,7 @@ async function uploadWithProgress(args: {
 
   const uploadedVideo = await uploadVideo({
     file: videoToUpload,
-    originalFilename: originalFilename || defaultFilename,
+    originalFilename: originalFilename || `video.${metadata.format}`,
     durationSeconds: metadata.duration,
     format: metadata.format,
     onProgress: (progress: number) => {
@@ -195,7 +172,6 @@ async function uploadWithProgress(args: {
       })
       useUploadProgressStore.getState().setUploadTaskRecordingId(tempTaskId, recordingId)
       onUploadInitialized?.({ recordingId, sessionId, storagePath })
-      onRecordingIdAvailable?.(recordingId)
     },
   })
 
@@ -226,7 +202,6 @@ export async function startUploadAndAnalysis(
     onProgress,
     onError,
     onUploadInitialized,
-    onRecordingIdAvailable,
   } = options
 
   // Input validation
@@ -235,8 +210,7 @@ export async function startUploadAndAnalysis(
   }
 
   // 1) Seed upload progress store with a temporary pending task so UI shows processing
-  const defaultFilename = sourceUri ? extractFilenameFromUri(sourceUri) : 'video.mp4'
-  const tempTaskId = seedUploadTask(originalFilename || defaultFilename, file)
+  const tempTaskId = seedUploadTask(originalFilename || 'video.mp4', file)
 
   // 2) Process video in background (compression → upload → analysis)
   try {
@@ -252,12 +226,10 @@ export async function startUploadAndAnalysis(
       videoToUpload,
       metadata,
       originalFilename,
-      defaultFilename,
       tempTaskId,
       onProgress,
       onError,
       onUploadInitialized,
-      onRecordingIdAvailable,
     })
 
     // Mark the temporary task as completed

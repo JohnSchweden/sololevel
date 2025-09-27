@@ -1,1 +1,0 @@
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, created_at, updated_at) VALUES (gen_random_uuid(), 'test@example.com', crypt('testpass', gen_salt('bf')), now(), now(), now());

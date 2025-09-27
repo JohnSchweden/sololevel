@@ -1,0 +1,9 @@
+GRANT ALL ON TABLE public.video_recordings TO service_role;
+GRANT ALL ON TABLE public.analysis_jobs TO service_role;
+GRANT ALL ON TABLE public.analysis_feedback TO service_role;
+GRANT ALL ON TABLE public.analysis_audio_segments TO service_role;
+GRANT ALL ON TABLE public.analysis_metrics TO service_role;
+GRANT ALL ON TABLE public.analysis_ssml_segments TO service_role;
+GRANT ALL ON TABLE public.analyses TO service_role;
+GRANT ALL ON TABLE public.upload_sessions TO service_role;
+GRANT ALL ON TABLE public.profiles TO service_role;

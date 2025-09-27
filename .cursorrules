@@ -36,6 +36,14 @@
       "supabase db diff",
       "yarn dlx supabase db push",
       "supabase db push",
+      "yarn dlx supabase db reset --linked",
+      "supabase db reset --linked",
+      "yarn dlx supabase db reset --debug",
+      "supabase db reset --debug",
+      "yarn dlx supabase db reset --no-seed",
+      "supabase db reset --no-seed",
+      "yarn dlx supabase db reset --local",
+      "supabase db reset --local",
       "echo * > .env",
       "echo * >> .env",
       "echo * > .env.local",
@@ -51,12 +59,12 @@
     "enabled": true,
     "behavior": "confirmation-required",
     "scripts": {
-      "validate-command": "node scripts/validate-command.js",
-      "command-validator": "source scripts/command-validator.sh"
+      "validate-command": "node scripts/toolchain/validate-command.js",
+      "command-validator": "source scripts/toolchain/command-validator.sh"
     },
     "usage": {
-      "validate": "node scripts/validate-command.js \"your command here\"",
-      "shell-integration": "source scripts/command-validator.sh",
+      "validate": "node scripts/toolchain/validate-command.js \"your command here\"",
+      "shell-integration": "source scripts/toolchain/command-validator.sh",
       "override": "CURSOR_RULES_OVERRIDE=true [blocked command]",
       "pre-commit-hook": "Add to .husky/pre-commit for validation"
     },

@@ -32,3 +32,6 @@ export const shadows = {
 
 // Export config separately to avoid circular dependency issues
 export { config } from './tamagui.config'
+
+// Export Supabase database types
+export type { Database, Json } from './database.types'

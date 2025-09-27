@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
+import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
+import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
 
 // Types imported from VideoPlayer.tsx
 interface FeedbackItem {
@@ -9,6 +11,13 @@ interface FeedbackItem {
   text: string
   type: 'positive' | 'suggestion' | 'correction'
   category: 'voice' | 'posture' | 'grip' | 'movement'
+  // New status fields for SSML and audio processing
+  ssmlStatus?: 'queued' | 'processing' | 'completed' | 'failed'
+  audioStatus?: 'queued' | 'processing' | 'completed' | 'failed'
+  ssmlAttempts?: number
+  audioAttempts?: number
+  ssmlLastError?: string | null
+  audioLastError?: string | null
 }
 
 export interface FeedbackPanelProps {
@@ -24,6 +33,9 @@ export interface FeedbackPanelProps {
   onSheetCollapse: () => void
   onFeedbackItemPress: (item: FeedbackItem) => void
   onVideoSeek?: (time: number) => void
+  // Error handling callbacks
+  onRetryFeedback?: (feedbackId: string) => void
+  onDismissError?: (feedbackId: string) => void
 }
 
 export function FeedbackPanel({
@@ -39,6 +51,8 @@ export function FeedbackPanel({
   onSheetCollapse,
   onFeedbackItemPress,
   //onVideoSeek,
+  onRetryFeedback,
+  onDismissError,
 }: FeedbackPanelProps) {
   // Trigger layout animation when flex changes
   useEffect(() => {
@@ -337,27 +351,45 @@ export function FeedbackPanel({
                       }}
                     >
                       <XStack
-                        justifyContent="flex-start"
+                        justifyContent="space-between"
                         alignItems="center"
-                        gap="$3"
                         marginBottom="$1"
                       >
-                        <Text
-                          fontSize="$1"
-                          color="$color10"
-                          accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
+                        <XStack
+                          alignItems="center"
+                          gap="$3"
                         >
-                          {formatTime(item.timestamp)}
-                        </Text>
-                        <Text
-                          fontSize="$1"
-                          color={getCategoryColor(item.category)}
-                          fontWeight="600"
-                          textTransform="capitalize"
-                          accessibilityLabel={`Category: ${item.category}`}
-                        >
-                          {item.category}
-                        </Text>
+                          <Text
+                            fontSize="$1"
+                            color="$color10"
+                            accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
+                          >
+                            {formatTime(item.timestamp)}
+                          </Text>
+                          <Text
+                            fontSize="$1"
+                            color={getCategoryColor(item.category)}
+                            fontWeight="600"
+                            textTransform="capitalize"
+                            accessibilityLabel={`Category: ${item.category}`}
+                          >
+                            {item.category}
+                          </Text>
+                        </XStack>
+
+                        {/* Status indicators for SSML and audio processing */}
+                        {(item.ssmlStatus || item.audioStatus) && (
+                          <FeedbackStatusIndicator
+                            ssmlStatus={item.ssmlStatus || 'queued'}
+                            audioStatus={item.audioStatus || 'queued'}
+                            ssmlAttempts={item.ssmlAttempts || 0}
+                            audioAttempts={item.audioAttempts || 0}
+                            ssmlLastError={item.ssmlLastError || null}
+                            audioLastError={item.audioLastError || null}
+                            size="small"
+                            testID={`feedback-status-${index + 1}`}
+                          />
+                        )}
                       </XStack>
                       <Text
                         fontSize="$4"
@@ -367,6 +399,21 @@ export function FeedbackPanel({
                       >
                         {item.text}
                       </Text>
+
+                      {/* Error handler for failed processing */}
+                      {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
+                        onRetryFeedback && (
+                          <FeedbackErrorHandler
+                            feedbackId={item.id}
+                            feedbackText={item.text}
+                            ssmlFailed={item.ssmlStatus === 'failed'}
+                            audioFailed={item.audioStatus === 'failed'}
+                            onRetry={onRetryFeedback}
+                            onDismiss={onDismissError}
+                            size="small"
+                            testID={`feedback-error-${index + 1}`}
+                          />
+                        )}
                     </YStack>
                   )
                 })}

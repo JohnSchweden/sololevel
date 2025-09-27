@@ -14,6 +14,24 @@ jest.mock('@my/logging', () => ({
   },
 }))
 
+// Mock useAuth to always provide an authenticated user context for processing flows
+const createMockAuthState = () => ({
+  userId: 'test-user-id',
+  isAuthenticated: true,
+  user: { id: 'test-user-id', email: 'test@example.com' },
+  session: { access_token: 'token', user: { id: 'test-user-id' } },
+  loading: false,
+  initialized: true,
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+})
+
+const mockUseAuth = jest.fn(createMockAuthState)
+
+jest.mock('./useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}))
+
 // Get the mocked functions from the __mocks__ directory
 import {
   __mockComputeVideoTimingParams,
@@ -76,6 +94,7 @@ mockCleanup.mockImplementation(() => {})
 describe('useVideoProcessing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseAuth.mockImplementation(createMockAuthState)
     // Mock computeVideoTimingParams to return mock timing parameters
     ;(computeVideoTimingParams as jest.MockedFunction<any>).mockReturnValue({
       duration: 6,
@@ -104,6 +123,7 @@ describe('useVideoProcessing', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+    mockUseAuth.mockReset()
   })
 
   describe('Initial state', () => {

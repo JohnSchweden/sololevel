@@ -4,20 +4,20 @@ globs: ["**/hooks/**/*", "**/stores/**/*", "**/api/**/*", "**/*query*", "**/*sto
 alwaysApply: false
 ---
 
-# State Management
-- Zustand for global state
-- TanStack Query for server state
-- Local state with useState/useReducer
-- No Redux or MobX
+# State Management Guidelines
+- Use **Zustand** for managing global client-side state.
+- Use **TanStack Query** for all server state and asynchronous data fetching.
+- Prefer **useState** or **useReducer** for local component state.
+- **Do not** use Redux or MobX.
 
-# Data Fetching Rules
-- ALWAYS use TanStack Query for API calls
-- Include error boundaries
-- Implement optimistic updates
-- Use Zod for response validation
-- Proper loading/error states
+# Data Fetching Best Practices
+- **Always** use TanStack Query for API requests and data synchronization.
+- Wrap components with **error boundaries** to gracefully handle errors.
+- Implement **optimistic updates** where appropriate for a better user experience.
+- Validate all API responses with **Zod** schemas.
+- Ensure clear and consistent **loading** and **error** UI states.
 
-# Supabase Integration
-- Use Supabase client from context
-- Implement row-level security
-- Handle auth state globally
+# Supabase Integration Standards
+- Access the **Supabase client** via React context; do not instantiate directly in components.
+- Enforce **row-level security** for all database operations.
+- Manage authentication state globally and reactively throughout the app.

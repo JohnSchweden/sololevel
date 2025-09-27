@@ -1,5 +1,6 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
+import { AuthGate } from '../components/AuthGate'
 
 export default function VideoAnalysis() {
   const router = useRouter()
@@ -19,7 +20,7 @@ export default function VideoAnalysis() {
   }
 
   return (
-    <>
+    <AuthGate>
       <Stack.Screen
         options={{
           title: 'Video Analysis',
@@ -32,6 +33,6 @@ export default function VideoAnalysis() {
         onBack={handleBack}
         onMenuPress={handleMenuPress}
       />
-    </>
+    </AuthGate>
   )
 }

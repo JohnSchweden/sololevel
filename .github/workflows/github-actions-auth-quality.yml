@@ -1,0 +1,116 @@
+# GitHub Actions workflow for authentication code quality
+# Place this in .github/workflows/auth-quality.yml
+
+name: Authentication Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/api/src/auth/**'
+      - 'packages/app/auth/**'
+      - 'packages/app/hooks/useAuth.ts'
+      - 'packages/app/stores/auth.ts'
+      - 'apps/*/components/AuthGate.tsx'
+      - 'apps/*/app/auth/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/api/src/auth/**'
+      - 'packages/app/auth/**'
+      - 'packages/app/hooks/useAuth.ts'
+      - 'packages/app/stores/auth.ts'
+      - 'apps/*/components/AuthGate.tsx'
+      - 'apps/*/app/auth/**'
+
+jobs:
+  auth-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate Supabase Types
+        run: |
+          # Start local Supabase (if needed for type generation)
+          # yarn dlx supabase start
+          # Generate types
+          yarn dlx supabase gen types typescript --local --schema public > packages/config/src/database.types.ts
+          # Check if types are up to date
+          git diff --exit-code packages/config/src/database.types.ts || (echo "Database types are out of sync. Run 'yarn dlx supabase gen types typescript --local --schema public > packages/config/src/database.types.ts'" && exit 1)
+
+      - name: Type Check Authentication
+        run: |
+          yarn workspace @my/api type-check src/auth/
+          yarn workspace @my/api type-check src/utils/rlsHelpers.ts
+          yarn workspace @my/app type-check hooks/useAuth.ts
+          yarn workspace @my/app type-check stores/auth.ts
+          yarn workspace @my/app type-check auth/
+
+      - name: Lint Authentication Code
+        run: |
+          yarn lint packages/api/src/auth/
+          yarn lint packages/app/auth/
+          yarn lint packages/app/hooks/useAuth.ts
+          yarn lint packages/app/stores/auth.ts
+
+      - name: Test Authentication
+        run: |
+          # API authentication tests
+          yarn workspace @my/api test src/auth/
+          yarn workspace @my/api test src/utils/__tests__/rlsHelpers.test.ts
+          yarn workspace @my/api test src/__tests__/rlsEnforcement.test.ts
+          
+          # App authentication tests
+          yarn workspace @my/app test hooks/__tests__/useAuth.test.tsx
+          yarn workspace @my/app test stores/__tests__/auth.test.ts
+          yarn workspace @my/app test auth/__tests__/
+          yarn workspace @my/app test __tests__/authFlow.e2e.test.ts
+          yarn workspace @my/app test __tests__/authRouteProtection.integration.test.ts
+
+      - name: Security Audit
+        run: |
+          yarn npm audit --all --recursive --severity high
+          # Check for hardcoded secrets in auth files
+          ! grep -r "password.*=" packages/api/src/auth/ packages/app/auth/ || (echo "Potential hardcoded credentials found" && exit 1)
+
+      - name: Test Coverage Report
+        run: |
+          # Generate coverage for authentication modules
+          yarn workspace @my/api test src/auth/ --coverage
+          yarn workspace @my/app test hooks/__tests__/useAuth.test.tsx stores/__tests__/auth.test.ts --coverage
+
+  edge-function-auth:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type Check Edge Functions
+        run: |
+          cd supabase/functions
+          deno check ai-analyze-video/routes/handleStartAnalysis.ts
+
+      - name: Test Edge Functions
+        run: |
+          cd supabase/functions
+          deno test --allow-all _shared/__tests__/

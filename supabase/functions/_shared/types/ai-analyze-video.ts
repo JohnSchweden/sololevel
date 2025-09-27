@@ -1,8 +1,10 @@
 // Types for video processing and analysis
 
 export interface VideoProcessingRequest {
-  videoPath: string
-  userId: string
+  // Either videoPath (legacy) or videoRecordingId (new) must be provided
+  videoPath?: string
+  videoRecordingId?: number
+  // userId is now extracted from JWT token, not from request body
   videoSource?: 'live_recording' | 'uploaded_video'
   frameData?: string[] // Base64 encoded frames for uploaded videos
   existingPoseData?: PoseDetectionResult[] // For live recordings
@@ -74,17 +76,22 @@ export function parseVideoProcessingRequest(body: unknown): VideoProcessingReque
 
   const data = body as Record<string, unknown>
 
-  if (!data.videoPath || typeof data.videoPath !== 'string') {
-    throw new Error('videoPath is required and must be a string')
+  // Either videoPath or videoRecordingId must be provided
+  const hasVideoPath = data.videoPath && typeof data.videoPath === 'string'
+  const hasVideoRecordingId = data.videoRecordingId && typeof data.videoRecordingId === 'number'
+
+  if (!hasVideoPath && !hasVideoRecordingId) {
+    throw new Error('Either videoPath or videoRecordingId must be provided')
   }
 
-  if (!data.userId || typeof data.userId !== 'string') {
-    throw new Error('userId is required and must be a string')
-  }
+  const request: VideoProcessingRequest = {}
 
-  const request: VideoProcessingRequest = {
-    videoPath: data.videoPath,
-    userId: data.userId,
+  // Add videoPath or videoRecordingId
+  if (hasVideoPath) {
+    request.videoPath = data.videoPath as string
+  }
+  if (hasVideoRecordingId) {
+    request.videoRecordingId = data.videoRecordingId as number
   }
 
   // Optional fields with validation

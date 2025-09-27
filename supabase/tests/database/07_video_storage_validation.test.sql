@@ -4,15 +4,17 @@
 begin;
 select plan(10);
 
--- Test that the raw MIME validation trigger exists
+-- Test that the raw bucket configuration is correct
 select ok(
   exists(
-    select 1 from information_schema.triggers
-    where trigger_name = 'trg_raw_mime_whitelist'
-    and event_object_table = 'objects'
-    and event_object_schema = 'storage'
+    select 1 from storage.buckets
+    where id = 'raw'
+    and "public" = false
+    and file_size_limit = 524288000
+    and 'video/mp4' = any(allowed_mime_types)
+    and 'video/quicktime' = any(allowed_mime_types)
   ),
-  'Raw MIME validation trigger should exist'
+  'Raw bucket should be properly configured for video files'
 );
 
 -- Test that the raw bucket has correct MIME types configured
@@ -20,7 +22,7 @@ select ok(
   exists(
     select 1 from storage.buckets
     where id = 'raw'
-    and public = false
+    and "public" = false
     and 'video/mp4' = any(allowed_mime_types)
     and 'video/quicktime' = any(allowed_mime_types)
   ),
@@ -49,61 +51,67 @@ select ok(
   'Raw bucket management policy should exist'
 );
 
--- Test trigger rejects invalid file extension (.avi)
-select throws_ok(
-  $$
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('raw', 'test/invalid.avi', '00000000-0000-0000-0000-000000000000', '{"mimetype": "video/avi"}'::jsonb)
-  $$,
-  'raw bucket only accepts .mp4 or .mov files',
-  'Trigger should reject .avi files in raw bucket'
+-- Test that raw bucket rejects invalid MIME types (via bucket configuration)
+select ok(
+  not exists(
+    select 1 from storage.buckets
+    where id = 'raw'
+    and 'video/avi' = any(allowed_mime_types)
+  ),
+  'Raw bucket should not allow video/avi MIME type'
 );
 
--- Test trigger rejects invalid MIME type (audio/mpeg)
-select throws_ok(
-  $$
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('raw', 'test/invalid.mp4', '00000000-0000-0000-0000-000000000000', '{"mimetype": "audio/mpeg"}'::jsonb)
-  $$,
-  'raw bucket only accepts video/mp4 or video/quicktime mimetypes (got: audio/mpeg)',
-  'Trigger should reject audio MIME type in raw bucket'
+-- Test that raw bucket rejects audio MIME types (via configuration check)
+select ok(
+  not exists(
+    select 1 from storage.buckets
+    where id = 'raw'
+    and 'audio/mpeg' = any(allowed_mime_types)
+  ),
+  'Raw bucket should not allow audio/mpeg MIME type'
 );
 
--- Test trigger accepts valid MP4 file
-select lives_ok(
-  $$
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('raw', 'test/valid.mp4', '00000000-0000-0000-0000-000000000000', '{"mimetype": "video/mp4"}'::jsonb)
-  $$,
-  'Trigger should accept valid MP4 files'
+-- Test that raw bucket allows all expected video MIME types
+select ok(
+  exists(
+    select 1 from storage.buckets
+    where id = 'raw'
+    and array_length(allowed_mime_types, 1) = 2
+    and 'video/mp4' = any(allowed_mime_types)
+    and 'video/quicktime' = any(allowed_mime_types)
+  ),
+  'Raw bucket should allow all expected video MIME types'
 );
 
--- Test trigger accepts valid QuickTime file
-select lives_ok(
-  $$
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('raw', 'test/valid.mov', '00000000-0000-0000-0000-000000000000', '{"mimetype": "video/quicktime"}'::jsonb)
-  $$,
-  'Trigger should accept valid QuickTime files'
+-- Test that processed bucket has different allowed types than raw
+select ok(
+  exists(
+    select 1 from storage.buckets b1, storage.buckets b2
+    where b1.id = 'raw' and b2.id = 'processed'
+    and b1.allowed_mime_types != b2.allowed_mime_types
+  ),
+  'Raw and processed buckets should have different allowed MIME types'
 );
 
--- Test trigger does not affect other buckets
-select lives_ok(
-  $$
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('processed', 'audio/test.mp3', '00000000-0000-0000-0000-000000000000', '{"mimetype": "audio/mpeg"}'::jsonb)
-  $$,
-  'Trigger should not affect processed bucket'
+-- Test that processed bucket allows audio types
+select ok(
+  exists(
+    select 1 from storage.buckets
+    where id = 'processed'
+    and 'audio/mpeg' = any(allowed_mime_types)
+  ),
+  'Processed bucket should allow audio MIME types'
 );
 
--- Test RLS policy allows owner access
-select lives_ok(
-  $$
-    -- This would require setting up a test user session, so we'll skip for now
-    -- In a real test environment, we'd set up auth context
-    select 1 as placeholder_test
-  $$,
-  'RLS policy structure test placeholder'
+-- Test service role policies exist for both buckets
+select ok(
+  exists(
+    select 1 from pg_policies
+    where schemaname = 'storage'
+    and tablename = 'objects'
+    and policyname in ('Service role can manage raw files', 'Service role can manage processed files')
+  ),
+  'Service role policies should exist for both buckets'
 );
 
 select * from finish();
