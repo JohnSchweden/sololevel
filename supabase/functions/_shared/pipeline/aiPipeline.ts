@@ -75,90 +75,113 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     // Pose data is stored in database for UI purposes only
     // AI analysis uses video content directly
 
-    // 2. Video Analysis - analyzes video content directly
-    // Progress callback will handle: 20% download, 40% upload, 55% active, 70% inference
-    logger.info(`Starting video analysis for ${videoPath}`, {
-      analysisId,
-      videoPath,
-      videoSource
-    })
+    let feedbackIds: number[] | undefined
 
-    logger.info('Timing parameters received', {
-      startTime: timingParams?.startTime,
-      endTime: timingParams?.endTime,
-      duration: timingParams?.duration,
-      feedbackCount: timingParams?.feedbackCount,
-      targetTimestamps: timingParams?.targetTimestamps,
-    })
-
-    let analysis
-    let rawGeneratedText: string | undefined
-    let fullFeedbackJson: any
-    let feedbackPrompt: string | undefined
-    const _ssmlPrompt: string | undefined = undefined
-    const _audioPrompt: string | undefined = undefined
-
-    try {
-      logger.info('Starting video analysis service call...')
-      analysis = await services.videoAnalysis.analyze({
-        supabase,
+    // 2. Video Analysis - analyzes video content directly (conditional)
+    if (stages.runVideoAnalysis) {
+      // Progress callback will handle: 20% download, 40% upload, 55% active, 70% inference
+      logger.info(`Starting video analysis for ${videoPath}`, {
+        analysisId,
         videoPath,
-        analysisParams: timingParams,
-        progressCallback: async (progress: number) => {
-          logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
-          await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
+        videoSource
+      })
+
+      logger.info('Timing parameters received', {
+        startTime: timingParams?.startTime,
+        endTime: timingParams?.endTime,
+        duration: timingParams?.duration,
+        feedbackCount: timingParams?.feedbackCount,
+        targetTimestamps: timingParams?.targetTimestamps,
+      })
+
+      let analysis
+      let rawGeneratedText: string | undefined
+      let fullFeedbackJson: any
+      let feedbackPrompt: string | undefined
+
+      try {
+        logger.info('Starting video analysis service call...')
+        analysis = await services.videoAnalysis.analyze({
+          supabase,
+          videoPath,
+          analysisParams: timingParams,
+          progressCallback: async (progress: number) => {
+            logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
+            await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
+          }
+        } as VideoAnalysisContext)
+        logger.info('Video analysis service call completed successfully')
+
+        // Extract prompts and raw data from analysis result
+        rawGeneratedText = analysis.rawText || undefined
+        fullFeedbackJson = analysis.jsonData || {}
+        feedbackPrompt = analysis.promptUsed || undefined
+      } catch (videoError) {
+        logger.error('Video analysis failed', videoError)
+        throw videoError
+      }
+
+      logger.info('Video analysis completed', {
+        analysisId,
+        hasTextReport: !!analysis?.textReport,
+        feedbackCount: analysis?.feedback?.length || 0,
+        hasRawData: !!rawGeneratedText,
+        hasPrompt: !!feedbackPrompt
+      })
+
+      logger.info(`Video analysis completed: ${analysis.textReport.substring(0, 50)}...`)
+
+      // 3. Persist analysis results and feedback items (conditional)
+      if (stages.runLLMFeedback) {
+        const results: AnalysisResults = {
+          text_feedback: analysis.textReport,
+          feedback: analysis.feedback,
+          summary_text: analysis.textReport.substring(0, 500),
+          processing_time: Date.now() - startTime,
+          video_source: videoSource,
         }
-      } as VideoAnalysisContext)
-      logger.info('Video analysis service call completed successfully')
 
-      // Extract prompts and raw data from analysis result
-      rawGeneratedText = analysis.rawText || undefined
-      fullFeedbackJson = analysis.jsonData || {}
-      feedbackPrompt = analysis.promptUsed || undefined
-    } catch (videoError) {
-      logger.error('Video analysis failed', videoError)
-      throw videoError
+        feedbackIds = await updateAnalysisResults(
+          supabase,
+          analysisId,
+          results,
+          null,
+          Date.now() - startTime,
+          videoSource,
+          logger,
+          rawGeneratedText,
+          fullFeedbackJson,
+          feedbackPrompt
+        )
+      }
     }
 
-    logger.info('Video analysis completed', {
-      analysisId,
-      hasTextReport: !!analysis?.textReport,
-      feedbackCount: analysis?.feedback?.length || 0,
-      hasRawData: !!rawGeneratedText,
-      hasPrompt: !!feedbackPrompt
-    })
-
-    logger.info(`Video analysis completed: ${analysis.textReport.substring(0, 50)}...`)
-
-    // Persist analysis results and feedback items (normalized schema)
-    const results: AnalysisResults = {
-      text_feedback: analysis.textReport,
-      feedback: analysis.feedback,
-      summary_text: analysis.textReport.substring(0, 500),
-      processing_time: Date.now() - startTime,
-      video_source: videoSource,
-    }
-
-    const feedbackIds = await updateAnalysisResults(
-      supabase,
-      analysisId,
-      results,
-      null,
-      Date.now() - startTime,
-      videoSource,
-      logger,
-      rawGeneratedText,
-      fullFeedbackJson,
-      feedbackPrompt
-    )
-
-    // Kick SSML worker (and then audio worker) for newly created feedback items
+    // 4. Kick SSML worker (conditional) and then audio worker for newly created feedback items
     if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
-      processSSMLJobs({ supabase, logger, feedbackIds })
-        .then(() => _processAudioJobs({ supabase, logger, feedbackIds }))
-        .catch((error) => {
-          logger.error('Failed to process SSML/audio jobs', { error, feedbackIds })
+      if (stages.runSSML) {
+        processSSMLJobs({ supabase, logger, feedbackIds })
+          .then((ssmlResult) => {
+            if (ssmlResult.errors === 0 && stages.runTTS) {
+              _processAudioJobs({ supabase, logger, feedbackIds })
+            } else if (ssmlResult.errors > 0) {
+              logger.info('Skipping audio generation due to SSML errors', {
+                feedbackIds,
+                errors: ssmlResult.errors
+              })
+            } else if (!stages.runTTS) {
+              logger.info('Skipping audio generation (TTS stage disabled)', {
+                feedbackIds
+              })
+            }
+          })
+          .catch((error) => {
+            logger.error('Failed to process SSML/audio jobs', { error, feedbackIds })
+          })
+      } else {
+        logger.info('Skipping SSML generation (SSML stage disabled)', {
+          feedbackIds
         })
+      }
     }
 
     // Mark analysis job completed and notify clients
