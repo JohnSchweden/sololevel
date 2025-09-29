@@ -195,7 +195,7 @@ Please generate SSML markup that enhances this feedback with:
 - Prosody adjustments for sarcastic tone
 - Natural speech patterns
 
-Return only the SSML content, starting with <speak> and ending with </speak>.`
+Return only the SSML content with Max 250 characters, starting with <speak> and ending with </speak>.`
 
 
 

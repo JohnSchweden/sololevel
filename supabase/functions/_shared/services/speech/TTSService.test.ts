@@ -64,7 +64,8 @@ describe('TTSService', () => {
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3, 4, 5]),
         contentType: 'audio/mpeg',
-        prompt: 'Test TTS prompt'
+        prompt: 'Test TTS prompt',
+        duration: 2.5
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
 
@@ -85,7 +86,8 @@ describe('TTSService', () => {
       const mockTTSWithPrompt = {
         bytes: new Uint8Array([1, 2, 3]),
         contentType: 'audio/mpeg',
-        prompt: 'TTS generation prompt'
+        prompt: 'TTS generation prompt',
+        duration: 1.5
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockTTSWithPrompt)
 
@@ -100,7 +102,8 @@ describe('TTSService', () => {
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3, 4]),
         contentType: 'audio/mpeg',
-        prompt: 'Mock prompt text'
+        prompt: 'Mock prompt text',
+        duration: 2.0
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
 
@@ -119,7 +122,8 @@ describe('TTSService', () => {
       const mockResult = {
         bytes: new Uint8Array([1, 2, 3]),
         contentType: 'audio/mpeg',
-        prompt: 'Test prompt'
+        prompt: 'Test prompt',
+        duration: 1.0
       }
       vi.mocked(generateTTSFromSSML).mockResolvedValue(mockResult)
 

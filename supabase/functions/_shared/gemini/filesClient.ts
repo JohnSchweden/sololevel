@@ -33,39 +33,43 @@ export async function uploadToGemini(
   })
   const uploadStartMs = Date.now()
 
-  // Build multipart/related payload manually: JSON metadata part + binary file part
+  // Build streaming multipart/related payload: JSON metadata part + binary file part
   const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
   const encoder = new TextEncoder()
 
   const jsonMeta = JSON.stringify({ file: { display_name: displayName, mime_type: mimeType } })
 
-  const part1Header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`
-  const part1 = encoder.encode(part1Header + jsonMeta + '\r\n')
+  // Create a ReadableStream to stream the multipart content without buffering
+  const stream = new ReadableStream({
+    start(controller) {
+      try {
+        // Part 1: JSON metadata
+        const part1Header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`
+        const part1 = encoder.encode(part1Header + jsonMeta + '\r\n')
+        controller.enqueue(part1)
 
-  const part2Header = `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
-  const part2HeaderBytes = encoder.encode(part2Header)
-  const part2FooterBytes = encoder.encode('\r\n')
+        // Part 2 header
+        const part2Header = `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+        const part2HeaderBytes = encoder.encode(part2Header)
+        controller.enqueue(part2HeaderBytes)
 
-  const closing = encoder.encode(`--${boundary}--\r\n`)
+        // Part 2: File content (streamed directly)
+        controller.enqueue(fileBytes)
 
-  // Concatenate parts into a single Uint8Array
-  const totalLen =
-    part1.length +
-    part2HeaderBytes.length +
-    fileBytes.length +
-    part2FooterBytes.length +
-    closing.length
-  const body = new Uint8Array(totalLen)
-  let offset = 0
-  body.set(part1, offset)
-  offset += part1.length
-  body.set(part2HeaderBytes, offset)
-  offset += part2HeaderBytes.length
-  body.set(fileBytes, offset)
-  offset += fileBytes.length
-  body.set(part2FooterBytes, offset)
-  offset += part2FooterBytes.length
-  body.set(closing, offset)
+        // Part 2 footer
+        const part2FooterBytes = encoder.encode('\r\n')
+        controller.enqueue(part2FooterBytes)
+
+        // Closing boundary
+        const closing = encoder.encode(`--${boundary}--\r\n`)
+        controller.enqueue(closing)
+
+        controller.close()
+      } catch (error) {
+        controller.error(error)
+      }
+    },
+  })
 
   const response = await fetch(
     `${config.filesUploadUrl}?key=${config.apiKey}&uploadType=multipart`,
@@ -74,7 +78,7 @@ export async function uploadToGemini(
       headers: {
         'Content-Type': `multipart/related; boundary=${boundary}`,
       },
-      body,
+      body: stream,
     }
   )
 
@@ -107,6 +111,20 @@ export async function uploadToGemini(
 }
 
 /**
+ * Get dynamic poll interval based on attempt number
+ * Front-load polling: 300ms for first 5 attempts, 500ms for next 6, then 1s
+ */
+function getPollInterval(attempt: number): number {
+  if (attempt < 5) {
+    return 300 // Fast polling for first 5 attempts (1.5s total)
+  } else if (attempt < 11) {
+    return 500 // Medium polling for next 6 attempts (3s total)
+  } else {
+    return 1000 // Standard 1s polling for remaining attempts
+  }
+}
+
+/**
  * Poll file status until ACTIVE
  */
 export async function pollFileActive(
@@ -117,9 +135,10 @@ export async function pollFileActive(
   logger.info(`Polling file status for: ${fileName}`)
 
   const maxAttempts = options?.maxAttempts ?? 60 // up to 60s
-  const pollInterval = options?.pollInterval ?? 1000 // 1 second
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Use dynamic poll interval if no fixed interval specified
+    const pollInterval = options?.pollInterval ?? getPollInterval(attempt)
     let res: Response
     try {
       // Google Files API returns name like "files/abc123". The GET endpoint is v1beta/{name}

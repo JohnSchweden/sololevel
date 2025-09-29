@@ -12,7 +12,8 @@ const mockEnv = {
     const envMap: Record<string, string> = {
       GEMINI_API_KEY: 'test-api-key-12345',
       SUPABASE_ENV_GEMINI_API_KEY: 'supabase-api-key-67890',
-      GEMINI_MODEL: 'gemini-1.5-pro',
+      GEMINI_MMM_MODEL: 'gemini-2.5-flash',
+      GEMINI_LLM_MODEL: 'gemini-2.5-flash-lite',
       GEMINI_TTS_MODEL: 'gemini-2.5-flash-preview-tts',
       GEMINI_FILES_MAX_MB: '25',
       AI_ANALYSIS_MODE: 'mock',
@@ -31,7 +32,8 @@ describe('getGeminiConfig', () => {
 
     expect(config.apiBase).toBe('https://generativelanguage.googleapis.com')
     expect(config.apiKey).toBeUndefined()
-    expect(config.model).toBe('gemini-1.5-pro')
+    expect(config.mmModel).toBe('gemini-2.5-flash')
+    expect(config.llmModel).toBe('gemini-2.5-flash-lite')
     expect(config.ttsModel).toBe('gemini-2.5-flash-preview-tts')
     expect(config.filesMaxMb).toBe(20)
     expect(config.analysisMode).toBe('real')
@@ -44,7 +46,8 @@ describe('getGeminiConfig', () => {
     const config = getGeminiConfig()
 
     expect(config.apiKey).toBe('test-api-key-12345')
-    expect(config.model).toBe('gemini-1.5-pro')
+    expect(config.mmModel).toBe('gemini-2.5-flash')
+    expect(config.llmModel).toBe('gemini-2.5-flash-lite')
     expect(config.ttsModel).toBe('gemini-2.5-flash-preview-tts')
     expect(config.filesMaxMb).toBe(25)
     expect(config.analysisMode).toBe('mock')
@@ -87,7 +90,8 @@ describe('getGeminiConfig', () => {
     const config = getGeminiConfig()
 
     expect(config.filesUploadUrl).toBe('https://generativelanguage.googleapis.com/upload/v1beta/files')
-    expect(config.generateUrl).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent')
+    expect(config.mmGenerateUrl).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent')
+    expect(config.llmGenerateUrl).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent')
     expect(config.ttsGenerateUrl).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent')
   })
 })

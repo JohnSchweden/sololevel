@@ -16,7 +16,7 @@ export const VideoRecordingSchema = z.object({
   filename: z.string().min(1).max(255),
   original_filename: z.string().min(1).max(255).nullable(),
   file_size: z.number().int().positive(),
-  duration_seconds: z.number().int().min(1).max(60),
+  duration_seconds: z.number().min(1).max(60),
   format: VideoFormatSchema,
   storage_path: z.string().min(1),
   upload_status: UploadStatusSchema,

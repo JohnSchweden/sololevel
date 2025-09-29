@@ -17,10 +17,12 @@ import { generateTTSAudio } from './tts.ts'
 const validConfig: GeminiConfig = {
   apiBase: 'https://generativelanguage.googleapis.com',
   apiKey: 'test-api-key',
-  model: 'gemini-1.5-pro',
+  mmModel: 'gemini-2.5-flash',
+  llmModel: 'gemini-1.5-flash',
   ttsModel: 'gemini-2.5-flash-preview-tts',
   filesUploadUrl: 'https://generativelanguage.googleapis.com/upload/v1beta/files',
-  generateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+  mmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+  llmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
   ttsGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
   filesMaxMb: 20,
   analysisMode: 'real',
@@ -80,7 +82,8 @@ describe('generateTTSAudio', () => {
     expect(result).toEqual({
       bytes: expect.any(Uint8Array), // WAV header + PCM data (44 + 16 bytes)
       contentType: 'audio/wav',
-      prompt: expect.stringContaining('Gemini TTS synthesis')
+      prompt: expect.stringContaining('Gemini TTS synthesis'),
+      duration: expect.any(Number)
     })
   })
 

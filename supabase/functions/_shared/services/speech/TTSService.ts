@@ -130,6 +130,7 @@ export class GeminiTTSService implements ITTSService {
 
       const result: TTSResult = {
         audioUrl,
+        duration: ttsResult.duration,
         promptUsed: ttsResult.prompt,
         format,
       }

@@ -39,7 +39,7 @@ export interface GenerateTTSRequest {
 export async function generateTTSAudio(
   request: GenerateTTSRequest,
   config: GeminiConfig
-): Promise<{ bytes: Uint8Array; contentType: string; prompt: string }> {
+): Promise<{ bytes: Uint8Array; contentType: string; prompt: string; duration: number }> {
   // Check API key first
   if (!config.apiKey) {
     throw new Error('Gemini API key not configured')
@@ -143,14 +143,19 @@ export async function generateTTSAudio(
 
     // Decode base64 audio content - Gemini returns PCM by default
     const pcmBytes = Uint8Array.from(atob(audioPart.inlineData.data), c => c.charCodeAt(0))
-    
+
+    // Calculate duration from PCM bytes (16-bit, 24kHz, mono)
+    // Formula: duration = pcm_length / (sample_rate * channels * bits_per_sample / 8)
+    // 24000 Hz * 1 channel * 16 bits / 8 = 48000 bytes per second
+    const duration = pcmBytes.length / 48000
+
     // Convert PCM to requested format
     let finalBytes: Uint8Array
     let contentType: string
 
     if (format === 'wav') {
       // Convert PCM to WAV
-      finalBytes = convertPCMToWAV(pcmBytes) || convertPCMToWAVLowQuality(pcmBytes) 
+      finalBytes = convertPCMToWAV(pcmBytes) || convertPCMToWAVLowQuality(pcmBytes)
       contentType = AUDIO_FORMATS[format].mimes[0]
     } else if (format === 'mp3') {
       // For MP3, we need to use a different approach since we can't directly convert PCM to MP3 in Edge Functions
@@ -180,7 +185,8 @@ export async function generateTTSAudio(
     return {
       bytes: finalBytes,
       contentType,
-      prompt
+      prompt,
+      duration
     }
 
   } catch (error) {

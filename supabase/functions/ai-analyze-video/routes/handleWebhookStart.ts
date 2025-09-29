@@ -83,8 +83,8 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
     }
 
     // Instantiate services (mock mode if configured)
-    const aiAnalysisMode = (globalThis as any).Deno?.env?.get?.('AI_ANALYSIS_MODE')
-    const useMockServices = aiAnalysisMode === 'mock'
+    const aiAnalysisMockServices = (globalThis as any).Deno?.env?.get?.('AI_ANALYSIS_MOCK_SERVICES')
+    const useMockServices = aiAnalysisMockServices === 'true'
 
     const services = {
       videoAnalysis: useMockServices

@@ -49,15 +49,24 @@ export async function downloadVideo(
     return { bytes, mimeType }
   }
 
-  // Supabase Storage path handling: "bucket/object/path.mp4" or legacy "raw/path.mp4"
+  // Supabase Storage path handling: "bucket/object/path.mp4" or object-only "path.mp4"
+  // Only treat known bucket names as explicit bucket prefixes; default to 'raw' otherwise
+  const KNOWN_BUCKETS = ['raw', 'processed', 'thumbnails']
+
   let bucket = 'raw'
   let objectPath = videoPath
 
   const normalized = videoPath.replace(/^\/*/, '')
   const firstSlash = normalized.indexOf('/')
   if (firstSlash > 0) {
-    bucket = normalized.slice(0, firstSlash)
-    objectPath = normalized.slice(firstSlash + 1)
+    const potentialBucket = normalized.slice(0, firstSlash)
+    if (KNOWN_BUCKETS.includes(potentialBucket)) {
+      bucket = potentialBucket
+      objectPath = normalized.slice(firstSlash + 1)
+    } else {
+      // Not a known bucket prefix, treat entire path as object path in 'raw' bucket
+      objectPath = normalized
+    }
   }
 
   logger.info(`Downloading from storage bucket: ${bucket}, object: ${objectPath}`)
@@ -68,9 +77,9 @@ export async function downloadVideo(
     .download(objectPath)
 
   if (storageError || !videoData) {
-    logger.error('Storage download error', { bucket, objectPath, error: storageError?.message })
+    logger.error('Storage download error', { bucket, objectPath, error: storageError })
     throw new Error(
-      `Failed to download video from storage (${bucket}/${objectPath}): ${storageError?.message}`
+      `Failed to download video from storage (${bucket}/${objectPath}): ${storageError?.message || 'Unknown error'}`
     )
   }
 

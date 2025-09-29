@@ -37,7 +37,7 @@ export const MOCK_TTS_WAV_BYTES = new Uint8Array([
 /**
  * Get mock TTS result for testing with format-specific data
  */
-export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Array; contentType: string; prompt: string } {
+export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Array; contentType: string; prompt: string; duration: number } {
   console.log(`[MOCK] getMockTTSResult called with format: ${format}`)
 
   const formatConfig = AUDIO_FORMATS[format]
@@ -53,7 +53,8 @@ export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Arr
   return {
     bytes,
     contentType,
-    prompt: `Mock TTS synthesis for testing (${format})`
+    prompt: `Mock TTS synthesis for testing (${format})`,
+    duration: 5.2 // Mock duration in seconds
   }
 }
 

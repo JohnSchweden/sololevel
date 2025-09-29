@@ -22,14 +22,18 @@ export interface GeminiConfig {
   apiBase: string
   /** Gemini API key from environment */
   apiKey: string | undefined
-  /** Gemini model to use */
-  model: string
+  /** Gemini Multi-Modal model to use */
+  mmModel: string
+  /** Gemini LLM model to use */
+  llmModel: string
   /** Gemini TTS model for audio generation */
   ttsModel: string
   /** Files upload endpoint URL */
   filesUploadUrl: string
-  /** Generate content endpoint URL */
-  generateUrl: string
+  /** Multi-Modal generate content endpoint URL */
+  mmGenerateUrl: string
+  /** LLM generate content endpoint URL */
+  llmGenerateUrl: string
   /** TTS generate content endpoint URL */
   ttsGenerateUrl: string
   /** Maximum file size in MB */
@@ -44,21 +48,35 @@ export interface GeminiConfig {
  * Get Gemini API configuration
  */
 export function getGeminiConfig(): GeminiConfig {
+  const apiBase = 'https://generativelanguage.googleapis.com'
   const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('SUPABASE_ENV_GEMINI_API_KEY')
 
+  const mmModel = Deno.env.get('GEMINI_MMM_MODEL') || 'gemini-2.5-flash'
+  const llmModel = Deno.env.get('GEMINI_LLM_MODEL') || 'gemini-2.5-flash-lite'
   const ttsModel = Deno.env.get('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts'
 
+  const filesUploadUrl = `${apiBase}/upload/v1beta/files`
+  const mmGenerateUrl = `${apiBase}/v1beta/models/${mmModel}:generateContent`
+  const llmGenerateUrl = `${apiBase}/v1beta/models/${llmModel}:generateContent`
+  const ttsGenerateUrl = `${apiBase}/v1beta/models/${ttsModel}:generateContent`
+
+  const filesMaxMb = Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '20')
+  const analysisMode = (Deno.env.get('AI_ANALYSIS_MODE') || 'real') as 'real' | 'mock'
+  const defaultVoiceName = Deno.env.get('DEFAULT_VOICE_NAME') || 'Sadachbia'
+
   return {
-    apiBase: 'https://generativelanguage.googleapis.com',
+    apiBase,
     apiKey,
-    model: Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-pro',
+    mmModel,
+    llmModel,
     ttsModel,
-    filesUploadUrl: 'https://generativelanguage.googleapis.com/upload/v1beta/files',
-    generateUrl: `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') || 'gemini-1.5-pro'}:generateContent`,
-    ttsGenerateUrl: `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent`,
-    filesMaxMb: Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '20'),
-    analysisMode: (Deno.env.get('AI_ANALYSIS_MODE') || 'real') as 'real' | 'mock',
-    defaultVoiceName: Deno.env.get('DEFAULT_VOICE_NAME') || 'Sadachbia',
+    filesUploadUrl,
+    mmGenerateUrl,
+    llmGenerateUrl,
+    ttsGenerateUrl,
+    filesMaxMb,
+    analysisMode,
+    defaultVoiceName,
   }
 }
 

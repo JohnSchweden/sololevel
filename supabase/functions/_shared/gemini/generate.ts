@@ -41,7 +41,7 @@ export async function generateContent(
   config: GeminiConfig
 ): Promise<{ text: string; rawResponse: Record<string, unknown>; prompt: string }> {
   logger.info(
-    `Generating content with Gemini (${config.model}) using file: ${request.fileRef.name}`
+    `Generating content with Gemini (${config.mmModel}) using file: ${request.fileRef.name}`
   )
 
   const requestBody = {
@@ -54,15 +54,15 @@ export async function generateContent(
         ],
       },
     ],
-    generationConfig: {
-      temperature: request.temperature ?? 0.7,
-      topK: request.topK ?? 40,
-      topP: request.topP ?? 0.95,
-      maxOutputTokens: request.maxOutputTokens ?? 2048,
-    },
+    // generationConfig: {
+    //   temperature: request.temperature ?? 0.7,
+    //   topK: request.topK ?? 40,
+    //   topP: request.topP ?? 0.95,
+    //   maxOutputTokens: request.maxOutputTokens ?? 2048,
+    // },
   }
 
-  const response = await fetch(`${config.generateUrl}?key=${config.apiKey}`, {
+  const response = await fetch(`${config.mmGenerateUrl}?key=${config.apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -81,9 +81,20 @@ export async function generateContent(
   }
 
   const data = await response.json()
-  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  // Find the first part with text content instead of assuming index 0
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const generatedText = parts.find((p: any) => typeof p.text === 'string')?.text
 
   if (!generatedText) {
+    // Log diagnostic information when no text is found
+    logger.error('No text content found in Gemini response', {
+      finishReason: data.candidates?.[0]?.finishReason,
+      promptFeedback: data.promptFeedback,
+      safetyRatings: data.candidates?.[0]?.safetyRatings,
+      partTypes: parts.map((p: any) => Object.keys(p).join(',')),
+      responseKeys: Object.keys(data)
+    })
     throw new Error('No response generated from Gemini API')
   }
 
@@ -103,7 +114,7 @@ export async function generateTextOnlyContent(
   request: GenerateTextOnlyRequest,
   config: GeminiConfig
 ): Promise<{ text: string; rawResponse: Record<string, unknown>; prompt: string }> {
-  logger.info(`Generating text-only content with Gemini (${config.model})`)
+  logger.info(`Generating text-only content with Gemini (${config.llmModel})`)
 
   const requestBody = {
     contents: [
@@ -111,15 +122,15 @@ export async function generateTextOnlyContent(
         parts: [{ text: request.prompt }],
       },
     ],
-    generationConfig: {
-      temperature: request.temperature ?? 0.7,
-      topK: request.topK ?? 40,
-      topP: request.topP ?? 0.95,
-      maxOutputTokens: request.maxOutputTokens ?? 2048,
-    },
+    // generationConfig: {
+    //   temperature: request.temperature ?? 0.7,
+    //   topK: request.topK ?? 40,
+    //   topP: request.topP ?? 0.95,
+    //   maxOutputTokens: request.maxOutputTokens,
+    // },
   }
 
-  const response = await fetch(`${config.generateUrl}?key=${config.apiKey}`, {
+  const response = await fetch(`${config.llmGenerateUrl}?key=${config.apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -138,9 +149,20 @@ export async function generateTextOnlyContent(
   }
 
   const data = await response.json()
-  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  // Find the first part with text content instead of assuming index 0
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const generatedText = parts.find((p: any) => typeof p.text === 'string')?.text
 
   if (!generatedText) {
+    // Log diagnostic information when no text is found
+    logger.error('No text content found in Gemini response', {
+      finishReason: data.candidates?.[0]?.finishReason,
+      promptFeedback: data.promptFeedback,
+      safetyRatings: data.candidates?.[0]?.safetyRatings,
+      partTypes: parts.map((p: any) => Object.keys(p).join(',')),
+      responseKeys: Object.keys(data)
+    })
     throw new Error('No response generated from Gemini API')
   }
 

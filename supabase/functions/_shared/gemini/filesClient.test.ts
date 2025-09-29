@@ -14,10 +14,12 @@ describe('uploadToGemini', () => {
   const mockConfig: GeminiConfig = {
     apiBase: 'https://generativelanguage.googleapis.com',
     apiKey: 'test-api-key',
-    model: 'gemini-1.5-pro',
+    mmModel: 'gemini-1.5-pro',
+    llmModel: 'gemini-2.5-flash',
     ttsModel: 'gemini-2.5-flash-preview-tts',
     filesUploadUrl: 'https://generativelanguage.googleapis.com/upload/v1beta/files',
-    generateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+    mmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+    llmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
     ttsGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
     filesMaxMb: 20,
     analysisMode: 'real',
@@ -93,12 +95,12 @@ describe('uploadToGemini', () => {
     const fileBytes = new Uint8Array([72, 101, 108, 108, 111]) // "Hello"
     await uploadToGemini(fileBytes, 'text/plain', 'test.txt', mockConfig)
 
-    const [url, options] = mockFetch.mock.calls[0]
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit]
 
     expect(url).toContain('?key=test-api-key&uploadType=multipart')
     expect(options.method).toBe('POST')
-    expect(options.headers['Content-Type']).toContain('multipart/related')
-    expect(options.body).toBeInstanceOf(Uint8Array)
+    expect((options.headers as Record<string, string>)['Content-Type']).toContain('multipart/related')
+    expect(options.body).toBeInstanceOf(ReadableStream)
   })
 
   it('should handle network errors', async () => {
@@ -115,10 +117,12 @@ describe('pollFileActive', () => {
   const mockConfig: GeminiConfig = {
     apiBase: 'https://generativelanguage.googleapis.com',
     apiKey: 'test-api-key',
-    model: 'gemini-1.5-pro',
+    mmModel: 'gemini-1.5-pro',
+    llmModel: 'gemini-2.5-flash',
     ttsModel: 'gemini-2.5-flash-preview-tts',
     filesUploadUrl: 'https://generativelanguage.googleapis.com/upload/v1beta/files',
-    generateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+    mmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+    llmGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
     ttsGenerateUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
     filesMaxMb: 20,
     analysisMode: 'real',
@@ -212,7 +216,7 @@ describe('pollFileActive', () => {
 
       await pollFileActive('files/test-123', mockConfig)
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0] as [string]
       expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/files/test-123?key=test-api-key')
     })
 
@@ -225,7 +229,7 @@ describe('pollFileActive', () => {
 
       await pollFileActive('test-123', mockConfig)
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0] as [string]
       expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/files/test-123?key=test-api-key')
     })
 

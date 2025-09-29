@@ -94,7 +94,7 @@ describe('downloadVideo', () => {
       expect(result.bytes).toBeInstanceOf(Uint8Array)
     })
 
-    it('should handle bucket/object path format', async () => {
+    it('should handle known bucket prefixes', async () => {
       const mockFileData = {
         arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
         type: 'video/mp4'
@@ -104,9 +104,44 @@ describe('downloadVideo', () => {
         download: vi.fn().mockResolvedValue({ data: mockFileData, error: null })
       })
 
-      const result = await downloadVideo(mockSupabase as any, 'custom-bucket/path/to/video.mp4')
+      const result = await downloadVideo(mockSupabase as any, 'processed/audio/file.wav')
 
-      expect(mockSupabase.storage.from).toHaveBeenCalledWith('custom-bucket')
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('processed')
+      expect(mockSupabase.storage.from().download).toHaveBeenCalledWith('audio/file.wav')
+      expect(result.mimeType).toBe('video/mp4')
+    })
+
+    it('should default to raw bucket for userId-prefixed paths', async () => {
+      const mockFileData = {
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
+        type: 'video/mp4'
+      }
+
+      mockSupabase.storage.from.mockReturnValue({
+        download: vi.fn().mockResolvedValue({ data: mockFileData, error: null })
+      })
+
+      const result = await downloadVideo(mockSupabase as any, '488a7161-a2c7-40dc-88ac-d27e1ea3c0b0/smoke-upload-1759176853765.mp4')
+
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('raw')
+      expect(mockSupabase.storage.from().download).toHaveBeenCalledWith('488a7161-a2c7-40dc-88ac-d27e1ea3c0b0/smoke-upload-1759176853765.mp4')
+      expect(result.mimeType).toBe('video/mp4')
+    })
+
+    it('should default to raw bucket for unknown bucket prefixes', async () => {
+      const mockFileData = {
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
+        type: 'video/mp4'
+      }
+
+      mockSupabase.storage.from.mockReturnValue({
+        download: vi.fn().mockResolvedValue({ data: mockFileData, error: null })
+      })
+
+      const result = await downloadVideo(mockSupabase as any, 'unknown-bucket/path/to/video.mp4')
+
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('raw')
+      expect(mockSupabase.storage.from().download).toHaveBeenCalledWith('unknown-bucket/path/to/video.mp4')
       expect(result.mimeType).toBe('video/mp4')
     })
 

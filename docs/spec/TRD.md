@@ -226,6 +226,7 @@ flowchart TD
   - Storage buckets:
     - `raw`: Private bucket for user-uploaded video files (MP4/MOV, 500MB limit, authenticated client uploads with user-scoped RLS)
     - `processed`: Private bucket for AI-generated artifacts (MP3/WAV audio, 100MB limit, service-role only)
+  - `storage_path` format: Object path only (no bucket prefix); e.g., `userId/timestamp_filename.mp4`. Download functions default to `raw` bucket unless explicit known bucket prefix used.
   - Policies: select/insert/update restricted to owner `(select auth.uid()) = user_id`
 
 * **Audio Format Configuration (Centralized)**:

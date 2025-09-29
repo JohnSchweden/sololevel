@@ -24,6 +24,7 @@ export interface TTSResult {
   bytes: Uint8Array
   contentType: string
   prompt: string
+  duration: number
 }
 
 /**

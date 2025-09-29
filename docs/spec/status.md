@@ -5,6 +5,21 @@
  - 2025-09-28: Enhanced `.cursor/rules/core/monorepo-foundation.mdc` with "Prompt Patterns" section (lead with ask, output shape, delimiters, correction handles, monorepo-specific templates). Policy neutral; improves contributor and AI prompt clarity.
  - 2025-09-29: Added SSML prompt persistence migration and updated TRD with worker service architecture. Database schema now includes ssml_prompt column for prompt tracking across SSML generation pipeline.
 
+## Recent Fixes & Analysis
+
+### Storage Download Path Parsing Fix ✅ 2025-09-29
+- **Issue Identified**: Video download failures when `storage_path` contained user IDs (e.g., `488a7161-a2c7-40dc-88ac-d27e1ea3c0b0/smoke-upload-1759176853765.mp4`)
+- **Root Cause**: `downloadVideo()` function incorrectly parsed any first path segment as a bucket name, treating user UUIDs as bucket names instead of defaulting to `raw`
+- **Evidence**: Logs showed `bucket: "488a7161-a2c7-40dc-88ac-d27e1ea3c0b0"` and `object: "smoke-upload-1759176853765.mp4"` causing storage access failures
+- **Fix Applied**:
+  - Updated `_shared/storage/download.ts` to only treat known bucket prefixes (`raw`, `processed`, `thumbnails`) as explicit bucket names
+  - Default to `raw` bucket for all other paths (including userId-prefixed paths)
+  - Improved error logging to show full error objects instead of empty strings
+  - Added comprehensive tests for userId-prefixed paths, unknown bucket prefixes, and known bucket prefixes
+- **Validation**: All tests pass (211/211), including new test case for the exact failing UUID path
+- **Consistency**: Updated seed data to use object-only `storage_path` format and clarified TRD documentation
+- **Impact**: AI video analysis pipeline now correctly downloads videos from Supabase Storage
+
 ## Completed Features
 
 ### Core Recording & Video Features
@@ -53,7 +68,7 @@
   - **Environment Mode Support**: Workers now respect AI_ANALYSIS_MODE for mock vs live service selection
   - **Prompt Tracking**: SSML and audio segments now persist prompts used for generation (ssml_prompt, prompt columns)
   - **Storage Integration**: Workers use uploadProcessedArtifact for consistent storage handling with signed URLs
-  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants; normalized analysis_audio_segments schema (renamed columns, dropped redundant fields)
+  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants; normalized analysis_audio_segments schema (renamed columns, dropped redundant fields); changed video_recordings.duration_seconds from integer to numeric for decimal support
   - **Comprehensive Testing**: 83 database tests + 54 Deno tests + 207 shared module tests passing with full pipeline coverage
   - **Type Safety**: Updated database.types.ts with new columns and service interfaces for full TypeScript coverage
 

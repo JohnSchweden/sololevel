@@ -1289,7 +1289,7 @@ CREATE TABLE IF NOT EXISTS "public"."video_recordings" (
     "filename" "text" NOT NULL,
     "original_filename" "text",
     "file_size" bigint NOT NULL,
-    "duration_seconds" integer NOT NULL,
+    "duration_seconds" numeric NOT NULL,
     "format" "text" NOT NULL,
     "storage_path" "text" NOT NULL,
     "upload_status" "text" DEFAULT 'pending'::"text" NOT NULL,

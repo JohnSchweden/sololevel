@@ -86,12 +86,12 @@ export async function analyzeVideoWithGemini(
       // Use mock response
       generationResult = {
         text: PREPARED_GEMINI_MOCK_RESPONSE,
-        rawResponse: { source: 'mock', model: config.model },
+        rawResponse: { source: 'mock', model: config.mmModel },
         prompt,
       }
     } else {
       // REAL mode: Use Gemini API
-      logger.info(`Starting Gemini analysis (${config.model}) for video: ${videoPath}`)
+      logger.info(`Starting Gemini analysis (${config.mmModel}) for video: ${videoPath}`)
 
       // Step 1: Download video (20% progress)
       const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb)
@@ -156,11 +156,11 @@ export async function analyzeVideoWithGemini(
       jsonData: jsonData,
     }
 
-    logger.info(`${config.model} analysis completed: ${result.textReport.substring(0, 100)}...`)
+    logger.info(`${config.mmModel} analysis completed: ${result.textReport.substring(0, 100)}...`)
 
     return result
   } catch (error) {
-    logger.error(`${config.model} analysis failed`, error)
+    logger.error(`${config.mmModel} analysis failed`, error)
     throw error
   }
 }
