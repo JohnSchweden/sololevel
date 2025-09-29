@@ -22,14 +22,13 @@ Deno.serve(async (req) => {
     // Test the new database functions
     try {
       // Test if the enhanced storage function exists
-      const { data, error } = await supabase.rpc('store_enhanced_analysis_results', {
-        analysis_job_id: 1,
-        p_full_feedback_text: 'Test feedback',
+      const { data, error } = await supabase.rpc('store_analysis_results', {
+        p_job_id: 1, // Test job ID
+        p_full_feedback_text: 'Test summary',
         p_summary_text: 'Test summary',
-        p_processing_time_ms: 1000,
-        p_video_source_type: 'uploaded_video',
-        p_feedback: [],
-        p_metrics: {}
+        p_raw_generated_text: null,
+        p_full_feedback_json: null,
+        p_feedback_prompt: null,
       })
 
       return new Response(JSON.stringify({

@@ -46,11 +46,11 @@ jobs:
       - name: Generate Supabase Types
         run: |
           # Start local Supabase (if needed for type generation)
-          # yarn dlx supabase start
+          # yarn supabase start
           # Generate types
-          yarn dlx supabase gen types typescript --local --schema public > packages/config/src/database.types.ts
+          yarn supabase gen types typescript --local --schema public > packages/config/src/database.types.ts
           # Check if types are up to date
-          git diff --exit-code packages/config/src/database.types.ts || (echo "Database types are out of sync. Run 'yarn dlx supabase gen types typescript --local --schema public > packages/config/src/database.types.ts'" && exit 1)
+          git diff --exit-code packages/config/src/database.types.ts || (echo "Database types are out of sync. Run 'yarn supabase gen types typescript --local --schema public > packages/config/src/database.types.ts'" && exit 1)
 
       - name: Type Check Authentication
         run: |

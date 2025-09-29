@@ -7,7 +7,7 @@
  * Uses Supabase Admin API to create users with confirmed email addresses.
  */
 
-import { createAdminClient, createAnonClient, createScriptLogger, getScriptConfig, scriptHelpers } from './utils/env.mjs'
+import { createAdminClient, createAnonClient, createScriptLogger, getScriptConfig, scriptHelpers } from '../utils/env.mjs'
 
 const logger = createScriptLogger('seedTestUser')
 

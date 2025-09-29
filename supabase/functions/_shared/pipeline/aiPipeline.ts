@@ -1,3 +1,5 @@
+import { processAudioJobs as _processAudioJobs } from '../../ai-analyze-video/workers/audioWorker.ts'
+import { processSSMLJobs } from '../../ai-analyze-video/workers/ssmlWorker.ts'
 import { type AnalysisResults, storeAudioSegmentForFeedback, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
 import { notifyAnalysisComplete } from '../notifications.ts'
 import {
@@ -138,7 +140,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
         processing_time: Date.now() - startTime,
         video_source: videoSource,
       }
-      await updateAnalysisResults(
+      const feedbackIds = await updateAnalysisResults(
         supabase,
         analysisId,
         results,
@@ -150,6 +152,12 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
         fullFeedbackJson,
         feedbackPrompt
       )
+      // Kick SSML jobs instantly (if any feedback rows were inserted)
+      if (services.ssml && Array.isArray(feedbackIds) && feedbackIds.length > 0) {
+        processSSMLJobs({ supabase, logger, feedbackIds }).catch((error) => {
+          logger.error('Failed to kick SSML jobs', { error, feedbackIds })
+        })
+      }
       await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
       await notifyAnalysisComplete(analysisId, logger)
       return
@@ -174,7 +182,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
         processing_time: Date.now() - startTime,
         video_source: videoSource,
       }
-      await updateAnalysisResults(
+      const feedbackIds = await updateAnalysisResults(
         supabase,
         analysisId,
         results,
@@ -188,8 +196,13 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
         ssmlPrompt,
         audioPrompt
       )
-      await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
-      await notifyAnalysisComplete(analysisId, logger)
+      if (services.ssml && Array.isArray(feedbackIds) && feedbackIds.length > 0) {
+        processSSMLJobs({ supabase, logger, feedbackIds }).catch((error) => {
+          logger.error('Failed to kick SSML jobs', { error, feedbackIds })
+        })
+      }
+    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
+    await notifyAnalysisComplete(analysisId, logger)
       return
     }
 
@@ -209,14 +222,12 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     try {
       const segmentId = await storeAudioSegmentForFeedback(
         supabase,
-        analysisId.toString(),
         -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
-        ssmlResult.ssml,
         ttsResult.audioUrl,
         {
+          analysisId: analysisId.toString(),
           audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
           audioFormat: ttsResult.format || 'wav',
-          ssmlPrompt: ssmlPrompt || undefined, // Store the SSML generation prompt
           audioPrompt: audioPrompt || undefined // Store the TTS system instruction
         },
         logger
@@ -243,7 +254,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
 
     // Note: Pose data is stored separately in analysis_jobs.pose_data for UI purposes
     // AI analysis results don't include pose data
-    await updateAnalysisResults(
+    const _feedbackIds = await updateAnalysisResults(
       supabase,
       analysisId,
       results,
@@ -257,6 +268,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       ssmlPrompt,
       audioPrompt
     )
+    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
     await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
 
     // 6. Real-time notification

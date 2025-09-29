@@ -35,7 +35,7 @@ $$;
 
 alter function public.finalize_video_on_raw_object() owner to postgres;
 
-drop trigger if exists trg_finalize_video_on_raw_object on storage.objects;
+-- drop trigger if exists trg_finalize_video_on_raw_object on storage.objects;
 create trigger trg_finalize_video_on_raw_object
 after insert on storage.objects
 for each row execute function public.finalize_video_on_raw_object();

@@ -31,7 +31,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 ### 2. Start Supabase
 
 ```bash
-yarn dlx supabase start
+yarn supabase start
 ```
 
 ### 3. Seed Test User
@@ -94,7 +94,7 @@ The seeding script:
 **Solution**: Check that `TEST_AUTH_PASSWORD` matches what was used during creation.
 
 #### "Connection refused" errors
-**Solution**: Ensure Supabase is running locally with `yarn dlx supabase start`
+**Solution**: Ensure Supabase is running locally with `yarn supabase start`
 
 ### Manual Verification
 
@@ -105,7 +105,7 @@ You can manually verify the test user exists:
 open http://localhost:54323
 
 # Or use the Supabase CLI
-yarn dlx supabase auth list-users
+yarn supabase auth list-users
 ```
 
 ### Reset Test User
@@ -114,7 +114,7 @@ If you need to reset the test user:
 
 ```bash
 # Delete the user via Supabase dashboard or CLI
-yarn dlx supabase auth delete-user <user-id>
+yarn supabase auth delete-user <user-id>
 
 # Then re-seed
 yarn seed:test-user
@@ -161,7 +161,7 @@ The test user is subject to the same RLS policies as real users:
 
 ### Development Workflow
 
-1. **Start fresh**: `yarn dlx supabase start`
+1. **Start fresh**: `yarn supabase start`
 2. **Seed user**: `yarn seed:test-user`
 3. **Develop**: App auto-authenticates with test user
 4. **Test**: Run E2E tests with pre-authenticated sessions
@@ -171,7 +171,7 @@ The test user is subject to the same RLS policies as real users:
 ```yaml
 # Example GitHub Actions workflow
 - name: Setup Supabase
-  run: yarn dlx supabase start
+  run: yarn supabase start
 
 - name: Seed test user
   run: yarn seed:test-user

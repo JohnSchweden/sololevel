@@ -26,46 +26,83 @@ async function main() {
   const derivedFunctionsBase = `${String(cfg.supabase.url).replace(/\/$/, '')}/functions/v1`
   const functionsBase = (EDGE_FUNCTIONS_BASE_URL || derivedFunctionsBase).replace(/\/$/, '')
 
-  const missing = []
-  if (!SUPABASE_ACCESS_TOKEN) missing.push('SUPABASE_ACCESS_TOKEN')
-  if (!SUPABASE_PROJECT_REF) missing.push('SUPABASE_PROJECT_REF')
-  if (!DB_WEBHOOK_SECRET) missing.push('DB_WEBHOOK_SECRET')
-  if (!functionsBase) missing.push('EDGE_FUNCTIONS_BASE_URL|SUPABASE_URL')
+  // Check if running locally (no access token means local development)
+  const isLocal = !SUPABASE_ACCESS_TOKEN
+  const isHosted = !!SUPABASE_ACCESS_TOKEN
 
-  if (missing.length) {
-    log.error(`Missing required env vars: ${missing.join(', ')}`)
+  // For local development, we need different vars
+  const localMissing = []
+  if (isLocal && !DB_WEBHOOK_SECRET) localMissing.push('DB_WEBHOOK_SECRET')
+  if (isLocal && !functionsBase) localMissing.push('EDGE_FUNCTIONS_BASE_URL|SUPABASE_URL')
+
+  // For hosted, we need the full set
+  const hostedMissing = []
+  if (isHosted && !SUPABASE_ACCESS_TOKEN) hostedMissing.push('SUPABASE_ACCESS_TOKEN')
+  if (isHosted && !SUPABASE_PROJECT_REF) hostedMissing.push('SUPABASE_PROJECT_REF')
+  if (isHosted && !DB_WEBHOOK_SECRET) hostedMissing.push('DB_WEBHOOK_SECRET')
+  if (isHosted && !functionsBase) hostedMissing.push('EDGE_FUNCTIONS_BASE_URL|SUPABASE_URL')
+
+  if (localMissing.length > 0) {
+    log.error(`Local development requires: ${localMissing.join(', ')}`)
     process.exit(1)
   }
 
-  // [Unverified] Default API base; override via SUPABASE_WEBHOOK_API_BASE
-  const apiBase = SUPABASE_WEBHOOK_API_BASE
-    || `https://api.supabase.com/v1/projects/${encodeURIComponent(SUPABASE_PROJECT_REF)}`
+  if (hostedMissing.length > 0) {
+    log.error(`Hosted environment requires: ${hostedMissing.join(', ')}`)
+    process.exit(1)
+  }
 
-  const listUrl = `${apiBase}/database/webhooks` // [Unverified]
-  const upsertUrl = `${apiBase}/database/webhooks` // [Unverified]
+  // For local development, use local Supabase REST API with local_webhook_config table
+  // For hosted, use Supabase Management API
+  let listUrl, upsertUrl, headers
+
+  if (isLocal) {
+    const localApiBase = cfg.supabase.url.replace(/\/$/, '')
+    listUrl = `${localApiBase}/rest/v1/local_webhook_config`
+    upsertUrl = `${localApiBase}/rest/v1/local_webhook_config`
+    headers = {
+      'Content-Type': 'application/json',
+    }
+  } else {
+    // [Unverified] Hosted API base; override via SUPABASE_WEBHOOK_API_BASE
+    const apiBase = SUPABASE_WEBHOOK_API_BASE
+      || `https://api.supabase.com/v1/projects/${encodeURIComponent(SUPABASE_PROJECT_REF)}`
+
+    listUrl = `${apiBase}/database/webhooks` // [Unverified]
+    upsertUrl = `${apiBase}/database/webhooks` // [Unverified]
+
+    headers = {
+      Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    }
+  }
 
   const targetUrl = `${functionsBase}/ai-analyze-video/webhook`
 
-  const headers = {
-    Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
-    'Content-Type': 'application/json',
-  }
-
-  const desired = {
-    name: DB_WEBHOOK_NAME,
-    table: 'public.video_recordings',
-    event: 'UPDATE',
-    filter: "NEW.upload_status = 'completed'",
-    url: targetUrl,
-    include: ['record'],
-    headers: [{ key: 'X-Db-Webhook-Secret', value: DB_WEBHOOK_SECRET }],
-    enabled: true,
+  // Different payload structures for local vs hosted
+  let desired
+  if (isLocal) {
+    desired = {
+      webhook_url: targetUrl,
+      webhook_secret: DB_WEBHOOK_SECRET,
+    }
+  } else {
+    desired = {
+      name: DB_WEBHOOK_NAME,
+      table: 'public.video_recordings',
+      event: 'UPDATE',
+      // filter: "NEW.upload_status = 'completed'",
+      url: targetUrl,
+      include: ['record'],
+      headers: [{ key: 'X-Db-Webhook-Secret', value: DB_WEBHOOK_SECRET }],
+      enabled: true,
+    }
   }
 
   // Fetch existing webhooks
   let existing = []
   try {
-    log.info('Listing existing DB webhooks', { listUrl })
+    log.info('Listing existing webhooks', { listUrl })
     const res = await fetch(listUrl, { headers })
     if (!res.ok) throw new Error(`List failed: ${res.status}`)
     existing = await res.json()
@@ -74,15 +111,27 @@ async function main() {
     process.exit(1)
   }
 
-  const match = (existing || []).find((w) => w?.name === desired.name || w?.url === desired.url)
+  // Match logic differs between local and hosted
+  const match = (existing || []).find((w) => {
+    if (isLocal) {
+      return w?.webhook_url === desired.webhook_url
+    } else {
+      return w?.name === desired.name || w?.url === desired.url
+    }
+  })
 
   if (match) {
-    const updateUrl = `${upsertUrl}/${encodeURIComponent(match.id || match.name)}`
+    const updateUrl = `${upsertUrl}?id=eq.${match.id}`
     try {
-      log.info('Updating existing webhook', { id: match.id || match.name, updateUrl })
-      const res = await fetch(updateUrl, { method: 'PUT', headers, body: JSON.stringify(desired) })
+      log.info('Updating existing webhook', { id: match.id, updateUrl })
+      const res = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(desired)
+      })
       if (!res.ok) throw new Error(`Update failed: ${res.status}`)
-      log.success('Webhook updated', desired.name)
+      const webhookName = isLocal ? desired.webhook_url : desired.name
+      log.success('Webhook updated', webhookName)
       process.exit(0)
     } catch (err) {
       log.error('[Unverified] Failed to update webhook:', err.message || err)
@@ -93,7 +142,8 @@ async function main() {
       log.info('Creating webhook', { upsertUrl })
       const res = await fetch(upsertUrl, { method: 'POST', headers, body: JSON.stringify(desired) })
       if (!res.ok) throw new Error(`Create failed: ${res.status}`)
-      log.success('Webhook created', desired.name)
+      const webhookName = isLocal ? desired.webhook_url : desired.name
+      log.success('Webhook created', webhookName)
       process.exit(0)
     } catch (err) {
       log.error('[Unverified] Failed to create webhook:', err.message || err)

@@ -19,7 +19,7 @@ Based on comprehensive testing and analysis of the authentication implementation
 **Solution**: Auto-generate types from Supabase schema
 ```bash
 # Generate types from Supabase schema
-yarn dlx supabase gen types typescript --project-id "$PROJECT_REF" --schema public > packages/config/src/database.types.ts
+yarn supabase gen types typescript --project-id "$PROJECT_REF" --schema public > packages/config/src/database.types.ts
 
 # Update imports across codebase
 # Replace: import type { Database } from '@my/config'
@@ -142,7 +142,7 @@ npx husky add .husky/pre-commit "yarn lint-staged"
 # .github/workflows/ci.yml
 - name: Generate Supabase Types
   run: |
-    yarn dlx supabase gen types typescript --project-id "$PROJECT_REF" --schema public > packages/config/src/database.types.ts
+    yarn supabase gen types typescript --project-id "$PROJECT_REF" --schema public > packages/config/src/database.types.ts
     git diff --exit-code || (echo "Types out of sync" && exit 1)
 
 - name: Run Comprehensive Tests

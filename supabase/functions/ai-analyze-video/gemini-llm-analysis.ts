@@ -14,7 +14,7 @@ import { getGeminiAnalysisPrompt as _getGeminiAnalysisPrompt } from './prompts-l
 import { createValidatedGeminiConfig } from '../_shared/gemini/config.ts'
 import { pollFileActive, uploadToGemini } from '../_shared/gemini/filesClient.ts'
 import { generateContent } from '../_shared/gemini/generate.ts'
-import { getMockAnalysisResult } from '../_shared/gemini/mocks.ts'
+import { PREPARED_GEMINI_MOCK_RESPONSE } from '../_shared/gemini/mocks.ts'
 import { extractMetricsFromText, parseDualOutput } from '../_shared/gemini/parse.ts'
 import type { GeminiVideoAnalysisResult, VideoAnalysisParams } from '../_shared/gemini/types.ts'
 import { downloadVideo } from '../_shared/storage/download.ts'
@@ -52,12 +52,25 @@ export async function analyzeVideoWithGemini(
     throw new Error('Supabase client not available for video download')
   }
 
+  // 0) Generate analysis prompt (shared)
+  const mappedParams = {
+    duration: analysisParams?.duration || 6,
+    start_time: analysisParams?.startTime || 0,
+    end_time: analysisParams?.endTime || analysisParams?.duration || 6,
+    feedback_count: analysisParams?.feedbackCount || 1,
+    target_timestamps: analysisParams?.targetTimestamps,
+    min_gap: analysisParams?.minGap,
+    first_timestamp: analysisParams?.firstTimestamp,
+  }
+  const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
+  logger.info(`Generated analysis prompt: ${prompt.length} characters`)
+
   try {
-    logger.info(`Starting Gemini analysis (${config.model}) for video: ${videoPath}`)
+    let generationResult: { text: string; rawResponse: any; prompt: string }
 
     // Mock mode: Use prepared response instead of API calls
     if (config.analysisMode === 'mock') {
-      logger.info('AI_ANALYSIS_MODE=mock: Using prepared response for MVP testing')
+      logger.info(`AI_ANALYSIS_MODE=mock: Using prepared response for MVP testing with video: ${videoPath}`)
 
       // Simulate progress callbacks to maintain pipeline flow
       if (progressCallback) {
@@ -67,76 +80,60 @@ export async function analyzeVideoWithGemini(
         await progressCallback(70) // Analysis simulation
       }
 
-      // Generate prompt as usual (for consistency)
-      const mappedParams = {
-        duration: analysisParams?.duration || 6,
-        start_time: analysisParams?.startTime || 0,
-        end_time: analysisParams?.endTime || analysisParams?.duration || 6,
-        feedback_count: analysisParams?.feedbackCount || 1,
-        target_timestamps: analysisParams?.targetTimestamps,
-        min_gap: analysisParams?.minGap,
-        first_timestamp: analysisParams?.firstTimestamp,
-      }
-      const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
-      logger.info(`Generated analysis prompt (mock mode): ${prompt.length} characters`)
+      // Use mock response
+      //return getMockAnalysisResult()
 
       // Use mock response
-      return getMockAnalysisResult()
+      generationResult = {
+        text: PREPARED_GEMINI_MOCK_RESPONSE,
+        rawResponse: { source: 'mock', model: config.model },
+        prompt,
+      }
+    } else {
+      // REAL mode: Use Gemini API
+      logger.info(`Starting Gemini analysis (${config.model}) for video: ${videoPath}`)
+
+      // Step 1: Download video (20% progress)
+      const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb)
+
+      if (progressCallback) {
+        await progressCallback(20)
+      }
+
+      // Step 2: Upload video to Gemini Files API (40% progress)
+      const displayName = `analysis_${Date.now()}.mp4`
+      const fileRef = await uploadToGemini(bytes, mimeType, displayName, config)
+
+      if (progressCallback) {
+        await progressCallback(40)
+      }
+
+      // Step 3: Poll until file is ACTIVE (55% progress)
+      await pollFileActive(fileRef.name, config)
+
+      if (progressCallback) {
+        await progressCallback(55)
+      }
+
+      // Step 4: Generate content with Gemini (70% progress)
+      generationResult = await generateContent({
+        fileRef,
+        prompt,
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
+      }, config)
+
+      if (progressCallback) {
+        await progressCallback(70)
+      }
     }
 
-    // Step 1: Download video (20% progress)
-    const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb)
-
-    if (progressCallback) {
-      await progressCallback(20)
-    }
-
-    // Step 2: Upload video to Gemini Files API (40% progress)
-    const displayName = `analysis_${Date.now()}.mp4`
-    const fileRef = await uploadToGemini(bytes, mimeType, displayName, config)
-
-    if (progressCallback) {
-      await progressCallback(40)
-    }
-
-    // Step 3: Poll until file is ACTIVE (55% progress)
-    await pollFileActive(fileRef.name, config)
-
-    if (progressCallback) {
-      await progressCallback(55)
-    }
-
-    // Step 4: Generate analysis prompt
-    const mappedParams = {
-      duration: analysisParams?.duration || 6,
-      start_time: analysisParams?.startTime || 0,
-      end_time: analysisParams?.endTime || analysisParams?.duration || 6,
-      feedback_count: analysisParams?.feedbackCount || 1,
-      target_timestamps: analysisParams?.targetTimestamps,
-      min_gap: analysisParams?.minGap,
-      first_timestamp: analysisParams?.firstTimestamp,
-    }
-    const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
-    logger.info(`Generated analysis prompt: ${prompt.length} characters`)
-
-    // Step 5: Generate content with Gemini (70% progress)
-    const generationResult = await generateContent({
-      fileRef,
-      prompt,
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    }, config)
-
-    if (progressCallback) {
-      await progressCallback(70)
-    }
-
-    // Step 6: Parse the response
+    // Step 5: Parse the response (shared)
     const { textReport, feedback, metrics, jsonData } = parseDualOutput(generationResult.text)
 
-    // Validate and normalize the response
+    // Step 6: Validate and normalize the response (shared)
     const result: GeminiVideoAnalysisResult = {
       textReport: textReport || 'Video analysis completed successfully',
       feedback:

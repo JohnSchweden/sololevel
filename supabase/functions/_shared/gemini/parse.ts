@@ -48,7 +48,7 @@ export function parseDualOutput(responseText: string): {
 } {
   let textReport = ''
   let feedback: FeedbackItem[] = []
-  let metrics: any = {}
+  let metrics: any
   let jsonData: any = {}
 
   // Preferred format: === TEXT FEEDBACK START/END ===

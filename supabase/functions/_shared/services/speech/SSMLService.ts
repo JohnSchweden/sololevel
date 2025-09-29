@@ -105,6 +105,7 @@ export class MockSSMLService implements ISSMLService {
 
     return await Promise.resolve({
       ssml: `<speak><p>Mock SSML generated from analysis results.</p></speak>`,
+      promptUsed: 'mock-ssml-prompt',
     })
   }
 }

@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
 /* To invoke locally:
 
   1. Run `supabase start`
-  2. Run `yarn dlx supabase functions serve ai-analyze-video --env-file .env`
+  2. Run `yarn supabase functions serve ai-analyze-video --env-file .env`
   3. Make HTTP requests:
 
   # Health check

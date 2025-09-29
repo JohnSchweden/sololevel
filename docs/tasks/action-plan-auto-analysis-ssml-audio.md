@@ -51,9 +51,9 @@ Purpose: Backend-driven, reliable kickoff of video analysis and per-feedback SSM
 - **Snapshot**: Capture linked-project diff (`tmp/linked-schema-diff.sql`) and tag notable sections (role grants, legacy RPCs, storage triggers).
 - **Schema audit**: Cross-check migrations after `20250925` against the diff to confirm which changes failed to land remotely.
 - **Role alignment**: Decide canonical privileges for `anon`, `authenticated`, `service_role`; update repo migrations or Supabase project so grants stop flipping.
-- **Legacy cleanup**: Remove resurrected RPCs (`store_analysis_results`, `store_enhanced_analysis_results`, job-table helpers) by verifying linked DB is safe to drop them, or ship compatibility shims.
+- **Legacy cleanup**: Remove resurrected RPCs (`store_analysis_results`, ~~`store_enhanced_analysis_results`~~, job-table helpers) by verifying linked DB is safe to drop them, or ship compatibility shims.
 - **Bucket policies**: Ensure raw/processed triggers exist in linked project; re-run migrations or craft corrective migration if they were skipped.
-- **Validation**: After fixes, re-run `yarn dlx supabase db diff --schema public --linked` expecting empty or intentional output; document outcome in `docs/spec/status.md`.
+- **Validation**: After fixes, re-run `yarn supabase db diff --schema public --linked` expecting empty or intentional output; document outcome in `docs/spec/status.md`.
 - **Future guardrail**: Add a CI smoke step (`supabase db diff --local`) to flag drift before PR merge.
 
 ---
@@ -195,7 +195,7 @@ Purpose: Backend-driven, reliable kickoff of video analysis and per-feedback SSM
 - [x] All migrations are reversible (down migrations provided)
 - [x] New tables have proper RLS policies matching existing patterns
 - [x] All foreign key constraints and indexes are in place
-- [x] `yarn dlx supabase db diff` shows no unexpected changes
+- [x] `yarn supabase db diff` shows no unexpected changes
 - [x] Database tests pass for all new tables and constraints (24 tests passing)
 - [x] No breaking changes to existing queries/subscriptions
 

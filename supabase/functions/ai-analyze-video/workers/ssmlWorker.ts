@@ -1,5 +1,8 @@
 // SSML Worker - Processes SSML generation based on feedback statuses
 
+import { storeSSMLSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { processAudioJobs as _processAudioJobs } from './audioWorker.ts'
+
 interface SSMLTask {
   id: number
   message: string
@@ -13,6 +16,8 @@ interface SSMLTask {
 interface WorkerContext {
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+  feedbackIds?: number[]
+  analysisId?: string
 }
 
 interface ProcessingResult {
@@ -22,7 +27,7 @@ interface ProcessingResult {
   retriedJobs: number
 }
 
-export async function processSSMLJobs({ supabase, logger }: WorkerContext): Promise<ProcessingResult> {
+export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisId }: WorkerContext): Promise<ProcessingResult> {
   const result: ProcessingResult = {
     processedJobs: 0,
     enqueuedAudioJobs: 0,
@@ -31,11 +36,20 @@ export async function processSSMLJobs({ supabase, logger }: WorkerContext): Prom
   }
 
   try {
-    const { data: jobs, error: jobsError } = await supabase
+    let query = supabase
       .from('analysis_feedback')
       .select('id, message, category, timestamp_seconds, confidence, ssml_status, ssml_attempts')
       .eq('ssml_status', 'queued')
-      .limit(5)
+
+    if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
+      query = query.in('id', feedbackIds)
+    }
+
+    if (analysisId) {
+      query = query.eq('analysis_id', analysisId)
+    }
+
+    const { data: jobs, error: jobsError } = await query.limit(20)
 
     if (jobsError) {
       logger.error('Failed to fetch SSML jobs', { error: jobsError })
@@ -80,18 +94,14 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
 
   const ssml = generateSSMLFromMessage(job)
 
-  const { error: segmentError } = await supabase
-    .from('analysis_ssml_segments')
-    .insert({
-      feedback_id: job.id,
-      segment_index: 0,
-      ssml: ssml,
-      provider: 'gemini',
-      version: '1.0'
-    })
+  const segmentId = await storeSSMLSegmentForFeedback(supabase, job.id, ssml, {
+    provider: 'gemini',
+    version: '1.0',
+    segmentIndex: 0,
+  })
 
-  if (segmentError) {
-    throw new Error(`Failed to write SSML segment: ${segmentError.message}`)
+  if (!segmentId) {
+    throw new Error('Failed to write SSML segment: insert failed')
   }
 
   await updateFeedbackSSMLStatus(job.id, 'completed', supabase)

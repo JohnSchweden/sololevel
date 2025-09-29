@@ -485,17 +485,15 @@ export async function storeAnalysisResults(
   results: TRDAnalysisResult
 ): Promise<{ data: boolean; error: string | null }> {
   try {
-    const { summary_text, metrics } = results
-    const metricsJsonb = metrics ? JSON.stringify(metrics) : '{}'
+    const { summary_text } = results
 
-    const { error } = await (supabase.rpc as any)('store_enhanced_analysis_results', {
-      analysis_job_id: analysisJobId,
-      p_full_feedback_text: summary_text || undefined,
-      p_summary_text: summary_text || undefined,
-      p_processing_time_ms: null,
-      p_video_source_type: null,
-      p_feedback: '[]',
-      p_metrics: metricsJsonb,
+    const { data, error } = await (supabase.rpc as any)('store_analysis_results', {
+      p_job_id: analysisJobId,
+      p_full_feedback_text: summary_text || null,
+      p_summary_text: summary_text || null,
+      p_raw_generated_text: null,
+      p_full_feedback_json: null,
+      p_feedback_prompt: null,
     })
 
     if (error) {
@@ -503,7 +501,8 @@ export async function storeAnalysisResults(
       return { data: false, error: error.message }
     }
 
-    return { data: true, error: null }
+    // Metrics now handled by a separate helper until TRD catches up
+    return { data: !!data, error: null }
   } catch (error) {
     log.error('Unexpected error storing analysis results:', error)
     return {

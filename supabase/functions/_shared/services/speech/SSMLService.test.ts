@@ -50,15 +50,11 @@ describe('SSMLService', () => {
     it('should return mock SSML result', async () => {
       const result = await service.generate(mockContext)
 
-      expect(result).toEqual({
-        ssml: `<speak><p>Mock SSML generated from analysis results.</p></speak>`,
-      })
-    })
-
-    it('should not include promptUsed in mock result', async () => {
-      const result = await service.generate(mockContext)
-
-      expect(result.promptUsed).toBeUndefined()
+      expect(result).toEqual(
+        expect.objectContaining({
+          ssml: `<speak><p>Mock SSML generated from analysis results.</p></speak>`,
+        })
+      )
     })
   })
 

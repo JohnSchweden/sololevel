@@ -42,17 +42,17 @@ jobs:
         run: yarn install --immutable
 
       - name: Start Supabase local stack
-        run: yarn dlx supabase start
+        run: yarn supabase start
 
       - name: Wait for database to be ready
         run: |
-          timeout 60 bash -c 'until yarn dlx supabase db ping --db-url "postgresql://postgres:postgres@127.0.0.1:54322/postgres"; do sleep 2; done'
+          timeout 60 bash -c 'until yarn supabase db ping --db-url "postgresql://postgres:postgres@127.0.0.1:54322/postgres"; do sleep 2; done'
 
       - name: Run database migrations
-        run: yarn dlx supabase db reset
+        run: yarn supabase db reset
 
       - name: Run pgTAP database tests
-        run: yarn dlx supabase test db
+        run: yarn supabase test db
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

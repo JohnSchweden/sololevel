@@ -2,6 +2,7 @@
 
 ## Documentation Updates
 - 2025-09-26: Refined `.cursor/rules/core/development-operations.mdc` using `prompt-improve.mdc` patterns (added TL;DR, step-by-step workflow, knowledge boundaries, REMEMBER). No policy changes.
+ - 2025-09-28: Enhanced `.cursor/rules/core/monorepo-foundation.mdc` with "Prompt Patterns" section (lead with ask, output shape, delimiters, correction handles, monorepo-specific templates). Policy neutral; improves contributor and AI prompt clarity.
 
 ## Completed Features
 
@@ -141,5 +142,3 @@
 - Video player resizing not implemented for bottom sheet expansion
 - Limited real-time update mechanisms for live feedback
 
-## Recent Fixes ✅
-- **Storage Trigger Issue**: Fixed `trg_finalize_video_on_raw_object` not firing by replacing temp upload + move workaround with direct signed URL upload to user-scoped paths. Both storage finalization and analysis job creation triggers now work correctly.

@@ -119,10 +119,10 @@ select id, results from public.analysis_jobs where results != '{}'::jsonb limit 
 ### 2. Test Rollback Procedures
 ```bash
 # Test on local development
-yarn dlx supabase db reset
-yarn dlx supabase db push
+yarn supabase db reset
+yarn supabase db push
 # Apply migration
-yarn dlx supabase db push --include-all
+yarn supabase db push --include-all
 # Test rollback
 psql -f supabase/migrations/rollback_[timestamp]_[migration_name].sql
 ```

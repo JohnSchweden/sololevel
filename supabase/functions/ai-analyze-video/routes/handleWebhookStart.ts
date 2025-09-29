@@ -90,6 +90,19 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
     }
 
     // Kick off pipeline asynchronously
+    const resolvedStages = (() => {
+      try {
+        const pipelineStagesEnv = (globalThis as any).Deno?.env?.get('PIPELINE_STAGES')
+        if (pipelineStagesEnv) {
+          return JSON.parse(pipelineStagesEnv)
+        }
+      } catch (error) {
+        logger.error('Failed to parse PIPELINE_STAGES environment variable', { error })
+      }
+      // Default: run all stages if not configured
+      return undefined
+    })()
+
     processAIPipeline({
       supabase,
       logger,
@@ -97,6 +110,7 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
       videoPath: recording.storage_path,
       videoSource: 'uploaded_video',
       timingParams: { duration: recording.duration_seconds },
+      stages: resolvedStages,
       services,
     }).catch((error) => {
       logger.error('Webhook pipeline failed', { error, analysisId: analysisJob.id })
@@ -111,5 +125,3 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
     return createErrorResponse('Failed to process webhook', 500)
   }
 }
-
-

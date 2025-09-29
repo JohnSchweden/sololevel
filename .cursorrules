@@ -30,20 +30,16 @@
       "yarn workspace @my/api remove",
       "yarn workspace @my/config add",
       "yarn workspace @my/config remove",
+      "yarn supabase db reset",
+      "yarn supabase db reset --linked",
+      "yarn supabase db reset --debug",
+      "yarn supabase db reset --no-seed",
+      "yarn supabase db reset --local",
       "yarn dlx supabase db reset",
-      "supabase db reset",
-      "yarn dlx supabase db diff",
-      "supabase db diff",
-      "yarn dlx supabase db push",
-      "supabase db push",
       "yarn dlx supabase db reset --linked",
-      "supabase db reset --linked",
       "yarn dlx supabase db reset --debug",
-      "supabase db reset --debug",
       "yarn dlx supabase db reset --no-seed",
-      "supabase db reset --no-seed",
       "yarn dlx supabase db reset --local",
-      "supabase db reset --local",
       "echo * > .env",
       "echo * >> .env",
       "echo * > .env.local",
@@ -54,25 +50,8 @@
       "echo * >> .env.production"
     ]
   },
-  "_comment": "Command validation system with confirmation",
   "validation": {
     "enabled": true,
-    "behavior": "confirmation-required",
-    "scripts": {
-      "validate-command": "node scripts/toolchain/validate-command.js",
-      "command-validator": "source scripts/toolchain/command-validator.sh"
-    },
-    "usage": {
-      "validate": "node scripts/toolchain/validate-command.js \"your command here\"",
-      "shell-integration": "source scripts/toolchain/command-validator.sh",
-      "override": "CURSOR_RULES_OVERRIDE=true [blocked command]",
-      "pre-commit-hook": "Add to .husky/pre-commit for validation"
-    },
-    "override-options": {
-      "env-var": "CURSOR_RULES_OVERRIDE=true",
-      "temporary-allow": "Remove command from block list temporarily",
-      "interactive": "Use shell validator for yes/no confirmation"
-    },
-    "note": "Blocked commands now require explicit confirmation instead of being completely blocked"
+    "behavior": "confirmation-required"
   }
 }

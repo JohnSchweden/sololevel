@@ -35,7 +35,7 @@ For best results, create a short test video showing:
 
 2. **Start local Supabase:**
    ```bash
-   yarn dlx supabase start
+   yarn supabase start
    ```
 
 3. **Put your test video** in `test-assets/videos/mini_speech.mp4` (or update the script to match your filename)
@@ -64,10 +64,10 @@ If you prefer manual testing:
 
 ```bash
 # 1. Start local Supabase
-yarn dlx supabase start
+yarn supabase start
 
 # 2. Serve the function
-yarn dlx supabase functions serve ai-analyze-video --no-verify-jwt
+yarn supabase functions serve ai-analyze-video --no-verify-jwt
 
 # 3. Upload video via Supabase Studio or your app
 

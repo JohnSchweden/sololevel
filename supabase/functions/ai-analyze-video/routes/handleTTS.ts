@@ -142,14 +142,12 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
           try {
             const segmentId = await storeAudioSegmentForFeedback(
               supabase,
-              analysisData.analysisId,
               feedbackItem.id,
-              ssmlResult.ssml,
               ttsResult.audioUrl,
               {
+                analysisId: analysisData.analysisId,
                 audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
                 audioFormat: ttsResult.format || resolvedFormat,
-                ssmlPrompt: ssmlResult.promptUsed, // Full prompt from service
                 audioPrompt: ttsResult.promptUsed || `Convert SSML to speech`
               },
               logger
@@ -305,14 +303,12 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
         try {
           const segmentId = await storeAudioSegmentForFeedback(
             supabase,
-            analysisId.toString(),
             -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
-            finalSSML,
             ttsResult.audioUrl,
             {
+              analysisId: analysisId.toString(),
               audioDurationMs: Math.ceil(finalSSML.length / 50) * 1000, // Rough estimate
               audioFormat: ttsResult.format || 'wav',
-              ssmlPrompt: finalSSML, // Store the actual SSML content as ssml_prompt
               audioPrompt: ttsResult.promptUsed || `Convert SSML to speech` // Store the TTS system instruction
             },
             logger

@@ -36,7 +36,7 @@ Defines operational standards for daily development activities, including comman
 - Install with `yarn install --immutable`. Start with `yarn dev`.
 - Run apps with `yarn native` (Expo) and `yarn web` (Next). Kill with `pkill -f "yarn native"` or `pkill -f "yarn web"`.
 - Scope work to workspaces: `yarn workspace <name> run <script>`.
-- Supabase CLI via `yarn dlx supabase <command>` only.
+- Supabase CLI via `yarn supabase <command>` only.
 - Before PR: `yarn type-check:all`, `yarn lint:all`, and `yarn build` must pass.
 
 ## Essential Commands
@@ -56,7 +56,7 @@ pkill -f "yarn native" # Kill native dev server
 yarn workspaces list
 
 # Supabase CLI
-yarn dlx supabase <command>
+yarn supabase <command>
 ```
 
 ## Yarn 4 Workspace Management
@@ -202,8 +202,8 @@ yarn test --exclude expo-app              # Exclude native from tests
 ```
 
 ## Supabase Local Development
-- Use `yarn dlx supabase start` to run local stack
-- Edge Functions: `yarn dlx supabase functions serve`
+- Use `yarn supabase start` to run local stack
+- Edge Functions: `yarn supabase functions serve`
 - Check DB/Edge logs before escalating issues
 
 ### Supabase Patterns (Edge vs Client)
@@ -217,7 +217,7 @@ yarn test --exclude expo-app              # Exclude native from tests
 
 ## Knowledge Boundaries (use only these sources)
 - Use repository rules/docs and workspace scripts; do not invent external commands.
-- Package management is Yarn 4 only. Supabase commands must be run via `yarn dlx supabase`.
+- Package management is Yarn 4 only. Supabase commands must be run via `yarn supabase`.
 - Prefer workspace-scoped scripts over ad-hoc commands; follow path aliases and monorepo structure.
 
 ## Cross-Links
@@ -233,6 +233,6 @@ yarn test --exclude expo-app              # Exclude native from tests
 ## REMEMBER
 - Yarn 4 only; no npm/pnpm/npx. CI installs with `yarn install --immutable`.
 - Use workspace-scoped commands and keep internal deps as `workspace:*`.
-- Supabase via `yarn dlx supabase` only.
+- Supabase via `yarn supabase` only.
 - PRs must pass type-check, lint, build, and security checks.
 

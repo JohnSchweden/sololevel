@@ -183,7 +183,7 @@ The following legacy scripts have been replaced:
    ```
    Database error: connection refused
    ```
-   Solution: Ensure Supabase local instance is running (`yarn dlx supabase start`)
+   Solution: Ensure Supabase local instance is running (`yarn supabase start`)
 
 ### Debug Mode
 

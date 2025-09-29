@@ -1,5 +1,7 @@
 // Audio Worker - Processes audio generation using feedback status tracking
 
+import { storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
+
 interface AudioTask {
   id: number
   audio_status: string
@@ -18,6 +20,8 @@ interface SSMLSegment {
 interface WorkerContext {
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+  feedbackIds?: number[]
+  analysisId?: string
 }
 
 interface ProcessingResult {
@@ -26,7 +30,7 @@ interface ProcessingResult {
   retriedJobs: number
 }
 
-export async function processAudioJobs({ supabase, logger }: WorkerContext): Promise<ProcessingResult> {
+export async function processAudioJobs({ supabase, logger, feedbackIds, analysisId }: WorkerContext): Promise<ProcessingResult> {
   const result: ProcessingResult = {
     processedJobs: 0,
     errors: 0,
@@ -34,11 +38,20 @@ export async function processAudioJobs({ supabase, logger }: WorkerContext): Pro
   }
 
   try {
-    const { data: jobs, error: jobsError } = await supabase
+    let query = supabase
       .from('analysis_feedback')
       .select('id, audio_status, audio_attempts')
       .eq('audio_status', 'queued')
-      .limit(5)
+
+    if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
+      query = query.in('id', feedbackIds)
+    }
+
+    if (analysisId) {
+      query = query.eq('analysis_id', analysisId)
+    }
+
+    const { data: jobs, error: jobsError } = await query.limit(20)
 
     if (jobsError) {
       logger.error('Failed to fetch audio jobs', { error: jobsError })
@@ -124,27 +137,23 @@ async function processSSMLSegment(segment: SSMLSegment, supabase: any, logger: a
   // Get the public URL for the uploaded audio
   const audioUrl = `processed/${audioPath}`
 
-  const { error: segmentError } = await supabase
-    .from('analysis_audio_segments')
-    .insert({
-      feedback_id: segment.feedback_id,
-      segment_index: segment.segment_index,
-      audio_url: audioUrl,
-      format: audioData.format,
-      duration_ms: audioData.durationMs,
-      provider: 'gemini',
-      version: '1.0'
-    })
+  const segmentId = await storeAudioSegmentForFeedback(supabase, segment.feedback_id, audioUrl, {
+    audioDurationMs: audioData.durationMs,
+    audioFormat: audioData.format,
+    provider: 'gemini',
+    version: '1.0',
+    segmentIndex: segment.segment_index,
+  })
 
-  if (segmentError) {
-    throw new Error(`Failed to write audio segment: ${segmentError.message}`)
+  if (!segmentId) {
+    throw new Error('Failed to write audio segment')
   }
 
-  logger.info('Audio segment processed successfully', { 
-    segmentId: segment.id,
+  logger.info('Audio segment processed successfully', {
+    segmentId,
     audioUrl,
     format: audioData.format,
-    duration: audioData.durationMs
+    duration: audioData.durationMs,
   })
 }
 

@@ -148,17 +148,42 @@ export class GeminiTTSService implements ITTSService {
  * Mock TTS Service for testing
  */
 export class MockTTSService implements ITTSService {
-  synthesize(context: TTSContext): Promise<TTSResult> {
+  async synthesize(context: TTSContext): Promise<TTSResult> {
     logger.info('Mock TTS synthesis')
 
-    // Use resolveAudioFormat to get consistent format resolution
     const format = resolveAudioFormat(context.customParams?.format ? [context.customParams.format] : undefined, 'gemini')
     const extension = AUDIO_FORMATS[format].extension
 
-    return Promise.resolve({
+    // If supabase + analysisId provided, mimic upload flow to `processed` bucket
+    if (context.supabase && context.analysisId) {
+      const path = context.storagePath || generateAudioStoragePath(context.analysisId, undefined, format)
+      const mockBytes = new Uint8Array([0x00, 0x01, 0x02, 0x03])
+      const contentType = AUDIO_FORMATS[format].mimes[0]
+
+      const uploadResult = await uploadProcessedArtifact(
+        context.supabase,
+        path,
+        mockBytes,
+        contentType
+      )
+
+      const audioUrl = uploadResult.signedUrl || `storage://audio/${path}`
+      logger.info('Mock TTS audio uploaded to storage', { path, audioUrl, size: uploadResult.size, format })
+
+      return {
+        audioUrl,
+        duration: 5.2,
+        format,
+        promptUsed: 'mock-tts-prompt'
+      }
+    }
+
+    // Fallback: simple mock URL
+    return {
       audioUrl: `https://mock-tts-audio.example.com/generated-audio.${extension}`,
       duration: 5.2,
       format,
-    })
+      promptUsed: 'mock-tts-prompt'
+    }
   }
 }

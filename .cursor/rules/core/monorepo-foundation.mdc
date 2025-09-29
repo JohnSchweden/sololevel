@@ -5,28 +5,52 @@ globs: ["**/*"]
 ---
 
 ## Purpose
-Single source of truth for our stack, principles, repo structure, and data/security model. Pairs with `core/development-operations.mdc` for day-to-day commands and package management.
+Establishes a unified foundation for our technology stack, architectural principles, repository structure, and data/security model. Complements `core/development-operations.mdc` for operational workflows and package management.
 
 ## Meta
-- Rule Owner: Platform
+- Rule Owner: Platform Team
 - Last Reviewed: 2025-09-06
-- Related: `core/development-operations.mdc`, `quality/testing-unified.mdc`, `quality/error-handling.mdc`, `quality/performance.mdc`, `backend/supabase-backend.mdc`, `backend/supabase-database.mdc`
+- Related Documents: 
+  - `core/development-operations.mdc`
+  - `quality/testing-unified.mdc`
+  - `quality/error-handling.mdc`
+  - `quality/performance.mdc`
+  - `backend/supabase-backend.mdc`
+  - `backend/supabase-database.mdc`
 
-## Tech Stack & Principles
-- Frontend: React Native (Expo) + Next.js
-- UI: Tamagui (cross-platform)
-- Backend: Supabase (PostgreSQL, Realtime, Storage, Edge Functions)
-- State: Zustand (client) + TanStack Query (server state)
-- Navigation: Expo Router (file-based routing)
-- Language: TypeScript-only; functional components only
-- Package Management: Yarn 4 workspaces; Turbo for orchestration
+## Tech Stack & Core Principles
 
-Non‑negotiables:
-- Mobile-first, cross-platform development in a single codebase
-- Path aliases (`@ui/`, `@app/`, `@api/`, `@config/`) with centralized config in `tsconfig.base.json`
-- No explicit React imports (React 17+)
-- Prefer named exports
-- RLS enforced for all database access
+**Frontend:**  
+- React Native (Expo) for mobile  
+- Next.js for web
+
+**UI:**  
+- Tamagui (cross-platform component library)
+
+**Backend:**  
+- Supabase (PostgreSQL, Realtime, Storage, Edge Functions)
+
+**State Management:**  
+- Zustand (client-side)  
+- TanStack Query (server state/data fetching)
+
+**Navigation:**  
+- Expo Router (file-based routing)
+
+**Language:**  
+- TypeScript exclusively  
+- Functional components only
+
+**Package Management & Tooling:**  
+- Yarn 4 workspaces  
+- Turbo for orchestration
+
+### Foundational Requirements
+- Mobile-first, cross-platform development within a single codebase
+- Enforced path aliases (`@ui/`, `@app/`, `@api/`, `@config/`) managed centrally in `tsconfig.base.json`
+- No explicit React imports required (React 17+)
+- Prefer named exports for all modules
+- Row Level Security (RLS) must be enabled for all database access
 
 ## Monorepo Structure
 ```
@@ -47,61 +71,91 @@ project-root/
 Scaffolding: use `yarn turbo gen` where applicable.
 
 ## Data Flow
-1. Client → TanStack Query → Supabase Client → PostgreSQL
-2. Realtime: PostgreSQL → Supabase Realtime → Client subscription
-3. Files: Client → Supabase Storage → CDN
-4. Sensitive ops: Client → Supabase Edge Functions → DB/Services
+
+1. **Client Data Fetching:**  
+   Client → TanStack Query → Supabase Client → PostgreSQL
+
+2. **Realtime Updates:**  
+   PostgreSQL → Supabase Realtime → Client subscription
+
+3. **File Handling:**  
+   Client → Supabase Storage → CDN
+
+4. **Sensitive Operations:**  
+   Client → Supabase Edge Functions → Database/Services
+
+---
 
 ## Security Model
-- RLS default-on for all tables
-- JWT authentication via Supabase Auth
-- Edge Functions for privileged logic; no secrets in clients
-- Secrets via environment variables; never commit `.env*`
 
-See `quality/security-best-practices.mdc` and `SECURITY.md`.
+- **Row Level Security (RLS):** Enabled by default for all tables.
+- **Authentication:** JWT-based via Supabase Auth.
+- **Privileged Logic:** Use Edge Functions for sensitive operations; never expose secrets in client code.
+- **Secrets Management:** Store secrets in environment variables. Never commit `.env*` files to version control.
 
-## ADRs & Decisions
-- Major decisions recorded in `docs/spec/` (PRD/TRD).
-- Link future Architecture Decision Records here when introduced.
+For detailed security practices, see [`quality/security-best-practices.mdc`](quality/security-best-practices.mdc) and `SECURITY.md`.
+
+---
+
+## Architecture Decision Records (ADRs)
+
+- All major technical decisions are documented in `docs/spec/` (PRD/TRD).
+- Link new ADRs here as they are created to maintain traceability.
+
+---
 
 ## Performance Guardrails
-- Memoize expensive components (`React.memo`) and stabilize props
-- Use virtual lists for large datasets
-- Code split with dynamic imports; tree-shake unused exports
-- Optimize images; prefer CDN-backed assets
-- Edge caching for static content
 
-See `quality/performance.mdc`.
+- **Component Optimization:** Memoize expensive components with `React.memo` and ensure prop stability.
+- **Large Data Sets:** Use virtualized lists for efficient rendering.
+- **Code Splitting:** Leverage dynamic imports and tree-shake unused exports.
+- **Asset Optimization:** Use optimized image formats and prefer CDN-backed assets.
+- **Caching:** Enable edge caching for static content.
+
+For more details, refer to [`quality/performance.mdc`](quality/performance.mdc).
 
 ### Performance Budgets
-- Web first-load JS (Next): target ≤ 250KB gz for main route; analyze weekly.
-- Native bundle: avoid large single-import libraries; prefer code-splitting when feasible.
-- Images: use optimized formats; avoid unbounded remote sizes.
 
-## Architectural Extension Rules
-- New feature screens live in `packages/app` and are consumed by `apps/*`
-- Shared UI belongs in `packages/ui`; keep app-specific styling out
-- Backend calls go through `packages/api`; avoid direct fetches in UI
-- Configuration and types go in `packages/config`; shared across all packages
-- Add path aliases in `tsconfig.base.json` when introducing new packages
+- **Web (Next.js):** Main route JS bundle ≤ 250KB gzipped; review weekly.
+- **Native (Expo):** Avoid large monolithic imports; prefer code splitting.
+- **Images:** Use optimized formats and restrict remote image sizes.
 
-### How to Add a New Package (Quick Recipe)
-1. Create `packages/<name>` with `package.json` (type: module) and `tsconfig.json`.
-2. Add to root `workspaces` and set internal deps using `"workspace:*"`.
-3. Add path alias in `tsconfig.base.json` (e.g., `@name/*`).
-4. Export named APIs only; no default exports.
-5. Add minimal tests and stories (if UI) and run `yarn type-check`.
-6. Build with Turbo and ensure consumers import via alias.
+---
+
+## Architectural Extension Guidelines
+
+- **Feature Screens:** Add new screens to `packages/app`; consume from `apps/*`.
+- **Shared UI:** Place reusable UI in `packages/ui`; avoid app-specific styles here.
+- **Backend Access:** Route all backend calls through `packages/api`; do not fetch directly from UI.
+- **Configuration & Types:** Centralize in `packages/config` for cross-package sharing.
+- **Path Aliases:** Update `tsconfig.base.json` with new aliases when adding packages.
+
+---
+
+### Adding a New Package: Quick Steps
+
+1. Create `packages/<name>` with a `package.json` (type: module) and `tsconfig.json`.
+2. Add the package to root `workspaces` and set internal dependencies using `"workspace:*"`.
+3. Define a path alias in `tsconfig.base.json` (e.g., `@name/*`).
+4. Use named exports only; avoid default exports.
+5. Add minimal tests and stories (for UI), then run `yarn type-check`.
+6. Build with Turbo and ensure consumers import via the alias.
+
+---
 
 ### Package Naming Conventions
-- Apps: `expo-app`, `next-app` (matches directory names)
-- Shared packages: `@my/ui`, `@my/app`, `@my/api`, `@my/config`
-- Use `workspace:*` for internal dependencies
-- All packages must be private: `"private": true`
+
+- **Apps:** `expo-app`, `next-app` (match directory names)
+- **Shared Packages:** `@my/ui`, `@my/app`, `@my/api`, `@my/config`
+- **Internal Dependencies:** Use `workspace:*`
+- **Privacy:** All packages must include `"private": true` in `package.json`
+
+---
 
 ## Import Strategy & Package Resolution
 
 ### Package-Level Imports (Scoped)
+
 Use `@my/` scoped package names for:
 - Package-level exports (main index files)
 - Workspace dependencies in package.json
@@ -115,6 +169,7 @@ import { supabase } from '@my/api'
 ```
 
 ### Path-Level Imports (Aliases)
+
 Use path aliases for:
 - Specific file imports within packages
 - Internal package structure navigation
@@ -127,12 +182,14 @@ import { supabase } from '@api/supabase'
 ```
 
 ### Import Resolution Rules
+
 1. **Package exports**: Always use `@my/` scoped names
 2. **File imports**: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`)
 3. **Never mix**: Don't use `@api` without `/*` - use `@api/services/...`
 4. **Export strategy**: Export from package index files for `@my/` imports
 
 ## Versioning & Compatibility
+
 - Align Expo SDK versions across `apps` and `packages`
 - Pin critical dependencies; use carets only for utilities
 - Document breaking changes in `CHANGELOG.md`
@@ -160,19 +217,32 @@ import { supabase } from '@api/supabase'
   - `yarn workspace @my/supabase-functions test:deno` (Deno for Edge)
   - `yarn test:db` (pgTAP database tests)
 
-Enforcement:
-- CI validates Node and Yarn versions; local installs should use Corepack.
-- Misaligned versions must be corrected before merging.
+### Enforcement
 
-## Cross-Links
-- Day-to-day commands, Yarn 4, dependency strategy → `core/development-operations.mdc`
-- Testing policy and checklists → `quality/testing-unified.mdc`
-- Error handling patterns → `quality/error-handling.mdc`
-- Supabase backend conventions → `backend/supabase-backend.mdc`, `backend/supabase-database.mdc`
+- **CI checks**: Continuous Integration (CI) enforces that Node and Yarn versions match the required versions specified in the version matrix.
+- **Local setup**: Developers must use [Corepack](https://nodejs.org/api/corepack.html) to manage Yarn versions locally. This ensures consistency across all environments.
+- **Version alignment**: Any discrepancies in Node or Yarn versions must be resolved before a pull request can be merged.
 
-## First-Hour Checklist (New Contributors)
-- Read this file and `core/development-operations.mdc`
-- Run `yarn install`, `yarn dev`, `yarn type-check`
-- Confirm path aliases in `tsconfig.base.json` (`@ui/`, `@app/`, `@api/`, `@config/`)
-- Verify workspace structure: `apps/` (expo-app, next-app) and `packages/` (@my/*)
-- Skim `docs/spec/` for PRD/TRD context
+---
+
+### Related Documentation
+
+- **Development workflow, Yarn 4, dependency management**: See [`core/development-operations.mdc`](core/development-operations.mdc)
+- **Testing policy and checklists**: See [`quality/testing-unified.mdc`](quality/testing-unified.mdc)
+- **Error handling patterns**: See [`quality/error-handling.mdc`](quality/error-handling.mdc)
+- **Supabase backend conventions**: See [`backend/supabase-backend.mdc`](backend/supabase-backend.mdc) and [`backend/supabase-database.mdc`](backend/supabase-database.mdc)
+
+---
+
+### First-Hour Checklist for New Contributors
+
+- Read this file and [`core/development-operations.mdc`](core/development-operations.mdc)
+- Run the following commands to set up your environment:
+  - `yarn install`
+  - `yarn dev`
+  - `yarn type-check`
+- Confirm that path aliases (`@ui/`, `@app/`, `@api/`, `@config/`) are correctly configured in `tsconfig.base.json`.
+- Review the workspace structure:
+  - `apps/` (contains `expo-app`, `next-app`)
+  - `packages/` (contains `@my/*` packages)
+- Skim [`docs/spec/`](docs/spec/) for Product/Technical Requirements Documents (PRD/TRD) to understand project context.

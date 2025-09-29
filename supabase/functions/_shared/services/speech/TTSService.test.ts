@@ -43,17 +43,13 @@ describe('TTSService', () => {
     it('should return mock TTS result', async () => {
       const result = await service.synthesize(mockContext)
 
-      expect(result).toEqual({
-        audioUrl: 'https://mock-tts-audio.example.com/generated-audio.mp3',
-        duration: 5.2,
-        format: 'mp3',
-      })
-    })
-
-    it('should not include promptUsed in mock result', async () => {
-      const result = await service.synthesize(mockContext)
-
-      expect(result.promptUsed).toBeUndefined()
+      expect(result).toEqual(
+        expect.objectContaining({
+          audioUrl: 'https://mock-tts-audio.example.com/generated-audio.mp3',
+          duration: 5.2,
+          format: 'mp3',
+        })
+      )
     })
   })
 

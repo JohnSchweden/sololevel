@@ -277,7 +277,7 @@ flowchart TD
     G --> H[Edge Video Analysis<br/>Gemini 2.5 (stored video)]
     H --> I[SSML Generation<br/>Gemini LLM]
     I --> J[TTS Generation<br/>Gemini 2.0 → AAC/MP3 in processed]
-    J --> K[Store Results (store_enhanced_analysis_results)]
+    J --> K[Store Results (store_analysis_results)]
     K --> L[Realtime Update (analysis_jobs UPDATE)]
 ```
 

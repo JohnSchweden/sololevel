@@ -44,9 +44,13 @@ const mockSupabaseForSSML = {
 
     if (table === 'analysis_ssml_segments') {
       return {
-        insert: (_data: any) => Promise.resolve({
-          data: { id: 1, feedback_id: 123, segment_index: 0, ssml: _data.ssml },
-          error: null
+        insert: (_data: any) => ({
+          select: () => ({
+            single: () => Promise.resolve({
+              data: { id: 1 },
+              error: null
+            })
+          })
         })
       }
     }
@@ -136,7 +140,11 @@ Deno.test('SSML worker - handles job processing errors', async () => {
 
       if (table === 'analysis_ssml_segments') {
         return {
-          insert: (_data: any) => Promise.resolve({ data: null, error: { message: 'insert failed' } })
+          insert: (_data: any) => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: null, error: { message: 'insert failed' } })
+            })
+          })
         }
       }
 

@@ -349,20 +349,19 @@ describe('Analysis Service - Video Processing Extensions', () => {
           },
         }
 
-        mockSupabase.rpc.mockResolvedValue({ error: null })
+        mockSupabase.rpc.mockResolvedValue({ data: true, error: null })
 
         const result = await storeAnalysisResults(123, analysisResults)
 
         expect(result.data).toBe(true)
         expect(result.error).toBeNull()
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
-          analysis_job_id: 123,
-          p_summary_text: analysisResults.summary_text,
-          p_metrics: JSON.stringify(analysisResults.metrics),
-          p_feedback: '[]',
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_analysis_results', {
+          p_job_id: 123,
           p_full_feedback_text: analysisResults.summary_text,
-          p_processing_time_ms: null,
-          p_video_source_type: null,
+          p_summary_text: analysisResults.summary_text,
+          p_raw_generated_text: null,
+          p_full_feedback_json: null,
+          p_feedback_prompt: null,
         })
       })
 
@@ -371,19 +370,18 @@ describe('Analysis Service - Video Processing Extensions', () => {
           summary_text: 'Good form overall',
         }
 
-        mockSupabase.rpc.mockResolvedValue({ error: null })
+        mockSupabase.rpc.mockResolvedValue({ data: true, error: null })
 
         const result = await storeAnalysisResults(456, partialResults)
 
         expect(result.data).toBe(true)
-        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_enhanced_analysis_results', {
-          analysis_job_id: 456,
-          p_summary_text: 'Good form overall',
-          p_metrics: '{}',
-          p_feedback: '[]',
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('store_analysis_results', {
+          p_job_id: 456,
           p_full_feedback_text: 'Good form overall',
-          p_processing_time_ms: null,
-          p_video_source_type: null,
+          p_summary_text: 'Good form overall',
+          p_raw_generated_text: null,
+          p_full_feedback_json: null,
+          p_feedback_prompt: null,
         })
       })
 

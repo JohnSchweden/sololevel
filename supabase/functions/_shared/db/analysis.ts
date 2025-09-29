@@ -19,6 +19,24 @@ export async function createAnalysisJob(
 ): Promise<AnalysisJob> {
   logger?.info('Creating analysis job', { userId, videoRecordingId })
 
+  // 1) Try to fetch existing job first (idempotent path)
+  const { data: existing, error: fetchExistingError } = await supabase
+    .from('analysis_jobs')
+    .select('*')
+    .eq('video_recording_id', videoRecordingId)
+    .single()
+
+  if (existing) {
+    logger?.info('Found existing analysis job', { jobId: existing.id })
+    return existing as AnalysisJob
+  }
+
+  if (fetchExistingError && fetchExistingError.code && fetchExistingError.code !== 'PGRST116') {
+    // PGRST116 = No rows found; ignore, we'll create
+    logger?.error('Error while checking for existing analysis job', fetchExistingError)
+  }
+
+  // 2) Create the job if not found
   const { data: analysisJob, error: createError } = await supabase
     .from('analysis_jobs')
     .insert({
@@ -32,13 +50,26 @@ export async function createAnalysisJob(
     .select()
     .single()
 
-  if (createError || !analysisJob) {
-    logger?.error('Failed to create analysis job', { error: createError, data: analysisJob })
-    throw new Error(`Failed to create analysis job: ${createError?.message || 'Unknown error'}`)
+  if (analysisJob) {
+    logger?.info('Successfully created analysis job', { jobId: analysisJob.id })
+    return analysisJob
   }
 
-  logger?.info('Successfully created analysis job', { jobId: analysisJob.id })
-  return analysisJob
+  // 3) Fallback: if unique violation raced, fetch again
+  if (createError && createError.code === '23505') {
+    logger?.info('Unique violation on create; fetching existing job (race condition)', { videoRecordingId })
+    const { data: raceExisting } = await supabase
+      .from('analysis_jobs')
+      .select('*')
+      .eq('video_recording_id', videoRecordingId)
+      .single()
+    if (raceExisting) {
+      return raceExisting as AnalysisJob
+    }
+  }
+
+  logger?.error('Failed to create analysis job', { error: createError })
+  throw new Error(`Failed to create analysis job: ${createError?.message || 'Unknown error'}`)
 }
 
 // Update analysis job status
@@ -95,10 +126,10 @@ export async function updateAnalysisResults(
   feedbackPrompt?: string,
   _ssmlPrompt?: string,
   _audioPrompt?: string
-): Promise<void> {
+): Promise<number[]> {
   if (!supabase) {
     _logger?.error('Database connection not available for results update')
-    return
+    return []
   }
 
   // Extract data for new normalized storage
@@ -106,9 +137,9 @@ export async function updateAnalysisResults(
   const summaryText = results.summary_text
   const feedback = results.feedback || []
   const metrics = results.metrics || {}
+  let feedbackIds: number[] = []
 
   try {
-    // Create analysis record using new function
     const { data: analysisIdResult, error: analysisError } = await supabase.rpc('store_analysis_results', {
       p_job_id: analysisId,
       p_full_feedback_text: fullFeedbackText,
@@ -122,31 +153,44 @@ export async function updateAnalysisResults(
       throw analysisError
     }
 
-    _logger?.info('Created analysis record', { analysisId: analysisIdResult, jobId: analysisId })
+    const analysisUuid = Array.isArray(analysisIdResult) ? analysisIdResult[0] as string : (analysisIdResult as string)
+    _logger?.info('Created analysis record', { analysisId: analysisUuid, jobId: analysisId })
 
     // NOTE: SSML and audio data should now be stored via storeAudioSegmentForFeedback()
     // with proper linkage to individual feedback items, not analysis-level storage
     // The old store_analysis_audio_segment RPC is deprecated for new usage
 
     // Insert feedback items into analysis_feedback table
-    if (feedback.length > 0 && analysisIdResult) {
+    if (feedback.length > 0 && analysisUuid) {
+      const nowIso = new Date().toISOString()
       const feedbackInserts = feedback.map((item: any) => ({
-        analysis_id: analysisIdResult, // Now references analyses.id (UUID)
-        timestamp_seconds: item.timestamp || item.timestamp_seconds,
+        analysis_id: analysisUuid,
+        timestamp_seconds: typeof item.timestamp === 'number' ? item.timestamp : (typeof item.timestamp_seconds === 'number' ? item.timestamp_seconds : 0),
         category: item.category,
         message: item.message,
-        confidence: item.confidence,
-        impact: item.impact
+        confidence: typeof item.confidence === 'number' ? item.confidence : null,
+        impact: typeof item.impact === 'number' ? item.impact : null,
+        ssml_status: 'queued',
+        ssml_attempts: 0,
+        ssml_last_error: null,
+        ssml_updated_at: nowIso,
+        audio_status: 'idle',
+        audio_attempts: 0,
+        audio_last_error: null,
+        audio_updated_at: nowIso,
       }))
 
-      const { error: feedbackError } = await supabase
+      const { data: insertedFeedback, error: feedbackError } = await supabase
         .from('analysis_feedback')
         .insert(feedbackInserts)
+        .select('id')
 
       if (feedbackError) {
         _logger?.error('Failed to insert feedback items', feedbackError)
         // Don't fail the whole operation for feedback errors
       }
+
+      feedbackIds = (insertedFeedback || []).map((row: { id: number }) => row.id)
     }
 
     // Insert metrics if provided
@@ -190,7 +234,7 @@ export async function updateAnalysisResults(
           set: { metric_value: supabase.raw('excluded.metric_value'), unit: supabase.raw('excluded.unit'), updated_at: supabase.raw('now()') }
         })
 
-      if (metricsError) {
+    if (metricsError) {
         _logger?.error('Failed to insert metrics', metricsError)
         // Don't fail the whole operation for metrics errors
       }
@@ -212,24 +256,11 @@ export async function updateAnalysisResults(
       _logger?.error('Failed to update job status', jobUpdateError)
     }
 
+    return feedbackIds
+
   } catch (error) {
-    _logger?.error('Failed to store analysis results in new schema, falling back to legacy', error)
-
-    // Fallback to legacy storage for backward compatibility
-    const { error: legacyError } = await supabase.rpc('store_enhanced_analysis_results', {
-      analysis_job_id: analysisId,
-      p_full_feedback_text: results.text_feedback,
-      p_summary_text: results.summary_text,
-      p_processing_time_ms: processingTimeMs,
-      p_video_source_type: videoSourceType,
-      p_feedback: results.feedback || [],
-      p_metrics: results.metrics || {}
-    })
-
-    if (legacyError) {
-      _logger?.error('Legacy fallback also failed', legacyError)
-      throw error // Re-throw original error if both fail
-    }
+    _logger?.error('Failed to store analysis results', error)
+    throw error
   }
 }
 
@@ -436,47 +467,106 @@ export async function getCompleteAnalysisByJobId(
   }
 }
 
-// Store audio segment for specific feedback item
-export async function storeAudioSegmentForFeedback(
+export async function storeSSMLSegmentForFeedback(
   supabase: any,
-  analysisId: string,
   feedbackId: number,
   ssml: string,
-  audioUrl: string,
   options?: {
-    audioDurationMs?: number
-    audioFormat?: string
-    ssmlPrompt?: string
-    audioPrompt?: string
+    provider?: string
+    version?: string
+    segmentIndex?: number
   },
   logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
 ): Promise<number | null> {
+  const provider = options?.provider ?? 'gemini'
+  const version = options?.version ?? '1.0'
+  const segmentIndex = options?.segmentIndex ?? 0
+
+  logger?.info('Storing SSML segment for feedback', { feedbackId, provider, version, segmentIndex })
+
+  try {
+    const { data, error } = await supabase
+      .from('analysis_ssml_segments')
+      .insert({
+        feedback_id: feedbackId,
+        segment_index: segmentIndex,
+        ssml,
+        provider,
+        version,
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      logger?.error('Failed to store SSML segment', error)
+      return null
+    }
+
+    logger?.info('Stored SSML segment', { segmentId: data.id, feedbackId })
+    return data.id
+  } catch (error) {
+    logger?.error('Error storing SSML segment', error)
+    return null
+  }
+}
+
+// Store audio segment for specific feedback item
+export async function storeAudioSegmentForFeedback(
+  supabase: any,
+  feedbackId: number,
+  audioUrl: string,
+  options?: {
+    analysisId?: string
+    audioDurationMs?: number
+    audioFormat?: string
+    audioPrompt?: string
+    provider?: string
+    version?: string
+    segmentIndex?: number
+  },
+  logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+): Promise<number | null> {
+  const segmentIndex = options?.segmentIndex ?? 0
+  const provider = options?.provider ?? 'gemini'
+  const version = options?.version ?? '1.0'
+  const format = options?.audioFormat ?? getEnvDefaultFormat()
+  const durationMs = options?.audioDurationMs ?? null
+  const analysisId = options?.analysisId ?? null
+  const audioPrompt = options?.audioPrompt ?? null
+
   logger?.info('Storing audio segment for feedback item', {
-    analysisId,
     feedbackId,
-    ssmlLength: ssml.length,
-    audioUrl
+    audioUrl,
+    format,
+    durationMs,
+    segmentIndex,
+    analysisId,
   })
 
   try {
-    const { data: segmentId, error } = await supabase.rpc('store_analysis_audio_segment_for_feedback', {
-      p_analysis_id: analysisId,
-      p_analysis_feedback_id: feedbackId,
-      p_feedback_ssml: ssml,
-      p_audio_url: audioUrl,
-      p_audio_duration_ms: options?.audioDurationMs || null,
-      p_audio_format: options?.audioFormat || getEnvDefaultFormat(),
-      p_ssml_prompt: options?.ssmlPrompt || null,
-      p_audio_prompt: options?.audioPrompt || null
-    })
+    const { data, error } = await supabase
+      .from('analysis_audio_segments')
+      .insert({
+        feedback_id: feedbackId,
+        segment_index: segmentIndex,
+        audio_url: audioUrl,
+        duration_ms: durationMs,
+        format,
+        provider,
+        version,
+        analysis_id: analysisId,
+        audio_prompt: audioPrompt,
+      })
+      .select('id')
+      .single()
 
     if (error) {
       logger?.error('Failed to store audio segment', error)
       return null
     }
 
-    logger?.info('Successfully stored audio segment', { segmentId, feedbackId })
-    return segmentId
+    logger?.info('Successfully stored audio segment', { segmentId: data.id, feedbackId })
+    return data.id
   } catch (error) {
     logger?.error('Error storing audio segment', error)
     return null

@@ -50,49 +50,48 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
 - **Environment**: Use package-appropriate mocks (DOM for ui, RN components for app, Node for api)
 - **Convert**: Complex failing tests to integration tests → See `quality/testing/testing-troubleshooting.mdc`
 
-## 🔗 Sub-Rule Navigation
+## 🔗 Sub-Rule Quicklinks
 
-### Core Patterns & Organization
-**`quality/testing/testing-patterns.mdc`**
-- AAA (Arrange-Act-Assert) pattern (mandatory)
-- Test organization and naming conventions
-- Data-driven testing patterns
-- Test independence and isolation
+Jump directly to detailed guidance for each testing area:
 
-### React Native Testing (Jest)
-**`quality/testing/testing-react-native.mdc`**
-- Accessibility-based queries (100% success rate)
-- Tamagui component testing patterns
-- Event handling with `fireEvent.press()`
-- Common React Native anti-patterns to avoid
+### 🧩 Core Patterns & Organization
+- **[AAA Pattern, Naming, Data-Driven, Isolation](quality/testing/testing-patterns.mdc)**
+  - Mandatory Arrange-Act-Assert structure
+  - Consistent test naming and organization
+  - Data-driven and table-based test strategies
+  - Ensuring test independence
 
-### Web Testing (Vitest)
-**`quality/testing/testing-web.mdc`**
-- Component testing with jsdom
-- Business logic testing patterns
-- Browser API mocking
-- Web-specific best practices
+### 📱 React Native Testing (Jest)
+- **[React Native Patterns & Anti-Patterns](quality/testing/testing-react-native.mdc)**
+  - Accessibility-first queries (e.g., `getByLabelText`)
+  - Tamagui component testing
+  - Event simulation with `fireEvent.press()`
+  - Common pitfalls to avoid in RN testing
 
-### Environment Setup
-**`quality/testing/testing-setup.mdc`**
-- Jest configuration for React Native
-- Vitest configuration for web
-- Essential mocks and setup files
-- Manual vs automatic mocking strategies
+### 🌐 Web Testing (Vitest)
+- **[Web Component & Logic Testing](quality/testing/testing-web.mdc)**
+  - jsdom-based component tests
+  - Business logic and browser API mocking
+  - Web-specific best practices
 
-### Troubleshooting & Debugging
-**`quality/testing/testing-troubleshooting.mdc`**
-- Common error patterns and fixes
-- Query strategy problems and solutions
-- Mock configuration issues
-- Performance and debugging guidelines
+### ⚙️ Environment Setup
+- **[Test Runner & Mock Configuration](quality/testing/testing-setup.mdc)**
+  - Jest setup for React Native
+  - Vitest setup for web/Node
+  - Required mocks and setup files
+  - Manual vs. automatic mocking
 
-### Success Metrics & Validation
-**`quality/testing/testing-metrics.mdc`**
-- Proven success patterns and metrics
-- Validation checklists
-- Coverage requirements
-- Review and maintenance guidelines
+### 🛠️ Troubleshooting & Debugging
+- **[Common Issues & Solutions](quality/testing/testing-troubleshooting.mdc)**
+  - Frequent error patterns and fixes
+  - Query and mock troubleshooting
+  - Performance and debugging tips
+
+### 📊 Success Metrics & Validation
+- **[Metrics, Coverage, Review](quality/testing/testing-metrics.mdc)**
+  - Key success patterns and validation checklists
+  - Coverage requirements
+  - Ongoing review and maintenance guidelines
 
 ## 🚀 Quick Start Checklist
 □ **Identify your package** and choose the correct testing environment:

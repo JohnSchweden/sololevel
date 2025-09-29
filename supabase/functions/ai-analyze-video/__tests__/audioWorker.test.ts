@@ -60,16 +60,13 @@ const mockSupabaseForAudio = {
 
     if (table === 'analysis_audio_segments') {
       return {
-        insert: (data: any) => Promise.resolve({
-          data: {
-            id: 1,
-            feedback_id: 123,
-            segment_index: 0,
-            audio_url: data.audio_url,
-            format: data.format,
-            duration_ms: data.duration_ms
-          },
-          error: null
+        insert: (_data: any) => ({
+          select: () => ({
+            single: () => Promise.resolve({
+              data: { id: 1 },
+              error: null
+            })
+          })
         })
       }
     }

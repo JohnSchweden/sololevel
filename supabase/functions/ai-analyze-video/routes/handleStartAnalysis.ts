@@ -150,6 +150,20 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
 
   logger.info(`Service types: videoAnalysis=${useMockServices ? 'Mock' : 'Gemini'}, ssml=${useMockServices ? 'Mock' : 'Gemini'}, tts=${useMockServices ? 'Mock' : 'Gemini'}`)
 
+  // Resolve stages: use environment configuration or provided stages
+  const resolvedStages = stages || (() => {
+    try {
+      const pipelineStagesEnv = Deno.env.get('PIPELINE_STAGES')
+      if (pipelineStagesEnv) {
+        return JSON.parse(pipelineStagesEnv)
+      }
+    } catch (error) {
+      logger.error('Failed to parse PIPELINE_STAGES environment variable', { error })
+    }
+    // Default: run all stages if not configured
+    return undefined
+  })()
+
   // Start AI pipeline processing in background
   processAIPipeline({
     supabase,
@@ -168,7 +182,7 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
       minGap,
       firstTimestamp,
     },
-    stages,
+    stages: resolvedStages,
     services
   }).catch(
       (error) => {

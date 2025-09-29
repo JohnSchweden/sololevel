@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
 /* Local usage:
 
 1) supabase start
-2) yarn dlx supabase functions serve admin-auth --env-file .env
+2) yarn supabase functions serve admin-auth --env-file .env
 3) curl -X POST http://127.0.0.1:54321/functions/v1/admin-auth/create-user \
    -H "Content-Type: application/json" \
    -d '{"email":"test@example.com","password":"password","api_key":"sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"}'
