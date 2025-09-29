@@ -60,10 +60,10 @@ const mockSupabaseForAudio = {
 
     if (table === 'analysis_audio_segments') {
       return {
-        insert: (_data: any) => ({
+        insert: (data: any) => ({
           select: () => ({
             single: () => Promise.resolve({
-              data: { id: 1 },
+              data: { id: 1, ...data },
               error: null
             })
           })
@@ -81,8 +81,12 @@ const mockSupabaseForAudio = {
   // Mock storage operations
   storage: {
     from: (_bucket: string) => ({
-      upload: (path: string, _file: any) => Promise.resolve({
-        data: { path: `processed/audio/${path}` },
+      upload: (_path: string, _file: any) => Promise.resolve({
+        data: null,
+        error: null
+      }),
+      createSignedUrl: (path: string, _ttl: number) => Promise.resolve({
+        data: { signedUrl: `https://example.com/${path}` },
         error: null
       })
     })
@@ -92,6 +96,7 @@ const mockSupabaseForAudio = {
 import { processAudioJobs } from '../workers/audioWorker.ts'
 
 Deno.test('Audio worker - processes queued jobs', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
   // Test that the Audio worker processes jobs correctly
   audioStatusUpdates.length = 0
   const result = await processAudioJobs({
@@ -131,6 +136,7 @@ Deno.test('Audio worker - handles empty queue gracefully', async () => {
 })
 
 Deno.test('Audio worker - handles missing SSML segments', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
   // Mock supabase that has jobs but no SSML segments
   audioStatusUpdates.length = 0
   const noSSMLMockSupabase = {
@@ -177,6 +183,7 @@ Deno.test('Audio worker - generates audio from SSML', async () => {
 })
 
 Deno.test('Audio worker - handles TTS service errors', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
   // Mock that fails on audio generation
   // This test will verify error handling when TTS fails
   

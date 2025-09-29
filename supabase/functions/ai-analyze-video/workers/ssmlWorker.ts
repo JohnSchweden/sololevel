@@ -2,6 +2,7 @@
 
 import { storeSSMLSegmentForFeedback } from '../../_shared/db/analysis.ts'
 import { processAudioJobs as _processAudioJobs } from './audioWorker.ts'
+import { getSSMLServiceForRuntime } from './workers.shared.ts'
 
 interface SSMLTask {
   id: number
@@ -92,13 +93,35 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
 
   await updateFeedbackSSMLStatus(job.id, 'processing', supabase)
 
-  const ssml = generateSSMLFromMessage(job)
-
-  const segmentId = await storeSSMLSegmentForFeedback(supabase, job.id, ssml, {
-    provider: 'gemini',
-    version: '1.0',
-    segmentIndex: 0,
+  const ssmlService = getSSMLServiceForRuntime()
+  const { ssml, promptUsed } = await ssmlService.generate({
+    analysisResult: {
+      textReport: job.message,
+      feedback: [
+        {
+          timestamp: Number.isFinite(job.timestamp_seconds) ? job.timestamp_seconds : 0,
+          category: job.category ?? 'General',
+          message: job.message,
+          confidence: typeof job.confidence === 'number' ? job.confidence : 0.75,
+          impact: 0.5,
+        },
+      ],
+      metrics: {},
+      confidence: typeof job.confidence === 'number' ? job.confidence : 0.75,
+    },
   })
+
+  const segmentId = await storeSSMLSegmentForFeedback(
+    supabase,
+    job.id,
+    ssml,
+    {
+      provider: 'gemini',
+      version: '1.0',
+      segmentIndex: 0,
+      ssmlPrompt: promptUsed ?? null,
+    }
+  )
 
   if (!segmentId) {
     throw new Error('Failed to write SSML segment: insert failed')
@@ -108,30 +131,6 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
   await advanceAudioStatus(job.id, supabase)
 
   logger.info('SSML job completed successfully', { feedbackId: job.id })
-}
-
-function generateSSMLFromMessage(feedback: SSMLTask): string {
-  const { message, category, confidence } = feedback
-  
-  let prosody = 'rate="medium" pitch="medium"'
-  
-  if (category === 'posture') {
-    prosody = 'rate="slow" pitch="low"'  // Serious tone for posture
-  } else if (category === 'movement') {
-    prosody = 'rate="fast" pitch="high"' // Energetic tone for movement
-  }
-  
-  // Adjust emphasis based on confidence
-  const emphasis = confidence > 0.8 ? 'strong' : 'moderate'
-  
-  return `
-<speak>
-  <prosody ${prosody}>
-    <emphasis level="${emphasis}">
-      ${message}
-    </emphasis>
-  </prosody>
-</speak>`.trim()
 }
 
 async function updateFeedbackSSMLStatus(feedbackId: number, status: string, supabase: any): Promise<void> {

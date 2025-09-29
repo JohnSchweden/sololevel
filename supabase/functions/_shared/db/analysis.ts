@@ -475,12 +475,14 @@ export async function storeSSMLSegmentForFeedback(
     provider?: string
     version?: string
     segmentIndex?: number
+    ssmlPrompt?: string | null
   },
   logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
 ): Promise<number | null> {
   const provider = options?.provider ?? 'gemini'
   const version = options?.version ?? '1.0'
   const segmentIndex = options?.segmentIndex ?? 0
+  const ssmlPrompt = options?.ssmlPrompt ?? null
 
   logger?.info('Storing SSML segment for feedback', { feedbackId, provider, version, segmentIndex })
 
@@ -493,6 +495,7 @@ export async function storeSSMLSegmentForFeedback(
         ssml,
         provider,
         version,
+        ssml_prompt: ssmlPrompt,
       })
       .select('id')
       .single()
@@ -547,7 +550,7 @@ export async function storeAudioSegmentForFeedback(
     const { data, error } = await supabase
       .from('analysis_audio_segments')
       .insert({
-        feedback_id: feedbackId,
+        analysis_feedback_id: feedbackId,
         segment_index: segmentIndex,
         audio_url: audioUrl,
         duration_ms: durationMs,

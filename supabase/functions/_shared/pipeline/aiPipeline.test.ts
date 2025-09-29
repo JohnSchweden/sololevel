@@ -10,11 +10,29 @@ import type { PipelineContext } from './aiPipeline.ts'
 // Mock modules
 vi.mock('../db/analysis.ts', () => ({
   updateAnalysisStatus: vi.fn().mockResolvedValue(undefined),
-  updateAnalysisResults: vi.fn().mockResolvedValue(undefined),
+  updateAnalysisResults: vi.fn().mockResolvedValue([1, 2, 3]), // Return feedback IDs
 }))
 
 vi.mock('../notifications.ts', () => ({
   notifyAnalysisComplete: vi.fn().mockResolvedValue(undefined),
+}))
+
+// Mock the worker functions that the pipeline now calls
+vi.mock('../../ai-analyze-video/workers/ssmlWorker.ts', () => ({
+  processSSMLJobs: vi.fn().mockResolvedValue({
+    processedJobs: 1,
+    enqueuedAudioJobs: 1,
+    errors: 0,
+    retriedJobs: 0,
+  }),
+}))
+
+vi.mock('../../ai-analyze-video/workers/audioWorker.ts', () => ({
+  processAudioJobs: vi.fn().mockResolvedValue({
+    processedJobs: 1,
+    errors: 0,
+    retriedJobs: 0,
+  }),
 }))
 
 vi.mock('../services/index.ts', () => ({
@@ -39,6 +57,10 @@ vi.mock('../services/index.ts', () => ({
     }),
   })),
 }))
+
+import { processAudioJobs } from '../../ai-analyze-video/workers/audioWorker.ts'
+// Import the mocked worker functions
+import { processSSMLJobs } from '../../ai-analyze-video/workers/ssmlWorker.ts'
 
 describe('AIPipeline Orchestrator - Basic Functionality', () => {
   it('should execute all stages when all flags are true', async () => {
@@ -75,9 +97,23 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
 
     await processAIPipeline(mockContext)
 
+    // Check that video analysis service was called
     expect(mockContext.services.videoAnalysis.analyze).toHaveBeenCalledTimes(1)
-    expect(mockContext.services.ssml.generate).toHaveBeenCalledTimes(1)
-    expect(mockContext.services.tts.synthesize).toHaveBeenCalledTimes(1)
+
+    // Check that worker functions were called (pipeline now delegates to workers)
+    expect(processSSMLJobs).toHaveBeenCalledTimes(1)
+    expect(processSSMLJobs).toHaveBeenCalledWith({
+      supabase: {},
+      logger: mockContext.logger,
+      feedbackIds: [1, 2, 3], // Mock feedback IDs from updateAnalysisResults
+    })
+
+    expect(processAudioJobs).toHaveBeenCalledTimes(1)
+    expect(processAudioJobs).toHaveBeenCalledWith({
+      supabase: {},
+      logger: mockContext.logger,
+      feedbackIds: [1, 2, 3], // Mock feedback IDs from updateAnalysisResults
+    })
   })
 
   it('should accept services via dependency injection', async () => {

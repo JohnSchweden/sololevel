@@ -75,6 +75,7 @@
     "test:supabase": "yarn workspace @my/supabase-functions test:all",
     "test:db": "yarn supabase test db",
     "test:db:local": "yarn supabase start && yarn test:db",
+    "db:serve": "yarn supabase functions serve --env-file .env",
     "db:reset": "yarn supabase db reset && node scripts/supabase/studio-create-db-webhook.mjs && node scripts/supabase/seedTestUser.mjs",
     "db:webhook:studio": "node scripts/supabase/studio-create-db-webhook.mjs",
     "test:ci": "yarn test && yarn test:supabase && yarn test:db",

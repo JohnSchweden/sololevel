@@ -4,7 +4,7 @@
 BEGIN;
 
 -- Load pgtap extension
-SELECT plan(24);
+SELECT plan(25);
 
 -- Disable RLS for testing
 SET row_security = off;
@@ -24,6 +24,7 @@ SELECT has_column('public', 'analysis_ssml_segments', 'ssml', 'analysis_ssml_seg
 SELECT has_column('public', 'analysis_ssml_segments', 'provider', 'analysis_ssml_segments should have provider column');
 SELECT has_column('public', 'analysis_ssml_segments', 'version', 'analysis_ssml_segments should have version column');
 SELECT has_column('public', 'analysis_ssml_segments', 'created_at', 'analysis_ssml_segments should have created_at column');
+SELECT has_column('public', 'analysis_ssml_segments', 'ssml_prompt', 'analysis_ssml_segments should have ssml_prompt column');
 
 -- Test 2: Verify unique constraint on feedback_id, segment_index
 SELECT has_index('public', 'analysis_ssml_segments', 'analysis_ssml_segments_feedback_id_segment_index_key', 'Should have unique index on feedback_id, segment_index');

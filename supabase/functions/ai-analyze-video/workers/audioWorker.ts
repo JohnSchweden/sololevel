@@ -1,6 +1,9 @@
 // Audio Worker - Processes audio generation using feedback status tracking
 
 import { storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { resolveAudioFormat } from '../../_shared/media/audio.ts'
+import { generateAudioStoragePath } from '../../_shared/storage/upload.ts'
+import { getTTSServiceForRuntime } from './workers.shared.ts'
 
 interface AudioTask {
   id: number
@@ -105,8 +108,17 @@ async function processSingleAudioJob(job: AudioTask, supabase: any, logger: any)
 
   logger.info(`Found ${ssmlSegments.length} SSML segments for feedback ${job.id}`)
 
-  for (const segment of ssmlSegments) {
-    await processSSMLSegment(segment, supabase, logger)
+  const ttsService = getTTSServiceForRuntime()
+  const resolvedFormat = resolveAudioFormat(undefined, 'gemini')
+
+  for (const segment of ssmlSegments as SSMLSegment[]) {
+    await processSSMLSegment({
+      segment,
+      supabase,
+      logger,
+      ttsService,
+      resolvedFormat,
+    })
   }
 
   await updateFeedbackAudioStatus(job.id, 'completed', supabase)
@@ -114,36 +126,56 @@ async function processSingleAudioJob(job: AudioTask, supabase: any, logger: any)
   logger.info('Audio job completed successfully', { feedbackId: job.id })
 }
 
-async function processSSMLSegment(segment: SSMLSegment, supabase: any, logger: any): Promise<void> {
-  logger.info('Processing SSML segment', { 
-    segmentId: segment.id, 
-    feedbackId: segment.feedback_id, 
-    segmentIndex: segment.segment_index 
-  })
+interface ProcessSegmentContext {
+  segment: SSMLSegment
+  supabase: any
+  logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
+  ttsService: ReturnType<typeof getTTSServiceForRuntime>
+  resolvedFormat: ReturnType<typeof resolveAudioFormat>
+}
 
-  // Generate audio from SSML (mock implementation)
-  const audioData = generateAudioFromSSML(segment.ssml, logger)
-
-  // Upload audio to storage
-  const audioPath = `audio/feedback_${segment.feedback_id}_segment_${segment.segment_index}.aac`
-  const { data: _uploadData, error: uploadError } = await supabase.storage
-    .from('processed')
-    .upload(audioPath, audioData.buffer)
-
-  if (uploadError) {
-    throw new Error(`Failed to upload audio: ${uploadError.message}`)
-  }
-
-  // Get the public URL for the uploaded audio
-  const audioUrl = `processed/${audioPath}`
-
-  const segmentId = await storeAudioSegmentForFeedback(supabase, segment.feedback_id, audioUrl, {
-    audioDurationMs: audioData.durationMs,
-    audioFormat: audioData.format,
-    provider: 'gemini',
-    version: '1.0',
+async function processSSMLSegment({
+  segment,
+  supabase,
+  logger,
+  ttsService,
+  resolvedFormat,
+}: ProcessSegmentContext): Promise<void> {
+  logger.info('Processing SSML segment', {
+    segmentId: segment.id,
+    feedbackId: segment.feedback_id,
     segmentIndex: segment.segment_index,
   })
+
+  const storagePath = generateAudioStoragePath(
+    segment.feedback_id,
+    `feedback_${segment.feedback_id}_segment_${segment.segment_index}`,
+    resolvedFormat,
+  )
+
+  const ttsResult = await ttsService.synthesize({
+    ssml: segment.ssml,
+    supabase,
+    analysisId: segment.feedback_id,
+    storagePath,
+    customParams: {
+      format: resolvedFormat,
+    },
+  })
+
+  const segmentId = await storeAudioSegmentForFeedback(
+    supabase,
+    segment.feedback_id,
+    ttsResult.audioUrl,
+    {
+      audioDurationMs: ttsResult.duration,
+      audioFormat: ttsResult.format ?? resolvedFormat,
+      provider: 'gemini',
+      version: segment.version ?? '1.0',
+      segmentIndex: segment.segment_index,
+    },
+    logger,
+  )
 
   if (!segmentId) {
     throw new Error('Failed to write audio segment')
@@ -151,36 +183,11 @@ async function processSSMLSegment(segment: SSMLSegment, supabase: any, logger: a
 
   logger.info('Audio segment processed successfully', {
     segmentId,
-    audioUrl,
-    format: audioData.format,
-    duration: audioData.durationMs,
+    audioUrl: ttsResult.audioUrl,
+    format: ttsResult.format ?? resolvedFormat,
+    duration: ttsResult.duration,
+    storagePath,
   })
-}
-
-function generateAudioFromSSML(ssml: string, logger: any): {
-  buffer: ArrayBuffer
-  format: string
-  durationMs: number
-} {
-  // Mock audio generation - in production this would use Gemini TTS
-  logger.info('Generating audio from SSML', { ssmlLength: ssml.length })
-  
-  // Create a mock audio buffer (empty AAC file header)
-  const mockAudioData = new Uint8Array([
-    0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, // Mock AAC header
-    0x4D, 0x34, 0x41, 0x20, 0x00, 0x00, 0x00, 0x00,
-    0x4D, 0x34, 0x41, 0x20, 0x6D, 0x70, 0x34, 0x31
-  ])
-
-  // Estimate duration based on SSML content (rough approximation)
-  const textLength = ssml.replace(/<[^>]*>/g, '').length
-  const estimatedDurationMs = Math.max(1000, textLength * 100) // ~100ms per character
-
-  return {
-    buffer: mockAudioData.buffer,
-    format: 'aac',
-    durationMs: estimatedDurationMs
-  }
 }
 
 async function _updateJobStatus(jobId: number, status: string, supabase: any): Promise<void> {

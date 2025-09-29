@@ -39,7 +39,9 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
   // Mock mode: Return prepared mock response
   if (config.analysisMode === 'mock') {
     logger.info('AI_ANALYSIS_MODE=mock: Using prepared TTS mock response')
-    return getMockTTSResult()
+    const format = options?.format || 'wav'
+    logger.info(`Mock TTS: requested format=${format}`)
+    return getMockTTSResult(format)
   }
 
   // Real mode: Generate TTS using shared module

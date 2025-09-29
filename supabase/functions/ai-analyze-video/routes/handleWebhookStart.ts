@@ -5,10 +5,10 @@ import { processAIPipeline } from '../../_shared/pipeline/aiPipeline.ts'
 import {
   GeminiSSMLService,
   GeminiTTSService,
-  GeminiVideoAnalysisService,
-  MockSSMLService,
-  MockTTSService,
-  MockVideoAnalysisService
+  GeminiVideoAnalysisService//,
+  //MockSSMLService,
+  //MockTTSService,
+  //MockVideoAnalysisService
 } from '../../_shared/services/index.ts'
 import { analyzeVideoWithGemini } from '../gemini-llm-analysis.ts'
 import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
@@ -73,20 +73,11 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
     // Idempotent job creation
     const analysisJob = await createAnalysisJob(supabase, recording.user_id, recording.id, logger)
 
-    // Instantiate services based on env
-    const aiAnalysisMode = (globalThis as any).Deno?.env?.get('AI_ANALYSIS_MODE')
-    const useMockServices = aiAnalysisMode === 'mock'
-
+    // Instantiate real services (mocking removed)
     const services = {
-      videoAnalysis: useMockServices
-        ? new MockVideoAnalysisService()
-        : new GeminiVideoAnalysisService(analyzeVideoWithGemini),
-      ssml: useMockServices
-        ? new MockSSMLService()
-        : new GeminiSSMLService(geminiLLMFeedback),
-      tts: useMockServices
-        ? new MockTTSService()
-        : new GeminiTTSService(),
+      videoAnalysis: new GeminiVideoAnalysisService(analyzeVideoWithGemini),
+      ssml: new GeminiSSMLService(geminiLLMFeedback),
+      tts: new GeminiTTSService(),
     }
 
     // Kick off pipeline asynchronously

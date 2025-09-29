@@ -1,14 +1,14 @@
 import { processAudioJobs as _processAudioJobs } from '../../ai-analyze-video/workers/audioWorker.ts'
 import { processSSMLJobs } from '../../ai-analyze-video/workers/ssmlWorker.ts'
-import { type AnalysisResults, storeAudioSegmentForFeedback, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
+import { type AnalysisResults, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
 import { notifyAnalysisComplete } from '../notifications.ts'
 import {
   ISSMLService,
   ITTSService,
   IVideoAnalysisService,
-  type SSMLContext,
-  type TTSContext,
   type VideoAnalysisContext,
+  type SSMLContext as _SSMLContext,
+  type TTSContext as _TTSContext,
 } from '../services/index.ts'
 
 export interface PipelineContext {
@@ -95,8 +95,8 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     let rawGeneratedText: string | undefined
     let fullFeedbackJson: any
     let feedbackPrompt: string | undefined
-    let ssmlPrompt: string | undefined = undefined
-    let audioPrompt: string | undefined = undefined
+    const _ssmlPrompt: string | undefined = undefined
+    const _audioPrompt: string | undefined = undefined
 
     try {
       logger.info('Starting video analysis service call...')
@@ -130,131 +130,16 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
 
     logger.info(`Video analysis completed: ${analysis.textReport.substring(0, 50)}...`)
 
-    // Early exit: Stop after video analysis if LLM feedback is disabled
-    if (!stages.runLLMFeedback) {
-      logger.info(`Stopping pipeline after video analysis (LLM feedback disabled)`)
-      const results: AnalysisResults = {
-        text_feedback: analysis.textReport,
-        feedback: analysis.feedback,
-        summary_text: analysis.textReport.substring(0, 500),
-        processing_time: Date.now() - startTime,
-        video_source: videoSource,
-      }
-      const feedbackIds = await updateAnalysisResults(
-        supabase,
-        analysisId,
-        results,
-        null,
-        Date.now() - startTime,
-        videoSource,
-        logger,
-        rawGeneratedText,
-        fullFeedbackJson,
-        feedbackPrompt
-      )
-      // Kick SSML jobs instantly (if any feedback rows were inserted)
-      if (services.ssml && Array.isArray(feedbackIds) && feedbackIds.length > 0) {
-        processSSMLJobs({ supabase, logger, feedbackIds }).catch((error) => {
-          logger.error('Failed to kick SSML jobs', { error, feedbackIds })
-        })
-      }
-      await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
-      await notifyAnalysisComplete(analysisId, logger)
-      return
-    }
-
-    // 3. SSML Generation
-    logger.info(`Starting SSML generation for analysis ${analysisId}`)
-    const ssmlResult = await services.ssml.generate({ analysisResult: analysis } as SSMLContext)
-    logger.info(`SSML generation completed: ${ssmlResult.ssml?.substring(0, 100)}...`)
-    await updateAnalysisStatus(supabase, analysisId, 'processing', null, 85, logger)
-
-    // Extract SSML prompt (if available from the service)
-    ssmlPrompt = (ssmlResult as any).promptUsed || undefined
-
-    // Early exit: Stop after SSML generation if TTS is disabled
-    if (!stages.runTTS) {
-      logger.info(`Stopping pipeline after SSML generation (TTS disabled)`)
-      const results: AnalysisResults = {
-        text_feedback: analysis.textReport,
-        feedback: analysis.feedback,
-        summary_text: analysis.textReport.substring(0, 500),
-        processing_time: Date.now() - startTime,
-        video_source: videoSource,
-      }
-      const feedbackIds = await updateAnalysisResults(
-        supabase,
-        analysisId,
-        results,
-        null,
-        Date.now() - startTime,
-        videoSource,
-        logger,
-        rawGeneratedText,
-        fullFeedbackJson,
-        feedbackPrompt,
-        ssmlPrompt,
-        audioPrompt
-      )
-      if (services.ssml && Array.isArray(feedbackIds) && feedbackIds.length > 0) {
-        processSSMLJobs({ supabase, logger, feedbackIds }).catch((error) => {
-          logger.error('Failed to kick SSML jobs', { error, feedbackIds })
-        })
-      }
-    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
-    await notifyAnalysisComplete(analysisId, logger)
-      return
-    }
-
-    // 4. TTS Audio Generation
-    const ttsResult = await services.tts.synthesize({
-      ssml: ssmlResult.ssml,
-      supabase,
-      analysisId
-    } as TTSContext)
-    await updateAnalysisStatus(supabase, analysisId, 'processing', null, 95, logger)
-
-    // Extract audio prompt (if available from the service)
-    audioPrompt = (ttsResult as any).promptUsed || undefined
-
-    // Store audio segment to persist prompts (SSML and audio prompts)
-    // This ensures both ssml_prompt and audio_prompt are stored in analysis_audio_segments
-    try {
-      const segmentId = await storeAudioSegmentForFeedback(
-        supabase,
-        -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
-        ttsResult.audioUrl,
-        {
-          analysisId: analysisId.toString(),
-          audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
-          audioFormat: ttsResult.format || 'wav',
-          audioPrompt: audioPrompt || undefined // Store the TTS system instruction
-        },
-        logger
-      )
-
-      if (segmentId) {
-        logger.info('Stored TTS audio segment in pipeline', { segmentId, analysisId })
-      } else {
-        logger.info('Failed to store TTS audio segment in pipeline', { analysisId })
-      }
-    } catch (segmentError) {
-      logger.info('Failed to store TTS audio segment in pipeline', { analysisId, error: segmentError })
-      // Don't fail the pipeline for segment storage errors
-    }
-
-    // 5. Store results and update status
+    // Persist analysis results and feedback items (normalized schema)
     const results: AnalysisResults = {
-      text_feedback: analysis.textReport, // Full text analysis feedback
-      feedback: analysis.feedback, // Structured feedback items
-      summary_text: analysis.textReport.substring(0, 500), // Backward compatibility
+      text_feedback: analysis.textReport,
+      feedback: analysis.feedback,
+      summary_text: analysis.textReport.substring(0, 500),
       processing_time: Date.now() - startTime,
       video_source: videoSource,
     }
 
-    // Note: Pose data is stored separately in analysis_jobs.pose_data for UI purposes
-    // AI analysis results don't include pose data
-    const _feedbackIds = await updateAnalysisResults(
+    const feedbackIds = await updateAnalysisResults(
       supabase,
       analysisId,
       results,
@@ -264,15 +149,22 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       logger,
       rawGeneratedText,
       fullFeedbackJson,
-      feedbackPrompt,
-      ssmlPrompt,
-      audioPrompt
+      feedbackPrompt
     )
-    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
-    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
 
-    // 6. Real-time notification
+    // Kick SSML worker (and then audio worker) for newly created feedback items
+    if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
+      processSSMLJobs({ supabase, logger, feedbackIds })
+        .then(() => _processAudioJobs({ supabase, logger, feedbackIds }))
+        .catch((error) => {
+          logger.error('Failed to process SSML/audio jobs', { error, feedbackIds })
+        })
+    }
+
+    // Mark analysis job completed and notify clients
+    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
     await notifyAnalysisComplete(analysisId, logger)
+    return
   } catch (error) {
     logger.error('AI Pipeline failed', {
       error: error instanceof Error ? error.message : String(error),

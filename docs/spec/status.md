@@ -3,6 +3,7 @@
 ## Documentation Updates
 - 2025-09-26: Refined `.cursor/rules/core/development-operations.mdc` using `prompt-improve.mdc` patterns (added TL;DR, step-by-step workflow, knowledge boundaries, REMEMBER). No policy changes.
  - 2025-09-28: Enhanced `.cursor/rules/core/monorepo-foundation.mdc` with "Prompt Patterns" section (lead with ask, output shape, delimiters, correction handles, monorepo-specific templates). Policy neutral; improves contributor and AI prompt clarity.
+ - 2025-09-29: Added SSML prompt persistence migration and updated TRD with worker service architecture. Database schema now includes ssml_prompt column for prompt tracking across SSML generation pipeline.
 
 ## Completed Features
 
@@ -43,7 +44,18 @@
   - **Test User Seeding**: Automated test user creation with CLI tools and documentation
   - **Playwright Integration**: Pre-authenticated E2E test sessions with global setup
   - **Comprehensive Testing**: 45+ tests covering unit, integration, and E2E scenarios
-  - **Complete Documentation**: TRD specifications and architecture diagrams updated with auth flows 
+  - **Complete Documentation**: TRD specifications and architecture diagrams updated with auth flows
+
+### AI Pipeline & SSML/Audio Generation ✅ 100% Complete
+  - **SSML Prompt Persistence**: Added ssml_prompt column to analysis_ssml_segments table with migration, TypeScript types, and pipeline wiring
+  - **Worker Service Refactoring**: Converted ssmlWorker and audioWorker to use centralized SSMLService/TTSService instead of direct API calls
+  - **Unified Audio Format Handling**: Consolidated audio format negotiation via resolveAudioFormat and generateAudioStoragePath utilities
+  - **Environment Mode Support**: Workers now respect AI_ANALYSIS_MODE for mock vs live service selection
+  - **Prompt Tracking**: SSML and audio segments now persist prompts used for generation (ssml_prompt, audio_prompt columns)
+  - **Storage Integration**: Workers use uploadProcessedArtifact for consistent storage handling with signed URLs
+  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants
+  - **Comprehensive Testing**: 83 database tests + 54 Deno tests + 207 shared module tests passing with full pipeline coverage
+  - **Type Safety**: Updated database.types.ts with new columns and service interfaces for full TypeScript coverage
 
   ### Authentication Implementation Details ✅
 
@@ -124,6 +136,7 @@
 - **Status Model Validation**: Per-feedback SSML/audio processing with retry logic, status tracking (`ssml_status`, `audio_status`, attempts counters)
 - **Database Trigger Testing**: `reset_feedback_generation_state` trigger properly resets processing state when feedback content changes
 - **Worker Pipeline Testing**: Audio and SSML workers correctly process queued jobs with proper error handling and retry mechanisms
+- 2025-09-29: Refactored Supabase Edge workers to use centralized SSML/TTS services, honor `AI_ANALYSIS_MODE`, persist prompts, and align storage paths. Node + Deno tests updated (SSML/Audio workers).
 
 ## In Progress
 

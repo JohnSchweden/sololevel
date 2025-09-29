@@ -143,6 +143,7 @@ export type Database = {
           provider: string
           version: string | null
           created_at: string
+          ssml_prompt: string | null
         }
         Insert: {
           id?: number
@@ -152,6 +153,7 @@ export type Database = {
           provider?: string
           version?: string | null
           created_at?: string
+          ssml_prompt?: string | null
         }
         Update: {
           id?: number
@@ -161,6 +163,7 @@ export type Database = {
           provider?: string
           version?: string | null
           created_at?: string
+          ssml_prompt?: string | null
         }
         Relationships: [
           {
