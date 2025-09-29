@@ -96,7 +96,9 @@ describe('generateSSMLFromStructuredFeedback', () => {
       expect.objectContaining({
         prompt: expect.stringContaining('Generate SSML markup'),
         temperature: 0.3,
-        maxOutputTokens: 1024,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 60,
       }),
       mockConfig
     )
