@@ -273,7 +273,7 @@ $$;
 ALTER FUNCTION "public"."get_analysis_with_metrics"("analysis_job_id" bigint) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_audio_segments_for_feedback"("feedback_item_id" bigint) RETURNS TABLE("id" bigint, "audio_url" "text", "duration_ms" integer, "format" "text", "provider" "text", "version" "text", "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."get_audio_segments_for_feedback"("feedback_item_id" bigint) RETURNS TABLE("id" bigint, "audio_url" "text", "duration_ms" numeric, "format" "text", "provider" "text", "version" "text", "created_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
@@ -663,7 +663,7 @@ COMMENT ON FUNCTION "public"."reset_feedback_generation_state"() IS 'Resets SSML
 
 
 
-CREATE OR REPLACE FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer DEFAULT NULL::integer, "p_format" "text" DEFAULT 'aac'::"text", "p_provider" "text" DEFAULT 'gemini'::"text", "p_version" "text" DEFAULT NULL::"text") RETURNS bigint
+CREATE OR REPLACE FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric DEFAULT NULL, "p_format" "text" DEFAULT 'aac'::"text", "p_provider" "text" DEFAULT 'gemini'::"text", "p_version" "text" DEFAULT NULL::"text") RETURNS bigint
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
@@ -702,7 +702,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."store_analysis_results"("analysis_job_id" bigint, "p_summary_text" "text" DEFAULT NULL::"text", "p_metrics" "jsonb" DEFAULT '{}'::"jsonb") RETURNS "void"
@@ -754,7 +754,7 @@ $_$;
 ALTER FUNCTION "public"."store_analysis_results"("analysis_job_id" bigint, "p_summary_text" "text", "p_metrics" "jsonb") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer DEFAULT NULL::integer, "p_format" "text" DEFAULT 'aac'::"text", "p_provider" "text" DEFAULT 'gemini'::"text", "p_version" "text" DEFAULT NULL::"text") RETURNS bigint
+CREATE OR REPLACE FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric DEFAULT NULL, "p_format" "text" DEFAULT 'aac'::"text", "p_provider" "text" DEFAULT 'gemini'::"text", "p_version" "text" DEFAULT NULL::"text") RETURNS bigint
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
@@ -793,7 +793,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."store_enhanced_analysis_results"("analysis_job_id" bigint, "p_full_feedback_text" "text" DEFAULT NULL::"text", "p_summary_text" "text" DEFAULT NULL::"text", "p_processing_time_ms" bigint DEFAULT NULL::bigint, "p_video_source_type" "text" DEFAULT NULL::"text", "p_feedback" "jsonb" DEFAULT '[]'::"jsonb", "p_metrics" "jsonb" DEFAULT '{}'::"jsonb") RETURNS "void"
@@ -979,13 +979,13 @@ CREATE TABLE IF NOT EXISTS "public"."analysis_audio_segments" (
     "id" bigint NOT NULL,
     "analysis_feedback_id" bigint NOT NULL,
     "audio_url" "text" NOT NULL,
-    "audio_duration_ms" integer,
+    "audio_duration_ms" numeric,
     "audio_format" "text" DEFAULT 'mp3'::"text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "analysis_id" "uuid",
     "audio_prompt" "text",
     "format" "text" DEFAULT 'aac'::"text",
-    "duration_ms" integer,
+    "duration_ms" numeric,
     "provider" "text" DEFAULT 'gemini'::"text",
     "version" "text",
     "segment_index" integer DEFAULT 0,
@@ -1939,9 +1939,9 @@ GRANT ALL ON FUNCTION "public"."reset_feedback_generation_state"() TO "service_r
 
 
 
-GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."store_analysis_audio_segment"("p_analysis_id" "uuid", "p_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "service_role";
 
 
 
@@ -1951,9 +1951,9 @@ GRANT ALL ON FUNCTION "public"."store_analysis_results"("analysis_job_id" bigint
 
 
 
-GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" integer, "p_format" "text", "p_provider" "text", "p_version" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."store_audio_segment"("p_analysis_feedback_id" bigint, "p_audio_url" "text", "p_duration_ms" numeric, "p_format" "text", "p_provider" "text", "p_version" "text") TO "service_role";
 
 
 
