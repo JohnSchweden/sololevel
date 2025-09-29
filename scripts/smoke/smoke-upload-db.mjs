@@ -64,7 +64,7 @@ async function createVideoRecordingRecord() {
       filename: fileName,
       original_filename: 'mini_speech.mp4',
       file_size: videoBuffer.length,
-      duration_seconds: 30, // Test video is approximately 30 seconds
+      duration_seconds: 6.3, // Test video is approximately 30 seconds
       format: 'mp4',
       storage_path: storagePath,
       upload_status: 'pending', // ← Starts as pending
