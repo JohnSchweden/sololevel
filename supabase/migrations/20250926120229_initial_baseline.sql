@@ -1193,6 +1193,7 @@ CREATE TABLE IF NOT EXISTS "public"."analysis_ssml_segments" (
     "ssml" "text" NOT NULL,
     "provider" "text" DEFAULT 'gemini'::"text" NOT NULL,
     "version" "text",
+    "ssml_prompt" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
@@ -1201,6 +1202,8 @@ ALTER TABLE "public"."analysis_ssml_segments" OWNER TO "postgres";
 
 
 COMMENT ON TABLE "public"."analysis_ssml_segments" IS 'SSML content per feedback item. Separated from audio for independent processing.';
+
+COMMENT ON COLUMN "public"."analysis_ssml_segments"."ssml_prompt" IS 'Prompt used to generate the SSML for this segment';
 
 
 
