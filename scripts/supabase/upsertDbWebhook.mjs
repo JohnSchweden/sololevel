@@ -89,9 +89,9 @@ async function main() {
   } else {
     desired = {
       name: DB_WEBHOOK_NAME,
-      table: 'public.video_recordings',
-      event: 'UPDATE',
-      // filter: "NEW.upload_status = 'completed'",
+      table: 'public.analysis_jobs',
+      event: 'INSERT',
+      filter: "NEW.status = 'queued'",
       url: targetUrl,
       include: ['record'],
       headers: [{ key: 'X-Db-Webhook-Secret', value: DB_WEBHOOK_SECRET }],

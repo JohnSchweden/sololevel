@@ -145,10 +145,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
               feedbackItem.id,
               ttsResult.audioUrl,
               {
-                analysisId: analysisData.analysisId,
-                audioDurationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
-                audioFormat: ttsResult.format || resolvedFormat,
-                audioPrompt: ttsResult.promptUsed || `Convert SSML to speech`
+                durationMs: Math.ceil(ssmlResult.ssml.length / 50) * 1000, // Rough estimate
+                format: ttsResult.format || resolvedFormat,
+                prompt: ttsResult.promptUsed || `Convert SSML to speech`
               },
               logger
             )
@@ -306,10 +305,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
             -1, // Use -1 to indicate this is the full analysis TTS, not tied to a specific feedback item
             ttsResult.audioUrl,
             {
-              analysisId: analysisId.toString(),
-              audioDurationMs: Math.ceil(finalSSML.length / 50) * 1000, // Rough estimate
-              audioFormat: ttsResult.format || 'wav',
-              audioPrompt: ttsResult.promptUsed || `Convert SSML to speech` // Store the TTS system instruction
+              durationMs: Math.ceil(finalSSML.length / 50) * 1000, // Rough estimate
+              format: ttsResult.format || 'wav',
+              prompt: ttsResult.promptUsed || `Convert SSML to speech` // Store the TTS system instruction
             },
             logger
           )

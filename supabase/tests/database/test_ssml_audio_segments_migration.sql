@@ -4,7 +4,7 @@
 BEGIN;
 
 -- Load pgtap extension
-SELECT plan(25);
+SELECT plan(38);
 
 -- Disable RLS for testing
 SET row_security = off;
@@ -39,9 +39,25 @@ SELECT has_column('public', 'analysis_feedback', 'audio_attempts', 'analysis_fee
 SELECT has_column('public', 'analysis_feedback', 'ssml_last_error', 'analysis_feedback should have ssml_last_error column');
 SELECT has_column('public', 'analysis_feedback', 'audio_last_error', 'analysis_feedback should have audio_last_error column');
 
--- Test 6: Verify analysis_audio_segments no longer has SSML fields
-SELECT hasnt_column('public', 'analysis_audio_segments', 'feedback_ssml', 'analysis_audio_segments should not have feedback_ssml column');
-SELECT hasnt_column('public', 'analysis_audio_segments', 'ssml_prompt', 'analysis_audio_segments should not have ssml_prompt column');
+-- Test 6: Verify analysis_audio_segments has correct structure
+SELECT has_table('public', 'analysis_audio_segments', 'analysis_audio_segments table should exist');
+
+SELECT has_column('public', 'analysis_audio_segments', 'id', 'analysis_audio_segments should have id column');
+SELECT has_column('public', 'analysis_audio_segments', 'feedback_id', 'analysis_audio_segments should have feedback_id column');
+SELECT has_column('public', 'analysis_audio_segments', 'audio_url', 'analysis_audio_segments should have audio_url column');
+SELECT has_column('public', 'analysis_audio_segments', 'duration_ms', 'analysis_audio_segments should have duration_ms column');
+SELECT has_column('public', 'analysis_audio_segments', 'format', 'analysis_audio_segments should have format column');
+SELECT has_column('public', 'analysis_audio_segments', 'provider', 'analysis_audio_segments should have provider column');
+SELECT has_column('public', 'analysis_audio_segments', 'version', 'analysis_audio_segments should have version column');
+SELECT has_column('public', 'analysis_audio_segments', 'segment_index', 'analysis_audio_segments should have segment_index column');
+SELECT has_column('public', 'analysis_audio_segments', 'created_at', 'analysis_audio_segments should have created_at column');
+SELECT has_column('public', 'analysis_audio_segments', 'prompt', 'analysis_audio_segments should have prompt column');
+
+-- Verify dropped columns
+SELECT hasnt_column('public', 'analysis_audio_segments', 'analysis_feedback_id', 'analysis_audio_segments should not have old analysis_feedback_id column');
+SELECT hasnt_column('public', 'analysis_audio_segments', 'audio_duration_ms', 'analysis_audio_segments should not have audio_duration_ms column');
+SELECT hasnt_column('public', 'analysis_audio_segments', 'audio_format', 'analysis_audio_segments should not have audio_format column');
+SELECT hasnt_column('public', 'analysis_audio_segments', 'analysis_id', 'analysis_audio_segments should not have analysis_id column');
 
 -- Test 7: Test SSML job trigger on feedback insert
 -- First create required analysis_jobs and analyses records

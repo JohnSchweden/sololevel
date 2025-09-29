@@ -115,8 +115,8 @@ async function run() {
     await page.fill('input[name="name"]', DB_WEBHOOK_NAME)
     await page.waitForSelector('input[name="http_url"]')
 
-    // Select Table: public.video_recordings
-    log.info('Selecting table: public.video_recordings')
+    // Select Table: public.analysis_jobs
+    log.info('Selecting table: public.analysis_jobs')
     let tableSelected = false
 
     // try {
@@ -176,8 +176,8 @@ async function run() {
       log.info('Detected open table dropdown menu')
 
       const optionLocatorCandidates = [
-        menu.locator('div[role="menuitem"]').filter({ hasText: 'public video_recordings' }).first(),
-        menu.locator('div[role="menuitem"]').filter({ hasText: 'publicvideo_recordings' }).first(),
+        menu.locator('div[role="menuitem"]').filter({ hasText: 'public analysis_jobs' }).first(),
+        menu.locator('div[role="menuitem"]').filter({ hasText: 'publicanalysis_jobs' }).first(),
       ]
 
       let optionClicked = false
@@ -201,7 +201,7 @@ async function run() {
           if (!menu) return false
           const items = Array.from(menu.querySelectorAll('[data-radix-collection-item]'))
           const normalize = (value) => value.replace(/\s+/g, '').toLowerCase()
-          const target = 'publicvideo_recordings'
+          const target = 'publicanalysis_jobs'
           for (const item of items) {
             const text = normalize(item.textContent ?? '')
             if (text.includes(target)) {
@@ -225,7 +225,7 @@ async function run() {
 
       await page.waitForFunction(() => {
         const trigger = document.querySelector('button#table_id span span')
-        return trigger?.textContent?.includes('video_recordings') ?? false
+        return trigger?.textContent?.includes('analysis_jobs') ?? false
       }, { timeout: 3000 })
 
       await menu.waitFor({ state: 'detached', timeout: 2000 }).catch(async () => {
@@ -319,8 +319,19 @@ async function run() {
     
     // await page.screenshot({ path: 'webhook-creation-top.png', fullPage: false })
 
-    // Check UPDATE event checkbox
-    await page.check('input[name="update"]')
+    // Check INSERT event checkbox
+    await page.check('input[name="insert"]')
+
+    // Add filter for INSERT events
+    // log.info('Adding filter for INSERT events')
+    // try {
+    //   const filterInput = page.locator('input[placeholder*="filter"], input[name="filter"]').first()
+    //   await filterInput.waitFor({ state: 'visible', timeout: 5000 })
+    //   await filterInput.fill("NEW.status = 'queued'")
+    //   log.info('Filter added: NEW.status = \'queued\'')
+    // } catch (filterError) {
+    //   log.warn('Could not add filter - may not be supported in this version:', filterError.message)
+    // }
 
     // Select HTTP webhook type (radio button)
     await page.check('input[name="function_type"][value="http_request"]')
@@ -368,10 +379,10 @@ async function run() {
     // Validate form before saving
     const nameValue = await page.inputValue('input[name="name"]')
     const urlValue = await page.inputValue('input[name="http_url"]')
-    const updateChecked = await page.isChecked('input[name="update"]')
+    const insertChecked = await page.isChecked('input[name="insert"]')
     const functionTypeValue = await page.inputValue('input[name="function_type"]:checked')
 
-    // log.info('Form validation:', { nameValue, urlValue, updateChecked, functionTypeValue, targetUrl })
+    // log.info('Form validation:', { nameValue, urlValue, insertChecked, functionTypeValue, targetUrl })
 
     // Debug: log all form data
     const allFormData = await page.evaluate(() => {
@@ -388,7 +399,7 @@ async function run() {
     })
     // log.info('Form data:', allFormData)
 
-    if (!nameValue || !urlValue || !updateChecked) {
+    if (!nameValue || !urlValue || !insertChecked) {
       throw new Error('Form not properly filled')
     }
 

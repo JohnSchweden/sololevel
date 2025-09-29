@@ -51,9 +51,9 @@
   - **Worker Service Refactoring**: Converted ssmlWorker and audioWorker to use centralized SSMLService/TTSService instead of direct API calls
   - **Unified Audio Format Handling**: Consolidated audio format negotiation via resolveAudioFormat and generateAudioStoragePath utilities
   - **Environment Mode Support**: Workers now respect AI_ANALYSIS_MODE for mock vs live service selection
-  - **Prompt Tracking**: SSML and audio segments now persist prompts used for generation (ssml_prompt, audio_prompt columns)
+  - **Prompt Tracking**: SSML and audio segments now persist prompts used for generation (ssml_prompt, prompt columns)
   - **Storage Integration**: Workers use uploadProcessedArtifact for consistent storage handling with signed URLs
-  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants
+  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants; normalized analysis_audio_segments schema (renamed columns, dropped redundant fields)
   - **Comprehensive Testing**: 83 database tests + 54 Deno tests + 207 shared module tests passing with full pipeline coverage
   - **Type Safety**: Updated database.types.ts with new columns and service interfaces for full TypeScript coverage
 

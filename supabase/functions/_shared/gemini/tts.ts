@@ -174,7 +174,7 @@ export async function generateTTSAudio(
 
     const prompt = `Gemini TTS synthesis: voice=${voiceName}, format=${contentType}, ssml=${request.ssml.substring(0, 100)}...`
 
-    // // Return the system instruction used so it can be persisted as audio_prompt
+    // // Return the system instruction used so it can be persisted as prompt
     // const prompt = TTS_GENERATION_PROMPT_TEMPLATE.trim()
 
     return {

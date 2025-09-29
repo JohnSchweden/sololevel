@@ -168,8 +168,9 @@ async function processSSMLSegment({
     segment.feedback_id,
     ttsResult.audioUrl,
     {
-      audioDurationMs: ttsResult.duration,
-      audioFormat: ttsResult.format ?? resolvedFormat,
+      durationMs: ttsResult.duration,
+      format: ttsResult.format ?? resolvedFormat,
+      prompt: ttsResult.promptUsed,
       provider: 'gemini',
       version: segment.version ?? '1.0',
       segmentIndex: segment.segment_index,

@@ -1,14 +1,14 @@
-import { createAnalysisJob } from '../../_shared/db/analysis.ts'
+// import { createAnalysisJob } from '../../_shared/db/analysis.ts'
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
 import { processAIPipeline } from '../../_shared/pipeline/aiPipeline.ts'
 import {
   GeminiSSMLService,
   GeminiTTSService,
-  GeminiVideoAnalysisService//,
-  //MockSSMLService,
-  //MockTTSService,
-  //MockVideoAnalysisService
+  GeminiVideoAnalysisService,
+  MockSSMLService,
+  MockTTSService,
+  MockVideoAnalysisService
 } from '../../_shared/services/index.ts'
 import { analyzeVideoWithGemini } from '../gemini-llm-analysis.ts'
 import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
@@ -31,8 +31,8 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
       return createErrorResponse('Unauthorized', 401)
     }
 
-    // Parse payload: support either explicit id or DB webhook shape
-    let videoRecordingId: number | undefined
+    // Parse payload: support either explicit jobId or DB webhook shape for analysis_jobs INSERT
+    let analysisJobId: number | undefined
     let body: any = {}
     try {
       body = await req.json()
@@ -40,44 +40,62 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
       body = {}
     }
 
-    if (typeof body?.videoRecordingId === 'number') {
-      videoRecordingId = body.videoRecordingId
+    if (typeof body?.analysisJobId === 'number') {
+      analysisJobId = body.analysisJobId
     } else if (typeof body?.record?.id === 'number') {
-      videoRecordingId = body.record.id
+      analysisJobId = body.record.id
     }
 
-    if (!videoRecordingId) {
-      return createErrorResponse('Missing videoRecordingId', 400)
+    if (!analysisJobId) {
+      return createErrorResponse('Missing analysisJobId', 400)
     }
 
-    // Load recording and validate completed status
-    const { data: recording, error: recError } = await supabase
-      .from('video_recordings')
-      .select('id, user_id, storage_path, duration_seconds, upload_status')
-      .eq('id', videoRecordingId)
+    // Load analysis job and validate queued status
+    const { data: analysisJob, error: jobError } = await supabase
+      .from('analysis_jobs')
+      .select('id, user_id, video_recording_id, status')
+      .eq('id', analysisJobId)
       .single()
 
-    if (recError || !recording) {
-      logger.error('Video recording lookup failed', { recError, videoRecordingId })
-      return createErrorResponse('Recording not found', 404)
+    if (jobError || !analysisJob) {
+      logger.error('Analysis job lookup failed', { jobError, analysisJobId })
+      return createErrorResponse('Analysis job not found', 404)
     }
 
-    if (recording.upload_status !== 'completed') {
-      logger.info('Recording not completed; ignoring webhook', { videoRecordingId, status: recording.upload_status })
-      return new Response(JSON.stringify({ ignored: true, reason: 'not_completed' }), {
+    if (analysisJob.status !== 'queued') {
+      logger.info('Job not in queued status; ignoring webhook', { analysisJobId, status: analysisJob.status })
+      return new Response(JSON.stringify({ ignored: true, reason: 'not_queued' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
     }
 
-    // Idempotent job creation
-    const analysisJob = await createAnalysisJob(supabase, recording.user_id, recording.id, logger)
+    // Load video recording for pipeline
+    const { data: recording, error: recError } = await supabase
+      .from('video_recordings')
+      .select('id, storage_path, duration_seconds')
+      .eq('id', analysisJob.video_recording_id)
+      .single()
 
-    // Instantiate real services (mocking removed)
+    if (recError || !recording) {
+      logger.error('Video recording lookup failed', { recError, videoRecordingId: analysisJob.video_recording_id })
+      return createErrorResponse('Recording not found', 404)
+    }
+
+    // Instantiate services (mock mode if configured)
+    const aiAnalysisMode = (globalThis as any).Deno?.env?.get?.('AI_ANALYSIS_MODE')
+    const useMockServices = aiAnalysisMode === 'mock'
+
     const services = {
-      videoAnalysis: new GeminiVideoAnalysisService(analyzeVideoWithGemini),
-      ssml: new GeminiSSMLService(geminiLLMFeedback),
-      tts: new GeminiTTSService(),
+      videoAnalysis: useMockServices
+        ? new MockVideoAnalysisService()
+        : new GeminiVideoAnalysisService(analyzeVideoWithGemini),
+      ssml: useMockServices
+        ? new MockSSMLService()
+        : new GeminiSSMLService(geminiLLMFeedback),
+      tts: useMockServices
+        ? new MockTTSService()
+        : new GeminiTTSService(),
     }
 
     // Kick off pipeline asynchronously
@@ -97,18 +115,18 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
     processAIPipeline({
       supabase,
       logger,
-      analysisId: analysisJob.id,
+      analysisId: analysisJobId,
       videoPath: recording.storage_path,
       videoSource: 'uploaded_video',
       timingParams: { duration: recording.duration_seconds },
       stages: resolvedStages,
       services,
     }).catch((error) => {
-      logger.error('Webhook pipeline failed', { error, analysisId: analysisJob.id })
+      logger.error('Webhook pipeline failed', { error, analysisId: analysisJobId })
     })
 
     return new Response(
-      JSON.stringify({ analysisId: analysisJob.id, status: 'queued' }),
+      JSON.stringify({ analysisId: analysisJobId, status: 'processing' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

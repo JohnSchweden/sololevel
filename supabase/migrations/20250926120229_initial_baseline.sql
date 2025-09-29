@@ -977,19 +977,15 @@ COMMENT ON COLUMN "public"."analyses"."feedback_prompt" IS 'Prompt used to gener
 
 CREATE TABLE IF NOT EXISTS "public"."analysis_audio_segments" (
     "id" bigint NOT NULL,
-    "analysis_feedback_id" bigint NOT NULL,
+    "feedback_id" bigint NOT NULL,
     "audio_url" "text" NOT NULL,
-    "audio_duration_ms" numeric,
-    "audio_format" "text" DEFAULT 'mp3'::"text",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "analysis_id" "uuid",
-    "audio_prompt" "text",
-    "format" "text" DEFAULT 'aac'::"text",
     "duration_ms" numeric,
+    "format" "text" DEFAULT 'aac'::"text",
     "provider" "text" DEFAULT 'gemini'::"text",
     "version" "text",
     "segment_index" integer DEFAULT 0,
-    CONSTRAINT "analysis_audio_segments_audio_format_check" CHECK (("audio_format" = ANY (ARRAY['mp3'::"text", 'aac'::"text", 'wav'::"text"]))),
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "prompt" "text",
     CONSTRAINT "analysis_audio_segments_format_check" CHECK (("format" = ANY (ARRAY['aac'::"text", 'mp3'::"text", 'wav'::"text"])))
 );
 
@@ -1017,7 +1013,7 @@ COMMENT ON COLUMN "public"."analysis_audio_segments"."audio_format" IS 'Audio fo
 
 
 
-COMMENT ON COLUMN "public"."analysis_audio_segments"."analysis_id" IS 'Reference to the analysis this audio segment belongs to (nullable during migration)';
+COMMENT ON COLUMN "public"."analysis_audio_segments"."feedback_id" IS 'Reference to the analysis this audio segment belongs to (nullable during migration)';
 
 
 
@@ -1336,7 +1332,7 @@ ALTER TABLE ONLY "public"."analyses"
 
 
 ALTER TABLE ONLY "public"."analysis_audio_segments"
-    ADD CONSTRAINT "analysis_audio_segments_feedback_id_segment_index_key" UNIQUE ("analysis_feedback_id", "segment_index");
+    ADD CONSTRAINT "analysis_audio_segments_feedback_id_segment_index_key" UNIQUE ("feedback_id", "segment_index");
 
 
 
@@ -1412,7 +1408,6 @@ CREATE INDEX "analyses_job_id_idx" ON "public"."analyses" USING "btree" ("job_id
 
 
 
-CREATE INDEX "analysis_audio_segments_analysis_id_idx" ON "public"."analysis_audio_segments" USING "btree" ("analysis_id");
 
 
 
@@ -1582,12 +1577,10 @@ ALTER TABLE ONLY "public"."analyses"
 
 
 ALTER TABLE ONLY "public"."analysis_audio_segments"
-    ADD CONSTRAINT "analysis_audio_segments_analysis_feedback_id_fkey" FOREIGN KEY ("analysis_feedback_id") REFERENCES "public"."analysis_feedback"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "analysis_audio_segments_feedback_id_fkey" FOREIGN KEY ("feedback_id") REFERENCES "public"."analysis_feedback"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."analysis_audio_segments"
-    ADD CONSTRAINT "analysis_audio_segments_analysis_id_fkey" FOREIGN KEY ("analysis_id") REFERENCES "public"."analyses"("id") ON DELETE CASCADE;
 
 
 
@@ -1687,9 +1680,10 @@ CREATE POLICY "Users can insert analyses for their own jobs" ON "public"."analys
 
 
 CREATE POLICY "Users can insert audio segments for their own analyses" ON "public"."analysis_audio_segments" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
-   FROM ("public"."analyses" "a"
+   FROM ("public"."analysis_feedback" "af"
+     JOIN "public"."analyses" "a" ON (("a"."id" = "af"."analysis_id"))
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("a"."id" = "analysis_audio_segments"."analysis_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
+  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid")))));
 
 
 
@@ -1731,12 +1725,14 @@ CREATE POLICY "Users can update analyses for their own jobs" ON "public"."analys
 
 
 CREATE POLICY "Users can update audio segments for their own analyses" ON "public"."analysis_audio_segments" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
-   FROM ("public"."analyses" "a"
+   FROM ("public"."analysis_feedback" "af"
+     JOIN "public"."analyses" "a" ON (("a"."id" = "af"."analysis_id"))
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("a"."id" = "analysis_audio_segments"."analysis_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid")))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM ("public"."analyses" "a"
+  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid")))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM ("public"."analysis_feedback" "af"
+     JOIN "public"."analyses" "a" ON (("a"."id" = "af"."analysis_id"))
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("a"."id" = "analysis_audio_segments"."analysis_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
+  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
 
 
 
@@ -1773,7 +1769,7 @@ CREATE POLICY "Users can view analyses for their own jobs" ON "public"."analyses
 CREATE POLICY "Users can view audio segments for their own analyses" ON "public"."analysis_audio_segments" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM ("public"."analyses" "a"
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("a"."id" = "analysis_audio_segments"."analysis_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
+  WHERE (("a"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
 
 
 

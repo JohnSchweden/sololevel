@@ -294,7 +294,7 @@ export async function getEnhancedAnalysis(
           ssml: job.audio_segments?.[0]?.feedback_ssml,
           audioUrl: job.audio_segments?.[0]?.feedback_audio_url,
           ssmlPrompt: job.audio_segments?.[0]?.ssml_prompt,
-          audioPrompt: job.audio_segments?.[0]?.audio_prompt,
+          audioPrompt: job.audio_segments?.[0]?.prompt,
           processingTimeMs: null, // Will be in job table
           videoSourceType: null, // Will be in job table
           timestamps: {
@@ -519,10 +519,9 @@ export async function storeAudioSegmentForFeedback(
   feedbackId: number,
   audioUrl: string,
   options?: {
-    analysisId?: string
-    audioDurationMs?: number
-    audioFormat?: string
-    audioPrompt?: string
+    durationMs?: number
+    format?: string
+    prompt?: string
     provider?: string
     version?: string
     segmentIndex?: number
@@ -532,10 +531,9 @@ export async function storeAudioSegmentForFeedback(
   const segmentIndex = options?.segmentIndex ?? 0
   const provider = options?.provider ?? 'gemini'
   const version = options?.version ?? '1.0'
-  const format = options?.audioFormat ?? getEnvDefaultFormat()
-  const durationMs = options?.audioDurationMs ?? null
-  const analysisId = options?.analysisId ?? null
-  const audioPrompt = options?.audioPrompt ?? null
+  const format = options?.format ?? getEnvDefaultFormat()
+  const durationMs = options?.durationMs ?? null
+  const prompt = options?.prompt ?? null
 
   logger?.info('Storing audio segment for feedback item', {
     feedbackId,
@@ -543,22 +541,20 @@ export async function storeAudioSegmentForFeedback(
     format,
     durationMs,
     segmentIndex,
-    analysisId,
   })
 
   try {
     const { data, error } = await supabase
       .from('analysis_audio_segments')
       .insert({
-        analysis_feedback_id: feedbackId,
+        feedback_id: feedbackId,
         segment_index: segmentIndex,
         audio_url: audioUrl,
         duration_ms: durationMs,
         format,
         provider,
         version,
-        analysis_id: analysisId,
-        audio_prompt: audioPrompt,
+        prompt,
       })
       .select('id')
       .single()
