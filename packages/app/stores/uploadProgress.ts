@@ -3,6 +3,19 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 
+// React Native compatible UUID generator
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for React Native environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c == 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export interface UploadTask {
   id: string
   videoRecordingId: number | null
@@ -104,7 +117,7 @@ export const useUploadProgressStore = create<UploadProgressStore>()(
 
       // Add upload task
       addUploadTask: (taskData) => {
-        const taskId = crypto.randomUUID()
+        const taskId = generateUUID()
         const task: UploadTask = {
           ...taskData,
           id: taskId,

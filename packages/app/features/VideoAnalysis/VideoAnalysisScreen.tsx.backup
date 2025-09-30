@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { YStack } from 'tamagui'
+import { log } from '@my/logging'
 
 // UI Components from @my/ui
 import { AppHeader } from '@my/ui'
@@ -460,7 +461,7 @@ export function VideoAnalysisScreen({
                   onAudioRewind={handleAudioRewind}
                   onAudioFastForward={handleAudioFastForward}
                   onFeedbackBubbleTap={useCallback((message: FeedbackMessage) => {
-                    console.log('Bubble tapped:', message)
+                    log.debug('VideoAnalysisScreen', '💬 Bubble tapped:', message)
                   }, [])}
                 />
               )}

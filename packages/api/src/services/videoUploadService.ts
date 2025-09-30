@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Tables, TablesInsert, TablesUpdate } from '../../types/database'
 import { supabase } from '../supabase'
 
@@ -41,18 +42,14 @@ export async function createSignedUploadUrl(
   filename: string,
   fileSize: number
 ): Promise<{ signedUrl: string; path: string }> {
-  if (typeof process !== 'undefined' && process.stdout) {
-    process.stdout.write('createSignedUploadUrl called\n')
-  }
+  log.debug('videoUploadService', 'createSignedUploadUrl called')
 
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
     throw new Error('User not authenticated')
   }
 
-  if (typeof process !== 'undefined' && process.stdout) {
-    process.stdout.write(`User authenticated: ${user.data.user.id}\n`)
-  }
+  log.debug('videoUploadService', 'User authenticated', { userId: user.data.user.id })
 
   // Basic file size validation (can be enhanced with more specific limits)
   if (fileSize <= 0) {
@@ -63,12 +60,8 @@ export async function createSignedUploadUrl(
   const timestamp = Date.now()
   const path = `${user.data.user.id}/${timestamp}_${filename}`
 
-  if (typeof process !== 'undefined' && process.stdout) {
-    process.stdout.write(`Generated path: ${path}\n`)
-    process.stdout.write(
-      `Calling supabase.storage.from('${BUCKET_NAME}').createSignedUploadUrl...\n`
-    )
-  }
+  log.debug('videoUploadService', 'Generated storage path', { path })
+  log.debug('videoUploadService', 'Creating signed upload URL', { bucket: BUCKET_NAME })
 
   // Create signed URL for upload
   const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUploadUrl(path, {
@@ -161,12 +154,11 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     onUploadInitialized,
   } = options
 
-  // Debug output for testing
-  if (typeof process !== 'undefined' && process.stdout) {
-    process.stdout.write(
-      `uploadVideo called with file size: ${file.size}, filename: ${originalFilename}\n`
-    )
-  }
+  // Debug logging
+  log.debug('videoUploadService', 'uploadVideo called', {
+    fileSize: file.size,
+    filename: originalFilename,
+  })
 
   try {
     // Validate file
@@ -182,13 +174,11 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     const filename = originalFilename || `video_${Date.now()}.${format}`
 
     // Create signed URL
-    if (typeof process !== 'undefined' && process.stdout) {
-      process.stdout.write('Creating signed upload URL...\n')
-    }
+    log.debug('videoUploadService', 'Creating signed upload URL')
     const { signedUrl, path } = await createSignedUploadUrl(filename, file.size)
-    if (typeof process !== 'undefined' && process.stdout) {
-      process.stdout.write(`Signed URL created: ${signedUrl.substring(0, 50)}...\n`)
-    }
+    log.debug('videoUploadService', 'Signed URL created', {
+      urlPrefix: signedUrl.substring(0, 50),
+    })
 
     // Create video recording record
     const recording = await createVideoRecording({
@@ -217,20 +207,14 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     })
 
     // Upload file with progress tracking
-    if (typeof process !== 'undefined' && process.stdout) {
-      process.stdout.write('Starting uploadWithProgress...\n')
-    }
+    log.debug('videoUploadService', 'Starting uploadWithProgress')
     try {
       await uploadWithProgress(signedUrl, file, recording.id, session.id, onProgress)
-      if (typeof process !== 'undefined' && process.stdout) {
-        process.stdout.write('uploadWithProgress completed successfully\n')
-      }
+      log.debug('videoUploadService', 'uploadWithProgress completed successfully')
     } catch (uploadError) {
       const errorMessage =
         uploadError instanceof Error ? uploadError.message : 'Unknown upload error'
-      if (typeof process !== 'undefined' && process.stdout) {
-        process.stdout.write(`uploadWithProgress failed: ${errorMessage}\n`)
-      }
+      log.error('videoUploadService', 'uploadWithProgress failed', { error: errorMessage })
       await updateUploadProgress(recording.id, session.id, 0, 0)
       throw uploadError
     }
@@ -254,14 +238,14 @@ async function uploadWithProgress(
   sessionId: number,
   onProgress?: (progress: number) => void
 ): Promise<void> {
-  process.stdout.write('uploadWithProgress: starting upload\n')
+  log.debug('videoUploadService', 'uploadWithProgress: starting upload')
 
   // Use fetch for Node/jsdom environments or Jest tests where XMLHttpRequest doesn't perform real network calls
   if (typeof XMLHttpRequest === 'undefined' || process.env.JEST_WORKER_ID) {
-    process.stdout.write('uploadWithProgress: using fetch path\n')
+    log.debug('videoUploadService', 'uploadWithProgress: using fetch path')
 
     try {
-      process.stdout.write('uploadWithProgress: calling fetch...\n')
+      log.debug('videoUploadService', 'uploadWithProgress: calling fetch')
       const response = await fetch(signedUrl, {
         method: 'PUT',
         body: file,
@@ -270,7 +254,9 @@ async function uploadWithProgress(
         },
       })
 
-      process.stdout.write(`uploadWithProgress: fetch response status: ${response.status}\n`)
+      log.debug('videoUploadService', 'uploadWithProgress: fetch response', {
+        status: response.status,
+      })
 
       if (!response.ok) {
         throw new Error(`Upload failed with status: ${response.status}`)
@@ -279,11 +265,13 @@ async function uploadWithProgress(
       // Update progress to 100% on success
       updateUploadProgress(recordingId, sessionId, file.size, 100)
       onProgress?.(100)
-      process.stdout.write('uploadWithProgress: completed successfully\n')
+      log.debug('videoUploadService', 'uploadWithProgress: completed successfully')
       return
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      process.stdout.write(`uploadWithProgress: fetch failed: ${errorMessage}\n`)
+      log.error('videoUploadService', 'uploadWithProgress: fetch failed', {
+        error: errorMessage,
+      })
       throw new Error(`Upload failed: ${errorMessage}`)
     }
   }

@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import {
   Download,
   //Maximize2,
@@ -164,7 +165,7 @@ export const VideoControls = React.memo(
       }, [showControlsAndResetTimer, onMenuPress])
 
       const handleMenuItemPress = useCallback((action: string) => {
-        console.log(`Menu action: ${action}`)
+        log.info('VideoControls', `🎛️ Menu action: ${action}`)
         setShowMenu(false)
         // Could add specific handlers for different menu actions here
       }, [])
@@ -294,6 +295,15 @@ export const VideoControls = React.memo(
                   accessibilityLabel="Processing video analysis"
                 >
                   Analysing video...
+                </Text>
+                <Text
+                  fontSize="$3"
+                  fontWeight="500"
+                  color="white"
+                  textAlign="center"
+                  opacity={0.8}
+                >
+                  This too shall pass.
                 </Text>
               </YStack>
             ) : (

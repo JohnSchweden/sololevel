@@ -10,6 +10,19 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 
+// React Native compatible UUID generator
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for React Native environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c == 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export interface CameraPermissions {
   camera: PermissionStatus
   microphone: PermissionStatus
@@ -167,7 +180,7 @@ export const useCameraRecordingStore = create<CameraRecordingStore>()(
           // Create or update session
           if (!draft.currentSession) {
             draft.currentSession = {
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               state: 'recording',
               startTime: now,
               duration: 0,
@@ -287,7 +300,7 @@ export const useCameraRecordingStore = create<CameraRecordingStore>()(
       // Session management
       createSession: () => {
         const session: RecordingSession = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           state: 'idle',
           startTime: null,
           duration: 0,

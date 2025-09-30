@@ -1,0 +1,37 @@
+appId: com.sololevel.app
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+# Tap outside shake menu to dismiss it if present
+- tapOn:
+    point: "10%,10%"
+    optional: true
+# Navigate to dev section and access pipeline test
+- tapOn:
+    id: "dev-pipeline-test-button"
+- tapOn:
+    id: "pipeline-run"
+# Wait for asset loading to start
+- assertVisible:
+    id: "pipeline-status"
+# Assert that upload status appears (this may take time depending on asset loading)
+- assertVisible:
+    text: "uploading"
+- waitForAnimationToEnd
+# Wait for processing to start (analysis job creation)
+- assertVisible:
+    text: "processing"
+- waitForAnimationToEnd
+# Wait for navigation to video-analysis screen
+- assertVisible:
+    id: "video-analysis-container"
+- waitForAnimationToEnd
+# Verify that the analysis screen has loaded with expected content
+- assertVisible:
+    id: "video-player-container"

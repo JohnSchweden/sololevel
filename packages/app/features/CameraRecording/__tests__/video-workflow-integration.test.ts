@@ -95,9 +95,9 @@ describe('Video Workflow Integration', () => {
     })
 
     mockFileSystem.makeDirectoryAsync.mockImplementation((uri) => {
-      console.log('makeDirectoryAsync called with:', uri)
+      log.info('makeDirectoryAsync called with:', uri)
       createdDirectories.add(uri)
-      console.log('createdDirectories Set now has:', createdDirectories.size, 'items')
+      log.info('createdDirectories Set now has:', createdDirectories.size, 'items')
       return Promise.resolve()
     })
     mockFileSystem.copyAsync.mockImplementation(({ to }) => {

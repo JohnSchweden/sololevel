@@ -111,20 +111,20 @@ loadSmokeEnv()
 const supabase = createSmokeServiceClient()
 
 async function runSmokeTest() {
-  console.log('🧪 Smoke Test: [Test Name]\n')
+  log.info('🧪 Smoke Test: [Test Name]\n')
 
   try {
     // Test logic here
 
-    console.log('\n🎯 Test Results:')
-    console.log('✅ PASSED: [description of what passed]')
+    log.info('\n🎯 Test Results:')
+    log.info('✅ PASSED: [description of what passed]')
 
   } catch (error) {
     console.error('\n❌ Test failed:', error.message)
     process.exit(1)
   }
 
-  console.log('\n🎉 Smoke test completed successfully!')
+  log.info('\n🎉 Smoke test completed successfully!')
 }
 
 runSmokeTest()
@@ -215,7 +215,7 @@ await client.query(`
 ## Best Practices
 
 1. **Always use shared utilities** - Import from `utils/env.mjs` instead of duplicating configuration
-2. **Use structured logging** - Use `createScriptLogger()` instead of `console.log`
+2. **Use structured logging** - Use `createScriptLogger()` instead of `log.info`
 3. **Handle errors gracefully** - Always catch exceptions and exit with proper codes
 4. **Validate environment** - Let `getScriptConfig()` validate required variables
 5. **Clean up resources** - Close database connections and sign out of auth sessions

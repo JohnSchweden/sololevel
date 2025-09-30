@@ -15,7 +15,7 @@ export interface LoggerLike {
 }
 
 export type ConsoleRecord = {
-  level: 'debug' | 'info' | 'warn' | 'error'
+  level: LogLevel
   message: string
   args: unknown[]
   timestamp: string
@@ -57,33 +57,33 @@ function pushNetwork(record: NetworkRecord) {
   if (networkBuffer.length > MAX_BUFFER) networkBuffer.shift()
 }
 
-function formatMessage(level: LogLevel, message: string, ...args: unknown[]) {
+function formatMessage(message: string, ...args: unknown[]) {
   const timestamp = new Date().toISOString()
-  const prefix = `[${timestamp}] ${level.toUpperCase()}:`
-  return args.length > 0 ? [prefix, message, ...args] : [prefix, message]
+  const prefix = `[${timestamp}] [${message}]`
+  return args.length > 0 ? [prefix, ...args] : [prefix]
 }
 
 export const logger: LoggerLike = {
   debug(message: string, ...args: unknown[]) {
     if (isDev) {
       // biome-ignore lint/suspicious/noConsole: centralized logging utility
-      console.debug(...formatMessage('debug', message, ...args))
+      console.debug(...formatMessage(message, ...args))
     }
     pushConsole({ level: 'debug', message, args, timestamp: new Date().toISOString() })
   },
   info(message: string, ...args: unknown[]) {
     // biome-ignore lint/suspicious/noConsole: centralized logging utility
-    console.info(...formatMessage('info', message, ...args))
+    console.info(...formatMessage(message, ...args))
     pushConsole({ level: 'info', message, args, timestamp: new Date().toISOString() })
   },
   warn(message: string, ...args: unknown[]) {
     // biome-ignore lint/suspicious/noConsole: centralized logging utility
-    console.warn(...formatMessage('warn', message, ...args))
+    console.warn(...formatMessage(message, ...args))
     pushConsole({ level: 'warn', message, args, timestamp: new Date().toISOString() })
   },
   error(message: string, ...args: unknown[]) {
     // biome-ignore lint/suspicious/noConsole: centralized logging utility
-    console.error(...formatMessage('error', message, ...args))
+    console.error(...formatMessage(message, ...args))
     pushConsole({ level: 'error', message, args, timestamp: new Date().toISOString() })
   },
 }

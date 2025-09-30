@@ -129,8 +129,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       // For now, just log frame info periodically
       const shouldLog = Math.random() < 0.001 // Log ~0.1% of frames
       if (shouldLog) {
-        // Note: runOnJS is not available in this version, using console.log for now
-        console.log('VisionCamera', 'Frame processed', {
+        // Note: runOnJS is not available in this version, using log for now
+        log.debug('VisionCamera', '🎬 Frame processed', {
           width: frame.width,
           height: frame.height,
           timestamp: frame.timestamp,

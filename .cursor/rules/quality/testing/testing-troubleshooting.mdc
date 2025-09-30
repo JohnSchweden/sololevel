@@ -122,7 +122,7 @@ screen.getByText(/pattern/i)
 screen.logTestingPlaygroundURL() // Web only
 
 // Check what accessibility labels are available
-console.log('Available labels:', screen.getAllByRole('button').map(btn => btn.getAttribute('aria-label')))
+log.info('Available labels:', screen.getAllByRole('button').map(btn => btn.getAttribute('aria-label')))
 ```
 
 ### Mock Debugging
@@ -132,8 +132,8 @@ const mockFn = jest.fn()
 expect(mockFn).toHaveBeenCalledWith(expectedArgs)
 
 // Debug mock call history
-console.log('Mock calls:', mockFn.mock.calls)
-console.log('Mock results:', mockFn.mock.results)
+log.info('Mock calls:', mockFn.mock.calls)
+log.info('Mock results:', mockFn.mock.results)
 
 // Reset mocks between tests
 beforeEach(() => {
@@ -145,12 +145,12 @@ beforeEach(() => {
 ```typescript
 // Check component props directly (React Native)
 const button = screen.getByLabelText('Submit')
-console.log('Button props:', button.props)
-console.log('Button disabled:', button.props.disabled)
+log.info('Button props:', button.props)
+log.info('Button disabled:', button.props.disabled)
 
 // Check DOM attributes (Web)
 const webButton = screen.getByRole('button')
-console.log('Button attributes:', {
+log.info('Button attributes:', {
   disabled: webButton.disabled,
   className: webButton.className,
   'aria-label': webButton.getAttribute('aria-label')
@@ -309,10 +309,10 @@ await waitFor(() => {
 screen.debug() // See what's actually rendered
 
 // For mock issues  
-console.log('Mock history:', mockFn.mock.calls)
+log.info('Mock history:', mockFn.mock.calls)
 
 // For component issues
-console.log('Component props:', element.props)
+log.info('Component props:', element.props)
 ```
 
 ### Step 3: Apply Platform-Specific Fixes

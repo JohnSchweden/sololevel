@@ -141,7 +141,7 @@ describe('useUser', () => {
     )
 
     // Debug: Check final state
-    // console.log('Final useUser state:', result.current.status, result.current.isError)
+    // log.info('Final useUser state:', result.current.status, result.current.isError)
 
     expect(result.current.error).toEqual(new Error('User not found'))
     expect(mockSafeSupabaseOperation).toHaveBeenCalledWith(expect.any(Function), 'useUser')

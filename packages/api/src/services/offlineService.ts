@@ -1,4 +1,5 @@
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
+import { log } from '@my/logging'
 import React from 'react'
 import { createAnalysisJob } from './analysisService'
 import { createOptimisticAnalysisJob, rollbackOptimisticUpdate } from './optimisticUpdatesService'
@@ -60,7 +61,7 @@ export function initialize(): void {
  * Handle coming back online
  */
 function handleOnline(): void {
-  console.log('📶 Back online - processing offline queue')
+  log.info('OfflineService', '📶 Back online - processing offline queue')
   useUploadProgressStore.getState().setOnlineStatus(true)
   processQueue()
 }
@@ -69,7 +70,7 @@ function handleOnline(): void {
  * Handle going offline
  */
 function handleOffline(): void {
-  console.log('📵 Gone offline - queuing operations')
+  log.info('OfflineService', '📵 Gone offline - queuing operations')
   useUploadProgressStore.getState().setOnlineStatus(false)
 }
 
@@ -167,7 +168,7 @@ export async function processQueue(): Promise<void> {
   isProcessing = true
   const queue = getQueue()
 
-  console.log(`🔄 Processing ${queue.items.length} offline queue items`)
+  log.info('OfflineService', `🔄 Processing ${queue.items.length} offline queue items`)
 
   for (const item of queue.items) {
     try {
@@ -254,7 +255,7 @@ export async function processVideoUpload(item: OfflineQueueItem): Promise<void> 
   // Update task with success
   uploadStore.setUploadStatus(taskId, 'completed')
 
-  console.log(`✅ Successfully uploaded video: ${result.filename}`)
+  log.info('OfflineService', `✅ Successfully uploaded video: ${result.filename}`)
 }
 
 /**
@@ -270,7 +271,7 @@ export async function processAnalysisJob(item: OfflineQueueItem): Promise<void> 
   // Note: handleMutationSuccess function needs to be added to optimisticUpdatesService
   // OptimisticUpdatesService.handleMutationSuccess(optimisticId, job);
 
-  console.log(`✅ Successfully created analysis job: ${job.id}`)
+  log.info('OfflineService', `✅ Successfully created analysis job: ${job.id}`)
 }
 
 /**
@@ -281,7 +282,7 @@ export async function processVideoDelete(item: OfflineQueueItem): Promise<void> 
 
   await deleteVideoRecording(recordingId)
 
-  console.log(`✅ Successfully deleted video recording: ${recordingId}`)
+  log.info('OfflineService', `✅ Successfully deleted video recording: ${recordingId}`)
 }
 
 /**
@@ -307,7 +308,7 @@ function handleItemFailure(item: OfflineQueueItem): void {
 function scheduleRetry(item: OfflineQueueItem): void {
   const delay = Math.min(RETRY_DELAY * 2 ** (item.retryCount - 1), MAX_RETRY_DELAY)
 
-  console.log(`⏰ Scheduling retry for ${item.id} in ${delay}ms`)
+  log.info('OfflineService', `⏰ Scheduling retry for ${item.id} in ${delay}ms`)
 
   const timeout = setTimeout(() => {
     retryTimeouts.delete(item.id)

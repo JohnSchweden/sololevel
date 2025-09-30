@@ -2,8 +2,11 @@
  * Mock responses for Gemini analysis testing
  */
 
+import { createLogger } from '../logger.ts'
 import { AUDIO_FORMATS, type AudioFormat } from '../media/audio.ts'
 import type { GeminiVideoAnalysisResult } from './types.ts'
+
+const log = createLogger('GeminiMocks')
 
 /**
  * Mock TTS audio data for testing (minimal MP3-like bytes)
@@ -38,7 +41,7 @@ export const MOCK_TTS_WAV_BYTES = new Uint8Array([
  * Get mock TTS result for testing with format-specific data
  */
 export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Array; contentType: string; prompt: string; duration: number } {
-  console.log(`[MOCK] getMockTTSResult called with format: ${format}`)
+  log.info('🎭 getMockTTSResult called', { format })
 
   const formatConfig = AUDIO_FORMATS[format]
   if (!formatConfig) {
@@ -48,7 +51,7 @@ export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Arr
   const bytes = format === 'wav' ? MOCK_TTS_WAV_BYTES : MOCK_TTS_MP3_BYTES
   const contentType = formatConfig.mimes[0]
 
-  console.log(`[MOCK] Returning contentType: ${contentType}, bytes length: ${bytes.length}`)
+  log.info('🎭 Returning mock TTS result', { contentType, bytesLength: bytes.length })
 
   return {
     bytes,

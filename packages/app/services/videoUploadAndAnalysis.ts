@@ -3,8 +3,8 @@
  * Handles compression, upload, and AI analysis orchestration
  */
 
-import { useUploadProgressStore } from '@app/stores/uploadProgress'
 import { uploadVideo } from '@my/api'
+import { useUploadProgressStore } from '@my/app/stores/uploadProgress'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
 import { compressVideo } from './videoCompression'
@@ -29,6 +29,7 @@ export interface VideoUploadAndAnalysisOptions {
     sessionId: number
     storagePath: string
   }) => void
+  onRecordingIdAvailable?: (recordingId: number) => void
 }
 
 /**
@@ -90,7 +91,7 @@ async function resolveVideoToUpload(params: {
     log.info('startUploadAndAnalysis', 'Video compression completed', {
       compressedUri: compressionResult.compressedUri,
       size: compressionResult.metadata.size,
-      duration: compressionResult.metadata.duration,
+      duration: durationSeconds,
     })
 
     videoToUploadUri = compressionResult.compressedUri
@@ -98,7 +99,7 @@ async function resolveVideoToUpload(params: {
       | 'mp4'
       | 'mov'
     metadata = {
-      duration: compressionResult.metadata.duration,
+      duration: durationSeconds || 30,
       format: compressedFormat,
     }
   } catch (compressionError) {
@@ -130,6 +131,7 @@ async function uploadWithProgress(args: {
     sessionId: number
     storagePath: string
   }) => void
+  onRecordingIdAvailable?: (recordingId: number) => void
 }): Promise<ReturnType<typeof uploadVideo>> {
   const {
     videoToUpload,
@@ -139,6 +141,7 @@ async function uploadWithProgress(args: {
     onProgress,
     onError,
     onUploadInitialized,
+    onRecordingIdAvailable,
   } = args
 
   log.info('startUploadAndAnalysis', 'Starting video upload to Supabase')
@@ -171,6 +174,7 @@ async function uploadWithProgress(args: {
         storagePath,
       })
       useUploadProgressStore.getState().setUploadTaskRecordingId(tempTaskId, recordingId)
+      onRecordingIdAvailable?.(recordingId)
       onUploadInitialized?.({ recordingId, sessionId, storagePath })
     },
   })
@@ -202,6 +206,7 @@ export async function startUploadAndAnalysis(
     onProgress,
     onError,
     onUploadInitialized,
+    onRecordingIdAvailable,
   } = options
 
   // Input validation
@@ -230,6 +235,7 @@ export async function startUploadAndAnalysis(
       onProgress,
       onError,
       onUploadInitialized,
+      onRecordingIdAvailable,
     })
 
     // Mark the temporary task as completed

@@ -4,7 +4,7 @@
  * Cross-platform interface that delegates to native or web implementations
  */
 
-console.log('🔍 DEBUG: useMVPPoseDetection.ts module loading - START')
+log.debug('useMVPPoseDetection', '🔍 Module loading - START')
 
 // Test minimal imports first
 import { useCallback, useRef, useState } from 'react'
@@ -19,6 +19,7 @@ import { Platform } from 'react-native'
 //   UseMVPPoseDetection,
 // } from '../types/MVPpose'
 // import { DEFAULT_MVP_POSE_CONFIG } from '../types/MVPpose'
+import { log } from '@my/logging'
 
 // Temporary minimal types
 interface MVPPoseDetectionConfig {
@@ -72,7 +73,7 @@ export function useMVPPoseDetection(
   const isNative = Platform.OS !== 'web'
 
   if (__DEV__) {
-    console.log('🎯 useMVPPoseDetection initialized:', { isNative, initialConfig })
+    log.debug('useMVPPoseDetection', '🎯 Initialized with config:', { isNative, initialConfig })
   }
 
   // MVP configuration - simple and focused
@@ -109,7 +110,7 @@ export function useMVPPoseDetection(
       }))
 
       // Temporarily disable platform-specific implementation to test module loading
-      console.log('🔍 DEBUG: startDetection called, isNative:', isNative)
+      log.debug('useMVPPoseDetection', '🔍 startDetection called, isNative:', isNative)
 
       // Mock implementation for testing
       setTimeout(() => {
@@ -136,7 +137,7 @@ export function useMVPPoseDetection(
   }, [config, state.isEnabled])
 
   const stopDetection = useCallback((): void => {
-    console.log('🔍 DEBUG: stopDetection called')
+    log.debug('useMVPPoseDetection', '🔍 stopDetection called')
 
     setState((prev) => ({
       ...prev,
@@ -266,4 +267,4 @@ export const MVPPoseDetectionUtils = {
   },
 }
 
-console.log('🔍 DEBUG: useMVPPoseDetection.ts module loading - END')
+log.debug('useMVPPoseDetection', '🔍 module loading - END')

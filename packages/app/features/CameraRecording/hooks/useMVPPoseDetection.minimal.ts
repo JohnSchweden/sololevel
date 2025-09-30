@@ -1,7 +1,7 @@
 // Use logger instead of console
 import { log } from '@my/logging'
 
-log.debug('🔍 MINIMAL: Module loading START')
+log.debug('useMVPPoseDetection', '🔍 MINIMAL: Module loading START')
 
 import { useCallback, useRef, useState } from 'react'
 import { Platform } from 'react-native'
@@ -38,7 +38,7 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
   const currentPoseRef = useRef<MVPPoseDetectionResult | null>(null)
 
   const startDetection = useCallback(async (): Promise<void> => {
-    log.debug('🔍 MINIMAL: startDetection called')
+    log.debug('useMVPPoseDetection', '🔍 MINIMAL: startDetection called')
 
     try {
       if (!state.isEnabled) {
@@ -66,7 +66,7 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
             // Debug actual pose data structure - throttled logging
             if (pose && pose.keypoints && Math.random() < 0.1) {
               // Only log 10% of poses
-              log.debug('🔍 POSE DATA:', {
+              log.debug('useMVPPoseDetection', '🔍 POSE DATA', {
                 keypointCount: pose.keypoints.length,
                 confidence: pose.confidence.toFixed(3),
                 nose: pose.keypoints.find((kp) => kp.name === 'nose'),
@@ -109,7 +109,7 @@ export function useMVPPoseDetection(initialConfig?: Partial<MVPPoseDetectionConf
   }, [config, state.isEnabled, isNative])
 
   const stopDetection = useCallback((): void => {
-    log.debug('🔍 MINIMAL: stopDetection called')
+    log.debug('useMVPPoseDetection', '🔍 MINIMAL: stopDetection called')
 
     try {
       if (detectionRef.current) {
@@ -250,4 +250,4 @@ export const MVPPoseDetectionUtils = {
   },
 }
 
-log.debug('🔍 MINIMAL: Module loading END')
+log.debug('useMVPPoseDetection', '🔍 MINIMAL: Module loading END')

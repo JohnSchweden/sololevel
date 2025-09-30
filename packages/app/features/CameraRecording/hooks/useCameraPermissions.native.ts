@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
 import { useCameraRecordingStore } from '../../../stores/cameraRecording'
@@ -163,7 +164,7 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
 
     // Prevent multiple rationale modals globally
     if (globalRationaleModalOpen) {
-      console.log('Rationale modal already open globally, skipping...')
+      log.debug('useCameraPermissions', '📱 Rationale modal already open globally, skipping...')
       return false
     }
 
@@ -220,13 +221,16 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
     async (requestPermissionFn: () => Promise<T>, isAlreadyGranted: boolean): Promise<boolean> => {
       // Prevent multiple concurrent permission requests globally
       if (globalPermissionRequestInProgress) {
-        console.log('Permission request already in progress globally, skipping...')
+        log.debug(
+          'useCameraPermissions',
+          '⚠️ Permission request already in progress globally, skipping...'
+        )
         return false
       }
 
       // If permission is already granted, don't request again
       if (isAlreadyGranted) {
-        console.log('Permission already granted, skipping request...')
+        log.debug('useCameraPermissions', '✅ Permission already granted, skipping request...')
         return true
       }
 
@@ -235,7 +239,7 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
         setIsLoading(true)
         setError(null)
 
-        console.log('Starting permission request flow...')
+        log.debug('useCameraPermissions', '🚀 Starting permission request flow...')
 
         // Show rationale modal first (if enabled)
         const shouldProceed = await showRationaleModal()
@@ -249,7 +253,7 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
 
         // Handle different permission states
         if (result.granted) {
-          console.log('Permission granted successfully')
+          log.info('useCameraPermissions', '✅ Permission granted successfully')
           return true
         }
 

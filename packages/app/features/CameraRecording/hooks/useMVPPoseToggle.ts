@@ -84,7 +84,7 @@ export function useMVPPoseToggle(
         isChanging: false,
       }))
 
-      log.info('MVP pose detection enabled')
+      log.info('useMVPPoseToggle', '🎯 MVP pose detection enabled')
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to enable pose detection'
@@ -123,7 +123,7 @@ export function useMVPPoseToggle(
         isChanging: false,
       }))
 
-      log.info('MVP pose detection disabled')
+      log.info('useMVPPoseToggle', '🎯 MVP pose detection disabled')
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to disable pose detection'

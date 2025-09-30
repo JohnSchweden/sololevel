@@ -693,6 +693,26 @@ jest.mock('@tamagui/font-inter', () => ({
 
 // Manual mock for @my/config is in __mocks__/@my/config.js
 
+// Mock @my/logging
+jest.mock('@my/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  log: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  getConsoleLogs: jest.fn(() => []),
+  getConsoleErrors: jest.fn(() => []),
+  getNetworkLogs: jest.fn(() => []),
+  getNetworkErrors: jest.fn(() => []),
+}))
+
 // Mock React Native Alert
 jest.mock('react-native', () => ({
   Alert: {

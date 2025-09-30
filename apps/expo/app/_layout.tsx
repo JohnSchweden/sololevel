@@ -113,6 +113,13 @@ function RootLayoutNav() {
                       headerShown: true,
                     }}
                   />
+                  <Stack.Screen
+                    name="dev/pipeline-test"
+                    options={{
+                      title: 'Pipeline Test',
+                      headerShown: true,
+                    }}
+                  />
                 </Stack>
               )
             } catch (error) {

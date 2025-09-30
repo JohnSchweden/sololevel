@@ -62,41 +62,36 @@ describe('Logger', () => {
 
       logger.debug(message, ...args)
       expect(mockConsole.debug).toHaveBeenCalledWith(
-        expect.stringContaining('DEBUG:'),
-        message,
+        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
         ...args
       )
 
       logger.info(message, ...args)
       expect(mockConsole.info).toHaveBeenCalledWith(
-        expect.stringContaining('INFO:'),
-        message,
+        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
         ...args
       )
 
       logger.warn(message, ...args)
       expect(mockConsole.warn).toHaveBeenCalledWith(
-        expect.stringContaining('WARN:'),
-        message,
+        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
         ...args
       )
 
       logger.error(message, ...args)
       expect(mockConsole.error).toHaveBeenCalledWith(
-        expect.stringContaining('ERROR:'),
-        message,
+        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
         ...args
       )
     })
 
-    it('should format messages with timestamp and level', () => {
+    it('should format messages with timestamp', () => {
       const message = 'Test message'
       logger.info(message)
 
       const call = mockConsole.info.mock.calls[0]
       expect(call[0]).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-      expect(call[0]).toContain('INFO:')
-      expect(call[1]).toBe(message)
+      expect(call[0]).toContain('[Test message]')
     })
   })
 

@@ -57,6 +57,8 @@ export {
   startGeminiVideoAnalysis,
   computeVideoTimingParams,
   subscribeToAnalysisJob,
+  subscribeToLatestAnalysisJobByRecordingId,
+  getLatestAnalysisJobForRecordingId,
   getAnalysisJobByVideoId,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,

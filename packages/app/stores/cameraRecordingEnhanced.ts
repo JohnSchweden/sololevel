@@ -18,6 +18,19 @@ import React from "react";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+
+// React Native compatible UUID generator
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for React Native environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c == 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
 import { useEnhancedCameraStore as useThermalStore } from "./enhancedCameraStore";
 import { usePerformanceStore } from "./performanceStore";
 
@@ -557,7 +570,7 @@ export const useEnhancedCameraRecordingStore = create<EnhancedCameraStore>()(
       createSession: () => {
         const settings = get().settings;
         const session: EnhancedRecordingSession = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           startTime: Date.now(),
           duration: 0,
           state: "idle",

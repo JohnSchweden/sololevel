@@ -1,3 +1,4 @@
+import { logger } from '@my/logging'
 import { useEffect, useMemo } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -56,7 +57,7 @@ export function FeedbackPanel({
 }: FeedbackPanelProps) {
   // Trigger layout animation when flex changes
   useEffect(() => {
-    console.log('FeedbackPanel flex changed:', flex, 'Platform:', Platform.OS)
+    logger.debug('FeedbackPanel flex changed:', flex, 'Platform:', Platform.OS)
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       LayoutAnimation.configureNext({
         duration: 300,
@@ -70,7 +71,7 @@ export function FeedbackPanel({
           initialVelocity: 0,
         },
       })
-      console.log('LayoutAnimation configured')
+      logger.debug('LayoutAnimation configured')
     }
   }, [flex])
 

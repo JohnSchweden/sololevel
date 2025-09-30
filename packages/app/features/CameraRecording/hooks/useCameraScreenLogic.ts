@@ -159,6 +159,7 @@ export const useCameraScreenLogic = ({
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
         sourceUri: videoUri,
+        durationSeconds: duration,
         originalFilename: 'recorded_video.mp4',
       })
     },

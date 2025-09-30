@@ -273,24 +273,24 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
 // Default mode - standard app header
 <AppHeader
   title="Dashboard"
-  onMenuPress={() => console.log('Menu pressed')}
-  onNotificationPress={() => console.log('Notifications pressed')}
+  onMenuPress={() => log.info('Menu pressed')}
+  onNotificationPress={() => log.info('Notifications pressed')}
 />
 
 // Camera mode - hides notifications, shows menu
 <AppHeader
   title="Camera"
   mode="camera"
-  onMenuPress={() => console.log('Menu pressed')}
-  onBackPress={() => console.log('Back pressed')}
+  onMenuPress={() => log.info('Menu pressed')}
+  onBackPress={() => log.info('Back pressed')}
 />
 
 // Camera idle mode - shows notifications, shows menu
 <AppHeader
   title="Camera Ready"
   mode="camera-idle"
-  onMenuPress={() => console.log('Menu pressed')}
-  onNotificationPress={() => console.log('Notifications pressed')}
+  onMenuPress={() => log.info('Menu pressed')}
+  onNotificationPress={() => log.info('Notifications pressed')}
   notificationBadgeCount={2}
 />
 
@@ -300,15 +300,15 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
   mode="recording"
   showTimer={true}
   timerValue="00:05:23"
-  onBackPress={() => console.log('Stop recording')}
+  onBackPress={() => log.info('Stop recording')}
 />
 
 // Analysis mode - shows notifications, menu
 <AppHeader
   title="Analysis"
   mode="analysis"
-  onMenuPress={() => console.log('Menu pressed')}
-  onNotificationPress={() => console.log('Notifications pressed')}
+  onMenuPress={() => log.info('Menu pressed')}
+  onNotificationPress={() => log.info('Notifications pressed')}
   notificationBadgeCount={3}
 />
 */

@@ -9,6 +9,7 @@ import {
   RecordingControls,
 } from '@my/ui/src/components/CameraRecording'
 
+import { log } from '@my/logging'
 // Import external components directly
 import { AppHeader } from '@my/ui/src/components/AppHeader/AppHeader'
 import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
@@ -85,7 +86,7 @@ export function CameraRecordingScreen({
   // Handle reset to idle state when navigating back from video analysis
   useEffect(() => {
     if (resetToIdle && recordingState !== RecordingState.IDLE) {
-      console.log('CameraRecordingScreen (Expo)', 'Resetting to idle state due to navigation')
+      log.info('CameraRecordingScreen', '🔄 Resetting to idle state due to navigation')
       resetRecording()
     }
   }, [resetToIdle, recordingState, resetRecording])
@@ -104,7 +105,7 @@ export function CameraRecordingScreen({
   // Header title
   const displayHeaderTitle = headerTitle
 
-  // Track zoom level changes for debugging (removed console.log to prevent hydration issues)
+  // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
   return (
     <CameraContainer

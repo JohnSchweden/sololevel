@@ -370,6 +370,80 @@ export function getPoseData(job: AnalysisJob): PoseData | null {
 }
 
 /**
+ * Get the latest analysis job for a video recording ID
+ */
+export async function getLatestAnalysisJobForRecordingId(
+  recordingId: number
+): Promise<AnalysisJob | null> {
+  const user = await supabase.auth.getUser()
+  if (!user.data.user) {
+    throw new Error('User not authenticated')
+  }
+
+  const { data: job, error } = await supabase
+    .from('analysis_jobs')
+    .select('*')
+    .eq('video_recording_id', recordingId)
+    .eq('user_id', user.data.user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to fetch latest analysis job: ${error.message}`)
+  }
+
+  return job
+}
+
+/**
+ * Subscribe to analysis jobs by video recording ID
+ * Returns the latest job for the recording and subscribes to future updates
+ */
+export function subscribeToLatestAnalysisJobByRecordingId(
+  recordingId: number,
+  onJob: (job: AnalysisJob) => void
+): () => void {
+  let unsubscribed = false
+
+  // Fetch initial job
+  getLatestAnalysisJobForRecordingId(recordingId)
+    .then((job) => {
+      if (!unsubscribed && job) {
+        onJob(job)
+      }
+    })
+    .catch((error) => {
+      log.error('Error fetching initial analysis job', { error: error.message, recordingId })
+    })
+
+  // Subscribe to changes for this recording ID
+  const subscription = supabase
+    .channel(`analysis_jobs_recording_${recordingId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'analysis_jobs',
+        filter: `video_recording_id=eq.${recordingId}`,
+      },
+      (payload) => {
+        if (!unsubscribed) {
+          const job = payload.new as AnalysisJob
+          onJob(job)
+        }
+      }
+    )
+    .subscribe()
+
+  return () => {
+    unsubscribed = true
+    subscription.unsubscribe()
+  }
+}
+
+/**
  * Subscribe to analysis job updates
  */
 export function subscribeToAnalysisJob(

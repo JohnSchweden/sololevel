@@ -46,7 +46,7 @@ class MockMVPTFLiteModel {
     // Mock loading delay
     await new Promise((resolve) => setTimeout(resolve, 500))
     this.isLoaded = true
-    log.info(`MVP TFLite model loaded: ${config.modelType}`)
+    log.info('useMVPPoseDetection', '🤖 MVP TFLite model loaded', { modelType: config.modelType })
   }
 
   async predict(): Promise<MVPPoseDetectionResult> {
@@ -140,7 +140,7 @@ export function stopMVPPoseDetectionNative(detectionInstance: {
 }): void {
   try {
     detectionInstance.stop()
-    log.info('MVP native pose detection stopped')
+    log.info('useMVPPoseDetection', '🤖 MVP native pose detection stopped')
   } catch (error) {
     log.error('Failed to stop MVP native pose detection:', error)
   }

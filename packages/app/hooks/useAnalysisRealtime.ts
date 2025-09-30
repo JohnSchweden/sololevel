@@ -1,5 +1,6 @@
 import { supabase } from '@api/src/supabase'
 import type { AnalysisJob, PoseData } from '@api/src/validation/cameraRecordingSchemas'
+import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePoseStore } from '../stores/MVPposeStore'
@@ -164,7 +165,7 @@ export function useConnectionStatus() {
 
     testChannel
       .on('system', {}, (status) => {
-        console.log('Supabase connection status:', status)
+        log.debug('useConnectionStatus', '🔗 Supabase connection status:', status)
         if (status === 'SUBSCRIBED') {
           setConnectionStatus((prev) => ({
             ...prev,

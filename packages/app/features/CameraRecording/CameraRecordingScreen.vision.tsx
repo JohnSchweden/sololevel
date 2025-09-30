@@ -26,7 +26,9 @@ import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
 import { useMVPPoseDetection } from './hooks/useMVPPoseDetection.minimal'
-log.debug('🔍 DEBUG: Importing useMVPPoseDetection:', typeof useMVPPoseDetection)
+log.debug('CameraRecordingScreen', '🔍 Importing useMVPPoseDetection', {
+  type: typeof useMVPPoseDetection,
+})
 import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 // import { adaptMVPPoseToProduction } from './utils/MVPTypeAdapter'
@@ -91,7 +93,7 @@ export function CameraRecordingScreen({
     // Reduced logging - only log state changes, not every frame
     if (__DEV__ && Math.random() < 0.01) {
       // Only log 1% of the time
-      log.debug('🎯 MVP Pose Detection State:', debugInfo)
+      log.debug('CameraRecordingScreen', '🎯 MVP Pose Detection State', debugInfo)
     }
   }, [poseEnabled, isDetecting, currentPose, permission?.granted])
 
@@ -135,7 +137,7 @@ export function CameraRecordingScreen({
   // Handle reset to idle state when navigating back from video analysis
   useEffect(() => {
     if (resetToIdle && recordingState !== RecordingState.IDLE) {
-      log.info('CameraRecordingScreen', 'Resetting to idle state due to navigation')
+      log.info('CameraRecordingScreen', '🔄 Resetting to idle state due to navigation')
       resetRecording()
     }
   }, [resetToIdle, recordingState, resetRecording])
@@ -154,7 +156,7 @@ export function CameraRecordingScreen({
   // Header title
   const displayHeaderTitle = headerTitle
 
-  // Track zoom level changes for debugging (removed console.log to prevent hydration issues)
+  // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
   return (
     <CameraContainer
@@ -226,7 +228,11 @@ export function CameraRecordingScreen({
             isEnabled={poseEnabled}
             onToggle={() => {
               if (__DEV__) {
-                console.log('🎯 Toggle button pressed, poseEnabled:', poseEnabled)
+                log.debug(
+                  'CameraRecordingScreen',
+                  '🎯 Toggle button pressed, poseEnabled:',
+                  poseEnabled
+                )
               }
               togglePoseDetection()
             }}
@@ -307,6 +313,16 @@ export function CameraRecordingScreen({
             pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
           >
             🚀 DEV COMPRESSION TEST
+          </Button>
+          <Button
+            size="$4"
+            backgroundColor="transparent"
+            color="white"
+            onPress={() => router.push('/dev/pipeline-test')}
+            testID="dev-pipeline-test-button"
+            pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            🔧 PIPELINE TEST
           </Button>
         </YStack>
       )}

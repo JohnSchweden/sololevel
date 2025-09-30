@@ -23,7 +23,12 @@ import {
 
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
 // Import hooks for tracking upload and analysis progress
-import { type AnalysisJob, subscribeToAnalysisJob, useUploadProgress } from '@my/api'
+import {
+  type AnalysisJob,
+  subscribeToAnalysisJob,
+  subscribeToLatestAnalysisJobByRecordingId,
+  useUploadProgress,
+} from '@my/api'
 
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
@@ -46,7 +51,7 @@ import { useFeedbackStatusIntegration } from './hooks/useFeedbackStatusIntegrati
 // Simplified inline type definitions - will be added back as needed
 
 export interface VideoAnalysisScreenProps {
-  analysisJobId: number
+  analysisJobId?: number
   videoRecordingId?: number
   videoUri?: string
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
@@ -68,7 +73,7 @@ export function VideoAnalysisScreen({
 
   // Only log every 10th render to reduce performance impact
   if (renderCountRef.current % 10 === 1 && log && log.info) {
-    log.info('[VideoAnalysisScreen] Component rendered', {
+    log.info('VideoAnalysisScreen', 'Component rendered', {
       renderCount: renderCountRef.current,
       analysisJobId,
       videoUri: videoUri ? 'provided' : 'fallback',
@@ -86,7 +91,7 @@ export function VideoAnalysisScreen({
     if (videoRecordingId) return videoRecordingId
 
     if (latestUploadTask?.videoRecordingId) {
-      log.info('[VideoAnalysisScreen] Derived recordingId from latest active upload task', {
+      log.info('VideoAnalysisScreen', 'Derived recordingId from latest active upload task', {
         taskId: latestUploadTask.id,
         recordingId: latestUploadTask.videoRecordingId,
       })
@@ -149,21 +154,47 @@ export function VideoAnalysisScreen({
 
   // Set up realtime subscription for analysis job updates
   useEffect(() => {
-    if (!analysisJobId) return undefined
-
-    log.info('[VideoAnalysisScreen] Setting up analysis job subscription', { analysisJobId })
-
-    const unsubscribe = subscribeToAnalysisJob(analysisJobId, (job) => {
-      log.info('[VideoAnalysisScreen] Analysis job update received', {
-        jobId: job.id,
-        status: job.status,
-        progress: job.progress_percentage,
+    // If we have an explicit analysisJobId, subscribe to it directly
+    if (analysisJobId) {
+      log.info('VideoAnalysisScreen', 'Setting up analysis job subscription by job ID', {
+        analysisJobId,
       })
-      setAnalysisJob(job)
-    })
 
-    return unsubscribe
-  }, [analysisJobId])
+      const unsubscribe = subscribeToAnalysisJob(analysisJobId, (job) => {
+        log.info('VideoAnalysisScreen', 'Analysis job update received', {
+          jobId: job.id,
+          status: job.status,
+          progress: job.progress_percentage,
+        })
+        setAnalysisJob(job)
+      })
+
+      return unsubscribe
+    }
+
+    // If we don't have an explicit analysisJobId but have a recordingId,
+    // subscribe to jobs for that recording
+    if (derivedRecordingId) {
+      log.info('VideoAnalysisScreen', 'Setting up analysis job subscription by recording ID', {
+        recordingId: derivedRecordingId,
+      })
+
+      const unsubscribe = subscribeToLatestAnalysisJobByRecordingId(derivedRecordingId, (job) => {
+        log.info('VideoAnalysisScreen', 'Analysis job update received by recording ID', {
+          jobId: job.id,
+          recordingId: job.video_recording_id,
+          status: job.status,
+          progress: job.progress_percentage,
+        })
+        setAnalysisJob(job)
+      })
+
+      return unsubscribe
+    }
+
+    // No subscription needed
+    return undefined
+  }, [analysisJobId, derivedRecordingId])
 
   // Set up feedback status integration for real-time SSML/audio status updates
   // For now, we'll use the analysisJobId as a string for the analysisId
@@ -205,12 +236,10 @@ export function VideoAnalysisScreen({
 
   // Animate layout changes when panelFraction changes
   useEffect(() => {
-    console.log(
-      'VideoAnalysisScreen panelFraction changed:',
+    log.debug('VideoAnalysisScreen', 'Panel fraction changed', {
       panelFraction,
-      'Platform:',
-      Platform.OS
-    )
+      platform: Platform.OS,
+    })
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       LayoutAnimation.configureNext({
         duration: 500,
@@ -224,7 +253,7 @@ export function VideoAnalysisScreen({
           initialVelocity: 0,
         },
       })
-      console.log('VideoAnalysisScreen LayoutAnimation configured')
+      log.debug('VideoAnalysisScreen', 'LayoutAnimation configured')
     }
   }, [panelFraction])
 
@@ -291,7 +320,7 @@ export function VideoAnalysisScreen({
 
   // Initial logging
   useEffect(() => {
-    log.info('[VideoAnalysisScreen] Component mounted', {
+    log.info('VideoAnalysisScreen', 'Component mounted', {
       analysisJobId,
       videoUri,
       feedbackMessagesCount: feedbackMessages.length,
@@ -314,7 +343,7 @@ export function VideoAnalysisScreen({
   // Auto-start video playback when processing is complete
   useEffect(() => {
     if (!isProcessing && !isPlaying) {
-      log.info('[VideoAnalysisScreen] Processing completed, auto-starting video playback')
+      log.info('VideoAnalysisScreen', 'Processing completed, auto-starting video playback')
       setIsPlaying(true)
     }
   }, [isProcessing, isPlaying])
@@ -330,26 +359,26 @@ export function VideoAnalysisScreen({
 
   // Video control handlers
   const handlePlay = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handlePlay called')
+    log.info('VideoAnalysisScreen', 'handlePlay called')
     setIsPlaying(true)
     setVideoEnded(false) // Reset ended state when user plays
   }, [])
 
   const handlePause = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handlePause called')
+    log.info('VideoAnalysisScreen', 'handlePause called')
     setIsPlaying(false)
     setVideoEnded(false) // Reset ended state when user pauses
   }, [])
 
   const handleVideoEnd = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handleVideoEnd called')
+    log.info('VideoAnalysisScreen', 'handleVideoEnd called')
     setIsPlaying(false)
     setVideoEnded(true)
   }, [])
 
   const handleSeek = useCallback(
     (time: number) => {
-      log.info('[VideoAnalysisScreen] handleSeek called', {
+      log.info('VideoAnalysisScreen', 'handleSeek called', {
         seekTime: time,
         currentTime,
         isPlaying,
@@ -362,25 +391,25 @@ export function VideoAnalysisScreen({
   )
 
   const handleReplay = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handleReplay called')
+    log.info('VideoAnalysisScreen', 'handleReplay called')
     setPendingSeek(0) // Seek to beginning
     setVideoEnded(false)
     setIsPlaying(true)
   }, [])
 
   const handleVideoLoad = useCallback((data: { duration: number }) => {
-    log.info('[VideoAnalysisScreen] handleVideoLoad called', { duration: data.duration })
+    log.info('VideoAnalysisScreen', 'handleVideoLoad called', { duration: data.duration })
     setDuration(data.duration)
   }, [])
 
   const handleVideoTap = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handleVideoTap called')
+    log.info('VideoAnalysisScreen', 'handleVideoTap called')
     // For now, just log - controls will be added later
   }, [])
 
   // Handler for menu press from AppHeader - triggers fly-out menu in VideoControls
   const handleMenuPress = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handleMenuPress called')
+    log.info('VideoAnalysisScreen', 'handleMenuPress called')
     // First call the parent's onMenuPress callback if provided
     onMenuPress?.()
     // Then trigger the fly-out menu in VideoControls
@@ -392,7 +421,7 @@ export function VideoAnalysisScreen({
   // Sequential bubble display functions
   const showBubble = useCallback(
     (index: number) => {
-      log.info('[VideoAnalysisScreen] showBubble called', {
+      log.info('VideoAnalysisScreen', 'showBubble called', {
         bubbleIndex: index,
         currentBubbleIndex,
         bubbleVisible,
@@ -413,11 +442,13 @@ export function VideoAnalysisScreen({
 
       // Hide bubble after 2 seconds
       bubbleTimerRef.current = setTimeout(() => {
-        log.info('[VideoAnalysisScreen] Auto-hiding bubble after 2 seconds', { bubbleIndex: index })
+        log.info('VideoAnalysisScreen', 'Auto-hiding bubble after 2 seconds', {
+          bubbleIndex: index,
+        })
         hideBubble()
       }, 2000)
 
-      log.info('[VideoAnalysisScreen] Bubble shown successfully', {
+      log.info('VideoAnalysisScreen', 'Bubble shown successfully', {
         bubbleIndex: index,
         messageId: feedbackMessages[index]?.id,
         messageText: feedbackMessages[index]?.text.substring(0, 30) + '...',
@@ -429,7 +460,7 @@ export function VideoAnalysisScreen({
   )
 
   const hideBubble = useCallback(() => {
-    log.info('[VideoAnalysisScreen] hideBubble called', {
+    log.info('VideoAnalysisScreen', 'hideBubble called', {
       currentBubbleIndex,
       bubbleVisible,
       isPlaying,
@@ -444,7 +475,7 @@ export function VideoAnalysisScreen({
       bubbleTimerRef.current = null
     }
 
-    log.info('[VideoAnalysisScreen] Bubble hidden successfully')
+    log.info('VideoAnalysisScreen', 'Bubble hidden successfully')
   }, [currentBubbleIndex, bubbleVisible, isPlaying])
 
   // Hide bubble when video is paused or stopped (but allow showing when seeking)
@@ -456,7 +487,7 @@ export function VideoAnalysisScreen({
       const timeSinceLastShow = Date.now() - lastBubbleShowTimeRef.current
       const recentlyShown = timeSinceLastShow < 2500 // 2.5 seconds
 
-      log.info('[VideoAnalysisScreen] Pause detection triggered', {
+      log.info('VideoAnalysisScreen', 'Pause detection triggered', {
         isPlaying,
         bubbleVisible,
         timeSinceLastShow,
@@ -468,12 +499,12 @@ export function VideoAnalysisScreen({
         // Only hide if bubble wasn't shown recently (allow time for auto-hide timer)
         timer = setTimeout(() => {
           if (!isPlaying && bubbleVisible) {
-            log.info('[VideoAnalysisScreen] Hiding bubble due to pause (not recently shown)')
+            log.info('VideoAnalysisScreen', 'Hiding bubble due to pause (not recently shown)')
             hideBubble()
           }
         }, 100)
       } else {
-        log.info('[VideoAnalysisScreen] Not hiding bubble - was shown recently')
+        log.info('VideoAnalysisScreen', 'Not hiding bubble - was shown recently')
       }
     }
 
@@ -487,7 +518,7 @@ export function VideoAnalysisScreen({
   // Check and show feedback bubble at a specific timestamp
   const checkAndShowBubbleAtTime = useCallback(
     (currentTimeMs: number) => {
-      log.info('[VideoAnalysisScreen] checkAndShowBubbleAtTime called', {
+      log.info('VideoAnalysisScreen', 'checkAndShowBubbleAtTime called', {
         currentTimeMs,
         currentTimeSeconds: currentTimeMs / 1000,
         currentBubbleIndex,
@@ -503,7 +534,7 @@ export function VideoAnalysisScreen({
         // Allow showing the same bubble again if it's been hidden (for seek operations)
         const canShowBubble = isNearTimestamp && (!bubbleVisible || currentBubbleIndex !== index)
 
-        log.info('[VideoAnalysisScreen] Checking bubble', {
+        log.info('VideoAnalysisScreen', 'Checking bubble', {
           bubbleIndex: index,
           messageId: message.id,
           messageTimestamp: message.timestamp,
@@ -522,7 +553,7 @@ export function VideoAnalysisScreen({
 
         if (canShowBubble) {
           // Show this bubble
-          log.info('[VideoAnalysisScreen] Showing bubble', {
+          log.info('VideoAnalysisScreen', 'Showing bubble', {
             bubbleIndex: index,
             messageId: message.id,
           })
@@ -570,7 +601,7 @@ export function VideoAnalysisScreen({
 
         // Log progress updates (throttled to avoid spam)
         if (Math.floor(newTime) % 5 === 0 && Math.floor(newTime) !== Math.floor(prevTime)) {
-          log.info('[VideoAnalysisScreen] Video progress', {
+          log.info('VideoAnalysisScreen', 'Video progress', {
             currentTime: newTime,
             currentTimeMs,
             isPlaying,
@@ -588,7 +619,7 @@ export function VideoAnalysisScreen({
           const canShowBubble = isNearTimestamp && (!bubbleVisible || currentBubbleIndex !== index)
 
           if (canShowBubble) {
-            log.info('[VideoAnalysisScreen] Bubble trigger during playback', {
+            log.info('VideoAnalysisScreen', 'Bubble trigger during playback', {
               bubbleIndex: index,
               messageId: message.id,
               currentTimeMs,
@@ -610,22 +641,22 @@ export function VideoAnalysisScreen({
 
   // Feedback Panel handlers for US-VF-08
   const handleFeedbackPanelExpand = useCallback(() => {
-    log.info('[VideoAnalysisScreen] Feedback panel expanding')
+    log.info('VideoAnalysisScreen', 'Feedback panel expanding')
     setPanelFraction(0.4) // 50% expanded
   }, [])
 
   const handleFeedbackPanelCollapse = useCallback(() => {
-    log.info('[VideoAnalysisScreen] Feedback panel collapsing')
+    log.info('VideoAnalysisScreen', 'Feedback panel collapsing')
     setPanelFraction(0.05) // 5% collapsed
   }, [])
 
   const handleFeedbackTabChange = useCallback((tab: 'feedback' | 'insights' | 'comments') => {
-    log.info('[VideoAnalysisScreen] Feedback tab changed', { tab })
+    log.info('VideoAnalysisScreen', 'Feedback tab changed', { tab })
     setActiveFeedbackTab(tab)
   }, [])
 
   const handleFeedbackItemPress = useCallback((item: any) => {
-    log.info('[VideoAnalysisScreen] Feedback item pressed', {
+    log.info('VideoAnalysisScreen', 'Feedback item pressed', {
       itemId: item.id,
       timestamp: item.timestamp,
     })
@@ -756,7 +787,7 @@ export function VideoAnalysisScreen({
                   onProgress={handleVideoProgress}
                   seekToTime={pendingSeek}
                   onSeekComplete={() => {
-                    log.info('[VideoAnalysisScreen] onSeekComplete called', {
+                    log.info('VideoAnalysisScreen', 'onSeekComplete called', {
                       pendingSeek,
                       currentTime,
                       isPlaying,
@@ -765,21 +796,21 @@ export function VideoAnalysisScreen({
                     // After native seek completes, align UI state and clear request
                     if (pendingSeek !== null) {
                       setCurrentTime(pendingSeek)
-                      log.info('[VideoAnalysisScreen] Setting current time after seek', {
+                      log.info('VideoAnalysisScreen', 'Setting current time after seek', {
                         newCurrentTime: pendingSeek,
                         previousCurrentTime: currentTime,
                       })
 
                       // Check for feedback bubbles at the seeked timestamp
                       const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
-                      log.info('[VideoAnalysisScreen] Checking for bubbles at seeked time', {
+                      log.info('VideoAnalysisScreen', 'Checking for bubbles at seeked time', {
                         seekedTimeMs,
                         seekedTimeSeconds: seekedTimeMs / 1000,
                       })
                       checkAndShowBubbleAtTime(seekedTimeMs)
                     }
 
-                    log.info('[VideoAnalysisScreen] Clearing pending seek')
+                    log.info('VideoAnalysisScreen', 'Clearing pending seek')
                     setPendingSeek(null)
                   }}
                 />
@@ -806,13 +837,13 @@ export function VideoAnalysisScreen({
                 currentTime={0}
                 duration={0}
                 onPlayPause={() => {
-                  log.info('[VideoAnalysisScreen] Audio play/pause')
+                  log.info('VideoAnalysisScreen', 'Audio play/pause')
                 }}
                 onSeek={(time) => {
-                  log.info('[VideoAnalysisScreen] Audio seek', { time })
+                  log.info('VideoAnalysisScreen', 'Audio seek', { time })
                 }}
                 onClose={() => {
-                  log.info('[VideoAnalysisScreen] Audio close')
+                  log.info('VideoAnalysisScreen', 'Audio close')
                 }}
                 isVisible={false}
               />
@@ -870,10 +901,10 @@ export function VideoAnalysisScreen({
         comments={89}
         bookmarks={234}
         shares={1500}
-        onLike={() => log.info('[VideoAnalysisScreen] Like button pressed')}
-        onComment={() => log.info('[VideoAnalysisScreen] Comment button pressed')}
-        onBookmark={() => log.info('[VideoAnalysisScreen] Bookmark button pressed')}
-        onShare={() => log.info('[VideoAnalysisScreen] Share button pressed')}
+        onLike={() => log.info('VideoAnalysisScreen', 'Like button pressed')}
+        onComment={() => log.info('VideoAnalysisScreen', 'Comment button pressed')}
+        onBookmark={() => log.info('VideoAnalysisScreen', 'Bookmark button pressed')}
+        onShare={() => log.info('VideoAnalysisScreen', 'Share button pressed')}
         isVisible={panelFraction > 0.1}
       />
 
@@ -893,7 +924,7 @@ export function VideoAnalysisScreen({
         onVideoSeek={handleSeek}
         onRetryFeedback={feedbackStatus.retryFailedFeedback}
         onDismissError={(feedbackId) => {
-          log.info('[VideoAnalysisScreen] Dismissing error for feedback', { feedbackId })
+          log.info('VideoAnalysisScreen', 'Dismissing error for feedback', { feedbackId })
           // For now, just log the dismissal. In a full implementation,
           // you might want to hide the error or mark it as acknowledged
         }}
