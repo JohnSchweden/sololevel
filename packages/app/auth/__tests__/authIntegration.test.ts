@@ -127,6 +127,13 @@ describe('Authentication Integration', () => {
       error: {
         code: 'invalid_credentials',
         message: 'Invalid credentials',
+        originalError: {
+          name: 'AuthApiError',
+          message: 'Invalid credentials',
+          status: 400,
+          code: 'invalid_credentials',
+          __isAuthError: true,
+        } as any,
       },
     }
     jest.mocked(authClient.signInWithPassword).mockResolvedValue(signInFailure)

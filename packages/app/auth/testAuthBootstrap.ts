@@ -38,18 +38,53 @@ function validateEnvironment(): TestAuthBootstrapResult {
 
 /**
  * Check if test auth is enabled via environment variables
+ * Reads platform-aware env vars with fallback to generic TEST_AUTH_ENABLED
  */
 function isTestAuthEnabled(): boolean {
-  const enabled = process.env.TEST_AUTH_ENABLED
-  return enabled === 'true' || enabled === '1'
+  // Try platform-specific env vars first, then fallback to generic
+  const enabled =
+    process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED ||
+    process.env.NEXT_PUBLIC_TEST_AUTH_ENABLED ||
+    process.env.TEST_AUTH_ENABLED
+
+  const result = enabled === 'true' || enabled === '1'
+
+  // Log resolved values for debugging
+  log.info('testAuthBootstrap', 'Resolved TEST_AUTH_ENABLED', {
+    expoPublic: process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED,
+    nextPublic: process.env.NEXT_PUBLIC_TEST_AUTH_ENABLED,
+    generic: process.env.TEST_AUTH_ENABLED,
+    resolved: enabled,
+    enabled: result,
+  })
+
+  return result
 }
 
 /**
  * Get test auth credentials from environment variables
+ * Reads platform-aware env vars with fallback to generic TEST_AUTH_*
  */
 function getTestAuthCredentials(): { email: string; password: string } | null {
-  const email = process.env.TEST_AUTH_EMAIL
-  const password = process.env.TEST_AUTH_PASSWORD
+  // Try platform-specific env vars first, then fallback to generic
+  const email =
+    process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL ||
+    process.env.NEXT_PUBLIC_TEST_AUTH_EMAIL ||
+    process.env.TEST_AUTH_EMAIL
+
+  const password =
+    process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD ||
+    process.env.NEXT_PUBLIC_TEST_AUTH_PASSWORD ||
+    process.env.TEST_AUTH_PASSWORD
+
+  // Log resolved values for debugging (mask password)
+  log.info('testAuthBootstrap', 'Resolved test auth credentials', {
+    emailResolved: email ? 'present' : 'missing',
+    passwordResolved: password ? 'present' : 'missing',
+    expoEmail: process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL ? 'present' : 'missing',
+    nextEmail: process.env.NEXT_PUBLIC_TEST_AUTH_EMAIL ? 'present' : 'missing',
+    genericEmail: process.env.TEST_AUTH_EMAIL ? 'present' : 'missing',
+  })
 
   if (!email || !password) {
     return null
