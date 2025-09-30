@@ -34,7 +34,7 @@ config.resolver.platforms = ['native', 'ios', 'android', 'web']
 const originalResolveRequest = config.resolver.resolveRequest
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.includes('useMVPPoseDetection')) {
-    console.log('🔍 METRO DEBUG: Resolving module:', moduleName, 'from:', context.originModulePath)
+    //console.log('🔍 METRO DEBUG: Resolving module:', moduleName, 'from:', context.originModulePath)
   }
   if (originalResolveRequest) {
     return originalResolveRequest(context, moduleName, platform)

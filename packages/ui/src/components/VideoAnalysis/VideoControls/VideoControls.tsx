@@ -298,10 +298,9 @@ export const VideoControls = React.memo(
                 </Text>
                 <Text
                   fontSize="$3"
-                  fontWeight="500"
+                  fontWeight="600"
                   color="white"
                   textAlign="center"
-                  opacity={0.8}
                 >
                   This too shall pass.
                 </Text>
