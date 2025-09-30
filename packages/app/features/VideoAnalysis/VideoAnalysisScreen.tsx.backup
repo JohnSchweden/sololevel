@@ -1,0 +1,506 @@
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { YStack } from 'tamagui'
+import { log } from '@my/logging'
+
+// UI Components from @my/ui
+import { AppHeader } from '@my/ui'
+import { ProcessingOverlay, VideoAnalysisPlayer, FeedbackPanel, SocialIcons } from '@ui/components/VideoAnalysis'
+
+// Real-time integration hooks
+import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
+import { useVideoAnalysisStore } from '../../stores/videoAnalysisStore'
+import { useAnalysisStatusStore } from '../../stores/analysisStatus'
+
+// API services
+import { useQuery } from '@tanstack/react-query'
+// Mock API services for now - will be implemented in Phase 3
+const getAnalysisJob = (_id: number) => Promise.resolve(null)
+const getAnalysisResults = (_job: any) => null
+
+// Error handling components
+import { ConnectionErrorBanner } from '../../components/ConnectionErrorBanner'
+
+// Inline type definitions for integration
+
+interface FeedbackMessage {
+  id: string
+  timestamp: number
+  text: string
+  type: 'positive' | 'suggestion' | 'correction'
+  category: 'posture' | 'movement' | 'grip' | 'voice'
+  position: { x: number; y: number }
+  isHighlighted: boolean
+  isActive: boolean
+}
+
+interface FeedbackItem {
+  id: string
+  timestamp: number
+  text: string
+  type: 'positive' | 'suggestion' | 'correction'
+  category: 'posture' | 'movement' | 'grip' | 'voice'
+}
+
+interface SocialStats {
+  likes: number
+  comments: number
+  bookmarks: number
+  shares: number
+}
+
+export interface VideoAnalysisScreenProps {
+  analysisJobId: number
+  videoRecordingId?: number
+  videoUri?: string
+  initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
+  onBack?: () => void
+  onMenuPress?: () => void
+}
+
+export function VideoAnalysisScreen({
+  analysisJobId,
+  videoUri,
+  // videoRecordingId and initialStatus are available but not used in current implementation
+  onBack,
+  onMenuPress,
+}: VideoAnalysisScreenProps) {
+  // Real-time integration
+  const realtimeData = useVideoAnalysisRealtime(analysisJobId)
+
+  // Get real analysis job status from store - use stable selector to prevent unnecessary re-renders
+  const analysisJobFromStore = useAnalysisStatusStore(
+    useCallback((state) => analysisJobId ? state.jobs.get(analysisJobId) : null, [analysisJobId])
+  )
+  
+  // Memoize jobStatus to prevent infinite re-renders
+  const jobStatus = useMemo(() => {
+    if (analysisJobFromStore) {
+      return {
+        job: analysisJobFromStore,
+        exists: true,
+        isQueued: analysisJobFromStore.status === 'queued',
+        isProcessing: analysisJobFromStore.status === 'processing',
+        isCompleted: analysisJobFromStore.status === 'completed',
+        isFailed: analysisJobFromStore.status === 'failed',
+        progress: analysisJobFromStore.progress_percentage || 0,
+        error: analysisJobFromStore.error_message,
+        results: analysisJobFromStore.results,
+        poseData: analysisJobFromStore.pose_data,
+        isSubscribed: analysisJobFromStore.isSubscribed || false,
+        lastUpdated: analysisJobFromStore.lastUpdated || Date.now(),
+      }
+    }
+    
+    return {
+      // Realistic mock for testing when no real job exists
+      job: null,
+      exists: false,
+      isQueued: false,
+      isProcessing: true, // Show processing state for testing
+      isCompleted: false,
+      isFailed: false,
+      progress: 45, // Show some progress for testing
+      error: null,
+      results: null,
+      poseData: null,
+      isSubscribed: false,
+      lastUpdated: Date.now(),
+    }
+  }, [
+    analysisJobFromStore?.id,
+    analysisJobFromStore?.status,
+    analysisJobFromStore?.progress_percentage,
+    analysisJobFromStore?.error_message,
+    analysisJobFromStore?.results,
+    analysisJobFromStore?.pose_data,
+    analysisJobFromStore?.isSubscribed,
+    analysisJobFromStore?.lastUpdated
+  ])
+
+  // Video analysis store for audio feedback - use individual selectors to prevent unnecessary re-renders
+  const audioUrl = useVideoAnalysisStore((state) => state.audioUrl)
+  const isAudioPlaying = useVideoAnalysisStore((state) => state.isAudioPlaying)
+  const audioCurrentTime = useVideoAnalysisStore((state) => state.audioCurrentTime)
+  const audioDuration = useVideoAnalysisStore((state) => state.audioDuration)
+  const setAudioPlaybackState = useVideoAnalysisStore((state) => state.setAudioPlaybackState)
+  const setAudioCurrentTime = useVideoAnalysisStore((state) => state.setAudioCurrentTime)
+  const setAudioDuration = useVideoAnalysisStore((state) => state.setAudioDuration)
+  const setShowAudioControls = useVideoAnalysisStore((state) => state.setShowAudioControls)
+
+  // Fetch analysis job data
+  const { data: analysisJob } = useQuery({
+    queryKey: ['analysis', analysisJobId],
+    queryFn: () => getAnalysisJob(analysisJobId),
+    enabled: !!analysisJobId,
+  })
+
+  // Screen state
+  const [currentTime, setCurrentTime] = useState(0)
+  const [showControls, setShowControls] = useState(true)
+  const [feedbackPanelExpanded, setFeedbackPanelExpanded] = useState(false)
+  const [activeTab, setActiveTab] = useState<'feedback' | 'insights' | 'comments'>('feedback')
+
+  // Derived state from real-time data
+  const status = jobStatus.isProcessing
+    ? 'processing'
+    : jobStatus.isCompleted
+      ? 'ready'
+      : jobStatus.isFailed
+        ? 'ready'
+        : 'processing'
+
+  // Local state for playback control
+  const [isPlaying, setIsPlaying] = useState(false)
+  const progress = jobStatus.progress / 100
+  
+  // Get video URI from multiple sources - prioritize passed videoUri, then job data, then mock for testing
+  const recordedVideoUri = videoUri || 
+    (analysisJob as any)?.video_recordings?.filename || 
+    (jobStatus.job as any)?.video_recordings?.filename ||
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' // Mock video for testing
+  
+  const [title, setTitle] = useState<string | null>(null)
+
+  // Real data from analysis results - memoize to prevent recalculation
+  const analysisResults = useMemo(() => {
+    return jobStatus.results ? getAnalysisResults(jobStatus.job!) : null
+  }, [jobStatus.results, jobStatus.job])
+  const poseData = realtimeData.poseHistory || []
+  const currentPose = realtimeData.currentPose
+
+  // Transform analysis results to feedback messages - memoize to prevent recalculation
+  const feedbackMessages: FeedbackMessage[] = useMemo(() => {
+    return (analysisResults as any)?.recommendations?.map((rec: any, index: number) => ({
+      id: `feedback-${index}`,
+      timestamp: (index + 1) * 1000, // Distribute across video timeline
+      text: rec.message,
+      type:
+        rec.priority === 'high'
+          ? 'correction'
+          : rec.priority === 'medium'
+            ? 'suggestion'
+            : 'positive',
+      category: rec.type as 'posture' | 'movement' | 'grip' | 'voice',
+      position: { x: 0.5 + (index % 2) * 0.2, y: 0.3 + (index % 3) * 0.2 },
+      isHighlighted: rec.priority === 'high',
+      isActive: false,
+    })) || []
+  }, [analysisResults])
+
+  const [socialStats, setSocialStats] = useState<
+    Omit<SocialStats, 'onLike' | 'onComment' | 'onBookmark' | 'onShare'>
+  >({
+    likes: 1100,
+    comments: 13,
+    bookmarks: 1100,
+    shares: 224,
+  })
+
+  const feedbackItems: FeedbackItem[] = [
+    {
+      id: '1',
+      timestamp: 1000,
+      text: 'Great posture! Keep your back straight and maintain good balance.',
+      type: 'positive' as const,
+      category: 'posture' as const,
+    },
+    {
+      id: '2',
+      timestamp: 2000,
+      text: 'Try bending your knees slightly for better stability.',
+      type: 'suggestion' as const,
+      category: 'movement' as const,
+    },
+    {
+      id: '3',
+      timestamp: 3000,
+      text: 'Grip the club more firmly with your left hand.',
+      type: 'correction' as const,
+      category: 'grip' as const,
+    },
+  ]
+
+  // Create a test analysis job if none exists (for debugging)
+  const testJobCreatedRef = useRef(false)
+  useEffect(() => {
+    // Only run if we haven't created a test job and don't have a real job
+    if (!testJobCreatedRef.current && !analysisJobFromStore && analysisJobId) {
+      testJobCreatedRef.current = true
+
+      const testJob = {
+        id: analysisJobId,
+        user_id: 'test-user',
+        video_recording_id: 1,
+        status: 'processing' as const,
+        progress_percentage: 25,
+        processing_started_at: new Date().toISOString(),
+        processing_completed_at: null,
+        error_message: null,
+        results: null,
+        pose_data: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        isSubscribed: false,
+        lastUpdated: Date.now()
+      }
+
+      // Add to store
+      useAnalysisStatusStore.getState().addJob(testJob)
+
+      // Simulate progress updates
+      let progress = 25
+      const progressInterval = setInterval(() => {
+        progress += 10
+        if (progress <= 100) {
+          useAnalysisStatusStore.getState().updateJobProgress(analysisJobId, progress)
+        } else {
+          // Complete the job
+          useAnalysisStatusStore.getState().setJobStatus(analysisJobId, 'completed')
+          clearInterval(progressInterval)
+        }
+      }, 2000) // Update every 2 seconds
+
+      return () => clearInterval(progressInterval)
+    }
+
+    // Return empty cleanup function when condition is not met
+    return () => {}
+  }, [analysisJobId, analysisJobFromStore]) // Keep analysisJobFromStore to ensure we check the condition
+
+  // Update title from analysis results
+  useEffect(() => {
+    if ((analysisResults as any)?.summary_text && !title) {
+      // Extract title from summary or generate from analysis type
+      const generatedTitle =
+        (analysisResults as any).summary_text.split('.')[0] || 'Analysis Complete'
+      setTimeout(() => {
+        setTitle(generatedTitle)
+      }, 1000)
+    }
+  }, [analysisResults, title])
+
+  // Update audio URL when analysis completes
+  useEffect(() => {
+    if ((analysisJob as any)?.audio_url && !audioUrl) {
+      setAudioPlaybackState(false)
+      setAudioCurrentTime(0)
+      setAudioDuration(10) // Default duration, would be updated from actual audio
+      setShowAudioControls(true)
+    }
+  }, [analysisJob, audioUrl, setAudioPlaybackState, setAudioCurrentTime, setAudioDuration, setShowAudioControls])
+
+  // Connection error handling state
+  const [showConnectionError, setShowConnectionError] = useState(false)
+
+  // Handle connection status changes
+  useEffect(() => {
+    if (!realtimeData.isConnected && realtimeData.connectionError) {
+      setShowConnectionError(true)
+    } else if (realtimeData.isConnected) {
+      setShowConnectionError(false)
+    }
+  }, [realtimeData.isConnected, realtimeData.connectionError])
+
+
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying)
+  }
+
+  const handleSeek = (time: number) => {
+    setCurrentTime(time)
+  }
+
+  const handleVideoTap = () => {
+    setShowControls(true)
+    // Auto-hide after 3 seconds
+    setTimeout(() => setShowControls(false), 3000)
+  }
+
+  const handleFeedbackItemPress = (item: FeedbackItem) => {
+    // Seek to the timestamp of the feedback item
+    setCurrentTime(item.timestamp / 1000)
+  }
+
+  const handleSocialAction = (action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    setSocialStats((prev) => ({
+      ...prev,
+      [action === 'like'
+        ? 'likes'
+        : action === 'comment'
+          ? 'comments'
+          : action === 'bookmark'
+            ? 'bookmarks'
+            : 'shares']:
+        prev[
+          action === 'like'
+            ? 'likes'
+            : action === 'comment'
+              ? 'comments'
+              : action === 'bookmark'
+                ? 'bookmarks'
+                : 'shares'
+        ] + 1,
+    }))
+  }
+
+  // Audio feedback handlers
+  const handleAudioPlayPause = useCallback(() => {
+    // Pause video when audio starts playing
+    if (!isAudioPlaying) {
+      setIsPlaying(false)
+    }
+    setAudioPlaybackState(!isAudioPlaying)
+  }, [isAudioPlaying, setAudioPlaybackState, setIsPlaying])
+
+  const handleAudioSeek = useCallback((time: number) => {
+    setAudioCurrentTime(time)
+  }, [setAudioCurrentTime])
+
+  const handleAudioClose = useCallback(() => {
+    setAudioPlaybackState(false)
+    setAudioCurrentTime(0)
+    setShowAudioControls(false)
+    // Resume video playback when audio is closed
+    setIsPlaying(true)
+  }, [setAudioPlaybackState, setAudioCurrentTime, setShowAudioControls, setIsPlaying])
+
+  const handleAudioTimeUpdate = useCallback((time: number) => {
+    setAudioCurrentTime(time)
+  }, [setAudioCurrentTime])
+
+  const handleAudioRewind = useCallback(() => {
+    const newTime = Math.max(0, audioCurrentTime - 10)
+    setAudioCurrentTime(newTime)
+  }, [audioCurrentTime, setAudioCurrentTime])
+
+  const handleAudioFastForward = useCallback(() => {
+    const newTime = Math.min(audioDuration, audioCurrentTime + 10)
+    setAudioCurrentTime(newTime)
+  }, [audioDuration, audioCurrentTime, setAudioCurrentTime])
+
+  return (
+    <YStack
+      flex={1}
+      backgroundColor="$background"
+    >
+      {/* Header */}
+      <AppHeader
+        title={title || 'Video Analysis'}
+        mode="analysis"
+        onBackPress={onBack}
+        onMenuPress={onMenuPress}
+      />
+
+      {/* Video Area */}
+      <YStack
+        flex={1}
+        position="relative"
+        backgroundColor="$color1"
+      >
+        {/* Connection Error Banner */}
+        <ConnectionErrorBanner
+          isVisible={showConnectionError}
+          error={realtimeData.connectionError}
+          reconnectAttempts={realtimeData.reconnectAttempts}
+          onRetry={() => {
+            // Trigger reconnection by resubscribing
+            setShowConnectionError(false)
+          }}
+          onDismiss={() => setShowConnectionError(false)}
+        />
+        {status === 'processing' ? (
+          <YStack
+            flex={1}
+            backgroundColor="$backgroundSubtle"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <ProcessingOverlay
+              progress={progress}
+              currentStep={
+                jobStatus.isProcessing
+                  ? 'Processing video analysis...'
+                  : jobStatus.isFailed
+                    ? 'Analysis failed'
+                    : 'Analysis complete'
+              }
+              estimatedTime={jobStatus.isProcessing ? 30 : 0}
+              onCancel={() => onBack?.()}
+              onViewResults={() => {
+                /* Analysis complete, already showing results */
+              }}
+              isComplete={jobStatus.isCompleted}
+            />
+          </YStack>
+        ) : (
+          <>
+            {/* Video Player with Integrated Overlays */}
+            <YStack
+              flex={1}
+              onPress={handleVideoTap}
+              testID="video-player-container"
+            >
+              {(videoUri || recordedVideoUri) && (
+                <VideoAnalysisPlayer
+                  videoUri={videoUri || recordedVideoUri}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  duration={0}
+                  showControls={showControls}
+                  onPlay={handlePlayPause}
+                  onPause={handlePlayPause}
+                  onSeek={handleSeek}
+                  poseData={currentPose ? [currentPose] : poseData}
+                  feedbackMessages={feedbackMessages}
+                  audioUrl={audioUrl}
+                  isAudioPlaying={isAudioPlaying}
+                  onAudioPlayPause={handleAudioPlayPause}
+                  onAudioSeek={handleAudioSeek}
+                  onAudioClose={handleAudioClose}
+                  onAudioTimeUpdate={handleAudioTimeUpdate}
+                  onAudioRewind={handleAudioRewind}
+                  onAudioFastForward={handleAudioFastForward}
+                  onFeedbackBubbleTap={useCallback((message: FeedbackMessage) => {
+                    log.debug('VideoAnalysisScreen', '💬 Bubble tapped:', message)
+                  }, [])}
+                />
+              )}
+
+              {/* Social Icons - kept outside VideoPlayer for bottom sheet interaction */}
+              <SocialIcons
+                likes={socialStats.likes}
+                comments={socialStats.comments}
+                bookmarks={socialStats.bookmarks}
+                shares={socialStats.shares}
+                onLike={() => handleSocialAction('like')}
+                onComment={() => handleSocialAction('comment')}
+                onBookmark={() => handleSocialAction('bookmark')}
+                onShare={() => handleSocialAction('share')}
+                isVisible={bottomSheetExpanded}
+              />
+            </YStack>
+          </>
+        )}
+
+        {/* Bottom Sheet */}
+        <FeedbackPanel
+          isExpanded={feedbackPanelExpanded}
+          activeTab={activeTab}
+          feedbackItems={feedbackItems}
+          socialStats={socialStats}
+          currentVideoTime={currentTime}
+          videoDuration={0} // Will be updated when video loads
+          onTabChange={setActiveTab}
+          onSheetExpand={() => setFeedbackPanelExpanded(true)}
+          onSheetCollapse={() => setFeedbackPanelExpanded(false)}
+          onFeedbackItemPress={handleFeedbackItemPress}
+          onVideoSeek={handleSeek}
+          onLike={() => handleSocialAction('like')}
+          onComment={() => handleSocialAction('comment')}
+          onBookmark={() => handleSocialAction('bookmark')}
+          onShare={() => handleSocialAction('share')}
+        />
+      </YStack>
+    </YStack>
+  )
+}
