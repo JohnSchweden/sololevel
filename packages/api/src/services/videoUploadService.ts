@@ -265,6 +265,7 @@ async function uploadWithProgress(
       // Update progress to 100% on success
       updateUploadProgress(recordingId, sessionId, file.size, 100)
       onProgress?.(100)
+
       log.debug('videoUploadService', 'uploadWithProgress: completed successfully')
       return
     } catch (error) {

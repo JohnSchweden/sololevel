@@ -7588,7 +7588,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ws@npm:^8.18.1":
+"@types/ws@npm:^8, @types/ws@npm:^8.18.1":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
   dependencies:
@@ -19276,6 +19276,7 @@ __metadata:
     "@types/node": "npm:^24.3.0"
     "@types/pg": "npm:^8"
     "@types/react-native-web": "npm:^0"
+    "@types/ws": "npm:^8"
     "@vitest/coverage-v8": "npm:^3.2.4"
     babel-loader: "npm:^10.0.0"
     bcryptjs: "npm:^3.0.2"
@@ -19309,6 +19310,7 @@ __metadata:
     vitest: "npm:^3.2.4"
     webpack: "npm:^5.79.0"
     webpack-bundle-analyzer: "npm:^4.9.0"
+    ws: "npm:^8.18.3"
   languageName: unknown
   linkType: soft
 
@@ -21790,7 +21792,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.11.0, ws@npm:^8.12.1, ws@npm:^8.18.0, ws@npm:^8.18.2":
+"ws@npm:^8.11.0, ws@npm:^8.12.1, ws@npm:^8.18.0, ws@npm:^8.18.2, ws@npm:^8.18.3":
   version: 8.18.3
   resolution: "ws@npm:8.18.3"
   peerDependencies:

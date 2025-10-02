@@ -1,0 +1,164 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { getFirstAudioUrlForFeedback } from '@my/api'
+import { log } from '@my/logging'
+
+type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
+
+export interface FeedbackAudioItem {
+  id: string
+  timestamp: number
+  audioStatus?: FeedbackProcessingStatus
+}
+
+export interface FeedbackAudioSourceState {
+  audioUrls: Record<string, string>
+  activeAudio: { id: string; url: string } | null
+  errors: Record<string, string>
+  selectAudio: (feedbackId: string) => void
+  clearActiveAudio: () => void
+  clearError: (feedbackId: string) => void
+}
+
+const CONTEXT = 'useFeedbackAudioSource'
+
+export function useFeedbackAudioSource(
+  feedbackItems: FeedbackAudioItem[]
+): FeedbackAudioSourceState {
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({})
+  const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const inFlightRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    log.debug(CONTEXT, 'useFeedbackAudioSource: Processing feedback items', {
+      totalItems: feedbackItems.length,
+      itemsByStatus: feedbackItems.reduce(
+        (acc, item) => {
+          const status = item.audioStatus || 'undefined'
+          acc[status] = (acc[status] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      ),
+      itemDetails: feedbackItems.map((item) => ({
+        id: item.id,
+        audioStatus: item.audioStatus,
+        timestamp: item.timestamp,
+      })),
+    })
+
+    feedbackItems.forEach((item) => {
+      if (!item || item.audioStatus !== 'completed') {
+        log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
+          feedbackId: item.id,
+          audioStatus: item.audioStatus,
+        })
+        return
+      }
+
+      const feedbackId = item.id
+      if (!feedbackId) {
+        return
+      }
+
+      if (audioUrls[feedbackId] || inFlightRef.current.has(feedbackId)) {
+        return
+      }
+
+      const numericId = Number.parseInt(feedbackId, 10)
+      if (Number.isNaN(numericId)) {
+        log.warn(CONTEXT, 'Skipping audio fetch due to non-numeric feedback id', { feedbackId })
+        return
+      }
+
+      inFlightRef.current.add(feedbackId)
+
+      void getFirstAudioUrlForFeedback(numericId)
+        .then((result) => {
+          if (result.ok) {
+            setAudioUrls((prev) => {
+              if (prev[feedbackId]) {
+                return prev
+              }
+
+              const next = { ...prev, [feedbackId]: result.url }
+              return next
+            })
+
+            setErrors((prev) => {
+              if (!prev[feedbackId]) {
+                return prev
+              }
+              const next = { ...prev }
+              delete next[feedbackId]
+              return next
+            })
+
+            setActiveAudio((prev) => prev ?? { id: feedbackId, url: result.url })
+
+            log.info(CONTEXT, 'Audio url resolved for feedback', {
+              feedbackId,
+            })
+          } else {
+            setErrors((prev) => ({ ...prev, [feedbackId]: result.error }))
+            log.error(CONTEXT, 'Audio url fetch failed', {
+              feedbackId,
+              error: result.error,
+            })
+          }
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : 'Unknown error'
+          setErrors((prev) => ({ ...prev, [feedbackId]: message }))
+          log.error(CONTEXT, 'Audio url fetch threw unexpected error', {
+            feedbackId,
+            error: message,
+          })
+        })
+        .finally(() => {
+          inFlightRef.current.delete(feedbackId)
+        })
+    })
+  }, [audioUrls, errors, feedbackItems])
+
+  const selectAudio = useCallback(
+    (feedbackId: string) => {
+      const url = audioUrls[feedbackId]
+      if (!url) {
+        log.warn(CONTEXT, 'Attempted to select feedback audio without cached url', {
+          feedbackId,
+        })
+        return
+      }
+
+      setActiveAudio({ id: feedbackId, url })
+    },
+    [audioUrls]
+  )
+
+  const clearActiveAudio = useCallback(() => {
+    setActiveAudio(null)
+  }, [])
+
+  const clearError = useCallback((feedbackId: string) => {
+    setErrors((prev) => {
+      if (!prev[feedbackId]) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[feedbackId]
+      return next
+    })
+  }, [])
+
+  return {
+    audioUrls,
+    activeAudio,
+    errors,
+    selectAudio,
+    clearActiveAudio,
+    clearError,
+  }
+}

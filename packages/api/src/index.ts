@@ -59,12 +59,14 @@ export {
   subscribeToAnalysisJob,
   subscribeToLatestAnalysisJobByRecordingId,
   getLatestAnalysisJobForRecordingId,
+  getAnalysisIdForJobId,
   getAnalysisJobByVideoId,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,
   __mockUpdateAnalysisJob,
   __mockComputeVideoTimingParams,
 } from './services/analysisService'
+export { getFirstAudioUrlForFeedback } from './services/audioService'
 
 // AI Analysis Edge service types
 export type {

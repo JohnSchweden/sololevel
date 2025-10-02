@@ -1,6 +1,8 @@
+import { log } from '@my/logging'
 import React, { useEffect, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 import Video from 'react-native-video'
-import { YStack } from 'tamagui'
+import { Text, YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
 export const VideoPlayerNative = React.memo(function VideoPlayerNative({
@@ -30,6 +32,19 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
 
   // Handle video errors
   const handleError = (error: any) => {
+    log.error('VideoPlayerNative.handleError', 'Video player error occurred', {
+      videoUri,
+      isPlaying,
+      isLoading,
+      platform: Platform.OS,
+      error: {
+        full: error,
+        error: error?.error,
+        localizedDescription: error?.error?.localizedDescription,
+        code: error?.error?.code,
+        domain: error?.error?.domain,
+      },
+    })
     setIsLoading(false)
     setError(error?.error?.localizedDescription || 'Video failed to load')
   }
@@ -116,7 +131,7 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
               testID="error-icon"
             />
             {/* User-safe error message */}
-            <YStack testID="error-text">Unable to load video</YStack>
+            <Text testID="error-text">Unable to load video: {error}</Text>
           </YStack>
         </YStack>
       )}

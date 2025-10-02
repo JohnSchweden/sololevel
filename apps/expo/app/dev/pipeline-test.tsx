@@ -93,9 +93,7 @@ export default function PipelineTestScreen() {
       setDetails(`Starting upload for ${fileUri} (duration: ${realDuration.toFixed(1)}s)...`)
 
       // Navigate immediately to analysis screen so user sees processing state right away
-      router.push(
-        `/video-analysis?videoUri=${encodeURIComponent(fileUri)}&initialStatus=processing`
-      )
+      //router.push(`/video-analysis?videoUri=${encodeURIComponent(fileUri)}&initialStatus=processing`)
 
       // Start the upload and analysis pipeline in background
       await startUploadAndAnalysis({

@@ -997,7 +997,7 @@ COMMENT ON TABLE "public"."analysis_audio_segments" IS 'Audio segments per feedb
 
 
 
-COMMENT ON COLUMN "public"."analysis_audio_segments"."analysis_feedback_id" IS 'Reference to the feedback item this audio segment belongs to';
+COMMENT ON COLUMN "public"."analysis_audio_segments"."feedback_id" IS 'Reference to the feedback item this audio segment belongs to';
 
 
 
@@ -1005,7 +1005,7 @@ COMMENT ON COLUMN "public"."analysis_audio_segments"."audio_url" IS 'URL to the 
 
 
 
-COMMENT ON COLUMN "public"."analysis_audio_segments"."audio_duration_ms" IS 'Duration of the audio segment in milliseconds';
+COMMENT ON COLUMN "public"."analysis_audio_segments"."duration_ms" IS 'Duration of the audio segment in milliseconds';
 
 
 

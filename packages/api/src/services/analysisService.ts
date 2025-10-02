@@ -18,6 +18,107 @@ const log = {
   },
 }
 
+// Diagnostic utilities for realtime subscription debugging
+interface HealthCheckResult {
+  authenticated: boolean
+  userId?: string
+  networkOnline: boolean
+  supabaseConnected: boolean
+  rlsPoliciesAccessible: boolean
+  error?: string
+}
+
+interface ChannelConfig {
+  channelName: string
+  event: string
+  schema: string
+  table: string
+  filter?: string
+  userId?: string
+}
+
+/**
+ * Perform comprehensive health check before realtime subscription
+ */
+async function performHealthCheck(): Promise<HealthCheckResult> {
+  const networkOnline =
+    typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
+      ? navigator.onLine
+      : true
+
+  const result: HealthCheckResult = {
+    authenticated: false,
+    networkOnline,
+    supabaseConnected: false,
+    rlsPoliciesAccessible: false,
+  }
+
+  try {
+    // Check authentication
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      result.error = `Auth error: ${authError.message}`
+      return result
+    }
+
+    if (authData.user) {
+      result.authenticated = true
+      result.userId = authData.user.id
+    } else {
+      result.error = 'No authenticated user'
+      return result
+    }
+
+    // Check basic Supabase connectivity
+    const { error: healthError } = await supabase
+      .from('analysis_jobs')
+      .select('count', { count: 'exact', head: true })
+      .limit(1)
+
+    if (healthError) {
+      result.error = `Supabase connection error: ${healthError.message}`
+      return result
+    }
+
+    result.supabaseConnected = true
+
+    // Check RLS policies by attempting a user-specific query
+    const { error: rlsError } = await supabase
+      .from('analysis_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', result.userId!)
+      .limit(1)
+
+    if (rlsError) {
+      result.error = `RLS policy error: ${rlsError.message}`
+      return result
+    }
+
+    result.rlsPoliciesAccessible = true
+
+    log.info('performHealthCheck', 'Health check completed successfully', result)
+    return result
+  } catch (error) {
+    result.error = `Unexpected health check error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    log.error('performHealthCheck', 'Health check failed', result)
+    return result
+  }
+}
+
+/**
+ * Log detailed channel configuration for debugging
+ */
+function logChannelConfig(config: ChannelConfig, context: string): void {
+  log.info(context, 'Channel configuration', {
+    channelName: config.channelName,
+    event: config.event,
+    schema: config.schema,
+    table: config.table,
+    filter: config.filter,
+    userId: config.userId,
+  })
+}
+
 export type AnalysisJob = Tables<'analysis_jobs'>
 export type AnalysisJobInsert = TablesInsert<'analysis_jobs'>
 export type AnalysisJobUpdate = TablesUpdate<'analysis_jobs'>
@@ -397,49 +498,204 @@ export async function getLatestAnalysisJobForRecordingId(
 }
 
 /**
+ * Get the analysis UUID for a given job ID
+ * The analyses table contains the UUIDs that correspond to job IDs
+ * Retries with exponential backoff if analysis row doesn't exist yet (backend timing)
+ */
+export async function getAnalysisIdForJobId(
+  jobId: number,
+  options?: { maxRetries?: number; baseDelay?: number }
+): Promise<string | null> {
+  const maxRetries = options?.maxRetries ?? 5
+  const baseDelay = options?.baseDelay ?? 300
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    // Use any type since 'analyses' table may not be in current type definitions
+    // Use an inner join via select syntax to filter by user ownership without relying on join()
+    const { data: analysis, error } = await (supabase as any)
+      .from('analyses')
+      .select('id, analysis_jobs!inner(user_id, status)')
+      .eq('job_id', jobId)
+      .eq('analysis_jobs.user_id', user.id)
+      .in('analysis_jobs.status', ['processing', 'completed'])
+      .maybeSingle()
+
+    if (error) {
+      throw new Error(`Failed to get analysis ID for job ${jobId}: ${error.message}`)
+    }
+
+    if (analysis?.id) {
+      return String(analysis.id)
+    }
+
+    // Retry with exponential backoff if analysis row doesn't exist yet
+    if (attempt < maxRetries) {
+      const delay = baseDelay * 2 ** (attempt - 1)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  return null
+}
+
+/**
  * Subscribe to analysis jobs by video recording ID
  * Returns the latest job for the recording and subscribes to future updates
  */
 export function subscribeToLatestAnalysisJobByRecordingId(
   recordingId: number,
-  onJob: (job: AnalysisJob) => void
+  onJob: (job: AnalysisJob) => void,
+  options?: {
+    onStatus?: (status: string, details?: any) => void
+    onError?: (error: string, details?: any) => void
+  }
 ): () => void {
   let unsubscribed = false
 
-  // Fetch initial job
-  getLatestAnalysisJobForRecordingId(recordingId)
-    .then((job) => {
-      if (!unsubscribed && job) {
-        onJob(job)
-      }
-    })
-    .catch((error) => {
-      log.error('Error fetching initial analysis job', { error: error.message, recordingId })
-    })
+  // Perform health check before subscription
+  performHealthCheck()
+    .then((health) => {
+      if (unsubscribed) return
 
-  // Subscribe to changes for this recording ID
-  const subscription = supabase
-    .channel(`analysis_jobs_recording_${recordingId}`)
-    .on(
-      'postgres_changes',
-      {
+      // Log health check results
+      log.info('subscribeToLatestAnalysisJobByRecordingId', 'Pre-subscription health check', {
+        recordingId,
+        ...health,
+      })
+
+      if (!health.authenticated || !health.supabaseConnected || !health.rlsPoliciesAccessible) {
+        options?.onError?.('HEALTH_CHECK_FAILED', {
+          health,
+          recordingId,
+        })
+        return
+      }
+
+      // Fetch initial job
+      getLatestAnalysisJobForRecordingId(recordingId)
+        .then((job) => {
+          if (!unsubscribed) {
+            if (job) {
+              options?.onStatus?.('BACKFILL_SUCCESS', {
+                recordingId,
+                jobId: job.id,
+                status: job.status,
+              })
+              onJob(job)
+            } else {
+              options?.onStatus?.('BACKFILL_EMPTY', { recordingId })
+            }
+          }
+        })
+        .catch((error) => {
+          options?.onError?.('BACKFILL_ERROR', {
+            error: error.message,
+            recordingId,
+          })
+          log.error(
+            'subscribeToLatestAnalysisJobByRecordingId',
+            'Error fetching initial analysis job',
+            {
+              error: error.message,
+              recordingId,
+            }
+          )
+        })
+
+      // Log channel configuration
+      const channelConfig: ChannelConfig = {
+        channelName: `analysis_jobs_recording_${recordingId}`,
         event: '*',
         schema: 'public',
         table: 'analysis_jobs',
         filter: `video_recording_id=eq.${recordingId}`,
-      },
-      (payload) => {
-        if (!unsubscribed) {
-          const job = payload.new as AnalysisJob
-          onJob(job)
-        }
+        userId: health.userId,
       }
-    )
-    .subscribe()
+      logChannelConfig(channelConfig, 'subscribeToLatestAnalysisJobByRecordingId')
 
+      // Subscribe to changes for this recording ID
+      const subscription = supabase
+        .channel(channelConfig.channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: channelConfig.event as any,
+            schema: channelConfig.schema,
+            table: channelConfig.table,
+            filter: channelConfig.filter,
+          },
+          (payload) => {
+            if (!unsubscribed) {
+              options?.onStatus?.('PAYLOAD_RECEIVED', {
+                eventType: payload.eventType,
+                oldId: (payload.old as any)?.id,
+                newId: (payload.new as any)?.id,
+                status: (payload.new as any)?.status,
+                recordingId,
+                userId: health.userId,
+              })
+              const job = payload.new as AnalysisJob
+              onJob(job)
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            options?.onStatus?.('SUBSCRIBED', {
+              channel: channelConfig.channelName,
+              filter: channelConfig.filter,
+              userId: health.userId,
+              networkOnline: health.networkOnline,
+            })
+          } else if (status === 'CHANNEL_ERROR') {
+            options?.onError?.('CHANNEL_ERROR', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+              health,
+              networkOnline: health.networkOnline,
+            })
+          } else if (status === 'TIMED_OUT') {
+            options?.onError?.('CHANNEL_TIMEOUT', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+            })
+          } else if (status === 'CLOSED') {
+            options?.onError?.('CHANNEL_CLOSED', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+            })
+          }
+        })
+
+      return () => {
+        unsubscribed = true
+        subscription.unsubscribe()
+      }
+    })
+    .catch((healthError) => {
+      options?.onError?.('HEALTH_CHECK_ERROR', {
+        error: healthError instanceof Error ? healthError.message : 'Unknown health check error',
+        recordingId,
+      })
+      log.error('subscribeToLatestAnalysisJobByRecordingId', 'Health check failed', {
+        error: healthError instanceof Error ? healthError.message : 'Unknown error',
+        recordingId,
+      })
+    })
+
+  // Return cleanup function (will be set after health check completes)
   return () => {
     unsubscribed = true
-    subscription.unsubscribe()
   }
 }
 
@@ -448,26 +704,118 @@ export function subscribeToLatestAnalysisJobByRecordingId(
  */
 export function subscribeToAnalysisJob(
   id: number,
-  callback: (job: AnalysisJob) => void
+  callback: (job: AnalysisJob) => void,
+  options?: {
+    onStatus?: (status: string, details?: any) => void
+    onError?: (error: string, details?: any) => void
+  }
 ): () => void {
-  const subscription = supabase
-    .channel(`analysis_job_${id}`)
-    .on(
-      'postgres_changes',
-      {
+  let unsubscribed = false
+
+  // Perform health check before subscription
+  performHealthCheck()
+    .then((health) => {
+      if (unsubscribed) return
+
+      // Log health check results
+      log.info('subscribeToAnalysisJob', 'Pre-subscription health check', {
+        jobId: id,
+        ...health,
+      })
+
+      if (!health.authenticated || !health.supabaseConnected || !health.rlsPoliciesAccessible) {
+        options?.onError?.('HEALTH_CHECK_FAILED', {
+          health,
+          jobId: id,
+        })
+        return
+      }
+
+      // Log channel configuration
+      const channelConfig: ChannelConfig = {
+        channelName: `analysis_job_${id}`,
         event: 'UPDATE',
         schema: 'public',
         table: 'analysis_jobs',
         filter: `id=eq.${id}`,
-      },
-      (payload) => {
-        callback(payload.new as AnalysisJob)
+        userId: health.userId,
       }
-    )
-    .subscribe()
+      logChannelConfig(channelConfig, 'subscribeToAnalysisJob')
 
+      const subscription = supabase
+        .channel(channelConfig.channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: channelConfig.event as any,
+            schema: channelConfig.schema,
+            table: channelConfig.table,
+            filter: channelConfig.filter,
+          },
+          (payload) => {
+            if (!unsubscribed) {
+              options?.onStatus?.('PAYLOAD_RECEIVED', {
+                eventType: payload.eventType,
+                oldId: (payload.old as any)?.id,
+                newId: (payload.new as any)?.id,
+                status: (payload.new as any)?.status,
+                jobId: id,
+                userId: health.userId,
+              })
+              callback(payload.new as AnalysisJob)
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            options?.onStatus?.('SUBSCRIBED', {
+              channel: channelConfig.channelName,
+              filter: channelConfig.filter,
+              userId: health.userId,
+              networkOnline: health.networkOnline,
+            })
+          } else if (status === 'CHANNEL_ERROR') {
+            options?.onError?.('CHANNEL_ERROR', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+              health,
+              networkOnline: health.networkOnline,
+            })
+          } else if (status === 'TIMED_OUT') {
+            options?.onError?.('CHANNEL_TIMEOUT', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+            })
+          } else if (status === 'CLOSED') {
+            options?.onError?.('CHANNEL_CLOSED', {
+              channel: channelConfig.channelName,
+              status,
+              userId: health.userId,
+            })
+          }
+        })
+
+      return () => {
+        unsubscribed = true
+        subscription.unsubscribe()
+      }
+    })
+    .catch((healthError) => {
+      options?.onError?.('HEALTH_CHECK_ERROR', {
+        error: healthError instanceof Error ? healthError.message : 'Unknown health check error',
+        jobId: id,
+      })
+      log.error('subscribeToAnalysisJob', 'Health check failed', {
+        error: healthError instanceof Error ? healthError.message : 'Unknown error',
+        jobId: id,
+      })
+    })
+
+  // Return cleanup function (will be set after health check completes)
   return () => {
-    subscription.unsubscribe()
+    unsubscribed = true
   }
 }
 

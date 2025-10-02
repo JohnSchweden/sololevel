@@ -52,6 +52,11 @@
   - **Comprehensive Testing**: 83 database tests + 54 Deno tests + 207 shared module tests passing with full pipeline coverage
   - **Type Safety**: Updated database.types.ts with new columns and service interfaces for full TypeScript coverage
 
+### Video Feedback — Variant A ✅ Shipped (2025-10-01)
+- First available audio feedback surfaced immediately via `useFeedbackAudioSource` + `AudioFeedback` wiring.
+- Began the video playback as soon as the first per‑feedback audio became available (audio starts paused; respects autoplay policies).
+- Added typed helper `getFirstAudioUrlForFeedback` (RPC + fallback) with unit tests and structured logging.
+
   ### Authentication Implementation Details ✅
 
 #### Core Authentication Infrastructure
@@ -133,11 +138,33 @@
 
 ## In Progress
 
+### Analysis Realtime Subscription Fixes ✅ Completed (2025-10-01)
+- ✅ Fix duplicate subscriptions causing multiple realtime listeners (single subscription with cleanup)
+- ✅ Add immediate backfill before subscribing to ensure job state is populated
+- ✅ Implement effectiveAnalysisJobId propagation to downstream hooks
+- ✅ Add channel lifecycle logging for better observability (SUBSCRIBED, payload events)
+- ✅ Reduce render churn with guarded state updates
+- ✅ **StrictMode resilience**: Pending-subscription guard blocks double-effect race
+- ✅ **Channel error retry**: Bounded retry (3 attempts, 300-1200ms exponential backoff)
+- ✅ **Backfill timing bridge**: 500ms re-check when BACKFILL_EMPTY to bridge upload→job gap
+- ✅ **Log deduplication**: "Setting up..." logs only appear after passing subscription guards
+- ✅ **Pending guard timing fix**: Clear pending key only on SUBSCRIBED status, not after storing subscription
+- ✅ **Retry pending clear**: Clear pending key before retries to allow new subscription attempts
+- ✅ **SQL query fix**: Removed `updated_at` from `analysis_feedback` query, added `created_at` ordering
+- ✅ **Analysis UUID mapping**: Added `getAnalysisIdForJobId()` to map job IDs to feedback-compatible UUIDs
+- ✅ **Feedback integration fix**: VideoAnalysisScreen now uses analysis UUIDs for feedback queries
+- ✅ **UUID type error fix**: Resolved "invalid input syntax for type uuid" by using correct data types
+- ✅ **Ownership filter fix**: `getAnalysisIdForJobId` now filters via `analysis_jobs.user_id`
+- ✅ **Lint compliance**: Fixed all lint errors (Math.pow → **, parseInt → Number.parseInt, formatting)
+- ✅ Unit tests created and passing for core functionality (12/12 tests passing)
+- ✅ Extended analysisService.ts with diagnostics callbacks
+- ✅ Fixed failing tests by correcting mock expectations and test patterns
+
 
 
 ## Pending
 
-
+- Variant B — Video Feedback refactor (2025-10-01): separate `useFeedbackSource` (DB/mock unified mapper + audio URL caching) and `useBubbleTimeline` (pure timeline engine). Maintain Variant A behavior, including the objective to begin video playback as soon as the first per‑feedback audio is available; never autoplay audio.
 
 ## Known Issues
 - Web camera recording shows placeholder (expected - not supported in browsers)
@@ -147,4 +174,26 @@
 - Mock API services prevent full end-to-end functionality
 - Video player resizing not implemented for bottom sheet expansion
 - Limited real-time update mechanisms for live feedback
+
+## Feedback Realtime Subscription Collapse - COMPLETED (2025-10-02)
+- **Root Cause**: Pogo-stick subscription behavior causing 10+ subscribe/unsubscribe cycles per analysis ID change
+- **Solution**: Implemented comprehensive subscription guards and debouncing
+- **Hook Guards**: Added `subscriptionStatus === 'pending'` check in `useFeedbackStatusIntegration` effect
+- **Store Guards**: Strengthened store to prevent subscription when status is `active` OR `pending`
+- **Debouncing**: Added 50ms debounce to prevent rapid re-subscription attempts
+- **Retry Logic**: Enhanced retry mechanism with proper failure state transitions
+- **Testing**: Created TDD test suite with failing tests, implemented fixes, verified passing tests
+- **Result**: Single subscription per analysis ID, no pogo-stick behavior, stable realtime connections
+
+## Analysis Realtime Subscription Polish - COMPLETED (2025-10-01)
+**Status:** Completed
+**Changes:**
+- Throttled CHANNEL_ERROR logs from first occurrence (max 2 error logs, then suppressed)
+- Added UUID retry logic with exponential backoff (200ms, 400ms, 800ms) to getAnalysisIdForJobId
+- Added "Connection unstable" UI warning overlay when channel retries are exhausted
+- Updated log messages for clarity ("No analysis UUID found after retries")
+- Patched audio RPC fallback to use `feedback_id` column (legacy-compatible)
+- Hardened feedback subscription hooks to dedupe subscriptions and remove duplicate keys
+- Added bounded retry with backoff and failure state for feedback realtime subscriptions (no infinite loop)
+**Impact:** Eliminates log spam, handles backend timing gaps gracefully, provides user feedback for connection issues
 

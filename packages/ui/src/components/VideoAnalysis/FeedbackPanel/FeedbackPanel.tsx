@@ -19,6 +19,8 @@ interface FeedbackItem {
   audioAttempts?: number
   ssmlLastError?: string | null
   audioLastError?: string | null
+  audioUrl?: string
+  audioError?: string
 }
 
 export interface FeedbackPanelProps {
@@ -37,6 +39,7 @@ export interface FeedbackPanelProps {
   // Error handling callbacks
   onRetryFeedback?: (feedbackId: string) => void
   onDismissError?: (feedbackId: string) => void
+  onSelectAudio?: (feedbackId: string) => void
 }
 
 export function FeedbackPanel({
@@ -54,6 +57,7 @@ export function FeedbackPanel({
   //onVideoSeek,
   onRetryFeedback,
   onDismissError,
+  onSelectAudio,
 }: FeedbackPanelProps) {
   // Trigger layout animation when flex changes
   useEffect(() => {
@@ -342,14 +346,24 @@ export function FeedbackPanel({
                       backgroundColor="transparent"
                       borderRadius={0}
                       onPress={() => onFeedbackItemPress(item)}
+                      {...(item.audioUrl && onSelectAudio
+                        ? {
+                            onLongPress: () => onSelectAudio(item.id),
+                          }
+                        : {})}
                       testID={`feedback-item-${index + 1}`}
                       accessibilityLabel={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
                       accessibilityRole="button"
-                      accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}`}
+                      accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}${item.audioUrl ? '. Long press to play audio feedback.' : ''}`}
                       accessibilityState={{
                         disabled: false,
                         selected: isHighlighted,
                       }}
+                      {...(item.audioUrl && onSelectAudio
+                        ? {
+                            onLongPress: () => onSelectAudio(item.id),
+                          }
+                        : {})}
                     >
                       <XStack
                         justifyContent="space-between"

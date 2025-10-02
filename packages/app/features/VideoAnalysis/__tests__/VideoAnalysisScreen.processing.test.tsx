@@ -5,6 +5,7 @@ import { VideoAnalysisScreen } from '../VideoAnalysisScreen'
 jest.mock('@my/api', () => ({
   useUploadProgress: jest.fn(),
   subscribeToAnalysisJob: jest.fn(),
+  getAnalysisIdForJobId: jest.fn().mockResolvedValue('00000000-0000-0000-0000-000000000000'),
 }))
 
 // Mock @ui/components/VideoAnalysis components as React components
@@ -165,6 +166,62 @@ describe('VideoAnalysisScreen - Processing State', () => {
 
     // And video should auto-start playing
     videoPlayer = screen.getByTestId('video-player')
+    expect(videoPlayer.getAttribute('data-playing')).toBe('true')
+  })
+
+  it('hides overlay when analysis completes despite upload stuck at pending', () => {
+    // Mock upload stuck at "pending" (common issue)
+    mockUseUploadProgress.mockReturnValue({
+      data: {
+        id: 456,
+        videoRecordingId: 456,
+        status: 'pending', // Upload never completes
+        progress: 100,
+        uploadedBytes: 1000000,
+        totalBytes: 1000000,
+        createdAt: new Date(),
+      },
+    })
+
+    // Mock initial job subscription
+    let jobCallback: (job: any) => void
+    mockSubscribeToAnalysisJob.mockImplementation((_jobId: number, callback: (job: any) => void, _options?: any) => {
+      jobCallback = callback
+      return jest.fn()
+    })
+
+    render(
+      <VideoAnalysisScreen
+        {...defaultProps}
+        analysisJobId={123}
+        initialStatus="processing"
+      />
+    )
+
+    // Initially shows processing due to upload pending
+    let videoControls = screen.getByTestId('video-controls')
+    expect(videoControls.getAttribute('data-processing')).toBe('true')
+
+    // Simulate analysis job creation and initial status
+    act(() => {
+      jobCallback({ id: 123, status: 'queued' })
+    })
+
+    // Still shows processing (upload pending overrides)
+    videoControls = screen.getByTestId('video-controls')
+    expect(videoControls.getAttribute('data-processing')).toBe('true')
+
+    // Simulate analysis completing
+    act(() => {
+      jobCallback({ id: 123, status: 'completed' })
+    })
+
+    // Now overlay should hide despite upload still pending
+    videoControls = screen.getByTestId('video-controls')
+    expect(videoControls.getAttribute('data-processing')).toBe('false')
+
+    // Video should auto-start
+    const videoPlayer = screen.getByTestId('video-player')
     expect(videoPlayer.getAttribute('data-playing')).toBe('true')
   })
 })

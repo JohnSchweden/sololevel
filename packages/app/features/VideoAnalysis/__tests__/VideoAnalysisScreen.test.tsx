@@ -16,6 +16,7 @@ jest.mock('@my/logging', () => ({
 jest.mock('@my/api', () => ({
   useUploadProgress: jest.fn(() => ({ data: null })),
   subscribeToAnalysisJob: jest.fn(() => jest.fn()), // Returns unsubscribe function
+  getAnalysisIdForJobId: jest.fn().mockResolvedValue('00000000-0000-0000-0000-000000000000'),
 }))
 
 // Mock LayoutAnimation from react-native

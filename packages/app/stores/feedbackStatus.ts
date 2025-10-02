@@ -55,6 +55,14 @@ export interface FeedbackStatusStore {
 
   // Active subscriptions
   subscriptions: Map<string, () => void> // analysisId -> unsubscribe function
+  subscriptionStatus: Map<string, 'pending' | 'active' | 'failed'>
+  subscriptionRetries: Map<
+    string,
+    {
+      attempts: number
+      timeoutId: ReturnType<typeof setTimeout> | null
+    }
+  >
 
   // Global state
   totalFeedbacks: number
@@ -130,6 +138,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
       feedbacks: new Map(),
       feedbacksByAnalysisId: new Map(),
       subscriptions: new Map(),
+      subscriptionStatus: new Map(),
+      subscriptionRetries: new Map(),
       totalFeedbacks: 0,
       processingSSMLCount: 0,
       processingAudioCount: 0,
@@ -143,9 +153,15 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           const feedbackState = createFeedbackState(feedback)
           draft.feedbacks.set(feedback.id, feedbackState)
 
-          // Add to analysis mapping
-          const existingIds = draft.feedbacksByAnalysisId.get(feedback.analysis_id) || []
-          draft.feedbacksByAnalysisId.set(feedback.analysis_id, [...existingIds, feedback.id])
+          // Add to analysis mapping (dedupe in-place to avoid React key warnings)
+          const existingIds = draft.feedbacksByAnalysisId.get(feedback.analysis_id)
+          if (existingIds) {
+            if (!existingIds.includes(feedback.id)) {
+              existingIds.push(feedback.id)
+            }
+          } else {
+            draft.feedbacksByAnalysisId.set(feedback.analysis_id, [feedback.id])
+          }
 
           // Update counters
           draft.totalFeedbacks++
@@ -165,7 +181,22 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
       updateFeedback: (feedbackId, updates) =>
         set((draft) => {
           const existing = draft.feedbacks.get(feedbackId)
-          if (!existing) return
+          if (!existing) {
+            log.warn(
+              'FeedbackStatusStore',
+              `Attempted to update non-existent feedback ${feedbackId}`
+            )
+            return
+          }
+
+          log.debug('FeedbackStatusStore', `Updating feedback ${feedbackId}`, {
+            existingAudioStatus: existing.audioStatus,
+            existingSSMLStatus: existing.ssmlStatus,
+            newAudioStatus: updates.audio_status,
+            newSSMLStatus: updates.ssml_status,
+            hasAudioUpdate: !!updates.audio_status,
+            hasSSMLUpdate: !!updates.ssml_status,
+          })
 
           // Update counters based on status changes
           const oldSSMLStatus = existing.ssmlStatus
@@ -315,23 +346,49 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
       subscribeToAnalysisFeedbacks: async (analysisId) => {
         const state = get()
 
-        // Don't subscribe if already subscribed
-        if (state.subscriptions.has(analysisId)) {
-          log.info('FeedbackStatusStore', `Already subscribed to analysis ${analysisId}`)
+        log.debug('FeedbackStatusStore', 'subscribeToAnalysisFeedbacks called', {
+          analysisId,
+          hasSubscription: state.subscriptions.has(analysisId),
+          subscriptionStatus: state.subscriptionStatus.get(analysisId),
+        })
+
+        // Strengthen guard: don't subscribe if already active OR pending
+        if (
+          state.subscriptions.has(analysisId) &&
+          (state.subscriptionStatus.get(analysisId) === 'active' ||
+            state.subscriptionStatus.get(analysisId) === 'pending')
+        ) {
+          log.debug(
+            'FeedbackStatusStore',
+            `Already subscribed or subscribing to analysis ${analysisId}`
+          )
+          return
+        }
+
+        if (state.subscriptionStatus.get(analysisId) === 'failed') {
+          log.warn('FeedbackStatusStore', `Skipping subscription for failed analysis ${analysisId}`)
           return
         }
 
         try {
           log.info('FeedbackStatusStore', `Subscribing to feedbacks for analysis ${analysisId}`)
 
+          set((draft) => {
+            draft.subscriptionStatus.set(analysisId, 'pending')
+            if (!draft.subscriptionRetries.has(analysisId)) {
+              draft.subscriptionRetries.set(analysisId, { attempts: 0, timeoutId: null })
+            }
+          })
+
           // First, fetch existing feedbacks
           // Note: Using any type for now since analysis_feedback table may not be in current type definitions
           const { data: existingFeedbacks, error: fetchError } = await (supabase as any)
             .from('analysis_feedback')
             .select(
-              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, updated_at'
+              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
             )
             .eq('analysis_id', analysisId)
+            .order('created_at', { ascending: true })
 
           if (fetchError) {
             log.error('FeedbackStatusStore', 'Failed to fetch existing feedbacks', fetchError)
@@ -357,9 +414,16 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                 filter: `analysis_id=eq.${analysisId}`,
               },
               (payload: any) => {
+                const feedbackId = payload.new?.id || payload.old?.id
                 log.info('FeedbackStatusStore', 'Received feedback update', {
                   event: payload.eventType,
-                  feedbackId: payload.new?.id || payload.old?.id,
+                  feedbackId,
+                  newAudioStatus: payload.new?.audio_status,
+                  newSSMLStatus: payload.new?.ssml_status,
+                  oldAudioStatus: payload.old?.audio_status,
+                  oldSSMLStatus: payload.old?.ssml_status,
+                  hasNewData: !!payload.new,
+                  hasOldData: !!payload.old,
                 })
 
                 switch (payload.eventType) {
@@ -387,8 +451,56 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             .subscribe((status) => {
               if (status === 'SUBSCRIBED') {
                 log.info('FeedbackStatusStore', `Successfully subscribed to analysis ${analysisId}`)
+                set((draft) => {
+                  draft.subscriptionStatus.set(analysisId, 'active')
+                  const retryState = draft.subscriptionRetries.get(analysisId)
+                  if (retryState) {
+                    if (retryState.timeoutId) {
+                      clearTimeout(retryState.timeoutId)
+                      retryState.timeoutId = null
+                    }
+                    retryState.attempts = 0
+                  }
+                })
               } else if (status === 'CHANNEL_ERROR') {
                 log.error('FeedbackStatusStore', `Subscription error for analysis ${analysisId}`)
+                set((draft) => {
+                  const retryState = draft.subscriptionRetries.get(analysisId)
+
+                  if (retryState?.timeoutId) {
+                    clearTimeout(retryState.timeoutId)
+                    retryState.timeoutId = null
+                  }
+
+                  if (!retryState || retryState.attempts >= 3) {
+                    draft.subscriptionStatus.set(analysisId, 'failed')
+                    draft.subscriptions.get(analysisId)?.()
+                    draft.subscriptions.delete(analysisId)
+                    draft.subscriptionRetries.delete(analysisId)
+                    log.warn('FeedbackStatusStore', 'Subscription marked failed after retries', {
+                      analysisId,
+                    })
+                    return
+                  }
+
+                  retryState.attempts += 1
+                  const delay = 500 * 2 ** (retryState.attempts - 1)
+                  retryState.timeoutId = setTimeout(() => {
+                    const latestState = get()
+                    void latestState
+                      .subscribeToAnalysisFeedbacks(analysisId)
+                      .catch((err: unknown) => {
+                        log.error(
+                          'FeedbackStatusStore',
+                          `Retry subscribe failed for analysis ${analysisId}`,
+                          err
+                        )
+                      })
+                  }, delay)
+
+                  draft.subscriptionRetries.set(analysisId, retryState)
+                  draft.subscriptionStatus.set(analysisId, 'pending')
+                })
               }
             })
 
@@ -412,6 +524,12 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           if (unsubscribe) {
             unsubscribe()
             draft.subscriptions.delete(analysisId)
+            draft.subscriptionStatus.delete(analysisId)
+            const retryState = draft.subscriptionRetries.get(analysisId)
+            if (retryState?.timeoutId) {
+              clearTimeout(retryState.timeoutId)
+            }
+            draft.subscriptionRetries.delete(analysisId)
           }
         }),
 
@@ -420,6 +538,13 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         set((draft) => {
           draft.subscriptions.forEach((unsubscribe) => unsubscribe())
           draft.subscriptions.clear()
+          draft.subscriptionStatus.clear()
+          draft.subscriptionRetries.forEach((retryState) => {
+            if (retryState.timeoutId) {
+              clearTimeout(retryState.timeoutId)
+            }
+          })
+          draft.subscriptionRetries.clear()
         }),
 
       // Get statistics
@@ -487,6 +612,8 @@ export const useFeedbackStatusSelectors = () => {
 
     // Active subscriptions
     activeSubscriptions: store.subscriptions.size,
+    subscriptionStatus: store.subscriptionStatus,
+    subscriptionRetries: store.subscriptionRetries,
   }
 }
 

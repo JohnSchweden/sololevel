@@ -58,10 +58,10 @@ function yarn() {
     echo "⚠️  WARNING: '$full_cmd' is flagged by .cursorrules"
     echo "   This command is potentially destructive or workspace-modifying"
     echo ""
-    printf "Do you want to proceed anyway? (yes/no): "
+    printf "Do you want to proceed anyway? (Y/n): "
     local reply
     read reply
-    if [[ ! "$reply" =~ ^[Yy][Ee][Ss]$ ]]; then
+    if [[ ! "$reply" =~ ^[Yy]$ ]]; then
       echo "Command cancelled."
       return 1
     fi
@@ -77,10 +77,10 @@ function supabase() {
     echo "⚠️  WARNING: '$full_cmd' is flagged by .cursorrules"
     echo "   This command can modify or reset your database"
     echo ""
-    printf "Do you want to proceed anyway? (yes/no): "
+    printf "Do you want to proceed anyway? (Y/n): "
     local reply
     read reply
-    if [[ ! "$reply" =~ ^[Yy][Ee][Ss]$ ]]; then
+    if [[ ! "$reply" =~ ^[Yy]$ ]]; then
       echo "Command cancelled."
       return 1
     fi
