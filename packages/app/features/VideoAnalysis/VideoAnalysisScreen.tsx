@@ -237,7 +237,6 @@ export function VideoAnalysisScreen({
   // Track pending subscription to prevent StrictMode double-effect race
   const pendingKeyRef = useRef<string | null>(null)
 
-
   // Track retry state for channel errors
   const retryStateRef = useRef<{
     attempts: number
@@ -385,21 +384,29 @@ export function VideoAnalysisScreen({
     // PRIORITY 1: If analysis job is completed or failed, always hide overlay
     // This overrides upload status to prevent stuck overlay
     if (analysisJob && (analysisJob.status === 'completed' || analysisJob.status === 'failed')) {
-      log.debug('VideoAnalysisScreen', 'shouldShowProcessing: analysis completed/failed - hiding overlay', {
-        analysisJobStatus: analysisJob.status,
-        uploadProgressStatus: uploadProgress?.status,
-        decision: false,
-      })
+      log.debug(
+        'VideoAnalysisScreen',
+        'shouldShowProcessing: analysis completed/failed - hiding overlay',
+        {
+          analysisJobStatus: analysisJob.status,
+          uploadProgressStatus: uploadProgress?.status,
+          decision: false,
+        }
+      )
       return false
     }
 
     // PRIORITY 2: If analysis is queued or processing, show overlay
     if (analysisJob && (analysisJob.status === 'queued' || analysisJob.status === 'processing')) {
-      log.debug('VideoAnalysisScreen', 'shouldShowProcessing: analysis in progress - showing overlay', {
-        analysisJobStatus: analysisJob.status,
-        uploadProgressStatus: uploadProgress?.status,
-        decision: true,
-      })
+      log.debug(
+        'VideoAnalysisScreen',
+        'shouldShowProcessing: analysis in progress - showing overlay',
+        {
+          analysisJobStatus: analysisJob.status,
+          uploadProgressStatus: uploadProgress?.status,
+          decision: true,
+        }
+      )
       return true
     }
 
@@ -408,11 +415,15 @@ export function VideoAnalysisScreen({
       uploadProgress &&
       (uploadProgress.status === 'pending' || uploadProgress.status === 'uploading')
     ) {
-      log.debug('VideoAnalysisScreen', 'shouldShowProcessing: upload in progress - showing overlay', {
-        analysisJobStatus: analysisJob?.status,
-        uploadProgressStatus: uploadProgress.status,
-        decision: true,
-      })
+      log.debug(
+        'VideoAnalysisScreen',
+        'shouldShowProcessing: upload in progress - showing overlay',
+        {
+          analysisJobStatus: analysisJob?.status,
+          uploadProgressStatus: uploadProgress.status,
+          decision: true,
+        }
+      )
       return true
     }
 
@@ -508,7 +519,6 @@ export function VideoAnalysisScreen({
             effectiveAnalysisJobId,
           })
           setAnalysisJob(job)
-
         },
         {
           onStatus: (status, details) => {
@@ -704,7 +714,6 @@ export function VideoAnalysisScreen({
         clearTimeout(backfillCheckRef.current.timeoutId)
         backfillCheckRef.current.timeoutId = null
       }
-
     }
   }, [])
 

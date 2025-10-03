@@ -46,8 +46,9 @@ describe('TTSService', () => {
       expect(result).toEqual(
         expect.objectContaining({
           audioUrl: 'https://mock-tts-audio.example.com/generated-audio.mp3',
-          duration: 5.2,
+          duration: 3.7,
           format: 'mp3',
+          promptUsed: 'mock-tts-prompt',
         })
       )
     })

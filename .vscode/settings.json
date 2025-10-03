@@ -1,5 +1,7 @@
 {
   "files.exclude": {
+    "**/.turbo": true,
+    "**/*.tsbuildinfo": true,
     // 🚀 EXCLUDE PRODUCTION FILES FROM MVP DEVELOPMENT
     "**/usePoseMetrics.ts": true,
     "**/usePoseState.ts": true,
@@ -40,6 +42,22 @@
     "**/useCameraScreenLogic.ts.backup.prod": true,
     "**/useRecordingStateMachine.ts.backup.prod": true,
     "**/poseStore.ts": true
+    
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/ios/**": true,
+    "**/android/**": true,
+    "**/.expo/**": true,
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.turbo/**": true,
+    "**/test-assets/**": true,
+    "**/playwright-report/**": true,
+    "**/test-results/**": true,
+    "**/*.tsbuildinfo": true,
+    "**/yarn.lock": true
   },
   "search.exclude": {
    // 🚀 EXCLUDE PRODUCTION FILES FROM MVP DEVELOPMENT
@@ -81,10 +99,22 @@
    "**/useCameraPermissions.native.ts.backup.prod": true,
    "**/useCameraScreenLogic.ts.backup.prod": true,
    "**/useRecordingStateMachine.ts.backup.prod": true,
-   "**/poseStore.ts": true
+   "**/poseStore.ts": true,
+   
+   "**/node_modules": true,
+   "**/ios": true,
+   "**/android": true,
+   "**/.expo": true,
+   "**/.next": true,
+   "**/dist": true,
+   "**/build": true,
+   "**/.turbo": true,
+   "**/test-assets": true,
+   "**/playwright-report": true,
+   "**/test-results": true
   },
   "typescript.preferences.includePackageJsonAutoImports": "off",
-  "typescript.suggest.autoImports": false,
+  "typescript.suggest.autoImports": true,
   "typescript.preferences.includeCompletionsForModuleExports": false,
   // Deno settings for Edge Functions only
   "deno.enable": true,

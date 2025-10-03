@@ -1,7 +1,6 @@
 import { Pause, Play, SkipBack, SkipForward, X } from '@tamagui/lucide-icons'
 import { useCallback, useEffect, useRef } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
-import { CoachAvatar } from '../CoachAvatar/CoachAvatar'
 
 export interface AudioFeedbackProps {
   audioUrl: string | null
@@ -113,36 +112,24 @@ export function AudioFeedback({
     <YStack
       position="absolute"
       bottom={100}
-      left="$4"
-      right="$4"
+      width="50%"
+      alignSelf="center"
       testID="audio-feedback-overlay"
     >
       <YStack
-        backgroundColor="rgba(0,0,0,0.8)"
+        backgroundColor="transparent"
         borderRadius="$4"
-        padding="$3"
+        padding="$1"
         testID="audio-controls"
       >
-        {/* Coach Avatar */}
-        <XStack
-          justifyContent="center"
-          marginBottom="$2"
-        >
-          <CoachAvatar
-            size={40}
-            isSpeaking={isPlaying}
-            testID="audio-coach-avatar"
-          />
-        </XStack>
-
         {/* Main Controls */}
         <XStack
           alignItems="center"
-          gap="$2"
+          gap="$0.5"
           justifyContent="center"
         >
           <Button
-            size={36}
+            size={32}
             icon={SkipBack}
             color="$white"
             chromeless
@@ -151,7 +138,7 @@ export function AudioFeedback({
           />
 
           <Button
-            size={44}
+            size={32}
             icon={isPlaying ? Pause : Play}
             backgroundColor="$primary"
             borderRadius="$2"
@@ -160,7 +147,7 @@ export function AudioFeedback({
           />
 
           <Button
-            size={36}
+            size={32}
             icon={SkipForward}
             color="$white"
             chromeless
@@ -180,9 +167,9 @@ export function AudioFeedback({
 
         {/* Progress Bar */}
         {showProgressBar && (
-          <YStack marginTop="$2">
+          <YStack marginTop="$1">
             <YStack
-              height={4}
+              height={3}
               backgroundColor="$gray6"
               borderRadius="$1"
               testID="audio-progress-track"
@@ -213,7 +200,7 @@ export function AudioFeedback({
         {/* Time Display */}
         <XStack
           justifyContent="space-between"
-          marginTop="$1"
+          marginTop="$0.5"
         >
           <Text
             fontSize="$2"

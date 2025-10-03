@@ -4,6 +4,7 @@
  */
 
 import { generateTTSFromSSML } from '../../../ai-analyze-video/gemini-tts-audio.ts'
+import { getMockAudioBytes } from '../../assets/mock-audio-assets.ts'
 import { createValidatedGeminiConfig } from '../../gemini/config.ts'
 import { createLogger } from '../../logger.ts'
 import { AUDIO_FORMATS, AudioFormat, getEnvDefaultFormat, resolveAudioFormat } from '../../media/audio.ts'
@@ -158,7 +159,17 @@ export class MockTTSService implements ITTSService {
     // If supabase + analysisId provided, mimic upload flow to `processed` bucket
     if (context.supabase && context.analysisId) {
       const path = context.storagePath || generateAudioStoragePath(context.analysisId, undefined, format)
-      const mockBytes = new Uint8Array([0x00, 0x01, 0x02, 0x03])
+
+      // Try to use real feedback1.wav audio bytes, fallback to old mock bytes
+      let mockBytes: Uint8Array
+      try {
+        mockBytes = getMockAudioBytes('feedback1')
+        logger.info('Using real feedback1.wav audio bytes for mock TTS')
+      } catch (error) {
+        logger.warn('Failed to load feedback1.wav audio bytes, falling back to mock bytes', error)
+        mockBytes = new Uint8Array([0x00, 0x01, 0x02, 0x03])
+      }
+
       const contentType = AUDIO_FORMATS[format].mimes[0]
 
       const uploadResult = await uploadProcessedArtifact(
@@ -173,7 +184,7 @@ export class MockTTSService implements ITTSService {
 
       return {
         audioUrl,
-        duration: 5.2,
+        duration: 3.7,
         format,
         promptUsed: 'mock-tts-prompt'
       }
@@ -182,7 +193,7 @@ export class MockTTSService implements ITTSService {
     // Fallback: simple mock URL
     return {
       audioUrl: `https://mock-tts-audio.example.com/generated-audio.${extension}`,
-      duration: 5.2,
+      duration: 3.7,
       format,
       promptUsed: 'mock-tts-prompt'
     }

@@ -297,7 +297,7 @@ export const VideoControls = React.memo(
                   Analysing video...
                 </Text>
                 <Text
-                  fontSize="$3"
+                  fontSize="$4"
                   fontWeight="600"
                   color="white"
                   textAlign="center"

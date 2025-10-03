@@ -136,7 +136,6 @@
 - **Worker Pipeline Testing**: Audio and SSML workers correctly process queued jobs with proper error handling and retry mechanisms
 - 2025-09-29: Refactored Supabase Edge workers to use centralized SSML/TTS services, honor `AI_ANALYSIS_MODE`, persist prompts, and align storage paths. Node + Deno tests updated (SSML/Audio workers).
 
-## In Progress
 
 ### Analysis Realtime Subscription Fixes ✅ Completed (2025-10-01)
 - ✅ Fix duplicate subscriptions causing multiple realtime listeners (single subscription with cleanup)
@@ -160,21 +159,6 @@
 - ✅ Extended analysisService.ts with diagnostics callbacks
 - ✅ Fixed failing tests by correcting mock expectations and test patterns
 
-
-
-## Pending
-
-- Variant B — Video Feedback refactor (2025-10-01): separate `useFeedbackSource` (DB/mock unified mapper + audio URL caching) and `useBubbleTimeline` (pure timeline engine). Maintain Variant A behavior, including the objective to begin video playback as soon as the first per‑feedback audio is available; never autoplay audio.
-
-## Known Issues
-- Web camera recording shows placeholder (expected - not supported in browsers)
-- Upload integration needs final connection between recording hooks and upload service
-- Live pose overlay performance could be optimized for longer recording sessions
-- Type mismatches between state store and component interfaces
-- Mock API services prevent full end-to-end functionality
-- Video player resizing not implemented for bottom sheet expansion
-- Limited real-time update mechanisms for live feedback
-
 ## Feedback Realtime Subscription Collapse - COMPLETED (2025-10-02)
 - **Root Cause**: Pogo-stick subscription behavior causing 10+ subscribe/unsubscribe cycles per analysis ID change
 - **Solution**: Implemented comprehensive subscription guards and debouncing
@@ -197,3 +181,20 @@
 - Added bounded retry with backoff and failure state for feedback realtime subscriptions (no infinite loop)
 **Impact:** Eliminates log spam, handles backend timing gaps gracefully, provides user feedback for connection issues
 
+## In Progress
+
+
+
+
+## Pending
+
+- Variant B — Video Feedback refactor (2025-10-01): separate `useFeedbackSource` (DB/mock unified mapper + audio URL caching) and `useBubbleTimeline` (pure timeline engine). Maintain Variant A behavior, including the objective to begin video playback as soon as the first per‑feedback audio is available; never autoplay audio.
+
+## Known Issues
+- Web camera recording shows placeholder (expected - not supported in browsers)
+- Upload integration needs final connection between recording hooks and upload service
+- Live pose overlay performance could be optimized for longer recording sessions
+- Type mismatches between state store and component interfaces
+- Mock API services prevent full end-to-end functionality
+- Video player resizing not implemented for bottom sheet expansion
+- Limited real-time update mechanisms for live feedback

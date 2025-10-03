@@ -1,3 +1,19 @@
 # Ignore all rules in _backup folder
 _backup/
 _backup/**/*
+
+# Exclude large directories from file watching to reduce memory usage
+node_modules/
+**/node_modules/
+**/ios/
+**/android/
+**/.expo/
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+test-assets/
+playwright-report/
+test-results/
+**/*.tsbuildinfo
+**/yarn.lock

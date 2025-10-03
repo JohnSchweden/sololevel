@@ -185,10 +185,12 @@ describe('VideoAnalysisScreen - Processing State', () => {
 
     // Mock initial job subscription
     let jobCallback: (job: any) => void
-    mockSubscribeToAnalysisJob.mockImplementation((_jobId: number, callback: (job: any) => void, _options?: any) => {
-      jobCallback = callback
-      return jest.fn()
-    })
+    mockSubscribeToAnalysisJob.mockImplementation(
+      (_jobId: number, callback: (job: any) => void, _options?: any) => {
+        jobCallback = callback
+        return jest.fn()
+      }
+    )
 
     render(
       <VideoAnalysisScreen

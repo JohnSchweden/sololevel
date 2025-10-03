@@ -93,6 +93,8 @@
     "validate:audio-bucket": "node scripts/supabase/storage/validate-audio-bucket.mjs",
     "setup:audio-bucket-cors": "node scripts/supabase/storage/setup-audio-bucket-cors.mjs",
     "test:tts:signed-urls": "node scripts/supabase/edge-functions/test-tts-signed-urls.mjs",
+    "supabase:optimize": "node scripts/supabase/optimize-memory.mjs",
+    "supabase:monitor": "node scripts/supabase/monitor-memory.mjs",
     "prepare": "husky",
     "storybook-generate": "sb-rn-get-stories",
     "storybook": "storybook dev -p 6006",
