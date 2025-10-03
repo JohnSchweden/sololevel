@@ -58,7 +58,7 @@ export function VideoFilePicker({
           })
 
           if (!validation.isValid) {
-            log.error('VideoFilePicker', 'Video validation failed', validation.errors)
+            log.error('VideoFilePicker', 'Video validation failed', { errors: validation.errors })
             resolve()
             return
           }
@@ -85,7 +85,9 @@ export function VideoFilePicker({
         document.body.removeChild(input)
       })
     } catch (error) {
-      log.error('VideoFilePicker', 'Error selecting file', error)
+      log.error('VideoFilePicker', 'Error selecting file', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }, [
     maxDurationSeconds,

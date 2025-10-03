@@ -11,6 +11,9 @@ export function useAuth() {
   const { user, session, loading, initialized, setAuth, setLoading, setInitialized } =
     useAuthStore()
 
+  // Log deduplication ref - must be called unconditionally at hook level
+  // Removed unused logOnce helper
+
   /**
    * Initialize auth state and set up listeners
    */
@@ -36,10 +39,12 @@ export function useAuth() {
 
       // Set up auth state listener
       const unsubscribe = authClient.onAuthStateChange((session) => {
-        log.info('useAuth', 'Auth state changed', {
-          hasSession: !!session,
-          userId: session?.user?.id,
-        })
+        if (__DEV__) {
+          log.debug('useAuth', 'Auth state changed', {
+            hasSession: !!session,
+            userId: session?.user?.id,
+          })
+        }
         setAuth(session?.user ?? null, session)
       })
 

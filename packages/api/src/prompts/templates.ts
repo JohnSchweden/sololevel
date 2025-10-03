@@ -129,7 +129,7 @@ export function createTemplateRenderer(
         throw new Error(`Template validation failed: ${validation.errors.join(', ')}`)
       }
       if (validation.warnings.length > 0) {
-        log.warn('Template warnings', { warnings: validation.warnings })
+        log.warn('Prompts', 'template warnings', { warnings: validation.warnings })
       }
     }
 

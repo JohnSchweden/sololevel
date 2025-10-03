@@ -114,7 +114,7 @@ export function useScreenStateTransition(
 
   // Handle restart recording (return to camera)
   const handleRestartRecording = useCallback(() => {
-    log.info('useScreenStateTransition: Restarting recording - returning to camera')
+    log.info('useScreenStateTransition', 'Restarting recording - returning to camera')
 
     setScreenState('camera')
     setVideoData(null)
@@ -126,7 +126,7 @@ export function useScreenStateTransition(
 
   // Handle continue to analysis (return to camera for now)
   const handleContinueToAnalysis = useCallback(() => {
-    log.info('useScreenStateTransition: Continuing to analysis - returning to camera')
+    log.info('useScreenStateTransition', 'Continuing to analysis - returning to camera')
 
     setScreenState('camera')
     setVideoData(null)

@@ -79,7 +79,10 @@ export class VideoProcessingService {
     const startTime = Date.now()
 
     try {
-      log.info('Starting video processing', { videoPath, config: this.config })
+      log.info('videoProcessingService', 'Starting video processing', {
+        videoPath,
+        config: this.config,
+      })
 
       // Import the processing library dynamically
       const ProcessingManager = await this.getProcessingManager()
@@ -133,7 +136,9 @@ export class VideoProcessingService {
               memoryUsage: this.getMemoryUsage(),
             })
           } catch (error) {
-            log.warn('Progress callback error', { error })
+            log.warn('videoProcessingService', 'Progress callback error', {
+              error: error instanceof Error ? error.message : String(error),
+            })
           }
         }
       }
@@ -152,7 +157,7 @@ export class VideoProcessingService {
         },
       }
 
-      log.info('Video processing completed', {
+      log.info('videoProcessingService', 'Video processing completed', {
         videoPath,
         totalFrames,
         processingTime,
@@ -161,7 +166,10 @@ export class VideoProcessingService {
 
       return result
     } catch (error) {
-      log.error('Video processing failed', { videoPath, error })
+      log.error('videoProcessingService', 'Video processing failed', {
+        videoPath,
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error(
         `Video processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
@@ -188,7 +196,7 @@ export class VideoProcessingService {
 
   cleanup(): void {
     this.progressCallback = undefined
-    log.info('Video processing service cleaned up')
+    log.info('videoProcessingService', 'Video processing service cleaned up')
   }
 }
 

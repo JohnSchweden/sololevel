@@ -41,7 +41,7 @@ export async function compressVideo(
   const ownership = Constants?.appOwnership ?? null
 
   if (ownership === 'expo' || ownership === 'guest') {
-    log.warn('Skipping native compression inside Expo Go', { fileUri })
+    log.warn('videoCompression', 'Skipping native compression inside Expo Go', { fileUri })
 
     const metadata = await getVideoMetadata(fileUri)
 
@@ -54,7 +54,7 @@ export async function compressVideo(
   try {
     const originalMetadata = await getVideoMetadata(fileUri)
 
-    log.info('Starting video compression', { fileUri, options })
+    log.info('videoCompression', 'Starting video compression', { fileUri, options })
 
     // Import react-native-compressor dynamically
     const { Video } = await import('react-native-compressor')
@@ -81,7 +81,7 @@ export async function compressVideo(
         ? 1 - compressedMetadata.size / originalMetadata.size
         : null
 
-    log.info('Video compression completed', {
+    log.info('videoCompression', 'Video compression completed', {
       originalUri: fileUri,
       compressedUri,
       originalSize: originalMetadata.size,
@@ -98,7 +98,10 @@ export async function compressVideo(
       },
     }
   } catch (error) {
-    log.error('Video compression failed', { fileUri, error })
+    log.error('videoCompression', 'Video compression failed', {
+      fileUri,
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     // Graceful degradation - return original URI with basic metadata
     try {
@@ -108,7 +111,10 @@ export async function compressVideo(
         metadata: fallbackMetadata,
       }
     } catch (metadataError) {
-      log.error('Failed to get fallback metadata', { metadataError })
+      log.error('videoCompression', 'Failed to get fallback metadata', {
+        metadataError:
+          metadataError instanceof Error ? metadataError.message : String(metadataError),
+      })
 
       // Ultimate fallback
       return {
@@ -164,7 +170,10 @@ async function getCompressedVideoMetadata(
       format: getFormatFromUri(compressedUri),
     }
   } catch (error) {
-    log.warn('Failed to get compressed video metadata', { compressedUri, error })
+    log.warn('videoCompression', 'Failed to get compressed video metadata', {
+      compressedUri,
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     return {
       size: 0,
@@ -197,7 +206,10 @@ async function getVideoMetadata(fileUri: string): Promise<CompressionResult['met
       format: getFormatFromUri(fileUri),
     }
   } catch (error) {
-    log.warn('Failed to get video metadata', { fileUri, error })
+    log.warn('videoCompression', 'Failed to get video metadata', {
+      fileUri,
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     return {
       size: 0,

@@ -85,10 +85,10 @@ async function resolveVideoToUpload(params: {
   // Attempt compression first, with graceful fallback
   let videoToUploadUri = sourceUri
   try {
-    log.info('startUploadAndAnalysis', 'Starting video compression')
+    log.info('videoUploadAndAnalysis', 'Starting video compression')
     const compressionResult = await compressVideo(sourceUri)
 
-    log.info('startUploadAndAnalysis', 'Video compression completed', {
+    log.info('videoUploadAndAnalysis', 'Video compression completed', {
       compressedUri: compressionResult.compressedUri,
       size: compressionResult.metadata.size,
       duration: durationSeconds,
@@ -103,11 +103,10 @@ async function resolveVideoToUpload(params: {
       format: compressedFormat,
     }
   } catch (compressionError) {
-    log.warn(
-      'startUploadAndAnalysis',
-      'Video compression failed, using original video',
-      compressionError
-    )
+    log.warn('videoUploadAndAnalysis', 'Video compression failed, using original video', {
+      error:
+        compressionError instanceof Error ? compressionError.message : String(compressionError),
+    })
     // Keep defaults and original URI
   }
 
@@ -163,7 +162,7 @@ async function uploadWithProgress(args: {
       onProgress?.(progress)
     },
     onError: (error: Error) => {
-      log.error('startUploadAndAnalysis', 'Upload error', error)
+      log.error('videoUploadAndAnalysis', 'Upload error', { error: error.message })
       useUploadProgressStore.getState().setUploadStatus(tempTaskId, 'failed', error.message)
       onError?.(error)
     },
@@ -244,7 +243,7 @@ export async function startUploadAndAnalysis(
     // Analysis is auto-started in the backend after upload; UI will subscribe to updates
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    log.error('startUploadAndAnalysis', 'Failed to process video', errorMessage)
+    log.error('videoUploadAndAnalysis', 'Failed to process video', { error: errorMessage })
     // Update task status to failed if we haven't already
     useUploadProgressStore.getState().setUploadStatus(tempTaskId, 'failed', errorMessage)
     onError?.(error instanceof Error ? error : new Error(errorMessage))

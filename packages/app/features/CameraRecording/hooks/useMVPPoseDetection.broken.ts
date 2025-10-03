@@ -110,7 +110,7 @@ export function useMVPPoseDetection(
       }))
 
       // Temporarily disable platform-specific implementation to test module loading
-      log.debug('useMVPPoseDetection', '🔍 startDetection called, isNative:', isNative)
+      log.debug('useMVPPoseDetection.broken', 'startDetection called', { isNative })
 
       // Mock implementation for testing
       setTimeout(() => {

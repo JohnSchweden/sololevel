@@ -228,11 +228,9 @@ export function CameraRecordingScreen({
             isEnabled={poseEnabled}
             onToggle={() => {
               if (__DEV__) {
-                log.debug(
-                  'CameraRecordingScreen',
-                  '🎯 Toggle button pressed, poseEnabled:',
-                  poseEnabled
-                )
+                log.debug('CameraRecordingScreen', '🎯 Toggle button pressed, poseEnabled:', {
+                  poseEnabled: poseEnabled,
+                })
               }
               togglePoseDetection()
             }}

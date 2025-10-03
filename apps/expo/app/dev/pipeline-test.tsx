@@ -58,7 +58,7 @@ export default function PipelineTestScreen() {
         throw new Error('Failed to load asset')
       }
 
-      log.info('pipeline-test:start', {
+      log.info('pipeline-test', 'start', {
         fileUri,
         source: 'mini_speech.mp4',
       })
@@ -102,23 +102,23 @@ export default function PipelineTestScreen() {
         durationSeconds: realDuration,
         onProgress: (progress) => {
           setDetails(`Upload progress: ${Math.round(progress * 100)}%`)
-          log.info('pipeline-test:progress', { progress })
+          log.info('pipeline-test', 'progress', { progress })
         },
         onError: (error) => {
           setStatus('failed')
           setErrorMessage(error.message)
           setDetails(`Upload failed: ${error.message}`)
-          log.error('pipeline-test:error', { error })
+          log.error('pipeline-test', 'error', { error })
         },
         onUploadInitialized: ({ recordingId: newRecordingId }) => {
           setRecordingId(newRecordingId)
           setStatus('processing')
           setDetails(`Upload initialized, recordingId: ${newRecordingId}. Starting analysis...`)
-          log.info('pipeline-test:upload-initialized', { recordingId: newRecordingId })
+          log.info('pipeline-test', 'upload-initialized', { recordingId: newRecordingId })
         },
         onRecordingIdAvailable: (newRecordingId: number) => {
           setRecordingId(newRecordingId)
-          log.info('pipeline-test:recording-id-available', { recordingId: newRecordingId })
+          log.info('pipeline-test', 'recording-id-available', { recordingId: newRecordingId })
           // Update route with the recordingId once available
           router.replace(
             `/video-analysis?videoRecordingId=${newRecordingId}&videoUri=${encodeURIComponent(fileUri)}`
@@ -128,13 +128,13 @@ export default function PipelineTestScreen() {
 
       setStatus('completed')
       setDetails('Pipeline completed successfully!')
-      log.info('pipeline-test:completed')
+      log.info('pipeline-test', 'completed', { recordingId })
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'
       setStatus('failed')
       setErrorMessage(errorMsg)
       setDetails(`Pipeline failed: ${errorMsg}`)
-      log.error('pipeline-test:error', { error })
+      log.error('pipeline-test', 'error', { error })
     }
   }, [])
 
@@ -151,7 +151,7 @@ export default function PipelineTestScreen() {
         <DurationProbe
           uri={probeUri}
           onReady={(seconds) => {
-            log.info('pipeline-test:duration-probed', { seconds, uri: probeUri })
+            log.info('pipeline-test', 'duration-probed', { seconds, uri: probeUri })
             if (probeResolveRef.current) {
               const resolve = probeResolveRef.current
               probeResolveRef.current = null

@@ -59,7 +59,7 @@ export function VideoAnalysisScreen({
 
   // Log component initialization and re-renders
   if (log && log.info) {
-    log.info('[VideoAnalysisScreen] Component rendered', {
+    log.info('VideoAnalysisScreen', 'Component rendered', {
       renderCount: renderCountRef.current,
       timeSinceLastRender: `${timeSinceLastRender}ms`,
       analysisJobId,
@@ -69,7 +69,7 @@ export function VideoAnalysisScreen({
 
   // DEBUG: Check all imported components
   if (log && log.info) {
-    log.info('[VideoAnalysisScreen] Component type checks', {
+    log.info('VideoAnalysisScreen', 'Component type checks', {
       YStackType: typeof YStack,
       AppHeaderType: typeof AppHeader,
       ProcessingOverlayType: typeof ProcessingOverlay,
@@ -89,18 +89,18 @@ export function VideoAnalysisScreen({
     videoUri || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
 
   if (log && log.info) {
-    log.info('[VideoAnalysisScreen] Using video URI', { recordedVideoUri })
+    log.info('VideoAnalysisScreen', 'Using video URI', { recordedVideoUri })
   }
 
   // STEP 1: Simple processing simulation - complete after 3 seconds
   useEffect(() => {
     if (log && log.info) {
-      log.info('[VideoAnalysisScreen] Starting processing simulation')
+      log.info('VideoAnalysisScreen', 'Starting processing simulation')
     }
 
     const timer = setTimeout(() => {
       if (log && log.info) {
-        log.info('[VideoAnalysisScreen] Processing completed')
+        log.info('VideoAnalysisScreen', 'Processing completed')
       }
       setIsProcessing(false)
     }, 3000)
@@ -111,7 +111,7 @@ export function VideoAnalysisScreen({
   // STEP 1: Simple event handlers
 
   const handleVideoTap = useCallback(() => {
-    log.info('[VideoAnalysisScreen] handleVideoTap called')
+    log.info('VideoAnalysisScreen', 'handleVideoTap called')
     // For now, just log - controls will be added later
   }, [])
 
@@ -139,11 +139,11 @@ export function VideoAnalysisScreen({
               currentStep="Processing video analysis..."
               estimatedTime={30}
               onCancel={() => {
-                log.info('[VideoAnalysisScreen] Processing cancelled')
+                log.info('VideoAnalysisScreen', 'Processing cancelled')
                 onBack?.()
               }}
               onViewResults={() => {
-                log.info('[VideoAnalysisScreen] View results clicked')
+                log.info('VideoAnalysisScreen', 'View results clicked')
                 /* Analysis complete, already showing results */
               }}
               isComplete={false}

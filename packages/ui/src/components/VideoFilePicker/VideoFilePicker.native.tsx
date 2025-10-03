@@ -139,7 +139,9 @@ export function VideoFilePicker({
         })
 
         if (!validation.isValid) {
-          log.error('VideoFilePicker', 'Video validation failed', validation.errors)
+          log.error('VideoFilePicker.native', 'Video validation failed', {
+            errors: validation.errors,
+          })
           // TODO: Show validation error to user
           return
         }
@@ -184,7 +186,9 @@ export function VideoFilePicker({
         onVideoSelected(file, metadata)
       }
     } catch (error) {
-      log.error('VideoFilePicker', 'Error selecting video', error)
+      log.error('VideoFilePicker.native', 'Error selecting video', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       // TODO: Show error to user
     }
   }

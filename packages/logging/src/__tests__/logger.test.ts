@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals'
 import {
+  clearRecentErrors,
+  disableNetworkLogging,
   enableNetworkLogging,
   getConsoleErrors,
   getConsoleLogs,
   getNetworkErrors,
   getNetworkLogs,
+  getRecentErrors,
+  isNetworkLoggingEnabled,
   log,
   logger,
 } from '../logger'
@@ -57,41 +61,108 @@ describe('Logger', () => {
     })
 
     it('should call console methods with formatted messages', () => {
+      const scope = 'TestScope'
       const message = 'Test message'
-      const args = ['arg1', 'arg2']
+      const context = { key: 'value', count: 42 }
 
-      logger.debug(message, ...args)
+      logger.debug(scope, message, context)
       expect(mockConsole.debug).toHaveBeenCalledWith(
-        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
-        ...args
+        expect.stringMatching(
+          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[🐛\] \[TestScope\] Test message — key=value count=42$/
+        )
       )
 
-      logger.info(message, ...args)
+      logger.info(scope, message, context)
       expect(mockConsole.info).toHaveBeenCalledWith(
-        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
-        ...args
+        expect.stringMatching(
+          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[ℹ\] \[TestScope\] Test message — key=value count=42$/
+        )
       )
 
-      logger.warn(message, ...args)
+      logger.warn(scope, message, context)
       expect(mockConsole.warn).toHaveBeenCalledWith(
-        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
-        ...args
+        expect.stringMatching(
+          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[⚠️\] \[TestScope\] Test message — key=value count=42$/
+        )
       )
 
-      logger.error(message, ...args)
+      logger.error(scope, message, context)
       expect(mockConsole.error).toHaveBeenCalledWith(
-        expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[Test message\]$/),
-        ...args
+        expect.stringMatching(
+          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[⛔\] \[TestScope\] Test message — key=value count=42$/
+        )
       )
     })
 
     it('should format messages with timestamp', () => {
+      const scope = 'TestScope'
       const message = 'Test message'
-      logger.info(message)
+      logger.info(scope, message)
 
       const call = mockConsole.info.mock.calls[0]
-      expect(call[0]).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-      expect(call[0]).toContain('[Test message]')
+      // In dev mode (test environment), expect time-only format like [15:30:17.687Z]
+      expect(call[0]).toMatch(/^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\]/)
+      expect(call[0]).toContain('[ℹ] [TestScope] Test message')
+    })
+
+    it('should redact sensitive information', () => {
+      const scope = 'Auth'
+      const message = 'login attempt'
+      const context = {
+        email: 'user@example.com',
+        phone: '+1234567890',
+        token: 'Bearer abc123',
+        sessionId: '12345678-1234-1234-1234-123456789012',
+        normalField: 'safe value',
+      }
+
+      logger.info(scope, message, context)
+
+      const call = mockConsole.info.mock.calls[0]
+      expect(call[0]).toContain('email=[redacted-email]')
+      expect(call[0]).toContain('phone=[redacted-phone]')
+      expect(call[0]).toContain('token=[redacted-token]')
+      expect(call[0]).toContain('sessionId=12345678…')
+      expect(call[0]).toContain('normalField=safe value')
+    })
+
+    it('should format durations human-readably', () => {
+      const scope = 'HTTP'
+      const message = 'request completed'
+      const context = { dur: 1500, status: 200 }
+
+      logger.info(scope, message, context)
+
+      const call = mockConsole.info.mock.calls[0]
+      expect(call[0]).toContain('dur=1.50s')
+    })
+
+    it('should gate info logs in production unless allowlisted', () => {
+      // Mock production environment
+      const originalIsDev = (global as any).__DEV__
+      const originalNodeEnv = process.env.NODE_ENV
+      ;(global as any).__DEV__ = false
+      process.env.NODE_ENV = 'production'
+
+      // Reset the isDev detection
+      jest.resetModules()
+      const loggerModule = require('../logger')
+      const prodLogger = loggerModule.logger
+
+      // Clear console mocks
+      jest.clearAllMocks()
+
+      // Non-allowlisted message should not log
+      prodLogger.info('TestScope', 'some random message', { data: 'test' })
+      expect(mockConsole.info).not.toHaveBeenCalled()
+
+      // Allowlisted message should log
+      prodLogger.info('VideoAnalysis', 'recording started', { jobId: 123 })
+      expect(mockConsole.info).toHaveBeenCalled()
+
+      // Restore original values
+      ;(global as any).__DEV__ = originalIsDev
+      process.env.NODE_ENV = originalNodeEnv
     })
   })
 
@@ -116,10 +187,91 @@ describe('Logger', () => {
   })
 
   describe('Network Logging', () => {
+    let originalFetch: any
+
+    beforeEach(() => {
+      originalFetch = global.fetch
+    })
+
+    afterEach(() => {
+      global.fetch = originalFetch
+      disableNetworkLogging()
+    })
+
     it('should enable network logging and return cleanup function', () => {
-      const cleanup = enableNetworkLogging()
+      const cleanup = enableNetworkLogging(true)
       expect(typeof cleanup).toBe('function')
-      cleanup() // Cleanup immediately to avoid side effects
+      expect(isNetworkLoggingEnabled()).toBe(true)
+      cleanup()
+    })
+
+    it('should disable network logging when enabled=false', () => {
+      const cleanup = enableNetworkLogging(false)
+      expect(isNetworkLoggingEnabled()).toBe(false)
+      expect(typeof cleanup).toBe('function')
+      cleanup()
+    })
+
+    it('should disable network logging', () => {
+      enableNetworkLogging(true)
+      expect(isNetworkLoggingEnabled()).toBe(true)
+
+      disableNetworkLogging()
+      expect(isNetworkLoggingEnabled()).toBe(false)
+    })
+
+    it('should log concise HTTP summaries when enabled', async () => {
+      // Mock fetch
+      const mockResponse: any = {
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          get: jest.fn((header: string) => (header === 'content-length' ? '1024' : null)),
+        },
+        clone: jest.fn(() => mockResponse),
+        text: jest.fn(() => Promise.resolve('response body')),
+      }
+
+      global.fetch = jest.fn(() => Promise.resolve(mockResponse))
+
+      enableNetworkLogging(true)
+
+      await fetch('/api/test')
+
+      expect(mockConsole.info).toHaveBeenCalledWith(
+        expect.stringContaining('[ℹ] [HTTP] GET /api/test — 200 OK')
+      )
+    })
+
+    it('should log failed requests', async () => {
+      const mockError = new Error('Network error')
+      global.fetch = jest.fn(() => Promise.reject(mockError))
+
+      enableNetworkLogging(true)
+
+      await expect(fetch('/api/failing')).rejects.toThrow('Network error')
+
+      expect(mockConsole.error).toHaveBeenCalledWith(
+        expect.stringContaining('[⛔] [HTTP] GET /api/failing — FAILED')
+      )
+    })
+
+    it('should not log when network logging is disabled', async () => {
+      const mockResponse: any = {
+        status: 200,
+        statusText: 'OK',
+        headers: { get: jest.fn(() => null) },
+        clone: jest.fn(() => mockResponse),
+        text: jest.fn(() => Promise.resolve('')),
+      }
+
+      global.fetch = jest.fn(() => Promise.resolve(mockResponse))
+
+      enableNetworkLogging(false) // Disabled
+
+      await fetch('/api/test')
+
+      expect(mockConsole.info).not.toHaveBeenCalled()
     })
 
     it('should provide network logs getter', () => {
@@ -150,6 +302,80 @@ describe('Logger', () => {
       // since it's evaluated at module load time
       expect(typeof (globalThis as any).__DEV__).toBeDefined()
       expect(typeof process?.env?.NODE_ENV).toBeDefined()
+    })
+  })
+
+  describe('Recent Error Buffer', () => {
+    beforeEach(() => {
+      // Clear error buffer before each test
+      clearRecentErrors()
+      jest.clearAllMocks()
+    })
+
+    it('should buffer recent errors', () => {
+      const error = new Error('Test error')
+      logger.error('TestScope', 'test error occurred', { error, userId: '123' })
+
+      const recentErrors = getRecentErrors()
+      expect(recentErrors).toHaveLength(1)
+      expect(recentErrors[0]).toMatchObject({
+        level: 'error',
+        scope: 'TestScope',
+        message: 'test error occurred',
+        context: { error, userId: '123' },
+        stack: error.stack,
+      })
+      expect(recentErrors[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+    })
+
+    it('should maintain maximum buffer size', () => {
+      // Fill buffer beyond max (50)
+      for (let i = 0; i < 60; i++) {
+        logger.error('TestScope', `error ${i}`, { index: i })
+      }
+
+      const recentErrors = getRecentErrors()
+      expect(recentErrors).toHaveLength(50)
+
+      // Should contain the most recent 50 errors
+      expect(recentErrors[49].context?.index).toBe(59)
+      expect(recentErrors[0].context?.index).toBe(10)
+    })
+
+    it('should extract stack traces from Error objects', () => {
+      const error = new Error('Stack trace error')
+      logger.error('TestScope', 'error with stack', { error })
+
+      const recentErrors = getRecentErrors()
+      expect(recentErrors[0].stack).toBe(error.stack)
+    })
+
+    it('should extract stack traces from context.stack', () => {
+      const stackTrace = 'Custom stack trace'
+      logger.error('TestScope', 'error with custom stack', { stack: stackTrace })
+
+      const recentErrors = getRecentErrors()
+      expect(recentErrors[0].stack).toBe(stackTrace)
+    })
+
+    it('should clear error buffer', () => {
+      logger.error('TestScope', 'first error')
+      logger.error('TestScope', 'second error')
+
+      expect(getRecentErrors()).toHaveLength(2)
+
+      clearRecentErrors()
+      expect(getRecentErrors()).toHaveLength(0)
+    })
+
+    it('should return a copy of the buffer', () => {
+      logger.error('TestScope', 'test error')
+      const errors1 = getRecentErrors()
+      const errors2 = getRecentErrors()
+
+      // Should be separate arrays
+      expect(errors1).not.toBe(errors2)
+      expect(errors1).toEqual(errors2)
     })
   })
 })

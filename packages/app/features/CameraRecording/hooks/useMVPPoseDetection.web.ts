@@ -51,9 +51,10 @@ class MockMVPTensorFlowModel {
     await new Promise((resolve) => setTimeout(resolve, 800))
     this.isLoaded = true
 
-    log.info(
-      `MVP TensorFlow.js model loaded: ${config.modelType} (WebGL: ${this.isWebGLSupported})`
-    )
+    log.info('useMVPPoseDetection.web', 'MVP TensorFlow.js model loaded', {
+      modelType: config.modelType,
+      webglSupported: this.isWebGLSupported,
+    })
   }
 
   async predict(): Promise<MVPPoseDetectionResult> {
@@ -122,7 +123,9 @@ export async function startMVPPoseDetectionWeb(
           onPoseDetected(pose)
         }
       } catch (error) {
-        log.error('MVP web pose detection error:', error)
+        log.error('useMVPPoseDetection.web', 'MVP web pose detection error', {
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -143,7 +146,9 @@ export async function startMVPPoseDetectionWeb(
       model,
     }
   } catch (error) {
-    log.error('Failed to start MVP web pose detection:', error)
+    log.error('useMVPPoseDetection.web', 'Failed to start MVP web pose detection', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     model.cleanup()
     throw error
   }
@@ -159,9 +164,11 @@ export function stopMVPPoseDetectionWeb(detectionInstance: {
 }): void {
   try {
     detectionInstance.stop()
-    log.info('MVP web pose detection stopped')
+    log.info('useMVPPoseDetection.web', 'MVP web pose detection stopped')
   } catch (error) {
-    log.error('Failed to stop MVP web pose detection:', error)
+    log.error('useMVPPoseDetection.web', 'Failed to stop MVP web pose detection', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 

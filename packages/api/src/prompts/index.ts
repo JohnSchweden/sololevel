@@ -83,7 +83,7 @@ export class PromptManager {
         throw error
       }
       if (this.config.logWarnings) {
-        log.warn('SSML Prompt generation failed', { error, feedbackText })
+        log.warn('Prompts', 'SSML generation failed', { error, feedbackText })
       }
       return this.getFallbackSSMLPrompt(feedbackText)
     }
@@ -100,7 +100,7 @@ export class PromptManager {
         throw error
       }
       if (this.config.logWarnings) {
-        log.warn('Gemini analysis prompt generation failed', { error, params })
+        log.warn('Prompts', 'Gemini analysis prompt generation failed', { error, params })
       }
       return this.getFallbackAnalysisPrompt()
     }
@@ -117,7 +117,7 @@ export class PromptManager {
         throw error
       }
       if (this.config.logWarnings) {
-        log.warn('Qwen analysis prompt generation failed', { error, params })
+        log.warn('Prompts', 'Qwen analysis prompt generation failed', { error, params })
       }
       return this.getFallbackAnalysisPrompt()
     }

@@ -112,16 +112,7 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
 
   // Subscribe/unsubscribe based on analysis ID using a ref guard to prevent churn
   useEffect(() => {
-    log.debug('useFeedbackStatusIntegration', 'Subscription effect running', {
-      analysisId,
-      lastAnalysisId: lastAnalysisIdRef.current,
-      isSubscribed,
-      subscriptionStatus,
-      isSubscribing: isSubscribingRef.current,
-    })
-
     if (!analysisId) {
-      log.debug('useFeedbackStatusIntegration', 'No analysisId - skipping subscription')
       return undefined
     }
 
@@ -205,13 +196,7 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
   }, [analysisId])
 
   // Debug dependency changes
-  useEffect(() => {
-    log.debug('useFeedbackStatusIntegration', 'Dependency change detected', {
-      analysisId,
-      isSubscribed,
-      subscriptionStatus,
-    })
-  }, [analysisId, isSubscribed, subscriptionStatus])
+  useEffect(() => {}, [analysisId, isSubscribed, subscriptionStatus])
 
   // Transform feedback data for UI components
   const feedbackItems = useMemo(() => {
@@ -226,10 +211,8 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       confidence: feedback.confidence,
     }))
 
-    log.debug('useFeedbackStatusIntegration: Transformed feedback items', {
-      totalFeedbacks: feedbacks.length,
-      transformedItems: items.length,
-      statusBreakdown: items.reduce(
+    if (__DEV__) {
+      const breakdown = items.reduce(
         (acc, item) => {
           acc.ssmlStatus = acc.ssmlStatus || {}
           acc.audioStatus = acc.audioStatus || {}
@@ -238,13 +221,19 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
           return acc
         },
         {} as { ssmlStatus: Record<string, number>; audioStatus: Record<string, number> }
-      ),
-      sampleItems: items.slice(0, 3).map((item) => ({
-        id: item.id,
-        audioStatus: item.audioStatus,
-        ssmlStatus: item.ssmlStatus,
-      })),
-    })
+      )
+
+      log.debug('FeedbackIntegration', 'transformed feedback items', {
+        totalFeedbacks: feedbacks.length,
+        transformedItems: items.length,
+        statusBreakdown: breakdown,
+        sampleItems: items.slice(0, 3).map((item) => ({
+          id: item.id,
+          audioStatus: item.audioStatus,
+          ssmlStatus: item.ssmlStatus,
+        })),
+      })
+    }
 
     return items
   }, [feedbacks])

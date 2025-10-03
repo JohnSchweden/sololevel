@@ -103,7 +103,9 @@ export async function startMVPPoseDetectionNative(
           onPoseDetected(pose)
         }
       } catch (error) {
-        log.error('MVP native pose detection error:', error)
+        log.error('useMVPPoseDetection.native', 'MVP native pose detection error', {
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -124,7 +126,9 @@ export async function startMVPPoseDetectionNative(
       model,
     }
   } catch (error) {
-    log.error('Failed to start MVP native pose detection:', error)
+    log.error('useMVPPoseDetection.native', 'Failed to start MVP native pose detection', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     model.cleanup()
     throw error
   }
@@ -142,7 +146,9 @@ export function stopMVPPoseDetectionNative(detectionInstance: {
     detectionInstance.stop()
     log.info('useMVPPoseDetection', '🤖 MVP native pose detection stopped')
   } catch (error) {
-    log.error('Failed to stop MVP native pose detection:', error)
+    log.error('useMVPPoseDetection.native', 'Failed to stop MVP native pose detection', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 

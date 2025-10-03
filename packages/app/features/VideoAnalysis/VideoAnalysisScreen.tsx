@@ -174,9 +174,11 @@ export function VideoAnalysisScreen({
       // If no job ID or job ID lookup failed, try video recording ID lookup
       if (videoRecordingId) {
         try {
-          log.debug('VideoAnalysisScreen', 'Attempting to find analysis by video recording ID', {
-            videoRecordingId,
-          })
+          if (__DEV__) {
+            log.debug('VideoAnalysisScreen', 'Attempting to find analysis by video recording ID', {
+              videoRecordingId,
+            })
+          }
 
           // Query for analysis job by video recording ID
           const { data: userData } = await supabase.auth.getUser()
@@ -350,9 +352,11 @@ export function VideoAnalysisScreen({
               })
               setAnalysisJob(job)
             } else {
-              log.debug('VideoAnalysisScreen', 'Backfill re-check still empty', {
-                subscriptionKey,
-              })
+              if (__DEV__) {
+                log.debug('VideoAnalysisScreen', 'Backfill re-check still empty', {
+                  subscriptionKey,
+                })
+              }
             }
           }
         } catch (error) {
@@ -369,44 +373,40 @@ export function VideoAnalysisScreen({
   const renderCountRef = useRef(0)
   renderCountRef.current++
 
-  // Only log every 25th render to reduce performance impact and noise
-  if (renderCountRef.current % 25 === 1 && log && log.info) {
-    log.info('VideoAnalysisScreen', 'Component rendered', {
-      renderCount: renderCountRef.current,
-      analysisJobId: effectiveAnalysisJobId,
-      videoUri: videoUri ? 'provided' : 'fallback',
-      hasAnalysisJob: !!analysisJob,
-    })
-  }
+  // Render logging removed - too noisy for production
 
   // Determine if we should show processing based on upload and analysis state
   const shouldShowProcessing = useMemo(() => {
     // PRIORITY 1: If analysis job is completed or failed, always hide overlay
     // This overrides upload status to prevent stuck overlay
     if (analysisJob && (analysisJob.status === 'completed' || analysisJob.status === 'failed')) {
-      log.debug(
-        'VideoAnalysisScreen',
-        'shouldShowProcessing: analysis completed/failed - hiding overlay',
-        {
-          analysisJobStatus: analysisJob.status,
-          uploadProgressStatus: uploadProgress?.status,
-          decision: false,
-        }
-      )
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: analysis completed/failed - hiding overlay',
+          {
+            analysisJobStatus: analysisJob.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
       return false
     }
 
     // PRIORITY 2: If analysis is queued or processing, show overlay
     if (analysisJob && (analysisJob.status === 'queued' || analysisJob.status === 'processing')) {
-      log.debug(
-        'VideoAnalysisScreen',
-        'shouldShowProcessing: analysis in progress - showing overlay',
-        {
-          analysisJobStatus: analysisJob.status,
-          uploadProgressStatus: uploadProgress?.status,
-          decision: true,
-        }
-      )
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: analysis in progress - showing overlay',
+          {
+            analysisJobStatus: analysisJob.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: true,
+          }
+        )
+      }
       return true
     }
 
@@ -415,35 +415,26 @@ export function VideoAnalysisScreen({
       uploadProgress &&
       (uploadProgress.status === 'pending' || uploadProgress.status === 'uploading')
     ) {
-      log.debug(
-        'VideoAnalysisScreen',
-        'shouldShowProcessing: upload in progress - showing overlay',
-        {
-          analysisJobStatus: analysisJob?.status,
-          uploadProgressStatus: uploadProgress.status,
-          decision: true,
-        }
-      )
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: upload in progress - showing overlay',
+          {
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress.status,
+            decision: true,
+          }
+        )
+      }
       return true
     }
 
     // PRIORITY 4: If we have no upload/analysis data yet, use initialStatus
     if (!uploadProgress && !analysisJob) {
-      log.debug('VideoAnalysisScreen', 'shouldShowProcessing: no data yet - using initial status', {
-        analysisJobStatus: null,
-        uploadProgressStatus: null,
-        initialStatus,
-        decision: initialStatus === 'processing',
-      })
       return initialStatus === 'processing'
     }
 
     // DEFAULT: Hide processing overlay
-    log.debug('VideoAnalysisScreen', 'shouldShowProcessing: default - hiding overlay', {
-      analysisJobStatus: analysisJob?.status,
-      uploadProgressStatus: uploadProgress?.status,
-      decision: false,
-    })
     return false
   }, [uploadProgress, analysisJob, initialStatus])
 
@@ -765,10 +756,12 @@ export function VideoAnalysisScreen({
 
   // Animate layout changes when panelFraction changes
   useEffect(() => {
-    log.debug('VideoAnalysisScreen', 'Panel fraction changed', {
-      panelFraction,
-      platform: Platform.OS,
-    })
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Panel fraction changed', {
+        panelFraction,
+        platform: Platform.OS,
+      })
+    }
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       LayoutAnimation.configureNext({
         duration: 500,
@@ -782,7 +775,9 @@ export function VideoAnalysisScreen({
           initialVelocity: 0,
         },
       })
-      log.debug('VideoAnalysisScreen', 'LayoutAnimation configured')
+      if (__DEV__) {
+        log.debug('VideoAnalysisScreen', 'LayoutAnimation configured')
+      }
     }
   }, [panelFraction])
 
@@ -853,12 +848,10 @@ export function VideoAnalysisScreen({
       analysisJobId,
       videoUri,
       feedbackMessagesCount: feedbackMessages.length,
-      feedbackMessages: feedbackMessages.map((msg, idx) => ({
+      feedbackMessagesSample: feedbackMessages.slice(0, 2).map((msg, idx) => ({
         index: idx,
         id: msg.id,
         timestamp: msg.timestamp,
-        timestampSeconds: msg.timestamp / 1000,
-        text: msg.text.substring(0, 30) + '...',
         type: msg.type,
         category: msg.category,
       })),
@@ -896,19 +889,16 @@ export function VideoAnalysisScreen({
 
   // Video control handlers
   const handlePlay = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handlePlay called')
     setIsPlaying(true)
     setVideoEnded(false) // Reset ended state when user plays
   }, [])
 
   const handlePause = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handlePause called')
     setIsPlaying(false)
     setVideoEnded(false) // Reset ended state when user pauses
   }, [])
 
   const handleVideoEnd = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handleVideoEnd called')
     setIsPlaying(false)
     setVideoEnded(true)
   }, [])
@@ -928,7 +918,6 @@ export function VideoAnalysisScreen({
   )
 
   const handleReplay = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handleReplay called')
     setPendingSeek(0) // Seek to beginning
     setVideoEnded(false)
     setIsPlaying(true)
@@ -950,13 +939,11 @@ export function VideoAnalysisScreen({
   )
 
   const handleVideoTap = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handleVideoTap called')
     // For now, just log - controls will be added later
   }, [])
 
   // Handler for menu press from AppHeader - triggers fly-out menu in VideoControls
   const handleMenuPress = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'handleMenuPress called')
     // First call the parent's onMenuPress callback if provided
     onMenuPress?.()
     // Then trigger the fly-out menu in VideoControls
@@ -989,19 +976,8 @@ export function VideoAnalysisScreen({
 
       // Hide bubble after 2 seconds
       bubbleTimerRef.current = setTimeout(() => {
-        log.info('VideoAnalysisScreen', 'Auto-hiding bubble after 2 seconds', {
-          bubbleIndex: index,
-        })
         hideBubble()
       }, 2000)
-
-      log.info('VideoAnalysisScreen', 'Bubble shown successfully', {
-        bubbleIndex: index,
-        messageId: feedbackMessages[index]?.id,
-        messageText: feedbackMessages[index]?.text.substring(0, 30) + '...',
-        timestamp: Date.now(),
-        autoHideIn: 2000,
-      })
     },
     [currentBubbleIndex, bubbleVisible, isPlaying, feedbackMessages]
   )
@@ -1021,8 +997,6 @@ export function VideoAnalysisScreen({
       clearTimeout(bubbleTimerRef.current)
       bubbleTimerRef.current = null
     }
-
-    log.info('VideoAnalysisScreen', 'Bubble hidden successfully')
   }, [currentBubbleIndex, bubbleVisible, isPlaying])
 
   // Hide bubble when video is paused or stopped (but allow showing when seeking)

@@ -168,7 +168,9 @@ export function IdleControls({
               await onCameraSwap?.()
             } catch (error) {
               // Error is handled in the camera logic, just log for debugging
-              log.warn('IdleControls', 'Camera swap failed', error)
+              log.warn('IdleControls', 'Camera swap failed', {
+                error: error instanceof Error ? error.message : String(error),
+              })
             }
           }}
           disabled={disabled || cameraSwapDisabled || isCameraSwapping}

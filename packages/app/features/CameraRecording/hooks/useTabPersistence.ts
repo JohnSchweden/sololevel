@@ -33,7 +33,9 @@ export function useTabPersistence() {
         log.info('useTabPersistence', 'Using default tab state', { tab: DEFAULT_TAB })
       }
     } catch (error) {
-      log.error('useTabPersistence', 'Failed to load saved tab state', error)
+      log.error('useTabPersistence', 'Failed to load saved tab state', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       // Fallback to default tab on error
       setActiveTabState(DEFAULT_TAB)
     } finally {
@@ -46,7 +48,9 @@ export function useTabPersistence() {
       await AsyncStorage.setItem(TAB_STORAGE_KEY, tab)
       log.info('useTabPersistence', 'Saved tab state', { tab })
     } catch (error) {
-      log.error('useTabPersistence', 'Failed to save tab state', error)
+      log.error('useTabPersistence', 'Failed to save tab state', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }, [])
 

@@ -490,11 +490,10 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                     void latestState
                       .subscribeToAnalysisFeedbacks(analysisId)
                       .catch((err: unknown) => {
-                        log.error(
-                          'FeedbackStatusStore',
-                          `Retry subscribe failed for analysis ${analysisId}`,
-                          err
-                        )
+                        log.error('FeedbackStatusStore', 'retry subscribe failed', {
+                          error: err,
+                          analysisId,
+                        })
                       })
                   }, delay)
 
@@ -512,7 +511,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             })
           })
         } catch (error) {
-          log.error('FeedbackStatusStore', `Failed to subscribe to analysis ${analysisId}`, error)
+          log.error('FeedbackStatusStore', 'failed to subscribe to analysis', { error, analysisId })
           throw error
         }
       },

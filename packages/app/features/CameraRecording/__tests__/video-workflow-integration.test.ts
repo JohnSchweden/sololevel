@@ -97,7 +97,9 @@ describe('Video Workflow Integration', () => {
     mockFileSystem.makeDirectoryAsync.mockImplementation((uri) => {
       log.info('makeDirectoryAsync called with:', uri)
       createdDirectories.add(uri)
-      log.info('createdDirectories Set now has:', createdDirectories.size, 'items')
+      log.info('video-workflow-integration.test', 'createdDirectories Set now has items', {
+        count: createdDirectories.size,
+      })
       return Promise.resolve()
     })
     mockFileSystem.copyAsync.mockImplementation(({ to }) => {
@@ -257,9 +259,11 @@ describe('Video Workflow Integration', () => {
         'Failed to initialize video storage'
       )
       expect(log.error).toHaveBeenCalledWith(
-        'VideoStorageService',
+        'videoStorageService',
         'Failed to initialize storage directories',
-        expect.any(Error)
+        expect.objectContaining({
+          error: expect.any(String),
+        })
       )
     })
 

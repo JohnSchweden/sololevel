@@ -61,7 +61,9 @@ export function FeedbackPanel({
 }: FeedbackPanelProps) {
   // Trigger layout animation when flex changes
   useEffect(() => {
-    logger.debug('FeedbackPanel flex changed:', flex, 'Platform:', Platform.OS)
+    if (__DEV__) {
+      logger.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
+    }
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       LayoutAnimation.configureNext({
         duration: 300,
@@ -75,7 +77,9 @@ export function FeedbackPanel({
           initialVelocity: 0,
         },
       })
-      logger.debug('LayoutAnimation configured')
+      if (__DEV__) {
+        logger.debug('FeedbackPanel', 'layout animation configured')
+      }
     }
   }, [flex])
 

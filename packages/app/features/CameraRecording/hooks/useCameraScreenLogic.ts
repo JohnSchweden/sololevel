@@ -193,7 +193,9 @@ export const useCameraScreenLogic = ({
         setIsCameraSwapping(false)
       }, CAMERA_SWAP_TRANSITION_DURATION)
     } catch (error) {
-      log.error('handleCameraSwap', 'Failed to change camera facing', error)
+      log.error('useCameraScreenLogic', 'Failed to change camera facing', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       // Ensure we reset the swapping state on error
       setIsCameraSwapping(false)
     }
@@ -213,7 +215,9 @@ export const useCameraScreenLogic = ({
           await cameraRef.current.setZoom(level)
           log.info('handleZoomChange', 'Zoom applied to camera', { level })
         } catch (error) {
-          log.error('handleZoomChange', 'Failed to apply zoom to camera', error)
+          log.error('useCameraScreenLogic', 'Failed to apply zoom to camera', {
+            error: error instanceof Error ? error.message : String(error),
+          })
         }
       }
     },
@@ -266,7 +270,9 @@ export const useCameraScreenLogic = ({
       await stopRecording()
       log.info('useCameraScreenLogic', 'stopRecording() completed successfully')
     } catch (error) {
-      log.error('useCameraScreenLogic', 'Error stopping recording', error)
+      log.error('useCameraScreenLogic', 'Error stopping recording', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       log.warn('handleStopRecording', `Stop recording not supported on this platform: ${error}`)
     }
   }, [canStop, stopRecording])

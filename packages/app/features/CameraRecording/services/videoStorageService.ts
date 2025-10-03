@@ -32,7 +32,9 @@ export class VideoStorageService {
         })
       }
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to initialize storage directories', error)
+      log.error('videoStorageService', 'Failed to initialize storage directories', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error('Failed to initialize video storage')
     }
   }
@@ -196,7 +198,9 @@ export class VideoStorageService {
       log.info('VideoStorageService', 'Listed videos', { count: videos.length })
       return videos
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to list videos', error)
+      log.error('videoStorageService', 'Failed to list videos', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error(
         `Failed to list videos: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
@@ -237,7 +241,9 @@ export class VideoStorageService {
 
       log.info('VideoStorageService', 'All videos cleared')
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to clear videos', error)
+      log.error('videoStorageService', 'Failed to clear videos', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error(
         `Failed to clear videos: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
@@ -266,7 +272,9 @@ export class VideoStorageService {
         availableSpace,
       }
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to get storage stats', error)
+      log.error('videoStorageService', 'Failed to get storage stats', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error(
         `Failed to get storage stats: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
@@ -310,7 +318,9 @@ export class VideoStorageService {
         log.info('VideoStorageService', 'Temp files cleaned up')
       }
     } catch (error) {
-      log.error('VideoStorageService', 'Failed to cleanup temp files', error)
+      log.error('videoStorageService', 'Failed to cleanup temp files', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 

@@ -26,7 +26,10 @@ export async function uriToBlob(uri: string): Promise<Blob> {
 
     throw new Error('Unsupported URI format')
   } catch (error) {
-    log.error('Failed to convert URI to Blob', { uri, error })
+    log.error('files', 'Failed to convert URI to Blob', {
+      uri,
+      error: error instanceof Error ? error.message : String(error),
+    })
     throw new Error(
       `Failed to convert URI to Blob: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
@@ -49,7 +52,10 @@ async function convertFileUriToBlob(uri: string): Promise<Blob> {
     const blob = await response.blob()
     return blob
   } catch (error) {
-    log.error('Failed to convert file URI to Blob', { uri, error })
+    log.error('files', 'Failed to convert file URI to Blob', {
+      uri,
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     // Fallback: try to read file as base64 and convert to Blob
     try {
@@ -64,7 +70,11 @@ async function convertFileUriToBlob(uri: string): Promise<Blob> {
       // Convert base64 to Blob
       return base64ToBlob(base64Data, getMimeTypeFromUri(uri))
     } catch (fallbackError) {
-      log.error('Fallback file conversion also failed', { uri, fallbackError })
+      log.error('files', 'Fallback file conversion also failed', {
+        uri,
+        fallbackError:
+          fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+      })
       throw error // Throw original error
     }
   }
@@ -83,7 +93,10 @@ async function convertWebUriToBlob(uri: string): Promise<Blob> {
 
     return await response.blob()
   } catch (error) {
-    log.error('Failed to convert web URI to Blob', { uri, error })
+    log.error('files', 'Failed to convert web URI to Blob', {
+      uri,
+      error: error instanceof Error ? error.message : String(error),
+    })
     throw error
   }
 }

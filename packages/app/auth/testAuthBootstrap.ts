@@ -1,6 +1,9 @@
 import { authClient } from '@my/api'
 import { log } from '@my/logging'
 
+// Global state to prevent duplicate bootstrap calls
+let bootstrapInFlight = false
+
 /**
  * Result of test auth bootstrap operation
  */
@@ -105,45 +108,63 @@ function getTestAuthCredentials(): { email: string; password: string } | null {
  * This enables seamless development and testing workflows.
  */
 export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
-  const correlationId = `test_auth_${Date.now()}_${Math.random().toString(36).slice(2)}`
-
-  log.info('testAuthBootstrap', 'Starting test auth bootstrap', { correlationId })
-
-  // Build-time guard: prevent usage in production
-  const envValidation = validateEnvironment()
-  if (!envValidation.success) {
-    return envValidation
-  }
-
-  // Check if test auth is enabled
-  if (!isTestAuthEnabled()) {
-    log.info('testAuthBootstrap', 'Test auth not enabled', { correlationId })
+  // Prevent duplicate bootstrap calls
+  if (bootstrapInFlight) {
+    if (__DEV__) {
+      log.debug('testAuthBootstrap', 'Bootstrap already in progress, skipping')
+    }
     return {
       success: true,
-      message: 'Test auth not enabled',
+      message: 'Bootstrap already in progress',
     }
   }
 
-  // Get test credentials
-  const credentials = getTestAuthCredentials()
-  if (!credentials) {
-    const error = 'Test auth enabled but TEST_AUTH_EMAIL and TEST_AUTH_PASSWORD are not set'
-    log.error('testAuthBootstrap', error, { correlationId })
-    return {
-      success: false,
-      message: '',
-      error,
-    }
-  }
+  bootstrapInFlight = true
+  const correlationId = `test_auth_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
   try {
+    if (__DEV__) {
+      log.debug('testAuthBootstrap', 'Starting test auth bootstrap', { correlationId })
+    }
+
+    // Build-time guard: prevent usage in production
+    const envValidation = validateEnvironment()
+    if (!envValidation.success) {
+      return envValidation
+    }
+
+    // Check if test auth is enabled
+    if (!isTestAuthEnabled()) {
+      if (__DEV__) {
+        log.debug('testAuthBootstrap', 'Test auth not enabled', { correlationId })
+      }
+      return {
+        success: true,
+        message: 'Test auth not enabled',
+      }
+    }
+
+    // Get test credentials
+    const credentials = getTestAuthCredentials()
+    if (!credentials) {
+      const error = 'Test auth enabled but TEST_AUTH_EMAIL and TEST_AUTH_PASSWORD are not set'
+      log.error('testAuthBootstrap', error, { correlationId })
+      return {
+        success: false,
+        message: '',
+        error,
+      }
+    }
+
     // Check if user is already authenticated
     const currentUserId = await authClient.getCurrentUserId()
     if (currentUserId) {
-      log.info('testAuthBootstrap', 'User already authenticated', {
-        correlationId,
-        userId: currentUserId,
-      })
+      if (__DEV__) {
+        log.debug('testAuthBootstrap', 'User already authenticated', {
+          correlationId,
+          userId: currentUserId,
+        })
+      }
       return {
         success: true,
         message: 'User already authenticated',
@@ -193,6 +214,8 @@ export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
       message: '',
       error: errorMessage,
     }
+  } finally {
+    bootstrapInFlight = false
   }
 }
 

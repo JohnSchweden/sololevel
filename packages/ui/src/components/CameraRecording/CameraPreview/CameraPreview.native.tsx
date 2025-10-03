@@ -19,7 +19,11 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           const { VisionCameraPreview } = require('./CameraPreview.native.vision')
           return VisionCameraPreview
         } catch (error) {
-          log.warn('VisionCamera not available, falling back to Expo Camera:', error)
+          log.warn(
+            'CameraPreview.native',
+            'VisionCamera not available, falling back to Expo Camera',
+            { error: error instanceof Error ? error.message : String(error) }
+          )
           // Fallback to Expo Camera if VisionCamera fails to load
           const { CameraPreview: ExpoCameraPreview } = require('./CameraPreview.native.expo')
           return ExpoCameraPreview

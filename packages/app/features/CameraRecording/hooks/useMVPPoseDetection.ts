@@ -5,7 +5,7 @@
  */
 
 import { log } from '@my/logging'
-log.debug('🔍 DEBUG: useMVPPoseDetection.ts module loading - START')
+log.debug('useMVPPoseDetection', 'Module loading - START')
 
 // Test minimal imports first
 import { useCallback, useRef, useState } from 'react'
@@ -73,7 +73,7 @@ export function useMVPPoseDetection(
   const isNative = Platform.OS !== 'web'
 
   if (__DEV__) {
-    log.debug('🎯 useMVPPoseDetection initialized:', { isNative, initialConfig })
+    log.debug('useMVPPoseDetection', 'Initialized', { isNative, initialConfig })
   }
 
   // MVP configuration - simple and focused
@@ -110,7 +110,7 @@ export function useMVPPoseDetection(
       }))
 
       // Temporarily disable platform-specific implementation to test module loading
-      log.debug('🔍 DEBUG: startDetection called, isNative:', isNative)
+      log.debug('useMVPPoseDetection', 'startDetection called', { isNative })
 
       // Mock implementation for testing
       setTimeout(() => {
@@ -137,7 +137,7 @@ export function useMVPPoseDetection(
   }, [config, state.isEnabled])
 
   const stopDetection = useCallback((): void => {
-    log.debug('🔍 DEBUG: stopDetection called')
+    log.debug('useMVPPoseDetection', 'stopDetection called')
 
     setState((prev) => ({
       ...prev,
@@ -269,4 +269,4 @@ export const MVPPoseDetectionUtils = {
   },
 }
 
-log.debug('🔍 DEBUG: useMVPPoseDetection.ts module loading - END')
+log.debug('useMVPPoseDetection', 'Module loading - END')

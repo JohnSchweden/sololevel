@@ -244,7 +244,9 @@ export function RecordingControls({
               await onCameraSwap?.()
             } catch (error) {
               // Error is handled in the camera logic, just log for debugging
-              log.warn('RecordingControls', 'Camera swap failed', error)
+              log.warn('RecordingControls', 'Camera swap failed', {
+                error: error instanceof Error ? error.message : String(error),
+              })
             }
           }}
           disabled={disabled || !canSwapCamera}
@@ -289,7 +291,6 @@ export function ZoomControls({ currentZoom, onZoomChange, disabled = false }: Zo
   const zoomLevels: Array<1 | 2 | 3> = [1, 2, 3]
 
   const handleZoomChange = (level: 1 | 2 | 3) => {
-    log.info('ZoomControls', 'Zoom change requested', { level, currentZoom, disabled })
     onZoomChange?.(level)
   }
 
@@ -323,7 +324,6 @@ interface ZoomButtonProps {
 
 function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
   const handlePress = () => {
-    log.info('ZoomButton', 'Zoom button pressed', { level, isActive, disabled })
     onPress?.()
   }
 

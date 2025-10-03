@@ -203,24 +203,30 @@ export const authClient = {
   onAuthStateChange(callback: AuthStateChangeCallback): () => void {
     const correlationId = `auth_listener_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
-    log.info('authClient', 'Setting up auth state listener', { correlationId })
+    if (__DEV__) {
+      log.debug('authClient', 'Setting up auth state listener', { correlationId })
+    }
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      log.info('authClient', 'Auth state changed', {
-        correlationId,
-        event,
-        hasSession: !!session,
-        userId: session?.user?.id,
-      })
+      if (__DEV__) {
+        log.debug('authClient', 'Auth state changed', {
+          correlationId,
+          event,
+          hasSession: !!session,
+          userId: session?.user?.id,
+        })
+      }
 
       callback(session)
     })
 
     // Return cleanup function
     return () => {
-      log.info('authClient', 'Cleaning up auth state listener', { correlationId })
+      if (__DEV__) {
+        log.debug('authClient', 'Cleaning up auth state listener', { correlationId })
+      }
       subscription.unsubscribe()
     }
   },

@@ -68,7 +68,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         const timer = setTimeout(() => {
           setCameraReady(true)
           onCameraReady?.()
-          log.info('CameraPreview', 'Web camera placeholder initialized')
+          if (__DEV__) {
+            log.info('CameraPreview', 'Web camera placeholder initialized')
+          }
         }, 1000)
 
         return () => clearTimeout(timer)

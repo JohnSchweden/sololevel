@@ -94,7 +94,9 @@ export function useMVPPoseToggle(
         error: errorMessage,
       }))
 
-      log.error('Failed to enable MVP pose detection:', error)
+      log.error('useMVPPoseToggle', 'Failed to enable MVP pose detection', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw error
     }
   }, [state.isChanging, state.isEnabled])
@@ -133,7 +135,9 @@ export function useMVPPoseToggle(
         error: errorMessage,
       }))
 
-      log.error('Failed to disable MVP pose detection:', error)
+      log.error('useMVPPoseToggle', 'Failed to disable MVP pose detection', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw error
     }
   }, [state.isChanging, state.isEnabled])

@@ -2,7 +2,7 @@ import { useAuth } from '@my/app/hooks/useAuth'
 import { log } from '@my/logging'
 import { H3, Spinner, YStack } from '@my/ui'
 import { useRouter } from 'expo-router'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 export interface AuthGateProps {
   children: React.ReactNode
@@ -24,6 +24,17 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
   const { isAuthenticated, loading, initialized } = useAuth()
   const router = useRouter()
 
+  // Log deduplication ref - must be called unconditionally at component level
+  const lastLoggedKeyRef = useRef<string>('')
+
+  // Log deduplication helper to prevent spam of the same transition
+  const logOnce = (key: string, fn: () => void) => {
+    if (lastLoggedKeyRef.current !== key) {
+      lastLoggedKeyRef.current = key
+      fn()
+    }
+  }
+
   useEffect(() => {
     // Only redirect after auth is initialized and user is not authenticated
     if (initialized && !loading && !isAuthenticated) {
@@ -42,10 +53,12 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
   // Show loading state while auth is initializing
   if (!initialized || loading) {
-    log.info('AuthGate', 'Auth initializing, showing loading state', {
-      initialized,
-      loading,
-    })
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      log.debug('AuthGate', 'Auth initializing, showing loading state', {
+        initialized,
+        loading,
+      })
+    }
 
     if (fallback) {
       return <>{fallback}</>
@@ -68,11 +81,15 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
   // Don't render children if not authenticated (redirect will happen)
   if (!isAuthenticated) {
-    log.info('AuthGate', 'User not authenticated, not rendering children')
+    logOnce('not-authenticated', () =>
+      log.info('AuthGate', 'User not authenticated, not rendering children')
+    )
     return null
   }
 
   // User is authenticated, render protected content
-  log.info('AuthGate', 'User authenticated, rendering protected content')
+  logOnce('authenticated', () =>
+    log.info('AuthGate', 'User authenticated, rendering protected content')
+  )
   return <>{children}</>
 }

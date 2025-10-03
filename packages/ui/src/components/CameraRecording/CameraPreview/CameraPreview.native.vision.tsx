@@ -268,11 +268,10 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             try {
               startRecordingWithCodec('h264')
             } catch (fallbackError) {
-              log.error(
-                'VisionCamera',
-                'Failed to start recording with fallback codec h264',
-                fallbackError
-              )
+              log.error('VisionCamera', 'Failed to start recording with fallback codec h264', {
+                error:
+                  fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+              })
               throw fallbackError
             }
           }
@@ -287,7 +286,9 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             await cameraRef.current!.stopRecording()
             log.info('VisionCamera', 'Recording stopped')
           } catch (error) {
-            log.error('VisionCamera', 'Failed to stop recording', error)
+            log.error('VisionCamera', 'Failed to stop recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -301,7 +302,9 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             await cameraRef.current!.pauseRecording()
             log.info('VisionCamera', 'Recording paused')
           } catch (error) {
-            log.error('VisionCamera', 'Failed to pause recording', error)
+            log.error('VisionCamera', 'Failed to pause recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -315,7 +318,9 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             await cameraRef.current!.resumeRecording()
             log.info('VisionCamera', 'Recording resumed')
           } catch (error) {
-            log.error('VisionCamera', 'Failed to resume recording', error)
+            log.error('VisionCamera', 'Failed to resume recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -332,7 +337,9 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             log.info('VisionCamera', 'Picture taken', { path: photo.path })
             return photo.path
           } catch (error) {
-            log.error('VisionCamera', 'Failed to take picture', error)
+            log.error('VisionCamera', 'Failed to take picture', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -365,14 +372,18 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
             // Notify parent component of zoom change
             onZoomChange?.(clampedZoom)
 
-            log.info('VisionCamera', 'Zoom value updated', {
-              zoom: clampedZoom,
-              range: `${minZoom}-${maxZoom}`,
-              currentZoomLevel: currentZoomLevel,
-              willUpdateTo: clampedZoom,
-            })
+            if (__DEV__) {
+              log.info('VisionCamera', 'Zoom value updated', {
+                zoom: clampedZoom,
+                range: `${minZoom}-${maxZoom}`,
+                currentZoomLevel: currentZoomLevel,
+                willUpdateTo: clampedZoom,
+              })
+            }
           } catch (error) {
-            log.error('VisionCamera', 'Failed to update zoom', error)
+            log.error('VisionCamera', 'Failed to update zoom', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -409,7 +420,9 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     // Handle camera errors
     const handleCameraError = (error: any) => {
       const errorMessage = error?.message || 'VisionCamera failed to initialize'
-      log.error('VisionCamera', 'Camera error', error)
+      log.error('VisionCamera', 'Camera error', {
+        error: error instanceof Error ? error.message : String(error),
+      })
 
       setCameraError(errorMessage)
       setIsInitialized(false)

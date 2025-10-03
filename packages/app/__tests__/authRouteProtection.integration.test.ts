@@ -26,6 +26,7 @@ jest.mock('@my/logging', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
+    debug: jest.fn(),
   },
 }))
 

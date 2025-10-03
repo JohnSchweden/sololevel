@@ -127,7 +127,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             }
             log.info('CameraRecording', 'Recording started')
           } catch (error) {
-            log.error('CameraRecording', 'Failed to start recording', error)
+            log.error('CameraRecording', 'Failed to start recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -143,7 +145,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             await cameraRef.current.stopRecording()
             log.info('CameraRecording', 'Recording stopped')
           } catch (error) {
-            log.error('CameraRecording', 'Failed to stop recording', error)
+            log.error('CameraRecording', 'Failed to stop recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -159,7 +163,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             await cameraRef.current.toggleRecordingAsync()
             log.info('CameraRecording', 'Recording toggled (paused/resumed)')
           } catch (error) {
-            log.error('CameraRecording', 'Failed to toggle recording', error)
+            log.error('CameraRecording', 'Failed to toggle recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -176,7 +182,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             await cameraRef.current.toggleRecordingAsync()
             log.info('CameraRecording', 'Recording toggled (resumed)')
           } catch (error) {
-            log.error('CameraRecording', 'Failed to toggle recording', error)
+            log.error('CameraRecording', 'Failed to toggle recording', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -193,7 +201,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             log.info('CameraRecording', 'Picture taken', { uri: photo.uri })
             return photo.uri
           } catch (error) {
-            log.error('CameraRecording', 'Failed to take picture', error)
+            log.error('CameraRecording', 'Failed to take picture', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -239,13 +249,17 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             // Notify parent component of zoom change
             onZoomChange?.(expoZoomValue)
 
-            log.info('CameraPreview', 'Zoom value updated', {
-              discreteZoom: zoom,
-              expoZoom: expoZoomValue,
-              range: '0-1',
-            })
+            if (__DEV__) {
+              log.info('CameraPreview', 'Zoom value updated', {
+                discreteZoom: zoom,
+                expoZoom: expoZoomValue,
+                range: '0-1',
+              })
+            }
           } catch (error) {
-            log.error('CameraPreview', 'Failed to update zoom', error)
+            log.error('CameraPreview', 'Failed to update zoom', {
+              error: error instanceof Error ? error.message : String(error),
+            })
             throw error
           }
         },
@@ -278,7 +292,9 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     // Handle camera mount error
     const handleMountError = (error: any) => {
       const errorMessage = error?.message || 'Camera failed to initialize'
-      log.error('CameraPreview', 'Camera mount error', error)
+      log.error('CameraPreview', 'Camera mount error', {
+        error: error instanceof Error ? error.message : String(error),
+      })
 
       setCameraError(errorMessage)
       setIsCameraReady(false)
@@ -336,11 +352,13 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
 
           // Only log after initial orientation is set to avoid duplicate initial logs
           if (hasLoggedInitialOrientation) {
-            log.info('CameraPreview', `Orientation changed to ${newOrientation}`, {
-              width,
-              height,
-              componentId: Math.random().toString(36).substr(2, 9),
-            })
+            if (__DEV__) {
+              log.info('CameraPreview', `Orientation changed to ${newOrientation}`, {
+                width,
+                height,
+                componentId: Math.random().toString(36).substr(2, 9),
+              })
+            }
           } else {
             setHasLoggedInitialOrientation(true)
           }
@@ -369,10 +387,12 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
 
         // Only log after initial camera type is set to avoid duplicate initial logs
         if (hasLoggedInitialCameraType) {
-          log.info('CameraPreview', 'Camera type changed', {
-            newType: cameraType,
-            componentId: Math.random().toString(36).substr(2, 9),
-          })
+          if (__DEV__) {
+            log.info('CameraPreview', 'Camera type changed', {
+              newType: cameraType,
+              componentId: Math.random().toString(36).substr(2, 9),
+            })
+          }
         } else {
           setHasLoggedInitialCameraType(true)
         }

@@ -15,7 +15,9 @@ export const useCameraRecordingStore = () => {
       const { useCameraRecordingStore: useVisionStore } = require('./cameraRecording.vision')
       return useVisionStore()
     } catch (error) {
-      log.warn('VisionCamera store not available, falling back to Expo Camera store:', error)
+      log.warn('CameraStore', 'vision camera not available, falling back to expo', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       // Fallback to Expo Camera if VisionCamera fails to load
       const { useCameraRecordingStore: useExpoStore } = require('./cameraRecording.expo')
       return useExpoStore()

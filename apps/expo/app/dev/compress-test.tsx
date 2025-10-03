@@ -26,7 +26,7 @@ export default function CompressTestScreen() {
       setOriginalSize((before as any).size ?? 0)
       setDetails('Running compression...')
 
-      log.info('compress-test:start', {
+      log.info('compress-test', 'start', {
         fileUri,
         originalSize: (before as any).size,
         source: 'mini_speech.mp4',
@@ -49,7 +49,7 @@ export default function CompressTestScreen() {
           100,
       }
 
-      log.info('compress-test:result', report)
+      log.info('compress-test', 'result', report)
       setDetails(JSON.stringify(report, null, 2))
 
       // Pass if we got a valid URI and any metadata; compression may be identical if fallback path hit
@@ -59,7 +59,7 @@ export default function CompressTestScreen() {
         ((after as any).size ?? 0) >= 0
       setStatus(ok ? 'passed' : 'failed')
     } catch (error) {
-      log.error('compress-test:error', { error })
+      log.error('compress-test', 'error', { error })
       setDetails(String(error))
       setStatus('failed')
     }

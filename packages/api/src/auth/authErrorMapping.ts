@@ -35,9 +35,9 @@ export interface AuthEventContext {
  */
 export function mapAuthError(error: AuthError): MappedAuthError {
   // Log the original error for debugging
-  log.error('Auth Error', {
-    message: error.message,
-    name: error.name,
+  log.error('Auth', 'authentication error', {
+    error: error.message,
+    errorCode: error.name,
     status: error.status,
   })
 
@@ -175,7 +175,7 @@ export function logAuthEvent(event: string, context: AuthEventContext = {}): voi
     Object.entries(maskedContext).filter(([_, value]) => value !== undefined)
   )
 
-  log.info(`Auth Event: ${event}`, cleanContext)
+  log.info('Auth', `event: ${event}`, cleanContext)
 }
 
 /**

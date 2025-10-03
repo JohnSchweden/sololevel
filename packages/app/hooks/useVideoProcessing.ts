@@ -56,13 +56,15 @@ export function useVideoProcessing() {
       })
 
       try {
-        log.info(`Starting video processing for recording ${videoRecordingId}: ${videoPath}`)
+        log.info('useVideoProcessing', 'Starting video processing', { videoRecordingId, videoPath })
 
         // Step 1: Create analysis job
         const analysisJob = await createAnalysisJobWithPoseProcessing(videoRecordingId)
         setState((prev) => ({ ...prev, analysisJobId: analysisJob.id }))
 
-        log.info(`Created analysis job ${analysisJob.id} for video processing`)
+        log.info('useVideoProcessing', 'Created analysis job for video processing', {
+          analysisJobId: analysisJob.id,
+        })
 
         // Step 2: Set up progress tracking
         videoProcessingService.onProgress((progress) => {
@@ -97,7 +99,7 @@ export function useVideoProcessing() {
         const videoDuration = poseData.metadata.duration
         const timingParams = computeVideoTimingParams(videoDuration)
 
-        log.info(`Computed timing params for video analysis`, {
+        log.info('useVideoProcessing', 'Computed timing params for video analysis', {
           duration: videoDuration,
           feedbackCount: timingParams.feedbackCount,
           targetTimestamps: timingParams.targetTimestamps,
@@ -115,7 +117,8 @@ export function useVideoProcessing() {
           timingParams,
         })
 
-        log.info(`AI analysis started for job ${analysisJob.id}`, {
+        log.info('useVideoProcessing', 'AI analysis started for job', {
+          analysisJobId: analysisJob.id,
           analysisId: analysisResponse.analysisId,
           status: analysisResponse.status,
         })
@@ -154,7 +157,9 @@ export function useVideoProcessing() {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-        log.error('Video processing failed', error)
+        log.error('useVideoProcessing', 'Video processing failed', {
+          error: error instanceof Error ? error.message : String(error),
+        })
 
         setState({
           isProcessing: false,
