@@ -68,28 +68,28 @@ describe('Logger', () => {
       logger.debug(scope, message, context)
       expect(mockConsole.debug).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[🐛\] \[TestScope\] Test message — key=value count=42$/
+          /\d{2}:\d{2}:\d{2}\.\d{3}Z.*🐛.*TestScope.*Test message.*key=value count=42/
         )
       )
 
       logger.info(scope, message, context)
       expect(mockConsole.info).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[ℹ\] \[TestScope\] Test message — key=value count=42$/
+          /\d{2}:\d{2}:\d{2}\.\d{3}Z.*ℹ️.*TestScope.*Test message.*key=value count=42/
         )
       )
 
       logger.warn(scope, message, context)
       expect(mockConsole.warn).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[⚠️\] \[TestScope\] Test message — key=value count=42$/
+          /\d{2}:\d{2}:\d{2}\.\d{3}Z.*⚠️.*TestScope.*Test message.*key=value count=42/
         )
       )
 
       logger.error(scope, message, context)
       expect(mockConsole.error).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\] \[⛔\] \[TestScope\] Test message — key=value count=42$/
+          /\d{2}:\d{2}:\d{2}\.\d{3}Z.*⛔.*TestScope.*Test message.*key=value count=42/
         )
       )
     })
@@ -100,9 +100,11 @@ describe('Logger', () => {
       logger.info(scope, message)
 
       const call = mockConsole.info.mock.calls[0]
-      // In dev mode (test environment), expect time-only format like [15:30:17.687Z]
-      expect(call[0]).toMatch(/^\[\d{2}:\d{2}:\d{2}\.\d{3}Z\]/)
-      expect(call[0]).toContain('[ℹ] [TestScope] Test message')
+      // In dev mode (test environment), expect time-only format like 15:30:17.687Z
+      expect(call[0]).toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}Z/)
+      expect(call[0]).toContain('ℹ️')
+      expect(call[0]).toContain('TestScope')
+      expect(call[0]).toContain('Test message')
     })
 
     it('should redact sensitive information', () => {
@@ -238,8 +240,10 @@ describe('Logger', () => {
 
       await fetch('/api/test')
 
+      expect(mockConsole.info).toHaveBeenCalledWith(expect.stringContaining('ℹ️'))
+      expect(mockConsole.info).toHaveBeenCalledWith(expect.stringContaining('HTTP'))
       expect(mockConsole.info).toHaveBeenCalledWith(
-        expect.stringContaining('[ℹ] [HTTP] GET /api/test — 200 OK')
+        expect.stringContaining('GET /api/test — 200 OK')
       )
     })
 
@@ -251,8 +255,10 @@ describe('Logger', () => {
 
       await expect(fetch('/api/failing')).rejects.toThrow('Network error')
 
+      expect(mockConsole.error).toHaveBeenCalledWith(expect.stringContaining('⛔'))
+      expect(mockConsole.error).toHaveBeenCalledWith(expect.stringContaining('HTTP'))
       expect(mockConsole.error).toHaveBeenCalledWith(
-        expect.stringContaining('[⛔] [HTTP] GET /api/failing — FAILED')
+        expect.stringContaining('GET /api/failing — FAILED')
       )
     })
 

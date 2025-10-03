@@ -219,7 +219,7 @@ export function formatLine(
     // Add colors in development
     const coloredTimestamp = `${COLORS.dim}${ts}${COLORS.reset}`
     const coloredScope = `${COLORS.cyan}[${scope}]${COLORS.reset}`
-    return `${coloredTimestamp} [${icon}] ${coloredScope} ${message}${ctx}`
+    return `${coloredTimestamp} ${icon} ${coloredScope} ${message}${ctx}`
   }
   
   return `${ts} [${icon}] [${scope}] ${message}${ctx}`
