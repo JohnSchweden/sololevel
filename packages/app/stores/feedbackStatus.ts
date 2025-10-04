@@ -622,6 +622,7 @@ export const useFeedbacksByAnalysisId = (analysisId: string) => {
   const subscribeToAnalysisFeedbacks = useFeedbackStatusStore(
     (state) => state.subscribeToAnalysisFeedbacks
   )
+  const unsubscribeFromAnalysis = useFeedbackStatusStore((state) => state.unsubscribeFromAnalysis)
   const isSubscribed = useFeedbackStatusStore((state) => state.subscriptions.has(analysisId))
 
   // Auto-subscribe when hook is used
@@ -635,7 +636,13 @@ export const useFeedbacksByAnalysisId = (analysisId: string) => {
         )
       })
     }
-  }, [analysisId, isSubscribed, subscribeToAnalysisFeedbacks])
+
+    return () => {
+      if (analysisId && isSubscribed) {
+        unsubscribeFromAnalysis(analysisId)
+      }
+    }
+  }, [analysisId, isSubscribed, subscribeToAnalysisFeedbacks, unsubscribeFromAnalysis])
 
   return {
     feedbacks: getFeedbacksByAnalysisId(analysisId),

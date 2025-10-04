@@ -752,6 +752,19 @@ export function VideoAnalysisScreen({
     scheduleBackfillRecheck,
   ])
 
+  // Cleanup active subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (activeSubscriptionRef.current) {
+        log.info('VideoAnalysisScreen', 'Cleaning up active subscription on unmount', {
+          key: activeSubscriptionRef.current.key,
+        })
+        activeSubscriptionRef.current.unsubscribe()
+        activeSubscriptionRef.current = null
+      }
+    }
+  }, [])
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {

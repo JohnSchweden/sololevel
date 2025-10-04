@@ -75,11 +75,11 @@ const config = {
     timeout: 600000, // 10 minutes
   },
   memory: {
-    checks: ['memory-management', 'graceful-exit', 'type-check'],
+    checks: ['memory-management', 'type-check'],
     timeout: 120000, // 2 minutes
   },
   exit: {
-    checks: ['graceful-exit', 'memory-management', 'type-check'],
+    checks: ['graceful-exit', 'type-check'],
     timeout: 120000, // 2 minutes
   },
 };

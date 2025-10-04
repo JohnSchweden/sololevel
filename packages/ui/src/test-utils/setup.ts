@@ -12,6 +12,20 @@ import React from 'react'
 // Setup jest-dom for additional matchers
 import '@testing-library/jest-dom'
 
+// Setup fake timers for all tests
+beforeAll(() => {
+  jest.useFakeTimers()
+})
+
+afterEach(() => {
+  jest.runOnlyPendingTimers()
+  jest.clearAllTimers()
+})
+
+afterAll(() => {
+  jest.useRealTimers()
+})
+
 // Create Pressable mock outside jest.mock
 interface MockPressableProps {
   onPress?: () => void
@@ -136,12 +150,12 @@ jest.mock('expo-camera', () => {
               reject(new Error('Camera permission not granted'))
               return
             }
-            setTimeout(() => {
-              resolve({
-                uri: 'file:///mock/recorded_video.mp4',
-                duration: 5000, // 5 seconds in milliseconds
-              })
-            }, 100)
+            // Use fake timers - resolve immediately and advance time
+            resolve({
+              uri: 'file:///mock/recorded_video.mp4',
+              duration: 5000, // 5 seconds in milliseconds
+            })
+            jest.advanceTimersByTime(100)
           })
         }),
         startRecording: jest.fn((options: any) => {
@@ -150,18 +164,18 @@ jest.mock('expo-camera', () => {
               reject(new Error('Camera permission not granted'))
               return
             }
-            setTimeout(() => {
-              if (options?.onRecordingFinished) {
-                options.onRecordingFinished({
-                  path: 'file:///mock/recorded_video.mp4',
-                  duration: 5000, // 5 seconds
-                })
-              }
-              resolve({
+            // Use fake timers - call callback immediately and advance time
+            if (options?.onRecordingFinished) {
+              options.onRecordingFinished({
                 path: 'file:///mock/recorded_video.mp4',
-                duration: 5000,
+                duration: 5000, // 5 seconds
               })
-            }, 100)
+            }
+            resolve({
+              path: 'file:///mock/recorded_video.mp4',
+              duration: 5000,
+            })
+            jest.advanceTimersByTime(100)
           })
         }),
         stopRecording: jest.fn(() => Promise.resolve()),
@@ -178,11 +192,9 @@ jest.mock('expo-camera', () => {
           if (!props.permissionGranted) {
             throw new Error('Camera permission not granted')
           }
-          // Simulate recording completion after a short delay
-          setTimeout(() => {
-            // This would normally be called by the actual camera implementation
-            // For testing, we simulate the onRecordingFinished callback
-          }, 100)
+          // Using fake timers - recording completion is handled elsewhere
+          // This would normally be called by the actual camera implementation
+          // For testing, we simulate the onRecordingFinished callback via fake timers
         }),
         stopRecording: jest.fn(() => Promise.resolve()),
         recordAsync: jest.fn((options: any) => {
@@ -191,18 +203,18 @@ jest.mock('expo-camera', () => {
               reject(new Error('Camera permission not granted'))
               return
             }
-            setTimeout(() => {
-              if (options?.onRecordingFinished) {
-                options.onRecordingFinished({
-                  uri: 'file:///mock/recorded_video.mp4',
-                  duration: 5000, // 5 seconds
-                })
-              }
-              resolve({
+            // Use fake timers - call callback immediately and advance time
+            if (options?.onRecordingFinished) {
+              options.onRecordingFinished({
                 uri: 'file:///mock/recorded_video.mp4',
-                duration: 5000,
+                duration: 5000, // 5 seconds
               })
-            }, 100)
+            }
+            resolve({
+              uri: 'file:///mock/recorded_video.mp4',
+              duration: 5000,
+            })
+            jest.advanceTimersByTime(100)
           })
         }),
         pauseRecording: jest.fn(() => Promise.resolve()),
@@ -238,12 +250,12 @@ jest.mock('react-native-vision-camera', () => {
         startRecording: jest.fn((options: any) => {
           // Simulate recording and calling the callback
           if (props.isActive) {
-            setTimeout(() => {
-              options.onRecordingFinished({
-                path: 'file:///mock/recorded_video.mp4',
-                duration: 5000,
-              })
-            }, 100)
+            // Use fake timers - call callback immediately and advance time
+            options.onRecordingFinished({
+              path: 'file:///mock/recorded_video.mp4',
+              duration: 5000,
+            })
+            jest.advanceTimersByTime(100)
           }
         }),
         stopRecording: jest.fn(),

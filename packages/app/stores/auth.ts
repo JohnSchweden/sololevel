@@ -16,9 +16,13 @@ export interface AuthActions {
   setInitialized: (initialized: boolean) => void
   signOut: () => Promise<void>
   initialize: () => Promise<void>
+  cleanup: () => void
 }
 
 export type AuthStore = AuthState & AuthActions
+
+// Store the auth subscription reference outside the store for cleanup
+let authSubscription: { data: { subscription: { unsubscribe: () => void } } } | null = null
 
 export const useAuthStore = create<AuthStore>()(
   subscribeWithSelector((set, get) => ({
@@ -78,19 +82,33 @@ export const useAuthStore = create<AuthStore>()(
           })
         }
 
-        // Listen for auth changes
-        supabase.auth.onAuthStateChange(async (_event, session) => {
+        // Listen for auth changes - store subscription for cleanup
+        authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
           set({
             user: session?.user ?? null,
             session,
             loading: false,
           })
         })
-
-        // Note: subscription cleanup would be handled by the component using this store
       } catch (_error) {
         set({ loading: false, initialized: true })
       }
+    },
+
+    cleanup: () => {
+      // Unsubscribe from auth changes
+      if (authSubscription) {
+        authSubscription.data.subscription.unsubscribe()
+        authSubscription = null
+      }
+
+      // Reset state
+      set({
+        user: null,
+        session: null,
+        loading: false,
+        initialized: false,
+      })
     },
   }))
 )
