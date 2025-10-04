@@ -331,11 +331,15 @@ export function createMockComponent(name: string) {
     const isInteractive = name === 'Button' || props.onPress
     const elementType = isInteractive ? 'button' : 'div'
 
-    const finalTestId = props.testID || name
+    // Prioritize data-testid from domProps, then testID, then component name
+    const finalTestId = domProps['data-testid'] || props.testID || name
+    // Remove data-testid from domProps to avoid duplication
+    const { 'data-testid': _, ...finalDomProps } = domProps
+
     return React.createElement(
       elementType,
       {
-        ...domProps,
+        ...finalDomProps,
         ref,
         'data-testid': finalTestId,
         'aria-label': props.accessibilityLabel,

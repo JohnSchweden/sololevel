@@ -1,7 +1,9 @@
-import { screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { ProcessingOverlay } from '../components/VideoAnalysis/ProcessingOverlay/ProcessingOverlay'
 import { VideoControls } from '../components/VideoAnalysis/VideoControls/VideoControls'
-import { renderWithProviderNative } from '../test-utils/TestProvider'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 describe('Theme Integration Tests', () => {
   describe('Basic Theme Functionality', () => {
@@ -15,7 +17,7 @@ describe('Theme Integration Tests', () => {
         isComplete: false,
       }
 
-      renderWithProviderNative(<ProcessingOverlay {...mockProps} />)
+      render(<ProcessingOverlay {...mockProps} />)
 
       // Component should render without errors with theme
       expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
@@ -33,7 +35,7 @@ describe('Theme Integration Tests', () => {
         onSeek: jest.fn(),
       }
 
-      renderWithProviderNative(<VideoControls {...mockProps} />)
+      render(<VideoControls {...mockProps} />)
 
       // Component should render without errors with theme
       expect(screen.getByLabelText('Play video')).toBeTruthy()
@@ -50,7 +52,7 @@ describe('Theme Integration Tests', () => {
         onSeek: jest.fn(),
       }
 
-      const { rerender } = renderWithProviderNative(<VideoControls {...mockProps} />)
+      const { rerender } = render(<VideoControls {...mockProps} />)
 
       // Component should handle theme changes gracefully
       rerender(

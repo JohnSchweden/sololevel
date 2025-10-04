@@ -1,63 +1,11 @@
-import { render } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { AudioFeedback } from './AudioFeedback'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 // Mock the require call for the coach avatar image
 jest.mock('../../../../../../apps/expo/assets/coach_avatar.png', () => 'mocked-coach-avatar')
-
-// Mock Tamagui components and React Native modules
-jest.mock('tamagui', () => {
-  const React = require('react')
-
-  // Mock Image component
-  const mockImage = ({ children, testID, source, ...props }: any) =>
-    React.createElement(
-      'img',
-      {
-        'data-testid': testID || 'image',
-        src: typeof source === 'string' ? source : 'mock-image.png',
-        ...props,
-      },
-      children
-    )
-
-  // Mock View component
-  const mockView = ({ children, ...props }: any) =>
-    React.createElement('div', { ...props, 'data-testid': props.testID || 'view' }, children)
-
-  return {
-    Image: mockImage,
-    View: mockView,
-    // Add other Tamagui components as needed
-    XStack: mockView,
-    YStack: mockView,
-    Button: ({ children, onPress, ...props }: any) =>
-      React.createElement('button', { onClick: onPress, ...props }, children),
-    Text: ({ children, ...props }: any) =>
-      React.createElement('span', { ...props, 'data-testid': props.testID || 'text' }, children),
-  }
-})
-
-// Mock React Native's TurboModuleRegistry to prevent DevMenu module errors
-jest.mock('react-native', () => {
-  // Mock TurboModuleRegistry to prevent DevMenu module errors
-  const mockTurboModuleRegistry = {
-    getEnforcing: jest.fn(() => ({})),
-    get: jest.fn(() => ({})),
-  }
-
-  return {
-    TurboModuleRegistry: mockTurboModuleRegistry,
-    DevMenu: {},
-    // Add other RN modules that might be imported
-    Platform: {
-      OS: 'web',
-      select: jest.fn((obj) => obj.web || obj.default),
-    },
-    Dimensions: {
-      get: jest.fn(() => ({ width: 375, height: 667 })),
-    },
-  }
-})
 
 const mockController = {
   isPlaying: false,
@@ -89,85 +37,91 @@ describe('AudioFeedback', () => {
   })
 
   it('renders audio feedback when visible with audio URL', () => {
-    const { toJSON } = render(<AudioFeedback {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('does not render when not visible', () => {
-    const { toJSON } = render(
+    render(
       <AudioFeedback
         {...mockProps}
         isVisible={false}
       />
     )
 
-    expect(toJSON()).toBeNull()
+    expect(screen.queryByTestId('audio-feedback-overlay')).not.toBeInTheDocument()
   })
 
   it('does not render when no audio URL', () => {
-    const { toJSON } = render(
+    render(
       <AudioFeedback
         {...mockProps}
         audioUrl={null}
       />
     )
 
-    expect(toJSON()).toBeNull()
+    expect(screen.queryByTestId('audio-feedback-overlay')).not.toBeInTheDocument()
   })
 
   it('shows play button when paused', () => {
-    const { toJSON } = render(<AudioFeedback {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('shows pause button when playing', () => {
-    const { toJSON } = render(
+    render(
       <AudioFeedback
         {...mockProps}
         controller={{ ...mockController, isPlaying: true }}
       />
     )
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('displays correct time format', () => {
-    const { toJSON } = render(<AudioFeedback {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('shows progress bar with correct fill', () => {
-    const { toJSON } = render(<AudioFeedback {...mockProps} />)
+    render(<AudioFeedback {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('handles different progress states', () => {
-    const { toJSON: start } = render(
+    const { rerender } = render(
       <AudioFeedback
         {...mockProps}
         controller={{ ...mockController, currentTime: 0 }}
       />
     )
-    const { toJSON: middle } = render(
+
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
+
+    // Test middle progress
+    rerender(
       <AudioFeedback
         {...mockProps}
         controller={{ ...mockController, currentTime: 60 }}
       />
     )
-    const { toJSON: end } = render(
+
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
+
+    // Test end progress
+    rerender(
       <AudioFeedback
         {...mockProps}
         controller={{ ...mockController, currentTime: 120 }}
       />
     )
 
-    expect(start()).toBeTruthy()
-    expect(middle()).toBeTruthy()
-    expect(end()).toBeTruthy()
+    expect(screen.getByTestId('audio-feedback-overlay')).toBeInTheDocument()
   })
 
   it('handles close button interaction', () => {

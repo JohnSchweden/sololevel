@@ -1,5 +1,8 @@
-import { render, screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { IdleControls } from '../CameraControls/IdleControls'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 describe('IdleControls Accessibility Validation', () => {
   it('should have accessible interactive elements', () => {

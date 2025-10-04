@@ -1,5 +1,8 @@
-import { render } from '@testing-library/react-native'
+import { render } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import React from 'react'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 /**
  * Navigation Components Tests for Expo Router Migration
@@ -14,9 +17,9 @@ import React from 'react'
 jest.mock('expo-router', () => {
   const mockReact = require('react')
   return {
-    Link: ({ children, href, ...props }: any) => {
+    Link: ({ children, href, testID, ...props }: any) => {
       // Mock Link component that will be replaced with real Expo Router Link
-      return mockReact.createElement('Link', { href, ...props }, children)
+      return mockReact.createElement('Link', { href, 'data-testid': testID, ...props }, children)
     },
     router: {
       push: jest.fn(),
@@ -29,10 +32,12 @@ jest.mock('expo-router', () => {
 jest.mock('tamagui', () => {
   const mockReact = require('react')
   return {
-    Button: ({ children, onPress, ...props }: any) =>
-      mockReact.createElement('Button', { onPress, ...props }, children),
-    XStack: ({ children, ...props }: any) => mockReact.createElement('XStack', props, children),
-    YStack: ({ children, ...props }: any) => mockReact.createElement('YStack', props, children),
+    Button: ({ children, onPress, testID, ...props }: any) =>
+      mockReact.createElement('button', { onPress, 'data-testid': testID, ...props }, children),
+    XStack: ({ children, testID, ...props }: any) =>
+      mockReact.createElement('div', { 'data-testid': testID, ...props }, children),
+    YStack: ({ children, testID, ...props }: any) =>
+      mockReact.createElement('div', { 'data-testid': testID, ...props }, children),
   }
 })
 

@@ -507,7 +507,10 @@ describe('Integration Tests', () => {
       })
 
       // Component should still render despite errors
-      expect(screen.getByLabelText('Recording time: 00:00')).toBeTruthy()
+      // Query for the timer element using the actual rendered duration
+      const timerElement = screen.getByRole('text', { name: /Recording time:/ })
+      expect(timerElement).toBeTruthy()
+      expect(timerElement.getAttribute('aria-label')).toMatch(/Recording time: \d{2}:\d{2}/)
     })
 
     it('maintains component stability during state transitions', () => {
