@@ -5,9 +5,11 @@
 
 // Import shared test utilities (includes all mocks and setup)
 import '../../../test-utils/setup'
-import { fireEvent, screen } from '@testing-library/react-native'
-import { renderWithProviderNative } from '../../../test-utils/TestProvider'
+import { fireEvent, screen, render, cleanup } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { NavigationDialog } from './NavigationDialog'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 describe('Navigation Dialog Component', () => {
   beforeEach(() => {
@@ -24,7 +26,7 @@ describe('Navigation Dialog Component', () => {
         recordingDuration: 25000,
       }
 
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       expect(screen.getByLabelText('Discard recording')).toBeTruthy()
       expect(screen.getByLabelText('Cancel navigation')).toBeTruthy()
@@ -44,19 +46,19 @@ describe('Navigation Dialog Component', () => {
     }
 
     it('handles discard action', () => {
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       const discardButton = screen.getByLabelText('Discard recording')
-      fireEvent.press(discardButton)
+      fireEvent.click(discardButton)
 
       expect(mockProps.onDiscard).toHaveBeenCalledTimes(1)
     })
 
     it('handles cancel action', () => {
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       const cancelButton = screen.getByLabelText('Cancel navigation')
-      fireEvent.press(cancelButton)
+      fireEvent.click(cancelButton)
 
       expect(mockProps.onCancel).toHaveBeenCalledTimes(1)
     })
@@ -72,7 +74,7 @@ describe('Navigation Dialog Component', () => {
     }
 
     it('provides proper accessibility labels', () => {
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       // Test that buttons can be found by their accessibility labels
       // This verifies the accessibility implementation is working
@@ -81,7 +83,7 @@ describe('Navigation Dialog Component', () => {
     })
 
     it('provides accessible button functionality', () => {
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       const discardButton = screen.getByLabelText('Discard recording')
       const cancelButton = screen.getByLabelText('Cancel navigation')
@@ -91,8 +93,8 @@ describe('Navigation Dialog Component', () => {
       expect(cancelButton).toBeTruthy()
 
       // Test that buttons can be pressed (core accessibility requirement)
-      fireEvent.press(discardButton)
-      fireEvent.press(cancelButton)
+      fireEvent.click(discardButton)
+      fireEvent.click(cancelButton)
     })
   })
 
@@ -106,7 +108,7 @@ describe('Navigation Dialog Component', () => {
         recordingDuration: 125000, // 2 minutes 5 seconds
       }
 
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       // Verify component renders without errors with duration
       expect(screen.getByLabelText('Discard recording')).toBeTruthy()
@@ -122,7 +124,7 @@ describe('Navigation Dialog Component', () => {
         recordingDuration: 0,
       }
 
-      renderWithProviderNative(<NavigationDialog {...mockProps} />)
+      render(<NavigationDialog {...mockProps} />)
 
       // Verify component renders without errors with zero duration
       expect(screen.getByLabelText('Discard recording')).toBeTruthy()
