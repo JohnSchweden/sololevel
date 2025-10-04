@@ -9,6 +9,7 @@ import { log } from '@my/logging'
 import { AppHeader } from '@my/ui'
 import {
   AudioFeedback,
+  AudioPlayer,
   CoachAvatar,
   FeedbackBubbles,
   FeedbackPanel,
@@ -35,9 +36,11 @@ import {
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
 
+import { useAudioController } from './hooks/useAudioController'
 import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 // Real-time integration hooks
 import { useFeedbackStatusIntegration } from './hooks/useFeedbackStatusIntegration'
+import { useVideoAudioSync } from './hooks/useVideoAudioSync'
 // import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
 // import { useVideoAnalysisStore } from '../../stores/videoAnalysisStore'
 // import { useAnalysisStatusStore } from '../../stores/analysisStatus'
@@ -719,15 +722,53 @@ export function VideoAnalysisScreen({
     }
   }, [effectiveAnalysisJobId, analysisJobId, analysisJob?.id])
 
+  // Video playback state
+  const [isPlaying, setIsPlaying] = useState(false)
+
   // Set up feedback status integration for real-time SSML/audio status updates
   // Use analysisUuid (from analyses table) for feedback queries, not job ID
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid || undefined)
   const feedbackAudio = useFeedbackAudioSource(feedbackStatus.feedbackItems)
 
-  // NOTE: No manual cleanup needed - useFeedbackStatusIntegration handles its own cleanup via useEffect
+  // Audio controller for managing audio playback state
+  const audioController = useAudioController(feedbackAudio.activeAudio?.url || null)
 
-  // Video playback state
-  const [isPlaying, setIsPlaying] = useState(false)
+  // Video-audio synchronization
+  const videoAudioSync = useVideoAudioSync({
+    isVideoPlaying: isPlaying,
+    isAudioActive: audioController.isPlaying,
+  })
+
+  // Debug logging for audio state changes
+  useEffect(() => {
+    log.debug('VideoAnalysisScreen', 'Audio state updated', {
+      hasActiveAudio: !!feedbackAudio.activeAudio,
+      activeAudioId: feedbackAudio.activeAudio?.id,
+      activeAudioUrl: feedbackAudio.activeAudio?.url
+        ? `${feedbackAudio.activeAudio.url.substring(0, 50)}...`
+        : null,
+      isAudioPlaying: audioController.isPlaying,
+      isVideoPlaying: isPlaying,
+      shouldPlayVideo: videoAudioSync.shouldPlayVideo,
+      shouldPlayAudio: videoAudioSync.shouldPlayAudio,
+      isVideoPausedForAudio: videoAudioSync.isVideoPausedForAudio,
+      audioCurrentTime: audioController.currentTime,
+      audioDuration: audioController.duration,
+      audioIsLoaded: audioController.isLoaded,
+    })
+  }, [
+    feedbackAudio.activeAudio,
+    audioController.isPlaying,
+    audioController.currentTime,
+    audioController.duration,
+    audioController.isLoaded,
+    isPlaying,
+    videoAudioSync.shouldPlayVideo,
+    videoAudioSync.shouldPlayAudio,
+    videoAudioSync.isVideoPausedForAudio,
+  ])
+
+  // NOTE: No manual cleanup needed - useFeedbackStatusIntegration handles its own cleanup via useEffect
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [pendingSeek, setPendingSeek] = useState<number | null>(null)
@@ -738,8 +779,6 @@ export function VideoAnalysisScreen({
 
   // Feedback Panel state for US-VF-08 - using panelFraction for dynamic sizing
   const [panelFraction, setPanelFraction] = useState(0.05) // 5% collapsed, 50% expanded
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
-  const [audioTime, setAudioTime] = useState(0)
 
   // Calculate scale factor for video controls based on panel expansion
   // When collapsed (panelFraction=0.05), video area is 95% → scale = 1.0
@@ -753,6 +792,25 @@ export function VideoAnalysisScreen({
     'feedback'
   )
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
+
+  // Audio control visibility - show only when audio is actively playing
+  const shouldShowAudioControls = useMemo(() => {
+    const shouldShow = !!(
+      feedbackAudio.activeAudio &&
+      audioController.isPlaying && // Only show when audio is actually playing
+      !isProcessing
+    )
+
+    log.debug('VideoAnalysisScreen', 'Audio controls visibility calculated', {
+      shouldShow,
+      hasActiveAudio: !!feedbackAudio.activeAudio,
+      isAudioPlaying: audioController.isPlaying,
+      isProcessing,
+      activeAudioId: feedbackAudio.activeAudio?.id,
+    })
+
+    return shouldShow
+  }, [feedbackAudio.activeAudio, audioController.isPlaying, isProcessing])
 
   // Animate layout changes when panelFraction changes
   useEffect(() => {
@@ -1176,23 +1234,35 @@ export function VideoAnalysisScreen({
     setActiveFeedbackTab(tab)
   }, [])
 
-  const handleFeedbackItemPress = useCallback((item: any) => {
-    log.info('VideoAnalysisScreen', 'Feedback item pressed', {
-      itemId: item.id,
-      timestamp: item.timestamp,
-    })
+  const handleFeedbackItemPress = useCallback(
+    (item: any) => {
+      log.info('VideoAnalysisScreen', 'Feedback item pressed', {
+        itemId: item.id,
+        timestamp: item.timestamp,
+      })
 
-    // Seek to the feedback item's timestamp
-    const seekTime = item.timestamp / 1000 // Convert from milliseconds to seconds
-    setPendingSeek(seekTime)
+      // Seek to the feedback item's timestamp
+      const seekTime = item.timestamp / 1000 // Convert from milliseconds to seconds
+      setPendingSeek(seekTime)
 
-    // Highlight the pressed feedback item
-    setSelectedFeedbackId(item.id)
+      // Highlight the pressed feedback item
+      setSelectedFeedbackId(item.id)
 
-    // Make coach speak when feedback item is pressed
-    setIsCoachSpeaking(true)
-    setTimeout(() => setIsCoachSpeaking(false), 3000)
-  }, [])
+      // Start audio playback for this feedback item if available
+      if (feedbackAudio.audioUrls[item.id]) {
+        feedbackAudio.selectAudio(item.id)
+        audioController.setIsPlaying(true)
+        log.info('VideoAnalysisScreen', 'Started audio playback for feedback', {
+          feedbackId: item.id,
+        })
+      }
+
+      // Make coach speak when feedback item is pressed
+      setIsCoachSpeaking(true)
+      setTimeout(() => setIsCoachSpeaking(false), 3000)
+    },
+    [feedbackAudio, audioController]
+  )
 
   return (
     <YStack
@@ -1301,7 +1371,7 @@ export function VideoAnalysisScreen({
               {recordedVideoUri && (
                 <VideoPlayer
                   videoUri={recordedVideoUri}
-                  isPlaying={isPlaying}
+                  isPlaying={videoAudioSync.shouldPlayVideo}
                   onPause={handlePause}
                   onEnd={handleVideoEnd}
                   onLoad={handleVideoLoad}
@@ -1311,7 +1381,7 @@ export function VideoAnalysisScreen({
                     log.info('VideoAnalysisScreen', 'onSeekComplete called', {
                       pendingSeek,
                       currentTime,
-                      isPlaying,
+                      isPlaying: videoAudioSync.shouldPlayVideo,
                     })
 
                     // After native seek completes, align UI state and clear request
@@ -1337,6 +1407,15 @@ export function VideoAnalysisScreen({
                 />
               )}
 
+              {/* Audio Player - renders audio-only video for feedback */}
+              {feedbackAudio.activeAudio && (
+                <AudioPlayer
+                  audioUrl={feedbackAudio.activeAudio.url}
+                  controller={audioController}
+                  testID="feedback-audio-player"
+                />
+              )}
+
               {/* Overlay Components */}
               <MotionCaptureOverlay
                 poseData={[]} // TODO: Connect to pose detection data
@@ -1352,32 +1431,17 @@ export function VideoAnalysisScreen({
                 // onBubbleTap={handleFeedbackBubbleTap}
               />
 
-              {feedbackAudio.activeAudio && (
+              {shouldShowAudioControls && feedbackAudio.activeAudio && (
                 <AudioFeedback
                   audioUrl={feedbackAudio.activeAudio.url}
-                  isPlaying={isAudioPlaying}
-                  currentTime={audioTime}
-                  duration={0}
-                  onPlayPause={() => {
-                    setIsAudioPlaying((prev) => !prev)
-                    log.info('VideoAnalysisScreen', 'Audio play/pause toggled', {
-                      isAudioPlaying: !isAudioPlaying,
-                    })
-                  }}
-                  onSeek={(time) => {
-                    setAudioTime(time)
-                    log.info('VideoAnalysisScreen', 'Audio seek', { time })
-                  }}
+                  controller={audioController}
                   onClose={() => {
-                    setIsAudioPlaying(false)
-                    setAudioTime(0)
+                    audioController.setIsPlaying(false)
                     feedbackAudio.clearActiveAudio()
                     log.info('VideoAnalysisScreen', 'Audio overlay closed')
                   }}
-                  isVisible={!!feedbackAudio.activeAudio}
-                  onTimeUpdate={(time) => {
-                    setAudioTime(time)
-                  }}
+                  isVisible={shouldShowAudioControls}
+                  testID="audio-feedback-controls"
                 />
               )}
 
@@ -1467,8 +1531,7 @@ export function VideoAnalysisScreen({
         }}
         onSelectAudio={(feedbackId) => {
           feedbackAudio.selectAudio(feedbackId)
-          setIsAudioPlaying(false)
-          setAudioTime(0)
+          audioController.setIsPlaying(true) // Start playing when selected from panel
           log.info('VideoAnalysisScreen', 'Feedback audio selected from panel', { feedbackId })
         }}
       />

@@ -8,8 +8,8 @@ Before writing any code, you must read and understand:
 1.  **`docs/spec/architecture.mermaid`**: System architecture and data flow.
 2.  **`docs/spec/TRD.md`**: Technical Requirements Document for behavior specs.
 3.  **`docs/tasks/tasks.md`**: Current tasks and user stories.
-4.  **`quality/testing-unified.mdc`**: The master testing strategy.
-5.  **`ui/cross-platform-styling.mdc`**: The master styling strategy.
+4.  **`.cursor/rules/quality/testing-unified.mdc`**: The master testing strategy.
+5.  **`.cursor/rules/quality/ui/cross-platform-styling.mdc`**: The master styling strategy.
 6.  **`docs/spec/user-interaction-flow.md`**: User interaction flows.
 
 ## CORE_WORKFLOW_LOOP

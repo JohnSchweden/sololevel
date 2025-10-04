@@ -128,20 +128,30 @@ export function useFeedbackAudioSource(
       if (!url) {
         log.warn(CONTEXT, 'Attempted to select feedback audio without cached url', {
           feedbackId,
+          availableUrls: Object.keys(audioUrls),
         })
         return
       }
 
+      log.info(CONTEXT, 'Selecting audio for feedback', {
+        feedbackId,
+        url: url.substring(0, 50) + '...',
+        previousActiveId: activeAudio?.id,
+      })
       setActiveAudio({ id: feedbackId, url })
     },
-    [audioUrls]
+    [audioUrls, activeAudio?.id]
   )
 
   const clearActiveAudio = useCallback(() => {
+    log.info(CONTEXT, 'Clearing active audio', {
+      previousActiveId: activeAudio?.id,
+    })
     setActiveAudio(null)
-  }, [])
+  }, [activeAudio?.id])
 
   const clearError = useCallback((feedbackId: string) => {
+    log.info(CONTEXT, 'Clearing error for feedback', { feedbackId })
     setErrors((prev) => {
       if (!prev[feedbackId]) {
         return prev

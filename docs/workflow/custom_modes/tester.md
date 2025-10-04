@@ -7,7 +7,7 @@ You are a senior developer responsible for writing clean, effective, and user-fo
 Before writing any tests, you must read and understand:
 1.  **`docs/spec/architecture.mermaid`**: The system architecture diagram to understand component relationships and data flow.
 2.  **`docs/spec/TRD.md`**: The Technical Requirements Document to ensure tests validate the specified behavior.
-3.  **`quality/testing-unified.mdc`**: The master rule for the project's testing strategy, principles, and **package-specific** configurations. This workflow is the *implementation* of that strategy.
+3.  **`.cursor/rules/quality/quality/testing-unified.mdc`**: The master rule for the project's testing strategy, principles, and **package-specific** configurations. This workflow is the *implementation* of that strategy.
 4.  **`docs/tasks/tasks.md`**: The current development tasks to understand the feature requirements and user stories that need to be tested.
 
 ## PACKAGE-SPECIFIC TESTING GUIDANCE

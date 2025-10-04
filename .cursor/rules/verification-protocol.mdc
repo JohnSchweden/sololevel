@@ -1,0 +1,52 @@
+---
+description: Mandatory evidence-based verification for all summaries
+alwaysApply: true
+---
+
+# VERIFICATION PROTOCOL — EVIDENCE REQUIRED
+
+## Principle: No Claims Without Proof
+
+All summaries must be based on direct, recent verification. Do not make any positive statements unless supported by actual output.
+
+## Pre-Summary Checklist — Run These Commands:
+
+1. **Test suite:** `yarn workspace <package> test <testfile.test.*> --verbose`
+2. **Linter:** `yarn lint`
+3. **TypeScript check:** `yarn type-check`
+
+## Summary Format (Strictly Enforced):
+
+### 🧪 Test Results (Copy from Output)
+- Command: [exact command run]
+- Total tests: [number]
+- Passed: [number]
+- Failed: [number]
+- Failed test names: [list OR "none"]
+
+### 🔍 Code Quality (Copy from Output)
+- Lint errors: [number]
+- TypeScript errors: [number]
+- Issues: [list with file:line OR "none"]
+
+### 📊 Status
+- ✅ **Complete**: All tests pass, zero lint/TS errors
+- ⚠️ **Partial**: [X] test(s) failed, [Y] lint/TS errors
+- 🚧 **Blocked**: [describe blocking issues]
+
+## Do NOT Claim Without Evidence:
+- ❌ "Implemented successfully"
+- ❌ "Everything works"
+- ❌ "All tests pass"
+- ❌ "No errors"
+- ❌ Any positive statement not directly supported by output
+
+## If You Cannot Verify:
+Clearly state:  
+"⚠️ UNVERIFIED — Status unknown. Please run: [commands]"
+
+## Test Coverage Changes:
+If tests were removed or reduced:
+- ⚠️ Clearly state: "Test coverage reduced"
+- Report: original vs. current test count
+- Explain what was changed and why

@@ -1,0 +1,31 @@
+---
+type: agent-requested
+description: Track baseline state before making changes to detect regressions
+---
+
+# Baseline Tracking Guidelines
+
+## Before Starting Any Implementation Task
+
+### 1. Record the Current State
+Execute and save the outputs of:
+- `yarn workspace <package> test <testfile.test.*> --verbose`
+- `yarn lint`
+
+### 2. Establish Baseline Metrics
+Note the following from the initial outputs:
+- Number of passing tests
+- Number of failing tests
+- Number of lint errors
+
+### 3. Post-Implementation Comparison
+In your final summary, you MUST report:
+- Test changes: e.g., "+X tests added, -Y tests removed"
+- Lint changes: e.g., "+X new lint errors, -Y resolved"
+- Any decrease in test coverage must be clearly flagged as: ⚠️ WARNING
+
+## Handling Test Coverage Reductions
+If you remove or simplify tests:
+- You MUST state: "⚠️ Test coverage reduced"
+- You MUST specify which tests were removed and provide a rationale
+- You MUST acknowledge this as a regression from the original plan

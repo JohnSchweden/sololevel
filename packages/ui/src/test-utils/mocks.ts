@@ -189,7 +189,7 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
 
   // Other common Tamagui props
   'icon',
-  'testID',
+  // 'testID', // Removed - needed for testing
   'key',
   'radius',
   'space',
@@ -331,12 +331,13 @@ export function createMockComponent(name: string) {
     const isInteractive = name === 'Button' || props.onPress
     const elementType = isInteractive ? 'button' : 'div'
 
+    const finalTestId = props.testID || name
     return React.createElement(
       elementType,
       {
         ...domProps,
         ref,
-        'data-testid': props.testID || name,
+        'data-testid': finalTestId,
         'aria-label': props.accessibilityLabel,
         'aria-describedby': props.accessibilityHint,
         role: props.accessibilityRole,

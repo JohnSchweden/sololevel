@@ -1,3 +1,4 @@
+import type { AudioControllerState } from '@app/features/VideoAnalysis/hooks/useAudioController'
 import type { Meta, StoryObj } from '@storybook/react'
 import { AudioFeedback } from './AudioFeedback'
 
@@ -13,13 +14,35 @@ const meta: Meta<typeof AudioFeedback> = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+// Mock controller for stories
+const createMockController = (
+  overrides: Partial<AudioControllerState> = {}
+): AudioControllerState => ({
+  isPlaying: false,
+  currentTime: 0,
+  duration: 120,
+  isLoaded: true,
+  seekTime: null,
+  setIsPlaying: () => console.log('setIsPlaying called'),
+  togglePlayback: () => console.log('togglePlayback called'),
+  handleLoad: () => console.log('handleLoad called'),
+  handleProgress: () => console.log('handleProgress called'),
+  handleEnd: () => console.log('handleEnd called'),
+  handleError: () => console.log('handleError called'),
+  handleSeekComplete: () => console.log('handleSeekComplete called'),
+  seekTo: () => console.log('seekTo called'),
+  reset: () => console.log('reset called'),
+  ...overrides,
+})
+
 export const Playing: Story = {
   args: {
     audioUrl: 'https://example.com/audio.mp3',
-    isPlaying: true,
-    currentTime: 45,
-    duration: 120,
-    onPlayPause: () => console.log('Play/Pause clicked'),
+    controller: createMockController({
+      isPlaying: true,
+      currentTime: 45,
+      duration: 120,
+    }),
     onClose: () => console.log('Close clicked'),
     isVisible: true,
   },
@@ -42,10 +65,11 @@ export const Playing: Story = {
 export const Paused: Story = {
   args: {
     audioUrl: 'https://example.com/audio.mp3',
-    isPlaying: false,
-    currentTime: 30,
-    duration: 120,
-    onPlayPause: () => console.log('Play/Pause clicked'),
+    controller: createMockController({
+      isPlaying: false,
+      currentTime: 30,
+      duration: 120,
+    }),
     onClose: () => console.log('Close clicked'),
     isVisible: true,
   },
@@ -68,10 +92,11 @@ export const Paused: Story = {
 export const Hidden: Story = {
   args: {
     audioUrl: 'https://example.com/audio.mp3',
-    isPlaying: false,
-    currentTime: 0,
-    duration: 120,
-    onPlayPause: () => console.log('Play/Pause clicked'),
+    controller: createMockController({
+      isPlaying: false,
+      currentTime: 0,
+      duration: 120,
+    }),
     onClose: () => console.log('Close clicked'),
     isVisible: false,
   },
@@ -94,10 +119,11 @@ export const Hidden: Story = {
 export const NoAudio: Story = {
   args: {
     audioUrl: null,
-    isPlaying: false,
-    currentTime: 0,
-    duration: 0,
-    onPlayPause: () => console.log('Play/Pause clicked'),
+    controller: createMockController({
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+    }),
     onClose: () => console.log('Close clicked'),
     isVisible: true,
   },
@@ -120,10 +146,11 @@ export const NoAudio: Story = {
 export const EndOfAudio: Story = {
   args: {
     audioUrl: 'https://example.com/audio.mp3',
-    isPlaying: false,
-    currentTime: 115,
-    duration: 120,
-    onPlayPause: () => console.log('Play/Pause clicked'),
+    controller: createMockController({
+      isPlaying: false,
+      currentTime: 115,
+      duration: 120,
+    }),
     onClose: () => console.log('Close clicked'),
     isVisible: true,
   },

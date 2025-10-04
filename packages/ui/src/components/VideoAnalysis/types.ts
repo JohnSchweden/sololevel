@@ -54,3 +54,29 @@ export interface VideoPlayerProps {
   /** Called after native player performs the seek */
   onSeekComplete?: () => void
 }
+
+// AudioPlayer-specific types
+export interface AudioPlayerProps {
+  audioUrl: string | null
+  controller: {
+    isPlaying: boolean
+    currentTime: number
+    duration: number
+    isLoaded: boolean
+    seekTime: number | null
+    setIsPlaying: (playing: boolean) => void
+    togglePlayback: () => void
+    handleLoad: (data: { duration: number }) => void
+    handleProgress: (data: {
+      currentTime: number
+      playableDuration?: number
+      seekableDuration?: number
+    }) => void
+    handleEnd: () => void
+    handleError: (error: any) => void
+    handleSeekComplete: () => void
+    seekTo: (time: number) => void
+    reset: () => void
+  }
+  testID?: string
+}

@@ -21,6 +21,9 @@ export type { FeedbackBubblesProps } from './FeedbackBubbles/FeedbackBubbles'
 export { AudioFeedback } from './AudioFeedback/AudioFeedback'
 export type { AudioFeedbackProps } from './AudioFeedback/AudioFeedback'
 
+export { AudioPlayer } from './AudioPlayer/AudioPlayer'
+export type { AudioPlayerProps } from './AudioPlayer/AudioPlayer'
+
 export { VideoPlayer } from './VideoPlayer'
 export type {
   VideoPlayerProps,

@@ -59,13 +59,26 @@ jest.mock('react-native', () => {
   }
 })
 
-const mockProps = {
-  audioUrl: 'https://example.com/audio.mp3',
+const mockController = {
   isPlaying: false,
   currentTime: 30,
   duration: 120,
-  onPlayPause: jest.fn(),
-  onSeek: jest.fn(),
+  isLoaded: true,
+  seekTime: null,
+  setIsPlaying: jest.fn(),
+  togglePlayback: jest.fn(),
+  handleLoad: jest.fn(),
+  handleProgress: jest.fn(),
+  handleEnd: jest.fn(),
+  handleError: jest.fn(),
+  handleSeekComplete: jest.fn(),
+  seekTo: jest.fn(),
+  reset: jest.fn(),
+}
+
+const mockProps = {
+  audioUrl: 'https://example.com/audio.mp3',
+  controller: mockController,
   onClose: jest.fn(),
   isVisible: true,
 }
@@ -113,7 +126,7 @@ describe('AudioFeedback', () => {
     const { toJSON } = render(
       <AudioFeedback
         {...mockProps}
-        isPlaying={true}
+        controller={{ ...mockController, isPlaying: true }}
       />
     )
 
@@ -136,19 +149,19 @@ describe('AudioFeedback', () => {
     const { toJSON: start } = render(
       <AudioFeedback
         {...mockProps}
-        currentTime={0}
+        controller={{ ...mockController, currentTime: 0 }}
       />
     )
     const { toJSON: middle } = render(
       <AudioFeedback
         {...mockProps}
-        currentTime={60}
+        controller={{ ...mockController, currentTime: 60 }}
       />
     )
     const { toJSON: end } = render(
       <AudioFeedback
         {...mockProps}
-        currentTime={120}
+        controller={{ ...mockController, currentTime: 120 }}
       />
     )
 
@@ -166,6 +179,6 @@ describe('AudioFeedback', () => {
   it('handles play/pause button interaction', () => {
     render(<AudioFeedback {...mockProps} />)
 
-    expect(mockProps.onPlayPause).toBeDefined()
+    expect(mockController.togglePlayback).toBeDefined()
   })
 })

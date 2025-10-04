@@ -16,6 +16,13 @@ console.error = (...args) => {
         args[0].includes('alignItems') ||
         args[0].includes('borderWidth') ||
         args[0].includes('borderColor') ||
+        args[0].includes('borderRadius') ||
+        args[0].includes('borderTopColor') ||
+        args[0].includes('backgroundColor') ||
+        args[0].includes('marginTop') ||
+        args[0].includes('resizeMode') ||
+        args[0].includes('testID') ||
+        args[0].includes('accessibilityHint') ||
         args[0].includes('shadowColor') ||
         args[0].includes('shadowOffset') ||
         args[0].includes('shadowOpacity') ||
@@ -29,12 +36,55 @@ console.error = (...args) => {
     // Suppress event handler warnings
     if (
       args[0].includes('Unknown event handler property') &&
-      (args[0].includes('onPressIn') || args[0].includes('onPressOut'))
+      (args[0].includes('onPressIn') || args[0].includes('onPressOut') || args[0].includes('onEnd'))
     ) {
       return // Suppress unknown event handler warnings
     }
   }
   originalConsoleError(...args)
+}
+
+// RN prop sanitizer utility to prevent RN-only props from leaking into DOM
+// Note: This must be defined inside each jest.mock() factory to avoid scope issues
+const createStripRNProps = () => {
+  const RN_ONLY_PROPS = new Set([
+    // events
+    'onPress',
+    'onPressIn',
+    'onPressOut',
+    'onLongPress',
+    'onEnd',
+    // layout/style shorthands frequently seen in logs
+    'borderRadius',
+    'borderWidth',
+    'borderColor',
+    'borderTopColor',
+    'backgroundColor',
+    'justifyContent',
+    'alignItems',
+    'marginTop',
+    'paddingHorizontal',
+    'resizeMode',
+    // RN testing/accessibility (testID removed - needed for testing)
+    'numberOfLines',
+    'accessibilityHint',
+    'accessibilityRole',
+    'accessibilityLabel',
+    // shadows
+    'shadowColor',
+    'shadowOffset',
+    'shadowOpacity',
+    'shadowRadius',
+  ])
+
+  return (props) => {
+    const sanitized = {}
+    for (const [k, v] of Object.entries(props)) {
+      if (RN_ONLY_PROPS.has(k)) continue
+      sanitized[k] = v
+    }
+    return sanitized
+  }
 }
 
 // Use React Testing Library for web components instead of React Native Testing Library
@@ -528,127 +578,12 @@ jest.mock('@tamagui/core', () => {
   }
 })
 
-// Mock Tamagui components
-jest.mock('tamagui', () => {
-  const React = require('react')
-  const mockComponent = (name) =>
-    React.forwardRef((props, ref) => {
-      const {
-        testID,
-        accessibilityLabel,
-        accessibilityRole,
-        'data-testid': dataTestId,
-        ...otherProps
-      } = props
-      return React.createElement('div', {
-        ...otherProps,
-        ref,
-        'data-testid': dataTestId || testID || name,
-        testID: testID || name,
-        'aria-label': accessibilityLabel,
-        role: accessibilityRole,
-        // Preserve original props for testing
-        'data-original-accessibility-label': accessibilityLabel,
-        'data-original-accessibility-role': accessibilityRole,
-        'data-original-test-id': testID,
-      })
-    })
-
-  const mockTextComponent = React.forwardRef((props, ref) => {
-    const { testID, accessibilityLabel, accessibilityRole, ...otherProps } = props
-    return React.createElement('div', {
-      ...otherProps,
-      ref,
-      'data-testid': testID || 'Text',
-      'aria-label': accessibilityLabel,
-      role: accessibilityRole || 'text',
-    })
-  })
-
-  const mockButtonComponent = React.forwardRef((props, ref) => {
-    const {
-      testID,
-      onPress,
-      accessibilityLabel,
-      disabled,
-      accessibilityRole,
-      icon,
-      children,
-      ...otherProps
-    } = props
-    return React.createElement(
-      'button',
-      {
-        ...otherProps,
-        ref,
-        'data-testid': testID || 'Button',
-        'aria-label': accessibilityLabel,
-        'aria-disabled': disabled ? 'true' : 'false',
-        onClick: disabled ? undefined : onPress,
-        disabled: disabled,
-        role: accessibilityRole || 'button',
-      },
-      icon || children
-    )
-  })
-
-  return {
-    TamaguiProvider: ({ children }) => children,
-    styled: (_component, _config) => mockComponent('StyledComponent'),
-    createTamagui: jest.fn(() => ({})),
-    Stack: mockComponent('Stack'),
-    XStack: mockComponent('XStack'),
-    YStack: mockComponent('YStack'),
-    Button: mockButtonComponent,
-    Text: mockTextComponent,
-    View: mockComponent('View'),
-    Dialog: Object.assign(mockComponent('Dialog'), {
-      Root: ({ children }) => children,
-      Portal: ({ children }) => children,
-      Overlay: mockComponent('DialogOverlay'),
-      Content: mockComponent('DialogContent'),
-      Title: mockComponent('DialogTitle'),
-      Description: mockComponent('DialogDescription'),
-      Close: mockComponent('DialogClose'),
-    }),
-    Sheet: Object.assign(
-      ({ children, ...props }) => {
-        const React = require('react')
-        return React.createElement(
-          'div',
-          {
-            ...props,
-            'data-testid': 'sheet',
-          },
-          children
-        )
-      },
-      {
-        Overlay: mockComponent('SheetOverlay'),
-        Handle: mockComponent('SheetHandle'),
-        Frame: ({ children, ...props }) => {
-          const React = require('react')
-          return React.createElement(
-            'div',
-            {
-              ...props,
-              'data-testid': 'sheet-frame',
-            },
-            children
-          )
-        },
-      }
-    ),
-    Circle: mockComponent('Circle'),
-    Spinner: mockComponent('Spinner'),
-    ScrollView: mockComponent('ScrollView'),
-    SizableText: mockTextComponent,
-  }
-})
+// Tamagui mock is now handled by test-utils/setup.ts
 
 // Mock @tamagui/button
 jest.mock('@tamagui/button', () => {
   const React = require('react')
+  const stripRNProps = createStripRNProps()
   const mockButton = React.forwardRef((props, ref) => {
     const {
       testID,
@@ -660,10 +595,11 @@ jest.mock('@tamagui/button', () => {
       icon,
       ...otherProps
     } = props
+    const domProps = stripRNProps(otherProps)
     return React.createElement(
       'button',
       {
-        ...otherProps,
+        ...domProps,
         ref,
         'data-testid': testID || 'Button',
         'aria-label': accessibilityLabel,
@@ -740,6 +676,7 @@ jest.mock('react-native', () => ({
   TextInput: 'TextInput',
   Pressable: (props) => {
     const mockReact = require('react')
+    const stripRNProps = createStripRNProps()
     const {
       testID,
       children,
@@ -750,10 +687,11 @@ jest.mock('react-native', () => ({
       disabled,
       ...otherProps
     } = props
+    const domProps = stripRNProps(otherProps)
     return mockReact.createElement(
       'div',
       {
-        ...otherProps,
+        ...domProps,
         'data-testid': testID || 'Pressable',
         'aria-label': accessibilityLabel,
         role: accessibilityRole,
