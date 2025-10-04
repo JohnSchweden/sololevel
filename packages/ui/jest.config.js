@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFiles: ['<rootDir>/jest.polyfills.js'],
+  setupFiles: ['<rootDir>/jest.setup.js'],
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts'],
   cache: true,
   cacheDirectory: '<rootDir>/node_modules/.cache/jest',

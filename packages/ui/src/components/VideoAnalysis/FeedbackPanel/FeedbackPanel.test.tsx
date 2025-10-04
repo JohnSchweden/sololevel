@@ -1,10 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen, cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { FeedbackPanel } from './FeedbackPanel'
-// TestProviders import removed as it's not used
 
-// Skip tests that use Slider components for now
-// TODO: Fix Slider mocking in test environment
+// Mocks are handled globally in src/test-utils/setup.ts
 
 // Test providers setup
 
@@ -60,10 +58,10 @@ describe('FeedbackPanel', () => {
     const testProps = { ...mockProps }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...testProps} />)
+    render(<FeedbackPanel {...testProps} />)
 
     // ✅ ASSERT: Component renders successfully
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   it('renders collapsed state correctly', () => {
@@ -71,10 +69,10 @@ describe('FeedbackPanel', () => {
     const collapsedProps = { ...mockProps, isExpanded: false }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...collapsedProps} />)
+    render(<FeedbackPanel {...collapsedProps} />)
 
     // ✅ ASSERT: Component renders in collapsed state
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   it('renders expanded state with tabs', () => {
@@ -82,10 +80,10 @@ describe('FeedbackPanel', () => {
     const expandedProps = { ...mockProps, isExpanded: true }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...expandedProps} />)
+    render(<FeedbackPanel {...expandedProps} />)
 
     // ✅ ASSERT: Component renders in expanded state with tabs visible
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   it('handles tab switching', () => {
@@ -125,10 +123,10 @@ describe('FeedbackPanel', () => {
     const feedbackTabProps = { ...mockProps, isExpanded: true, activeTab: 'feedback' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...feedbackTabProps} />)
+    render(<FeedbackPanel {...feedbackTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with feedback content
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   it('renders insights placeholder when active', () => {
@@ -136,10 +134,10 @@ describe('FeedbackPanel', () => {
     const insightsTabProps = { ...mockProps, isExpanded: true, activeTab: 'insights' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...insightsTabProps} />)
+    render(<FeedbackPanel {...insightsTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with insights content
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   it('renders comments placeholder when active', () => {
@@ -147,10 +145,10 @@ describe('FeedbackPanel', () => {
     const commentsTabProps = { ...mockProps, isExpanded: true, activeTab: 'comments' as const }
 
     // 🎬 ACT: Render the component
-    const { toJSON } = render(<FeedbackPanel {...commentsTabProps} />)
+    render(<FeedbackPanel {...commentsTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with comments content
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
   describe('Phase 2: Interactive Elements Tests', () => {
@@ -167,7 +165,7 @@ describe('FeedbackPanel', () => {
 
         // Find the expand button by its accessibility label
         const expandButton = screen.getByLabelText('Expand feedback panel')
-        fireEvent.press(expandButton)
+        fireEvent.click(expandButton)
 
         expect(mockOnSheetExpand).toHaveBeenCalledTimes(1)
       })
@@ -184,7 +182,7 @@ describe('FeedbackPanel', () => {
 
         // Find the collapse button by its accessibility label
         const collapseButton = screen.getByLabelText('Collapse feedback panel')
-        fireEvent.press(collapseButton)
+        fireEvent.click(collapseButton)
 
         expect(mockOnSheetCollapse).toHaveBeenCalledTimes(1)
       })
@@ -251,7 +249,7 @@ describe('FeedbackPanel', () => {
 
         // Find the feedback tab button by its accessibility label
         const feedbackTab = screen.getByLabelText('feedback tab')
-        fireEvent.press(feedbackTab)
+        fireEvent.click(feedbackTab)
 
         expect(mockOnTabChange).toHaveBeenCalledWith('feedback')
       })
@@ -268,7 +266,7 @@ describe('FeedbackPanel', () => {
         )
 
         const insightsTab = screen.getByLabelText('insights tab')
-        fireEvent.press(insightsTab)
+        fireEvent.click(insightsTab)
 
         expect(mockOnTabChange).toHaveBeenCalledWith('insights')
       })
@@ -285,7 +283,7 @@ describe('FeedbackPanel', () => {
         )
 
         const commentsTab = screen.getByLabelText('comments tab')
-        fireEvent.press(commentsTab)
+        fireEvent.click(commentsTab)
 
         expect(mockOnTabChange).toHaveBeenCalledWith('comments')
       })
@@ -425,7 +423,7 @@ describe('FeedbackPanel', () => {
         )
 
         const expandButton = screen.getByLabelText('Expand feedback panel')
-        fireEvent.press(expandButton)
+        fireEvent.click(expandButton)
 
         expect(mockProps.onSheetExpand).toHaveBeenCalledTimes(1)
       })
@@ -439,7 +437,7 @@ describe('FeedbackPanel', () => {
         )
 
         const collapseButton = screen.getByLabelText('Collapse feedback panel')
-        fireEvent.press(collapseButton)
+        fireEvent.click(collapseButton)
 
         expect(mockProps.onSheetCollapse).toHaveBeenCalledTimes(1)
       })
@@ -457,10 +455,10 @@ describe('FeedbackPanel', () => {
         const insightsTab = screen.getByLabelText('insights tab')
         const commentsTab = screen.getByLabelText('comments tab')
 
-        fireEvent.press(insightsTab)
+        fireEvent.click(insightsTab)
         expect(mockProps.onTabChange).toHaveBeenCalledWith('insights')
 
-        fireEvent.press(commentsTab)
+        fireEvent.click(commentsTab)
         expect(mockProps.onTabChange).toHaveBeenCalledWith('comments')
       })
 
@@ -477,12 +475,12 @@ describe('FeedbackPanel', () => {
 
         // Using correct mock data: "Great posture!" and "Bend your knees a little bit"
         const firstFeedbackItem = screen.getByTestId('feedback-item-1')
-        fireEvent.press(firstFeedbackItem)
+        fireEvent.click(firstFeedbackItem)
 
         expect(mockProps.onFeedbackItemPress).toHaveBeenCalledWith(mockFeedbackItems[0])
 
         const secondFeedbackItem = screen.getByTestId('feedback-item-2')
-        fireEvent.press(secondFeedbackItem)
+        fireEvent.click(secondFeedbackItem)
 
         expect(mockProps.onFeedbackItemPress).toHaveBeenCalledWith(mockFeedbackItems[1])
       })
@@ -507,9 +505,9 @@ describe('FeedbackPanel', () => {
         expect(commentsTab).toBeTruthy()
 
         // Verify tabs are interactive elements (buttons in web environment)
-        expect(feedbackTab.type).toBe('button')
-        expect(insightsTab.type).toBe('button')
-        expect(commentsTab.type).toBe('button')
+        expect(feedbackTab.tagName).toBe('BUTTON')
+        expect(insightsTab.tagName).toBe('BUTTON')
+        expect(commentsTab.tagName).toBe('BUTTON')
       })
 
       it('provides proper accessibility labels for expanded/collapsed sheet', () => {

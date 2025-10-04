@@ -1,5 +1,8 @@
-import { render } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { SocialIcons } from './SocialIcons'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 const mockProps = {
   likes: 1100,
@@ -19,26 +22,26 @@ describe('SocialIcons', () => {
   })
 
   it('renders social icons without crashing', () => {
-    const { toJSON } = render(<SocialIcons {...mockProps} />)
+    render(<SocialIcons {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('social-icons-vertical')).toBeInTheDocument()
   })
 
   it('does not render when not visible', () => {
-    const { toJSON } = render(
+    render(
       <SocialIcons
         {...mockProps}
         isVisible={false}
       />
     )
 
-    expect(toJSON()).toBeNull()
+    expect(screen.queryByTestId('social-icons-vertical')).not.toBeInTheDocument()
   })
 
   it('displays correct formatted counts', () => {
-    const { toJSON } = render(<SocialIcons {...mockProps} />)
+    render(<SocialIcons {...mockProps} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('social-icons-vertical')).toBeInTheDocument()
   })
 
   it('formats large numbers correctly', () => {
@@ -50,9 +53,9 @@ describe('SocialIcons', () => {
       shares: 7500,
     }
 
-    const { toJSON } = render(<SocialIcons {...largeNumbers} />)
+    render(<SocialIcons {...largeNumbers} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('social-icons-vertical')).toBeInTheDocument()
   })
 
   it('handles zero counts', () => {
@@ -64,9 +67,9 @@ describe('SocialIcons', () => {
       shares: 0,
     }
 
-    const { toJSON } = render(<SocialIcons {...zeroCounts} />)
+    render(<SocialIcons {...zeroCounts} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByTestId('social-icons-vertical')).toBeInTheDocument()
   })
 
   it('handles social interaction callbacks', () => {

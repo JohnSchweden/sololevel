@@ -1,15 +1,12 @@
-import { render, screen } from '@testing-library/react-native'
-import { TamaguiProvider } from 'tamagui'
-import config from '../../../config/tamagui.config'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { FeedbackStatusIndicator } from './FeedbackStatusIndicator'
 
-const renderWithProvider = (component: React.ReactElement) => {
-  return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
-}
+// Mocks are handled globally in src/test-utils/setup.ts
 
 describe('FeedbackStatusIndicator', () => {
   it('shows "Ready" when both SSML and audio are completed', () => {
-    renderWithProvider(
+    render(
       <FeedbackStatusIndicator
         ssmlStatus="completed"
         audioStatus="completed"
@@ -23,7 +20,7 @@ describe('FeedbackStatusIndicator', () => {
   })
 
   it('shows "Processing" when either SSML or audio is processing', () => {
-    renderWithProvider(
+    render(
       <FeedbackStatusIndicator
         ssmlStatus="processing"
         audioStatus="queued"
@@ -37,7 +34,7 @@ describe('FeedbackStatusIndicator', () => {
   })
 
   it('shows "Failed" when either SSML or audio has failed', () => {
-    renderWithProvider(
+    render(
       <FeedbackStatusIndicator
         ssmlStatus="failed"
         audioStatus="queued"
@@ -51,7 +48,7 @@ describe('FeedbackStatusIndicator', () => {
   })
 
   it('shows "Queued" by default', () => {
-    renderWithProvider(
+    render(
       <FeedbackStatusIndicator
         ssmlStatus="queued"
         audioStatus="queued"
