@@ -232,3 +232,8 @@
 - Mock API services prevent full end-to-end functionality
 - Video player resizing not implemented for bottom sheet expansion
 - Limited real-time update mechanisms for live feedback
+
+### iOS Build Fix: TensorFlowLiteC Linker Error ✅ Resolved (2025-10-04)
+- **Root Cause**: `react-native-fast-tflite` requires static frameworks on iOS for TensorFlowLiteC XCFramework linking
+- **Solution**: Added `expo-build-properties` plugin with `ios.useFrameworks: "static"` to `apps/expo/app.json`
+- **Result**: Prebuild regenerated iOS project; CocoaPods installed `TensorFlowLiteC (2.17.0)`; iOS build compiles and links successfully

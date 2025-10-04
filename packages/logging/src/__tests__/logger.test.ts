@@ -136,7 +136,7 @@ describe('Logger', () => {
       logger.info(scope, message, context)
 
       const call = mockConsole.info.mock.calls[0]
-      expect(call[0]).toContain('dur=1.50s')
+      expect(call[0]).toContain('dur=1500.000s')
     })
 
     it('should gate info logs in production unless allowlisted', () => {

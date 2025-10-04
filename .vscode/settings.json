@@ -125,7 +125,8 @@
     "**/apps/**",
     "**/docs/**"
   ],
-  "workbench.activityBar.orientation": "vertical",
+  "workbench.activityBar.orientation": "horizontal",
   "workbench.tree.enableStickyScroll": true,
-  "workbench.sideBar.location": "left"
+  "workbench.sideBar.location": "left",
+  "workbench.statusBar.visible": true
 }

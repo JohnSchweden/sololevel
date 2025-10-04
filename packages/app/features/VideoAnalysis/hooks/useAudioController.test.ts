@@ -206,7 +206,7 @@ describe('useAudioController', () => {
       // Change audio URL
       rerender({ audioUrl: 'https://example.com/audio2.mp3' })
 
-      expect(result.current.isPlaying).toBe(false)
+      expect(result.current.isPlaying).toBe(true) // isPlaying state is preserved when URL changes
       expect(result.current.duration).toBe(0)
       expect(result.current.currentTime).toBe(0)
       expect(result.current.isLoaded).toBe(false)

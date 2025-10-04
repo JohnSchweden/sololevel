@@ -8,6 +8,8 @@ project_id = "sololevel"
 enabled = true
 # Port to use for the API URL.
 port = 54321
+# External URL of the API server that clients connect to.
+external_url = "http://127.0.0.1:54321"
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
 schemas = ["public", "graphql_public"]

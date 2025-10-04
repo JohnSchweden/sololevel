@@ -41,6 +41,14 @@
       "expo-font", 
       "expo-dev-client",
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
         "react-native-vision-camera",
         {
           "cameraPermissionText": "This app needs access to camera to record workout videos and analyze your form with AI pose detection.",

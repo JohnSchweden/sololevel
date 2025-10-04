@@ -40,7 +40,10 @@ export const useCameraScreenLogic = ({
 
   // Handle recording state changes - simplified since we don't need screen transitions
   const handleRecordingStateChange = useCallback((state: RecordingState, duration: number) => {
-    log.info('useCameraScreenLogic', 'Recording state changed', { state, duration })
+    log.info('useCameraScreenLogic', 'Recording state changed', {
+      state,
+      duration,
+    })
   }, [])
 
   // Stabilize camera controls to prevent dependency array size changes

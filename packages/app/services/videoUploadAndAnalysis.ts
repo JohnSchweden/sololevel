@@ -91,7 +91,7 @@ async function resolveVideoToUpload(params: {
     log.info('videoUploadAndAnalysis', 'Video compression completed', {
       compressedUri: compressionResult.compressedUri,
       size: compressionResult.metadata.size,
-      duration: durationSeconds,
+      duration: durationSeconds ? durationSeconds : undefined,
     })
 
     videoToUploadUri = compressionResult.compressedUri
@@ -169,6 +169,7 @@ async function uploadWithProgress(args: {
     onUploadInitialized: ({ recordingId, sessionId, storagePath }) => {
       log.info('startUploadAndAnalysis', 'Upload initialized', {
         recordingId,
+        videoRecordingId: recordingId,
         sessionId,
         storagePath,
       })
@@ -180,6 +181,7 @@ async function uploadWithProgress(args: {
 
   log.info('startUploadAndAnalysis', 'Video upload completed', {
     videoId: uploadedVideo.id,
+    recordingId: uploadedVideo.id,
     storagePath: uploadedVideo.storage_path,
     uploadStatus: uploadedVideo.upload_status,
   })

@@ -70,15 +70,34 @@ export function AudioFeedback({
     }, autoHideDelay)
   }, [autoHideDelay, onClose])
 
+  // Track previous state to only start timer on actual transitions
+  const prevStateRef = useRef({ isVisible: false, isPlaying: false })
+
   useEffect(() => {
-    log.debug('AudioFeedback', 'Auto-hide timer effect triggered', { isVisible, isPlaying })
-    if (isVisible && isPlaying) {
-      startAutoHideTimer()
-    } else {
-      if (autoHideTimeoutRef.current) {
-        log.debug('AudioFeedback', 'Auto-hide timer cleared (not visible or not playing)')
-        clearTimeout(autoHideTimeoutRef.current)
+    const prevState = prevStateRef.current
+    const currentState = { isVisible, isPlaying }
+
+    // Only log and act on actual state transitions
+    const stateChanged = prevState.isVisible !== isVisible || prevState.isPlaying !== isPlaying
+
+    if (stateChanged) {
+      log.debug('AudioFeedback', 'Auto-hide timer effect triggered', {
+        isVisible,
+        isPlaying,
+        prevState,
+        currentState,
+      })
+
+      if (isVisible && isPlaying) {
+        startAutoHideTimer()
+      } else {
+        if (autoHideTimeoutRef.current) {
+          log.debug('AudioFeedback', 'Auto-hide timer cleared (not visible or not playing)')
+          clearTimeout(autoHideTimeoutRef.current)
+        }
       }
+
+      prevStateRef.current = currentState
     }
 
     return () => {

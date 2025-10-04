@@ -108,7 +108,16 @@ export function extractContext(raw: any): Record<string, unknown> {
 function humanMs(ms?: number): string | undefined {
   if (ms == null) return undefined
   if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(2)}s`
+  return `${(ms / 1000).toFixed(3)}s`
+}
+
+function humanSeconds(seconds?: number): string | undefined {
+  if (seconds == null) return undefined
+  // // Handle milliseconds (values > 1000 are likely milliseconds)
+  // if (seconds > 1000) {
+  //   return `${(seconds / 1000).toFixed(2)}s`
+  // }
+  return `${seconds.toFixed(3)}s`
 }
 
 function truncate(value: unknown, max = 120): string {
@@ -182,7 +191,9 @@ function formatContext(obj?: Record<string, unknown>): string {
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => {
           const safeValue = redact(v)
-          if (k === 'duration' || k === 'dur') return [k, humanMs(safeValue as number)]
+          if (k === 'duration' || k === 'dur' || k === 'audioCurrentTime' || k === 'audioDuration' || k === 'currentTime') {
+            return [k, humanSeconds(safeValue as number)]
+          }
           return [k, safeValue]
         })
     )
@@ -196,7 +207,9 @@ function formatContext(obj?: Record<string, unknown>): string {
     .filter(([, v]) => v !== undefined)
     .map(([k, v]) => {
       const safeValue = redact(v)
-      if (k === 'duration' || k === 'dur') return `${k}=${humanMs(safeValue as number)}`
+      if (k === 'duration' || k === 'dur' || k === 'audioCurrentTime' || k === 'audioDuration' || k === 'currentTime') {
+        return `${k}=${humanSeconds(safeValue as number)}`
+      }
       return `${k}=${truncate(safeValue)}`
     })
 
@@ -244,7 +257,6 @@ function logWithSpacing(formatted: string, level: LogLevel) {
     default:
       console.log(formatted)
   }
-  console.log('') // Empty line
 }
 
 export type ConsoleRecord = {

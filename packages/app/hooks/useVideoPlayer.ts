@@ -72,7 +72,9 @@ export function useVideoPlayer({
   // Handle video load
   const handleLoad = useCallback(
     (data: { duration: number }) => {
-      log.info('VideoPlayer', 'Video loaded successfully', { duration: data.duration })
+      log.info('VideoPlayer', 'Video loaded successfully', {
+        duration: data.duration,
+      })
       setHasError(false)
       setVideoDuration(data.duration)
       onLoad?.(data)

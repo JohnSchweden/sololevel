@@ -56,7 +56,11 @@ export function useVideoProcessing() {
       })
 
       try {
-        log.info('useVideoProcessing', 'Starting video processing', { videoRecordingId, videoPath })
+        log.info('useVideoProcessing', 'Starting video processing', {
+          videoRecordingId,
+          recordingId: videoRecordingId,
+          videoPath,
+        })
 
         // Step 1: Create analysis job
         const analysisJob = await createAnalysisJobWithPoseProcessing(videoRecordingId)
@@ -64,6 +68,7 @@ export function useVideoProcessing() {
 
         log.info('useVideoProcessing', 'Created analysis job for video processing', {
           analysisJobId: analysisJob.id,
+          recordingId: videoRecordingId,
         })
 
         // Step 2: Set up progress tracking
@@ -100,9 +105,11 @@ export function useVideoProcessing() {
         const timingParams = computeVideoTimingParams(videoDuration)
 
         log.info('useVideoProcessing', 'Computed timing params for video analysis', {
-          duration: videoDuration,
+          durationSeconds: Number(videoDuration.toFixed(3)),
           feedbackCount: timingParams.feedbackCount,
           targetTimestamps: timingParams.targetTimestamps,
+          recordingId: videoRecordingId,
+          analysisJobId: analysisJob.id,
         })
 
         // Ensure user is authenticated before starting analysis
@@ -120,6 +127,7 @@ export function useVideoProcessing() {
         log.info('useVideoProcessing', 'AI analysis started for job', {
           analysisJobId: analysisJob.id,
           analysisId: analysisResponse.analysisId,
+          recordingId: videoRecordingId,
           status: analysisResponse.status,
         })
 
@@ -159,6 +167,7 @@ export function useVideoProcessing() {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
         log.error('useVideoProcessing', 'Video processing failed', {
           error: error instanceof Error ? error.message : String(error),
+          recordingId: videoRecordingId,
         })
 
         setState({

@@ -34,11 +34,28 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   // Reset state when audio URL changes
   useEffect(() => {
     if (audioUrl !== previousAudioUrlRef.current) {
-      log.debug('useAudioController', 'Audio URL changed, resetting state', {
+      log.debug('useAudioController', 'Audio URL changed, updating state', {
         previousUrl: previousAudioUrlRef.current,
         newUrl: audioUrl,
+        preserveIsPlaying: audioUrl !== null,
       })
-      reset()
+
+      if (audioUrl === null) {
+        // Full reset when clearing audio
+        setIsPlaying(false)
+        setCurrentTime(0)
+        setDuration(0)
+        setIsLoaded(false)
+        setSeekTime(null)
+      } else {
+        // Reset all state when URL changes
+        //setIsPlaying(false)
+        setCurrentTime(0)
+        setDuration(0)
+        setIsLoaded(false)
+        setSeekTime(null)
+      }
+
       previousAudioUrlRef.current = audioUrl
     }
   }, [audioUrl])
@@ -56,13 +73,15 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
 
   const handleLoad = useCallback((data: { duration: number }) => {
     const { duration: newDuration } = data
-    log.debug('useAudioController', 'Audio loaded', { duration: newDuration })
+    log.debug('useAudioController', 'Audio loaded', {
+      duration: newDuration,
+    })
 
     if (typeof newDuration === 'number' && !Number.isNaN(newDuration)) {
       setDuration(newDuration)
       setIsLoaded(true)
     } else {
-      log.warn('useAudioController', 'Invalid duration received', { duration: newDuration })
+      log.warn('useAudioController', 'Invalid duration received', { duration: `${newDuration}s` })
     }
   }, [])
 
@@ -74,7 +93,7 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
         setCurrentTime(newCurrentTime)
       } else {
         log.warn('useAudioController', 'Invalid currentTime received', {
-          currentTime: newCurrentTime,
+          currentTime: `${newCurrentTime}s`,
         })
         setCurrentTime(0)
       }

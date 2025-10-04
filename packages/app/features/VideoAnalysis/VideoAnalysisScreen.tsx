@@ -91,6 +91,7 @@ export function VideoAnalysisScreen({
         log.info('VideoAnalysisScreen', 'Component initialization - Auth state', {
           analysisJobId,
           videoRecordingId,
+          recordingId: videoRecordingId,
           hasVideoUri: !!videoUri,
           initialStatus,
           authenticated: !!authData.user,
@@ -161,7 +162,9 @@ export function VideoAnalysisScreen({
             setAnalysisUuid(uuid)
             log.info('VideoAnalysisScreen', 'Analysis UUID resolved from job ID', {
               jobId: effectiveAnalysisJobId,
+              analysisId: uuid,
               analysisUuid: uuid,
+              recordingId: videoRecordingId,
               jobStatus: analysisJob?.status,
             })
             return
@@ -211,7 +214,9 @@ export function VideoAnalysisScreen({
             setAnalysisUuid(uuid)
             log.info('VideoAnalysisScreen', 'Analysis UUID resolved from video recording ID', {
               videoRecordingId,
+              recordingId: videoRecordingId,
               jobId: jobData.id,
+              analysisId: uuid,
               analysisUuid: uuid,
               jobStatus: jobData.status,
             })
@@ -378,8 +383,52 @@ export function VideoAnalysisScreen({
 
   // Render logging removed - too noisy for production
 
+  const feedbackStatus = useFeedbackStatusIntegration(analysisUuid || undefined)
+  const feedbackAudio = useFeedbackAudioSource(feedbackStatus.feedbackItems)
+
   // Determine if we should show processing based on upload and analysis state
+  const firstPlayableReady = useMemo(() => {
+    const items = feedbackStatus.feedbackItems
+    if (!items || items.length === 0) return false
+    const earliest = items.reduce((prev, curr) => (curr.timestamp < prev.timestamp ? curr : prev))
+    return !!feedbackAudio.audioUrls[earliest.id]
+  }, [feedbackStatus.feedbackItems, feedbackAudio.audioUrls])
+
   const shouldShowProcessing = useMemo(() => {
+    // PRIORITY 0: Hide as soon as the earliest feedback has a playable audio URL
+    if (firstPlayableReady) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: first playable feedback ready - hiding overlay',
+          {
+            firstPlayableReady,
+            earliestFeedbackId: feedbackStatus.feedbackItems[0]?.id ?? null,
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
+      return false
+    }
+
+    // PRIORITY 0b: If feedback is fully completed (SSML + audio for all items), hide overlay
+    if (feedbackStatus.isFullyCompleted) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: feedback fully completed - hiding overlay',
+          {
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
+      return false
+    }
+
     // PRIORITY 1: If analysis job is completed or failed, always hide overlay
     // This overrides upload status to prevent stuck overlay
     if (analysisJob && (analysisJob.status === 'completed' || analysisJob.status === 'failed')) {
@@ -439,7 +488,14 @@ export function VideoAnalysisScreen({
 
     // DEFAULT: Hide processing overlay
     return false
-  }, [uploadProgress, analysisJob, initialStatus])
+  }, [
+    uploadProgress,
+    analysisJob,
+    initialStatus,
+    feedbackStatus.isFullyCompleted,
+    firstPlayableReady,
+    feedbackStatus.feedbackItems,
+  ])
 
   // Check for upload failure to show error UI
   const { uploadFailed, uploadError } = useMemo(() => {
@@ -508,6 +564,7 @@ export function VideoAnalysisScreen({
         (job) => {
           log.info('VideoAnalysisScreen', 'Analysis job update received', {
             jobId: job.id,
+            recordingId: job.video_recording_id,
             status: job.status,
             progress: job.progress_percentage,
             effectiveAnalysisJobId,
@@ -605,6 +662,7 @@ export function VideoAnalysisScreen({
           log.info('VideoAnalysisScreen', 'Analysis job update received by recording ID', {
             jobId: job.id,
             recordingId: job.video_recording_id,
+            videoRecordingId: job.video_recording_id,
             status: job.status,
             progress: job.progress_percentage,
             effectiveAnalysisJobId,
@@ -727,10 +785,6 @@ export function VideoAnalysisScreen({
 
   // Set up feedback status integration for real-time SSML/audio status updates
   // Use analysisUuid (from analyses table) for feedback queries, not job ID
-  const feedbackStatus = useFeedbackStatusIntegration(analysisUuid || undefined)
-  const feedbackAudio = useFeedbackAudioSource(feedbackStatus.feedbackItems)
-
-  // Audio controller for managing audio playback state
   const audioController = useAudioController(feedbackAudio.activeAudio?.url || null)
 
   // Video-audio synchronization
@@ -793,12 +847,10 @@ export function VideoAnalysisScreen({
   )
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
 
-  // Audio control visibility - show only when audio is actively playing
+  // Audio control visibility - show when audio is actively playing (regardless of processing state)
   const shouldShowAudioControls = useMemo(() => {
     const shouldShow = !!(
-      feedbackAudio.activeAudio &&
-      audioController.isPlaying && // Only show when audio is actually playing
-      !isProcessing
+      (feedbackAudio.activeAudio && audioController.isPlaying) // Only show when audio is actually playing
     )
 
     log.debug('VideoAnalysisScreen', 'Audio controls visibility calculated', {
@@ -905,16 +957,18 @@ export function VideoAnalysisScreen({
     log.info('VideoAnalysisScreen', 'Component mounted', {
       analysisJobId,
       videoUri,
-      feedbackMessagesCount: feedbackMessages.length,
-      feedbackMessagesSample: feedbackMessages.slice(0, 2).map((msg, idx) => ({
+      recordingId: derivedRecordingId,
+      analysisId: analysisUuid,
+      feedbackItemsCount: feedbackItems.length,
+      feedbackItemsSample: feedbackItems.slice(0, 2).map((item, idx) => ({
         index: idx,
-        id: msg.id,
-        timestamp: msg.timestamp,
-        type: msg.type,
-        category: msg.category,
+        id: item.id,
+        timestamp: item.timestamp,
+        type: item.type,
+        category: item.category,
       })),
     })
-  }, [analysisJobId, videoUri, feedbackMessages])
+  }, [analysisJobId, videoUri, feedbackItems, derivedRecordingId, analysisUuid])
 
   // STEP 1: Use provided videoUri or fallback
   const recordedVideoUri =
@@ -929,12 +983,21 @@ export function VideoAnalysisScreen({
         isPlaying,
         hasActiveAudio: !!feedbackAudio.activeAudio,
         videoUri: recordedVideoUri,
-        duration,
+        duration: duration,
         platform: Platform.OS,
+        recordingId: derivedRecordingId,
+        analysisId: analysisUuid,
       })
       setIsPlaying(true)
     }
-  }, [isProcessing, feedbackAudio.activeAudio, recordedVideoUri, duration]) // Removed isPlaying from deps to avoid re-triggering
+  }, [
+    isProcessing,
+    feedbackAudio.activeAudio,
+    recordedVideoUri,
+    duration,
+    derivedRecordingId,
+    analysisUuid,
+  ]) // Removed isPlaying from deps to avoid re-triggering
 
   // Cleanup bubble timer when component unmounts
   useEffect(() => {
@@ -990,10 +1053,19 @@ export function VideoAnalysisScreen({
         hasActiveAudio: !!feedbackAudio.activeAudio,
         videoUri: recordedVideoUri,
         platform: Platform.OS,
+        recordingId: derivedRecordingId,
+        analysisId: analysisUuid,
       })
       setDuration(data.duration)
     },
-    [isPlaying, isProcessing, feedbackAudio.activeAudio, recordedVideoUri]
+    [
+      isPlaying,
+      isProcessing,
+      feedbackAudio.activeAudio,
+      recordedVideoUri,
+      derivedRecordingId,
+      analysisUuid,
+    ]
   )
 
   const handleVideoTap = useCallback(() => {
@@ -1013,8 +1085,19 @@ export function VideoAnalysisScreen({
   // Sequential bubble display functions
   const showBubble = useCallback(
     (index: number) => {
+      const feedbackItem = feedbackItems[index]
+      if (!feedbackItem) {
+        log.warn('VideoAnalysisScreen', 'showBubble called with invalid index', {
+          bubbleIndex: index,
+          feedbackItemsCount: feedbackItems.length,
+        })
+        return
+      }
+
       log.info('VideoAnalysisScreen', 'showBubble called', {
         bubbleIndex: index,
+        itemId: feedbackItem.id,
+        itemTimestamp: feedbackItem.timestamp,
         currentBubbleIndex,
         bubbleVisible,
         isPlaying,
@@ -1032,12 +1115,39 @@ export function VideoAnalysisScreen({
       // Make coach speak when bubble appears
       setIsCoachSpeaking(true)
 
-      // Hide bubble after 2 seconds
+      // Calculate display duration based on audio duration
+      // Use audio duration if available, otherwise fall back to 3 seconds
+      const audioUrl = feedbackAudio.audioUrls[feedbackItem.id]
+      const displayDuration =
+        audioUrl && audioController.duration > 0
+          ? Math.max(3000, audioController.duration * 1000) // At least 3 seconds, or audio duration
+          : 3000 // Default 3 seconds fallback
+
+      log.info('VideoAnalysisScreen', 'Setting bubble display duration', {
+        itemId: feedbackItem.id,
+        audioDuration: audioController.duration,
+        displayDurationMs: displayDuration,
+        hasAudioUrl: !!audioUrl,
+        fallbackReason: !audioUrl
+          ? 'no_audio_url'
+          : audioController.duration <= 0
+            ? 'no_duration'
+            : 'using_audio_duration',
+      })
+
+      // Hide bubble after calculated duration
       bubbleTimerRef.current = setTimeout(() => {
         hideBubble()
-      }, 2000)
+      }, displayDuration)
     },
-    [currentBubbleIndex, bubbleVisible, isPlaying, feedbackMessages]
+    [
+      currentBubbleIndex,
+      bubbleVisible,
+      isPlaying,
+      feedbackItems,
+      feedbackAudio.audioUrls,
+      audioController.duration,
+    ]
   )
 
   const hideBubble = useCallback(() => {
@@ -1099,15 +1209,15 @@ export function VideoAnalysisScreen({
     (currentTimeMs: number) => {
       log.info('VideoAnalysisScreen', 'checkAndShowBubbleAtTime called', {
         currentTimeMs,
-        currentTimeSeconds: currentTimeMs / 1000,
+        currentTime: currentTimeMs / 1000,
         currentBubbleIndex,
         bubbleVisible,
-        feedbackMessagesCount: feedbackMessages.length,
+        feedbackItemsCount: feedbackItems.length,
       })
 
       // Check if we should show any feedback bubbles at this timestamp
-      feedbackMessages.forEach((message, index) => {
-        const timeDiff = Math.abs(currentTimeMs - message.timestamp)
+      feedbackItems.forEach((item, index) => {
+        const timeDiff = Math.abs(currentTimeMs - item.timestamp)
         const isNearTimestamp = timeDiff < 500 // Within 0.5 seconds
 
         // Allow showing the same bubble again if it's been hidden (for seek operations)
@@ -1115,9 +1225,8 @@ export function VideoAnalysisScreen({
 
         log.info('VideoAnalysisScreen', 'Checking bubble', {
           bubbleIndex: index,
-          messageId: message.id,
-          messageTimestamp: message.timestamp,
-          messageTimestampSeconds: message.timestamp / 1000,
+          itemId: item.id,
+          itemTimestamp: item.timestamp / 1000,
           timeDiff,
           isNearTimestamp,
           currentBubbleIndex,
@@ -1131,16 +1240,25 @@ export function VideoAnalysisScreen({
         })
 
         if (canShowBubble) {
-          // Show this bubble
+          // Show this bubble and auto-play audio if available
           log.info('VideoAnalysisScreen', 'Showing bubble', {
             bubbleIndex: index,
-            messageId: message.id,
+            itemId: item.id,
           })
           showBubble(index)
+
+          // Auto-play audio for this feedback item if available
+          if (feedbackAudio.audioUrls[item.id]) {
+            feedbackAudio.selectAudio(item.id)
+            audioController.setIsPlaying(true)
+            log.info('VideoAnalysisScreen', 'Auto-playing audio for feedback bubble', {
+              itemId: item.id,
+            })
+          }
         }
       })
     },
-    [feedbackMessages, currentBubbleIndex, bubbleVisible, showBubble]
+    [feedbackItems, currentBubbleIndex, bubbleVisible, showBubble, feedbackAudio, audioController]
   )
 
   // // Handler for feedback bubble taps
@@ -1190,8 +1308,8 @@ export function VideoAnalysisScreen({
         }
 
         // Check if we should show any feedback bubbles
-        feedbackMessages.forEach((message, index) => {
-          const timeDiff = Math.abs(currentTimeMs - message.timestamp)
+        feedbackItems.forEach((item, index) => {
+          const timeDiff = Math.abs(currentTimeMs - item.timestamp)
           const isNearTimestamp = timeDiff < 500 // Within 0.5 seconds
 
           // Allow showing the same bubble again if it's been hidden (for seek operations)
@@ -1200,22 +1318,43 @@ export function VideoAnalysisScreen({
           if (canShowBubble) {
             log.info('VideoAnalysisScreen', 'Bubble trigger during playback', {
               bubbleIndex: index,
-              messageId: message.id,
+              itemId: item.id,
               currentTimeMs,
-              messageTimestamp: message.timestamp,
+              itemTimestamp: item.timestamp,
               timeDiff,
               isPlaying,
               reason: !bubbleVisible ? 'bubble not visible' : 'different bubble',
             })
-            // Show this bubble
+            // Show this bubble and auto-play audio if available
             showBubble(index)
+
+            // Auto-play audio for this feedback item if available
+            if (feedbackAudio.audioUrls[item.id]) {
+              feedbackAudio.selectAudio(item.id)
+              audioController.setIsPlaying(true)
+              log.info(
+                'VideoAnalysisScreen',
+                'Auto-playing audio for feedback bubble during playback',
+                {
+                  itemId: item.id,
+                }
+              )
+            }
           }
         })
 
         return newTime
       })
     },
-    [feedbackMessages, currentBubbleIndex, bubbleVisible, showBubble, isPlaying]
+    [
+      feedbackItems,
+      currentBubbleIndex,
+      bubbleVisible,
+      showBubble,
+      isPlaying,
+      feedbackAudio,
+      audioController,
+    ]
   )
 
   // Feedback Panel handlers for US-VF-08
@@ -1396,7 +1535,7 @@ export function VideoAnalysisScreen({
                       const seekedTimeMs = pendingSeek * 1000 // Convert to milliseconds
                       log.info('VideoAnalysisScreen', 'Checking for bubbles at seeked time', {
                         seekedTimeMs,
-                        seekedTimeSeconds: seekedTimeMs / 1000,
+                        seekedTime: seekedTimeMs / 1000,
                       })
                       checkAndShowBubbleAtTime(seekedTimeMs)
                     }
@@ -1424,8 +1563,19 @@ export function VideoAnalysisScreen({
 
               <FeedbackBubbles
                 messages={
-                  currentBubbleIndex !== null && bubbleVisible
-                    ? [feedbackMessages[currentBubbleIndex]]
+                  currentBubbleIndex !== null && bubbleVisible && feedbackItems[currentBubbleIndex]
+                    ? [
+                        {
+                          id: feedbackItems[currentBubbleIndex].id,
+                          timestamp: feedbackItems[currentBubbleIndex].timestamp,
+                          text: feedbackItems[currentBubbleIndex].text,
+                          type: feedbackItems[currentBubbleIndex].type,
+                          category: feedbackItems[currentBubbleIndex].category,
+                          position: { x: 0.5, y: 0.3 }, // Default position for real feedback
+                          isHighlighted: false,
+                          isActive: true,
+                        },
+                      ]
                     : []
                 }
                 // onBubbleTap={handleFeedbackBubbleTap}
