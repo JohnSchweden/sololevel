@@ -1,6 +1,7 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts', '<rootDir>/jest.setup.js'],
+  setupFiles: ['<rootDir>/jest.polyfills.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts'],
   cache: true,
   cacheDirectory: '<rootDir>/node_modules/.cache/jest',
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],

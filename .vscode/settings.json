@@ -119,5 +119,13 @@
   // Deno settings for Edge Functions only
   "deno.enable": true,
   "deno.enablePaths": ["supabase/functions"],
-  "deno.disablePaths": ["**/node_modules/**", "**/packages/**", "**/apps/**", "**/docs/**"]
+  "deno.disablePaths": [
+    "**/node_modules/**",
+    "**/packages/**",
+    "**/apps/**",
+    "**/docs/**"
+  ],
+  "workbench.activityBar.orientation": "vertical",
+  "workbench.tree.enableStickyScroll": true,
+  "workbench.sideBar.location": "left"
 }

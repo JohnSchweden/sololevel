@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react-native'
 import { TamaguiProvider } from 'tamagui'
 import config from '../../../config/tamagui.config'
 import { FeedbackStatusIndicator } from './FeedbackStatusIndicator'
@@ -19,7 +19,7 @@ describe('FeedbackStatusIndicator', () => {
       />
     )
 
-    expect(screen.getByText('Ready')).toBeInTheDocument()
+    expect(screen.getByTestId('test-indicator')).toHaveTextContent('Ready')
   })
 
   it('shows "Processing" when either SSML or audio is processing', () => {
@@ -33,7 +33,7 @@ describe('FeedbackStatusIndicator', () => {
       />
     )
 
-    expect(screen.getByText('Processing')).toBeInTheDocument()
+    expect(screen.getByTestId('test-indicator')).toHaveTextContent(/Processing/)
   })
 
   it('shows "Failed" when either SSML or audio has failed', () => {
@@ -47,7 +47,7 @@ describe('FeedbackStatusIndicator', () => {
       />
     )
 
-    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(screen.getByTestId('test-indicator')).toHaveTextContent(/Failed/)
   })
 
   it('shows "Queued" by default', () => {
@@ -59,6 +59,6 @@ describe('FeedbackStatusIndicator', () => {
       />
     )
 
-    expect(screen.getByText('Queued')).toBeInTheDocument()
+    expect(screen.getByTestId('test-indicator')).toHaveTextContent('Queued')
   })
 })

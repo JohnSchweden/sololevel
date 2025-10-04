@@ -96,6 +96,18 @@ jest.mock('react-native', () => ({
     setBarStyle: jest.fn(),
     setBackgroundColor: jest.fn(),
   },
+  PanResponder: {
+    create: jest.fn(() => ({
+      panHandlers: {
+        onStartShouldSetPanResponder: jest.fn(),
+        onMoveShouldSetPanResponder: jest.fn(),
+        onPanResponderGrant: jest.fn(),
+        onPanResponderMove: jest.fn(),
+        onPanResponderRelease: jest.fn(),
+        onPanResponderTerminate: jest.fn(),
+      },
+    })),
+  },
 }))
 
 // Mock Expo Camera
@@ -332,6 +344,26 @@ jest.mock('@my/logging', () => ({
 
 jest.mock('@ui/utils/videoValidation', () => ({
   validateVideoFile: jest.fn(),
+}))
+
+// Mock @my/logging
+jest.mock('@my/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  log: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  getConsoleLogs: jest.fn(() => []),
+  getConsoleErrors: jest.fn(() => []),
+  getNetworkLogs: jest.fn(() => []),
+  getNetworkErrors: jest.fn(() => []),
 }))
 
 // Mock @my/config package

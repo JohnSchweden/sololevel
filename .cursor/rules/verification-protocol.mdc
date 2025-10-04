@@ -19,20 +19,24 @@ All summaries must be based on direct, recent verification. Do not make any posi
 
 ### 🧪 Test Results (Copy from Output)
 - Command: [exact command run]
-- Total tests: [number]
-- Passed: [number]
-- Failed: [number]
+| Metric         | Failed  | Skipped | Passed  | Total     |
+|----------------|---------|---------|---------|-----------|
+| Test Suites    | [number]| [number]| [number]| [number]  |
+| Tests          | [number]| [number]| [number]| [number]  |
 - Failed test names: [list OR "none"]
 
 ### 🔍 Code Quality (Copy from Output)
-- Lint errors: [number]
-- TypeScript errors: [number]
+| Check      | TypeScript  | Lint             |
+|------------|-------------|------------------|
+| Errors     |  [number]   |     [number]     |
 - Issues: [list with file:line OR "none"]
 
 ### 📊 Status
-- ✅ **Complete**: All tests pass, zero lint/TS errors
-- ⚠️ **Partial**: [X] test(s) failed, [Y] lint/TS errors
-- 🚧 **Blocked**: [describe blocking issues]
+| Status   | Criteria                                             | Notes                        |
+|----------|------------------------------------------------------|------------------------------|
+| ✅ Complete | All tests pass, zero lint/TS errors                  |                              |
+| ⚠️ Partial  | [X] test(s) failed, [Y] lint/TS errors               | Specify numbers in brackets  |
+| 🚧 Blocked  | [describe blocking issues]                           | Detail blocking issues       |
 
 ## Do NOT Claim Without Evidence:
 - ❌ "Implemented successfully"

@@ -343,6 +343,7 @@ export function createMockComponent(name: string) {
         role: props.accessibilityRole,
         'aria-selected': (props.accessibilityState as { selected?: boolean })?.selected,
         'aria-disabled': props.disabled,
+        disabled: props.disabled,
         onClick: props.onPress, // Convert onPress to onClick for web
         style: {
           minHeight: props.minHeight || 44,
@@ -566,12 +567,19 @@ export function createIconMocks() {
     CheckCircle: createIcon('CheckCircle'),
     X: createIcon('X'),
     Play: createIcon('Play'),
+    PlayCircle: createIcon('PlayCircle'),
     Pause: createIcon('Pause'),
     Square: createIcon('Square'),
     RotateCcw: createIcon('RotateCcw'),
     Upload: createIcon('Upload'),
     SwitchCamera: createIcon('SwitchCamera'),
     Settings: createIcon('Settings'),
+    SkipBack: createIcon('SkipBack'),
+    SkipForward: createIcon('SkipForward'),
+    XCircle: createIcon('XCircle'),
+    Clock: createIcon('Clock'),
+    Share: createIcon('Share'),
+    Download: createIcon('Download'),
   }
 }
 
