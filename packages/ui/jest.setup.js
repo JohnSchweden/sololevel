@@ -1,4 +1,4 @@
-// import '@testing-library/jest-dom'
+import '@testing-library/jest-dom'
 
 // Suppress react-test-renderer deprecation warnings in React 19
 // This is a known issue with @testing-library/react-native until they update
