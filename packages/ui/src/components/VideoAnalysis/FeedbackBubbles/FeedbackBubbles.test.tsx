@@ -1,5 +1,8 @@
-import { render, screen } from '@testing-library/react-native'
+import { render, screen, cleanup } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { FeedbackBubbles } from './FeedbackBubbles'
+
+// Mocks are handled globally in src/test-utils/setup.ts
 
 const mockMessages = [
   {
@@ -40,16 +43,16 @@ describe('FeedbackBubbles', () => {
   })
 
   it('renders feedback bubbles without crashing', () => {
-    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
+    render(<FeedbackBubbles messages={mockMessages} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
   })
 
   it('renders with empty messages array', () => {
-    const { toJSON } = render(<FeedbackBubbles messages={[]} />)
+    render(<FeedbackBubbles messages={[]} />)
 
-    // Component returns null for empty messages, so toJSON will be null
-    expect(toJSON()).toBeNull()
+    // Component returns null for empty messages
+    expect(screen.queryByLabelText('Feedback: positive feedback bubble')).not.toBeInTheDocument()
   })
 
   it('limits display to last 3 messages', () => {
@@ -77,22 +80,22 @@ describe('FeedbackBubbles', () => {
       },
     ]
 
-    const { toJSON } = render(<FeedbackBubbles messages={manyMessages} />)
+    render(<FeedbackBubbles messages={manyMessages} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
   })
 
   it('renders bubbles with proper structure', () => {
-    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
+    render(<FeedbackBubbles messages={mockMessages} />)
 
     // Test that the component renders properly
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
   })
 
   it('renders highlighted messages with different styling', () => {
-    const { toJSON } = render(<FeedbackBubbles messages={mockMessages} />)
+    render(<FeedbackBubbles messages={mockMessages} />)
 
-    expect(toJSON()).toBeTruthy()
+    expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeInTheDocument()
   })
 
   it('renders inactive messages with reduced opacity', () => {
@@ -103,10 +106,10 @@ describe('FeedbackBubbles', () => {
       },
     ]
 
-    const { toJSON } = render(<FeedbackBubbles messages={inactiveMessages} />)
+    render(<FeedbackBubbles messages={inactiveMessages} />)
 
-    // Component returns null for inactive messages, so toJSON should be null
-    expect(toJSON()).toBeNull()
+    // Component returns null for inactive messages
+    expect(screen.queryByLabelText('Feedback: positive feedback bubble')).not.toBeInTheDocument()
   })
 
   describe('Phase 2: Interactive Elements Tests', () => {
@@ -190,10 +193,10 @@ describe('FeedbackBubbles', () => {
       })
 
       it('handles empty messages array gracefully', () => {
-        const { toJSON } = render(<FeedbackBubbles messages={[]} />)
+        render(<FeedbackBubbles messages={[]} />)
 
-        // Component returns null for empty messages, so toJSON should be null
-        expect(toJSON()).toBeNull()
+        // Component returns null for empty messages
+        expect(screen.queryByLabelText('Feedback: positive feedback bubble')).not.toBeInTheDocument()
       })
 
       it('updates displayed messages when messages prop changes', () => {
@@ -271,10 +274,10 @@ describe('FeedbackBubbles', () => {
       })
 
       it('renders bubbles with proper touch target structure', () => {
-        const { UNSAFE_root } = render(<FeedbackBubbles messages={mockMessages} />)
+        render(<FeedbackBubbles messages={mockMessages} />)
 
         // Check that the container exists and renders properly
-        expect(UNSAFE_root).toBeTruthy()
+        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
       })
 
       it('maintains proper component hierarchy for screen readers', () => {
