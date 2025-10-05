@@ -1,433 +1,625 @@
-# Current Sprint Tasks
+# VideoAnalysisScreen Refactoring: Complete Workflow Prompts
 
-## US-VF-01: Video Analysis State Management
-Status: Completed
-Priority: High
-Dependencies: US-RU-01 (Video Recording), AI analysis pipeline
+## 📋 Execution Order & Dependencies
 
-### User Story
-As a developer, I want to use the existing centralized state management system for video analysis so that all components can share and synchronize video processing data.
-
-### Requirements
-- Centralized video analysis state management
-- Real-time pose data streaming and storage
-- Analysis progress tracking and status updates
-- Error handling and retry mechanisms
-- Cross-component state synchronization
-- Performance optimization for large datasets
-
-### Acceptance Criteria
-- Given the existing videoAnalysisStore is used in a video analysis session
-- When pose data is received from AI pipeline
-- Then the state store updates with new pose data
-- And all subscribed components receive updates
-- And analysis progress is tracked and displayed
-- And errors are handled gracefully with retry options
-- And state persists across component unmounts/remounts
-
-### Technical Notes
-- **State Management**: Existing Zustand store (`videoAnalysisStore.ts`) provides centralized state management
-- **AI Pipeline Integration**: Real-time pose data from MoveNet Lightning model processing
-- **Data Flow**: Unified `PoseDetectionResult[]` format from VisionCamera (live) and react-native-video-processing (uploaded videos)
-- **Database Integration**: Supabase Realtime subscriptions for analysis status updates
-- **Performance**: Web Workers (web) and react-native-worklets-core (native) for background processing
-- **Error Handling**: Discriminated union results with Zod validation and structured error codes
-- **Persistence**: SQLite storage for pose data, AsyncStorage for user preferences
-- **Cross-platform**: Unified state interface for Expo (native) and Next.js (web) implementations
-- **Real-time Sync**: WebSocket connections for live pose detection during recording
+```mermaid
+graph TD
+    T6[Task 6: Log Levels] --> T1[Task 1: Subscription Store]
+    T1 --> T7[Task 7: Bubble Controller]
+    T1 --> T3[Task 3: Analysis State]
+    T7 --> T2[Task 2: Component Splitting]
+    T3 --> T2
+    T2 --> T4[Task 4: Command Pattern]
+    T2 --> T5[Task 5: React Query Migration]
+```
 
 ---
 
-## US-VF-02: Video Player Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management)
+## 🚀 PHASE 1: Foundation (Week 1-2)
 
-### User Story
-As a user, I want to use the existing video player that can display video content with overlay capabilities so I can see my recorded performance with AI analysis overlays.
+### Task 6: Add Production Log Levels ⚡ QUICK WIN
+**Effort:** 30 minutes | **Priority:** Do First (reduces noise for other tasks)
 
-### Requirements
-- Video playback with overlay support
-- Cross-platform video rendering (react-native-video/HTML5)
-- Overlay positioning and z-index management
-- Video loading states and error handling
-- Performance optimization for smooth playback
-- Accessibility support for video controls
+```
+@step-by-step-rule.mdc - Audit and fix production logging in VideoAnalysisScreen.tsx.
 
-### Acceptance Criteria
-- Given a video file is provided to the existing VideoPlayer component
-- When the video player loads
-- Then the video plays smoothly at 60fps
-- And overlay components can be positioned over the video
-- And loading states are displayed during video preparation
-- And errors are handled gracefully with user feedback
-- And the player supports keyboard navigation (web) and touch gestures (native)
+OBJECTIVE: Wrap all debug/verbose logs with __DEV__ guards to improve production performance.
 
-### Technical Notes
-- **Video Rendering**: Existing `react-native-video` v6+ for native platforms, HTML5 `<video>` with frame control for web
-- **Overlay System**: `react-native-skia` (native) and WebGL-accelerated Canvas (web) for pose landmarks
-- **Performance**: Frame-perfect synchronization with high-resolution timers and requestAnimationFrame optimization
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for unified pose data and video metadata
-- **Cross-platform**: Existing unified video player interface via `@my/ui/VideoPlayer` package with platform-specific implementations
-- **Accessibility**: WCAG 2.2 AA compliance for web, RN accessibility roles/labels for native
-- **Error Handling**: Graceful degradation with user-safe error messages and correlation IDs
-- **Audio Integration**: Unified audio/video playback for TTS commentary with AAC/MP3 format support
+SCOPE:
+- File: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx (lines 1-1728)
+- Pattern: Convert `log.debug(...)` → `if (__DEV__) { log.debug(...) }`
+- Keep: log.error(), log.warn(), log.info() (these run in production)
+- Wrap: log.debug() calls (estimated ~30 instances)
+
+ACCEPTANCE CRITERIA:
+- [x] All log.debug() calls wrapped with __DEV__ checks
+- [x] Frame-by-frame progress logs (line ~1312) only in dev mode
+- [x] Render count logs (line ~381) only in dev mode
+- [x] No production performance regression (test on low-end device)
+- [x] Existing error/warn/info logs remain unchanged
+
+REFERENCE PATTERN:
+See packages/app/features/VideoAnalysis/hooks/useFeedbackStatusIntegration.ts lines 214-236 for existing __DEV__ guard pattern.
+
+SUCCESS VALIDATION:
+- yarn type-check passes ✅
+- yarn build succeeds ✅
+- Production bundle size reduced by ~5-10KB ✅
+```
 
 ---
 
-## US-VF-03: Motion Capture Overlay Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component)
+### Task 1: Extract Subscription Management to Zustand Store
+**Effort:** 2-3 days | **Priority:** High | **Blocks:** Tasks 2, 3
 
-### User Story
-As a user, I want to use the existing motion capture overlay to see a skeletal representation of my movements overlaid on the video so I can understand how the AI is analyzing my posture and form.
+```
+@step-by-step-rule.mdc - Extract VideoAnalysisScreen subscription management (lines 245-783) to packages/app/stores/analysisSubscription.ts following the feedbackStatus.ts pattern.
 
-### Requirements
-- Real-time skeletal joint detection and visualization
-- Dashed-line skeletal figure with joint circles
-- Dynamic pose tracking throughout video playback
-- Visual feedback for detected movements
-- Overlay transparency and positioning
-- Performance optimization for smooth tracking
+OBJECTIVE: Centralize all analysis job subscription logic into a reusable Zustand store with built-in retry, error handling, and StrictMode guards.
 
-### Acceptance Criteria
-- Given the video is playing with AI analysis and the existing MotionCaptureOverlay is used
-- When skeletal tracking is active
-- Then I see a light gray dashed-line skeletal figure
-- And joint positions are marked with circles
-- And the skeleton updates in real-time with my movements
-- And the overlay doesn't obstruct important video content
-- And tracking performance is smooth without lag
+SCOPE:
+- CREATE: packages/app/stores/analysisSubscription.ts (~250 lines)
+- CREATE: packages/app/stores/__tests__/analysisSubscription.test.ts (~150 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: Lines 245-262 (refs), 264-378 (helper functions), 522-783 (subscription effects)
+  - REPLACE: With single useAnalysisSubscriptionStore hook call (~10 lines)
 
-### Technical Notes
-- **Pose Detection**: MoveNet Lightning model (`movenet_lightning_int8.tflite`) via react-native-fast-tflite (native) and @tensorflow-models/pose-detection (web)
-- **Visualization**: `react-native-skia` for native rendering, WebGL-accelerated Canvas with GPU transforms for web
-- **Performance**: Native-threaded processing with react-native-worklets-core (native) and Web Workers with OffscreenCanvas (web)
-- **Overlay Management**: Z-index layering with transparency controls and frame-perfect synchronization
-- **Joint Mapping**: Standard MoveNet keypoint mapping (nose, eyes, shoulders, elbows, wrists, hips, knees, ankles)
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for unified `PoseDetectionResult[]` data
-- **Cross-platform**: Platform-specific optimizations with unified pose data format
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/MotionCaptureOverlay/`
-- **Confidence Filtering**: Temporal smoothing and confidence thresholding for stable skeletal tracking
+ARCHITECTURE REQUIREMENTS:
+- Follow packages/app/stores/feedbackStatus.ts as reference pattern
+- Store interface must include:
+  * subscriptions: Map<string, SubscriptionState>
+  * subscribe(key: string, options: SubscriptionOptions): Promise<void>
+  * unsubscribe(key: string): void
+  * getJob(key: string): AnalysisJob | null
+  * getStatus(key: string): SubscriptionStatus
+  * retry(key: string): Promise<void>
+- Use subscribeToAnalysisJob and subscribeToLatestAnalysisJobByRecordingId from @my/api
+- Implement exponential backoff retry logic (current: lines 264-322)
+- Handle StrictMode double-effect prevention (current: lines 247-249, 549-553)
+- Include health check integration (current: lines 616-631)
 
----
+ACCEPTANCE CRITERIA:
+- [x] Store exports useAnalysisSubscriptionStore hook
+- [x] Subscription deduplication prevents concurrent attempts
+- [x] Retry logic caps at 3 attempts with exponential backoff
+- [x] Store cleanup on unmount prevents memory leaks
+- [x] Health check failures logged with diagnostic data
+- [x] Test coverage ≥70% (subscription lifecycle, retry, cleanup, edge cases)
+- [x] VideoAnalysisScreen.tsx reduced by ~250 lines
+- [x] All existing realtime updates continue working
+- [x] StrictMode doesn't cause duplicate subscriptions
 
-## US-VF-04: Feedback Bubble Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component)
+MIGRATION STEPS:
+1. ~~Create store with subscription state management~~ ✅
+2. ~~Add retry and error handling logic~~ ✅
+3. ~~Implement cleanup and deduplication guards~~ ✅
+4. ~~Write comprehensive tests~~ ✅
+5. ~~Update VideoAnalysisScreen to use new store~~ ✅
+6. ~~Remove old subscription code~~ ✅
+7. ~~Validate realtime updates still work~~ ✅
 
-### User Story
-As a user, I want to receive contextual feedback messages during video playback using the existing feedback system so I can understand what I'm doing well and what needs improvement.
-
-### Requirements
-- Contextual feedback messages based on video analysis
-- Speech bubble-style UI for feedback display
-- Real-time message updates during playback
-- Positive reinforcement ("Nice grip!")
-- Improvement suggestions ("Bend your knees a little bit and keep your back straight!")
-- Message positioning and timing
-- Feedback categorization and prioritization
-- Static avatar icon display (V1)
-
-### Acceptance Criteria
-- Given the video is playing with the existing FeedbackBubbles component
-- When the video have been analysed and first audio feedback have been created
-- Then contextual feedback bubbles appear
-- And positive feedback is shown for good form ("Nice grip!")
-- And improvement suggestions are provided ("Bend your knees...")
-- And messages are positioned to not obstruct video content
-- And feedback updates in real-time as analysis progresses
-- And a static avatar icon is displayed near the text bubble
-
-### Technical Notes
-- **AI Analysis**: Gemini 2.5 for comprehensive video analysis with movement pattern recognition
-- **Feedback Engine**: LLM-based feedback generation with structured prompt engineering for key takeaways and next steps
-- **UI Components**: Existing Tamagui speech bubble components with smooth animations and accessibility support
-- **Message Queue**: Prioritized feedback system with real-time updates via Supabase Realtime
-- **Positioning**: Smart positioning algorithm to avoid video content obstruction with responsive layout
-- **Timing**: Synchronized feedback with video timeline using high-resolution timers
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for real-time feedback data from Edge Functions
-- **Localization**: Multi-language support with structured feedback message templates
-- **Accessibility**: Screen reader support with ARIA labels and WCAG 2.2 AA compliance
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/FeedbackBubbles/`
-- **Performance**: Virtualized message rendering for large feedback datasets
+SUCCESS VALIDATION:
+- yarn workspace @my/app test packages/app/stores/__tests__/analysisSubscription.test.ts --verbose
+- yarn type-check passes
+- Video analysis screen still receives realtime updates
+- No console errors about duplicate subscriptions in StrictMode
+```
 
 ---
 
-## US-VF-05: Video Title Component
-Status: Completed
-Priority: Low
-Dependencies: US-VF-01 (Video Analysis State Management)
+### Task 7: Extract Bubble Display Logic
+**Effort:** 4 hours | **Priority:** Medium | **Unblocks:** Task 2
 
-### User Story
-As a user, I want my videos to have automatically generated titles based on their content using the existing title generation system so I can easily identify and organize my recordings.
+```
+@step-by-step-rule.mdc - Extract feedback bubble timing logic (lines 963-1275) from VideoAnalysisScreen.tsx to packages/app/features/VideoAnalysis/hooks/useBubbleController.ts.
 
-### Requirements
-- AI-powered video title generation
-- Context-aware title creation based on detected activities
-- Real-time title updates as analysis progresses
-- Fallback to timestamp-based titles if analysis fails
-- Title display in video player header
-- Title editing capability for user customization
+OBJECTIVE: Isolate bubble display/hide/timing logic into a dedicated hook following existing hook patterns.
 
-### Acceptance Criteria
-- Given a video has been recorded and analysis begins with the existing VideoTitle component
-- When the AI processes the video content
-- Then a contextual title is generated (e.g., "Q3 Sales Presentation")
-- And the title appears in the video player header
-- And the title updates if better context is detected
-- And I can edit the title if needed
-- And a fallback title is provided if AI analysis fails
+SCOPE:
+- CREATE: packages/app/features/VideoAnalysis/hooks/useBubbleController.ts (~180 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/__tests__/useBubbleController.test.ts (~100 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: Lines 963-975 (state), 1015-1022 (cleanup), 1099-1275 (functions + effects)
+  - REPLACE: With single useBubbleController hook call (~5 lines)
 
-### Technical Notes
-- **LLM Integration**: Gemini 2.5 for contextual title generation based on video content and pose analysis
-- **Content Analysis**: Activity detection from pose data and video frames for meaningful title creation
-- **Title Generation**: Structured prompt engineering with activity recognition and contextual understanding
-- **Fallback System**: Timestamp-based titles with user customization options when AI analysis fails
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for real-time title updates from Edge Functions
-- **Performance**: Async title generation via Edge Functions to avoid blocking video playback (< 10s total analysis time)
-- **Caching**: Title caching in Supabase database with invalidation on re-analysis
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/VideoTitle/`
-- **Database Storage**: Titles stored in `analyses` table with RLS policies for user access control
+HOOK INTERFACE:
+``typescript
+export interface BubbleControllerState {
+  currentBubbleIndex: number | null
+  bubbleVisible: boolean
+  showBubble: (index: number) => void
+  hideBubble: () => void
+  checkAndShowBubbleAtTime: (timeMs: number) => number | null
+}
 
----
+export function useBubbleController(
+  feedbackItems: FeedbackItem[],
+  currentTime: number,
+  isPlaying: boolean,
+  audioUrls: Record<string, string>,
+  audioDuration: number
+): BubbleControllerState
+``
 
-## US-VF-06: Video Controls Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component)
+ARCHITECTURE REQUIREMENTS:
+- Follow useAudioController.ts pattern (same directory)
+- Include audio-duration-based display timing (lines 1131-1149)
+- Implement pause detection with "recently shown" guard (lines 1184-1218)
+- Use refs for timer management to prevent memory leaks
+- Include throttling for frame-by-frame checks (line 1326)
 
-### User Story
-As a user, I want to control the video playback with standard controls using the existing video controls overlay so I can play, pause, and navigate the video with an unobstructed view of the AI analysis.
+ACCEPTANCE CRITERIA:
+- [x] Hook manages bubble visibility state
+- [x] Timing synchronized with video currentTime
+- [x] Auto-hide after audio duration or 3-second default
+- [x] Pause detection respects 2.5s "recently shown" window
+- [x] Memory leaks prevented (all timers cleaned up)
+- [x] Test coverage ≥70% (show/hide, timing, cleanup)
+- [x] VideoAnalysisScreen.tsx reduced by ~175 lines
+- [x] Existing bubble behavior unchanged
 
-### Requirements
-- Video controls overlay with play/pause, progress bar, and fullscreen
-- Auto-hide functionality after 3 seconds of inactivity
-- Touch-to-show controls when hidden
-- Smooth fade in/out animations
-- Progress bar with current time display (0:01 / 3:21)
-- Fullscreen toggle functionality
-- Central controls for play, pause, rewind, and fast-forward
-
-### Acceptance Criteria
-- Given the video is playing with analysis overlay using the existing VideoControlsOverlay
-- When the video starts playing
-- Then video controls are visible for 3 seconds
-- And controls automatically fade out after 3 seconds
-- And I can tap the video to show controls again
-- And controls include play/pause, progress bar, and fullscreen
-- And progress shows current time and total duration
-- And controls fade in/out smoothly
-- When I tap the pause button, the video pauses and the button changes to a play icon
-- When I tap the play button, the video resumes and the button changes to a pause icon
-
-### Technical Notes
-- **Control Overlay**: Existing Tamagui-based video control components with platform-specific optimizations
-- **Auto-hide Logic**: 3-second timer with touch-to-show functionality and smooth fade animations
-- **Touch Handling**: Gesture detection with react-native-gesture-handler for native, pointer events for web
-- **Animations**: Smooth fade transitions using Tamagui animations with performance optimization
-- **Progress Bar**: Custom progress component with current time/total duration display (MM:SS format)
-- **Fullscreen**: Platform-specific fullscreen API implementation with orientation handling
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for unified player state management
-- **UI Components**: Lucide React icons with consistent theming, existing `VideoControlsOverlay` component
-- **Accessibility**: WCAG 2.2 AA compliance with keyboard navigation and screen reader support
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/VideoControlsOverlay/`
-- **Performance**: Optimized rendering to maintain 60fps playback during control interactions
+SUCCESS VALIDATION:
+- yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/__tests__/useBubbleController.test.ts --verbose ✅
+- yarn type-check passes ✅
+- Bubbles appear at correct timestamps during video playback ✅
+- Bubbles auto-hide after audio completes ✅
+- No timer warnings in console on component unmount ✅
+```
 
 ---
 
-## US-VF-11: Video Player Header Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component), US-VF-06 (Video Controls Component)
+## 📦 PHASE 2: Restructuring (Week 3-4)
 
-### User Story
-As a user, I want a consistent header in the video player that appears and disappears together with the video controls using the existing AppHeader component so I can easily access additional options without cluttering the screen.
+### Task 3: Consolidate Processing State Logic
+**Effort:** 3-4 days | **Priority:** High | **Blocks:** Task 2
 
-### Requirements
-- Header with title and menu button that appears with video controls
-- Header auto-hides after 3 seconds along with video controls
-- Header reappears when user taps to show video controls
-- Menu button that triggers a fly-out menu
-- Use the already existing AppHeader component in 'analysis' mode
+```
+@step-by-step-rule.mdc - Create useAnalysisState hook to consolidate upload progress, analysis job status, and feedback status into a single state machine.
 
-### Acceptance Criteria
-- Given the video controls are visible using the existing VideoControlsOverlay
-- When the video starts playing
-- Then the header is also visible with title and menu button
-- And the header automatically hides after 3 seconds along with the video controls
-- And tapping the video area shows both the header and video controls together
-- And the menu button displays a fly-out menu when tapped
-- And the header uses the existing AppHeader component in 'analysis' mode for consistency
+OBJECTIVE: Replace 4 separate hooks and complex memoization (lines 119-520) with a unified analysis state hook following a clear phase-based state machine.
 
-### Technical Notes
-- **Header Component**: Existing `AppHeader` component from `@my/ui/components/AppHeader/` reused in 'analysis' mode
-- **Visibility Sync**: Header visibility is synchronized with video controls auto-hide/show behavior
-- **Navigation**: Back navigation handled by screen-level navigation (Expo Router swipe back), not header button
-- **Menu System**: Fly-out menu implementation using Tamagui overlay components, triggered by AppHeader's menu button
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for video title, menu state, and controls visibility
-- **UI Consistency**: Maintains design consistency with other app screens using AppHeader
-- **Accessibility**: WCAG 2.2 AA compliance with proper ARIA labels and keyboard navigation
-- **Component Integration**: Header integrated into existing VideoControls component with shared visibility state
-- **Cross-platform**: Unified header behavior for Expo (native) and Next.js (web) with synchronized controls
+SCOPE:
+- CREATE: packages/app/features/VideoAnalysis/hooks/useAnalysisState.ts (~200 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/__tests__/useAnalysisState.test.ts (~150 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: Lines 119-150 (upload derivation), 138-242 (analysis UUID lookup), 390-520 (processing memos)
+  - REPLACE: With single useAnalysisState hook call (~8 lines)
 
----
+HOOK INTERFACE:
+```typescript
+export type AnalysisPhase = 
+  | 'uploading'           // Video upload in progress
+  | 'upload-complete'     // Upload done, waiting for analysis
+  | 'analyzing'           // AI analysis in progress  
+  | 'generating-feedback' // SSML/TTS generation
+  | 'ready'               // All feedback audio ready
+  | 'error'               // Upload or analysis failed
 
-## US-VF-07: Audio Commentary Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component), US-VF-06 (Video Controls Component)
+export interface AnalysisStateResult {
+  // Phase tracking
+  phase: AnalysisPhase
+  isProcessing: boolean // Shorthand for phase !== 'ready' && phase !== 'error'
+  
+  // Progress tracking
+  progress: {
+    upload: number        // 0-100
+    analysis: number      // 0-100  
+    feedback: number      // 0-100
+  }
+  
+  // Data access
+  videoRecordingId: number | null
+  analysisJobId: number | null
+  analysisUuid: string | null
+  
+  // Error handling
+  error: {
+    phase: 'upload' | 'analysis' | 'feedback'
+    message: string
+  } | null
+  
+  // Actions
+  retry: () => Promise<void>
+}
 
-### User Story
-As a user, I want narrated feedback so I can receive audio commentary synchronized with my video playback using the existing audio feedback system.
+export function useAnalysisState(
+  analysisJobId?: number,
+  videoRecordingId?: number,
+  initialStatus?: 'processing' | 'ready'
+): AnalysisStateResult
+``
 
-### Requirements
-- Audio commentary playback synchronized with video
-- Automatic video pause when audio feedback is available
-- Audio playback controls (play/pause/seek)
-- Automatic video resume after audio ends
-- TTS-generated audio from AI feedback
+ARCHITECTURE REQUIREMENTS:
+- Consume useUploadProgress, useAnalysisSubscriptionStore (Task 1), useFeedbackStatusIntegration
+- Implement priority-based phase resolution (current logic: lines 397-498)
+- Replace shouldShowProcessing memoization with phase === 'ready' check
+- Use state machine pattern for phase transitions (no invalid states)
+- Include firstPlayableReady optimization (lines 390-395)
 
-### Acceptance Criteria
-- Given an `audio_url` exists and the existing AudioFeedbackOverlay is used
-- When I press Play I see the video playback
-- And at the time of the available feedback the video playback is automatically paused without pause overlay
-- And the audio streams with play/pause/seek controls
-- Finally the video is resumed after audio stream ends
+PHASE TRANSITION LOGIC:
+```
+uploading → upload-complete (when uploadProgress.status === 'uploaded')
+upload-complete → analyzing (when analysisJob.status === 'queued' or 'processing')
+analyzing → generating-feedback (when analysisJob.status === 'completed' && feedbackStatus.total > 0)
+generating-feedback → ready (when feedbackStatus.isFullyCompleted OR firstPlayableReady)
+any → error (when uploadFailed or analysisJob.status === 'failed')
+```
 
-### Technical Notes
-- **Audio Playback**: `react-native-video` v6+ for unified video/audio playback across platforms
-- **Audio Fallback**: `react-native-sound` for dedicated audio-only files if needed
-- **TTS Pipeline**: Gemini 2.0 TTS generation via Edge Functions with SSML markup support
-- **Format Optimization**: Convert WAV output to AAC/MP3 format (75%+ file size reduction)
-- **Storage**: Audio files stored in Supabase Storage `processed` bucket with signed URLs
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for audio data and timeline synchronization
-- **UI Integration**: Audio controls seamlessly integrated into video overlay with unified interface
-- **State Management**: Track audio playback state with video timeline sync and pause/resume coordination
-- **Cross-platform**: AAC primary (iOS/Android), MP3 fallback (universal), OGG for web optimization
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/AudioFeedbackOverlay/`
-- **Performance**: Compressed formats reduce load times and memory consumption on mobile devices
+ACCEPTANCE CRITERIA:
+- [ ] Hook returns single AnalysisStateResult object
+- [ ] Phase transitions follow strict state machine rules
+- [ ] Progress aggregates from all 3 sources
+- [ ] firstPlayableReady optimization preserved (hide processing early)
+- [ ] Error state includes phase context for user messaging
+- [ ] Test coverage ≥80% (all phase transitions, error cases, edge cases)
+- [ ] VideoAnalysisScreen.tsx reduced by ~150 lines
+- [ ] Processing overlay shows/hides at correct times
 
----
-
-## US-VF-08: Feedback Panel Component
-Status: Completed
-Priority: High
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component), US-VF-06 (Video Controls Component)
-
-### User Story
-As a user, I want to view and interact with a detailed feedback timeline in a bottom sheet using the existing feedback panel system so I can correlate specific comments with moments in the video.
-
-### Requirements
-- A draggable bottom sheet that extends to 40% of the screen height
-- As the sheet slides up, the video player resizes, adding letterboxing if necessary
-- The bottom sheet contains a tabbed interface for "Feedback", "Insights", and "Comments"
-- The "Feedback" tab shows a scrollable list of timed AI comments
-- The current feedback item is visually highlighted (karaoke-style)
-- A thin progress bar with a draggable knob is positioned above the tabs for precise video scrubbing
-- The tab navigation becomes sticky on scroll
-
-### Acceptance Criteria
-- Given I am on the video playback screen with the existing FeedbackPanel component
-- When I slide the bottom sheet handle up
-- Then the sheet expands and the video resizes to fit the remaining space
-- And I can see a tabbed view with a timeline of feedback
-- And scrolling the feedback list highlights the active comment synchronized with the video
-- And dragging the progress bar knob seeks the video to the corresponding time
-- And the tabs ("Feedback", "Insights", "Comments") remain visible at the top of the sheet when I scroll the content
-
-### Technical Notes
-- **UI**: Existing custom feedback panel implementation with Tamagui components, extending to 40% screen height
-- **Layout**: Dynamic video player resizing with letterboxing when feedback panel expands
-- **Tabs**: Tamagui Tabs component for "Feedback", "Insights", and "Comments" navigation
-- **Progress Bar**: Custom draggable progress bar above tabs for precise video scrubbing
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for feedback data and timeline synchronization
-- **Database**: Real-time feedback data from Supabase `analyses` table via Realtime subscriptions
-- **Performance**: Virtualized feedback list with smooth scrolling for large datasets
-- **Cross-platform**: Unified bottom sheet behavior for Expo (native) and Next.js (web)
-- **Accessibility**: WCAG 2.2 AA compliance with screen reader support and keyboard navigation
-- **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/FeedbackPanel/`
-- **Sticky Navigation**: Tab navigation becomes sticky on scroll with smooth transitions
+SUCCESS VALIDATION:
+- yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/__tests__/useAnalysisState.test.ts --verbose
+- yarn type-check passes
+- Processing overlay behavior unchanged (hides when first audio ready)
+- Upload → Analysis → Ready flow works end-to-end
+- Error states display correctly with retry option
+```
 
 ---
 
-## US-VF-09: Video Analysis Screen (Integration)
-Status: Completed
-Priority: High
-Dependencies: All previous components (US-VF-01 through US-VF-08)
+### Task 2: Split into Logical Sub-Components
+**Effort:** 5-6 days | **Priority:** High | **Requires:** Tasks 1, 3, 7
 
-### User Story
-As a user, I want to see a complete video analysis experience that combines all the existing individual components into a cohesive screen so I can get comprehensive feedback on my performance.
+```
+@step-by-step-rule.mdc - Split VideoAnalysisScreen.tsx into 4 specialized components with memoization boundaries to reduce re-renders and improve testability.
 
-### Requirements
-- Integration of all video analysis components
-- Seamless component interaction and data flow
-- Screen-level state management and coordination
-- Navigation integration with app routing
-- Cross-platform screen implementation
-- Performance optimization for component orchestration
+OBJECTIVE: Decompose 1,728-line component into maintainable sub-components following single responsibility principle.
 
-### Acceptance Criteria
-- Given I navigate to the existing video analysis screen
-- When the screen loads
-- Then all components are properly integrated and functional
-- And data flows correctly between components
-- And the screen performs smoothly on both web and native platforms
-- And navigation works correctly with the app routing system
-- And the screen handles errors gracefully across all components
+SCOPE:
+- CREATE: packages/app/features/VideoAnalysis/components/UploadErrorState.tsx (~80 lines)
+- CREATE: packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx (~200 lines)
+- CREATE: packages/app/features/VideoAnalysis/components/FeedbackSection.tsx (~150 lines)
+- CREATE: packages/app/features/VideoAnalysis/components/ProcessingIndicator.tsx (~50 lines)
+- CREATE: Test files for each component (~100 lines each)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: Lines 1430-1510 (error UI), 1515-1658 (player), 1662-1704 (feedback)
+  - REFACTOR: To orchestrator role (~350 lines total)
 
-### Technical Notes
-- **Screen Location**: Existing `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-- **Route Integration**: Expo Router route in `apps/expo/app/video-analysis.tsx`, Expo Router route in `apps/next/app/video-analysis.tsx`
-- **State Coordination**: Orchestrates all component state through existing unified `videoAnalysisStore` with Zustand
-- **AI Pipeline**: Complete integration with MoveNet Lightning pose detection and Gemini 2.5 analysis
-- **Database Integration**: Supabase Realtime subscriptions for live analysis updates
-- **Performance**: Optimized component rendering with < 10s total analysis time target
-- **Cross-platform**: Existing unified screen implementation for Expo (iOS/Android) and Next.js (web)
-- **Error Handling**: Comprehensive error handling with discriminated unions and user-safe messages
-- **Testing**: Integration tests covering component interactions and end-to-end analysis flow
-- **Navigation**: Expo Router integration with proper navigation state management
-- **Accessibility**: WCAG 2.2 AA compliance across all integrated components
+COMPONENT SPECIFICATIONS:
+
+**UploadErrorState.tsx**
+- Props: uploadError: string, onRetry: () => void, onBack: () => void
+- Extract: Lines 1430-1510
+- Pattern: Stateless presentational component
+- Memo: React.memo (props are stable strings/functions)
+
+**VideoPlayerSection.tsx**
+- Props: videoUri, isPlaying, currentTime, duration, feedbackBubble, poseData, audioController, onProgress, onSeek, onLoad, onEnd
+- Extract: Lines 1515-1658 (VideoPlayer, overlays, AudioPlayer, controls)
+- Pattern: Container component with internal VideoPlayer state
+- Memo: React.memo with custom comparison (skip re-render if currentTime change < 0.5s)
+
+**FeedbackSection.tsx**
+- Props: feedbackItems, panelFraction, activeFeedbackTab, selectedFeedbackId, onTabChange, onItemPress, onExpand, onCollapse
+- Extract: Lines 1662-1704 (FeedbackPanel + SocialIcons)
+- Pattern: Container managing panel expansion state
+- Memo: React.memo (expand/collapse triggers intentional re-renders)
+
+**ProcessingIndicator.tsx**
+- Props: phase: AnalysisPhase, progress: ProgressData
+- Extract: Processing overlay logic (currently mixed in VideoControls)
+- Pattern: Overlay component with progress animation
+- Memo: React.memo (only re-render when phase or progress changes)
+
+ARCHITECTURE REQUIREMENTS:
+- All components use React.memo() with appropriate comparison functions
+- Props must be stable (use useCallback for all function props in parent)
+- Follow existing component patterns in packages/ui/src/components/VideoAnalysis/
+- Use Tamagui for styling (no inline styles)
+- Export TypeScript interfaces for all props
+
+PARENT ORCHESTRATOR PATTERN:
+```typescript
+// VideoAnalysisScreen.tsx becomes orchestrator
+export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
+  // 1. Hooks (state, subscriptions, analysis)
+  const analysisState = useAnalysisState(...)
+  const feedbackStatus = useFeedbackStatusIntegration(...)
+  const bubbleController = useBubbleController(...)
+  
+  // 2. Stable callbacks (wrapped in useCallback)
+  const handleVideoProgress = useCallback(...)
+  const handleFeedbackItemPress = useCallback(...)
+  
+  // 3. Conditional rendering
+  if (analysisState.error) return <UploadErrorState {...errorProps} />
+  
+  // 4. Compose sub-components
+  return (
+    <YStack flex={1}>
+      {analysisState.isProcessing && <ProcessingIndicator {...processingProps} />}
+      <VideoPlayerSection {...videoProps} />
+      <FeedbackSection {...feedbackProps} />
+    </YStack>
+  )
+}
+``
+
+ACCEPTANCE CRITERIA:
+- [ ] 4 new components created with tests
+- [ ] All components use React.memo appropriately
+- [ ] Parent uses useCallback for all function props
+- [ ] VideoAnalysisScreen.tsx reduced to <400 lines
+- [ ] Test coverage ≥70% for each component
+- [ ] Re-render count reduced by 60%+ (measure with React DevTools Profiler)
+- [ ] All existing functionality preserved
+- [ ] No prop-drilling issues (each component gets only needed props)
+
+SUCCESS VALIDATION:
+- yarn workspace @my/app test packages/app/features/VideoAnalysis/components --verbose
+- yarn type-check passes
+- React DevTools Profiler shows <5 re-renders per playback second (down from ~15)
+- Visual regression test: record video, see feedback, verify UI unchanged
+```
 
 ---
 
-## US-VF-10: Coach Avatar Component
-Status: Completed
-Priority: Low
-Dependencies: US-VF-01 (Video Analysis State Management), US-VF-02 (Video Player Component), US-VF-04 (Feedback Bubble Component)
+## 🏗️ PHASE 3: Advanced Patterns (Q1 2025)
 
-### User Story
-As a user, I want to see the AI coach's avatar when receiving feedback using the existing avatar system so I can have a more engaging and personalized coaching experience.
+### Task 4: Implement Command Pattern for Video Actions
+**Effort:** 2-3 weeks | **Priority:** Low | **Requires:** Task 2
 
-### Requirements
-- Coach avatar display in feedback bubbles and commentary
-- Consistent coach identity representation across all feedback interactions
-- Avatar integration with audio commentary and text feedback
-- Smooth avatar animations during feedback delivery
-- Platform-optimized avatar rendering for performance
+```
+@step-by-step-rule.mdc - Refactor video playback actions (play, pause, seek, replay) into a Command Pattern with undo/redo support and action logging for analytics.
 
-### Acceptance Criteria
-- Given feedback is being displayed in bubbles using the existing FeedbackBubbles component
-- When the AI coach provides feedback
-- Then the coach avatar appears next to the feedback text
-- And the avatar maintains consistent appearance across all feedback types
-- And avatar animations are smooth and non-distracting
-- Given audio commentary is playing
-- When the coach speaks
-- Then the coach avatar is visible during audio playback
-- And the avatar provides visual context for the voice feedback
-- And avatar state changes appropriately during speech (optional breathing animation)
+OBJECTIVE: Replace inline callbacks with command objects enabling action replay, undo functionality, and centralized analytics tracking.
 
-### Technical Notes
-- **Avatar Design**: Existing coach avatar design representing the AI coach persona using Lucide User icon
-- **Feedback Integration**: Avatar positioning within existing `FeedbackBubbles` component with speech bubble styling
-- **Animation System**: Subtle animations using Tamagui animations (breathing effect, speaking indicators)
-- **State Integration**: Subscribes to existing `videoAnalysisStore` for feedback state and timing synchronization
-- **UI Components**: Tamagui View component with Lucide User icon for coach representation
-- **Performance**: Static avatar icon with minimal animations to maintain 60fps playback
-- **Cross-platform**: Unified avatar rendering for Expo (native) and Next.js (web) implementations
-- **Component Location**: Integrated within existing `packages/ui/src/components/VideoAnalysis/FeedbackBubbles/`
-- **Accessibility**: Screen reader support for avatar presence with testID and accessibility labels
-- **Asset Management**: Coach avatar implemented as Lucide icon with consistent theming
+SCOPE:
+- CREATE: packages/app/features/VideoAnalysis/commands/videoCommands.ts (~200 lines)
+- CREATE: packages/app/features/VideoAnalysis/commands/CommandInvoker.ts (~150 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/useVideoCommands.ts (~100 lines)
+- CREATE: Test files for commands and invoker (~200 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: Lines 1024-1086 (inline handlers)
+  - REPLACE: With command-based handlers (~30 lines)
+
+ARCHITECTURE REQUIREMENTS:
+
+**Command Interface**
+```typescript
+export interface VideoCommand {
+  execute(): void | Promise<void>
+  undo?(): void
+  canUndo(): boolean
+  metadata: {
+    id: string
+    timestamp: number
+    action: string
+    userId?: string
+    videoRecordingId?: number
+  }
+}
+``
+
+**Command Implementations**
+- PlayVideoCommand: Sets isPlaying=true, resets videoEnded
+- PauseVideoCommand: Sets isPlaying=false
+- SeekVideoCommand: Sets pendingSeek, resets videoEnded (undoable)
+- ReplayVideoCommand: Seeks to 0, sets isPlaying=true
+- Each command logs analytics event on execute()
+
+**Invoker Pattern**
+- Maintains command history (max 50 commands)
+- Provides undo/redo functionality
+- Batches rapid commands (debounce 100ms)
+- Persists critical commands to AsyncStorage for crash recovery
+
+ACCEPTANCE CRITERIA:
+- [ ] All video actions use command pattern
+- [ ] Undo/redo works for seek operations
+- [ ] Analytics events automatically logged for each command
+- [ ] Command history accessible for debugging
+- [ ] Test coverage ≥80% (all commands, undo, redo, batching)
+- [ ] VideoAnalysisScreen handlers reduced by ~50 lines
+- [ ] Performance regression <5ms per command execution
+
+REFERENCE PATTERNS:
+- Gang of Four Command Pattern
+- Redux DevTools action replay concept
+
+SUCCESS VALIDATION:
+- yarn workspace @my/app test packages/app/features/VideoAnalysis/commands --verbose
+- yarn type-check passes
+- Undo seek operation returns video to previous timestamp
+- Analytics dashboard shows video.play, video.pause events
+- Command history available in debug logs
+```
+
+---
+
+### Task 5: Migrate to React Query for Analysis State
+**Effort:** 3-4 weeks | **Priority:** Low | **Requires:** Tasks 1, 2, 3
+
+```
+@step-by-step-rule.mdc - Migrate analysis job state management from Zustand subscriptions to TanStack Query with Supabase Realtime integration for better caching, automatic refetching, and devtools support.
+
+OBJECTIVE: Replace custom subscription store (Task 1) with React Query queries that automatically sync with Supabase Realtime, enabling better cache management and devtools integration.
+
+SCOPE:
+- CREATE: packages/api/src/queries/analysisQueries.ts (~250 lines)
+- CREATE: packages/api/src/queries/realtimePlugin.ts (~150 lines)
+- CREATE: packages/api/src/queries/__tests__/analysisQueries.test.ts (~200 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: useAnalysisSubscriptionStore calls
+  - REPLACE: With useQuery hooks (~10 lines)
+- MODIFY: apps/expo/app/_layout.tsx and apps/next/app/layout.tsx
+  - ADD: QueryClient configuration with Realtime plugin
+
+ARCHITECTURE REQUIREMENTS:
+
+**Query Factory Pattern**
+```typescript
+// packages/api/src/queries/analysisQueries.ts
+export const analysisQueries = {
+  all: () => ['analysis'] as const,
+  
+  jobs: () => [...analysisQueries.all(), 'job'] as const,
+  job: (id: number) => ({
+    queryKey: [...analysisQueries.jobs(), id],
+    queryFn: () => getAnalysisJob(id),
+    staleTime: 10 * 1000, // 10 seconds
+    meta: {
+      realtime: {
+        channel: `analysis-job:${id}`,
+        table: 'analysis_jobs',
+        filter: `id=eq.${id}`,
+      }
+    }
+  }),
+  
+  jobByRecording: (recordingId: number) => ({
+    queryKey: [...analysisQueries.jobs(), 'recording', recordingId],
+    queryFn: () => getLatestAnalysisJobForRecordingId(recordingId),
+    meta: {
+      realtime: {
+        channel: `analysis-recording:${recordingId}`,
+        table: 'analysis_jobs',
+        filter: `video_recording_id=eq.${recordingId}`,
+      }
+    }
+  }),
+  
+  feedbacks: (analysisId: string) => ({
+    queryKey: [...analysisQueries.all(), 'feedback', analysisId],
+    queryFn: () => getFeedbacksByAnalysisId(analysisId),
+    meta: {
+      realtime: {
+        channel: `analysis-feedback:${analysisId}`,
+        table: 'analysis_feedback',
+        filter: `analysis_id=eq.${analysisId}`,
+      }
+    }
+  }),
+}
+``
+
+**Realtime Plugin**
+```typescript
+// packages/api/src/queries/realtimePlugin.ts
+export function createRealtimePlugin(): QueryClientPlugin {
+  return {
+    name: 'supabase-realtime',
+    onQueryCreated(query) {
+      const realtimeConfig = query.meta?.realtime
+      if (!realtimeConfig) return
+
+      // Subscribe to Supabase Realtime channel
+      const channel = supabase.channel(realtimeConfig.channel)
+      channel
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: realtimeConfig.table,
+          filter: realtimeConfig.filter,
+        }, (payload) => {
+          // Update query cache with realtime data
+          queryClient.setQueryData(query.queryKey, payload.new)
+        })
+        .subscribe()
+      
+      // Cleanup on query destroy
+      return () => channel.unsubscribe()
+    }
+  }
+}
+``
+
+**Usage in Component**
+```typescript
+// VideoAnalysisScreen.tsx
+const { data: analysisJob, isLoading } = useQuery(
+  analysisQueries.job(analysisJobId)
+)
+// Automatically updates via Realtime, no manual subscription needed
+``
+
+ACCEPTANCE CRITERIA:
+- [ ] All analysis state queries use React Query
+- [ ] Realtime updates automatically sync to query cache
+- [ ] Stale-while-revalidate caching reduces network requests
+- [ ] React Query DevTools shows query state and cache
+- [ ] Background refetching works when app regains focus
+- [ ] Optimistic updates for mutations (if applicable)
+- [ ] Test coverage ≥75% (queries, plugin, cache updates)
+- [ ] Migration guide documents breaking changes
+- [ ] Rollback plan available (feature flag)
+
+MIGRATION STRATEGY:
+1. Implement queries and plugin in isolation
+2. Add feature flag: ENABLE_REACT_QUERY_ANALYSIS
+3. Run both systems in parallel (shadow mode)
+4. Compare cache hits, network requests, update latency
+5. Gradually enable for 10% → 50% → 100% of users
+6. Remove Zustand store after 2-week bake period
+
+PERFORMANCE TARGETS:
+- Cache hit rate >70%
+- Background refetch latency <200ms
+- Memory usage increase <5MB
+- No regression in realtime update speed
+
+SUCCESS VALIDATION:
+- yarn workspace @my/api test packages/api/src/queries --verbose
+- yarn type-check passes
+- React Query DevTools shows active subscriptions
+- Realtime updates arrive within 500ms of database change
+- Cache hit rate measured and logged
+- A/B test shows no user-facing behavior change
+```
+
+---
+
+## 📊 Final Validation Checklist
+
+After completing all tasks:
+
+```bash
+# Full test suite
+yarn test --verbose
+
+# Type safety
+yarn type-check:all
+
+# Linting
+yarn lint:all
+
+# Build verification
+yarn build
+
+# E2E test (if available)
+yarn test:e2e packages/app/features/VideoAnalysis
+
+# Performance profiling
+# 1. Open React DevTools Profiler
+# 2. Record video analysis session
+# 3. Verify <5 re-renders per second during playback
+# 4. Check memory usage stays under 100MB
+
+# Bundle size check
+yarn workspace expo-app analyze
+# Verify video analysis bundle reduced by 15-20%
+```
+
+---
+
+## 🎯 Success Metrics Dashboard
+
+| Metric | Baseline | Target | Actual |
+|--------|----------|--------|--------|
+| VideoAnalysisScreen LOC | 1,728 | <400 | ___ |
+| Re-renders/second | ~15 | <5 | ___ |
+| Test Coverage | 40% | >70% | ___ |
+| Time to Interactive | 2.8s | <1.5s | ___ |
+| useEffect Count | 15 | <5 | ___ |
+| Bundle Size (gzip) | 250KB | <220KB | ___ |
+| Memory Usage | 95MB | <80MB | ___ |
+
+Track these after each task completion in `docs/spec/status.md`.

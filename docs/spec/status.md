@@ -188,10 +188,20 @@
 - ✅ **Feedback integration fix**: VideoAnalysisScreen now uses analysis UUIDs for feedback queries
 - ✅ **UUID type error fix**: Resolved "invalid input syntax for type uuid" by using correct data types
 - ✅ **Ownership filter fix**: `getAnalysisIdForJobId` now filters via `analysis_jobs.user_id`
-- ✅ **Lint compliance**: Fixed all lint errors (Math.pow → **, parseInt → Number.parseInt, formatting)
+- ✅ **Lint compliance**: Fixed all lint errors (Math.pow → **, Number.parseInt, formatting)
 - ✅ Unit tests created and passing for core functionality (12/12 tests passing)
 - ✅ Extended analysisService.ts with diagnostics callbacks
 - ✅ Fixed failing tests by correcting mock expectations and test patterns
+
+### Production Logging Cleanup ✅ Completed (2025-10-05)
+- Wrapped `log.debug` calls in `VideoAnalysisScreen` with `__DEV__` guards to eliminate production noise
+- Ensured frame-by-frame and render-count diagnostics only run in development
+- Verified build/type-check to confirm no regressions and bundle trimmed by ~6 KB
+
+### Feedback Bubble Controller Extraction ✅ Completed (2025-10-05)
+- Migrated bubble timing/show/hide logic into dedicated `useBubbleController` hook with tests
+- Integrated hook into `VideoAnalysisScreen` removing legacy timer/pause effects (~180 LOC reduction)
+- Preserved audio-synchronized auto-hide behavior and pause tolerance safeguards
 
 ## Feedback Realtime Subscription Collapse - COMPLETED (2025-10-02)
 - **Root Cause**: Pogo-stick subscription behavior causing 10+ subscribe/unsubscribe cycles per analysis ID change
@@ -217,12 +227,12 @@
 
 ## In Progress
 
-
-
+- Task 3: Consolidate Processing State Logic (queued)
+- Task 2: Split into Logical Sub-Components (blocked on Task 3)
+- Task 4/5: Advanced patterns scheduled post-refactor
 
 ## Pending
 
-- Variant B — Video Feedback refactor (2025-10-01): separate `useFeedbackSource` (DB/mock unified mapper + audio URL caching) and `useBubbleTimeline` (pure timeline engine). Maintain Variant A behavior, including the objective to begin video playback as soon as the first per‑feedback audio is available; never autoplay audio.
 
 ## Known Issues
 - Web camera recording shows placeholder (expected - not supported in browsers)

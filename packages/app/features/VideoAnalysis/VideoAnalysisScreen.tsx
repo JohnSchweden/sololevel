@@ -22,21 +22,19 @@ import {
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
 
-import { useUploadProgressStore } from '@app/stores/uploadProgress'
 // Import hooks for tracking upload and analysis progress
-import {
-  type AnalysisJob,
-  getAnalysisIdForJobId,
-  subscribeToAnalysisJob,
-  subscribeToLatestAnalysisJobByRecordingId,
-  supabase,
-  useUploadProgress,
-} from '@my/api'
+import { type AnalysisJob, getAnalysisIdForJobId, supabase, useUploadProgress } from '@my/api'
 
 // Types from VideoAnalysis components
 import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
 
+import {
+  type SubscriptionStatus,
+  useAnalysisSubscriptionStore,
+} from '@app/stores/analysisSubscription'
+import { useUploadProgressStore } from '@app/stores/uploadProgress'
 import { useAudioController } from './hooks/useAudioController'
+import { useBubbleController } from './hooks/useBubbleController'
 import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 // Real-time integration hooks
 import { useFeedbackStatusIntegration } from './hooks/useFeedbackStatusIntegration'
@@ -148,8 +146,6 @@ export function VideoAnalysisScreen({
   // Track the analysis UUID (from analyses table) for feedback queries
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(null)
   const [channelExhausted, setChannelExhausted] = useState(false)
-  const lastChannelErrorTimeRef = useRef<number>(0)
-  const channelErrorStreakRef = useRef<number>(0)
 
   // Get analysis UUID when we have a job ID, or look up by video recording ID
   useEffect(() => {
@@ -241,147 +237,131 @@ export function VideoAnalysisScreen({
     void lookupAnalysis()
   }, [effectiveAnalysisJobId, videoRecordingId, analysisJob?.status])
 
-  // Track active subscription to prevent duplicates
-  const activeSubscriptionRef = useRef<{ key: string; unsubscribe: () => void } | null>(null)
-
-  // Track pending subscription to prevent StrictMode double-effect race
-  const pendingKeyRef = useRef<string | null>(null)
-
-  // Track retry state for channel errors
-  const retryStateRef = useRef<{
-    attempts: number
-    timeoutId: ReturnType<typeof setTimeout> | null
-    currentKey: string | null
-  }>({ attempts: 0, timeoutId: null, currentKey: null })
-
-  // Track backfill re-check
-  const backfillCheckRef = useRef<{
-    timeoutId: ReturnType<typeof setTimeout> | null
-    currentKey: string | null
-  }>({ timeoutId: null, currentKey: null })
-
-  // Helper: Handle channel error with bounded retry
-  const handleChannelError = useCallback(
-    (error: string, _details: any, subscriptionKey: string) => {
-      // Throttling is now handled at callback level above
-      const maxRetries = 3
-      const baseDelay = 300
-
-      if (retryStateRef.current.timeoutId) {
-        clearTimeout(retryStateRef.current.timeoutId)
-        retryStateRef.current.timeoutId = null
-      }
-
-      if (retryStateRef.current.currentKey !== subscriptionKey) {
-        retryStateRef.current.attempts = 0
-        return
-      }
-
-      if (retryStateRef.current.attempts >= maxRetries) {
-        log.warn('VideoAnalysisScreen', 'Channel error retry exhausted', {
-          error,
-          attempts: retryStateRef.current.attempts,
-          maxRetries,
-          subscriptionKey,
-        })
-        retryStateRef.current.attempts = 0
-        setChannelExhausted(true) // Signal UI
-        return
-      }
-
-      const attempt = retryStateRef.current.attempts + 1
-      const delay = baseDelay * 2 ** (attempt - 1)
-
-      log.info('VideoAnalysisScreen', 'Scheduling channel retry', {
-        attempt,
-        delay,
-        error,
-        subscriptionKey,
-      })
-
-      retryStateRef.current.timeoutId = setTimeout(() => {
-        // Check if key still matches (component might have unmounted or key changed)
-        if (retryStateRef.current.currentKey === subscriptionKey) {
-          log.info('VideoAnalysisScreen', 'Retrying subscription after channel error', {
-            attempt,
-            subscriptionKey,
-          })
-
-          // Clear pending key to allow retry
-          pendingKeyRef.current = null
-
-          // Force re-run of subscription effect by updating a dummy state
-          // This will trigger the effect to re-establish the subscription
-          setIsProcessing((prev) => prev)
-        }
-      }, delay)
-
-      retryStateRef.current.attempts = attempt
-    },
-    []
-  )
-
-  // Helper: Schedule backfill re-check for timing gaps
-  const scheduleBackfillRecheck = useCallback((subscriptionKey: string) => {
-    // Clear any existing backfill check
-    if (backfillCheckRef.current.timeoutId) {
-      clearTimeout(backfillCheckRef.current.timeoutId)
-      backfillCheckRef.current.timeoutId = null
+  const subscriptionKey = useMemo(() => {
+    if (analysisJobId) {
+      return `job:${analysisJobId}`
     }
+    if (derivedRecordingId) {
+      return `recording:${derivedRecordingId}`
+    }
+    return null
+  }, [analysisJobId, derivedRecordingId])
 
-    // If key changed, abort
-    if (backfillCheckRef.current.currentKey !== subscriptionKey) {
+  const subscribeToAnalysis = useAnalysisSubscriptionStore((state) => state.subscribe)
+  const unsubscribeFromAnalysis = useAnalysisSubscriptionStore((state) => state.unsubscribe)
+
+  const subscriptionState = useAnalysisSubscriptionStore((state) => {
+    return subscriptionKey ? (state.subscriptions.get(subscriptionKey) ?? null) : null
+  })
+
+  const lastSubscriptionStatusRef = useRef<SubscriptionStatus>('idle')
+
+  useEffect(() => {
+    if (!subscriptionKey) {
       return
     }
 
-    const delay = 500 // 500ms delay to bridge upload→job timing gap
+    const options = analysisJobId
+      ? { analysisJobId }
+      : derivedRecordingId
+        ? { recordingId: derivedRecordingId }
+        : null
 
-    log.info('VideoAnalysisScreen', 'Scheduling backfill re-check', {
-      delay,
-      subscriptionKey,
+    if (!options) {
+      return
+    }
+
+    const context = options.analysisJobId
+      ? { analysisJobId: options.analysisJobId, subscriptionKey }
+      : { recordingId: options.recordingId, subscriptionKey }
+
+    log.info(
+      'VideoAnalysisScreen',
+      options.analysisJobId
+        ? 'Setting up analysis job subscription by job ID'
+        : 'Setting up analysis job subscription by recording ID',
+      context
+    )
+
+    let active = true
+
+    void subscribeToAnalysis(subscriptionKey, options).catch((error) => {
+      if (!active) return
+      log.error('VideoAnalysisScreen', 'Analysis subscription setup failed', {
+        subscriptionKey,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
     })
 
-    backfillCheckRef.current.timeoutId = setTimeout(async () => {
-      // Check if key still matches
-      if (backfillCheckRef.current.currentKey === subscriptionKey) {
-        try {
-          // Extract recording ID from subscription key
-          const recordingIdMatch = subscriptionKey.match(/^recording:(\d+)$/)
-          if (recordingIdMatch) {
-            const recordingId = Number.parseInt(recordingIdMatch[1], 10)
-            const { getLatestAnalysisJobForRecordingId } = await import('@my/api')
+    return () => {
+      active = false
+      log.info('VideoAnalysisScreen', 'Cleaning up active subscription on unmount', {
+        key: subscriptionKey,
+      })
+      unsubscribeFromAnalysis(subscriptionKey)
+    }
+  }, [
+    analysisJobId,
+    derivedRecordingId,
+    subscribeToAnalysis,
+    unsubscribeFromAnalysis,
+    subscriptionKey,
+  ])
 
-            const job = await getLatestAnalysisJobForRecordingId(recordingId)
-            if (job) {
-              log.info('VideoAnalysisScreen', 'Backfill re-check found job', {
-                jobId: job.id,
-                status: job.status,
-                subscriptionKey,
-              })
-              setAnalysisJob(job)
-            } else {
-              if (__DEV__) {
-                log.debug('VideoAnalysisScreen', 'Backfill re-check still empty', {
-                  subscriptionKey,
-                })
-              }
-            }
-          }
-        } catch (error) {
-          log.error('VideoAnalysisScreen', 'Backfill re-check failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            subscriptionKey,
-          })
-        }
+  const subscriptionJob = subscriptionState?.job ?? null
+
+  useEffect(() => {
+    if (!subscriptionKey || !subscriptionJob) {
+      return
+    }
+
+    setAnalysisJob((previous) => {
+      const isSameJob =
+        previous?.id === subscriptionJob.id &&
+        previous?.status === subscriptionJob.status &&
+        previous?.progress_percentage === subscriptionJob.progress_percentage &&
+        previous?.updated_at === subscriptionJob.updated_at
+
+      if (isSameJob) {
+        return previous
       }
-    }, delay)
-  }, [])
 
-  // DEBUG: Track component re-renders with logger (throttled to reduce performance impact)
-  const renderCountRef = useRef(0)
-  renderCountRef.current++
+      log.info('VideoAnalysisScreen', 'Analysis job update received', {
+        jobId: subscriptionJob.id,
+        recordingId: subscriptionJob.video_recording_id,
+        status: subscriptionJob.status,
+        progress: subscriptionJob.progress_percentage,
+        subscriptionKey,
+      })
 
-  // Render logging removed - too noisy for production
+      return subscriptionJob as AnalysisJob
+    })
+  }, [subscriptionJob, subscriptionKey])
+
+  const subscriptionStatus = subscriptionState?.status ?? 'idle'
+
+  useEffect(() => {
+    if (!subscriptionKey) {
+      lastSubscriptionStatusRef.current = 'idle'
+      setChannelExhausted(false)
+      return
+    }
+
+    if (subscriptionStatus === lastSubscriptionStatusRef.current) {
+      return
+    }
+
+    lastSubscriptionStatusRef.current = subscriptionStatus
+
+    if (subscriptionStatus === 'failed') {
+      setChannelExhausted(true)
+      log.warn('VideoAnalysisScreen', 'Channel error retry exhausted', {
+        subscriptionKey,
+      })
+    } else if (subscriptionStatus === 'active' || subscriptionStatus === 'pending') {
+      setChannelExhausted(false)
+    }
+  }, [subscriptionKey, subscriptionStatus])
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid || undefined)
   const feedbackAudio = useFeedbackAudioSource(feedbackStatus.feedbackItems)
@@ -519,269 +499,6 @@ export function VideoAnalysisScreen({
     }
   }, [shouldShowProcessing, isProcessing])
 
-  // Set up realtime subscription for analysis job updates (single subscription with cleanup)
-  useEffect(() => {
-    // Determine subscription key and type
-    const subscriptionKey = analysisJobId
-      ? `job:${analysisJobId}`
-      : derivedRecordingId
-        ? `recording:${derivedRecordingId}`
-        : null
-
-    // Clean up previous subscription if key changed
-    if (activeSubscriptionRef.current && activeSubscriptionRef.current.key !== subscriptionKey) {
-      activeSubscriptionRef.current.unsubscribe()
-      activeSubscriptionRef.current = null
-    }
-
-    // If no key, no subscription needed
-    if (!subscriptionKey) {
-      return
-    }
-
-    // If we already have an active subscription with the same key, skip
-    if (activeSubscriptionRef.current?.key === subscriptionKey) {
-      return
-    }
-
-    // If we're already setting up a subscription with the same key (StrictMode double-effect), skip
-    if (pendingKeyRef.current === subscriptionKey) {
-      return
-    }
-
-    // Mark this key as pending to block duplicate setup
-    pendingKeyRef.current = subscriptionKey
-
-    // Update retry and backfill state for this subscription
-    retryStateRef.current.currentKey = subscriptionKey
-    retryStateRef.current.attempts = 0
-    backfillCheckRef.current.currentKey = subscriptionKey
-
-    // Set up new subscription
-    if (analysisJobId) {
-      const unsubscribe = subscribeToAnalysisJob(
-        analysisJobId,
-        (job) => {
-          log.info('VideoAnalysisScreen', 'Analysis job update received', {
-            jobId: job.id,
-            recordingId: job.video_recording_id,
-            status: job.status,
-            progress: job.progress_percentage,
-            effectiveAnalysisJobId,
-          })
-          setAnalysisJob(job)
-        },
-        {
-          onStatus: (status, details) => {
-            log.info('VideoAnalysisScreen', 'Subscription status', { status, ...details })
-            if (status === 'SUBSCRIBED') {
-              pendingKeyRef.current = null // Clear pending flag only when subscription is confirmed
-            }
-          },
-          onError: (error, details) => {
-            // Enhanced error logging with diagnostic information
-            if (error === 'CHANNEL_ERROR') {
-              const now = Date.now()
-              if (lastChannelErrorTimeRef.current && now - lastChannelErrorTimeRef.current < 500) {
-                channelErrorStreakRef.current += 1
-              } else {
-                channelErrorStreakRef.current = 1
-              }
-              lastChannelErrorTimeRef.current = now
-
-              if (channelErrorStreakRef.current <= 2) {
-                log.error(
-                  'VideoAnalysisScreen',
-                  'Channel subscription failed - enhanced diagnostics',
-                  {
-                    error,
-                    subscriptionKey,
-                    channelName: details?.channel,
-                    userId: details?.userId,
-                    networkOnline: details?.networkOnline,
-                    health: details?.health,
-                    status: details?.status,
-                    recordingId: analysisJobId ? undefined : derivedRecordingId,
-                    analysisJobId,
-                  }
-                )
-              } else {
-                log.warn('VideoAnalysisScreen', 'Repeated channel errors suppressed', {
-                  error,
-                  subscriptionKey,
-                  streak: channelErrorStreakRef.current,
-                })
-              }
-              handleChannelError(error, details, subscriptionKey)
-            } else if (error === 'HEALTH_CHECK_FAILED') {
-              log.error('VideoAnalysisScreen', 'Health check failed before subscription', {
-                error,
-                health: details?.health,
-                subscriptionKey,
-                recordingId: analysisJobId ? undefined : derivedRecordingId,
-                analysisJobId,
-              })
-            } else if (error === 'HEALTH_CHECK_ERROR') {
-              log.error('VideoAnalysisScreen', 'Health check error before subscription', {
-                error,
-                healthError: details?.error,
-                subscriptionKey,
-                recordingId: analysisJobId ? undefined : derivedRecordingId,
-                analysisJobId,
-              })
-            } else if (error === 'CHANNEL_TIMEOUT' || error === 'CHANNEL_CLOSED') {
-              log.warn('VideoAnalysisScreen', 'Channel connection issue', {
-                error,
-                channel: details?.channel,
-                userId: details?.userId,
-                subscriptionKey,
-              })
-            } else {
-              log.error('VideoAnalysisScreen', 'Subscription error', { error, ...details })
-            }
-          },
-        }
-      )
-
-      activeSubscriptionRef.current = { key: subscriptionKey, unsubscribe }
-
-      // Log after guards pass
-      log.info('VideoAnalysisScreen', 'Setting up analysis job subscription by job ID', {
-        analysisJobId,
-        subscriptionKey,
-      })
-
-      return unsubscribe
-    }
-
-    // Subscribe to jobs for recording ID
-    if (derivedRecordingId) {
-      const unsubscribe = subscribeToLatestAnalysisJobByRecordingId(
-        derivedRecordingId,
-        (job) => {
-          log.info('VideoAnalysisScreen', 'Analysis job update received by recording ID', {
-            jobId: job.id,
-            recordingId: job.video_recording_id,
-            videoRecordingId: job.video_recording_id,
-            status: job.status,
-            progress: job.progress_percentage,
-            effectiveAnalysisJobId,
-          })
-          setAnalysisJob(job)
-        },
-        {
-          onStatus: (status, details) => {
-            log.info('VideoAnalysisScreen', 'Subscription status', { status, ...details })
-            if (status === 'SUBSCRIBED') {
-              pendingKeyRef.current = null // Clear pending flag only when subscription is confirmed
-            }
-            if (status === 'BACKFILL_EMPTY') {
-              scheduleBackfillRecheck(subscriptionKey)
-            }
-          },
-          onError: (error, details) => {
-            // Enhanced error logging with diagnostic information for recording subscriptions
-            if (error === 'CHANNEL_ERROR') {
-              log.error(
-                'VideoAnalysisScreen',
-                'Channel subscription failed - enhanced diagnostics (recording)',
-                {
-                  error,
-                  subscriptionKey,
-                  channelName: details?.channel,
-                  userId: details?.userId,
-                  networkOnline: details?.networkOnline,
-                  health: details?.health,
-                  status: details?.status,
-                  recordingId: derivedRecordingId,
-                  analysisJobId: undefined,
-                }
-              )
-              handleChannelError(error, details, subscriptionKey)
-            } else if (error === 'HEALTH_CHECK_FAILED') {
-              log.error(
-                'VideoAnalysisScreen',
-                'Health check failed before recording subscription',
-                {
-                  error,
-                  health: details?.health,
-                  subscriptionKey,
-                  recordingId: derivedRecordingId,
-                }
-              )
-            } else if (error === 'HEALTH_CHECK_ERROR') {
-              log.error('VideoAnalysisScreen', 'Health check error before recording subscription', {
-                error,
-                healthError: details?.error,
-                subscriptionKey,
-                recordingId: derivedRecordingId,
-              })
-            } else if (error === 'CHANNEL_TIMEOUT' || error === 'CHANNEL_CLOSED') {
-              log.warn('VideoAnalysisScreen', 'Recording channel connection issue', {
-                error,
-                channel: details?.channel,
-                userId: details?.userId,
-                subscriptionKey,
-                recordingId: derivedRecordingId,
-              })
-            } else {
-              log.error('VideoAnalysisScreen', 'Subscription error', { error, ...details })
-            }
-          },
-        }
-      )
-
-      activeSubscriptionRef.current = { key: subscriptionKey, unsubscribe }
-
-      // Log after guards pass
-      log.info('VideoAnalysisScreen', 'Setting up analysis job subscription by recording ID', {
-        recordingId: derivedRecordingId,
-        subscriptionKey,
-      })
-
-      return unsubscribe
-    }
-
-    // No subscription needed
-    return undefined
-  }, [
-    analysisJobId,
-    derivedRecordingId,
-    effectiveAnalysisJobId,
-    handleChannelError,
-    scheduleBackfillRecheck,
-  ])
-
-  // Cleanup active subscription on unmount
-  useEffect(() => {
-    return () => {
-      if (activeSubscriptionRef.current) {
-        log.info('VideoAnalysisScreen', 'Cleaning up active subscription on unmount', {
-          key: activeSubscriptionRef.current.key,
-        })
-        activeSubscriptionRef.current.unsubscribe()
-        activeSubscriptionRef.current = null
-      }
-    }
-  }, [])
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      // Clear retry timeout
-      if (retryStateRef.current.timeoutId) {
-        clearTimeout(retryStateRef.current.timeoutId)
-        retryStateRef.current.timeoutId = null
-      }
-
-      // Clear backfill check timeout
-      if (backfillCheckRef.current.timeoutId) {
-        clearTimeout(backfillCheckRef.current.timeoutId)
-        backfillCheckRef.current.timeoutId = null
-      }
-    }
-  }, [])
-
   // Log when effectiveAnalysisJobId changes
   useEffect(() => {
     if (effectiveAnalysisJobId) {
@@ -808,21 +525,23 @@ export function VideoAnalysisScreen({
 
   // Debug logging for audio state changes
   useEffect(() => {
-    log.debug('VideoAnalysisScreen', 'Audio state updated', {
-      hasActiveAudio: !!feedbackAudio.activeAudio,
-      activeAudioId: feedbackAudio.activeAudio?.id,
-      activeAudioUrl: feedbackAudio.activeAudio?.url
-        ? `${feedbackAudio.activeAudio.url.substring(0, 50)}...`
-        : null,
-      isAudioPlaying: audioController.isPlaying,
-      isVideoPlaying: isPlaying,
-      shouldPlayVideo: videoAudioSync.shouldPlayVideo,
-      shouldPlayAudio: videoAudioSync.shouldPlayAudio,
-      isVideoPausedForAudio: videoAudioSync.isVideoPausedForAudio,
-      audioCurrentTime: audioController.currentTime,
-      audioDuration: audioController.duration,
-      audioIsLoaded: audioController.isLoaded,
-    })
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Audio state updated', {
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        activeAudioId: feedbackAudio.activeAudio?.id,
+        activeAudioUrl: feedbackAudio.activeAudio?.url
+          ? `${feedbackAudio.activeAudio.url.substring(0, 50)}...`
+          : null,
+        isAudioPlaying: audioController.isPlaying,
+        isVideoPlaying: isPlaying,
+        shouldPlayVideo: videoAudioSync.shouldPlayVideo,
+        shouldPlayAudio: videoAudioSync.shouldPlayAudio,
+        isVideoPausedForAudio: videoAudioSync.isVideoPausedForAudio,
+        audioCurrentTime: audioController.currentTime,
+        audioDuration: audioController.duration,
+        audioIsLoaded: audioController.isLoaded,
+      })
+    }
   }, [
     feedbackAudio.activeAudio,
     audioController.isPlaying,
@@ -866,13 +585,15 @@ export function VideoAnalysisScreen({
       (feedbackAudio.activeAudio && audioController.isPlaying) // Only show when audio is actually playing
     )
 
-    log.debug('VideoAnalysisScreen', 'Audio controls visibility calculated', {
-      shouldShow,
-      hasActiveAudio: !!feedbackAudio.activeAudio,
-      isAudioPlaying: audioController.isPlaying,
-      isProcessing,
-      activeAudioId: feedbackAudio.activeAudio?.id,
-    })
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Audio controls visibility calculated', {
+        shouldShow,
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        isAudioPlaying: audioController.isPlaying,
+        isProcessing,
+        activeAudioId: feedbackAudio.activeAudio?.id,
+      })
+    }
 
     return shouldShow
   }, [feedbackAudio.activeAudio, audioController.isPlaying, isProcessing])
@@ -946,24 +667,18 @@ export function VideoAnalysisScreen({
       return feedbackStatus.feedbackItems
     }
 
-    // Otherwise, fall back to mock data for demo purposes
+    // Otherwise, fall back to mock data for demo purposes (matched to feedbackStatus type)
     return feedbackMessages.map((message) => ({
       id: message.id,
       timestamp: message.timestamp,
       text: message.text,
-      type: message.type as 'positive' | 'suggestion' | 'correction',
-      category: message.category as 'voice' | 'posture' | 'grip' | 'movement',
-      // Add mock status for demo
+      type: 'suggestion' as const,
+      category: 'voice' as const,
       ssmlStatus: 'completed' as const,
       audioStatus: 'completed' as const,
+      confidence: 1,
     }))
   }, [feedbackMessages, feedbackStatus.feedbackItems])
-
-  // Sequential bubble display state
-  const [currentBubbleIndex, setCurrentBubbleIndex] = useState<number | null>(null)
-  const [bubbleVisible, setBubbleVisible] = useState(false)
-  const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastBubbleShowTimeRef = useRef<number>(0)
 
   // Initial logging
   useEffect(() => {
@@ -1011,15 +726,6 @@ export function VideoAnalysisScreen({
     derivedRecordingId,
     analysisUuid,
   ]) // Removed isPlaying from deps to avoid re-triggering
-
-  // Cleanup bubble timer when component unmounts
-  useEffect(() => {
-    return () => {
-      if (bubbleTimerRef.current) {
-        clearTimeout(bubbleTimerRef.current)
-      }
-    }
-  }, [])
 
   // Video control handlers
   const handlePlay = useCallback(() => {
@@ -1096,184 +802,6 @@ export function VideoAnalysisScreen({
   }, [onMenuPress])
 
   // Sequential bubble display functions
-  const showBubble = useCallback(
-    (index: number) => {
-      const feedbackItem = feedbackItems[index]
-      if (!feedbackItem) {
-        log.warn('VideoAnalysisScreen', 'showBubble called with invalid index', {
-          bubbleIndex: index,
-          feedbackItemsCount: feedbackItems.length,
-        })
-        return
-      }
-
-      log.info('VideoAnalysisScreen', 'showBubble called', {
-        bubbleIndex: index,
-        itemId: feedbackItem.id,
-        itemTimestamp: feedbackItem.timestamp,
-        currentBubbleIndex,
-        bubbleVisible,
-        isPlaying,
-      })
-
-      // Clear any existing timer
-      if (bubbleTimerRef.current) {
-        clearTimeout(bubbleTimerRef.current)
-      }
-
-      setCurrentBubbleIndex(index)
-      setBubbleVisible(true)
-      lastBubbleShowTimeRef.current = Date.now() // Track when bubble was shown
-
-      // Make coach speak when bubble appears
-      setIsCoachSpeaking(true)
-
-      // Calculate display duration based on audio duration
-      // Use audio duration if available, otherwise fall back to 3 seconds
-      const audioUrl = feedbackAudio.audioUrls[feedbackItem.id]
-      const displayDuration =
-        audioUrl && audioController.duration > 0
-          ? Math.max(3000, audioController.duration * 1000) // At least 3 seconds, or audio duration
-          : 3000 // Default 3 seconds fallback
-
-      log.info('VideoAnalysisScreen', 'Setting bubble display duration', {
-        itemId: feedbackItem.id,
-        audioDuration: audioController.duration,
-        displayDurationMs: displayDuration,
-        hasAudioUrl: !!audioUrl,
-        fallbackReason: !audioUrl
-          ? 'no_audio_url'
-          : audioController.duration <= 0
-            ? 'no_duration'
-            : 'using_audio_duration',
-      })
-
-      // Hide bubble after calculated duration
-      bubbleTimerRef.current = setTimeout(() => {
-        hideBubble()
-      }, displayDuration)
-    },
-    [
-      currentBubbleIndex,
-      bubbleVisible,
-      isPlaying,
-      feedbackItems,
-      feedbackAudio.audioUrls,
-      audioController.duration,
-    ]
-  )
-
-  const hideBubble = useCallback(() => {
-    log.info('VideoAnalysisScreen', 'hideBubble called', {
-      currentBubbleIndex,
-      bubbleVisible,
-      isPlaying,
-    })
-
-    setBubbleVisible(false)
-    setIsCoachSpeaking(false)
-
-    // Clear the timer
-    if (bubbleTimerRef.current) {
-      clearTimeout(bubbleTimerRef.current)
-      bubbleTimerRef.current = null
-    }
-  }, [currentBubbleIndex, bubbleVisible, isPlaying])
-
-  // Hide bubble when video is paused or stopped (but allow showing when seeking)
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null
-
-    if (!isPlaying && bubbleVisible) {
-      // Check if bubble was recently shown (within last 2.5 seconds)
-      const timeSinceLastShow = Date.now() - lastBubbleShowTimeRef.current
-      const recentlyShown = timeSinceLastShow < 2500 // 2.5 seconds
-
-      log.info('VideoAnalysisScreen', 'Pause detection triggered', {
-        isPlaying,
-        bubbleVisible,
-        timeSinceLastShow,
-        recentlyShown,
-        willHideBubble: !recentlyShown,
-      })
-
-      if (!recentlyShown) {
-        // Only hide if bubble wasn't shown recently (allow time for auto-hide timer)
-        timer = setTimeout(() => {
-          if (!isPlaying && bubbleVisible) {
-            log.info('VideoAnalysisScreen', 'Hiding bubble due to pause (not recently shown)')
-            hideBubble()
-          }
-        }, 100)
-      } else {
-        log.info('VideoAnalysisScreen', 'Not hiding bubble - was shown recently')
-      }
-    }
-
-    return () => {
-      if (timer) {
-        clearTimeout(timer)
-      }
-    }
-  }, [isPlaying, bubbleVisible, hideBubble])
-
-  // Check and show feedback bubble at a specific timestamp
-  const checkAndShowBubbleAtTime = useCallback(
-    (currentTimeMs: number) => {
-      log.info('VideoAnalysisScreen', 'checkAndShowBubbleAtTime called', {
-        currentTimeMs,
-        currentTime: currentTimeMs / 1000,
-        currentBubbleIndex,
-        bubbleVisible,
-        feedbackItemsCount: feedbackItems.length,
-      })
-
-      // Check if we should show any feedback bubbles at this timestamp
-      feedbackItems.forEach((item, index) => {
-        const timeDiff = Math.abs(currentTimeMs - item.timestamp)
-        const isNearTimestamp = timeDiff < 500 // Within 0.5 seconds
-
-        // Allow showing the same bubble again if it's been hidden (for seek operations)
-        const canShowBubble = isNearTimestamp && (!bubbleVisible || currentBubbleIndex !== index)
-
-        log.info('VideoAnalysisScreen', 'Checking bubble', {
-          bubbleIndex: index,
-          itemId: item.id,
-          itemTimestamp: item.timestamp / 1000,
-          timeDiff,
-          isNearTimestamp,
-          currentBubbleIndex,
-          bubbleVisible,
-          canShowBubble,
-          reason: !bubbleVisible
-            ? 'bubble not visible'
-            : currentBubbleIndex !== index
-              ? 'different bubble'
-              : 'same bubble visible',
-        })
-
-        if (canShowBubble) {
-          // Show this bubble and auto-play audio if available
-          log.info('VideoAnalysisScreen', 'Showing bubble', {
-            bubbleIndex: index,
-            itemId: item.id,
-          })
-          showBubble(index)
-
-          // Auto-play audio for this feedback item if available
-          if (feedbackAudio.audioUrls[item.id]) {
-            feedbackAudio.selectAudio(item.id)
-            audioController.setIsPlaying(true)
-            log.info('VideoAnalysisScreen', 'Auto-playing audio for feedback bubble', {
-              itemId: item.id,
-            })
-          }
-        }
-      })
-    },
-    [feedbackItems, currentBubbleIndex, bubbleVisible, showBubble, feedbackAudio, audioController]
-  )
-
   // // Handler for feedback bubble taps
   // const handleFeedbackBubbleTap = useCallback((message: FeedbackMessage) => {
   //   log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
@@ -1295,6 +823,31 @@ export function VideoAnalysisScreen({
   //   // Stop speaking after 3 seconds
   //   setTimeout(() => setIsCoachSpeaking(false), 3000)
   // }, [])
+
+  const bubbleController = useBubbleController(
+    feedbackItems,
+    currentTime,
+    isPlaying,
+    feedbackAudio.audioUrls,
+    audioController.duration,
+    {
+      onBubbleShow: ({ index }) => {
+        const feedbackItem = feedbackItems[index]
+        log.info('VideoAnalysisScreen', 'Bubble shown', {
+          index,
+          itemId: feedbackItem.id,
+          timestamp: feedbackItem.timestamp,
+        })
+        setIsCoachSpeaking(true)
+      },
+      onBubbleHide: () => {
+        log.info('VideoAnalysisScreen', 'Bubble hidden')
+        setIsCoachSpeaking(false)
+      },
+    }
+  )
+
+  const { currentBubbleIndex, bubbleVisible } = bubbleController
 
   // Handle video progress and bubble timing
   const handleVideoProgress = useCallback(
@@ -1321,53 +874,26 @@ export function VideoAnalysisScreen({
         }
 
         // Check if we should show any feedback bubbles
-        feedbackItems.forEach((item, index) => {
-          const timeDiff = Math.abs(currentTimeMs - item.timestamp)
-          const isNearTimestamp = timeDiff < 500 // Within 0.5 seconds
-
-          // Allow showing the same bubble again if it's been hidden (for seek operations)
-          const canShowBubble = isNearTimestamp && (!bubbleVisible || currentBubbleIndex !== index)
-
-          if (canShowBubble) {
-            log.info('VideoAnalysisScreen', 'Bubble trigger during playback', {
-              bubbleIndex: index,
-              itemId: item.id,
-              currentTimeMs,
-              itemTimestamp: item.timestamp,
-              timeDiff,
-              isPlaying,
-              reason: !bubbleVisible ? 'bubble not visible' : 'different bubble',
-            })
-            // Show this bubble and auto-play audio if available
-            showBubble(index)
-
-            // Auto-play audio for this feedback item if available
-            if (feedbackAudio.audioUrls[item.id]) {
-              feedbackAudio.selectAudio(item.id)
-              audioController.setIsPlaying(true)
-              log.info(
-                'VideoAnalysisScreen',
-                'Auto-playing audio for feedback bubble during playback',
-                {
-                  itemId: item.id,
-                }
-              )
-            }
+        const triggeredIndex = bubbleController.checkAndShowBubbleAtTime(currentTimeMs)
+        if (triggeredIndex !== null) {
+          const item = feedbackItems[triggeredIndex]
+          if (feedbackAudio.audioUrls[item.id]) {
+            feedbackAudio.selectAudio(item.id)
+            audioController.setIsPlaying(true)
+            log.info(
+              'VideoAnalysisScreen',
+              'Auto-playing audio for feedback bubble during playback',
+              {
+                itemId: item.id,
+              }
+            )
           }
-        })
+        }
 
         return newTime
       })
     },
-    [
-      feedbackItems,
-      currentBubbleIndex,
-      bubbleVisible,
-      showBubble,
-      isPlaying,
-      feedbackAudio,
-      audioController,
-    ]
+    [feedbackItems, bubbleController, isPlaying, feedbackAudio, audioController]
   )
 
   // Feedback Panel handlers for US-VF-08
@@ -1396,6 +922,10 @@ export function VideoAnalysisScreen({
       // Seek to the feedback item's timestamp
       const seekTime = item.timestamp / 1000 // Convert from milliseconds to seconds
       setPendingSeek(seekTime)
+
+      // Resume playback like replay to hide controls
+      setVideoEnded(false)
+      setIsPlaying(true)
 
       // Highlight the pressed feedback item
       setSelectedFeedbackId(item.id)
@@ -1550,7 +1080,7 @@ export function VideoAnalysisScreen({
                         seekedTimeMs,
                         seekedTime: seekedTimeMs / 1000,
                       })
-                      checkAndShowBubbleAtTime(seekedTimeMs)
+                      bubbleController.checkAndShowBubbleAtTime(seekedTimeMs)
                     }
 
                     log.info('VideoAnalysisScreen', 'Clearing pending seek')
@@ -1576,15 +1106,15 @@ export function VideoAnalysisScreen({
 
               <FeedbackBubbles
                 messages={
-                  currentBubbleIndex !== null && bubbleVisible && feedbackItems[currentBubbleIndex]
+                  bubbleVisible && bubbleController.currentBubbleIndex !== null
                     ? [
                         {
-                          id: feedbackItems[currentBubbleIndex].id,
-                          timestamp: feedbackItems[currentBubbleIndex].timestamp,
-                          text: feedbackItems[currentBubbleIndex].text,
-                          type: feedbackItems[currentBubbleIndex].type,
-                          category: feedbackItems[currentBubbleIndex].category,
-                          position: { x: 0.5, y: 0.3 }, // Default position for real feedback
+                          id: feedbackItems[bubbleController.currentBubbleIndex].id,
+                          timestamp: feedbackItems[bubbleController.currentBubbleIndex].timestamp,
+                          text: feedbackItems[bubbleController.currentBubbleIndex].text,
+                          type: feedbackItems[bubbleController.currentBubbleIndex].type,
+                          category: feedbackItems[bubbleController.currentBubbleIndex].category,
+                          position: { x: 0.5, y: 0.3 },
                           isHighlighted: false,
                           isActive: true,
                         },

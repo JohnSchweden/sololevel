@@ -1,60 +1,62 @@
 ---
 description: TypeScript configuration and standards for cross-platform development
 globs: ["**/*.ts", "**/*.tsx", "tsconfig.json", "**/*.d.ts"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # TypeScript Standards
 
 ## Core Principles
-- Strict mode always enabled
-- No `any` or `unknown` without explicit justification
-- Explicit return types for all exported functions
-- Prefer `type` for unions/intersections, `interface` for objects
-- Use const assertions over enums: `const Status = ['pending', 'completed'] as const`
+- Always enable strict mode in `tsconfig.json`.
+- Avoid using `any` or `unknown` types unless absolutely necessary and justified with a comment.
+- All exported functions must have explicit return types.
+- Use `type` for unions and intersections; use `interface` for object shapes.
+- Prefer `as const` assertions over enums, e.g., `const Status = ['pending', 'completed'] as const`.
 
-## Cross-Platform Types
-- Use conditional types for platform-specific APIs
-- Define shared interfaces in `packages/app/types`
-- Platform-specific types in `*.native.ts` or `*.web.ts`
-- Use Tamagui's `GetProps<typeof Component>` for component prop types
+## Cross-Platform Type Practices
+- Leverage conditional types to handle platform-specific APIs.
+- Place shared interfaces in `packages/app/types`.
+- Define platform-specific types in files named `*.native.ts` or `*.web.ts`.
+- For Tamagui components, use `GetProps<typeof Component>` to extract prop types.
 
-## Supabase Integration
-- Generate types: `yarn supabase gen types typescript --local > packages/api/types/database.ts`
-- Use generated `Database` type for all queries
-- Type Supabase client: `SupabaseClient<Database>`
-- Row types: `Database['public']['Tables']['table_name']['Row']`
+## Supabase Type Integration
+- Generate database types with:  
+  `yarn supabase gen types typescript --local > packages/api/types/database.ts`
+- Use the generated `Database` type for all Supabase queries.
+- Type the Supabase client as `SupabaseClient<Database>`.
+- For table rows, use:  
+  `Database['public']['Tables']['table_name']['Row']`
 
-## Zod Integration
-- Runtime validation for all external data
-- API responses: `const UserSchema = z.object({...})`
-- Form inputs: use Zod with react-hook-form
-- Navigation params: `const ParamsSchema = z.object({...})`
-- Database schemas: mirror Zod schemas to SQL
+## Zod Integration Guidelines
+- Validate all external data at runtime using Zod schemas.
+- For API responses, define schemas, e.g., `const UserSchema = z.object({...})`.
+- Use Zod with react-hook-form for form input validation.
+- Define navigation parameter schemas, e.g., `const ParamsSchema = z.object({...})`.
+- Keep Zod schemas in sync with SQL/database schemas.
 
-## Tamagui Types
-- Use `styled()` for custom components
-- Leverage `GetProps<>` utility for prop extraction
-- Theme types: extend `TamaguiConfig` for custom tokens
-- Responsive props: use `ResponsiveValue<T>` type
+## Tamagui Typing
+- Use `styled()` to create custom components with type safety.
+- Extract prop types with the `GetProps<>` utility.
+- Extend `TamaguiConfig` to type custom theme tokens.
+- Use `ResponsiveValue<T>` for responsive prop typing.
 
-## Error Handling Types
-- Custom error classes extending `Error`
-- Use discriminated unions for result types:
+## Error Handling Patterns
+- Create custom error classes that extend the built-in `Error`.
+- Use discriminated unions for result types, for example:
   ```typescript
-  type Result<T, E = Error> = 
+  type Result<T, E = Error> =
     | { success: true; data: T }
     | { success: false; error: E }
   ```
 
-## Import Standards
+## Import Conventions
 
 ### Monorepo Import Patterns
-- **Package imports**: `import { Component } from '@my/ui'` (for main exports)
-- **Path imports**: `import { Component } from '@ui/components/Button'` (for specific files)
-- **Never use**: `import from '@api'` without path - use `@api/services/...`
+- **Package imports**: Use `import { Component } from '@my/ui'` for main package exports.
+- **Path imports**: Use `import { Component } from '@ui/components/Button'` for specific files.
+- **Do not** import from `@api` without a path; always use the full path, e.g., `@api/services/...`.
 
 ### TypeScript Path Resolution
-- All path aliases defined in `tsconfig.base.json`
-- Use scoped package names in `package.json` dependencies
-- Export functions/types from package index files for `@my/` imports
+- Define all path aliases in `tsconfig.base.json`.
+- Use scoped package names in `package.json` dependencies.
+- Re-export functions and types from package index files to support `@my/` imports.
