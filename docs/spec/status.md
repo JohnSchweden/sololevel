@@ -20,6 +20,15 @@
 - **Expected Impact**: Parent component re-renders reduced from every frame (~30-60/s) to ~1/s during playback
 - **Phase 2 Complete**: All foundation and restructuring tasks (1, 2, 3, 6, 7, 8, 9) finished successfully
 
+### Task 12: Extract Video Controls Logic — COMPLETED ✅ (2025-10-06)
+- Created `useVideoControls` hook to own the video controls overlay state (visibility + replay button)
+- Replaced inline `showControls` logic in `VideoAnalysisScreen` with hook + stable callback wiring
+- Updated `VideoPlayerSection` to accept `onControlsVisibilityChange` and forward visibility events downstream
+- Added focused hook test suite (`useVideoControls.test.ts`) validating forced visibility rules and manual overrides
+- Extended `VideoPlayerSection.test.tsx` to confirm callback propagation
+- Verified with `yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/useVideoControls.test.ts --verbose`
+- Result: VideoAnalysisScreen trimmed by ~12 lines, consistent hook-driven orchestration maintained
+
 # Project Status
 
 ## Completed Features

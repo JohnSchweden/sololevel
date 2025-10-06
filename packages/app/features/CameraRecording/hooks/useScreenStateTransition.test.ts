@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
+import { RecordingState } from '../types'
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
-import { useScreenStateTransition } from '../hooks/useScreenStateTransition'
-import { RecordingState } from '../types'
+import { useScreenStateTransition } from './useScreenStateTransition'
 
 // Mock logger
 jest.mock('@my/logging', () => ({

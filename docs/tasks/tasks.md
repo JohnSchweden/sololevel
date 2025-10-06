@@ -61,7 +61,7 @@ OBJECTIVE: Centralize all analysis job subscription logic into a reusable Zustan
 
 SCOPE:
 - CREATE: packages/app/stores/analysisSubscription.ts (~250 lines)
-- CREATE: packages/app/stores/__tests__/analysisSubscription.test.ts (~150 lines)
+- CREATE: packages/app/stores/analysisSubscription.test.ts (~150 lines)
 - MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
   - REMOVE: Lines 245-262 (refs), 264-378 (helper functions), 522-783 (subscription effects)
   - REPLACE: With single useAnalysisSubscriptionStore hook call (~10 lines)
@@ -101,7 +101,7 @@ MIGRATION STEPS:
 7. ~~Validate realtime updates still work~~ ✅
 
 SUCCESS VALIDATION:
-- yarn workspace @my/app test packages/app/stores/__tests__/analysisSubscription.test.ts --verbose
+- yarn workspace @my/app test packages/app/stores/analysisSubscription.test.ts --verbose
 - yarn type-check passes
 - Video analysis screen still receives realtime updates
 - No console errors about duplicate subscriptions in StrictMode
@@ -119,7 +119,7 @@ OBJECTIVE: Isolate bubble display/hide/timing logic into a dedicated hook follow
 
 SCOPE:
 - CREATE: packages/app/features/VideoAnalysis/hooks/useBubbleController.ts (~180 lines)
-- CREATE: packages/app/features/VideoAnalysis/hooks/__tests__/useBubbleController.test.ts (~100 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/useBubbleController.test.ts (~100 lines)
 - MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
   - REMOVE: Lines 963-975 (state), 1015-1022 (cleanup), 1099-1275 (functions + effects)
   - REPLACE: With single useBubbleController hook call (~5 lines)
@@ -161,7 +161,7 @@ ACCEPTANCE CRITERIA:
 - [x] Existing bubble behavior unchanged
 
 SUCCESS VALIDATION:
-- yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/__tests__/useBubbleController.test.ts --verbose ✅
+- yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/useBubbleController.test.ts --verbose ✅
 - yarn type-check passes ✅
 - Bubbles appear at correct timestamps during video playback ✅
 - Bubbles auto-hide after audio completes ✅
@@ -182,7 +182,7 @@ OBJECTIVE: Replace 4 separate hooks and complex memoization (lines 119-520) with
 
 SCOPE:
 - CREATE: packages/app/features/VideoAnalysis/hooks/useAnalysisState.ts (~200 lines)
-- CREATE: packages/app/features/VideoAnalysis/hooks/__tests__/useAnalysisState.test.ts (~150 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/useAnalysisState.test.ts (~150 lines)
 - MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
   - REMOVE: Lines 119-150 (upload derivation), 138-242 (analysis UUID lookup), 390-520 (processing memos)
   - REPLACE: With single useAnalysisState hook call (~8 lines)
@@ -258,7 +258,7 @@ ACCEPTANCE CRITERIA:
 - [x] Processing overlay shows/hides at correct times
 
 SUCCESS VALIDATION:
-- ✅ yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/__tests__/useAnalysisState.test.ts --verbose
+- ✅ yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/useAnalysisState.test.ts --verbose
 - ✅ yarn type-check passes
 - ✅ Processing overlay behavior unchanged (hides when first audio ready)
 - ✅ Upload → Analysis → Ready flow works end-to-end
@@ -723,217 +723,215 @@ SUCCESS VALIDATION:
 
 ---
 
-## 🏗️ PHASE 3: Advanced Patterns (Q1 2025)
+## 🏗️ PHASE 3: Post-MVP Enhancements (Deferred)
 
-### Task 4: Implement Command Pattern for Video Actions
-**Effort:** 2-3 weeks | **Priority:** Low | **Requires:** Task 2
+### ~~Task 4: Command Pattern~~ ❌ CANCELLED
+**Status:** Not Recommended | **Reason:** Over-engineered for current needs
+
+**Why Cancelled:**
+- Video playback actions already well-organized in `useVideoPlayback` hook
+- No user requirement for undo/redo functionality
+- Analytics can be added directly to existing hooks (simpler approach)
+- Command pattern adds significant complexity (~450 LOC) with unclear ROI
+- Current architecture is maintainable and testable without it
+
+**Alternative Approach (if analytics needed):**
+```typescript
+// Add to useVideoPlayback.ts
+const play = useCallback(() => {
+  log.info('useVideoPlayback', 'play invoked')
+  trackAnalyticsEvent('video.play', { videoRecordingId, timestamp: Date.now() })
+  setIsPlaying(true)
+  setVideoEnded(false)
+}, [videoRecordingId])
+```
+
+**Decision:** Focus on user-facing features instead of architectural abstractions.
+
+---
+
+### Task 5: Optional React Query Integration
+**Effort:** 2-3 days | **Priority:** Optional | **Status:** Not Required
+
+**Current State Assessment:**
+- ✅ TanStack Query already integrated in codebase (see `packages/app/provider/QueryProvider.tsx`)
+- ✅ Zustand subscription store (Task 1) works reliably for Supabase Realtime
+- ✅ Current architecture handles realtime updates, retries, and error states well
+- ⚠️ Migration would be risky with minimal benefit for realtime-heavy workflows
+
+**When to Consider This Task:**
+1. If you add HTTP polling-based endpoints (React Query excels here)
+2. If you need client-side caching across screen navigations
+3. If React Query DevTools visibility becomes critical
+4. If team wants to standardize ALL data fetching on React Query
+
+**Implementation Path (if needed):**
+```typescript
+// packages/api/src/queries/analysisQueries.ts
+export const analysisQueries = {
+  job: (id: number) => ({
+    queryKey: ['analysis', 'job', id],
+    queryFn: () => getAnalysisJob(id),
+    staleTime: 10_000,
+  }),
+  
+  jobByRecording: (recordingId: number) => ({
+    queryKey: ['analysis', 'recording', recordingId],
+    queryFn: () => getLatestAnalysisJobForRecordingId(recordingId),
+  }),
+}
+
+// In useAnalysisState.ts
+const { data: analysisJob } = useQuery(analysisQueries.job(analysisJobId))
+// Still need Zustand for Supabase Realtime subscription management
+```
+
+**Hybrid Approach (Recommended if pursuing):**
+- Keep Zustand for Realtime subscription lifecycle
+- Use React Query for initial data fetching and caching
+- Let Realtime updates trigger React Query cache invalidation
+
+**Key Consideration:**
+React Query is designed for request/response patterns. Supabase Realtime is push-based WebSocket. The Zustand store already handles the impedance mismatch well. Migration would require careful integration, not a simple replacement.
+
+**Decision:** Defer until a clear use case emerges (e.g., offline-first features, multi-screen caching).
+
+---
+
+## 🎯 PHASE 3 ALTERNATIVE: High-Impact Improvements
+
+Based on code review, these tasks would provide more value than the original Phase 3:
+
+### Task 10: Analytics Event Tracking ⚡ QUICK WIN
+**Effort:** 2-4 hours | **Priority:** High | **User Value:** Product insights
 
 ```
-@step-by-step-rule.mdc - Refactor video playback actions (play, pause, seek, replay) into a Command Pattern with undo/redo support and action logging for analytics.
+@step-by-step-rule.mdc - Add analytics event tracking to video playback actions and feedback interactions.
 
-OBJECTIVE: Replace inline callbacks with command objects enabling action replay, undo functionality, and centralized analytics tracking.
+OBJECTIVE: Instrument user behavior tracking for product analytics without adding architectural complexity.
 
 SCOPE:
-- CREATE: packages/app/features/VideoAnalysis/commands/videoCommands.ts (~200 lines)
-- CREATE: packages/app/features/VideoAnalysis/commands/CommandInvoker.ts (~150 lines)
-- CREATE: packages/app/features/VideoAnalysis/hooks/useVideoCommands.ts (~100 lines)
-- CREATE: Test files for commands and invoker (~200 lines)
-- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
-  - REMOVE: Lines 1024-1086 (inline handlers)
-  - REPLACE: With command-based handlers (~30 lines)
+- MODIFY: packages/app/features/VideoAnalysis/hooks/useVideoPlayback.ts
+  - Add trackEvent('video.play'), trackEvent('video.pause'), trackEvent('video.seek'), trackEvent('video.replay')
+- MODIFY: packages/app/features/VideoAnalysis/hooks/useFeedbackSelection.ts
+  - Add trackEvent('feedback.item.selected'), trackEvent('feedback.audio.played')
+- MODIFY: packages/app/features/VideoAnalysis/hooks/useFeedbackPanel.ts
+  - Add trackEvent('feedback.panel.expanded'), trackEvent('feedback.tab.changed')
+- CREATE: packages/app/utils/analytics.ts (~50 lines)
+  - Wrapper around analytics service (PostHog, Mixpanel, or Amplitude)
 
-ARCHITECTURE REQUIREMENTS:
-
-**Command Interface**
-```typescript
-export interface VideoCommand {
-  execute(): void | Promise<void>
-  undo?(): void
-  canUndo(): boolean
-  metadata: {
-    id: string
-    timestamp: number
-    action: string
-    userId?: string
-    videoRecordingId?: number
+EXAMPLE:
+``typescript
+// packages/app/utils/analytics.ts
+export function trackEvent(event: string, properties?: Record<string, unknown>) {
+  if (__DEV__) {
+    log.debug('Analytics', event, properties)
+    return
   }
+  // TODO: Integrate with analytics service
 }
+
+// In useVideoPlayback.ts
+const play = useCallback(() => {
+  trackEvent('video.play', { videoRecordingId, timestamp: Date.now() })
+  setIsPlaying(true)
+  setVideoEnded(false)
+}, [videoRecordingId])
 ``
 
-**Command Implementations**
-- PlayVideoCommand: Sets isPlaying=true, resets videoEnded
-- PauseVideoCommand: Sets isPlaying=false
-- SeekVideoCommand: Sets pendingSeek, resets videoEnded (undoable)
-- ReplayVideoCommand: Seeks to 0, sets isPlaying=true
-- Each command logs analytics event on execute()
-
-**Invoker Pattern**
-- Maintains command history (max 50 commands)
-- Provides undo/redo functionality
-- Batches rapid commands (debounce 100ms)
-- Persists critical commands to AsyncStorage for crash recovery
-
 ACCEPTANCE CRITERIA:
-- [ ] All video actions use command pattern
-- [ ] Undo/redo works for seek operations
-- [ ] Analytics events automatically logged for each command
-- [ ] Command history accessible for debugging
-- [ ] Test coverage ≥80% (all commands, undo, redo, batching)
-- [ ] VideoAnalysisScreen handlers reduced by ~50 lines
-- [ ] Performance regression <5ms per command execution
-
-REFERENCE PATTERNS:
-- Gang of Four Command Pattern
-- Redux DevTools action replay concept
-
-SUCCESS VALIDATION:
-- yarn workspace @my/app test packages/app/features/VideoAnalysis/commands --verbose
-- yarn type-check passes
-- Undo seek operation returns video to previous timestamp
-- Analytics dashboard shows video.play, video.pause events
-- Command history available in debug logs
+- [ ] All major user actions tracked (play, pause, seek, feedback interactions)
+- [ ] Events batched to reduce network overhead
+- [ ] User privacy respected (no PII in event properties)
+- [ ] Debug mode shows events in console
+- [ ] No performance regression (<1ms per event)
 ```
 
 ---
 
-### Task 5: Migrate to React Query for Analysis State
-**Effort:** 3-4 weeks | **Priority:** Low | **Requires:** Tasks 1, 2, 3
+### Task 11: Performance Profiling & Baseline
+**Effort:** 2-3 hours | **Priority:** Medium | **User Value:** Performance validation
 
 ```
-@step-by-step-rule.mdc - Migrate analysis job state management from Zustand subscriptions to TanStack Query with Supabase Realtime integration for better caching, automatic refetching, and devtools support.
+@step-by-step-rule.mdc - Establish performance baseline metrics using React DevTools Profiler to validate Task 9 optimizations.
 
-OBJECTIVE: Replace custom subscription store (Task 1) with React Query queries that automatically sync with Supabase Realtime, enabling better cache management and devtools integration.
+OBJECTIVE: Measure actual re-render reduction and document performance improvements from Phase 2 work.
 
 SCOPE:
-- CREATE: packages/api/src/queries/analysisQueries.ts (~250 lines)
-- CREATE: packages/api/src/queries/realtimePlugin.ts (~150 lines)
-- CREATE: packages/api/src/queries/__tests__/analysisQueries.test.ts (~200 lines)
-- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
-  - REMOVE: useAnalysisSubscriptionStore calls
-  - REPLACE: With useQuery hooks (~10 lines)
-- MODIFY: apps/expo/app/_layout.tsx and apps/next/app/layout.tsx
-  - ADD: QueryClient configuration with Realtime plugin
+- Use React DevTools Profiler to record 30-second video playback session
+- Document baseline metrics before Task 9 (if available from git history)
+- Measure current metrics after Task 9
+- Create performance report comparing before/after
 
-ARCHITECTURE REQUIREMENTS:
+METRICS TO CAPTURE:
+- VideoAnalysisScreen re-renders per second
+- VideoPlayerSection re-renders per second
+- FeedbackSection re-renders per second
+- ProcessingIndicator re-renders per second
+- Total render time per second
+- Memory usage during playback
 
-**Query Factory Pattern**
-```typescript
-// packages/api/src/queries/analysisQueries.ts
-export const analysisQueries = {
-  all: () => ['analysis'] as const,
-  
-  jobs: () => [...analysisQueries.all(), 'job'] as const,
-  job: (id: number) => ({
-    queryKey: [...analysisQueries.jobs(), id],
-    queryFn: () => getAnalysisJob(id),
-    staleTime: 10 * 1000, // 10 seconds
-    meta: {
-      realtime: {
-        channel: `analysis-job:${id}`,
-        table: 'analysis_jobs',
-        filter: `id=eq.${id}`,
-      }
-    }
-  }),
-  
-  jobByRecording: (recordingId: number) => ({
-    queryKey: [...analysisQueries.jobs(), 'recording', recordingId],
-    queryFn: () => getLatestAnalysisJobForRecordingId(recordingId),
-    meta: {
-      realtime: {
-        channel: `analysis-recording:${recordingId}`,
-        table: 'analysis_jobs',
-        filter: `video_recording_id=eq.${recordingId}`,
-      }
-    }
-  }),
-  
-  feedbacks: (analysisId: string) => ({
-    queryKey: [...analysisQueries.all(), 'feedback', analysisId],
-    queryFn: () => getFeedbacksByAnalysisId(analysisId),
-    meta: {
-      realtime: {
-        channel: `analysis-feedback:${analysisId}`,
-        table: 'analysis_feedback',
-        filter: `analysis_id=eq.${analysisId}`,
-      }
-    }
-  }),
-}
-``
-
-**Realtime Plugin**
-```typescript
-// packages/api/src/queries/realtimePlugin.ts
-export function createRealtimePlugin(): QueryClientPlugin {
-  return {
-    name: 'supabase-realtime',
-    onQueryCreated(query) {
-      const realtimeConfig = query.meta?.realtime
-      if (!realtimeConfig) return
-
-      // Subscribe to Supabase Realtime channel
-      const channel = supabase.channel(realtimeConfig.channel)
-      channel
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: realtimeConfig.table,
-          filter: realtimeConfig.filter,
-        }, (payload) => {
-          // Update query cache with realtime data
-          queryClient.setQueryData(query.queryKey, payload.new)
-        })
-        .subscribe()
-      
-      // Cleanup on query destroy
-      return () => channel.unsubscribe()
-    }
-  }
-}
-``
-
-**Usage in Component**
-```typescript
-// VideoAnalysisScreen.tsx
-const { data: analysisJob, isLoading } = useQuery(
-  analysisQueries.job(analysisJobId)
-)
-// Automatically updates via Realtime, no manual subscription needed
-``
+DELIVERABLE:
+- docs/reports/video-analysis-performance-2025-10-06.md
+- Include flamegraph screenshots
+- Document achievement of Task 9 targets
 
 ACCEPTANCE CRITERIA:
-- [ ] All analysis state queries use React Query
-- [ ] Realtime updates automatically sync to query cache
-- [ ] Stale-while-revalidate caching reduces network requests
-- [ ] React Query DevTools shows query state and cache
-- [ ] Background refetching works when app regains focus
-- [ ] Optimistic updates for mutations (if applicable)
-- [ ] Test coverage ≥75% (queries, plugin, cache updates)
-- [ ] Migration guide documents breaking changes
-- [ ] Rollback plan available (feature flag)
+- [ ] Baseline metrics documented
+- [ ] Current metrics documented
+- [ ] Before/after comparison shows >60% render time reduction
+- [ ] All Task 9 performance targets validated or exceptions noted
+```
 
-MIGRATION STRATEGY:
-1. Implement queries and plugin in isolation
-2. Add feature flag: ENABLE_REACT_QUERY_ANALYSIS
-3. Run both systems in parallel (shadow mode)
-4. Compare cache hits, network requests, update latency
-5. Gradually enable for 10% → 50% → 100% of users
-6. Remove Zustand store after 2-week bake period
+---
 
-PERFORMANCE TARGETS:
-- Cache hit rate >70%
-- Background refetch latency <200ms
-- Memory usage increase <5MB
-- No regression in realtime update speed
+### Task 12: Extract Video Controls Logic ⚡ QUICK WIN
+**Effort:** 3-4 hours | **Priority:** Low | **User Value:** Code organization
 
-SUCCESS VALIDATION:
-- yarn workspace @my/api test packages/api/src/queries --verbose
-- yarn type-check passes
-- React Query DevTools shows active subscriptions
-- Realtime updates arrive within 500ms of database change
-- Cache hit rate measured and logged
-- A/B test shows no user-facing behavior change
+```
+@step-by-step-rule.mdc - Extract video control state (show/hide controls, replay button, menu) from VideoAnalysisScreen into dedicated hook.
+
+OBJECTIVE: Further reduce VideoAnalysisScreen complexity by extracting remaining control logic.
+
+SCOPE:
+- CREATE: packages/app/features/VideoAnalysis/hooks/useVideoControls.ts (~80 lines)
+- CREATE: packages/app/features/VideoAnalysis/hooks/useVideoControls.test.ts (~60 lines)
+- MODIFY: packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx
+  - REMOVE: showControls logic (line 295)
+  - REPLACE: With useVideoControls hook call
+
+HOOK INTERFACE:
+``typescript
+export interface VideoControlsState {
+  showControls: boolean
+  showReplayButton: boolean
+  setShowControls: (show: boolean) => void
+}
+
+export function useVideoControls(
+  isProcessing: boolean,
+  isPlaying: boolean,
+  videoEnded: boolean
+): VideoControlsState
+``
+
+LOGIC:
+- Show controls when: isProcessing OR !isPlaying OR videoEnded
+- Hide controls when: video playing and not ended
+- Show replay button when: videoEnded
+
+ACCEPTANCE CRITERIA:
+- [x] Hook manages control visibility state
+- [x] VideoAnalysisScreen reduced by ~10 lines
+- [x] Test coverage ≥70%
+- [x] Existing control behavior unchanged
+
+STATUS NOTES (2025-10-06):
+- ✅ Implemented `useVideoControls` hook with `showControls` + `showReplayButton` + callback
+- ✅ Added `useVideoControls.test.ts` (3 tests) covering forced visibility and manual override
+- ✅ Updated `VideoPlayerSection` + `VideoPlayerSection.test.tsx` to forward `onControlsVisibilityChange`
+- ✅ Integrated hook in `VideoAnalysisScreen`, removing inline logic (~12 LOC reduction)
+- ✅ Tests: `yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/useVideoControls.test.ts --verbose`
 ```
 
 ---
@@ -973,20 +971,36 @@ yarn workspace expo-app analyze
 
 ## 🎯 Success Metrics Dashboard
 
-| Metric | Baseline | Target | Task 2 Actual | Task 8 Target | Task 9 Target |
-|--------|----------|--------|---------------|---------------|---------------|
-| VideoAnalysisScreen LOC | 1,728 | <400 | 1,104 | <400 | <400 |
-| Re-renders/second | ~15 | <5 | ~15 (unmeasured) | ~15 | <5 |
-| Test Coverage | 40% | >70% | ~65% | >75% | >75% |
-| Time to Interactive | 2.8s | <1.5s | ___ | ___ | <1.5s |
-| useEffect Count | 15 | <5 | 11 | 0 | 0 |
-| useState Count | 15 | <5 | 15 | 0 | 0 |
-| Bundle Size (gzip) | 250KB | <220KB | ___ | ___ | <220KB |
-| Memory Usage | 95MB | <80MB | ___ | ___ | <80MB |
+| Metric | Baseline | Target | Task 2 | Task 8 | Task 9 | Status |
+|--------|----------|--------|--------|--------|--------|--------|
+| VideoAnalysisScreen LOC | 1,728 | <400 | 1,104 | ~365 | 365 | ✅ Exceeded |
+| Re-renders/second | ~15 | <5 | ~15 | ~15 | <5* | ⏳ Needs Profiling |
+| Test Coverage | 40% | >70% | ~65% | ~75% | ~75% | ✅ Met |
+| useEffect Count | 15 | <5 | 11 | 0 | 0 | ✅ Exceeded |
+| useState Count | 15 | <5 | 15 | 0 | 0 | ✅ Exceeded |
+| Bundle Size (gzip) | 250KB | <220KB | ___ | ___ | ___* | ⏳ Not Measured |
+| Memory Usage | 95MB | <80MB | ___ | ___ | ___* | ⏳ Not Measured |
 
-**Progress Analysis:**
-- **Task 2 (Component Splitting):** Reduced LOC by 36% (1,728→1,104) but left state orchestration intact
-- **Task 8 (Orchestrator Pattern):** Will extract remaining 700+ lines to hooks, achieving <400 LOC target
-- **Task 9 (Re-render Optimization):** Will stabilize props and move frame-dependent state to children
+**Legend:** ✅ Met | ⏳ Pending Measurement | * = See Task 11 for baseline
 
-Track these after each task completion in `docs/spec/status.md`.
+**Phase 1-2 Achievements:**
+- **Task 6:** Production log levels optimized with `__DEV__` guards
+- **Task 1:** Subscription management extracted to Zustand store (506 LOC)
+- **Task 3:** Analysis state machine created with phase-based logic (439 LOC)
+- **Task 7:** Bubble controller extracted (289 LOC)
+- **Task 2:** 4 specialized components created with React.memo boundaries
+- **Task 8:** Complete orchestrator pattern - parent is now pure composition
+- **Task 9:** Re-render optimization via context, prop stabilization, internal state management
+- **Total Reduction:** 1,728 → 365 lines (79% reduction, target was 77%)
+
+**Phase 3 Status:**
+- **Task 4 (Command Pattern):** ❌ Cancelled - Over-engineered for current needs
+- **Task 5 (React Query):** 🟡 Deferred - Current Zustand store works well
+- **Alternative Tasks:** See Phase 3 Alternative section for high-impact improvements
+
+**Next Steps:**
+1. ⏳ Task 11: Performance profiling to validate optimization claims
+2. 🎯 Task 10: Add analytics tracking (high product value)
+3. 📦 Task 12: Extract video controls logic (final cleanup)
+
+Track ongoing work in `docs/spec/status.md`.

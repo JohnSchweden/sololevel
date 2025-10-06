@@ -18,6 +18,7 @@ import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 import { useFeedbackPanel } from './hooks/useFeedbackPanel'
 import { useFeedbackSelection } from './hooks/useFeedbackSelection'
 import { useVideoAudioSync } from './hooks/useVideoAudioSync'
+import { useVideoControls } from './hooks/useVideoControls'
 import { useVideoPlayback } from './hooks/useVideoPlayback'
 import type { FeedbackPanelItem } from './types'
 
@@ -90,6 +91,8 @@ export function VideoAnalysisScreen({
     handleEnd: handleVideoComplete,
     handleSeekComplete: resolveSeek,
   } = videoPlayback
+
+  const videoControls = useVideoControls(analysisState.isProcessing, isPlaying, videoEnded)
 
   const feedbackItems = useMemo(() => {
     if (analysisState.feedback.feedbackItems.length > 0) {
@@ -292,7 +295,7 @@ export function VideoAnalysisScreen({
             userIsPlaying={isPlaying}
             videoShouldPlay={videoAudioSync.shouldPlayVideo}
             videoEnded={videoEnded}
-            showControls={analysisState.isProcessing || !isPlaying || videoEnded}
+            showControls={videoControls.showControls}
             isProcessing={analysisState.isProcessing}
             videoAreaScale={1 - feedbackPanel.panelFraction}
             onPlay={playVideo}
@@ -305,6 +308,7 @@ export function VideoAnalysisScreen({
             onEnd={handleVideoComplete}
             onTap={() => {}}
             onMenuPress={onMenuPress}
+            onControlsVisibilityChange={videoControls.setControlsVisible}
             headerBackHandler={onBack}
             audioPlayerController={audioController}
             bubbleState={{

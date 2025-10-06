@@ -51,6 +51,7 @@ interface VideoPlayerSectionProps {
   onEnd: () => void
   onTap: () => void
   onMenuPress?: () => void
+  onControlsVisibilityChange?: (visible: boolean) => void
   headerBackHandler?: () => void
   audioPlayerController: {
     setIsPlaying: (playing: boolean) => void
@@ -108,6 +109,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onEnd,
   onTap,
   onMenuPress,
+  onControlsVisibilityChange,
   headerBackHandler,
   audioPlayerController,
   bubbleState,
@@ -265,6 +267,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onPause={onPause}
             onReplay={onReplay}
             onSeek={onSeek}
+            onControlsVisibilityChange={onControlsVisibilityChange}
             headerComponent={
               <AppHeader
                 title="Video Analysis"

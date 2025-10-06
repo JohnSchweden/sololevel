@@ -68,25 +68,35 @@
 - **Blockers:** None
 - **Next Agent:** Advanced Patterns (Tasks 4, 5)
 
+### Task 12: Video Controls Hook
+- **Agent:** UI Components
+- **Status:** ✅ Complete
+- **Effort:** 3 hours
+- **Dependencies:** Task 9 completion
+- **Started:** 2025-10-06
+- **Completed:** 2025-10-06
+- **Blockers:** None
+- **Notes:** Created `useVideoControls` hook + tests; integrated in VideoAnalysisScreen & VideoPlayerSection
+
 ### Task 4: Command Pattern
 - **Agent:** Architecture
-- **Status:** 🟢 Ready to Start
-- **Effort:** 2-3 weeks
-- **Dependencies:** Task 9 completion ✅
-- **Started:** [Not started]
-- **Completed:** [Not completed]
-- **Blockers:** None
-- **Next Agent:** Architecture Team
+- **Status:** ❌ Cancelled
+- **Effort:** N/A
+- **Dependencies:** N/A
+- **Started:** N/A
+- **Completed:** N/A
+- **Blockers:** Over-engineered solution with no clear user value
+- **Decision:** Focus on user-facing features instead of architectural abstractions
 
 ### Task 5: React Query Migration
 - **Agent:** Architecture
-- **Status:** 🟢 Ready to Start
-- **Effort:** 3-4 weeks
-- **Dependencies:** Task 9 completion ✅
-- **Started:** [Not started]
-- **Completed:** [Not completed]
-- **Blockers:** None
-- **Next Agent:** Architecture Team
+- **Status:** 🟡 Deferred (Optional)
+- **Effort:** 2-3 days (if needed)
+- **Dependencies:** None (TanStack Query already integrated)
+- **Started:** N/A
+- **Completed:** N/A
+- **Blockers:** Current Zustand store works well for realtime; migration risk > benefit
+- **Decision:** Defer until clear use case emerges (offline-first, multi-screen caching)
 
 ---
 

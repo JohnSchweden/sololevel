@@ -32,6 +32,7 @@ const createProps = () => ({
   onEnd: jest.fn(),
   onTap: jest.fn(),
   onMenuPress: jest.fn(),
+  onControlsVisibilityChange: jest.fn(),
   headerBackHandler: jest.fn(),
   audioPlayerController: {
     setIsPlaying: jest.fn(),
@@ -89,16 +90,21 @@ jest.mock('@ui/components/VideoAnalysis', () => {
     MotionCaptureOverlay: jest.fn(() => null),
     SocialIcons: jest.fn(() => null),
     VideoContainer: jest.fn(({ children }) => children),
-    VideoControls: jest.fn(({ onPlay, onPause, onReplay, onSeek, children }: any) =>
-      React.createElement(
-        React.Fragment,
-        null,
-        React.createElement('button', { testID: 'play', onPress: onPlay }),
-        React.createElement('button', { testID: 'pause', onPress: onPause }),
-        React.createElement('button', { testID: 'replay', onPress: onReplay }),
-        React.createElement('button', { testID: 'seek', onPress: () => onSeek(10) }),
-        children
-      )
+    VideoControls: jest.fn(
+      ({ onPlay, onPause, onReplay, onSeek, onControlsVisibilityChange, children }: any) =>
+        React.createElement(
+          React.Fragment,
+          null,
+          React.createElement('button', { testID: 'play', onPress: onPlay }),
+          React.createElement('button', { testID: 'pause', onPress: onPause }),
+          React.createElement('button', { testID: 'replay', onPress: onReplay }),
+          React.createElement('button', { testID: 'seek', onPress: () => onSeek(10) }),
+          React.createElement('button', {
+            testID: 'show-controls',
+            onPress: () => onControlsVisibilityChange(true),
+          }),
+          children
+        )
     ),
     VideoControlsRef: jest.fn(),
     VideoPlayer: jest.fn(({ onSeekComplete }: any) =>
@@ -156,5 +162,14 @@ describe('VideoPlayerSection', () => {
     render(<VideoPlayerSection {...props} />)
 
     expect(mockAudioFeedback).toHaveBeenCalled()
+  })
+
+  it('forwards controls visibility change callback', () => {
+    const props = createProps()
+    const { getByTestId } = render(<VideoPlayerSection {...props} />)
+
+    fireEvent.press(getByTestId('show-controls'))
+
+    expect(props.onControlsVisibilityChange).toHaveBeenCalledWith(true)
   })
 })
