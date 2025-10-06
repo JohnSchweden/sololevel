@@ -2,7 +2,7 @@ import { supabase } from '@my/api'
 import type { Session, User } from '@supabase/supabase-js'
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
-import { useAuthStore } from '../auth'
+import { useAuthStore } from './auth'
 
 // Mock Supabase functions
 jest.mock('@my/api', () => {

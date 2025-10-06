@@ -18,13 +18,6 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
 - **supabase/functions/_shared** (Domain-specific logic): Vitest → Node.js testing
 - **supabase/functions/** (Edge entrypoints): Deno test runner for Edge runtime behavior
 
-### Architectural Boundaries (Import Restrictions)
-**CRITICAL**: Maintain clean separation between shared utilities and domain logic:
-- ✅ **supabase/functions/** may import from `supabase/shared/`
-- ✅ **supabase/functions/_shared/** may import from `supabase/shared/`
-- ❌ **supabase/shared/** may NOT import from `supabase/functions/`
-- ❌ **supabase/shared/** may NOT import from `supabase/functions/_shared/`
-
 **Enforcement**: Import validation in CI/CD pipeline prevents architectural violations.
 - **apps/expo** (React Native App): Jest with jest-expo preset → Full RN app testing → See `quality/testing/testing-react-native.mdc`
 - **apps/next** (Web App): Vitest → Web app testing → See `quality/testing/testing-web.mdc`
@@ -44,11 +37,17 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
 4. **CONSULT** `docs/workflow/custom_modes/tester.md` for TDD workflow and package guidance
 
 ### Test Efficiency Rules
+- **Runner discipline**: Run tests per workspace with the correct runner; do not pass global flags across workspaces. Example:
+  - `yarn workspace @my/app test`
+  - `yarn workspace @my/ui test`
+  - `yarn workspace @my/api test`
 - **Ratio**: 1:2 test-to-code maximum → See `quality/testing/testing-patterns.mdc`
-- **Focus**: User-visible behavior only → See `quality/testing/testing-patterns.mdc`
-- **Mock**: External dependencies only → See `quality/testing/testing-setup.mdc`
-- **Environment**: Use package-appropriate mocks (DOM for ui, RN components for app, Node for api)
+- **Focus**: User-visible behavior only; avoid asserting internal implementation details (e.g., UUID resolution steps) → See `quality/testing/testing-patterns.mdc`
+- **Mock**: External dependencies only; centralize typed mocks in test-utils. Use `Parameters<>`/`ReturnType<>` to type jest.fn → See `quality/testing/testing-setup.mdc`
+- **Environment**: Use package-appropriate mocks (DOM for ui, RN components for app, Node for api). Do not modify shared test-utils in feature PRs
+- **Timers**: Prefer `waitFor` over fake timers. If using fake timers, advance deterministically; never mix `runAllTimers()` with unresolved promises
 - **Convert**: Complex failing tests to integration tests → See `quality/testing/testing-troubleshooting.mdc`
+- **Orchestration vs logic**: Screens are thin orchestrators; put logic in hooks/stores and unit-test those thoroughly
 
 ## 🔗 Sub-Rule Quicklinks
 
@@ -111,6 +110,10 @@ Jump directly to detailed guidance for each testing area:
 □ Test user behavior, not implementation
 
 ## 🎯 Success Metrics Summary
+## 🔒 CI Enforcement
+- Fail CI on presence of `describe.only`/`it.only`/`test.only` or any `.skip` committed in app packages
+- Require `yarn type-check:all`, `yarn lint:all`, and `yarn build` to pass before running tests
+- Changes to `packages/ui/src/test-utils/**` require running `yarn type-check` for all workspaces and code-owner review
 → See `quality/testing/testing-metrics.mdc` for comprehensive success metrics and validation
 
 ## 🔄 Rule Updates

@@ -12,7 +12,7 @@ import { log } from '@my/logging'
 // No imports needed for Jest globals
 import { act } from '@testing-library/react'
 // No imports needed - jest-expo preset provides globals
-import { useFeedbackStatusStore } from '../feedbackStatus'
+import { useFeedbackStatusStore } from './feedbackStatus'
 
 const createMockChannel = () => {
   const unsubscribeFn = jest.fn()

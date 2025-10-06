@@ -12,18 +12,14 @@ import React from 'react'
 // Setup jest-dom for additional matchers
 import '@testing-library/jest-dom'
 
-// Setup fake timers for all tests
-beforeAll(() => {
-  jest.useFakeTimers()
-})
-
+// Note: Do not enable fake timers globally; enable per-suite when needed.
 afterEach(() => {
-  jest.runOnlyPendingTimers()
-  jest.clearAllTimers()
-})
-
-afterAll(() => {
-  jest.useRealTimers()
+  if (jest.isMockFunction(setTimeout)) {
+    if (jest.getTimerCount() > 0) {
+      jest.runOnlyPendingTimers()
+    }
+    jest.clearAllTimers()
+  }
 })
 
 // Create Pressable mock outside jest.mock
@@ -36,21 +32,56 @@ interface MockPressableProps {
 }
 
 const MockPressable = React.forwardRef<any, MockPressableProps>((props, ref) => {
-  const { onPress, onPressIn, onPressOut, children, ...otherProps } = props
+  const {
+    onPress,
+    onPressIn,
+    onPressOut,
+    onLongPress,
+    onStartShouldSetPanResponder,
+    onMoveShouldSetPanResponder,
+    onPanResponderGrant,
+    onPanResponderMove,
+    onPanResponderRelease,
+    onPanResponderTerminate,
+    children,
+    testID,
+    accessibilityRole,
+    accessibilityLabel,
+    accessibilityHint,
+    accessibilityState,
+    ...otherProps
+  } = props
+
+  const cleanedProps = { ...otherProps }
+  delete (cleanedProps as Record<string, unknown>).testID
+  delete (cleanedProps as Record<string, unknown>).accessibilityRole
+  delete (cleanedProps as Record<string, unknown>).accessibilityLabel
+  delete (cleanedProps as Record<string, unknown>).accessibilityHint
+  delete (cleanedProps as Record<string, unknown>).accessibilityState
+  delete (cleanedProps as Record<string, unknown>).onLongPress
+  delete (cleanedProps as Record<string, unknown>).onStartShouldSetPanResponder
+  delete (cleanedProps as Record<string, unknown>).onMoveShouldSetPanResponder
+  delete (cleanedProps as Record<string, unknown>).onPanResponderGrant
+  delete (cleanedProps as Record<string, unknown>).onPanResponderMove
+  delete (cleanedProps as Record<string, unknown>).onPanResponderRelease
+  delete (cleanedProps as Record<string, unknown>).onPanResponderTerminate
+
   return React.createElement(
     'div',
     {
-      ...otherProps,
+      ...cleanedProps,
       ref,
       onClick: onPress,
       onMouseDown: onPressIn,
       onMouseUp: onPressOut,
+      onMouseLeave: onLongPress,
       style: { cursor: 'pointer', ...props.style },
-      'data-testid': props.testID || 'Pressable',
-      role: props.accessibilityRole || 'button',
-      'aria-label': props.accessibilityLabel,
-      'aria-disabled': props.accessibilityState?.disabled || props.disabled,
-      'aria-pressed': props.accessibilityState?.pressed,
+      'data-testid': testID || 'Pressable',
+      role: accessibilityRole || 'button',
+      'aria-label': accessibilityLabel,
+      'aria-describedby': accessibilityHint,
+      'aria-disabled': accessibilityState?.disabled || props.disabled,
+      'aria-pressed': accessibilityState?.pressed,
       tabIndex: props.disabled ? -1 : 0,
     },
     children
@@ -74,55 +105,64 @@ jest.mock('@tamagui/lucide-icons', () => {
 })
 
 // Mock React Native components that might be used in tests
-jest.mock('react-native', () => ({
-  Alert: {
-    alert: jest.fn(),
-  },
-  Platform: {
-    OS: 'web',
-    Version: 'jest',
-    select: jest.fn((obj: any) => obj.web || obj.default),
-  },
-  Dimensions: {
-    get: jest.fn(() => ({ width: 375, height: 812 })),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-  },
-  StyleSheet: {
-    create: jest.fn((styles) => styles),
-    flatten: jest.fn((style) => style),
-  },
-  Easing: {
-    bezier: jest.fn(() => jest.fn()),
-    linear: jest.fn(() => jest.fn()),
-    ease: jest.fn(() => jest.fn()),
-  },
-  View: 'View',
-  Text: 'Text',
-  TouchableOpacity: 'TouchableOpacity',
-  Pressable: MockPressable,
-  ScrollView: 'ScrollView',
-  FlatList: 'FlatList',
-  Image: 'Image',
-  TextInput: 'TextInput',
-  SafeAreaView: 'SafeAreaView',
-  StatusBar: {
-    setBarStyle: jest.fn(),
-    setBackgroundColor: jest.fn(),
-  },
-  PanResponder: {
-    create: jest.fn(() => ({
-      panHandlers: {
-        onStartShouldSetPanResponder: jest.fn(),
-        onMoveShouldSetPanResponder: jest.fn(),
-        onPanResponderGrant: jest.fn(),
-        onPanResponderMove: jest.fn(),
-        onPanResponderRelease: jest.fn(),
-        onPanResponderTerminate: jest.fn(),
-      },
-    })),
-  },
-}))
+jest.mock('react-native', () => {
+  const React = require('react')
+
+  const MockView = (props: any) => React.createElement('div', props, props.children)
+  const MockText = (props: any) => React.createElement('span', props, props.children)
+  const MockScrollView = (props: any) => React.createElement('div', props, props.children)
+  const MockSafeAreaView = (props: any) => React.createElement('div', props, props.children)
+
+  return {
+    Alert: {
+      alert: jest.fn(),
+    },
+    Platform: {
+      OS: 'web',
+      Version: 'jest',
+      select: jest.fn((obj: any) => obj.web || obj.default),
+    },
+    Dimensions: {
+      get: jest.fn(() => ({ width: 375, height: 812 })),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    },
+    StyleSheet: {
+      create: jest.fn((styles) => styles),
+      flatten: jest.fn((style) => style),
+    },
+    Easing: {
+      bezier: jest.fn(() => jest.fn()),
+      linear: jest.fn(() => jest.fn()),
+      ease: jest.fn(() => jest.fn()),
+    },
+    View: MockView,
+    Text: MockText,
+    TouchableOpacity: 'button',
+    Pressable: MockPressable,
+    ScrollView: MockScrollView,
+    FlatList: 'div',
+    Image: 'img',
+    TextInput: 'input',
+    SafeAreaView: MockSafeAreaView,
+    StatusBar: {
+      setBarStyle: jest.fn(),
+      setBackgroundColor: jest.fn(),
+    },
+    PanResponder: {
+      create: jest.fn(() => ({
+        panHandlers: {
+          onStartShouldSetPanResponder: jest.fn(),
+          onMoveShouldSetPanResponder: jest.fn(),
+          onPanResponderGrant: jest.fn(),
+          onPanResponderMove: jest.fn(),
+          onPanResponderRelease: jest.fn(),
+          onPanResponderTerminate: jest.fn(),
+        },
+      })),
+    },
+  }
+})
 
 // Mock Expo Camera
 jest.mock('expo-camera', () => {
@@ -421,5 +461,10 @@ beforeEach(() => {
 
 afterEach(() => {
   // Clean up after each test
-  jest.clearAllTimers()
+  if (jest.isMockFunction(setTimeout)) {
+    if (jest.getTimerCount() > 0) {
+      jest.runOnlyPendingTimers()
+    }
+    jest.clearAllTimers()
+  }
 })

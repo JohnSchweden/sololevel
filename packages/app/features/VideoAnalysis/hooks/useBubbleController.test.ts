@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import { act, renderHook } from '@testing-library/react-hooks'
+import { act, renderHook } from '@testing-library/react'
 
-import { useBubbleController } from '../useBubbleController'
+import { useBubbleController } from './useBubbleController'
 
 jest.mock('@my/logging', () => ({
   log: {

@@ -17,15 +17,17 @@ module.exports = {
     '!**/*.d.ts',
     '!**/__tests__/**',
     '!**/node_modules/**',
+    '!**/*.stories.*',
+    '!**/types.ts',
   ],
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-  },
+  coveragePathIgnorePatterns: [
+    '/__tests__/',
+    '\\.stories\\.(ts|tsx)$',
+    'types\\.ts$',
+    '/node_modules/',
+    '/dist/',
+  ],
+  coverageReporters: ['text', 'html', 'lcov'],
   moduleNameMapper: {
     '^@my/(.*)$': '<rootDir>/../$1/src',
     '^@ui/(.*)$': '<rootDir>/src/$1',

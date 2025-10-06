@@ -1,55 +1,39 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { LayoutAnimation, Platform } from 'react-native'
 import { YStack } from 'tamagui'
+
+// Logger for debugging
 import { log } from '@my/logging'
 
 // UI Components from @my/ui
-import { AppHeader } from '@my/ui'
-import { ProcessingOverlay, VideoAnalysisPlayer, FeedbackPanel, SocialIcons } from '@ui/components/VideoAnalysis'
+import { VideoControlsRef } from '@ui/components/VideoAnalysis'
 
+// Import hooks for tracking upload and analysis progress
+import { type AnalysisJob, getAnalysisIdForJobId, supabase, useUploadProgress } from '@my/api'
+
+// Types from VideoAnalysis components
+import type { FeedbackMessage } from '@ui/components/VideoAnalysis/types'
+
+import {
+  type SubscriptionStatus,
+  useAnalysisSubscriptionStore,
+} from '@app/stores/analysisSubscription'
+import { useUploadProgressStore } from '@app/stores/uploadProgress'
+import { UploadErrorState } from './components/UploadErrorState'
+import { VideoPlayerSection } from './components/VideoPlayerSection'
+import { FeedbackSection } from './components/FeedbackSection'
+import { ProcessingIndicator } from './components/ProcessingIndicator'
+import { useAudioController } from './hooks/useAudioController'
+import { useBubbleController } from './hooks/useBubbleController'
+import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 // Real-time integration hooks
-import { useVideoAnalysisRealtime } from '../../hooks/useAnalysisRealtime'
-import { useVideoAnalysisStore } from '../../stores/videoAnalysisStore'
-import { useAnalysisStatusStore } from '../../stores/analysisStatus'
+import { useFeedbackStatusIntegration } from './hooks/useFeedbackStatusIntegration'
+import { useVideoAudioSync } from './hooks/useVideoAudioSync'
+// import type { FeedbackPanelItem } from './types'
 
-// API services
-import { useQuery } from '@tanstack/react-query'
-// Mock API services for now - will be implemented in Phase 3
-const getAnalysisJob = (_id: number) => Promise.resolve(null)
-const getAnalysisResults = (_job: any) => null
-
-// Error handling components
-import { ConnectionErrorBanner } from '../../components/ConnectionErrorBanner'
-
-// Inline type definitions for integration
-
-interface FeedbackMessage {
-  id: string
-  timestamp: number
-  text: string
-  type: 'positive' | 'suggestion' | 'correction'
-  category: 'posture' | 'movement' | 'grip' | 'voice'
-  position: { x: number; y: number }
-  isHighlighted: boolean
-  isActive: boolean
-}
-
-interface FeedbackItem {
-  id: string
-  timestamp: number
-  text: string
-  type: 'positive' | 'suggestion' | 'correction'
-  category: 'posture' | 'movement' | 'grip' | 'voice'
-}
-
-interface SocialStats {
-  likes: number
-  comments: number
-  bookmarks: number
-  shares: number
-}
 
 export interface VideoAnalysisScreenProps {
-  analysisJobId: number
+  analysisJobId?: number
   videoRecordingId?: number
   videoUri?: string
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
@@ -59,448 +43,1049 @@ export interface VideoAnalysisScreenProps {
 
 export function VideoAnalysisScreen({
   analysisJobId,
+  videoRecordingId,
   videoUri,
-  // videoRecordingId and initialStatus are available but not used in current implementation
+  initialStatus = 'processing', // Default to processing when coming from recording
   onBack,
   onMenuPress,
 }: VideoAnalysisScreenProps) {
-  // Real-time integration
-  const realtimeData = useVideoAnalysisRealtime(analysisJobId)
+  // STEP 1: Track processing state based on upload and analysis progress
+  const [isProcessing, setIsProcessing] = useState(initialStatus === 'processing')
+  const videoControlsRef = useRef<VideoControlsRef>(null)
 
-  // Get real analysis job status from store - use stable selector to prevent unnecessary re-renders
-  const analysisJobFromStore = useAnalysisStatusStore(
-    useCallback((state) => analysisJobId ? state.jobs.get(analysisJobId) : null, [analysisJobId])
-  )
-  
-  // Memoize jobStatus to prevent infinite re-renders
-  const jobStatus = useMemo(() => {
-    if (analysisJobFromStore) {
-      return {
-        job: analysisJobFromStore,
-        exists: true,
-        isQueued: analysisJobFromStore.status === 'queued',
-        isProcessing: analysisJobFromStore.status === 'processing',
-        isCompleted: analysisJobFromStore.status === 'completed',
-        isFailed: analysisJobFromStore.status === 'failed',
-        progress: analysisJobFromStore.progress_percentage || 0,
-        error: analysisJobFromStore.error_message,
-        results: analysisJobFromStore.results,
-        poseData: analysisJobFromStore.pose_data,
-        isSubscribed: analysisJobFromStore.isSubscribed || false,
-        lastUpdated: analysisJobFromStore.lastUpdated || Date.now(),
+  // Diagnostic logging: Log auth state and component initialization
+  useEffect(() => {
+    const checkAuthState = async () => {
+      try {
+        const { supabase } = await import('@my/api')
+        const { data: authData, error: authError } = await supabase.auth.getUser()
+        const networkOnline =
+          typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
+            ? navigator.onLine
+            : true
+
+        log.info('VideoAnalysisScreen', 'Component initialization - Auth state', {
+          analysisJobId,
+          videoRecordingId,
+          recordingId: videoRecordingId,
+          hasVideoUri: !!videoUri,
+          initialStatus,
+          authenticated: !!authData.user,
+          userId: authData.user?.id,
+          authError: authError?.message,
+          networkOnline,
+        })
+
+        if (authError) {
+          log.warn('VideoAnalysisScreen', 'Auth error detected', {
+            error: authError.message,
+            code: authError.status,
+          })
+        }
+      } catch (error) {
+        log.error('VideoAnalysisScreen', 'Failed to check auth state', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
       }
     }
-    
-    return {
-      // Realistic mock for testing when no real job exists
-      job: null,
-      exists: false,
-      isQueued: false,
-      isProcessing: true, // Show processing state for testing
-      isCompleted: false,
-      isFailed: false,
-      progress: 45, // Show some progress for testing
-      error: null,
-      results: null,
-      poseData: null,
-      isSubscribed: false,
-      lastUpdated: Date.now(),
+
+    checkAuthState()
+  }, [analysisJobId, videoRecordingId, videoUri, initialStatus])
+
+  const latestUploadTask = useUploadProgressStore((state) => state.getLatestActiveTask())
+
+  // Derive videoRecordingId from prop or store (for upload-initiated flows)
+  const derivedRecordingId = useMemo(() => {
+    if (videoRecordingId) return videoRecordingId
+
+    if (latestUploadTask?.videoRecordingId) {
+      log.info('VideoAnalysisScreen', 'Derived recordingId from latest active upload task', {
+        taskId: latestUploadTask.id,
+        recordingId: latestUploadTask.videoRecordingId,
+      })
+      return latestUploadTask.videoRecordingId
+    }
+
+    return null
+  }, [videoRecordingId, latestUploadTask])
+
+  // Track upload progress if we have a video recording ID
+  const uploadProgressRecordId = derivedRecordingId ?? latestUploadTask?.videoRecordingId
+  const { data: uploadProgress } = useUploadProgress(uploadProgressRecordId || 0)
+
+  // Track analysis job progress via realtime subscription
+  const [analysisJob, setAnalysisJob] = useState<AnalysisJob | null>(null)
+
+  // Derive effective analysis job ID from props or state
+  const effectiveAnalysisJobId = useMemo(() => {
+    return analysisJobId ?? analysisJob?.id ?? null
+  }, [analysisJobId, analysisJob?.id])
+
+  // Track the analysis UUID (from analyses table) for feedback queries
+  const [analysisUuid, setAnalysisUuid] = useState<string | null>(null)
+  const [channelExhausted, setChannelExhausted] = useState(false)
+
+  // Get analysis UUID when we have a job ID, or look up by video recording ID
+  useEffect(() => {
+    const lookupAnalysis = async () => {
+      // First try direct job ID lookup
+      if (effectiveAnalysisJobId) {
+        try {
+          const uuid = await getAnalysisIdForJobId(effectiveAnalysisJobId)
+          if (uuid) {
+            setAnalysisUuid(uuid)
+            log.info('VideoAnalysisScreen', 'Analysis UUID resolved from job ID', {
+              jobId: effectiveAnalysisJobId,
+              analysisId: uuid,
+              analysisUuid: uuid,
+              recordingId: videoRecordingId,
+              jobStatus: analysisJob?.status,
+            })
+            return
+          }
+        } catch (error) {
+          log.error('VideoAnalysisScreen', 'Failed to get analysis UUID from job ID', {
+            jobId: effectiveAnalysisJobId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+        }
+      }
+
+      // If no job ID or job ID lookup failed, try video recording ID lookup
+      if (videoRecordingId) {
+        try {
+          if (__DEV__) {
+            log.debug('VideoAnalysisScreen', 'Attempting to find analysis by video recording ID', {
+              videoRecordingId,
+            })
+          }
+
+          // Query for analysis job by video recording ID
+          const { data: userData } = await supabase.auth.getUser()
+          if (!userData.user?.id) {
+            log.warn('VideoAnalysisScreen', 'No authenticated user found')
+            return
+          }
+
+          const { data: jobData, error: jobError } = await supabase
+            .from('analysis_jobs')
+            .select('id, status')
+            .eq('video_recording_id', videoRecordingId)
+            .eq('user_id', userData.user.id)
+            .single()
+
+          if (jobError || !jobData) {
+            log.warn('VideoAnalysisScreen', 'No analysis job found for video recording', {
+              videoRecordingId,
+              error: jobError?.message,
+            })
+            return
+          }
+
+          // Now get analysis UUID from the job
+          const uuid = await getAnalysisIdForJobId(jobData.id)
+          if (uuid) {
+            setAnalysisUuid(uuid)
+            log.info('VideoAnalysisScreen', 'Analysis UUID resolved from video recording ID', {
+              videoRecordingId,
+              recordingId: videoRecordingId,
+              jobId: jobData.id,
+              analysisId: uuid,
+              analysisUuid: uuid,
+              jobStatus: jobData.status,
+            })
+            return
+          }
+        } catch (error) {
+          log.error('VideoAnalysisScreen', 'Failed to get analysis UUID from video recording ID', {
+            videoRecordingId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+        }
+      }
+
+      log.warn('VideoAnalysisScreen', 'No analysis UUID found by any method', {
+        effectiveAnalysisJobId,
+        videoRecordingId,
+        jobStatus: analysisJob?.status,
+      })
+      setAnalysisUuid(null)
+    }
+
+    void lookupAnalysis()
+  }, [effectiveAnalysisJobId, videoRecordingId, analysisJob?.status])
+
+  const subscriptionKey = useMemo(() => {
+    if (analysisJobId) {
+      return `job:${analysisJobId}`
+    }
+    if (derivedRecordingId) {
+      return `recording:${derivedRecordingId}`
+    }
+    return null
+  }, [analysisJobId, derivedRecordingId])
+
+  const subscribeToAnalysis = useAnalysisSubscriptionStore((state) => state.subscribe)
+  const unsubscribeFromAnalysis = useAnalysisSubscriptionStore((state) => state.unsubscribe)
+
+  const subscriptionState = useAnalysisSubscriptionStore((state) => {
+    return subscriptionKey ? (state.subscriptions.get(subscriptionKey) ?? null) : null
+  })
+
+  const lastSubscriptionStatusRef = useRef<SubscriptionStatus>('idle')
+
+  useEffect(() => {
+    if (!subscriptionKey) {
+      return
+    }
+
+    const options = analysisJobId
+      ? { analysisJobId }
+      : derivedRecordingId
+        ? { recordingId: derivedRecordingId }
+        : null
+
+    if (!options) {
+      return
+    }
+
+    const context = options.analysisJobId
+      ? { analysisJobId: options.analysisJobId, subscriptionKey }
+      : { recordingId: options.recordingId, subscriptionKey }
+
+    log.info(
+      'VideoAnalysisScreen',
+      options.analysisJobId
+        ? 'Setting up analysis job subscription by job ID'
+        : 'Setting up analysis job subscription by recording ID',
+      context
+    )
+
+    let active = true
+
+    void subscribeToAnalysis(subscriptionKey, options).catch((error) => {
+      if (!active) return
+      log.error('VideoAnalysisScreen', 'Analysis subscription setup failed', {
+        subscriptionKey,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+    })
+
+    return () => {
+      active = false
+      log.info('VideoAnalysisScreen', 'Cleaning up active subscription on unmount', {
+        key: subscriptionKey,
+      })
+      unsubscribeFromAnalysis(subscriptionKey)
     }
   }, [
-    analysisJobFromStore?.id,
-    analysisJobFromStore?.status,
-    analysisJobFromStore?.progress_percentage,
-    analysisJobFromStore?.error_message,
-    analysisJobFromStore?.results,
-    analysisJobFromStore?.pose_data,
-    analysisJobFromStore?.isSubscribed,
-    analysisJobFromStore?.lastUpdated
+    analysisJobId,
+    derivedRecordingId,
+    subscribeToAnalysis,
+    unsubscribeFromAnalysis,
+    subscriptionKey,
   ])
 
-  // Video analysis store for audio feedback - use individual selectors to prevent unnecessary re-renders
-  const audioUrl = useVideoAnalysisStore((state) => state.audioUrl)
-  const isAudioPlaying = useVideoAnalysisStore((state) => state.isAudioPlaying)
-  const audioCurrentTime = useVideoAnalysisStore((state) => state.audioCurrentTime)
-  const audioDuration = useVideoAnalysisStore((state) => state.audioDuration)
-  const setAudioPlaybackState = useVideoAnalysisStore((state) => state.setAudioPlaybackState)
-  const setAudioCurrentTime = useVideoAnalysisStore((state) => state.setAudioCurrentTime)
-  const setAudioDuration = useVideoAnalysisStore((state) => state.setAudioDuration)
-  const setShowAudioControls = useVideoAnalysisStore((state) => state.setShowAudioControls)
+  const subscriptionJob = subscriptionState?.job ?? null
 
-  // Fetch analysis job data
-  const { data: analysisJob } = useQuery({
-    queryKey: ['analysis', analysisJobId],
-    queryFn: () => getAnalysisJob(analysisJobId),
-    enabled: !!analysisJobId,
-  })
+  useEffect(() => {
+    if (!subscriptionKey || !subscriptionJob) {
+      return
+    }
 
-  // Screen state
-  const [currentTime, setCurrentTime] = useState(0)
-  const [showControls, setShowControls] = useState(true)
-  const [feedbackPanelExpanded, setFeedbackPanelExpanded] = useState(false)
-  const [activeTab, setActiveTab] = useState<'feedback' | 'insights' | 'comments'>('feedback')
+    setAnalysisJob((previous) => {
+      const isSameJob =
+        previous?.id === subscriptionJob.id &&
+        previous?.status === subscriptionJob.status &&
+        previous?.progress_percentage === subscriptionJob.progress_percentage &&
+        previous?.updated_at === subscriptionJob.updated_at
 
-  // Derived state from real-time data
-  const status = jobStatus.isProcessing
-    ? 'processing'
-    : jobStatus.isCompleted
-      ? 'ready'
-      : jobStatus.isFailed
-        ? 'ready'
-        : 'processing'
+      if (isSameJob) {
+        return previous
+      }
 
-  // Local state for playback control
+      log.info('VideoAnalysisScreen', 'Analysis job update received', {
+        jobId: subscriptionJob.id,
+        recordingId: subscriptionJob.video_recording_id,
+        status: subscriptionJob.status,
+        progress: subscriptionJob.progress_percentage,
+        subscriptionKey,
+      })
+
+      return subscriptionJob as AnalysisJob
+    })
+  }, [subscriptionJob, subscriptionKey])
+
+  const subscriptionStatus = subscriptionState?.status ?? 'idle'
+
+  useEffect(() => {
+    if (!subscriptionKey) {
+      lastSubscriptionStatusRef.current = 'idle'
+      setChannelExhausted(false)
+      return
+    }
+
+    if (subscriptionStatus === lastSubscriptionStatusRef.current) {
+      return
+    }
+
+    lastSubscriptionStatusRef.current = subscriptionStatus
+
+    if (subscriptionStatus === 'failed') {
+      setChannelExhausted(true)
+      log.warn('VideoAnalysisScreen', 'Channel error retry exhausted', {
+        subscriptionKey,
+      })
+    } else if (subscriptionStatus === 'active' || subscriptionStatus === 'pending') {
+      setChannelExhausted(false)
+    }
+  }, [subscriptionKey, subscriptionStatus])
+
+  const feedbackStatus = useFeedbackStatusIntegration(analysisUuid || undefined)
+  const feedbackAudio = useFeedbackAudioSource(feedbackStatus.feedbackItems)
+
+  // Determine if we should show processing based on upload and analysis state
+  const firstPlayableReady = useMemo(() => {
+    const items = feedbackStatus.feedbackItems
+    if (!items || items.length === 0) return false
+    const earliest = items.reduce((prev, curr) => (curr.timestamp < prev.timestamp ? curr : prev))
+    return !!feedbackAudio.audioUrls[earliest.id]
+  }, [feedbackStatus.feedbackItems, feedbackAudio.audioUrls])
+
+  const shouldShowProcessing = useMemo(() => {
+    // PRIORITY 0: Hide as soon as the earliest feedback has a playable audio URL
+    if (firstPlayableReady) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: first playable feedback ready - hiding overlay',
+          {
+            firstPlayableReady,
+            earliestFeedbackId: feedbackStatus.feedbackItems[0]?.id ?? null,
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
+      return false
+    }
+
+    // PRIORITY 0b: If feedback is fully completed (SSML + audio for all items), hide overlay
+    if (feedbackStatus.isFullyCompleted) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: feedback fully completed - hiding overlay',
+          {
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
+      return false
+    }
+
+    // PRIORITY 1: If analysis job is completed or failed, always hide overlay
+    // This overrides upload status to prevent stuck overlay
+    if (analysisJob && (analysisJob.status === 'completed' || analysisJob.status === 'failed')) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: analysis completed/failed - hiding overlay',
+          {
+            analysisJobStatus: analysisJob.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: false,
+          }
+        )
+      }
+      return false
+    }
+
+    // PRIORITY 2: If analysis is queued or processing, show overlay
+    if (analysisJob && (analysisJob.status === 'queued' || analysisJob.status === 'processing')) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: analysis in progress - showing overlay',
+          {
+            analysisJobStatus: analysisJob.status,
+            uploadProgressStatus: uploadProgress?.status,
+            decision: true,
+          }
+        )
+      }
+      return true
+    }
+
+    // PRIORITY 3: Check upload status only if no analysis job or analysis is still pending
+    if (
+      uploadProgress &&
+      (uploadProgress.status === 'pending' || uploadProgress.status === 'uploading')
+    ) {
+      if (__DEV__) {
+        log.debug(
+          'VideoAnalysisScreen',
+          'shouldShowProcessing: upload in progress - showing overlay',
+          {
+            analysisJobStatus: analysisJob?.status,
+            uploadProgressStatus: uploadProgress.status,
+            decision: true,
+          }
+        )
+      }
+      return true
+    }
+
+    // PRIORITY 4: If we have no upload/analysis data yet, use initialStatus
+    if (!uploadProgress && !analysisJob) {
+      return initialStatus === 'processing'
+    }
+
+    // DEFAULT: Hide processing overlay
+    return false
+  }, [
+    uploadProgress,
+    analysisJob,
+    initialStatus,
+    feedbackStatus.isFullyCompleted,
+    firstPlayableReady,
+    feedbackStatus.feedbackItems,
+  ])
+
+  // Check for upload failure to show error UI
+  const { uploadFailed, uploadError } = useMemo(() => {
+    if (!uploadProgress) return { uploadFailed: false, uploadError: null }
+
+    if (uploadProgress.status === 'failed') {
+      // Get error from the store task
+      const task = useUploadProgressStore
+        .getState()
+        .getTaskByRecordingId(uploadProgressRecordId || 0)
+      return { uploadFailed: true, uploadError: task?.error || 'Upload failed' }
+    }
+
+    return { uploadFailed: false, uploadError: null }
+  }, [uploadProgress, derivedRecordingId])
+
+  // Update processing state when shouldShowProcessing changes (guarded to reduce renders)
+  useEffect(() => {
+    if (isProcessing !== shouldShowProcessing) {
+      setIsProcessing(shouldShowProcessing)
+    }
+  }, [shouldShowProcessing, isProcessing])
+
+  // Log when effectiveAnalysisJobId changes
+  useEffect(() => {
+    if (effectiveAnalysisJobId) {
+      log.info('VideoAnalysisScreen', 'Effective analysis job ID resolved', {
+        effectiveAnalysisJobId,
+        fromProp: !!analysisJobId,
+        fromState: !!analysisJob?.id,
+      })
+    }
+  }, [effectiveAnalysisJobId, analysisJobId, analysisJob?.id])
+
+  // Video playback state
   const [isPlaying, setIsPlaying] = useState(false)
-  const progress = jobStatus.progress / 100
-  
-  // Get video URI from multiple sources - prioritize passed videoUri, then job data, then mock for testing
-  const recordedVideoUri = videoUri || 
-    (analysisJob as any)?.video_recordings?.filename || 
-    (jobStatus.job as any)?.video_recordings?.filename ||
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' // Mock video for testing
-  
-  const [title, setTitle] = useState<string | null>(null)
 
-  // Real data from analysis results - memoize to prevent recalculation
-  const analysisResults = useMemo(() => {
-    return jobStatus.results ? getAnalysisResults(jobStatus.job!) : null
-  }, [jobStatus.results, jobStatus.job])
-  const poseData = realtimeData.poseHistory || []
-  const currentPose = realtimeData.currentPose
+  // Set up feedback status integration for real-time SSML/audio status updates
+  // Use analysisUuid (from analyses table) for feedback queries, not job ID
+  const audioController = useAudioController(feedbackAudio.activeAudio?.url || null)
 
-  // Transform analysis results to feedback messages - memoize to prevent recalculation
-  const feedbackMessages: FeedbackMessage[] = useMemo(() => {
-    return (analysisResults as any)?.recommendations?.map((rec: any, index: number) => ({
-      id: `feedback-${index}`,
-      timestamp: (index + 1) * 1000, // Distribute across video timeline
-      text: rec.message,
-      type:
-        rec.priority === 'high'
-          ? 'correction'
-          : rec.priority === 'medium'
-            ? 'suggestion'
-            : 'positive',
-      category: rec.type as 'posture' | 'movement' | 'grip' | 'voice',
-      position: { x: 0.5 + (index % 2) * 0.2, y: 0.3 + (index % 3) * 0.2 },
-      isHighlighted: rec.priority === 'high',
-      isActive: false,
-    })) || []
-  }, [analysisResults])
-
-  const [socialStats, setSocialStats] = useState<
-    Omit<SocialStats, 'onLike' | 'onComment' | 'onBookmark' | 'onShare'>
-  >({
-    likes: 1100,
-    comments: 13,
-    bookmarks: 1100,
-    shares: 224,
+  // Video-audio synchronization
+  const videoAudioSync = useVideoAudioSync({
+    isVideoPlaying: isPlaying,
+    isAudioActive: audioController.isPlaying,
   })
 
-  const feedbackItems: FeedbackItem[] = [
+  // Debug logging for audio state changes
+  useEffect(() => {
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Audio state updated', {
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        activeAudioId: feedbackAudio.activeAudio?.id,
+        activeAudioUrl: feedbackAudio.activeAudio?.url
+          ? `${feedbackAudio.activeAudio.url.substring(0, 50)}...`
+          : null,
+        isAudioPlaying: audioController.isPlaying,
+        isVideoPlaying: isPlaying,
+        shouldPlayVideo: videoAudioSync.shouldPlayVideo,
+        shouldPlayAudio: videoAudioSync.shouldPlayAudio,
+        isVideoPausedForAudio: videoAudioSync.isVideoPausedForAudio,
+        audioCurrentTime: audioController.currentTime,
+        audioDuration: audioController.duration,
+        audioIsLoaded: audioController.isLoaded,
+      })
+    }
+  }, [
+    feedbackAudio.activeAudio,
+    audioController.isPlaying,
+    audioController.currentTime,
+    audioController.duration,
+    audioController.isLoaded,
+    isPlaying,
+    videoAudioSync.shouldPlayVideo,
+    videoAudioSync.shouldPlayAudio,
+    videoAudioSync.isVideoPausedForAudio,
+  ])
+
+  // NOTE: No manual cleanup needed - useFeedbackStatusIntegration handles its own cleanup via useEffect
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [pendingSeek, setPendingSeek] = useState<number | null>(null)
+  const [videoEnded, setVideoEnded] = useState(false)
+
+  // Coach avatar state
+  const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
+
+  // Feedback Panel state for US-VF-08 - using panelFraction for dynamic sizing
+  const [panelFraction, setPanelFraction] = useState(0.05) // 5% collapsed, 50% expanded
+
+  // Calculate scale factor for video controls based on panel expansion
+  // When collapsed (panelFraction=0.05), video area is 95% → scale = 1.0
+  // When expanded (panelFraction=0.4), video area is 60% → scale = 0.6/0.95 ≈ 0.63
+  const videoAreaScale = useMemo(() => {
+    const collapsedVideoArea = 1 - 0.05 // 0.95
+    const currentVideoArea = 1 - panelFraction
+    return Math.max(0.6, currentVideoArea / collapsedVideoArea) // Min scale of 0.6 to prevent too small controls
+  }, [panelFraction])
+  const [activeFeedbackTab, setActiveFeedbackTab] = useState<'feedback' | 'insights' | 'comments'>(
+    'feedback'
+  )
+  const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
+
+  // Audio control visibility - show when audio is actively playing (regardless of processing state)
+  const shouldShowAudioControls = useMemo(() => {
+    const shouldShow = Boolean(feedbackAudio.activeAudio && audioController.isPlaying)
+
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Audio controls visibility calculated', {
+        shouldShow,
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        isAudioPlaying: audioController.isPlaying,
+        isProcessing,
+        activeAudioId: feedbackAudio.activeAudio?.id,
+      })
+    }
+
+    return shouldShow
+  }, [audioController.isPlaying, feedbackAudio.activeAudio, isProcessing])
+
+  // Animate layout changes when panelFraction changes
+  useEffect(() => {
+    if (__DEV__) {
+      log.debug('VideoAnalysisScreen', 'Panel fraction changed', {
+        panelFraction,
+        platform: Platform.OS,
+      })
+    }
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      LayoutAnimation.configureNext({
+        duration: 500,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+        update: {
+          type: LayoutAnimation.Types.spring,
+          springDamping: 0.7,
+          initialVelocity: 0,
+        },
+      })
+      if (__DEV__) {
+        log.debug('VideoAnalysisScreen', 'LayoutAnimation configured')
+      }
+    }
+  }, [panelFraction])
+
+  // Feedback messages state
+  const [feedbackMessages] = useState<FeedbackMessage[]>([
     {
       id: '1',
-      timestamp: 1000,
-      text: 'Great posture! Keep your back straight and maintain good balance.',
-      type: 'positive' as const,
-      category: 'posture' as const,
+      timestamp: 2000, // 2 seconds into video
+      text: 'Great posture! Keep your shoulders relaxed.',
+      type: 'positive',
+      category: 'posture',
+      position: { x: 0.2, y: 0.3 },
+      isHighlighted: false,
+      isActive: true,
     },
     {
       id: '2',
-      timestamp: 2000,
-      text: 'Try bending your knees slightly for better stability.',
-      type: 'suggestion' as const,
-      category: 'movement' as const,
+      timestamp: 5000, // 5 seconds into video
+      text: 'Try speaking with more confidence.',
+      type: 'suggestion',
+      category: 'voice',
+      position: { x: 0.7, y: 0.4 },
+      isHighlighted: false,
+      isActive: true,
     },
     {
       id: '3',
-      timestamp: 3000,
-      text: 'Grip the club more firmly with your left hand.',
-      type: 'correction' as const,
-      category: 'grip' as const,
+      timestamp: 8000, // 8 seconds into video
+      text: 'Your hand gestures are too stiff.',
+      type: 'correction',
+      category: 'movement',
+      position: { x: 0.5, y: 0.6 },
+      isHighlighted: false,
+      isActive: true,
     },
-  ]
+  ])
 
-  // Create a test analysis job if none exists (for debugging)
-  const testJobCreatedRef = useRef(false)
+  // Transform feedback messages for FeedbackPanel format (US-VF-08)
+  // Use real-time feedback data if available, otherwise fall back to mock data
+  const feedbackItems = useMemo(() => {
+    // If we have real-time feedback data, use it
+    if (feedbackStatus.feedbackItems.length > 0) {
+      return feedbackStatus.feedbackItems
+    }
+
+    // Otherwise, fall back to mock data for demo purposes (matched to feedbackStatus type)
+    return feedbackMessages.map((message) => ({
+      id: message.id,
+      timestamp: message.timestamp,
+      text: message.text,
+      type: 'suggestion' as const,
+      category: 'voice' as const,
+      ssmlStatus: 'completed' as const,
+      audioStatus: 'completed' as const,
+      confidence: 1,
+    }))
+  }, [feedbackMessages, feedbackStatus.feedbackItems])
+
+  // Initial logging
   useEffect(() => {
-    // Only run if we haven't created a test job and don't have a real job
-    if (!testJobCreatedRef.current && !analysisJobFromStore && analysisJobId) {
-      testJobCreatedRef.current = true
+    log.info('VideoAnalysisScreen', 'Component mounted', {
+      analysisJobId,
+      videoUri,
+      recordingId: derivedRecordingId,
+      analysisId: analysisUuid,
+      feedbackItemsCount: feedbackItems.length,
+      feedbackItemsSample: feedbackItems.slice(0, 2).map((item, idx) => ({
+        index: idx,
+        id: item.id,
+        timestamp: item.timestamp,
+        type: item.type,
+        category: item.category,
+      })),
+    })
+  }, [analysisJobId, videoUri, feedbackItems, derivedRecordingId, analysisUuid])
 
-      const testJob = {
-        id: analysisJobId,
-        user_id: 'test-user',
-        video_recording_id: 1,
-        status: 'processing' as const,
-        progress_percentage: 25,
-        processing_started_at: new Date().toISOString(),
-        processing_completed_at: null,
-        error_message: null,
-        results: null,
-        pose_data: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        isSubscribed: false,
-        lastUpdated: Date.now()
+  // STEP 1: Use provided videoUri or fallback
+  const recordedVideoUri =
+    videoUri || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+
+  // Auto-start video playback when processing is complete (guarded to reduce renders)
+  useEffect(() => {
+    if (!isProcessing && !isPlaying) {
+      log.info('VideoAnalysisScreen', 'Auto-start trigger activated: processing completed', {
+        trigger: 'processing_completed',
+        isProcessing,
+        isPlaying,
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        videoUri: recordedVideoUri,
+        duration: duration,
+        platform: Platform.OS,
+        recordingId: derivedRecordingId,
+        analysisId: analysisUuid,
+      })
+      setIsPlaying(true)
+    }
+  }, [
+    isProcessing,
+    feedbackAudio.activeAudio,
+    recordedVideoUri,
+    duration,
+    derivedRecordingId,
+    analysisUuid,
+  ]) // Removed isPlaying from deps to avoid re-triggering
+
+  // Video control handlers
+  const handlePlay = useCallback(() => {
+    setIsPlaying(true)
+    setVideoEnded(false) // Reset ended state when user plays
+  }, [])
+
+  const handlePause = useCallback(() => {
+    setIsPlaying(false)
+    setVideoEnded(false) // Reset ended state when user pauses
+  }, [])
+
+  const handleVideoEnd = useCallback(() => {
+    setIsPlaying(false)
+    setVideoEnded(true)
+  }, [])
+
+  const handleSeek = useCallback(
+    (time: number) => {
+      log.info('VideoAnalysisScreen', 'handleSeek called', {
+        seekTime: time,
+        currentTime,
+        isPlaying,
+        pendingSeek,
+      })
+      setPendingSeek(time)
+      setVideoEnded(false) // Reset ended state when seeking
+    },
+    [currentTime, isPlaying, pendingSeek]
+  )
+
+  const handleReplay = useCallback(() => {
+    setPendingSeek(0) // Seek to beginning
+    setVideoEnded(false)
+    setIsPlaying(true)
+  }, [])
+
+  const handleVideoLoad = useCallback(
+    (data: { duration: number }) => {
+      log.info('VideoAnalysisScreen', 'handleVideoLoad called', {
+        duration: data.duration,
+        isPlaying,
+        isProcessing,
+        hasActiveAudio: !!feedbackAudio.activeAudio,
+        videoUri: recordedVideoUri,
+        platform: Platform.OS,
+        recordingId: derivedRecordingId,
+        analysisId: analysisUuid,
+      })
+      setDuration(data.duration)
+    },
+    [
+      isPlaying,
+      isProcessing,
+      feedbackAudio.activeAudio,
+      recordedVideoUri,
+      derivedRecordingId,
+      analysisUuid,
+    ]
+  )
+
+  const handleVideoTap = useCallback(() => {
+    // For now, just log - controls will be added later
+  }, [])
+
+  // Handler for menu press from AppHeader - triggers fly-out menu in VideoControls
+  const handleMenuPress = useCallback(() => {
+    // First call the parent's onMenuPress callback if provided
+    onMenuPress?.()
+    // Then trigger the fly-out menu in VideoControls
+    if (videoControlsRef.current) {
+      videoControlsRef.current.triggerMenu()
+    }
+  }, [onMenuPress])
+
+  // Sequential bubble display functions
+  // // Handler for feedback bubble taps
+  // const handleFeedbackBubbleTap = useCallback((message: FeedbackMessage) => {
+  //   log.info('[VideoAnalysisScreen] Feedback bubble tapped', { message })
+
+  //   // Seek to the timestamp of the tapped feedback message
+  //   const seekTime = message.timestamp / 1000 // Convert from milliseconds to seconds
+  //   setPendingSeek(seekTime)
+
+  //   // Highlight the tapped message
+  //   setFeedbackMessages((prevMessages) =>
+  //     prevMessages.map((msg) => ({
+  //       ...msg,
+  //       isHighlighted: msg.id === message.id,
+  //     }))
+  //   )
+
+  //   // Make coach speak when feedback bubble is tapped
+  //   setIsCoachSpeaking(true)
+  //   // Stop speaking after 3 seconds
+  //   setTimeout(() => setIsCoachSpeaking(false), 3000)
+  // }, [])
+
+  const bubbleController = useBubbleController(
+    feedbackItems,
+    currentTime,
+    isPlaying,
+    feedbackAudio.audioUrls,
+    audioController.duration,
+    {
+      onBubbleShow: ({ index }) => {
+        const feedbackItem = feedbackItems[index]
+        log.info('VideoAnalysisScreen', 'Bubble shown', {
+          index,
+          itemId: feedbackItem.id,
+          timestamp: feedbackItem.timestamp,
+        })
+        setIsCoachSpeaking(true)
+      },
+      onBubbleHide: () => {
+        log.info('VideoAnalysisScreen', 'Bubble hidden')
+        setIsCoachSpeaking(false)
+      },
+    }
+  )
+
+  const { currentBubbleIndex, bubbleVisible } = bubbleController
+
+  // Handle video progress and bubble timing
+  const handleVideoProgress = useCallback(
+    (data: { currentTime: number }) => {
+      // Only update if not seeking to avoid conflicts
+      setCurrentTime((prevTime) => {
+        // Avoid unnecessary state updates if time hasn't changed significantly
+        if (Math.abs(data.currentTime - prevTime) < 0.1) {
+          return prevTime
+        }
+
+        const newTime = data.currentTime
+        const currentTimeMs = newTime * 1000 // Convert to milliseconds
+
+        // Log progress updates (throttled to avoid spam)
+        if (Math.floor(newTime) % 5 === 0 && Math.floor(newTime) !== Math.floor(prevTime)) {
+          log.info('VideoAnalysisScreen', 'Video progress', {
+            currentTime: newTime,
+            currentTimeMs,
+            isPlaying,
+            bubbleVisible,
+            currentBubbleIndex,
+          })
+        }
+
+        // Check if we should show any feedback bubbles
+        const triggeredIndex = bubbleController.checkAndShowBubbleAtTime(currentTimeMs)
+        if (triggeredIndex !== null) {
+          const item = feedbackItems[triggeredIndex]
+          if (feedbackAudio.audioUrls[item.id]) {
+            feedbackAudio.selectAudio(item.id)
+            audioController.setIsPlaying(true)
+            log.info(
+              'VideoAnalysisScreen',
+              'Auto-playing audio for feedback bubble during playback',
+              {
+                itemId: item.id,
+              }
+            )
+          }
+        }
+
+        return newTime
+      })
+    },
+    [feedbackItems, bubbleController, isPlaying, feedbackAudio, audioController]
+  )
+
+  // Feedback Panel handlers for US-VF-08
+  const handleFeedbackPanelExpand = useCallback(() => {
+    log.info('VideoAnalysisScreen', 'Feedback panel expanding')
+    setPanelFraction(0.4) // 50% expanded
+  }, [])
+
+  const handleFeedbackPanelCollapse = useCallback(() => {
+    log.info('VideoAnalysisScreen', 'Feedback panel collapsing')
+    setPanelFraction(0.05) // 5% collapsed
+  }, [])
+
+  const handleFeedbackTabChange = useCallback((tab: 'feedback' | 'insights' | 'comments') => {
+    log.info('VideoAnalysisScreen', 'Feedback tab changed', { tab })
+    setActiveFeedbackTab(tab)
+  }, [])
+
+  const handleFeedbackItemPress = useCallback(
+    (item: any) => {
+      log.info('VideoAnalysisScreen', 'Feedback item pressed', {
+        itemId: item.id,
+        timestamp: item.timestamp,
+      })
+
+      // Seek to the feedback item's timestamp
+      const seekTime = item.timestamp / 1000 // Convert from milliseconds to seconds
+      setPendingSeek(seekTime)
+
+      // Resume playback like replay to hide controls
+      setVideoEnded(false)
+      setIsPlaying(true)
+
+      // Highlight the pressed feedback item
+      setSelectedFeedbackId(item.id)
+
+      // Start audio playback for this feedback item if available
+      if (feedbackAudio.audioUrls[item.id]) {
+        feedbackAudio.selectAudio(item.id)
+        audioController.setIsPlaying(true)
+        log.info('VideoAnalysisScreen', 'Started audio playback for feedback', {
+          feedbackId: item.id,
+        })
       }
 
-      // Add to store
-      useAnalysisStatusStore.getState().addJob(testJob)
+      // Make coach speak when feedback item is pressed
+      setIsCoachSpeaking(true)
+      setTimeout(() => setIsCoachSpeaking(false), 3000)
+    },
+    [feedbackAudio, audioController]
+  )
 
-      // Simulate progress updates
-      let progress = 25
-      const progressInterval = setInterval(() => {
-        progress += 10
-        if (progress <= 100) {
-          useAnalysisStatusStore.getState().updateJobProgress(analysisJobId, progress)
-        } else {
-          // Complete the job
-          useAnalysisStatusStore.getState().setJobStatus(analysisJobId, 'completed')
-          clearInterval(progressInterval)
+  // const bubbleItems: FeedbackPanelItem[] = useMemo(
+  //   () =>
+  //     bubbleController.currentBubbleIndex !== null
+  //       ? [feedbackItems[bubbleController.currentBubbleIndex]].filter(Boolean)
+  //       : [],
+  //   [bubbleController.currentBubbleIndex, feedbackItems]
+  // )
+
+  const videoPlayerProps = useMemo(
+    () => ({
+      videoControlsRef,
+      videoUri: recordedVideoUri,
+      currentTime,
+      duration,
+      pendingSeek,
+      userIsPlaying: isPlaying,
+      videoShouldPlay: videoAudioSync.shouldPlayVideo,
+      videoEnded,
+      showControls: isProcessing || !isPlaying || videoEnded,
+      isProcessing,
+      videoAreaScale,
+      onPlay: handlePlay,
+      onPause: handlePause,
+      onReplay: handleReplay,
+      onSeek: handleSeek,
+      onSeekComplete: (seekedTime: number | null) => {
+        if (seekedTime !== null) {
+          setCurrentTime(seekedTime)
+          const seekedTimeMs = seekedTime * 1000
+          bubbleController.checkAndShowBubbleAtTime(seekedTimeMs)
         }
-      }, 2000) // Update every 2 seconds
+        setPendingSeek(null)
+      },
+      onProgress: handleVideoProgress,
+      onLoad: handleVideoLoad,
+      onEnd: handleVideoEnd,
+      onTap: handleVideoTap,
+      onMenuPress: handleMenuPress,
+      headerBackHandler: onBack,
+      audioPlayerController: audioController,
+      bubbleState: {
+        visible: bubbleController.bubbleVisible,
+        currentIndex: bubbleController.currentBubbleIndex,
+        items: feedbackItems,
+      },
+      audioOverlay: {
+        shouldShow: shouldShowAudioControls,
+        activeAudio: feedbackAudio.activeAudio,
+        onClose: () => {
+          audioController.setIsPlaying(false)
+          feedbackAudio.clearActiveAudio()
+          log.info('VideoAnalysisScreen', 'Audio overlay closed')
+        },
+      },
+      coachSpeaking: isCoachSpeaking,
+      panelFraction,
+    }),
+    [
+      audioController,
+      bubbleController,
+      currentTime,
+      duration,
+      feedbackAudio,
+      feedbackItems,
+      handleMenuPress,
+      handlePause,
+      handlePlay,
+      handleReplay,
+      handleSeek,
+      handleVideoEnd,
+      handleVideoLoad,
+      handleVideoProgress,
+      handleVideoTap,
+      isCoachSpeaking,
+      isPlaying,
+      isProcessing,
+      onBack,
+      panelFraction,
+      pendingSeek,
+      recordedVideoUri,
+      shouldShowAudioControls,
+      videoAreaScale,
+      videoAudioSync.shouldPlayVideo,
+      videoControlsRef,
+      videoEnded,
+    ]
+  )
 
-      return () => clearInterval(progressInterval)
-    }
+  const feedbackSectionProps = useMemo(
+    () => ({
+      panelFraction,
+      activeTab: activeFeedbackTab,
+      feedbackItems,
+      selectedFeedbackId,
+      currentVideoTime: currentTime,
+      videoDuration: duration,
+      errors: feedbackAudio.errors,
+      audioUrls: feedbackAudio.audioUrls,
+      onTabChange: handleFeedbackTabChange,
+      onExpand: handleFeedbackPanelExpand,
+      onCollapse: handleFeedbackPanelCollapse,
+      onItemPress: handleFeedbackItemPress,
+      onSeek: handleSeek,
+      onRetryFeedback: feedbackStatus.retryFailedFeedback,
+      onDismissError: (feedbackId: string) => {
+        feedbackAudio.clearError(feedbackId)
+        log.info('VideoAnalysisScreen', 'Dismissing error for feedback', { feedbackId })
+      },
+      onSelectAudio: (feedbackId: string) => {
+        feedbackAudio.selectAudio(feedbackId)
+        audioController.setIsPlaying(true)
+        log.info('VideoAnalysisScreen', 'Feedback audio selected from panel', { feedbackId })
+      },
+      onShare: () => log.info('VideoAnalysisScreen', 'Share button pressed'),
+      onLike: () => log.info('VideoAnalysisScreen', 'Like button pressed'),
+      onComment: () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
+      onBookmark: () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
+    }),
+    [
+      activeFeedbackTab,
+      audioController,
+      currentTime,
+      duration,
+      feedbackAudio,
+      feedbackItems,
+      feedbackStatus.retryFailedFeedback,
+      handleFeedbackItemPress,
+      handleFeedbackPanelCollapse,
+      handleFeedbackPanelExpand,
+      handleFeedbackTabChange,
+      handleSeek,
+      panelFraction,
+      selectedFeedbackId,
+    ]
+  )
 
-    // Return empty cleanup function when condition is not met
-    return () => {}
-  }, [analysisJobId, analysisJobFromStore]) // Keep analysisJobFromStore to ensure we check the condition
-
-  // Update title from analysis results
-  useEffect(() => {
-    if ((analysisResults as any)?.summary_text && !title) {
-      // Extract title from summary or generate from analysis type
-      const generatedTitle =
-        (analysisResults as any).summary_text.split('.')[0] || 'Analysis Complete'
-      setTimeout(() => {
-        setTitle(generatedTitle)
-      }, 1000)
-    }
-  }, [analysisResults, title])
-
-  // Update audio URL when analysis completes
-  useEffect(() => {
-    if ((analysisJob as any)?.audio_url && !audioUrl) {
-      setAudioPlaybackState(false)
-      setAudioCurrentTime(0)
-      setAudioDuration(10) // Default duration, would be updated from actual audio
-      setShowAudioControls(true)
-    }
-  }, [analysisJob, audioUrl, setAudioPlaybackState, setAudioCurrentTime, setAudioDuration, setShowAudioControls])
-
-  // Connection error handling state
-  const [showConnectionError, setShowConnectionError] = useState(false)
-
-  // Handle connection status changes
-  useEffect(() => {
-    if (!realtimeData.isConnected && realtimeData.connectionError) {
-      setShowConnectionError(true)
-    } else if (realtimeData.isConnected) {
-      setShowConnectionError(false)
-    }
-  }, [realtimeData.isConnected, realtimeData.connectionError])
-
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying)
+  // Derive processing phase + progress for ProcessingIndicator
+  const phase: 'uploading' | 'upload-complete' | 'analyzing' | 'generating-feedback' | 'ready' | 'error' =
+    isProcessing ? 'analyzing' : 'ready'
+  // Upload progress shape from useUploadProgress
+  const progress = {
+    upload: (uploadProgress as any)?.percentage ?? 0,
+    analysis: (analysisJob as any)?.progress_percentage ?? 0,
+    feedback: 0,
   }
-
-  const handleSeek = (time: number) => {
-    setCurrentTime(time)
-  }
-
-  const handleVideoTap = () => {
-    setShowControls(true)
-    // Auto-hide after 3 seconds
-    setTimeout(() => setShowControls(false), 3000)
-  }
-
-  const handleFeedbackItemPress = (item: FeedbackItem) => {
-    // Seek to the timestamp of the feedback item
-    setCurrentTime(item.timestamp / 1000)
-  }
-
-  const handleSocialAction = (action: 'like' | 'comment' | 'bookmark' | 'share') => {
-    setSocialStats((prev) => ({
-      ...prev,
-      [action === 'like'
-        ? 'likes'
-        : action === 'comment'
-          ? 'comments'
-          : action === 'bookmark'
-            ? 'bookmarks'
-            : 'shares']:
-        prev[
-          action === 'like'
-            ? 'likes'
-            : action === 'comment'
-              ? 'comments'
-              : action === 'bookmark'
-                ? 'bookmarks'
-                : 'shares'
-        ] + 1,
-    }))
-  }
-
-  // Audio feedback handlers
-  const handleAudioPlayPause = useCallback(() => {
-    // Pause video when audio starts playing
-    if (!isAudioPlaying) {
-      setIsPlaying(false)
-    }
-    setAudioPlaybackState(!isAudioPlaying)
-  }, [isAudioPlaying, setAudioPlaybackState, setIsPlaying])
-
-  const handleAudioSeek = useCallback((time: number) => {
-    setAudioCurrentTime(time)
-  }, [setAudioCurrentTime])
-
-  const handleAudioClose = useCallback(() => {
-    setAudioPlaybackState(false)
-    setAudioCurrentTime(0)
-    setShowAudioControls(false)
-    // Resume video playback when audio is closed
-    setIsPlaying(true)
-  }, [setAudioPlaybackState, setAudioCurrentTime, setShowAudioControls, setIsPlaying])
-
-  const handleAudioTimeUpdate = useCallback((time: number) => {
-    setAudioCurrentTime(time)
-  }, [setAudioCurrentTime])
-
-  const handleAudioRewind = useCallback(() => {
-    const newTime = Math.max(0, audioCurrentTime - 10)
-    setAudioCurrentTime(newTime)
-  }, [audioCurrentTime, setAudioCurrentTime])
-
-  const handleAudioFastForward = useCallback(() => {
-    const newTime = Math.min(audioDuration, audioCurrentTime + 10)
-    setAudioCurrentTime(newTime)
-  }, [audioDuration, audioCurrentTime, setAudioCurrentTime])
 
   return (
-    <YStack
-      flex={1}
-      backgroundColor="$background"
-    >
-      {/* Header */}
-      <AppHeader
-        title={title || 'Video Analysis'}
-        mode="analysis"
-        onBackPress={onBack}
-        onMenuPress={onMenuPress}
+    <YStack flex={1}>
+      <UploadErrorState
+        visible={uploadFailed && Boolean(uploadProgress)}
+        errorMessage={uploadError}
+        onRetry={() => {
+          onBack?.()
+        }}
+        onBack={onBack ?? (() => {})}
       />
 
-      {/* Video Area */}
-      <YStack
-        flex={1}
-        position="relative"
-        backgroundColor="$color1"
-      >
-        {/* Connection Error Banner */}
-        <ConnectionErrorBanner
-          isVisible={showConnectionError}
-          error={realtimeData.connectionError}
-          reconnectAttempts={realtimeData.reconnectAttempts}
-          onRetry={() => {
-            // Trigger reconnection by resubscribing
-            setShowConnectionError(false)
-          }}
-          onDismiss={() => setShowConnectionError(false)}
-        />
-        {status === 'processing' ? (
-          <YStack
-            flex={1}
-            backgroundColor="$backgroundSubtle"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <ProcessingOverlay
-              progress={progress}
-              currentStep={
-                jobStatus.isProcessing
-                  ? 'Processing video analysis...'
-                  : jobStatus.isFailed
-                    ? 'Analysis failed'
-                    : 'Analysis complete'
-              }
-              estimatedTime={jobStatus.isProcessing ? 30 : 0}
-              onCancel={() => onBack?.()}
-              onViewResults={() => {
-                /* Analysis complete, already showing results */
-              }}
-              isComplete={jobStatus.isCompleted}
-            />
-          </YStack>
-        ) : (
-          <>
-            {/* Video Player with Integrated Overlays */}
-            <YStack
-              flex={1}
-              onPress={handleVideoTap}
-              testID="video-player-container"
-            >
-              {(videoUri || recordedVideoUri) && (
-                <VideoAnalysisPlayer
-                  videoUri={videoUri || recordedVideoUri}
-                  isPlaying={isPlaying}
-                  currentTime={currentTime}
-                  duration={0}
-                  showControls={showControls}
-                  onPlay={handlePlayPause}
-                  onPause={handlePlayPause}
-                  onSeek={handleSeek}
-                  poseData={currentPose ? [currentPose] : poseData}
-                  feedbackMessages={feedbackMessages}
-                  audioUrl={audioUrl}
-                  isAudioPlaying={isAudioPlaying}
-                  onAudioPlayPause={handleAudioPlayPause}
-                  onAudioSeek={handleAudioSeek}
-                  onAudioClose={handleAudioClose}
-                  onAudioTimeUpdate={handleAudioTimeUpdate}
-                  onAudioRewind={handleAudioRewind}
-                  onAudioFastForward={handleAudioFastForward}
-                  onFeedbackBubbleTap={useCallback((message: FeedbackMessage) => {
-                    log.debug('VideoAnalysisScreen', '💬 Bubble tapped:', message)
-                  }, [])}
-                />
-              )}
+      {!uploadFailed && (
+        <VideoPlayerSection {...videoPlayerProps} />
+      )}
 
-              {/* Social Icons - kept outside VideoPlayer for bottom sheet interaction */}
-              <SocialIcons
-                likes={socialStats.likes}
-                comments={socialStats.comments}
-                bookmarks={socialStats.bookmarks}
-                shares={socialStats.shares}
-                onLike={() => handleSocialAction('like')}
-                onComment={() => handleSocialAction('comment')}
-                onBookmark={() => handleSocialAction('bookmark')}
-                onShare={() => handleSocialAction('share')}
-                isVisible={bottomSheetExpanded}
-              />
-            </YStack>
-          </>
-        )}
+      <ProcessingIndicator phase={phase} progress={progress} channelExhausted={channelExhausted} />
 
-        {/* Bottom Sheet */}
-        <FeedbackPanel
-          isExpanded={feedbackPanelExpanded}
-          activeTab={activeTab}
-          feedbackItems={feedbackItems}
-          socialStats={socialStats}
-          currentVideoTime={currentTime}
-          videoDuration={0} // Will be updated when video loads
-          onTabChange={setActiveTab}
-          onSheetExpand={() => setFeedbackPanelExpanded(true)}
-          onSheetCollapse={() => setFeedbackPanelExpanded(false)}
-          onFeedbackItemPress={handleFeedbackItemPress}
-          onVideoSeek={handleSeek}
-          onLike={() => handleSocialAction('like')}
-          onComment={() => handleSocialAction('comment')}
-          onBookmark={() => handleSocialAction('bookmark')}
-          onShare={() => handleSocialAction('share')}
-        />
-      </YStack>
+      <FeedbackSection {...feedbackSectionProps} />
     </YStack>
   )
 }

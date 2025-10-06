@@ -148,6 +148,7 @@ describe('Responsive Layout Tests', () => {
             text: 'Great posture!',
             type: 'positive' as const,
             category: 'posture' as const,
+            confidence: 0.95,
           },
         ],
         socialStats: { likes: 100, comments: 5, bookmarks: 50, shares: 10 },

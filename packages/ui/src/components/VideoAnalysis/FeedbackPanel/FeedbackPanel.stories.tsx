@@ -26,6 +26,7 @@ const mockFeedbackItems: FeedbackPanelProps['feedbackItems'] = [
     audioAttempts: 1,
     ssmlLastError: null,
     audioLastError: null,
+    confidence: 0.95,
   },
   {
     id: 'feedback-2',
@@ -39,6 +40,7 @@ const mockFeedbackItems: FeedbackPanelProps['feedbackItems'] = [
     audioAttempts: 0,
     ssmlLastError: null,
     audioLastError: null,
+    confidence: 0.87,
   },
   {
     id: 'feedback-3',
@@ -52,6 +54,7 @@ const mockFeedbackItems: FeedbackPanelProps['feedbackItems'] = [
     audioAttempts: 2,
     ssmlLastError: 'TTS provider timeout',
     audioLastError: 'Audio upload failed',
+    confidence: 0.72,
   },
 ]
 

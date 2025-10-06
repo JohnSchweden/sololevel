@@ -6,8 +6,8 @@ import {
   createAuthFixtures,
   createSupabaseSession,
   createSupabaseUser,
-} from '../../test-utils/authFixtures'
-import { useAuth } from '../useAuth'
+} from '../test-utils/authFixtures'
+import { useAuth } from './useAuth'
 
 // Mock the auth client
 jest.mock('@my/api', () => ({

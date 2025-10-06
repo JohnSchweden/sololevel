@@ -1,3 +1,14 @@
+### Task 3: Consolidate Processing State Logic — COMPLETED
+- Implemented useAnalysisState hook to consolidate upload, analysis, and feedback logic.
+- Added unit tests to cover all phase transitions and error paths, ensuring deterministic results.
+- Integrated hook into VideoAnalysisScreen.tsx to drive processing overlay and progress from the unified state.
+
+### Task 8: Orchestrator Pattern Migration — COMPLETED
+- Refactored VideoAnalysisScreen into a thin orchestrator composing new hooks (useVideoPlayback, useFeedbackPanel, useFeedbackSelection) with existing analysis/bubble/audio hooks.
+- Eliminated local state/effects from the screen; extracted logic into memoized hooks and stabilized callbacks for child components.
+- Added dedicated hook test suites (>=75% coverage) and re-ran component/hook tests plus type-check.
+- Updated docs/tasks and agent status; Task 9 (Re-render Performance Optimization) is now unblocked.
+
 # Project Status
 
 ## Completed Features
@@ -224,6 +235,12 @@
 - Hardened feedback subscription hooks to dedupe subscriptions and remove duplicate keys
 - Added bounded retry with backoff and failure state for feedback realtime subscriptions (no infinite loop)
 **Impact:** Eliminates log spam, handles backend timing gaps gracefully, provides user feedback for connection issues
+
+### Task 8: Orchestrator Pattern Migration — COMPLETED
+- Refactored VideoAnalysisScreen into a thin orchestrator that composes new hooks (useVideoPlayback, useFeedbackPanel, useFeedbackSelection) alongside existing analysis/bubble/audio hooks.
+- Eliminated all local useState/useEffect from the screen; state now lives in dedicated hooks with focused test suites.
+- Added new hook tests covering playback, panel, and selection logic (75%+ coverage) and re-ran all component/hook suites.
+- Updated documentation and status tracking; next focus is Task 9 (re-render performance optimization).
 
 ## In Progress
 

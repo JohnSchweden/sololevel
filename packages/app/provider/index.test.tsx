@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react'
 import { enableMapSet } from 'immer'
-import { Provider } from '../index'
+import { Provider } from './index'
 
 // Mock enableMapSet to verify it's called
 jest.mock('immer', () => ({

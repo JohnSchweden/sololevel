@@ -13,3 +13,9 @@ Review the changes on @branch:
 - If i18n is set up, are the strings added localized and new routes internationalized?
 - Are there places we should use caching?
 - Are we missing critical olly or logging on backend changes?
+- Write tests only for behavior users or safety care about:
+    - Critical flows (auth, payments, data mutation)
+    - Branchy business logic
+    - Error handling paths
+    - Security-/RLS-adjacent code
+    - Previously bug-prone areas

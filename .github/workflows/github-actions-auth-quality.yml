@@ -75,9 +75,10 @@ jobs:
           yarn workspace @my/api test src/__tests__/rlsEnforcement.test.ts
           
           # App authentication tests
-          yarn workspace @my/app test hooks/__tests__/useAuth.test.tsx
-          yarn workspace @my/app test stores/__tests__/auth.test.ts
-          yarn workspace @my/app test auth/__tests__/
+          yarn workspace @my/app test hooks/useAuth.test.tsx
+          yarn workspace @my/app test stores/auth.test.ts
+          yarn workspace @my/app test auth/testAuthBootstrap.test.ts
+          yarn workspace @my/app test auth/__tests__/authIntegration.test.ts
           yarn workspace @my/app test __tests__/authFlow.e2e.test.ts
           yarn workspace @my/app test __tests__/authRouteProtection.integration.test.ts
 
@@ -91,7 +92,7 @@ jobs:
         run: |
           # Generate coverage for authentication modules
           yarn workspace @my/api test src/auth/ --coverage
-          yarn workspace @my/app test hooks/__tests__/useAuth.test.tsx stores/__tests__/auth.test.ts --coverage
+          yarn workspace @my/app test hooks/useAuth.test.tsx stores/auth.test.ts --coverage
 
   edge-function-auth:
     runs-on: ubuntu-latest

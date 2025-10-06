@@ -1,4 +1,4 @@
-import { testAuthBootstrap } from '../testAuthBootstrap'
+import { testAuthBootstrap } from './testAuthBootstrap'
 
 // Mock the auth client
 jest.mock('@my/api', () => ({

@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
-import { useFeatureFlagsStore } from '../feature-flags'
+import { useFeatureFlagsStore } from './feature-flags'
 
 // Mock environment variables
 const mockEnv = {

@@ -75,26 +75,7 @@ jest.mock('expo-file-system', () => ({
   readAsStringAsync: jest.fn(),
 }))
 
-// Mock Tamagui components for app package tests
-jest.mock('tamagui', () => {
-  const React = require('react')
-  const mockComponent = (name: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement('div', { ...props, ref, 'data-testid': name })
-    )
-
-  return {
-    TamaguiProvider: ({ children }: { children: any }) => children,
-    styled: (_component: any, _config: any) => mockComponent,
-    Stack: mockComponent('Stack'),
-    XStack: mockComponent('XStack'),
-    YStack: mockComponent('YStack'),
-    Button: mockComponent('Button'),
-    Text: mockComponent('Text'),
-    View: mockComponent('View'),
-    createTamagui: jest.fn(() => ({})),
-  }
-})
+// Tamagui mock defined later in this file to avoid duplication
 
 // Mock @tamagui/lucide-icons
 jest.mock('@tamagui/lucide-icons', () => ({
@@ -154,42 +135,8 @@ jest.mock('@my/ui', () => {
   }
 })
 
-// Mock @ui/components/VideoAnalysis (the actual import path)
-jest.mock('@ui/components/VideoAnalysis', () => {
-  const React = require('react')
-  return {
-    ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'ProcessingOverlay', ...props },
-        children
-      ),
-    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
-    MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'MotionCaptureOverlay', ...props },
-        children
-      ),
-    FeedbackBubbles: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'FeedbackBubbles', ...props },
-        children
-      ),
-    AudioFeedback: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
-    VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
-    FeedbackPanel: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'FeedbackPanel', ...props }, children),
-    SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
-    VideoTitle: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'VideoTitle', ...props }, children),
-  }
-})
+// @ui/components/VideoAnalysis mocks are defined in individual test files
+// to avoid conflicts and allow test-specific behavior
 
 // Mock @my/config
 jest.mock('@my/config', () => ({
@@ -380,45 +327,61 @@ jest.mock('../stores/analysisStatus', () => ({
   })),
 }))
 
+// Mock react-native first to ensure StyleSheet is available
+jest.mock('react-native', () => {
+  const React = require('react')
+  return {
+    Platform: {
+      OS: 'web',
+      select: jest.fn((obj: any) => obj.web || obj.default),
+    },
+    StyleSheet: {
+      flatten: jest.fn((style: any) => style || {}),
+      create: jest.fn((styles: any) => styles),
+      absoluteFill: {},
+      absoluteFillObject: {},
+      hairlineWidth: 1,
+    },
+    View: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { testID, ...props }, children),
+    Text: ({ children, testID, ...props }: any) =>
+      React.createElement('span', { testID, ...props }, children),
+    TouchableOpacity: ({ children, onPress, testID, ...props }: any) =>
+      React.createElement('button', { onPress, testID, ...props }, children),
+    Dimensions: {
+      get: jest.fn(() => ({ width: 375, height: 812 })),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    },
+  }
+})
+
 // Mock Tamagui components
 jest.mock('tamagui', () => {
   const React = require('react')
   return {
     Button: ({ children, onPress, testID, ...props }: any) =>
-      React.createElement('TouchableOpacity', { onPress, testID, ...props }, children),
+      React.createElement('button', { onPress, testID, ...props }, children),
     XStack: ({ children, testID, ...props }: any) =>
-      React.createElement('View', { testID, style: { flexDirection: 'row' }, ...props }, children),
-    YStack: ({ children, testID, ...props }: any) =>
       React.createElement(
-        'View',
-        { testID, style: { flexDirection: 'column' }, ...props },
+        'div',
+        { testID, style: { display: 'flex', flexDirection: 'row' }, ...props },
         children
       ),
+    YStack: ({ children, testID, ...props }: any) =>
+      React.createElement(
+        'div',
+        { testID, style: { display: 'flex', flexDirection: 'column' }, ...props },
+        children
+      ),
+    Circle: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { testID, style: { borderRadius: '50%' }, ...props }, children),
+    Text: ({ children, testID, ...props }: any) =>
+      React.createElement('span', { testID, ...props }, children),
   }
 })
 
-// Mock @my/ui/components/VideoAnalysis components
-jest.mock('@my/ui/components/VideoAnalysis', () => {
-  const React = require('react')
-  return {
-    ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'ProcessingOverlay', ...props },
-        children
-      ),
-    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
-    VideoContainer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement('div', { 'data-testid': testID || 'VideoContainer', ...props }, children),
-    VideoPlayerArea: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
-      React.createElement(
-        'div',
-        { 'data-testid': testID || 'VideoPlayerArea', ...props },
-        children
-      ),
-  }
-})
+// @my/ui/components/VideoAnalysis mocks moved to test files for specificity
 
 // Mock Tamagui icons
 jest.mock('@tamagui/lucide-icons', () => ({
@@ -492,14 +455,23 @@ jest.mock('../hooks/useAnalysisRealtime', () => ({
   })),
 }))
 
-// Mock React Native StyleSheet
-jest.mock('react-native/Libraries/StyleSheet/StyleSheet', () => ({
-  flatten: jest.fn((style) => style),
+// Mock React Native StyleSheet (standalone path and global for @testing-library/react-native)
+const mockStyleSheet = {
+  flatten: jest.fn((style) => style || {}),
   create: jest.fn((styles) => styles),
   absoluteFill: {},
   absoluteFillObject: {},
   hairlineWidth: 1,
-}))
+}
+
+jest.mock('react-native/Libraries/StyleSheet/StyleSheet', () => mockStyleSheet)
+
+// Expose StyleSheet globally for @testing-library/react-native
+Object.defineProperty(global, 'StyleSheet', {
+  value: mockStyleSheet,
+  writable: true,
+  configurable: true,
+})
 
 // Mock crypto for UUID generation
 Object.defineProperty(global, 'crypto', {

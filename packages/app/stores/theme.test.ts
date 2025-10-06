@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
-import { useThemeStore } from '../theme'
+import { useThemeStore } from './theme'
 
 // Mock window.matchMedia
 const mockMatchMedia = jest.fn()

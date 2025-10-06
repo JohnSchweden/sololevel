@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { useVideoAnalysisStore } from '../videoAnalysisStore'
+import { useVideoAnalysisStore } from './videoAnalysisStore'
 
 describe('videoAnalysisStore', () => {
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import { renderHook } from '@testing-library/react-hooks'
+import { renderHook } from '@testing-library/react'
 
-import { useFeedbackStatusIntegration } from '../useFeedbackStatusIntegration'
+import { useFeedbackStatusIntegration } from './useFeedbackStatusIntegration'
 
 // Mock logging
 jest.mock('@my/logging', () => ({

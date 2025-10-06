@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-import { useAnalysisSubscriptionStore } from '../analysisSubscription'
+import { useAnalysisSubscriptionStore } from './analysisSubscription'
 
 type SubscriptionHandlers = {
   onStatus?: (status: string, details?: unknown) => void

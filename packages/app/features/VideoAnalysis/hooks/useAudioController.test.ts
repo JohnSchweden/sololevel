@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import { act, renderHook } from '@testing-library/react-hooks'
+import { act, renderHook } from '@testing-library/react'
 import { useAudioController } from './useAudioController'
 
 jest.mock('@my/logging', () => ({

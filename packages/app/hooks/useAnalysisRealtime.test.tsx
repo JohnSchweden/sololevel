@@ -5,7 +5,7 @@ import {
   useAnalysisRealtime,
   usePoseDataStream,
   useVideoAnalysisRealtime,
-} from '../useAnalysisRealtime'
+} from './useAnalysisRealtime'
 
 // Mock Supabase
 const mockSubscribe = jest.fn()

@@ -33,7 +33,7 @@ jest.mock('../ConnectionErrorBanner', () => ({
   },
 }))
 
-import { ConnectionErrorBanner } from '../ConnectionErrorBanner'
+import { ConnectionErrorBanner } from './ConnectionErrorBanner'
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(ui)

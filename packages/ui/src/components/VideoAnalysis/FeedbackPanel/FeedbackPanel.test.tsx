@@ -19,6 +19,7 @@ const mockFeedbackItems = [
     audioAttempts: 1,
     ssmlLastError: null,
     audioLastError: null,
+    confidence: 0.95,
   },
   {
     id: '2',
@@ -32,6 +33,7 @@ const mockFeedbackItems = [
     audioAttempts: 0,
     ssmlLastError: null,
     audioLastError: null,
+    confidence: 0.87,
   },
 ]
 
@@ -601,6 +603,7 @@ describe('FeedbackPanel', () => {
         text: `Feedback item ${index + 1}`,
         type: 'positive' as const,
         category: 'posture' as const,
+        confidence: 0.95,
       }))
 
       const stickyProps = {
@@ -628,6 +631,7 @@ describe('FeedbackPanel', () => {
           text: 'Third feedback',
           type: 'correction' as const,
           category: 'grip' as const,
+          confidence: 0.72,
         },
         {
           id: '1',
@@ -635,6 +639,7 @@ describe('FeedbackPanel', () => {
           text: 'First feedback',
           type: 'positive' as const,
           category: 'posture' as const,
+          confidence: 0.95,
         },
         {
           id: '2',
@@ -642,6 +647,7 @@ describe('FeedbackPanel', () => {
           text: 'Second feedback',
           type: 'suggestion' as const,
           category: 'movement' as const,
+          confidence: 0.87,
         },
       ]
 

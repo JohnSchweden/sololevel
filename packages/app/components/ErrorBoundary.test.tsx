@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { render, screen } from '@testing-library/react'
-import { ErrorBoundary, withErrorBoundary } from '../ErrorBoundary'
+import { ErrorBoundary, withErrorBoundary } from './ErrorBoundary'
 
 // Component that throws an error
 function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {

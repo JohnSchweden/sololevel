@@ -3,7 +3,7 @@
 // Use manual mock from __mocks__/expo-file-system.ts per @testing-unified.mdc
 // No imports needed - jest-expo preset provides globals
 import * as FileSystem from 'expo-file-system'
-import { VideoStorageService } from '../videoStorageService'
+import { VideoStorageService } from './videoStorageService'
 
 const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
 

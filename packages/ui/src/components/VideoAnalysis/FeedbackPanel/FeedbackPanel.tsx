@@ -21,6 +21,7 @@ interface FeedbackItem {
   audioLastError?: string | null
   audioUrl?: string
   audioError?: string
+  confidence: number
 }
 
 export interface FeedbackPanelProps {
