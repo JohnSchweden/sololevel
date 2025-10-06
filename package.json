@@ -141,13 +141,13 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-worklets-core": "^1.6.2",
-    "supabase": "2.47.2",
+    "supabase": "2.48.3",
     "turbo": "^1.13.4",
     "typescript": "^5.9.2",
     "ultra-runner": "^3.10.5",
     "undici": "^5.29.0"
   },
-  "packageManager": "yarn@4.9.3",
+  "packageManager": "yarn@4.10.3",
   "engines": {
     "node": "20"
   },
