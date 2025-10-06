@@ -7,11 +7,18 @@
 - **Avoid testing implementation details**: Don't test private methods or internal state
 - **Test the contract, not the code**: Ensure components fulfill their API promises
 
+### Co-location Strategy
+- **Tests live next to source code**: Easier to find, maintain, and understand
+- **Unit/Component tests**: Co-located with their source files
+- **Integration tests**: In dedicated `integration/` folders within features
+- **Setup/Configuration tests**: Remain in `__tests__/` folders when appropriate
+
 ### Test Categories
 
 #### 1. Unit Tests
 - **Purpose**: Test individual functions and hooks in isolation
 - **Coverage**: Core business logic, utilities, custom hooks
+- **Location**: Co-located with source files (e.g., `useCounter.test.ts` next to `useCounter.ts`)
 - **Examples**:
   ```typescript
   describe('useCounter', () => {
@@ -25,6 +32,7 @@
 #### 2. Component Tests
 - **Purpose**: Test component rendering and user interactions
 - **Coverage**: UI behavior, props handling, event responses
+- **Location**: Co-located with components (e.g., `Button.test.tsx` in `Button/` folder)
 - **Examples**:
   ```typescript
   describe('Button', () => {
@@ -41,6 +49,7 @@
 #### 3. Integration Tests
 - **Purpose**: Test component interactions and data flow
 - **Coverage**: Component composition, prop drilling, context usage
+- **Location**: In `integration/` folders within feature directories
 - **Examples**:
   ```typescript
   describe('UserProfile', () => {

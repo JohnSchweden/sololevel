@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
-import { useCameraScreenLogic } from '../hooks/useCameraScreenLogic'
+import { useCameraScreenLogic } from '../useCameraScreenLogic'
 
 // Mock logger
 jest.mock('@my/logging', () => ({
@@ -38,7 +38,7 @@ jest.mock('@my/api', () => ({
 }))
 
 // Mock compression and file utilities
-jest.mock('../../../services/videoCompression', () => ({
+jest.mock('../../../../services/videoCompression', () => ({
   compressVideo: jest.fn(() =>
     Promise.resolve({
       compressedUri: 'file:///compressed/video.mp4',
@@ -47,7 +47,7 @@ jest.mock('../../../services/videoCompression', () => ({
   ),
 }))
 
-jest.mock('../../../utils/files', () => ({
+jest.mock('../../../../utils/files', () => ({
   uriToBlob: jest.fn(() => Promise.resolve(new Blob(['mock data'], { type: 'video/mp4' }))),
 }))
 
@@ -74,7 +74,7 @@ jest.mock('immer', () => {
 })
 
 // Mock the recording state machine
-jest.mock('../hooks/useRecordingStateMachine', () => ({
+jest.mock('../useRecordingStateMachine', () => ({
   useRecordingStateMachine: jest.fn(() => ({
     recordingState: 'idle',
     duration: 0,
@@ -96,7 +96,7 @@ jest.mock('../hooks/useRecordingStateMachine', () => ({
 
 // Mock the tab persistence hook
 const mockSetActiveTab = jest.fn()
-jest.mock('../hooks/useTabPersistence', () => ({
+jest.mock('../useTabPersistence', () => ({
   useTabPersistence: jest.fn(() => ({
     activeTab: 'record',
     setActiveTab: mockSetActiveTab,
@@ -211,7 +211,7 @@ describe('useCameraScreenLogic Integration', () => {
       }
 
       // Mock the recording state machine to return a stopped state with video URI
-      const mockUseRecordingStateMachine = jest.requireMock('../hooks/useRecordingStateMachine')
+      const mockUseRecordingStateMachine = jest.requireMock('../useRecordingStateMachine')
       mockUseRecordingStateMachine.useRecordingStateMachine.mockReturnValueOnce({
         recordingState: 'stopped',
         duration: 5000,

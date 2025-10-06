@@ -5,9 +5,9 @@
 
 import type { AuthResult, SignInData } from '@my/api'
 import { authClient } from '@my/api'
-import { testAuthBootstrap } from '../auth/testAuthBootstrap'
 import { useAuthStore } from '../stores/auth'
 import { createAuthFixtures } from '../test-utils/authFixtures'
+import { testAuthBootstrap } from './testAuthBootstrap'
 
 // Mock the auth client
 jest.mock('@my/api', () => ({

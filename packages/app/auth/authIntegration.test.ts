@@ -6,9 +6,9 @@
 import { authClient } from '@my/api'
 import type { AuthResult, SignInData } from '@my/api'
 import { act, renderHook } from '@testing-library/react'
-import { useAuth } from '../../hooks/useAuth'
-import { useAuthStore } from '../../stores/auth'
-import { createAuthFixtures } from '../../test-utils/authFixtures'
+import { useAuth } from '../hooks/useAuth'
+import { useAuthStore } from '../stores/auth'
+import { createAuthFixtures } from '../test-utils/authFixtures'
 
 // Mock the auth client
 jest.mock('@my/api', () => ({

@@ -3,9 +3,9 @@
  * Validates that MVP pose data can be properly adapted for PoseOverlay component
  */
 
-import type { MVPPoseDetectionResult } from '../types/MVPpose'
-import type { PoseDetectionResult } from '../types/pose'
-import { adaptMVPPoseToProduction } from '../utils/MVPTypeAdapter'
+import type { MVPPoseDetectionResult } from '../../types/MVPpose'
+import type { PoseDetectionResult } from '../../types/pose'
+import { adaptMVPPoseToProduction } from '../../utils/MVPTypeAdapter'
 
 describe('PoseOverlay MVP Integration', () => {
   const createMockMVPPose = (keypointCount = 3): MVPPoseDetectionResult => ({

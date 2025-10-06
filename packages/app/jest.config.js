@@ -1,6 +1,6 @@
 module.exports = {
   preset: null,
-  setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/test-utils/setup.ts'],
   cache: true,
   cacheDirectory: '<rootDir>/node_modules/.cache/jest',
   // 🚀 PERFORMANCE OPTIMIZATIONS
@@ -9,7 +9,11 @@ module.exports = {
   globals: {
     __DEV__: true,
   },
-  testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],
+  testMatch: [
+    '**/__tests__/**/*.(test|spec).(ts|tsx|js)',
+    '**/*.(test|spec).(ts|tsx|js)',
+    '**/integration/**/*.(test|spec).(ts|tsx|js)',
+  ],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: require.resolve('./babel.config.js') }],
   },

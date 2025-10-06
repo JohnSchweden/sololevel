@@ -74,13 +74,12 @@ jobs:
           yarn workspace @my/api test src/utils/__tests__/rlsHelpers.test.ts
           yarn workspace @my/api test src/__tests__/rlsEnforcement.test.ts
           
-          # App authentication tests
+          # App authentication tests (co-located structure)
           yarn workspace @my/app test hooks/useAuth.test.tsx
           yarn workspace @my/app test stores/auth.test.ts
           yarn workspace @my/app test auth/testAuthBootstrap.test.ts
-          yarn workspace @my/app test auth/__tests__/authIntegration.test.ts
-          yarn workspace @my/app test __tests__/authFlow.e2e.test.ts
-          yarn workspace @my/app test __tests__/authRouteProtection.integration.test.ts
+          yarn workspace @my/app test auth/authIntegration.test.ts
+          yarn workspace @my/app test auth/authRouteProtection.integration.test.ts
 
       - name: Security Audit
         run: |

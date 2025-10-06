@@ -3,7 +3,7 @@
  * Validates MVP pose detection toggle integration with recording controls
  */
 
-import type { MVPPoseDetectionResult } from '../types/MVPpose'
+import type { MVPPoseDetectionResult } from '../../types/MVPpose'
 
 // Define RecordingState enum for testing
 enum RecordingState {
