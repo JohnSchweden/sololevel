@@ -9,6 +9,7 @@ import {
   CoachAvatar,
   FeedbackBubbles,
   MotionCaptureOverlay,
+  SocialIcons,
   VideoContainer,
   VideoControls,
   VideoControlsRef,
@@ -73,6 +74,19 @@ interface VideoPlayerSectionProps {
   audioOverlay: AudioOverlayState
   coachSpeaking: boolean
   panelFraction: number
+  // Social icons props
+  socialCounts: {
+    likes: number
+    comments: number
+    bookmarks: number
+    shares: number
+  }
+  onSocialAction: {
+    onShare: () => void
+    onLike: () => void
+    onComment: () => void
+    onBookmark: () => void
+  }
 }
 
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
@@ -105,6 +119,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   audioOverlay,
   coachSpeaking,
   panelFraction,
+  socialCounts,
+  onSocialAction,
 }: VideoPlayerSectionProps) {
   const activeBubbleMessages = useMemo(() => {
     if (!bubbleState.visible || bubbleState.currentIndex === null) {
@@ -191,6 +207,23 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
                 opacity: 0,
                 scale: 0.8,
               }}
+            />
+          )}
+
+          {/* Social Icons - Show when panel is expanded */}
+          {panelFraction > 0.1 && (
+            <SocialIcons
+              likes={socialCounts.likes}
+              comments={socialCounts.comments}
+              bookmarks={socialCounts.bookmarks}
+              shares={socialCounts.shares}
+              onShare={onSocialAction.onShare}
+              onLike={onSocialAction.onLike}
+              onComment={onSocialAction.onComment}
+              onBookmark={onSocialAction.onBookmark}
+              isVisible={true}
+              placement="rightBottom"
+              offsetBottom={64}
             />
           )}
 

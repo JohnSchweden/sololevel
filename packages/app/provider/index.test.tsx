@@ -23,29 +23,29 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-jest.mock('../I18nProvider', () => ({
+jest.mock('./I18nProvider', () => ({
   I18nProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-jest.mock('../QueryProvider', () => ({
+jest.mock('./QueryProvider', () => ({
   QueryProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-jest.mock('../ToastViewport', () => ({
+jest.mock('./ToastViewport', () => ({
   ToastViewport: () => null,
 }))
 
-jest.mock('../../components/ErrorBoundary', () => ({
+jest.mock('../components/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-jest.mock('../../stores/auth', () => ({
+jest.mock('../stores/auth', () => ({
   useAuthStore: {
     getState: () => ({ initialize: jest.fn() }),
   },
 }))
 
-jest.mock('../../stores/feature-flags', () => ({
+jest.mock('../stores/feature-flags', () => ({
   useFeatureFlagsStore: {
     getState: () => ({ loadFlags: jest.fn() }),
   },

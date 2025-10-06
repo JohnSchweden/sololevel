@@ -12,6 +12,11 @@ export interface SocialIconsProps {
   onBookmark: () => void
   onShare: () => void
   isVisible?: boolean
+  // placement: controls where the icon column is anchored
+  // 'rightCenter' keeps previous behavior; 'rightBottom' anchors to bottom-right
+  placement?: 'rightCenter' | 'rightBottom'
+  // Optional fine-tuning when using bottom placement
+  offsetBottom?: number
 }
 
 export function SocialIcons({
@@ -24,6 +29,8 @@ export function SocialIcons({
   onBookmark,
   onShare,
   isVisible = true,
+  placement = 'rightCenter',
+  offsetBottom,
 }: SocialIconsProps) {
   if (!isVisible) {
     return null
@@ -44,12 +51,14 @@ export function SocialIcons({
   const backgroundColor = 'transparent'
   const marginBottom = -4
 
+  const positionalProps =
+    placement === 'rightBottom'
+      ? { right: 16, bottom: offsetBottom ?? 52 }
+      : { right: 16, top: 40, y: -50 }
+
   return (
     <YStack
       position="absolute"
-      right={16}
-      top="40%"
-      y="-50%"
       gap="$2"
       opacity={1}
       animation="quick"
@@ -67,6 +76,7 @@ export function SocialIcons({
       accessibilityLabel="Social interaction buttons"
       accessibilityRole="toolbar"
       zIndex={10}
+      {...positionalProps}
     >
       <YStack
         alignItems="center"

@@ -23,6 +23,7 @@ jest.mock('@my/api', () => ({
 jest.mock('react-native', () => ({
   LayoutAnimation: {
     configureNext: jest.fn(),
+    create: jest.fn(),
     Types: {
       easeInEaseOut: 'easeInEaseOut',
     },
@@ -154,9 +155,35 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
   VideoControlsRef: jest.fn(),
 }))
 
+jest.mock('./components/ProcessingIndicator', () => ({
+  ProcessingIndicator: ({ children }: { children?: any }) => {
+    const React = require('react')
+    return React.createElement('View', { testID: 'processing-indicator' }, children)
+  },
+}))
+
+jest.mock('./components/UploadErrorState', () => ({
+  UploadErrorState: ({ children }: { children?: any }) => {
+    const React = require('react')
+    return React.createElement('View', { testID: 'upload-error-state' }, children)
+  },
+}))
+
+jest.mock('./components/VideoPlayerSection', () => ({
+  VideoPlayerSection: ({ children }: { children?: any }) => {
+    const React = require('react')
+    return React.createElement('View', { testID: 'video-player-section' }, children)
+  },
+}))
+
+jest.mock('./components/FeedbackSection', () => ({
+  FeedbackSection: ({ children }: { children?: any }) => {
+    const React = require('react')
+    return React.createElement('View', { testID: 'feedback-section' }, children)
+  },
+}))
+
 // Note: Using simplified tests that focus on core functionality
-// Complex UI assertions are skipped to avoid mock serialization issues
-// The key is that the component renders without infinite loops
 
 describe('VideoAnalysisScreen - Simplified Version', () => {
   const mockProps = {

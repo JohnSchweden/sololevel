@@ -26,7 +26,7 @@ jest.mock('@api/src/supabase', () => ({
 const mockSubscribeToJob = jest.fn()
 const mockUnsubscribeFromJob = jest.fn()
 
-jest.mock('../../stores/analysisStatus', () => ({
+jest.mock('../stores/analysisStatus', () => ({
   useAnalysisStatusStore: jest.fn(() => ({
     subscribeToJob: mockSubscribeToJob,
     unsubscribeFromJob: mockUnsubscribeFromJob,
@@ -37,7 +37,7 @@ jest.mock('../../stores/analysisStatus', () => ({
 const mockProcessPose = jest.fn()
 const mockAddError = jest.fn()
 
-jest.mock('../../stores/poseStore', () => ({
+jest.mock('../stores/poseStore', () => ({
   usePoseStore: jest.fn(() => ({
     processPose: mockProcessPose,
     addError: mockAddError,

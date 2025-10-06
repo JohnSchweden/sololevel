@@ -1,8 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
 
-import type { FeedbackPanelItem } from '../../types'
-import { useFeedbackSelection } from '../useFeedbackSelection'
+import type { FeedbackPanelItem } from '../types'
+import { useFeedbackSelection } from './useFeedbackSelection'
 
 jest.mock('@my/logging', () => ({
   log: {

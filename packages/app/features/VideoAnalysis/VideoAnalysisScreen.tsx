@@ -142,10 +142,18 @@ export function VideoAnalysisScreen({
   const resolvedVideoUri = videoUri ?? FALLBACK_VIDEO_URI
   const uploadError = analysisState.error?.phase === 'upload' ? analysisState.error?.message : null
 
+  // Auto-play only once when transitioning from processing -> ready
+  const prevProcessingRef = useRef(analysisState.isProcessing)
   useEffect(() => {
-    if (!analysisState.isProcessing && !isPlaying) {
-      playVideo()
+    const wasProcessing = prevProcessingRef.current
+    const isNowProcessing = analysisState.isProcessing
+    // Detect edge: processing -> not processing
+    if (wasProcessing && !isNowProcessing) {
+      if (!isPlaying) {
+        playVideo()
+      }
     }
+    prevProcessingRef.current = isNowProcessing
   }, [analysisState.isProcessing, isPlaying, playVideo])
 
   useEffect(() => {
@@ -269,6 +277,18 @@ export function VideoAnalysisScreen({
       },
       coachSpeaking: feedbackSelection.isCoachSpeaking,
       panelFraction: feedbackPanel.panelFraction,
+      socialCounts: {
+        likes: 1200,
+        comments: 89,
+        bookmarks: 234,
+        shares: 1500,
+      },
+      onSocialAction: {
+        onShare: () => log.info('VideoAnalysisScreen', 'Share button pressed'),
+        onLike: () => log.info('VideoAnalysisScreen', 'Like button pressed'),
+        onComment: () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
+        onBookmark: () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
+      },
     }),
     [
       analysisState.isProcessing,

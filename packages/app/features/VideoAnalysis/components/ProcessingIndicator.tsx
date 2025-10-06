@@ -1,8 +1,6 @@
 import { memo } from 'react'
 
-import { Text } from 'tamagui'
-
-import { View } from 'react-native'
+import { Spinner, Text, YStack } from 'tamagui'
 
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 
@@ -16,65 +14,70 @@ interface ProcessingIndicatorProps {
   channelExhausted: boolean
 }
 
-const PHASE_LABELS: Record<AnalysisPhase, string> = {
-  uploading: 'Uploading your video…',
-  'upload-complete': 'Upload complete. Preparing analysis…',
-  analyzing: 'Analyzing performance…',
-  'generating-feedback': 'Generating coach feedback…',
-  ready: 'Ready',
-  error: 'Something went wrong',
-}
-
 export const ProcessingIndicator = memo(function ProcessingIndicator({
   phase,
-  progress,
   channelExhausted,
 }: ProcessingIndicatorProps) {
-  const displayProgress = Math.max(progress.upload, progress.analysis, progress.feedback)
+  const isProcessing = phase !== 'ready' && phase !== 'error'
 
   return (
-    <View
+    <YStack
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        padding: 12,
-        alignItems: 'center',
-      }}
+      position="absolute"
+      inset={0}
+      alignItems="center"
+      justifyContent="center"
+      zIndex={1000}
     >
-      {phase !== 'ready' && phase !== 'error' && (
-        <View
+      {isProcessing && (
+        <YStack
           testID="processing-indicator"
-          style={{
-            backgroundColor: '#f3f4f6',
-            borderRadius: 12,
-            padding: 12,
-            alignItems: 'center',
-            gap: 8,
-          }}
+          alignItems="center"
+          justifyContent="center"
+          gap="$4"
         >
+          <YStack
+            width={60}
+            height={60}
+            alignItems="center"
+            justifyContent="center"
+            testID="processing-spinner"
+            accessibilityLabel="Processing spinner"
+            accessibilityRole="progressbar"
+            accessibilityState={{ busy: true }}
+          >
+            <Spinner
+              size="large"
+              color="white"
+            />
+          </YStack>
           <Text
             fontSize="$4"
             fontWeight="600"
-            color="$color11"
+            color="white"
+            textAlign="center"
+            accessibilityLabel="Processing video analysis"
           >
-            {PHASE_LABELS[phase]}
+            Analysing video...
           </Text>
-          <Text color="$color9">{displayProgress}%</Text>
-        </View>
+          <Text
+            fontSize="$4"
+            fontWeight="600"
+            color="white"
+            textAlign="center"
+          >
+            This too shall pass.
+          </Text>
+        </YStack>
       )}
 
       {channelExhausted && (
-        <View
+        <YStack
           testID="channel-warning"
-          style={{
-            marginTop: 8,
-            padding: 8,
-            backgroundColor: '#f97316',
-            borderRadius: 8,
-          }}
+          marginTop={8}
+          padding={8}
+          backgroundColor="#f97316"
+          borderRadius={8}
         >
           <Text
             color="$white"
@@ -82,9 +85,9 @@ export const ProcessingIndicator = memo(function ProcessingIndicator({
           >
             Connection unstable
           </Text>
-        </View>
+        </YStack>
       )}
-    </View>
+    </YStack>
   )
 })
 

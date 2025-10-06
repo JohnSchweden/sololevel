@@ -33,10 +33,6 @@ const createProps = () => ({
   onRetryFeedback: jest.fn(),
   onDismissError: jest.fn(),
   onSelectAudio: jest.fn(),
-  onShare: jest.fn(),
-  onLike: jest.fn(),
-  onComment: jest.fn(),
-  onBookmark: jest.fn(),
 })
 
 // Mock components before importing FeedbackSection
@@ -54,7 +50,7 @@ describe('FeedbackSection', () => {
     mockFeedbackPanel.mockClear()
   })
 
-  it('renders social actions when panel expanded', () => {
+  it('does not render social actions (moved to VideoPlayerSection)', () => {
     const props = createProps()
     render(
       <FeedbackSection
@@ -63,17 +59,8 @@ describe('FeedbackSection', () => {
       />
     )
 
-    expect(mockSocialIcons).toHaveBeenCalled()
-    const socialProps = mockSocialIcons.mock.calls[0][0]
-    socialProps.onShare()
-    socialProps.onLike()
-    socialProps.onComment()
-    socialProps.onBookmark()
-
-    expect(props.onShare).toHaveBeenCalled()
-    expect(props.onLike).toHaveBeenCalled()
-    expect(props.onComment).toHaveBeenCalled()
-    expect(props.onBookmark).toHaveBeenCalled()
+    // Social icons are no longer rendered in FeedbackSection
+    expect(mockSocialIcons).not.toHaveBeenCalled()
   })
 
   it('invokes panel callbacks', () => {

@@ -1,7 +1,7 @@
 ---
 description: Error handling patterns for fast MVP development
 globs: ["**/hooks/**/*", "**/api/**/*", "**/components/**/*", "**/*query*", "**/*mutation*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Error Handling Rules

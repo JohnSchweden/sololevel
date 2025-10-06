@@ -2,12 +2,24 @@ import { render } from '@testing-library/react-native'
 
 import { ProcessingIndicator } from './ProcessingIndicator'
 
+// Minimal Tamagui mock for RN test environment
+jest.mock('tamagui', () => {
+  const React = require('react')
+  const RN = require('react-native')
+  return {
+    YStack: ({ children, testID, ...props }: any) =>
+      React.createElement(RN.View, { testID, ...props }, children),
+    Text: ({ children, ...props }: any) => React.createElement(RN.Text, { ...props }, children),
+    Spinner: () => React.createElement(RN.View, { accessibilityRole: 'progressbar' }),
+  }
+})
+
 describe('ProcessingIndicator', () => {
-  it('renders phase and progress', () => {
+  it('renders processing overlay when not ready', () => {
     const { getByTestId } = render(
       <ProcessingIndicator
         phase="analyzing"
-        progress={{ upload: 20, analysis: 40, feedback: 10 }}
+        progress={{ upload: 0, analysis: 0, feedback: 0 }}
         channelExhausted={false}
       />
     )
@@ -32,7 +44,7 @@ describe('ProcessingIndicator', () => {
     const { getByTestId } = render(
       <ProcessingIndicator
         phase="analyzing"
-        progress={{ upload: 20, analysis: 40, feedback: 10 }}
+        progress={{ upload: 0, analysis: 0, feedback: 0 }}
         channelExhausted
       />
     )

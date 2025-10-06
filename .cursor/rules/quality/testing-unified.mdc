@@ -1,7 +1,7 @@
 ---
 description: Unified testing strategy coordinator for Jest and Vitest environments
 globs: ["**/*.test.*", "**/*.spec.*"]
-alwaysApply: true
+alwaysApply: false
 references: ["quality/testing/testing-patterns", "quality/testing/testing-react-native", "quality/testing/testing-web", "quality/testing/testing-setup", "quality/testing/testing-troubleshooting", "quality/testing/testing-metrics"]
 ---
 

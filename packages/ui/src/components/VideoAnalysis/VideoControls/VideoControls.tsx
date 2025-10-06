@@ -19,7 +19,7 @@ import React, {
   useImperativeHandle,
 } from 'react'
 import { PanResponder, Pressable, View } from 'react-native'
-import { Button, Spinner, Text, XStack, YStack } from 'tamagui'
+import { Button, Text, XStack, YStack } from 'tamagui'
 
 export interface VideoControlsRef {
   triggerMenu: () => void
@@ -259,124 +259,78 @@ export const VideoControls = React.memo(
             {headerComponent && <AppHeaderContainer>{headerComponent}</AppHeaderContainer>}
 
             {/* Center Controls - Absolutely positioned in vertical center of full screen */}
-            {isProcessing ? (
-              <YStack
-                position="absolute"
-                inset={0}
-                backgroundColor="rgba(0,0,0,0.0)"
-                justifyContent="center"
-                alignItems="center"
-                gap="$4"
-                testID="processing-overlay"
-                accessibilityLabel="Processing overlay"
-              >
-                <YStack
-                  width={60}
-                  height={60}
-                  //backgroundColor="$blue9"
-                  //borderRadius={30}
-                  justifyContent="center"
-                  alignItems="center"
-                  testID="processing-spinner"
-                  accessibilityLabel="Processing spinner"
-                  accessibilityRole="progressbar"
-                  accessibilityState={{ busy: true }}
-                >
-                  <Spinner
-                    size="large"
-                    color="white"
-                  />
-                </YStack>
-                <Text
-                  fontSize="$4"
-                  fontWeight="600"
-                  color="white"
-                  textAlign="center"
-                  accessibilityLabel="Processing video analysis"
-                >
-                  Analysing video...
-                </Text>
-                <Text
-                  fontSize="$4"
-                  fontWeight="600"
-                  color="white"
-                  textAlign="center"
-                >
-                  This too shall pass.
-                </Text>
-              </YStack>
-            ) : (
-              <XStack
-                position="absolute"
-                left={0}
-                right={0}
-                top="50%"
-                y="-50%"
-                justifyContent="center"
-                alignItems="center"
-                gap="$4"
-                accessibilityLabel="Video playback controls"
-              >
-                <Button
-                  chromeless
-                  icon={<SkipBack />}
-                  size={60 * scaleFactor}
-                  backgroundColor="rgba(255, 255, 255, 0.60)"
-                  borderRadius={30 * scaleFactor}
-                  onPress={() => {
-                    showControlsAndResetTimer()
-                    onSeek(Math.max(0, currentTime - 10))
-                  }}
-                  testID="rewind-button"
-                  accessibilityLabel="Rewind 10 seconds"
-                  accessibilityRole="button"
-                  accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
-                />
-                <Button
-                  chromeless
-                  icon={videoEnded ? <RotateCcw /> : isPlaying ? <Pause /> : <Play />}
-                  size={80 * scaleFactor}
-                  backgroundColor="rgba(255,255,255,0.60)"
-                  borderRadius={40 * scaleFactor}
-                  onPress={() => {
-                    showControlsAndResetTimer()
-                    if (videoEnded && onReplay) {
-                      onReplay()
-                    } else {
-                      isPlaying ? onPause() : onPlay()
-                    }
-                  }}
-                  testID={videoEnded ? 'replay-button' : isPlaying ? 'pause-button' : 'play-button'}
-                  accessibilityLabel={
-                    videoEnded ? 'Replay video' : isPlaying ? 'Pause video' : 'Play video'
+            <XStack
+              position="absolute"
+              left={0}
+              right={0}
+              top="50%"
+              y="-50%"
+              justifyContent="center"
+              alignItems="center"
+              gap="$4"
+              accessibilityLabel="Video playback controls"
+              opacity={isProcessing ? 0 : 1}
+              pointerEvents={isProcessing ? 'none' : 'auto'}
+            >
+              <Button
+                chromeless
+                icon={<SkipBack />}
+                size={60 * scaleFactor}
+                backgroundColor="rgba(255, 255, 255, 0.60)"
+                borderRadius={30 * scaleFactor}
+                onPress={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.max(0, currentTime - 10))
+                }}
+                testID="rewind-button"
+                accessibilityLabel="Rewind 10 seconds"
+                accessibilityRole="button"
+                accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
+              />
+              <Button
+                chromeless
+                icon={videoEnded ? <RotateCcw /> : isPlaying ? <Pause /> : <Play />}
+                size={80 * scaleFactor}
+                backgroundColor="rgba(255,255,255,0.60)"
+                borderRadius={40 * scaleFactor}
+                onPress={() => {
+                  showControlsAndResetTimer()
+                  if (videoEnded && onReplay) {
+                    onReplay()
+                  } else {
+                    isPlaying ? onPause() : onPlay()
                   }
-                  accessibilityRole="button"
-                  accessibilityHint={
-                    videoEnded
-                      ? 'Restart video from beginning'
-                      : isPlaying
-                        ? 'Pause video playback'
-                        : 'Start video playback'
-                  }
-                  accessibilityState={{ selected: isPlaying }}
-                />
-                <Button
-                  chromeless
-                  icon={<SkipForward />}
-                  size={60 * scaleFactor}
-                  backgroundColor="rgba(255,255,255,0.60)"
-                  borderRadius={30 * scaleFactor}
-                  onPress={() => {
-                    showControlsAndResetTimer()
-                    onSeek(Math.min(duration, currentTime + 10))
-                  }}
-                  testID="fast-forward-button"
-                  accessibilityLabel="Fast forward 10 seconds"
-                  accessibilityRole="button"
-                  accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
-                />
-              </XStack>
-            )}
+                }}
+                testID={videoEnded ? 'replay-button' : isPlaying ? 'pause-button' : 'play-button'}
+                accessibilityLabel={
+                  videoEnded ? 'Replay video' : isPlaying ? 'Pause video' : 'Play video'
+                }
+                accessibilityRole="button"
+                accessibilityHint={
+                  videoEnded
+                    ? 'Restart video from beginning'
+                    : isPlaying
+                      ? 'Pause video playback'
+                      : 'Start video playback'
+                }
+                accessibilityState={{ selected: isPlaying }}
+              />
+              <Button
+                chromeless
+                icon={<SkipForward />}
+                size={60 * scaleFactor}
+                backgroundColor="rgba(255,255,255,0.60)"
+                borderRadius={30 * scaleFactor}
+                onPress={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.min(duration, currentTime + 10))
+                }}
+                testID="fast-forward-button"
+                accessibilityLabel="Fast forward 10 seconds"
+                accessibilityRole="button"
+                accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
+              />
+            </XStack>
 
             {/* Bottom Controls */}
             <YStack accessibilityLabel="Video timeline and controls">

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 // Mock ConnectionErrorBanner component
-jest.mock('../ConnectionErrorBanner', () => ({
+jest.mock('./ConnectionErrorBanner', () => ({
   ConnectionErrorBanner: ({ isVisible, error, reconnectAttempts, onRetry, onDismiss }: any) => {
     const React = require('react')
 

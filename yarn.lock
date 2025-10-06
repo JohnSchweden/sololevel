@@ -19518,7 +19518,7 @@ __metadata:
     react-native-worklets-core: "npm:^1.6.2"
     react-test-renderer: "npm:19.0.0"
     storybook: "npm:^9.1.2"
-    supabase: "npm:2.47.2"
+    supabase: "npm:2.48.3"
     turbo: "npm:^1.13.4"
     typescript: "npm:^5.9.2"
     ultra-runner: "npm:^3.10.5"
@@ -20019,9 +20019,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"supabase@npm:2.47.2":
-  version: 2.47.2
-  resolution: "supabase@npm:2.47.2"
+"supabase@npm:2.48.3":
+  version: 2.48.3
+  resolution: "supabase@npm:2.48.3"
   dependencies:
     bin-links: "npm:^5.0.0"
     https-proxy-agent: "npm:^7.0.2"
@@ -20029,7 +20029,7 @@ __metadata:
     tar: "npm:7.5.1"
   bin:
     supabase: bin/supabase
-  checksum: 10c0/b6711fdb18eafec5b238c8ed1542176dc7199f304335d18074a4dc7740df5671e08683959c5ff0016ecf56bf3f5e659430da158cac346a8d2b3401e2bb3ff702
+  checksum: 10c0/3f349286b824638c7c7bc9d6f50645f3be7ade356909e9f849330eaa95033d2da3c68977cd48c7880d40bc845f6ff39faeb4b5707793dab9c0173ced53234967
   languageName: node
   linkType: hard
 

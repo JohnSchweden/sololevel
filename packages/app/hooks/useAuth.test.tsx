@@ -48,7 +48,7 @@ const mockAuthStore: {
   setInitialized: jest.fn(),
 }
 
-jest.mock('../../stores/auth', () => ({
+jest.mock('../stores/auth', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 

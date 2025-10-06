@@ -56,6 +56,18 @@ const createProps = () => ({
   },
   coachSpeaking: false,
   panelFraction: 0.05,
+  socialCounts: {
+    likes: 1200,
+    comments: 89,
+    bookmarks: 234,
+    shares: 1500,
+  },
+  onSocialAction: {
+    onShare: jest.fn(),
+    onLike: jest.fn(),
+    onComment: jest.fn(),
+    onBookmark: jest.fn(),
+  },
 })
 
 jest.mock('@my/ui', () => ({
@@ -70,6 +82,7 @@ jest.mock('@ui/components/VideoAnalysis', () => {
     CoachAvatar: jest.fn(() => null),
     FeedbackBubbles: jest.fn(() => null),
     MotionCaptureOverlay: jest.fn(() => null),
+    SocialIcons: jest.fn(() => null),
     VideoContainer: jest.fn(({ children }) => children),
     VideoControls: jest.fn(({ onPlay, onPause, onReplay, onSeek, children }: any) =>
       React.createElement(

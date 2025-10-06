@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
 
-import { useVideoPlayback } from '../useVideoPlayback'
+import { useVideoPlayback } from './useVideoPlayback'
 
 jest.mock('@my/logging', () => ({
   log: {

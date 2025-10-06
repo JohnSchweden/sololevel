@@ -1,7 +1,7 @@
 ---
 description: TypeScript configuration and standards for cross-platform development
 globs: ["**/*.ts", "**/*.tsx", "tsconfig.json", "**/*.d.ts"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # TypeScript Standards
