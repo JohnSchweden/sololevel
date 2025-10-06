@@ -66,9 +66,14 @@ export function useFeedbackAudioSource(
         return
       }
 
+      // Handle both numeric and string feedback IDs
       const numericId = Number.parseInt(feedbackId, 10)
       if (Number.isNaN(numericId)) {
-        log.warn(CONTEXT, 'Skipping audio fetch due to non-numeric feedback id', { feedbackId })
+        // For non-numeric IDs (like mock data), skip audio fetch silently
+        // This is expected behavior for mock/seed data
+        log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
+          feedbackId,
+        })
         return
       }
 

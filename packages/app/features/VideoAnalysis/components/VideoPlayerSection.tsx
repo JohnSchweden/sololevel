@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 
 import { YStack } from 'tamagui'
 
@@ -17,6 +17,7 @@ import {
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
 
+import { useVideoAnalysisContext } from '../contexts/VideoAnalysisContext'
 import type { FeedbackPanelItem } from '../types'
 
 interface BubbleState {
@@ -33,9 +34,6 @@ interface AudioOverlayState {
 
 interface VideoPlayerSectionProps {
   videoControlsRef: React.RefObject<VideoControlsRef | null>
-  videoUri: string | null
-  currentTime: number
-  duration: number
   pendingSeek: number | null
   userIsPlaying: boolean
   videoShouldPlay: boolean
@@ -48,7 +46,7 @@ interface VideoPlayerSectionProps {
   onReplay: () => void
   onSeek: (time: number) => void
   onSeekComplete: (seekedTime: number | null) => void
-  onProgress: (data: { currentTime: number }) => void
+  onSignificantProgress: (time: number) => void
   onLoad: (data: { duration: number }) => void
   onEnd: () => void
   onTap: () => void
@@ -93,9 +91,6 @@ const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
 
 export const VideoPlayerSection = memo(function VideoPlayerSection({
   videoControlsRef,
-  videoUri,
-  currentTime,
-  duration,
   pendingSeek,
   userIsPlaying,
   videoShouldPlay,
@@ -108,7 +103,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onReplay,
   onSeek,
   onSeekComplete,
-  onProgress,
+  onSignificantProgress,
   onLoad,
   onEnd,
   onTap,
@@ -122,6 +117,36 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   socialCounts,
   onSocialAction,
 }: VideoPlayerSectionProps) {
+  // Get rarely-changing data from context
+  const { videoUri } = useVideoAnalysisContext()
+
+  // Manage currentTime and duration internally
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const lastNotifiedTimeRef = useRef(0)
+
+  // Only notify parent on significant progress changes (> 1 second)
+  const handleProgress = useCallback(
+    (data: { currentTime: number }) => {
+      setCurrentTime(data.currentTime)
+
+      // Notify parent only if time changed significantly
+      if (Math.abs(data.currentTime - lastNotifiedTimeRef.current) > 1.0) {
+        lastNotifiedTimeRef.current = data.currentTime
+        onSignificantProgress(data.currentTime)
+      }
+    },
+    [onSignificantProgress]
+  )
+
+  const handleLoad = useCallback(
+    (data: { duration: number }) => {
+      setDuration(data.duration)
+      setCurrentTime(0)
+      onLoad(data)
+    },
+    [onLoad]
+  )
   const activeBubbleMessages = useMemo(() => {
     if (!bubbleState.visible || bubbleState.currentIndex === null) {
       return []
@@ -161,8 +186,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               isPlaying={videoShouldPlay}
               onPause={onPause}
               onEnd={onEnd}
-              onLoad={onLoad}
-              onProgress={onProgress}
+              onLoad={handleLoad}
+              onProgress={handleProgress}
               seekToTime={pendingSeek}
               onSeekComplete={() => onSeekComplete(pendingSeek ?? null)}
             />

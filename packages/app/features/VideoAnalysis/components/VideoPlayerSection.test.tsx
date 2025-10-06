@@ -5,11 +5,16 @@ import { AudioFeedback } from '@ui/components/VideoAnalysis'
 
 import { VideoPlayerSection } from './VideoPlayerSection'
 
+// Mock VideoAnalysisContext
+jest.mock('../contexts/VideoAnalysisContext', () => ({
+  useVideoAnalysisContext: () => ({
+    videoUri: 'video.mp4',
+    feedbackItems: [],
+  }),
+}))
+
 const createProps = () => ({
   videoControlsRef: { current: null },
-  videoUri: 'video.mp4',
-  currentTime: 5,
-  duration: 60,
   pendingSeek: null,
   userIsPlaying: false,
   videoShouldPlay: false,
@@ -22,7 +27,7 @@ const createProps = () => ({
   onReplay: jest.fn(),
   onSeek: jest.fn(),
   onSeekComplete: jest.fn(),
-  onProgress: jest.fn(),
+  onSignificantProgress: jest.fn(),
   onLoad: jest.fn(),
   onEnd: jest.fn(),
   onTap: jest.fn(),
@@ -109,7 +114,7 @@ jest.mock('@ui/components/VideoAnalysis', () => {
 })
 
 describe('VideoPlayerSection', () => {
-  const mockAudioFeedback = AudioFeedback as jest.Mock
+  const mockAudioFeedback = AudioFeedback as unknown as jest.Mock
 
   beforeEach(() => {
     mockAudioFeedback.mockClear()

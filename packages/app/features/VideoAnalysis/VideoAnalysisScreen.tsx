@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { YStack } from 'tamagui'
 
@@ -10,6 +10,7 @@ import { FeedbackSection } from './components/FeedbackSection'
 import { ProcessingIndicator } from './components/ProcessingIndicator'
 import { UploadErrorState } from './components/UploadErrorState'
 import { VideoPlayerSection } from './components/VideoPlayerSection'
+import { VideoAnalysisProvider } from './contexts/VideoAnalysisContext'
 import { useAnalysisState } from './hooks/useAnalysisState'
 import { useAudioController } from './hooks/useAudioController'
 import { useBubbleController } from './hooks/useBubbleController'
@@ -79,15 +80,12 @@ export function VideoAnalysisScreen({
   const videoPlayback = useVideoPlayback(initialStatus)
   const {
     isPlaying,
-    currentTime,
-    duration,
     pendingSeek,
     videoEnded,
     play: playVideo,
     pause: pauseVideo,
     replay: replayVideo,
     seek: seekVideo,
-    handleProgress: updateProgress,
     handleLoad: registerDuration,
     handleEnd: handleVideoComplete,
     handleSeekComplete: resolveSeek,
@@ -117,6 +115,9 @@ export function VideoAnalysisScreen({
     [feedbackItems]
   )
 
+  // Track current time (updated less frequently via onSignificantProgress)
+  const [currentTime, setCurrentTime] = useState(0)
+
   const bubbleController = useBubbleController(
     bubbleFeedbackItems,
     currentTime,
@@ -124,7 +125,7 @@ export function VideoAnalysisScreen({
     feedbackAudio.audioUrls,
     audioController.duration,
     {
-      onBubbleShow: ({ index }) => {
+      onBubbleShow: ({ index }: { index: number }) => {
         const item = bubbleFeedbackItems[index]
         if (!item) return
 
@@ -176,11 +177,12 @@ export function VideoAnalysisScreen({
     feedbackPanel.selectFeedback(feedbackSelection.selectedFeedbackId)
   }, [feedbackPanel, feedbackSelection.selectedFeedbackId])
 
-  const handleVideoProgress = useCallback(
-    (data: { currentTime: number }) => {
-      updateProgress(data)
+  // Only called on significant progress changes (> 1 second)
+  const handleSignificantProgress = useCallback(
+    (time: number) => {
+      setCurrentTime(time)
 
-      const triggeredIndex = bubbleController.checkAndShowBubbleAtTime(data.currentTime * 1000)
+      const triggeredIndex = bubbleController.checkAndShowBubbleAtTime(time * 1000)
       if (triggeredIndex === null) {
         return
       }
@@ -197,7 +199,7 @@ export function VideoAnalysisScreen({
         audioController.setIsPlaying(true)
       }
     },
-    [audioController, bubbleController, feedbackAudio, feedbackItems, feedbackPanel, updateProgress]
+    [audioController, bubbleController, feedbackAudio, feedbackItems, feedbackPanel]
   )
 
   const handleSeek = useCallback(
@@ -240,151 +242,123 @@ export function VideoAnalysisScreen({
     feedbackSelection.clearSelection()
   }, [audioController, feedbackAudio, feedbackSelection])
 
-  const videoPlayerProps = useMemo(
-    () => ({
-      videoControlsRef,
-      videoUri: resolvedVideoUri,
-      currentTime,
-      duration,
-      pendingSeek,
-      userIsPlaying: isPlaying,
-      videoShouldPlay: videoAudioSync.shouldPlayVideo,
-      videoEnded,
-      showControls: analysisState.isProcessing || !isPlaying || videoEnded,
-      isProcessing: analysisState.isProcessing,
-      videoAreaScale: 1 - feedbackPanel.panelFraction,
-      onPlay: playVideo,
-      onPause: pauseVideo,
-      onReplay: replayVideo,
-      onSeek: handleSeek,
-      onSeekComplete: handleSeekComplete,
-      onProgress: handleVideoProgress,
-      onLoad: registerDuration,
-      onEnd: handleVideoComplete,
-      onTap: () => {},
-      onMenuPress: onMenuPress ?? (() => {}),
-      headerBackHandler: onBack,
-      audioPlayerController: audioController,
-      bubbleState: {
-        visible: bubbleController.bubbleVisible,
-        currentIndex: bubbleController.currentBubbleIndex,
-        items: feedbackItems,
-      },
-      audioOverlay: {
-        shouldShow: shouldShowAudioOverlay,
-        activeAudio: feedbackAudio.activeAudio,
-        onClose: handleAudioOverlayClose,
-      },
-      coachSpeaking: feedbackSelection.isCoachSpeaking,
-      panelFraction: feedbackPanel.panelFraction,
-      socialCounts: {
-        likes: 1200,
-        comments: 89,
-        bookmarks: 234,
-        shares: 1500,
-      },
-      onSocialAction: {
-        onShare: () => log.info('VideoAnalysisScreen', 'Share button pressed'),
-        onLike: () => log.info('VideoAnalysisScreen', 'Like button pressed'),
-        onComment: () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
-        onBookmark: () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
-      },
-    }),
-    [
-      analysisState.isProcessing,
-      audioController,
-      bubbleController.bubbleVisible,
-      bubbleController.currentBubbleIndex,
-      currentTime,
-      duration,
-      feedbackAudio.activeAudio,
-      feedbackItems,
-      feedbackPanel.panelFraction,
-      feedbackSelection.isCoachSpeaking,
-      handleAudioOverlayClose,
-      handleSeek,
-      handleSeekComplete,
-      handleVideoComplete,
-      handleVideoProgress,
-      isPlaying,
-      onBack,
-      onMenuPress,
-      pauseVideo,
-      pendingSeek,
-      playVideo,
-      registerDuration,
-      replayVideo,
-      resolvedVideoUri,
-      shouldShowAudioOverlay,
-      videoAudioSync.shouldPlayVideo,
-      videoEnded,
-      videoControlsRef,
-    ]
-  )
-
-  const feedbackSectionProps = useMemo(
-    () => ({
-      panelFraction: feedbackPanel.panelFraction,
-      activeTab: feedbackPanel.activeTab,
-      feedbackItems,
-      selectedFeedbackId: feedbackSelection.selectedFeedbackId,
-      currentVideoTime: currentTime,
-      videoDuration: duration,
-      errors: feedbackAudio.errors,
-      audioUrls: feedbackAudio.audioUrls,
-      onTabChange: feedbackPanel.setActiveTab,
-      onExpand: feedbackPanel.expand,
-      onCollapse: handleCollapsePanel,
-      onItemPress: handleFeedbackItemPress,
-      onSeek: handleSeek,
-      onRetryFeedback: analysisState.feedback.retryFailedFeedback,
-      onDismissError: feedbackAudio.clearError,
-      onSelectAudio: (feedbackId: string) => {
-        feedbackAudio.selectAudio(feedbackId)
-        audioController.setIsPlaying(true)
-      },
-      onShare: () => log.info('VideoAnalysisScreen', 'Share button pressed'),
-      onLike: () => log.info('VideoAnalysisScreen', 'Like button pressed'),
-      onComment: () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
-      onBookmark: () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
-    }),
-    [
-      analysisState.feedback.retryFailedFeedback,
-      audioController,
-      currentTime,
-      duration,
-      feedbackAudio,
-      feedbackItems,
-      feedbackPanel,
-      feedbackSelection.selectedFeedbackId,
-      handleCollapsePanel,
-      handleFeedbackItemPress,
-      handleSeek,
-    ]
-  )
-
   const shouldShowUploadError = Boolean(uploadError)
 
+  // Provide rarely-changing data via context
+  const contextValue = useMemo(
+    () => ({
+      videoUri: resolvedVideoUri,
+      feedbackItems,
+    }),
+    [resolvedVideoUri, feedbackItems]
+  )
+
+  // Stable callbacks for social actions
+  const handleShare = useCallback(() => log.info('VideoAnalysisScreen', 'Share button pressed'), [])
+  const handleLike = useCallback(() => log.info('VideoAnalysisScreen', 'Like button pressed'), [])
+  const handleComment = useCallback(
+    () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
+    []
+  )
+  const handleBookmark = useCallback(
+    () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
+    []
+  )
+
+  const handleSelectAudio = useCallback(
+    (feedbackId: string) => {
+      feedbackAudio.selectAudio(feedbackId)
+      audioController.setIsPlaying(true)
+    },
+    [audioController, feedbackAudio]
+  )
+
   return (
-    <YStack flex={1}>
-      <UploadErrorState
-        visible={shouldShowUploadError}
-        errorMessage={uploadError}
-        onRetry={() => {
-          onBack?.()
-        }}
-        onBack={onBack ?? (() => {})}
-      />
+    <VideoAnalysisProvider value={contextValue}>
+      <YStack flex={1}>
+        <UploadErrorState
+          visible={shouldShowUploadError}
+          errorMessage={uploadError}
+          onRetry={() => {
+            onBack?.()
+          }}
+          onBack={onBack ?? (() => {})}
+        />
 
-      {!shouldShowUploadError && <VideoPlayerSection {...videoPlayerProps} />}
+        {!shouldShowUploadError && (
+          <VideoPlayerSection
+            videoControlsRef={videoControlsRef}
+            pendingSeek={pendingSeek}
+            userIsPlaying={isPlaying}
+            videoShouldPlay={videoAudioSync.shouldPlayVideo}
+            videoEnded={videoEnded}
+            showControls={analysisState.isProcessing || !isPlaying || videoEnded}
+            isProcessing={analysisState.isProcessing}
+            videoAreaScale={1 - feedbackPanel.panelFraction}
+            onPlay={playVideo}
+            onPause={pauseVideo}
+            onReplay={replayVideo}
+            onSeek={handleSeek}
+            onSeekComplete={handleSeekComplete}
+            onSignificantProgress={handleSignificantProgress}
+            onLoad={registerDuration}
+            onEnd={handleVideoComplete}
+            onTap={() => {}}
+            onMenuPress={onMenuPress}
+            headerBackHandler={onBack}
+            audioPlayerController={audioController}
+            bubbleState={{
+              visible: bubbleController.bubbleVisible,
+              currentIndex: bubbleController.currentBubbleIndex,
+              items: feedbackItems,
+            }}
+            audioOverlay={{
+              shouldShow: shouldShowAudioOverlay,
+              activeAudio: feedbackAudio.activeAudio,
+              onClose: handleAudioOverlayClose,
+            }}
+            coachSpeaking={feedbackSelection.isCoachSpeaking}
+            panelFraction={feedbackPanel.panelFraction}
+            socialCounts={{
+              likes: 1200,
+              comments: 89,
+              bookmarks: 234,
+              shares: 1500,
+            }}
+            onSocialAction={{
+              onShare: handleShare,
+              onLike: handleLike,
+              onComment: handleComment,
+              onBookmark: handleBookmark,
+            }}
+          />
+        )}
 
-      <ProcessingIndicator
-        phase={analysisState.phase}
-        progress={analysisState.progress}
-        channelExhausted={analysisState.channelExhausted}
-      />
+        <ProcessingIndicator
+          phase={analysisState.phase}
+          progress={analysisState.progress}
+          channelExhausted={analysisState.channelExhausted}
+        />
 
-      <FeedbackSection {...feedbackSectionProps} />
-    </YStack>
+        <FeedbackSection
+          panelFraction={feedbackPanel.panelFraction}
+          activeTab={feedbackPanel.activeTab}
+          feedbackItems={feedbackItems}
+          selectedFeedbackId={feedbackSelection.selectedFeedbackId}
+          currentVideoTime={currentTime}
+          videoDuration={0}
+          errors={feedbackAudio.errors}
+          audioUrls={feedbackAudio.audioUrls}
+          onTabChange={feedbackPanel.setActiveTab}
+          onExpand={feedbackPanel.expand}
+          onCollapse={handleCollapsePanel}
+          onItemPress={handleFeedbackItemPress}
+          onSeek={handleSeek}
+          onRetryFeedback={analysisState.feedback.retryFailedFeedback}
+          onDismissError={feedbackAudio.clearError}
+          onSelectAudio={handleSelectAudio}
+        />
+      </YStack>
+    </VideoAnalysisProvider>
   )
 }

@@ -54,7 +54,7 @@ describe('useMutationWithErrorHandling', () => {
     })
 
     expect(result.current.data).toBe('success')
-    expect(mockMutationFn).toHaveBeenCalledWith('test-input')
+    expect(mockMutationFn).toHaveBeenCalledWith('test-input', expect.any(Object))
     expect(mockToastShow).not.toHaveBeenCalled() // No success toast by default
   })
 
@@ -170,7 +170,7 @@ describe('useMutationWithErrorHandling', () => {
       expect(result.current.isError).toBe(true)
     })
 
-    expect(mockOnError).toHaveBeenCalledWith(mockError, 'test-input', undefined)
+    expect(mockOnError).toHaveBeenCalledWith(mockError, 'test-input', undefined, expect.any(Object))
   })
 
   it('calls custom onSuccess handler', async () => {
@@ -192,7 +192,12 @@ describe('useMutationWithErrorHandling', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(mockOnSuccess).toHaveBeenCalledWith('success', 'test-input', undefined)
+    expect(mockOnSuccess).toHaveBeenCalledWith(
+      'success',
+      'test-input',
+      undefined,
+      expect.any(Object)
+    )
   })
 
   it('includes mutation key in error logging', async () => {
@@ -257,6 +262,6 @@ describe('useMutationWithErrorHandling', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(mockOnMutate).toHaveBeenCalledWith('test-input')
+    expect(mockOnMutate).toHaveBeenCalledWith('test-input', expect.any(Object))
   })
 })

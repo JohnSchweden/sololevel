@@ -25,14 +25,16 @@ export function useVideoAudioSync({
   // Audio should play when active
   const shouldPlayAudio = isAudioActive
 
-  // Debug logging for sync state changes
-  log.debug('useVideoAudioSync', 'Sync state calculated', {
-    isVideoPlaying,
-    isAudioActive,
-    shouldPlayVideo,
-    shouldPlayAudio,
-    isVideoPausedForAudio,
-  })
+  // Debug logging for sync state changes (only in dev mode)
+  if (__DEV__) {
+    log.debug('useVideoAudioSync', 'Sync state calculated', {
+      isVideoPlaying,
+      isAudioActive,
+      shouldPlayVideo,
+      shouldPlayAudio,
+      isVideoPausedForAudio,
+    })
+  }
 
   return {
     shouldPlayVideo,

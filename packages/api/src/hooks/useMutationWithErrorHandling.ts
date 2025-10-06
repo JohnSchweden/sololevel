@@ -35,7 +35,7 @@ export function useMutationWithErrorHandling<
 
   return useMutation({
     ...mutationOptions,
-    onError: (error, variables, context) => {
+    onError: (error, variables, context, mutationContext) => {
       // Show user-friendly toast notification
       if (showErrorToast) {
         toast.show(errorMessage || 'Action failed', {
@@ -44,16 +44,16 @@ export function useMutationWithErrorHandling<
       }
 
       // Call custom error handler if provided
-      onError?.(error, variables, context)
+      onError?.(error, variables, context, mutationContext)
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, mutationContext) => {
       // Show success toast if requested
       if (showSuccessToast && successMessage) {
         toast.show(successMessage)
       }
 
       // Call custom success handler if provided
-      onSuccess?.(data, variables, context)
+      onSuccess?.(data, variables, context, mutationContext)
     },
   })
 }
