@@ -10,7 +10,7 @@ import '../../../test-utils/setup'
 import { TestProvider } from '../../../test-utils'
 
 // Import centralized mocks
-import { RecordingState } from '../__tests__/mocks'
+import { RecordingState } from '../mocks'
 
 // Import component to test
 import { RecordingControls } from './RecordingControls'

@@ -10,13 +10,13 @@ import '../../../test-utils/setup'
 import { TestProvider } from '../../../test-utils'
 
 // Import centralized mocks
-import { RecordingState } from './mocks'
+import { RecordingState } from '../mocks'
 
 import { IdleControls } from '../CameraControls/IdleControls'
 import { NavigationDialog } from '../CameraControls/NavigationDialog'
 import { RecordingControls } from '../CameraControls/RecordingControls'
 // Import hooks and components to test integration
-import { useCameraControls, useRecordingStateMachine } from './mocks'
+import { useCameraControls, useRecordingStateMachine } from '../mocks'
 
 describe('Integration Tests', () => {
   describe('Recording Workflow', () => {

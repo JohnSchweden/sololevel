@@ -66,7 +66,7 @@ jest.mock('tamagui', () => {
   }
 })
 
-import { renderWithProvider, screen } from '../test-utils'
+import { renderWithProvider, screen } from './test-utils'
 
 // Mock Tamagui toast hook
 const mockUseToastState = jest.fn()
@@ -96,7 +96,7 @@ jest.mock('@tamagui/toast', () => {
   }
 })
 
-import { NativeToast, __setMockToastState } from '../NativeToast'
+import { NativeToast, __setMockToastState } from './NativeToast'
 
 describe('NativeToast', () => {
   beforeEach(() => {

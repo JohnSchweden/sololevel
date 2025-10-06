@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { FeedbackPanel } from '../components/VideoAnalysis/FeedbackPanel/FeedbackPanel'
+import { renderWithProvider } from '../../../test-utils/TestProvider'
 // VideoAnalysisScreen import removed as it's not used in this test
-import { ProcessingOverlay } from '../components/VideoAnalysis/ProcessingOverlay/ProcessingOverlay'
-import { renderWithProvider } from '../test-utils/TestProvider'
+import { ProcessingOverlay } from '../ProcessingOverlay/ProcessingOverlay'
+import { FeedbackPanel } from './FeedbackPanel'
 
 // Mock window dimensions for different breakpoints
 const mockDimensions = {

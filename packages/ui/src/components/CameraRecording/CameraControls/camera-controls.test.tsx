@@ -9,7 +9,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import '../../../test-utils/setup'
 
 // Import hook to test
-import { useCameraControls } from './mocks'
+import { useCameraControls } from '../mocks'
 
 describe('Camera Controls Hook', () => {
   describe('Initialization', () => {
