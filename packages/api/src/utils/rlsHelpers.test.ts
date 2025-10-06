@@ -6,7 +6,7 @@
 import type { User } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../supabase', () => ({
+vi.mock('../supabase', () => ({
   supabase: {
     auth: {
       getUser: vi.fn(),
@@ -60,10 +60,10 @@ import {
   isUserScopedTable,
   requireAuthentication,
   validateUserOwnership,
-} from '../rlsHelpers'
+} from './rlsHelpers'
 
 // Get the mocked supabase instance
-import { supabase } from '../../supabase'
+import { supabase } from '../supabase'
 const mockSupabase = vi.mocked(supabase)
 
 describe('RLS Helper Functions', () => {

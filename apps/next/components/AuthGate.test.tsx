@@ -4,7 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react'
  */
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AuthGate } from '../components/AuthGate'
+import { AuthGate } from './AuthGate'
 
 // Import the mocked modules properly
 import { useAuth } from '@my/app/hooks/useAuth'

@@ -93,7 +93,7 @@ const mockSupabaseForAudio = {
   }
 }
 
-import { processAudioJobs } from '../workers/audioWorker.ts'
+import { processAudioJobs } from './audioWorker.ts'
 
 Deno.test('Audio worker - processes queued jobs', async () => {
   Deno.env.set('AI_ANALYSIS_MODE', 'mock')

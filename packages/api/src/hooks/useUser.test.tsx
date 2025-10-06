@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { User } from '../../validation'
-import { useCreateUser, useCurrentUser, useUpdateUser, useUser } from '../useUser'
+import type { User } from '../validation'
+import { useCreateUser, useCurrentUser, useUpdateUser, useUser } from './useUser'
 
 // Mock dependencies
-vi.mock('../../supabase', () => {
+vi.mock('../supabase', () => {
   const mockGetSession = vi.fn()
   return {
     supabase: {
@@ -17,11 +17,11 @@ vi.mock('../../supabase', () => {
   }
 })
 
-vi.mock('../../supabase-errors', () => ({
+vi.mock('../supabase-errors', () => ({
   safeSupabaseOperation: vi.fn(),
 }))
 
-vi.mock('../../validation', () => ({
+vi.mock('../validation', () => ({
   ProfileSchema: {},
   validateApiResponse: vi.fn(),
 }))
@@ -52,8 +52,8 @@ describe('useUser', () => {
   })
 
   it('fetches user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
-    const { validateApiResponse } = await import('../../validation')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
+    const { validateApiResponse } = await import('../validation')
 
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
     const mockValidateApiResponse = vi.mocked(validateApiResponse)
@@ -111,7 +111,7 @@ describe('useUser', () => {
   })
 
   it('handles fetch error', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
 
     mockSafeSupabaseOperation.mockResolvedValue({
@@ -154,8 +154,8 @@ describe('useUpdateUser', () => {
   })
 
   it('updates user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
-    const { validateApiResponse } = await import('../../validation')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
+    const { validateApiResponse } = await import('../validation')
 
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
     const mockValidateApiResponse = vi.mocked(validateApiResponse)
@@ -200,7 +200,7 @@ describe('useUpdateUser', () => {
   })
 
   it('handles update error', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
 
     mockSafeSupabaseOperation.mockResolvedValue({
@@ -233,8 +233,8 @@ describe('useCurrentUser', () => {
   })
 
   it('fetches current user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
-    const { validateApiResponse } = await import('../../validation')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
+    const { validateApiResponse } = await import('../validation')
 
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
     const mockValidateApiResponse = vi.mocked(validateApiResponse)
@@ -250,7 +250,7 @@ describe('useCurrentUser', () => {
       updated_at: '2024-01-01T00:00:00Z',
     }
 
-    const { supabase } = await import('../../supabase')
+    const { supabase } = await import('../supabase')
     const mockGetSession = vi.mocked(supabase.auth.getSession)
     mockGetSession.mockResolvedValue({
       data: {
@@ -277,12 +277,12 @@ describe('useCurrentUser', () => {
     })
 
     expect(result.current.data).toEqual(mockUser)
-    const { supabase: supabaseClient3 } = await import('../../supabase')
+    const { supabase: supabaseClient3 } = await import('../supabase')
     expect(supabaseClient3.auth.getSession).toHaveBeenCalled()
   })
 
   it('returns null when no session', async () => {
-    const { supabase: supabaseClient } = await import('../../supabase')
+    const { supabase: supabaseClient } = await import('../supabase')
     const mockGetSession = vi.mocked(supabaseClient.auth.getSession)
     mockGetSession.mockResolvedValue({
       data: { session: null },
@@ -300,7 +300,7 @@ describe('useCurrentUser', () => {
   })
 
   it('returns null when session has no user', async () => {
-    const { supabase: supabaseClient2 } = await import('../../supabase')
+    const { supabase: supabaseClient2 } = await import('../supabase')
     const mockGetSession = vi.mocked(supabaseClient2.auth.getSession)
     mockGetSession.mockResolvedValue({
       data: {
@@ -326,8 +326,8 @@ describe('useCreateUser', () => {
   })
 
   it('creates user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
-    const { validateApiResponse } = await import('../../validation')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
+    const { validateApiResponse } = await import('../validation')
 
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
     const mockValidateApiResponse = vi.mocked(validateApiResponse)
@@ -374,7 +374,7 @@ describe('useCreateUser', () => {
   })
 
   it('handles create error', async () => {
-    const { safeSupabaseOperation } = await import('../../supabase-errors')
+    const { safeSupabaseOperation } = await import('../supabase-errors')
     const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
 
     mockSafeSupabaseOperation.mockResolvedValue({

@@ -1,9 +1,9 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react-native'
 import { useRouter } from 'expo-router'
-import { AuthGate } from '../components/AuthGate'
+import { AuthGate } from './AuthGate'
 
 // Mock expo-router
 jest.mock('expo-router', () => ({

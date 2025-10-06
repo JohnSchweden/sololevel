@@ -4,12 +4,12 @@
  */
 
 import { act, renderHook } from '@testing-library/react'
-import { RECORDING_STATE_CONFIGS } from '../../../test-utils/mock-data'
-import { RecordingState } from '../mocks'
+import { RECORDING_STATE_CONFIGS } from '../../../../test-utils/mock-data'
+import { RecordingState } from '../../mocks'
 
 describe('Recording State Machine', () => {
   // Import the actual hook from mocks
-  const { useRecordingStateMachine } = require('../mocks')
+  const { useRecordingStateMachine } = require('../../mocks')
 
   const mockConfig = {
     maxDurationMs: 60000,

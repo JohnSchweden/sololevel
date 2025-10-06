@@ -11,7 +11,7 @@ vi.mock('@my/logging', () => ({
 }))
 
 // Mock supabase client
-vi.mock('../../supabase', () => ({
+vi.mock('../supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: vi.fn(),
@@ -23,8 +23,8 @@ vi.mock('../../supabase', () => ({
 }))
 
 // Import after mocks
-const { authClient } = await import('../authClient')
-const { supabase } = await import('../../supabase')
+const { authClient } = await import('./authClient')
+const { supabase } = await import('../supabase')
 
 describe('authClient', () => {
   beforeEach(() => {

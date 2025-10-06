@@ -2,7 +2,7 @@
 // Tests both videoPath and videoRecordingId input modes
 
 import { assertEquals, assertExists } from 'https://deno.land/std@0.192.0/testing/asserts.ts'
-import { handleStartAnalysis } from '../routes/handleStartAnalysis.ts'
+import { handleStartAnalysis } from './handleStartAnalysis.ts'
 
 // Mock logger
 const mockLogger = {

@@ -63,7 +63,7 @@ const mockSupabaseForSSML = {
   }
 }
 
-import { processSSMLJobs } from '../workers/ssmlWorker.ts'
+import { processSSMLJobs } from './ssmlWorker.ts'
 
 Deno.test('SSML worker - processes queued jobs', async () => {
   // Test that the SSML worker processes jobs correctly

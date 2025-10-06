@@ -4,10 +4,10 @@
  */
 
 // Import shared test utilities (includes all mocks and setup)
-import '../../../test-utils/setup'
+import '../../../../test-utils/setup'
 import { render, screen } from '@testing-library/react'
-import { TestProvider } from '../../../test-utils'
-import { TOUCH_TARGET_SPECS, generateTouchTargetTestData } from '../../../test-utils/mock-data'
+import { TestProvider } from '../../../../test-utils'
+import { TOUCH_TARGET_SPECS, generateTouchTargetTestData } from '../../../../test-utils/mock-data'
 
 describe('Touch Target Compliance', () => {
   describe.each(generateTouchTargetTestData(TOUCH_TARGET_SPECS))(

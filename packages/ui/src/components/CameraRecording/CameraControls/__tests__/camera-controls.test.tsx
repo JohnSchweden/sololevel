@@ -6,10 +6,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 // Import shared test utilities (includes all mocks and setup)
-import '../../../test-utils/setup'
+import '../../../../test-utils/setup'
 
 // Import hook to test
-import { useCameraControls } from '../mocks'
+import { useCameraControls } from '../../mocks'
 
 describe('Camera Controls Hook', () => {
   describe('Initialization', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { getFirstAudioUrlForFeedback } from '../audioService'
+import { getFirstAudioUrlForFeedback } from './audioService'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -16,7 +16,7 @@ vi.mock('@my/logging', () => ({
 const mockRpc = vi.fn()
 const mockFrom = vi.fn()
 
-vi.mock('../../supabase', () => ({
+vi.mock('../supabase', () => ({
   supabase: {
     rpc: (...args: unknown[]) => mockRpc(...args),
     from: (...args: unknown[]) => mockFrom(...args),
@@ -24,7 +24,7 @@ vi.mock('../../supabase', () => ({
 }))
 
 // eslint-disable-next-line import/first
-import { supabase } from '../../supabase'
+import { supabase } from '../supabase'
 
 const createChainableQuery = () => {
   const chain: {

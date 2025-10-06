@@ -6,6 +6,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    include: [
+      'src/**/*.{test,spec}.{js,ts,tsx}',
+      'src/**/__tests__/**/*.{js,ts,tsx}', // Keep existing pattern for compatibility
+    ],
     server: {
       deps: {
         inline: ['react-native-svg'],

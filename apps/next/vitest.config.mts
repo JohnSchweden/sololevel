@@ -16,6 +16,11 @@ export default defineConfig({
     // Ensure proper jsdom environment for DOM-dependent tests
     environment: 'jsdom',
     setupFiles: ['./test-setup.ts'],
+    // Support both __tests__ and co-located test files
+    testMatch: [
+      '**/__tests__/**/*.test.{js,ts,tsx}',
+      '**/*.test.{js,ts,tsx}',
+    ],
     // Isolate test environments to prevent conflicts
     isolate: true,
     poolOptions: {

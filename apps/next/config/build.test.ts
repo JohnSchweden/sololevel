@@ -17,7 +17,7 @@ test.skip('Next.js build completes', async () => {
   try {
     // Build directly in the next-app workspace to get Next.js output
     buildProcess = exec('yarn workspace next-app build', {
-      cwd: path.resolve(__dirname, '../../..'),
+      cwd: path.resolve(__dirname, '../../../..'),
       env: {
         ...process.env,
         NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
