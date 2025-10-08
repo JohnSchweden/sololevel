@@ -3,24 +3,24 @@
  * Structured output, dev-gated debug, consistent API
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
 
 export interface LoggerLike {
+  trace: (scope: string, message: string, context?: Record<string, unknown>) => void
   debug: (scope: string, message: string, context?: Record<string, unknown>) => void
   info: (scope: string, message: string, context?: Record<string, unknown>) => void
   warn: (scope: string, message: string, context?: Record<string, unknown>) => void
   error: (scope: string, message: string, context?: Record<string, unknown>) => void
+  fatal: (scope: string, message: string, context?: Record<string, unknown>) => void
 }
 
 const LEVEL_ICON: Record<LogLevel, string> = {
-  // debug: '🐛 DBG',
-  // info: 'ℹ INFO', 
-  // warn: '⚠️ WARN',
-  // error: '⛔ ERR',
+  trace: '🔍',
   debug: '🐛',
-  info: 'ℹ️ ️', 
+  info: 'ℹ️ ️', 
   warn: '⚠️',
   error: '⛔',
+  fatal: '💀',
 }
 
 // Production allowlist - critical user actions and state changes that should log in production
@@ -242,6 +242,9 @@ export function formatLine(
 function logWithSpacing(formatted: string, level: LogLevel) {
   // Use the correct console method based on level
   switch (level) {
+    case 'trace':
+      console.debug(formatted)
+      break
     case 'debug':
       console.debug(formatted)
       break
@@ -252,6 +255,9 @@ function logWithSpacing(formatted: string, level: LogLevel) {
       console.warn(' '+formatted)
       break
     case 'error':
+      console.error(formatted)
+      break
+    case 'fatal':
       console.error(formatted)
       break
     default:
@@ -333,6 +339,19 @@ function pushError(
 
 
 export const logger: LoggerLike = {
+  trace(scope: string, message: string, context?: Record<string, unknown>) {
+    const formatted = formatLine('trace', scope, message, context)
+    if (isDev) {
+      // biome-ignore lint/suspicious/noConsole: centralized logging utility
+      logWithSpacing(formatted, 'trace')
+    }
+    pushConsole({
+      level: 'trace',
+      message: `${scope}: ${message}`,
+      args: [context],
+      timestamp: new Date().toISOString()
+    })
+  },
   debug(scope: string, message: string, context?: Record<string, unknown>) {
     const formatted = formatLine('debug', scope, message, context)
     if (isDev) {
@@ -391,6 +410,24 @@ export const logger: LoggerLike = {
       timestamp: new Date().toISOString()
     })
   },
+  fatal(scope: string, message: string, context?: Record<string, unknown>) {
+    const formatted = formatLine('fatal', scope, message, context)
+    // biome-ignore lint/suspicious/noConsole: centralized logging utility
+    logWithSpacing(formatted, 'fatal')
+
+    // Extract stack trace if available in context
+    const stack = context?.error instanceof Error ? context.error.stack :
+                 (context?.stack as string) ||
+                 undefined
+
+    pushError('fatal', scope, message, context, stack)
+    pushConsole({
+      level: 'fatal',
+      message: `${scope}: ${message}`,
+      args: [context],
+      timestamp: new Date().toISOString()
+    })
+  },
 }
 
 export const log = logger
@@ -400,7 +437,7 @@ export function getConsoleLogs(): ConsoleRecord[] {
 }
 
 export function getConsoleErrors(): ConsoleRecord[] {
-  return consoleBuffer.filter((r) => r.level === 'error' || r.level === 'warn')
+  return consoleBuffer.filter((r) => r.level === 'error' || r.level === 'warn' || r.level === 'fatal')
 }
 
 export function getNetworkLogs(): NetworkRecord[] {
@@ -511,4 +548,170 @@ export function disableNetworkLogging(): void {
 
 export function isNetworkLoggingEnabled(): boolean {
   return networkLoggingEnabled
+}
+
+// ============================================================================
+// Change-tracking logger
+// ============================================================================
+
+type PrimitiveValue = string | number | boolean | null | undefined
+
+interface LogOnChangeOptions<T> {
+  /** Extract comparable state signature from full state */
+  selector?: (state: T) => Record<string, PrimitiveValue>
+  /** Custom comparator operating on signatures (default: shallow equal) */
+  comparator?: (prev: Record<string, PrimitiveValue>, next: Record<string, PrimitiveValue>) => boolean
+  /** Log initial state on first call */
+  initialLog?: boolean
+  /** Default log level for changes */
+  level?: LogLevel
+  /** Additional context to include in every log */
+  context?: Record<string, unknown>
+}
+
+// Cache for tracking previous values by key
+const changeCache = new Map<string, any>()
+
+/**
+ * Shallow equality check for objects with primitive values
+ */
+function shallowEqual(
+  objA: Record<string, PrimitiveValue>,
+  objB: Record<string, PrimitiveValue>
+): boolean {
+  const keysA = Object.keys(objA)
+  const keysB = Object.keys(objB)
+
+  if (keysA.length !== keysB.length) return false
+
+  for (const key of keysA) {
+    if (objA[key] !== objB[key]) return false
+  }
+
+  return true
+}
+
+/**
+ * Format a diff showing what changed between two states
+ */
+function formatDiff(
+  prev: Record<string, PrimitiveValue>,
+  next: Record<string, PrimitiveValue>
+): Record<string, unknown> {
+  const diff: Record<string, unknown> = {}
+  
+  // Use Array to avoid Set iteration issues with older TS targets
+  const prevKeys = Object.keys(prev)
+  const nextKeys = Object.keys(next)
+  const allKeys = Array.from(new Set([...prevKeys, ...nextKeys]))
+  
+  for (const key of allKeys) {
+    if (prev[key] !== next[key]) {
+      diff[key] = { prev: prev[key], next: next[key] }
+    }
+  }
+  
+  return diff
+}
+
+/**
+ * Default selector - identity function for objects with primitives
+ */
+function defaultSelector<T>(state: T): Record<string, PrimitiveValue> {
+  if (typeof state !== 'object' || state === null) {
+    return { value: state as any }
+  }
+  return state as Record<string, PrimitiveValue>
+}
+
+/**
+ * Log state only when it changes. Caches previous state by key.
+ * 
+ * @param key - Unique identifier for this state (e.g., "useVideoAudioSync:video-123")
+ * @param nextState - Current state to compare
+ * @param scope - Logger scope (e.g., "useVideoAudioSync")
+ * @param message - Log message
+ * @param options - Configuration options
+ * 
+ * @example
+ * ```ts
+ * // Simple usage with primitives
+ * logOnChange('myCounter', count, 'Counter', 'Count changed')
+ * 
+ * // With selector for complex objects
+ * logOnChange(
+ *   'videoSync',
+ *   fullState,
+ *   'useVideoAudioSync',
+ *   'Sync state changed',
+ *   {
+ *     selector: (s) => ({
+ *       isVideoPlaying: s.isVideoPlaying,
+ *       isAudioActive: s.isAudioActive,
+ *     }),
+ *     level: 'debug'
+ *   }
+ * )
+ * ```
+ */
+export function logOnChange<T>(
+  key: string,
+  nextState: T,
+  scope: string,
+  message: string,
+  options: LogOnChangeOptions<T> = {}
+): void {
+  const {
+    selector = defaultSelector,
+    comparator,
+    initialLog = false,
+    level = 'debug',
+    context = {},
+  } = options
+
+  const nextSignature = selector(nextState)
+  const cacheKey = `${scope}:${key}`
+  const prevSignature = changeCache.get(cacheKey)
+
+  // First call - initialize cache
+  if (prevSignature === undefined) {
+    changeCache.set(cacheKey, nextSignature)
+    
+    if (initialLog) {
+      logger[level](scope, `${message} (initial)`, {
+        ...nextSignature,
+        ...context,
+      })
+    }
+    return
+  }
+
+  // Compare states
+  const hasChanged = comparator
+    ? !comparator(prevSignature, nextSignature)
+    : !shallowEqual(prevSignature, nextSignature)
+
+  if (!hasChanged) {
+    return // No change, skip logging
+  }
+
+  // State changed - log diff and update cache
+  const diff = formatDiff(prevSignature, nextSignature)
+  changeCache.set(cacheKey, nextSignature)
+
+  logger[level](scope, message, {
+    ...diff,
+    ...context,
+  })
+}
+
+/**
+ * Clear cached state for a specific key or all keys
+ */
+export function clearChangeCache(key?: string): void {
+  if (key) {
+    changeCache.delete(key)
+  } else {
+    changeCache.clear()
+  }
 }

@@ -1,4 +1,5 @@
-import { memo, useMemo } from 'react'
+import { log } from '@my/logging'
+import { memo, useEffect, useMemo } from 'react'
 
 import { YStack } from 'tamagui'
 
@@ -52,6 +53,14 @@ export const FeedbackSection = memo(function FeedbackSection({
       })),
     [audioUrls, errors, feedbackItems]
   )
+
+  useEffect(() => {
+    log.debug('FeedbackSection', 'selectedFeedbackId prop changed', {
+      selectedFeedbackId,
+      panelFraction,
+      isExpanded: panelFraction > 0.1,
+    })
+  }, [selectedFeedbackId, panelFraction])
 
   return (
     <YStack

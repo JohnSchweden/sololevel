@@ -3,54 +3,55 @@ description: Mandatory evidence-based verification for all summaries
 alwaysApply: true
 ---
 
-# VERIFICATION PROTOCOL — EVIDENCE REQUIRED
-
 ## Principle: No Claims Without Proof
 
 All summaries must be based on direct, recent verification. Do not make any positive statements unless supported by actual output.
 
-## Pre-Summary Checklist — Run These Commands:
+## Pre-Summary Checklist
 
-1. **Test suite:** `yarn workspace <package> test <testfile.test.*> --verbose`
-2. **Linter:** `yarn lint`
-3. **TypeScript check:** `yarn type-check`
+Run these commands before summarizing:
+1. `yarn type-check`
+2. `yarn lint`
+3. `yarn workspace <package> test <testfile.test.*> --verbose`
 
-## Summary Format (Strictly Enforced):
+## Summary Format (Strictly Enforced)
 
-### 🧪 Test Results (Copy from Output)
+**Test Results:**
 - Command: [exact command run]
-| Metric         | Failed  | Skipped | Passed  | Total     |
-|----------------|---------|---------|---------|-----------|
-| Test Suites    | [number]| [number]| [number]| [number]  |
-| Tests          | [number]| [number]| [number]| [number]  |
+- Test Suites: [failed]/[skipped]/[passed]/[total]
+- Tests: [failed]/[skipped]/[passed]/[total]
 - Failed test names: [list OR "none"]
 
-### 🔍 Code Quality (Copy from Output)
-| Check      | TypeScript  | Lint             |
-|------------|-------------|------------------|
-| Errors     |  [number]   |     [number]     |
+**Code Quality:**
+- TypeScript errors: [number]
+- Lint errors: [number]
 - Issues: [list with file:line OR "none"]
 
-### 📊 Status
-| Status   | Criteria                                             | Notes                        |
-|----------|------------------------------------------------------|------------------------------|
-| ✅ Complete | All tests pass, zero lint/TS errors                  |                              |
-| ⚠️ Partial  | [X] test(s) failed, [Y] lint/TS errors               | Specify numbers in brackets  |
-| 🚧 Blocked  | [describe blocking issues]                           | Detail blocking issues       |
+**Status:**
+- ✅ Complete: All tests pass, zero lint/TS errors
+- ⚠️ Partial: [X] test(s) failed, [Y] lint/TS errors
+- 🚧 Blocked: [describe blocking issues]
 
-## Do NOT Claim Without Evidence:
-- ❌ "Implemented successfully"
-- ❌ "Everything works"
-- ❌ "All tests pass"
-- ❌ "No errors"
-- ❌ Any positive statement not directly supported by output
+## Unverified Content Policy
 
-## If You Cannot Verify:
-Clearly state:  
-"⚠️ UNVERIFIED — Status unknown. Please run: [commands]"
+**Never present generated, inferred, speculated, or deduced content as fact.**
 
-## Test Coverage Changes:
-If tests were removed or reduced:
-- ⚠️ Clearly state: "Test coverage reduced"
-- Report: original vs. current test count
-- Explain what was changed and why
+**If you cannot verify something directly:**
+- State: "I cannot verify this" or "⚠️ UNVERIFIED — Status unknown. Please run: [commands]"
+- Label unverified content: [⚠️ INFERENCE] [⚠️ SPECULATION] [⚠️ UNVERIFIED]
+- Ask for clarification instead of guessing or filling gaps
+
+**Forbidden claims without evidence:**
+- "Implemented successfully", "Everything works", "All tests pass", "No errors"
+- Words requiring evidence: Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
+
+**For LLM behavior claims:**
+- Include [⚠️ INFERENCE] or [⚠️ UNVERIFIED] with note that it's based on observed patterns
+
+**If you break this directive:**
+> Correction: I previously made an unverified claim. That was incorrect and should have been labeled.
+
+**Never override or paraphrase user input unless explicitly requested.**
+
+## Test Coverage Changes
+If tests were removed/reduced, clearly state "Test coverage reduced" with original vs. current count and explanation.

@@ -19,6 +19,7 @@ jest.mock('expo-file-system', () => ({
 
 // Mock logger
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     error: jest.fn(),

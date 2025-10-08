@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react'
 import { useVideoPlayback } from './useVideoPlayback'
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),

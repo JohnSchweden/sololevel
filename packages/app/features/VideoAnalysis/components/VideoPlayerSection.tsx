@@ -29,7 +29,10 @@ interface BubbleState {
 interface AudioOverlayState {
   shouldShow: boolean
   activeAudio: { id: string; url: string } | null
-  onClose: () => void
+  onClose?: () => void
+  onInactivity?: () => void
+  onInteraction?: () => void
+  audioDuration?: number
 }
 
 interface VideoPlayerSectionProps {
@@ -215,6 +218,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               audioUrl={audioOverlay.activeAudio.url}
               controller={audioPlayerController}
               onClose={audioOverlay.onClose}
+              onInactivity={audioOverlay.onInactivity}
+              onInteraction={audioOverlay.onInteraction}
               isVisible
               testID="audio-feedback-controls"
             />

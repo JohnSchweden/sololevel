@@ -28,6 +28,7 @@ jest.mock('@app/stores/uploadProgress', () => ({
 }))
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }))
 

@@ -5,6 +5,7 @@ import type { FeedbackPanelItem } from '../types'
 import { useFeedbackSelection } from './useFeedbackSelection'
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -14,6 +15,15 @@ jest.mock('@my/logging', () => ({
 }))
 
 describe('useFeedbackSelection', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   const createFeedbackDeps = () => {
     const feedbackAudio = {
       audioUrls: {
@@ -69,7 +79,7 @@ describe('useFeedbackSelection', () => {
     expect(deps.audioController.setIsPlaying).toHaveBeenCalledWith(true)
   })
 
-  it('clears selection and audio state', () => {
+  it('respects select options for seek/audio toggles', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
@@ -81,7 +91,14 @@ describe('useFeedbackSelection', () => {
     )
 
     act(() => {
-      result.current.selectFeedback(deps.item)
+      result.current.selectFeedback(deps.item, { seek: false, playAudio: false })
+    })
+
+    expect(deps.videoPlayback.seek).not.toHaveBeenCalled()
+    expect(deps.feedbackAudio.selectAudio).not.toHaveBeenCalled()
+
+    act(() => {
+      result.current.selectFeedback(deps.item, { seek: true, playAudio: true })
     })
 
     act(() => {
@@ -115,5 +132,70 @@ describe('useFeedbackSelection', () => {
     })
 
     expect(result.current.isCoachSpeaking).toBe(false)
+  })
+
+  it('handles auto highlight with custom duration and cleanup', () => {
+    const deps = createFeedbackDeps()
+
+    const { result } = renderHook(() =>
+      useFeedbackSelection(
+        deps.feedbackAudio as any,
+        deps.audioController as any,
+        deps.videoPlayback as any
+      )
+    )
+
+    act(() => {
+      result.current.highlightAutoFeedback(deps.item, {
+        seek: false,
+        playAudio: true,
+        autoDurationMs: 5,
+      })
+    })
+
+    expect(result.current.highlightedFeedbackId).toBe('1')
+    expect(result.current.highlightSource).toBe('auto')
+    expect(deps.videoPlayback.seek).not.toHaveBeenCalled()
+    expect(deps.feedbackAudio.selectAudio).toHaveBeenCalledWith('1')
+
+    act(() => {
+      jest.runAllTimers()
+    })
+
+    expect(result.current.highlightedFeedbackId).toBeNull()
+  })
+
+  it('clearHighlight respects matchId and sources', () => {
+    const deps = createFeedbackDeps()
+
+    const { result } = renderHook(() =>
+      useFeedbackSelection(
+        deps.feedbackAudio as any,
+        deps.audioController as any,
+        deps.videoPlayback as any
+      )
+    )
+
+    act(() => {
+      result.current.highlightAutoFeedback(deps.item, { seek: false, playAudio: false })
+    })
+
+    act(() => {
+      result.current.clearHighlight({ matchId: 'other-id' })
+    })
+
+    expect(result.current.highlightedFeedbackId).toBe('1')
+
+    act(() => {
+      result.current.clearHighlight({ sources: ['user'] })
+    })
+
+    expect(result.current.highlightedFeedbackId).toBe('1')
+
+    act(() => {
+      result.current.clearHighlight({ matchId: '1', sources: ['auto'], reason: 'manual-test' })
+    })
+
+    expect(result.current.highlightedFeedbackId).toBeNull()
   })
 })

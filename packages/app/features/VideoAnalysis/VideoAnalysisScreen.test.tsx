@@ -4,6 +4,7 @@ import { VideoAnalysisScreen } from './VideoAnalysisScreen'
 
 // Mock the logger to capture logs in tests
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     error: jest.fn(),

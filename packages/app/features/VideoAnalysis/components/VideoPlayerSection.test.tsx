@@ -59,6 +59,7 @@ const createProps = () => ({
     shouldShow: false,
     activeAudio: null,
     onClose: jest.fn(),
+    onInactivity: jest.fn(),
   },
   coachSpeaking: false,
   panelFraction: 0.05,
@@ -157,11 +158,22 @@ describe('VideoPlayerSection', () => {
         shouldShow: true,
         activeAudio: { id: '1', url: 'audio.mp3' },
         onClose: jest.fn(),
+        onInactivity: jest.fn(),
       },
     }
     render(<VideoPlayerSection {...props} />)
 
-    expect(mockAudioFeedback).toHaveBeenCalled()
+    expect(mockAudioFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audioUrl: 'audio.mp3',
+        controller: props.audioPlayerController,
+        onClose: props.audioOverlay.onClose,
+        onInactivity: props.audioOverlay.onInactivity,
+        isVisible: true,
+        testID: 'audio-feedback-controls',
+      }),
+      undefined
+    )
   })
 
   it('forwards controls visibility change callback', () => {

@@ -4,9 +4,11 @@ import { act, renderHook } from '@testing-library/react'
 import { useBubbleController } from './useBubbleController'
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),
+    debug: jest.fn(),
   },
 }))
 
@@ -38,10 +40,84 @@ describe('useBubbleController', () => {
     expect(result.current.bubbleVisible).toBe(true)
   })
 
-  it('hides bubble after audio duration elapsed', () => {
+  it('delays timer start until playback begins when audio is pending', () => {
     const audioUrls = { '1': 'https://example.com/audio.mp3' }
-    const { result } = renderHook(() =>
-      useBubbleController(createFeedbackItems(), 0, true, audioUrls, 4)
+    const { result, rerender } = renderHook(
+      ({ isPlaying, audioDuration }) =>
+        useBubbleController(createFeedbackItems(), 0, isPlaying, audioUrls, audioDuration),
+      {
+        initialProps: { isPlaying: false, audioDuration: 5 },
+      }
+    )
+
+    act(() => {
+      result.current.showBubble(0)
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(4000)
+    })
+
+    expect(result.current.bubbleVisible).toBe(true)
+
+    act(() => {
+      rerender({ isPlaying: true, audioDuration: 5 })
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(4999)
+    })
+    expect(result.current.bubbleVisible).toBe(true)
+
+    act(() => {
+      jest.advanceTimersByTime(1)
+    })
+
+    expect(result.current.bubbleVisible).toBe(false)
+    expect(result.current.currentBubbleIndex).toBeNull()
+  })
+
+  it('recomputes timer when audio duration becomes available', () => {
+    const audioUrls = { '1': 'https://example.com/audio.mp3' }
+    const { result, rerender } = renderHook(
+      ({ audioDuration }) =>
+        useBubbleController(createFeedbackItems(), 0, true, audioUrls, audioDuration),
+      {
+        initialProps: { audioDuration: 0 },
+      }
+    )
+
+    act(() => {
+      result.current.showBubble(0)
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(2800)
+    })
+    expect(result.current.bubbleVisible).toBe(true)
+
+    act(() => {
+      rerender({ audioDuration: 5 })
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(4999)
+    })
+    expect(result.current.bubbleVisible).toBe(true)
+
+    act(() => {
+      jest.advanceTimersByTime(1)
+    })
+    expect(result.current.bubbleVisible).toBe(false)
+  })
+
+  it('hides bubble immediately when playback pauses after timer start', () => {
+    const audioUrls = { '1': 'https://example.com/audio.mp3' }
+    const { result, rerender } = renderHook(
+      ({ isPlaying }) => useBubbleController(createFeedbackItems(), 0, isPlaying, audioUrls, 4),
+      {
+        initialProps: { isPlaying: true },
+      }
     )
 
     act(() => {
@@ -51,7 +127,7 @@ describe('useBubbleController', () => {
     expect(result.current.bubbleVisible).toBe(true)
 
     act(() => {
-      jest.advanceTimersByTime(4000)
+      rerender({ isPlaying: false })
     })
 
     expect(result.current.bubbleVisible).toBe(false)
@@ -73,51 +149,6 @@ describe('useBubbleController', () => {
 
     act(() => {
       jest.advanceTimersByTime(600)
-    })
-
-    expect(result.current.bubbleVisible).toBe(false)
-  })
-
-  it('does not hide bubble if pause occurred recently', () => {
-    const { result, rerender } = renderHook(
-      ({ isPlaying }) => useBubbleController(createFeedbackItems(), 0, isPlaying, {}, 0),
-      {
-        initialProps: { isPlaying: true },
-      }
-    )
-
-    act(() => {
-      result.current.showBubble(0)
-    })
-
-    rerender({ isPlaying: false })
-    act(() => {
-      jest.advanceTimersByTime(50)
-    })
-
-    expect(result.current.bubbleVisible).toBe(true)
-  })
-
-  it('hides bubble when paused long enough', () => {
-    const { result, rerender } = renderHook(
-      ({ isPlaying }) => useBubbleController(createFeedbackItems(), 0, isPlaying, {}, 0),
-      {
-        initialProps: { isPlaying: true },
-      }
-    )
-
-    act(() => {
-      result.current.showBubble(0)
-    })
-
-    act(() => {
-      jest.advanceTimersByTime(3000)
-    })
-
-    rerender({ isPlaying: false })
-
-    act(() => {
-      jest.advanceTimersByTime(150)
     })
 
     expect(result.current.bubbleVisible).toBe(false)

@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 
 export interface AudioControllerState {
   isPlaying: boolean
@@ -29,6 +29,12 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   const [isLoaded, setIsLoaded] = useState(false)
   const [seekTime, setSeekTime] = useState<number | null>(null)
 
+  const currentTimeRef = useRef(0)
+  const durationRef = useRef(0)
+  const isLoadedRef = useRef(false)
+  const seekTimeRef = useRef<number | null>(null)
+  const hasPlaybackStartedRef = useRef(false)
+
   const previousAudioUrlRef = useRef<string | null>(null)
 
   // Reset state when audio URL changes
@@ -40,20 +46,34 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
         preserveIsPlaying: audioUrl !== null,
       })
 
+      // Batch non-urgent state updates to minimize re-renders
       if (audioUrl === null) {
         // Full reset when clearing audio
         setIsPlaying(false)
-        setCurrentTime(0)
-        setDuration(0)
-        setIsLoaded(false)
-        setSeekTime(null)
+        currentTimeRef.current = 0
+        durationRef.current = 0
+        isLoadedRef.current = false
+        seekTimeRef.current = null
+        hasPlaybackStartedRef.current = false
+        startTransition(() => {
+          setCurrentTime(0)
+          setDuration(0)
+          setIsLoaded(false)
+          setSeekTime(null)
+        })
       } else {
-        // Reset all state when URL changes
-        //setIsPlaying(false)
-        setCurrentTime(0)
-        setDuration(0)
-        setIsLoaded(false)
-        setSeekTime(null)
+        // Reset playback-related state when URL changes
+        currentTimeRef.current = 0
+        durationRef.current = 0
+        isLoadedRef.current = false
+        seekTimeRef.current = null
+        hasPlaybackStartedRef.current = false
+        startTransition(() => {
+          setCurrentTime(0)
+          setDuration(0)
+          setIsLoaded(false)
+          setSeekTime(null)
+        })
       }
 
       previousAudioUrlRef.current = audioUrl
@@ -79,7 +99,9 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
 
     if (typeof newDuration === 'number' && !Number.isNaN(newDuration)) {
       setDuration(newDuration)
+      durationRef.current = newDuration
       setIsLoaded(true)
+      isLoadedRef.current = true
     } else {
       log.warn('useAudioController', 'Invalid duration received', { duration: `${newDuration}s` })
     }
@@ -90,11 +112,16 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
       const { currentTime: newCurrentTime } = data
 
       if (typeof newCurrentTime === 'number' && !Number.isNaN(newCurrentTime)) {
+        currentTimeRef.current = newCurrentTime
         setCurrentTime(newCurrentTime)
+        if (!hasPlaybackStartedRef.current && newCurrentTime >= 0.01) {
+          hasPlaybackStartedRef.current = true
+        }
       } else {
         log.warn('useAudioController', 'Invalid currentTime received', {
           currentTime: `${newCurrentTime}s`,
         })
+        currentTimeRef.current = 0
         setCurrentTime(0)
       }
     },
@@ -102,8 +129,39 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   )
 
   const handleEnd = useCallback(() => {
-    log.debug('useAudioController', 'Audio playback ended')
+    const latestCurrentTime = currentTimeRef.current
+    const latestDuration = durationRef.current
+    const latestIsLoaded = isLoadedRef.current
+    const latestSeekTime = seekTimeRef.current
+    const hadPlaybackProgress = hasPlaybackStartedRef.current || latestCurrentTime >= 0.01
+    const suspectedPrematureEnd = !hadPlaybackProgress && latestDuration > 0.5
+
+    const logContext = {
+      currentTime: latestCurrentTime,
+      duration: latestDuration,
+      isLoaded: latestIsLoaded,
+      seekTime: latestSeekTime,
+      hadPlaybackProgress,
+    }
+
+    if (suspectedPrematureEnd) {
+      log.debug(
+        'useAudioController',
+        'Received end event before meaningful playback progress; forcing stop to avoid stuck overlay',
+        logContext
+      )
+      hasPlaybackStartedRef.current = false
+      setIsPlaying(false)
+      currentTimeRef.current = 0
+      setCurrentTime(0)
+      return
+    }
+
+    log.debug('useAudioController', 'Audio playback ended', logContext)
+
+    hasPlaybackStartedRef.current = false
     setIsPlaying(false)
+    currentTimeRef.current = 0
     setCurrentTime(0)
   }, [])
 
@@ -111,21 +169,34 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     log.error('useAudioController', 'Audio playback error', { error })
     setIsPlaying(false)
     setIsLoaded(false)
+    isLoadedRef.current = false
+    hasPlaybackStartedRef.current = false
   }, [])
 
   const handleSeekComplete = useCallback(() => {
     log.debug('useAudioController', 'Seek completed')
     setSeekTime(null)
+    seekTimeRef.current = null
+    hasPlaybackStartedRef.current = true
   }, [])
 
-  const seekTo = useCallback((time: number) => {
-    if (typeof time === 'number' && !Number.isNaN(time)) {
-      log.debug('useAudioController', 'Seeking to time', { time })
-      setSeekTime(time)
-    } else {
-      log.warn('useAudioController', 'Invalid seek time', { time })
-    }
-  }, [])
+  const seekTo = useCallback(
+    (time: number) => {
+      if (typeof time === 'number' && !Number.isNaN(time)) {
+        // Gate seek calls to prevent redundant state updates
+        if (seekTime === time) {
+          log.debug('useAudioController', 'Seek already at target time, skipping', { time })
+          return
+        }
+        log.debug('useAudioController', 'Seeking to time', { time, previousSeekTime: seekTime })
+        setSeekTime(time)
+        seekTimeRef.current = time
+      } else {
+        log.warn('useAudioController', 'Invalid seek time', { time })
+      }
+    },
+    [seekTime]
+  )
 
   const reset = useCallback(() => {
     log.debug('useAudioController', 'Resetting audio controller state')
@@ -134,6 +205,11 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     setDuration(0)
     setIsLoaded(false)
     setSeekTime(null)
+    currentTimeRef.current = 0
+    durationRef.current = 0
+    isLoadedRef.current = false
+    seekTimeRef.current = null
+    hasPlaybackStartedRef.current = false
   }, [])
 
   return {

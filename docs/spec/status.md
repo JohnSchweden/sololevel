@@ -1,286 +1,71 @@
-### Task 3: Consolidate Processing State Logic — COMPLETED
-- Implemented useAnalysisState hook to consolidate upload, analysis, and feedback logic.
-- Added unit tests to cover all phase transitions and error paths, ensuring deterministic results.
-- Integrated hook into VideoAnalysisScreen.tsx to drive processing overlay and progress from the unified state.
-
-### Task 8: Orchestrator Pattern Migration — COMPLETED
-- Refactored VideoAnalysisScreen into a thin orchestrator composing new hooks (useVideoPlayback, useFeedbackPanel, useFeedbackSelection) with existing analysis/bubble/audio hooks.
-- Eliminated local state/effects from the screen; extracted logic into memoized hooks and stabilized callbacks for child components.
-- Added dedicated hook test suites (>=75% coverage) and re-ran component/hook tests plus type-check.
-- Updated docs/tasks and agent status; Task 9 (Re-render Performance Optimization) is now unblocked.
-
-### Task 9: Re-render Performance Optimization — COMPLETED ✅ (2025-10-06)
-- Created VideoAnalysisContext for rarely-changing data (videoUri, feedbackItems) to prevent prop drilling
-- Refactored VideoPlayerSection to manage currentTime/duration internally, reducing parent re-renders
-- Changed onProgress to onSignificantProgress (only notifies parent every >1 second) to reduce callback frequency
-- Removed large useMemo prop objects, replaced with direct prop passing for better memoization
-- Stabilized social action callbacks (onShare, onLike, onComment, onBookmark) with useCallback
-- Updated VideoPlayerSection test to mock VideoAnalysisContext and use new props
-- All tests passing (407/407), type-check passing, no lint errors
-- **Expected Impact**: Parent component re-renders reduced from every frame (~30-60/s) to ~1/s during playback
-- **Phase 2 Complete**: All foundation and restructuring tasks (1, 2, 3, 6, 7, 8, 9) finished successfully
-
-### Task 12: Extract Video Controls Logic — COMPLETED ✅ (2025-10-06)
-- Created `useVideoControls` hook to own the video controls overlay state (visibility + replay button)
-- Replaced inline `showControls` logic in `VideoAnalysisScreen` with hook + stable callback wiring
-- Updated `VideoPlayerSection` to accept `onControlsVisibilityChange` and forward visibility events downstream
-- Added focused hook test suite (`useVideoControls.test.ts`) validating forced visibility rules and manual overrides
-- Extended `VideoPlayerSection.test.tsx` to confirm callback propagation
-- Verified with `yarn workspace @my/app test packages/app/features/VideoAnalysis/hooks/useVideoControls.test.ts --verbose`
-- Result: VideoAnalysisScreen trimmed by ~12 lines, consistent hook-driven orchestration maintained
-
 # Project Status
 
-## Completed Features
+## IN PROGRESS
 
-### Core Recording & Video Features
-  - US-RU-01: Record a video up to 60 seconds
-  - US-RU-02: Handle permissions gracefully
-  - US-RU-06a: Recording states — Idle controls
-  - US-RU-06b: Recording states — Recording/Paused controls
-  - US-RU-07: Confirm navigation away while recording
-  - US-RU-08: Live motion capture overlay with nodes
-  - US-RU-09a: Camera controls — swap (idle)
-  - US-RU-09b: Camera controls — zoom & settings (recording)
-  - US-RU-10: Bottom navigation — Coach / Record / Insights
-  - US-RU-13: Video player
-  - US-VF-01: Video Analysis State Management 
-  - US-VF-02: Video Player Component
-  - US-VF-04: Feedback Bubble Component
-  - US-VF-06: Video Controls Component
-  - US-VF-11: Video Player Header Component
-  - US-VF-07: Audio Commentary Component ✅ **FIXED** - Real audio playback with react-native-video
-  - US-VF-08: Feedback Panel Component
-  - US-VF-10: Coach Avatar Component
-  - US-VF-09: Video Analysis Screen (Integration)
 
-### Authentication System ✅ 100% Complete
-  - **Supabase Auth Client Wrapper** (`@my/api`): Typed authentication client with error handling and structured logging
-  - **useAuth Hook** (`@my/app`): React hook for authentication state and actions with session restoration
-  - **AuthGate Components**: Route protection for both Expo and Next.js apps with loading states
-  - **Next.js Middleware**: Server-side authentication validation and redirects with destination preservation
-  - **JWT Security**: Edge Functions extract user ID from JWT tokens (no client tampering)
-  - **Test Auth Bootstrap**: Environment-gated automatic authentication for testing with production guards
-  - **Production Guards**: Build-time prevention of test auth in production builds
-  - **Environment Configuration**: TEST_AUTH_* variables in all environment files with documentation
-  - **Cross-platform Support**: Works on React Native (Expo) and Web (Next.js) with universal routing
-  - **Session Management**: Automatic session restoration and state synchronization across platforms
-  - **RLS Enforcement**: Row Level Security with user ownership validation and audit helpers
-  - **Error Handling**: User-friendly error messages with privacy-safe logging and correlation IDs
-  - **Test User Seeding**: Automated test user creation with CLI tools and documentation
-  - **Playwright Integration**: Pre-authenticated E2E test sessions with global setup
-  - **Comprehensive Testing**: 45+ tests covering unit, integration, and E2E scenarios
-  - **Complete Documentation**: TRD specifications and architecture diagrams updated with auth flows
-
-### US-VF-07: Audio Commentary Component - FIXED ✅ **2025-10-03**
-
-**Issue Identified:** Audio feedback controls were shown permanently but no actual audio playback engine existed. `feedbackAudio.activeAudio.url` was consumed but no transport layer was implemented.
-
-**Solution Implemented:**
-- **TDD Approach**: Created comprehensive test suites first for all new components and hooks
-- **`useAudioController` Hook**: Manages audio playback state (playing, currentTime, duration, seek) with proper TypeScript interfaces
-- **`useVideoAudioSync` Hook**: Coordinates video and audio playback - pauses video when audio plays, resumes when audio ends
-- **`AudioPlayer` Component**: Uses `react-native-video` in audio-only mode for cross-platform playback with proper error handling
-- **Updated `AudioFeedback` Component**: Now accepts controller prop instead of individual state props, uses real playback state
-- **VideoAnalysisScreen Integration**: Wires all components together with proper synchronization logic
-- **Visibility Logic**: Audio controls now only show when audio is actively playing, not just when feedback exists
-
-**Technical Details:**
-- **Audio Playback**: `react-native-video` v6+ with `audioOnly={true}` for optimal performance
-- **Cross-platform**: AAC/MP3 format support with `ignoreSilentSwitch="ignore"` for iOS silent mode
-- **State Management**: Centralized audio state through controller hook, no more hardcoded `duration={0}`
-- **Synchronization**: Video automatically pauses when audio feedback plays, resumes when audio ends
-- **Error Handling**: Proper fallback handling and logging for audio playback failures
-
-**Tests Added:**
-- `useAudioController.test.ts` (14 tests) - Playback controls, progress tracking, seek functionality
-- `useVideoAudioSync.test.ts` (8 tests) - Video-audio coordination logic
-- `AudioPlayer.test.tsx` (8 tests) - Component props and event handling
-- `AudioFeedback.controller.test.tsx` (2 tests) - Interface compatibility
-
-**Integration Points:**
-- Feedback panel taps start audio playback and seek video to timestamp
-- Audio controls only visible during active playback
-- Coach avatar synchronization with audio state
-- Proper cleanup on component unmount
 
 ---
 
-### AI Pipeline & SSML/Audio Generation ✅ 100% Complete
-  - **SSML Prompt Persistence**: Added ssml_prompt column to analysis_ssml_segments table with migration, TypeScript types, and pipeline wiring
-  - **Worker Service Refactoring**: Converted ssmlWorker and audioWorker to use centralized SSMLService/TTSService instead of direct API calls
-  - **Unified Audio Format Handling**: Consolidated audio format negotiation via resolveAudioFormat and generateAudioStoragePath utilities
-  - **Environment Mode Support**: Workers now respect AI_ANALYSIS_MODE for mock vs live service selection
-  - **Prompt Tracking**: SSML and audio segments now persist prompts used for generation (ssml_prompt, prompt columns)
-  - **Storage Integration**: Workers use uploadProcessedArtifact for consistent storage handling with signed URLs
-  - **Database Schema Updates**: Migrated analysis_ssml_segments and analysis_audio_segments with proper comments and RLS grants; normalized analysis_audio_segments schema (renamed columns, dropped redundant fields); changed video_recordings.duration_seconds from integer to numeric for decimal support
-  - **Comprehensive Testing**: 83 database tests + 54 Deno tests + 207 shared module tests passing with full pipeline coverage
-  - **Type Safety**: Updated database.types.ts with new columns and service interfaces for full TypeScript coverage
+## COMPLETED
 
-### Video Feedback — Variant A ✅ Shipped (2025-10-01)
-- First available audio feedback surfaced immediately via `useFeedbackAudioSource` + `AudioFeedback` wiring.
-- Began the video playback as soon as the first per‑feedback audio became available (audio starts paused; respects autoplay policies).
-- Added typed helper `getFirstAudioUrlForFeedback` (RPC + fallback) with unit tests and structured logging.
+### Task 24: AudioFeedback Demotion — Presentation-Only, Lift Inactivity Up — ✅ Complete (2025-10-08)
+- `AudioFeedback` now emits optional `onInactivity` without mutating visibility directly; timers skip when unused
+- `useFeedbackCoordinator` handles inactivity to hide overlay/bubble together and clears playback selections
+- Screen wiring forwards both `onClose` and `onInactivity`, unit tests updated for coordinator and section wiring
 
-  ### Authentication Implementation Details ✅
+### Task 25: Screen Wiring Cleanup — Derive Overlay from Coordinator — ✅ Complete (2025-10-08)
+- Removed duplicate overlay handlers from `VideoAnalysisScreen`; screen now purely wires coordinator state
+- `coordinateFeedback.overlayVisible` drives overlay visibility exclusively; no custom lifecycle logic remains
+- Verified `yarn type-check` passes and all visibility transitions happen via coordinator
 
-#### Core Authentication Infrastructure
-- **Supabase Auth Client** (`packages/api/src/auth/authClient.ts`):
-  - Typed wrapper around Supabase auth with error handling
-  - Methods: `signInWithPassword`, `signOut`, `getSession`, `getCurrentUserId`, `onAuthStateChange`
-  - Structured logging with email masking for privacy
-  - Returns typed `AuthResult<T>` objects for consistent error handling
+### Task 23: Bubble Timer Realignment — ✅ Complete (2025-10-08)
+- Updated `useBubbleController` to arm the hide timer on first confirmed playback (`isPlaying`/progress) instead of `showBubble`
+- Added duration-aware rescheduling and immediate pause/end teardown to keep overlay and bubble in lockstep
+- Expanded unit suite to cover playback start delays, late-arriving durations, pause/end sync; pending follow-up: seek interaction test
+- Verified via `yarn workspace @my/app test features/VideoAnalysis/hooks/useBubbleController.test.ts --runTestsByPath`, `yarn type-check`, `yarn lint`
 
-- **useAuth Hook** (`packages/app/hooks/useAuth.ts`):
-  - React hook providing authentication state and actions
-  - State: `user`, `session`, `loading`, `initialized`, `isAuthenticated`, `userId`
-  - Actions: `signIn`, `signOut` with proper error handling
-  - Automatic session restoration and auth state listeners
+### Task 21: Audio/Overlay Orchestration — ✅ Complete (2025-10-07)
+- Centralised overlay visibility logic inside `useFeedbackCoordinator` so bubble/overlay share lifecycle
+- Screen now consumes coordinator `overlayVisible`; removed duplicate overlay computation
+- Added coordinator reactions to align bubble visibility with audio start/pause/end states
+- Fixed perpetual bubble loop caused by activeAudioId fallback; coordinator now only realigns when highlight exists
+- Unit tests expanded to 10 cases covering overlay/bubble synchronization scenarios
 
-#### Route Protection System
-- **Expo AuthGate** (`apps/expo/components/AuthGate.tsx`):
-  - Client-side route protection for React Native
-  - Loading states while auth initializes
-  - Automatic redirect to sign-in with destination preservation
-  - Configurable fallback components
+### Task 22: Audio End-State Reliability — ✅ Complete (2025-10-07)
+- Refactored `useAudioController.handleEnd` to read fresh refs for playback state and deterministically reset `isPlaying`
+- Added regression tests covering near-zero end, unloaded end, and post-seek scenarios to prevent stale closure regressions
+- Verified `yarn workspace @my/app test features/VideoAnalysis/hooks/useAudioController.test.ts --runTestsByPath` passes locally
 
-- **Next.js Middleware** (`apps/next/middleware.ts`):
-  - Server-side authentication validation
-  - JWT token verification from cookies
-  - Public route exclusions (auth pages, API, static assets)
-  - Automatic redirect with intended destination preservation
+---
 
-- **Next.js AuthGate** (`apps/next/components/AuthGate.tsx`):
-  - Client-side protection for web app
-  - URL query parameter handling for post-auth redirects
-  - Web-optimized loading states and layouts
+## Agent Handoff Protocol
 
-#### Security Features
-- **JWT-based Authentication**: Edge Functions extract user ID from JWT tokens
-- **No Client Tampering**: User ID derived server-side, not from client requests
-- **RLS Enforcement**: Database queries filtered by authenticated user ID
-- **Access Control**: Users can only access their own video recordings
-- **Audit Logging**: Comprehensive security event logging
+### When an agent completes a task:
+1. Update this file with ✅ Complete status
+2. Add completion timestamp
+4. Wait for confirmation before ending session
 
-#### Testing Infrastructure
-- **Test Auth Bootstrap** (`packages/app/auth/testAuthBootstrap.ts`):
-  - Environment-gated automatic authentication
-  - Production build guards prevent test auth in production
-  - Configurable via `TEST_AUTH_ENABLED`, `TEST_AUTH_EMAIL`, `TEST_AUTH_PASSWORD`
-  - Correlation IDs for debugging and audit trails
+### When an agent starts a task:
+1. Verify all dependencies are complete
+2. Update status to 🟡 In Progress
+3. Begin work following @step-by-step-rule.mdc
 
-#### Environment Configuration
-- **Development** (`env.dev.example`): Test auth enabled by default
-- **Production** (`env.prod.example`): Test auth explicitly disabled
-- **General** (`env.example`): Test auth disabled with clear documentation
+### Status Legend:
+- ⏸️ Waiting - Blocked by dependencies
+- 🟡 In Progress - Currently working
+- ✅ Complete - Finished successfully
+- 🟢 Ready to Start - Dependencies met, ready for work
+- ❌ Blocked - Has blockers/issues
+- 🚫 Cancelled - Task cancelled
 
-#### Cross-platform Compatibility
-- **React Native** (Expo): AuthGate + useAuth integration
-- **Web** (Next.js): Middleware + AuthGate dual protection
-- **Universal Routing**: Works with Expo Router on both platforms
-- **Session Synchronization**: Consistent auth state across platforms
+---
 
-## Script Infrastructure ✅ 100% Complete
-  - **Centralized Environment Configuration** (`scripts/utils/env.mjs`): Shared environment loading, validation, and Supabase client creation
-  - **Unified Logging System**: Structured logging with `createScriptLogger()` replacing console usage
-  - **Authentication Helpers**: Common functions for user creation, verification, and sign-in testing
-  - **Database Utilities**: Direct PostgreSQL client creation and connection management
-  - **Environment Validation**: Automatic validation of required Supabase and test auth variables
-  - **Legacy Script Cleanup**: Removed 15+ duplicate scripts with hard-coded credentials
-  - **Smoke Testing Suite**: `smoke-login.mjs` and `smoke-user-check.mjs` for quick validation
-  - **Smoke Test Utilities**: `smoke-utils.mjs` with lightweight shared functions using centralized `env.mjs` configuration
-  - **Comprehensive Documentation**: Complete usage guide in `docs/scripts/README.md`
-  - **Error Handling**: Structured error responses with debug information and proper exit codes
-  - **Cross-platform Support**: Works with local and remote Supabase instances
+## Formating - Use the following format for each task
 
-### SSML/Audio Refactor Testing Pipeline ✅ 100% Complete
-- **Migration Dry-run Validation**: Confirmed all status metadata and trigger changes applied successfully with "No schema changes found"
-- **Edge Worker Unit Tests**: All 54 Deno tests passed (audioWorker: 5, ssmlWorker: 4, handleStartAnalysis: 8, plus comprehensive integration tests)
-- **Status Model Validation**: Per-feedback SSML/audio processing with retry logic, status tracking (`ssml_status`, `audio_status`, attempts counters)
-- **Database Trigger Testing**: `reset_feedback_generation_state` trigger properly resets processing state when feedback content changes
-- **Worker Pipeline Testing**: Audio and SSML workers correctly process queued jobs with proper error handling and retry mechanisms
-- 2025-09-29: Refactored Supabase Edge workers to use centralized SSML/TTS services, honor `AI_ANALYSIS_MODE`, persist prompts, and align storage paths. Node + Deno tests updated (SSML/Audio workers).
-
-
-### Analysis Realtime Subscription Fixes ✅ Completed (2025-10-01)
-- ✅ Fix duplicate subscriptions causing multiple realtime listeners (single subscription with cleanup)
-- ✅ Add immediate backfill before subscribing to ensure job state is populated
-- ✅ Implement effectiveAnalysisJobId propagation to downstream hooks
-- ✅ Add channel lifecycle logging for better observability (SUBSCRIBED, payload events)
-- ✅ Reduce render churn with guarded state updates
-- ✅ **StrictMode resilience**: Pending-subscription guard blocks double-effect race
-- ✅ **Channel error retry**: Bounded retry (3 attempts, 300-1200ms exponential backoff)
-- ✅ **Backfill timing bridge**: 500ms re-check when BACKFILL_EMPTY to bridge upload→job gap
-- ✅ **Log deduplication**: "Setting up..." logs only appear after passing subscription guards
-- ✅ **Pending guard timing fix**: Clear pending key only on SUBSCRIBED status, not after storing subscription
-- ✅ **Retry pending clear**: Clear pending key before retries to allow new subscription attempts
-- ✅ **SQL query fix**: Removed `updated_at` from `analysis_feedback` query, added `created_at` ordering
-- ✅ **Analysis UUID mapping**: Added `getAnalysisIdForJobId()` to map job IDs to feedback-compatible UUIDs
-- ✅ **Feedback integration fix**: VideoAnalysisScreen now uses analysis UUIDs for feedback queries
-- ✅ **UUID type error fix**: Resolved "invalid input syntax for type uuid" by using correct data types
-- ✅ **Ownership filter fix**: `getAnalysisIdForJobId` now filters via `analysis_jobs.user_id`
-- ✅ **Lint compliance**: Fixed all lint errors (Math.pow → **, Number.parseInt, formatting)
-- ✅ Unit tests created and passing for core functionality (12/12 tests passing)
-- ✅ Extended analysisService.ts with diagnostics callbacks
-- ✅ Fixed failing tests by correcting mock expectations and test patterns
-
-### Production Logging Cleanup ✅ Completed (2025-10-05)
-- Wrapped `log.debug` calls in `VideoAnalysisScreen` with `__DEV__` guards to eliminate production noise
-- Ensured frame-by-frame and render-count diagnostics only run in development
-- Verified build/type-check to confirm no regressions and bundle trimmed by ~6 KB
-
-### Feedback Bubble Controller Extraction ✅ Completed (2025-10-05)
-- Migrated bubble timing/show/hide logic into dedicated `useBubbleController` hook with tests
-- Integrated hook into `VideoAnalysisScreen` removing legacy timer/pause effects (~180 LOC reduction)
-- Preserved audio-synchronized auto-hide behavior and pause tolerance safeguards
-
-## Feedback Realtime Subscription Collapse - COMPLETED (2025-10-02)
-- **Root Cause**: Pogo-stick subscription behavior causing 10+ subscribe/unsubscribe cycles per analysis ID change
-- **Solution**: Implemented comprehensive subscription guards and debouncing
-- **Hook Guards**: Added `subscriptionStatus === 'pending'` check in `useFeedbackStatusIntegration` effect
-- **Store Guards**: Strengthened store to prevent subscription when status is `active` OR `pending`
-- **Debouncing**: Added 50ms debounce to prevent rapid re-subscription attempts
-- **Retry Logic**: Enhanced retry mechanism with proper failure state transitions
-- **Testing**: Created TDD test suite with failing tests, implemented fixes, verified passing tests
-- **Result**: Single subscription per analysis ID, no pogo-stick behavior, stable realtime connections
-
-## Analysis Realtime Subscription Polish - COMPLETED (2025-10-01)
-**Status:** Completed
-**Changes:**
-- Throttled CHANNEL_ERROR logs from first occurrence (max 2 error logs, then suppressed)
-- Added UUID retry logic with exponential backoff (200ms, 400ms, 800ms) to getAnalysisIdForJobId
-- Added "Connection unstable" UI warning overlay when channel retries are exhausted
-- Updated log messages for clarity ("No analysis UUID found after retries")
-- Patched audio RPC fallback to use `feedback_id` column (legacy-compatible)
-- Hardened feedback subscription hooks to dedupe subscriptions and remove duplicate keys
-- Added bounded retry with backoff and failure state for feedback realtime subscriptions (no infinite loop)
-**Impact:** Eliminates log spam, handles backend timing gaps gracefully, provides user feedback for connection issues
-
-### Task 8: Orchestrator Pattern Migration — COMPLETED
-- Refactored VideoAnalysisScreen into a thin orchestrator that composes new hooks (useVideoPlayback, useFeedbackPanel, useFeedbackSelection) alongside existing analysis/bubble/audio hooks.
-- Eliminated all local useState/useEffect from the screen; state now lives in dedicated hooks with focused test suites.
-- Added new hook tests covering playback, panel, and selection logic (75%+ coverage) and re-ran all component/hook suites.
-- Updated documentation and status tracking; next focus is Task 9 (re-render performance optimization).
-
-## In Progress
-
-- Task 3: Consolidate Processing State Logic (queued)
-- Task 2: Split into Logical Sub-Components (blocked on Task 3)
-- Task 4/5: Advanced patterns scheduled post-refactor
-
-## Pending
-
-
-## Known Issues
-- Web camera recording shows placeholder (expected - not supported in browsers)
-- Upload integration needs final connection between recording hooks and upload service
-- Live pose overlay performance could be optimized for longer recording sessions
-- Type mismatches between state store and component interfaces
-- Mock API services prevent full end-to-end functionality
-- Video player resizing not implemented for bottom sheet expansion
-- Limited real-time update mechanisms for live feedback
-
-### iOS Build Fix: TensorFlowLiteC Linker Error ✅ Resolved (2025-10-04)
-- **Root Cause**: `react-native-fast-tflite` requires static frameworks on iOS for TensorFlowLiteC XCFramework linking
-- **Solution**: Added `expo-build-properties` plugin with `ios.useFrameworks: "static"` to `apps/expo/app.json`
-- **Result**: Prebuild regenerated iOS project; CocoaPods installed `TensorFlowLiteC (2.17.0)`; iOS build compiles and links successfully
+### Task ...: [Task Name] — [Status] ([Date])
+- [Description of changes or progress]
+- ...
+- [Additional details or remaining work]
+- ...
+- [Next steps or completion notes]
+- ...

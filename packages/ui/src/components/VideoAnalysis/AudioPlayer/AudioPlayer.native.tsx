@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import Video from 'react-native-video'
 import type { AudioPlayerProps } from '../types'
 
@@ -14,7 +14,24 @@ const normalizeAudioUrl = (url: string): string => {
 
 export const AudioPlayer = memo(
   function AudioPlayer({ audioUrl, controller, testID = 'AudioPlayer' }: AudioPlayerProps) {
-    // Debug logging for AudioPlayer component
+    // Track if we've done initial seek for this audio URL
+    const hasInitializedRef = useRef(false)
+
+    // Reset initialization flag when audio URL changes
+    useEffect(() => {
+      hasInitializedRef.current = false
+    }, [audioUrl])
+
+    // Debug logging for AudioPlayer component mount only
+    const hasLoggedMountRef = useRef(false)
+    if (__DEV__ && !hasLoggedMountRef.current) {
+      hasLoggedMountRef.current = true
+      log.debug('AudioPlayer', 'Component mounted', {
+        audioUrl: audioUrl ? `${audioUrl.substring(0, 50)}...` : null,
+        testID,
+      })
+    }
+
     if (!audioUrl) {
       if (__DEV__) {
         log.debug('AudioPlayer', 'No audio URL provided, not rendering')
@@ -37,17 +54,6 @@ export const AudioPlayer = memo(
       return normalized
     }, [audioUrl])
 
-    if (__DEV__) {
-      log.debug('AudioPlayer', 'Rendering audio player', {
-        audioUrl: audioUrl.substring(0, 50) + '...',
-        normalizedAudioUrl: normalizedAudioUrl.substring(0, 50) + '...',
-        isPlaying: controller.isPlaying,
-        seekTime: controller.seekTime,
-        currentTime: controller.currentTime,
-        duration: controller.duration,
-      })
-    }
-
     return (
       <Video
         testID={testID}
@@ -55,8 +61,28 @@ export const AudioPlayer = memo(
         paused={!controller.isPlaying}
         seek={controller.seekTime ?? undefined}
         onLoad={(data) => {
-          log.info('AudioPlayer', 'Video component onLoad', { data })
+          log.info('AudioPlayer', 'Video component onLoad', {
+            data,
+            controllerState: {
+              isPlaying: controller.isPlaying,
+              currentTime: controller.currentTime,
+              seekTime: controller.seekTime,
+              isLoaded: controller.isLoaded,
+            },
+          })
           controller.handleLoad(data)
+
+          // Only do initial seek once per audio URL to prevent redundant seeks
+          // Skip if player is already at start (selection effect may have set seekTime=0)
+          if (
+            !hasInitializedRef.current &&
+            controller.seekTime === null &&
+            (typeof data?.currentTime !== 'number' || Math.abs(data.currentTime) > 0.05)
+          ) {
+            log.debug('AudioPlayer', 'Initial seek to start after load')
+            controller.seekTo(0)
+            hasInitializedRef.current = true
+          }
         }}
         onProgress={(data) => {
           // Throttle progress logging to avoid spam (log every 2 seconds)
@@ -71,9 +97,29 @@ export const AudioPlayer = memo(
             })
           }
           controller.handleProgress(data)
+
+          // Detect seek completion when player time reaches target seek time
+          if (
+            typeof controller.seekTime === 'number' &&
+            Math.abs(data.currentTime - controller.seekTime) < 0.05
+          ) {
+            log.debug('AudioPlayer', 'Detected seek completion via progress callback', {
+              currentTime: data.currentTime,
+              targetSeekTime: controller.seekTime,
+            })
+            controller.handleSeekComplete()
+          }
         }}
         onEnd={() => {
-          log.info('AudioPlayer', 'Video component onEnd')
+          log.info('AudioPlayer', 'Video component onEnd', {
+            controllerState: {
+              isPlaying: controller.isPlaying,
+              currentTime: controller.currentTime,
+              duration: controller.duration,
+              seekTime: controller.seekTime,
+              isLoaded: controller.isLoaded,
+            },
+          })
           controller.handleEnd()
         }}
         onError={(error) => {

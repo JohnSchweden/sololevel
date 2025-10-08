@@ -1,3 +1,4 @@
+---
 
 @project-context-architecture.mdc
 

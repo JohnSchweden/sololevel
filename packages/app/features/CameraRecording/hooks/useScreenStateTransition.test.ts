@@ -6,6 +6,7 @@ import { useScreenStateTransition } from './useScreenStateTransition'
 
 // Mock logger
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),

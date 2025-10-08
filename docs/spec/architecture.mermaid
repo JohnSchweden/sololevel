@@ -1,208 +1,79 @@
 graph TB
-    %% Clear System Architecture (Holistic Blueprint)
-
-    %% Users
     User["👤 Users"]
 
-    %% Client Applications
-    subgraph "Client Applications"
-        ExpoApp["📱 Expo App\nReact Native (iOS/Android)"]
-        NextApp["🌐 Next.js App\nWeb (SSR/SSG)"]
-        ExpoRouter["🧭 Expo Router\nUniversal Routing"]
-        subgraph AuthLayer["🔐 Authentication Layer"]
-            AuthGate["🚪 AuthGate Components\nRoute Protection + Loading States"]
-            NextMiddleware["⚙️ Next.js Middleware\nServer-side Auth Validation"]
-            SignInScreens["📝 Sign-in Screens\nExpo + Next.js"]
-        end
+    subgraph Client["Client Applications"]
+        Apps["📱 Expo + 🌐 Next.js"]
+        Router["🧭 Expo Router"]
+        Auth["🔐 AuthGate + Middleware"]
     end
 
-    %% Shared Packages (Monorepo)
-    subgraph "Shared Packages (@my/*)"
-        UIPkg["🎨 @my/ui\nTamagui Components"]
-        AppPkg["⚙️ @my/app\nBusiness Logic, Screens, Hooks"]
-        subgraph AuthPkg["🔐 Authentication (@my/app + @my/api)"]
-            UseAuth["🪝 useAuth Hook\nReact Hook + Zustand Store"]
-            AuthClient["🔌 Auth Client\nTyped Supabase Wrapper"]
-            TestBootstrap["🧪 Test Auth Bootstrap\nEnvironment-gated Auto Auth"]
-            RLSHelpers["🛡️ RLS Helpers\nSecurity Utilities"]
-        end
-        APIPkg["🔌 @my/api\nSupabase Client & Integrations"]
-        ConfigPkg["🧰 @my/config\nConfig & Types"]
+    subgraph Packages["Shared Packages (@my/*)"]
+        UI["🎨 @my/ui (Tamagui)"]
+        App["⚙️ @my/app (Logic + Screens)"]
+        API["🔌 @my/api (Supabase Client)"]
+        Config["🧰 @my/config (Types)"]
     end
 
-    %% State & Data Fetching
-    subgraph "State & Data"
-        Zustand["🗃️ Zustand\nClient State"]
-        TSQ["📊 TanStack Query\nServer State, Caching"]
+    subgraph State["State Management"]
+        Zustand["🗃️ Zustand (Client)"]
+        TSQ["📊 TanStack Query (Server)"]
     end
 
-    %% Backend (Supabase)
-    subgraph "Supabase Backend"
-        subgraph AuthBackend["🔐 Authentication Backend"]
-            Auth["🔑 Supabase Auth\nJWT, Sessions, User Management"]
-            AuthPolicies["🛡️ RLS Policies\nauth.uid() = user_id"]
-        end
-        subgraph DBGroup["🗄️ PostgreSQL (RLS Enforced)"]
-            DB[("public schema")]
-            VR["📄 video_recordings\n(id, user_id, storage_path, filename, duration, source_type, created_at)\n🔒 RLS: SELECT/INSERT/UPDATE WHERE user_id = auth.uid()"]
-            AJ["📄 analysis_jobs\n(id, user_id, video_recording_id, status, progress,\nprocessing_started_at, processing_completed_at, error_message,\nresults jsonb, pose_data jsonb, full_feedback_text, summary_text, ssml, audio_url,\nprocessing_time_ms, video_source_type, created_at, updated_at)\n🔒 RLS: SELECT/INSERT/UPDATE WHERE user_id = auth.uid()"]
-        end
-        Storage["📁 Storage\nraw (uploads) • processed (artifacts: AAC/MP3)"]
-        subgraph RTGroup["⚡ Realtime"]
-            RT1["Postgres Changes\npublic.analysis_jobs (UPDATE)"]
-            RT2["Broadcast Channel\npose-data-{analysisId} (event: pose-frame)"]
-        end
-        subgraph EdgeFns["🧩 Edge Functions\nPrivileged Logic"]
-            E1["ai-analyze-video"]
-            E1a["POST /ai-analyze-video\n🔒 JWT → userId extraction"]
-            E1b["GET /ai-analyze-video/status?id=<id>"]
-            E1c["POST /ai-analyze-video/tts"]
-            E1d["GET /ai-analyze-video/health"]
-            Obs["📝 Logger\n_supabase/functions/_shared/logger.ts_"]
-        end
-        subgraph Providers["🔗 OAuth / OTP (Post‑MVP)"]
-            Apple[" Apple"]
-            Google["G Google"]
-            MagicLink["✉️ Magic Link (OTP)"]
-        end
+    subgraph Backend["Supabase Backend"]
+        AuthSvc["🔑 Auth (JWT + Sessions)"]
+        DB[("🗄️ PostgreSQL
+        video_recordings
+        analysis_jobs
+        analysis_feedback
+        🔒 RLS Enabled")]
+        Storage["📁 Storage
+        raw: videos
+        processed: audio"]
+        RT["⚡ Realtime
+        analysis_jobs UPDATE"]
+        Edge["🧩 Edge Function
+        ai-analyze-video"]
     end
 
-    %% AI Pipeline (Hybrid: Client + Edge)
-    subgraph "AI Analysis Pipeline (Hybrid)"
-        subgraph ClientSide["Client Responsibilities"]
-            Pose["🕺 Pose Detection\n• Live: VisionCamera + MoveNet\n• Uploads: react-native-video-processing + MoveNet\n• Pose stored for UI overlays (pose_data)"]
-        end
-        subgraph EdgeSide["Edge Responsibilities"]
-            LLM["🧠 Gemini 2.5 Video Analysis\n(uses stored video content)"]
-            SSML["🔤 SSML Generation\n(Gemini LLM)"]
-            TTS["🔊 TTS Generation\n(Gemini 2.0 → AAC/MP3 in processed)"]
-            RPC1["RPC: store_analysis_results"]
-            RPC2["RPC: get_enhanced_analysis_with_feedback"]
-        end
+    subgraph AI["AI Pipeline"]
+        ClientPose["🕺 Client Pose
+        MoveNet Lightning"]
+        EdgeAI["🧠 Edge Processing
+        Gemini 2.5 Video
+        Gemini LLM Feedback
+        Gemini TTS → AAC/MP3"]
     end
 
-    %% Dev, Build, and Quality
-    subgraph "Dev • Build • Quality"
-        Turbo["⚡ Turbo\nOrchestration"]
-        Yarn["🧶 Yarn 4\nWorkspaces"]
-        TS["📝 TypeScript\nStrict"]
-        Biome["✨ Biome\nLint/Format"]
-        subgraph TestingInfra["🧪 Testing Infrastructure"]
-            Vitest["🧪 Vitest\nUnit Tests"]
-            Jest["🃏 Jest\nReact Native Tests"]
-            Playwright["🎭 Playwright\nE2E + Pre-auth"]
-            TestUser["👤 Test User Seeding\nAutomated Setup"]
-        end
-        GHA["⚙️ GitHub Actions\nCI"]
-        EAS["📦 EAS\nNative Builds"]
-        Vercel["▲ Vercel\nWeb Deploy"]
-    end
+    User --> Apps
+    Apps --> Router
+    Router --> Auth
+    Auth --> UI
+    Auth --> App
+    App --> API
+    App --> Zustand
+    App --> TSQ
+    UI --> Config
+    API --> Config
+    API --> AuthSvc
+    API --> DB
+    API --> Storage
+    API --> RT
+    API --> Edge
+    ClientPose --> EdgeAI
+    Edge --> EdgeAI
+    EdgeAI --> Storage
+    EdgeAI --> DB
+    DB --> RT
+    RT --> TSQ
 
-    %% User Flows
-    User --> ExpoApp
-    User --> NextApp
+    classDef client fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef shared fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef state fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef ai fill:#fce4ec,stroke:#ad1457,stroke-width:2px
 
-    %% App Composition - UNIFIED ROUTING ✅
-    ExpoApp --> ExpoRouter[Universal Router]
-    NextApp --> ExpoRouter[Universal Router]
-    ExpoRouter --> AuthLayer
-    AuthLayer --> UIPkg
-    AuthLayer --> AppPkg
-    ExpoApp --> UIPkg
-    NextApp --> UIPkg
-    ExpoApp --> AppPkg
-    NextApp --> AppPkg
-    AppPkg --> AuthPkg
-    AppPkg --> APIPkg
-    UIPkg --> ConfigPkg
-    APIPkg --> ConfigPkg
-
-    %% State & Data
-    ExpoApp --> Zustand
-    NextApp --> Zustand
-    ExpoApp --> TSQ
-    NextApp --> TSQ
-
-    %% Backend Access (via @my/api)
-    APIPkg --> AuthBackend
-    APIPkg --> DB
-    APIPkg --> Storage
-    APIPkg --> RTGroup
-    APIPkg --> EdgeFns
-
-    %% Authentication Flows ✅
-    AuthLayer --> AuthPkg
-    AuthPkg --> AuthBackend
-    AuthClient --> Auth
-    UseAuth --> AuthClient
-    TestBootstrap --> AuthClient
-    RLSHelpers --> AuthPolicies
-    AuthBackend --> DBGroup
-    AuthBackend --> Providers
-    EdgeFns --> Auth[JWT Validation]
-
-    %% AI Flow
-    ClientSide --> EdgeSide
-
-    %% Data Movement (RLS Enforced)
-    Storage <--> EdgeFns
-    EdgeFns --> DBGroup
-    EdgeSide --> Storage
-    EdgeSide --> RPC1
-    EdgeSide --> RPC2
-    DBGroup --> RTGroup
-    RTGroup --> TSQ
-    AuthPolicies --> VR[RLS Filter]
-    AuthPolicies --> AJ[RLS Filter]
-    VR --> AJ
-
-    %% Tooling Relationships
-    Turbo --> ExpoApp
-    Turbo --> NextApp
-    Turbo --> UIPkg
-    Turbo --> AppPkg
-    Turbo --> APIPkg
-    Yarn --> Turbo
-    TS --> Turbo
-    Biome --> Turbo
-    TestingInfra --> AuthPkg[Auth Testing]
-    Vitest --> AppPkg
-    Vitest --> APIPkg
-    Jest --> AuthPkg
-    Playwright --> AuthLayer[Pre-auth Setup]
-    TestUser --> Auth[Seeding]
-    GHA --> Turbo
-    EAS --> ExpoApp
-    Vercel --> NextApp
-
-    %% Styling
-    classDef layerClient fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef layerShared fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    classDef layerState fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    classDef layerBackend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    classDef layerAI fill:#fce4ec,stroke:#ad1457,stroke-width:2px
-    classDef layerDev fill:#e0f2f1,stroke:#00695c,stroke-width:2px
-    classDef layerAuth fill:#fff8e1,stroke:#f57f17,stroke-width:3px
-
-    class ExpoApp,NextApp,ExpoRouter layerClient
-    class AuthLayer,AuthGate,NextMiddleware,SignInScreens layerAuth
-    class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
-    class AuthPkg,UseAuth,AuthClient,TestBootstrap,RLSHelpers layerAuth
-    class Zustand,TSQ layerState
-    class AuthBackend,Auth,AuthPolicies,DBGroup,Storage,RTGroup,EdgeFns layerBackend
-    class Pose,LLM,SSML,TTS,RPC1,RPC2 layerAI
-    class Turbo,Yarn,TS,Biome,TestingInfra,Vitest,Jest,Playwright,TestUser,GHA,EAS,Vercel layerDev
-
-    %% Legend
-    subgraph "Legend"
-        direction LR
-        L1[Client]:::layerClient
-        L2[Authentication]:::layerAuth
-        L3[Shared]:::layerShared
-        L4[State/Data]:::layerState
-        L5[Supabase]:::layerBackend
-        L6[AI]:::layerAI
-        L7[Dev/CI]:::layerDev
-    end
-
-
+    class User,Apps,Router,Auth client
+    class UI,App,API,Config shared
+    class Zustand,TSQ state
+    class AuthSvc,DB,Storage,RT,Edge backend
+    class ClientPose,EdgeAI ai

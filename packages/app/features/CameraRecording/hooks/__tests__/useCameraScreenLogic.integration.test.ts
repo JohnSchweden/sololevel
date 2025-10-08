@@ -5,6 +5,7 @@ import { useCameraScreenLogic } from '../useCameraScreenLogic'
 
 // Mock logger
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),

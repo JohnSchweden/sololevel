@@ -9,7 +9,21 @@ import type { VideoPlaybackState } from './useVideoPlayback'
 export interface FeedbackSelectionState {
   selectedFeedbackId: string | null
   isCoachSpeaking: boolean
-  selectFeedback: (item: FeedbackPanelItem) => void
+  highlightedFeedbackId: string | null
+  highlightSource: 'user' | 'auto' | null
+  selectFeedback: (
+    item: FeedbackPanelItem,
+    options?: { seek?: boolean; playAudio?: boolean }
+  ) => void
+  highlightAutoFeedback: (
+    item: FeedbackPanelItem,
+    options?: { seek?: boolean; playAudio?: boolean; autoDurationMs?: number }
+  ) => void
+  clearHighlight: (options?: {
+    matchId?: string
+    sources?: Array<'user' | 'auto'>
+    reason?: string
+  }) => void
   clearSelection: () => void
   triggerCoachSpeaking: (durationMs?: number) => void
 }
@@ -20,8 +34,13 @@ export function useFeedbackSelection(
   videoPlayback: VideoPlaybackState
 ): FeedbackSelectionState {
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
+  const [highlightedFeedback, setHighlightedFeedback] = useState<{
+    id: string
+    source: 'user' | 'auto'
+  } | null>(null)
   const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
   const coachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const triggerCoachSpeaking = useCallback((durationMs = 3000) => {
     if (coachTimerRef.current) {
@@ -41,35 +60,149 @@ export function useFeedbackSelection(
     }, durationMs)
   }, [])
 
-  const selectFeedback = useCallback(
-    (item: FeedbackPanelItem) => {
-      log.info('useFeedbackSelection', 'Feedback item selected', { id: item.id })
+  const clearHighlightTimer = useCallback(() => {
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current)
+      highlightTimerRef.current = null
+    }
+  }, [])
+
+  const clearHighlight = useCallback(
+    (options?: { matchId?: string; sources?: Array<'user' | 'auto'>; reason?: string }) => {
+      const { matchId, sources, reason } = options ?? {}
+
+      setHighlightedFeedback((previous) => {
+        if (!previous) {
+          return previous
+        }
+
+        if (matchId && previous.id !== matchId) {
+          return previous
+        }
+
+        if (sources && !sources.includes(previous.source)) {
+          return previous
+        }
+
+        log.info('useFeedbackSelection', 'Clearing feedback highlight', {
+          id: previous.id,
+          source: previous.source,
+          reason: reason ?? null,
+        })
+
+        clearHighlightTimer()
+        return null
+      })
+    },
+    [clearHighlightTimer]
+  )
+
+  const applyHighlight = useCallback(
+    (
+      item: FeedbackPanelItem,
+      {
+        source,
+        seek = source === 'user',
+        playAudio = source === 'user',
+        autoDurationMs,
+      }: {
+        source: 'user' | 'auto'
+        seek?: boolean
+        playAudio?: boolean
+        autoDurationMs?: number
+      }
+    ) => {
+      clearHighlightTimer()
+
+      setHighlightedFeedback((previous) => {
+        if (previous?.id === item.id && previous.source === source) {
+          return previous
+        }
+
+        log.info('useFeedbackSelection', 'Feedback highlight updated', {
+          id: item.id,
+          source,
+        })
+
+        return { id: item.id, source }
+      })
+
       setSelectedFeedbackId(item.id)
 
-      if (item.timestamp) {
+      if (seek && item.timestamp) {
         const seekTime = item.timestamp / 1000
         videoPlayback.seek(seekTime)
       }
 
-      if (feedbackAudio.audioUrls[item.id]) {
+      if (playAudio && feedbackAudio.audioUrls[item.id]) {
         feedbackAudio.selectAudio(item.id)
         audioController.setIsPlaying(true)
       }
 
       triggerCoachSpeaking()
+
+      if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
+        highlightTimerRef.current = setTimeout(() => {
+          clearHighlight({
+            matchId: item.id,
+            sources: ['auto'],
+            reason: 'auto-duration-elapsed',
+          })
+        }, autoDurationMs)
+      }
     },
-    [audioController, feedbackAudio, triggerCoachSpeaking, videoPlayback]
+    [
+      audioController,
+      clearHighlight,
+      clearHighlightTimer,
+      feedbackAudio,
+      triggerCoachSpeaking,
+      videoPlayback,
+    ]
+  )
+
+  const selectFeedback = useCallback(
+    (item: FeedbackPanelItem, options?: { seek?: boolean; playAudio?: boolean }) => {
+      const { seek = true, playAudio = true } = options ?? {}
+
+      log.info('useFeedbackSelection', 'Feedback item selected', { id: item.id })
+      applyHighlight(item, {
+        source: 'user',
+        seek,
+        playAudio,
+      })
+    },
+    [applyHighlight]
+  )
+
+  const highlightAutoFeedback = useCallback(
+    (
+      item: FeedbackPanelItem,
+      options?: { seek?: boolean; playAudio?: boolean; autoDurationMs?: number }
+    ) => {
+      const { seek = false, playAudio = true, autoDurationMs } = options ?? {}
+
+      applyHighlight(item, {
+        source: 'auto',
+        seek,
+        playAudio,
+        autoDurationMs,
+      })
+    },
+    [applyHighlight]
   )
 
   const clearSelection = useCallback(() => {
     if (selectedFeedbackId) {
       log.info('useFeedbackSelection', 'Clearing feedback selection', { id: selectedFeedbackId })
     }
+
+    clearHighlight({ reason: 'manual-clear' })
     setSelectedFeedbackId(null)
     feedbackAudio.clearActiveAudio()
     audioController.setIsPlaying(false)
     triggerCoachSpeaking(0)
-  }, [audioController, feedbackAudio, selectedFeedbackId, triggerCoachSpeaking])
+  }, [audioController, clearHighlight, feedbackAudio, selectedFeedbackId, triggerCoachSpeaking])
 
   useEffect(() => {
     return () => {
@@ -80,23 +213,31 @@ export function useFeedbackSelection(
     }
   }, [])
 
+  // Seek to start only when the active audio URL for the selected feedback changes.
+  // Avoid re-triggering on unrelated state updates.
+  const selectedAudioUrl = selectedFeedbackId ? feedbackAudio.audioUrls[selectedFeedbackId] : null
+
   useEffect(() => {
     if (!selectedFeedbackId) {
       return
     }
 
-    const url = feedbackAudio.audioUrls[selectedFeedbackId]
-    if (!url) {
+    if (!selectedAudioUrl) {
       return
     }
 
-    audioController.seekTo(videoPlayback.currentTime)
-  }, [audioController, feedbackAudio.audioUrls, selectedFeedbackId, videoPlayback.currentTime])
+    // Feedback audio clips always start from the beginning (0s)
+    audioController.seekTo(0)
+  }, [audioController, selectedFeedbackId, selectedAudioUrl])
 
   return {
     selectedFeedbackId,
     isCoachSpeaking,
+    highlightedFeedbackId: highlightedFeedback?.id ?? null,
+    highlightSource: highlightedFeedback?.source ?? null,
     selectFeedback,
+    highlightAutoFeedback,
+    clearHighlight,
     clearSelection,
     triggerCoachSpeaking,
   }

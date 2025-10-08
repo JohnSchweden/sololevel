@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutAnimation, Platform } from 'react-native'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
 import { log } from '@my/logging'
@@ -13,10 +12,10 @@ import { VideoPlayerSection } from './components/VideoPlayerSection'
 import { VideoAnalysisProvider } from './contexts/VideoAnalysisContext'
 import { useAnalysisState } from './hooks/useAnalysisState'
 import { useAudioController } from './hooks/useAudioController'
-import { useBubbleController } from './hooks/useBubbleController'
+import { useAutoPlayOnReady } from './hooks/useAutoPlayOnReady'
 import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
+import { useFeedbackCoordinator } from './hooks/useFeedbackCoordinator'
 import { useFeedbackPanel } from './hooks/useFeedbackPanel'
-import { useFeedbackSelection } from './hooks/useFeedbackSelection'
 import { useVideoAudioSync } from './hooks/useVideoAudioSync'
 import { useVideoControls } from './hooks/useVideoControls'
 import { useVideoPlayback } from './hooks/useVideoPlayback'
@@ -85,7 +84,7 @@ export function VideoAnalysisScreen({
     videoEnded,
     play: playVideo,
     pause: pauseVideo,
-    replay: replayVideo,
+    replay: rerunVideo,
     seek: seekVideo,
     handleLoad: registerDuration,
     handleEnd: handleVideoComplete,
@@ -103,8 +102,16 @@ export function VideoAnalysisScreen({
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
-  const feedbackSelection = useFeedbackSelection(feedbackAudio, audioController, videoPlayback)
-  const feedbackPanel = useFeedbackPanel()
+  const coordinateFeedback = useFeedbackCoordinator({
+    feedbackItems,
+    feedbackAudio,
+    audioController,
+    videoPlayback,
+  })
+  const feedbackPanel = useFeedbackPanel({
+    highlightedFeedbackId: coordinateFeedback.highlightedFeedbackId,
+  })
+
   const videoAudioSync = useVideoAudioSync({
     isVideoPlaying: isPlaying,
     isAudioActive: audioController.isPlaying,
@@ -112,142 +119,58 @@ export function VideoAnalysisScreen({
 
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
-  // Filter feedback items to only include 'suggestion' type for bubble controller
-  const bubbleFeedbackItems = useMemo(
-    () => feedbackItems.filter((item) => item.type === 'suggestion'),
-    [feedbackItems]
-  )
-
-  // Track current time (updated less frequently via onSignificantProgress)
   const [currentTime, setCurrentTime] = useState(0)
 
-  const bubbleController = useBubbleController(
-    bubbleFeedbackItems,
-    currentTime,
-    isPlaying,
-    feedbackAudio.audioUrls,
-    audioController.duration,
-    {
-      onBubbleShow: ({ index }: { index: number }) => {
-        const item = bubbleFeedbackItems[index]
-        if (!item) return
-
-        feedbackPanel.selectFeedback(item.id)
-        feedbackSelection.triggerCoachSpeaking()
-      },
-      onBubbleHide: () => {
-        feedbackPanel.clearSelection()
-        feedbackSelection.triggerCoachSpeaking(0)
-      },
-    }
-  )
-
-  const shouldShowAudioOverlay = Boolean(feedbackAudio.activeAudio && audioController.isPlaying)
   const resolvedVideoUri = videoUri ?? FALLBACK_VIDEO_URI
   const uploadError = analysisState.error?.phase === 'upload' ? analysisState.error?.message : null
 
-  // Auto-play only once when transitioning from processing -> ready
-  const prevProcessingRef = useRef(analysisState.isProcessing)
-  useEffect(() => {
-    const wasProcessing = prevProcessingRef.current
-    const isNowProcessing = analysisState.isProcessing
-    // Detect edge: processing -> not processing
-    if (wasProcessing && !isNowProcessing) {
-      if (!isPlaying) {
-        playVideo()
-      }
-    }
-    prevProcessingRef.current = isNowProcessing
-  }, [analysisState.isProcessing, isPlaying, playVideo])
+  useAutoPlayOnReady(analysisState.isProcessing, isPlaying, playVideo)
 
-  useEffect(() => {
-    if (Platform.OS === 'ios' || Platform.OS === 'android') {
-      LayoutAnimation.configureNext(
-        LayoutAnimation.create(
-          300,
-          LayoutAnimation.Types.easeInEaseOut,
-          LayoutAnimation.Properties.opacity
-        )
-      )
-    }
-  }, [feedbackPanel.panelFraction])
-
-  useEffect(() => {
-    if (!feedbackSelection.selectedFeedbackId) {
-      feedbackPanel.clearSelection()
-      return
-    }
-    feedbackPanel.selectFeedback(feedbackSelection.selectedFeedbackId)
-  }, [feedbackPanel, feedbackSelection.selectedFeedbackId])
-
-  // Only called on significant progress changes (> 1 second)
   const handleSignificantProgress = useCallback(
     (time: number) => {
       setCurrentTime(time)
-
-      const triggeredIndex = bubbleController.checkAndShowBubbleAtTime(time * 1000)
-      if (triggeredIndex === null) {
-        return
-      }
-
-      const item = feedbackItems[triggeredIndex]
-      if (!item) {
-        return
-      }
-
-      feedbackPanel.selectFeedback(item.id)
-
-      if (feedbackAudio.audioUrls[item.id]) {
-        feedbackAudio.selectAudio(item.id)
-        audioController.setIsPlaying(true)
-      }
+      coordinateFeedback.onProgressTrigger(time)
     },
-    [audioController, bubbleController, feedbackAudio, feedbackItems, feedbackPanel]
+    [coordinateFeedback]
   )
 
   const handleSeek = useCallback(
     (time: number) => {
       seekVideo(time)
-      feedbackSelection.triggerCoachSpeaking(0)
+      coordinateFeedback.onPanelCollapse()
     },
-    [feedbackSelection, seekVideo]
+    [coordinateFeedback, seekVideo]
   )
 
   const handleSeekComplete = useCallback(
     (time: number | null) => {
       resolveSeek(time)
-      if (time === null) {
-        return
+      if (time !== null) {
+        setCurrentTime(time)
+        coordinateFeedback.onProgressTrigger(time)
       }
-      bubbleController.checkAndShowBubbleAtTime(time * 1000)
     },
-    [bubbleController, resolveSeek]
+    [coordinateFeedback, resolveSeek]
   )
+
+  const handlePlay = useCallback(() => {
+    coordinateFeedback.onPlay()
+  }, [coordinateFeedback])
 
   const handleFeedbackItemPress = useCallback(
     (item: FeedbackPanelItem) => {
-      feedbackPanel.selectFeedback(item.id)
-      feedbackSelection.selectFeedback(item)
-      playVideo()
+      coordinateFeedback.onUserTapFeedback(item)
     },
-    [feedbackPanel, feedbackSelection, playVideo]
+    [coordinateFeedback]
   )
 
   const handleCollapsePanel = useCallback(() => {
     feedbackPanel.collapse()
-    feedbackPanel.clearSelection()
-    feedbackSelection.clearSelection()
-  }, [feedbackPanel, feedbackSelection])
-
-  const handleAudioOverlayClose = useCallback(() => {
-    audioController.setIsPlaying(false)
-    feedbackAudio.clearActiveAudio()
-    feedbackSelection.clearSelection()
-  }, [audioController, feedbackAudio, feedbackSelection])
+    coordinateFeedback.onPanelCollapse()
+  }, [coordinateFeedback, feedbackPanel])
 
   const shouldShowUploadError = Boolean(uploadError)
 
-  // Provide rarely-changing data via context
   const contextValue = useMemo(
     () => ({
       videoUri: resolvedVideoUri,
@@ -256,7 +179,6 @@ export function VideoAnalysisScreen({
     [resolvedVideoUri, feedbackItems]
   )
 
-  // Stable callbacks for social actions
   const handleShare = useCallback(() => log.info('VideoAnalysisScreen', 'Share button pressed'), [])
   const handleLike = useCallback(() => log.info('VideoAnalysisScreen', 'Like button pressed'), [])
   const handleComment = useCallback(
@@ -270,10 +192,9 @@ export function VideoAnalysisScreen({
 
   const handleSelectAudio = useCallback(
     (feedbackId: string) => {
-      feedbackAudio.selectAudio(feedbackId)
-      audioController.setIsPlaying(true)
+      coordinateFeedback.onPlayPendingFeedback(feedbackId)
     },
-    [audioController, feedbackAudio]
+    [coordinateFeedback]
   )
 
   return (
@@ -298,9 +219,9 @@ export function VideoAnalysisScreen({
             showControls={videoControls.showControls}
             isProcessing={analysisState.isProcessing}
             videoAreaScale={1 - feedbackPanel.panelFraction}
-            onPlay={playVideo}
+            onPlay={handlePlay}
             onPause={pauseVideo}
-            onReplay={replayVideo}
+            onReplay={rerunVideo}
             onSeek={handleSeek}
             onSeekComplete={handleSeekComplete}
             onSignificantProgress={handleSignificantProgress}
@@ -312,16 +233,19 @@ export function VideoAnalysisScreen({
             headerBackHandler={onBack}
             audioPlayerController={audioController}
             bubbleState={{
-              visible: bubbleController.bubbleVisible,
-              currentIndex: bubbleController.currentBubbleIndex,
+              visible: coordinateFeedback.bubbleState.bubbleVisible,
+              currentIndex: coordinateFeedback.bubbleState.currentBubbleIndex,
               items: feedbackItems,
             }}
             audioOverlay={{
-              shouldShow: shouldShowAudioOverlay,
-              activeAudio: feedbackAudio.activeAudio,
-              onClose: handleAudioOverlayClose,
+              shouldShow: coordinateFeedback.overlayVisible,
+              activeAudio: coordinateFeedback.activeAudio,
+              onClose: coordinateFeedback.onAudioOverlayClose,
+              onInactivity: coordinateFeedback.onAudioOverlayInactivity,
+              onInteraction: coordinateFeedback.onAudioOverlayInteraction,
+              audioDuration: audioController.duration,
             }}
-            coachSpeaking={feedbackSelection.isCoachSpeaking}
+            coachSpeaking={coordinateFeedback.isCoachSpeaking}
             panelFraction={feedbackPanel.panelFraction}
             socialCounts={{
               likes: 1200,
@@ -348,7 +272,7 @@ export function VideoAnalysisScreen({
           panelFraction={feedbackPanel.panelFraction}
           activeTab={feedbackPanel.activeTab}
           feedbackItems={feedbackItems}
-          selectedFeedbackId={feedbackSelection.selectedFeedbackId}
+          selectedFeedbackId={coordinateFeedback.highlightedFeedbackId}
           currentVideoTime={currentTime}
           videoDuration={0}
           errors={feedbackAudio.errors}

@@ -43,6 +43,8 @@ module.exports = {
     '^@my/app/(.*)$': '<rootDir>/$1',
     '^@my/api/(.*)$': '<rootDir>/../api/src/$1',
     '^@my/config/(.*)$': '<rootDir>/../config/src/$1',
+    '^@my/logging$': '<rootDir>/../logging/src/index.ts',
+    '^@my/logging/(.*)$': '<rootDir>/../logging/src/$1',
     'react-native-compressor': '<rootDir>/__mocks__/react-native-compressor.ts',
   },
   transformIgnorePatterns: [

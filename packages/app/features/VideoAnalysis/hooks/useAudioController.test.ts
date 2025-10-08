@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { useAudioController } from './useAudioController'
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     debug: jest.fn(),
     info: jest.fn(),
@@ -106,7 +107,7 @@ describe('useAudioController', () => {
       expect(result.current.isLoaded).toBe(true)
     })
 
-    it('should handle end event and reset playback state', () => {
+    it('should handle end event and reset playback state after progress', () => {
       const { result } = renderHook(() => useAudioController('https://example.com/audio.mp3'))
 
       // Set up playing state
@@ -125,6 +126,66 @@ describe('useAudioController', () => {
 
       expect(result.current.isPlaying).toBe(false)
       expect(result.current.currentTime).toBe(0)
+    })
+
+    it('should end playback even when currentTime is near zero but duration is known', () => {
+      const { result } = renderHook(() => useAudioController('https://example.com/audio.mp3'))
+
+      act(() => {
+        result.current.setIsPlaying(true)
+        result.current.handleLoad({ duration: 12 })
+      })
+
+      expect(result.current.isPlaying).toBe(true)
+      expect(result.current.duration).toBe(12)
+
+      act(() => {
+        result.current.handleEnd()
+      })
+
+      expect(result.current.isPlaying).toBe(false)
+      expect(result.current.currentTime).toBe(0)
+    })
+
+    it('should end playback gracefully before audio is loaded', () => {
+      const { result } = renderHook(() => useAudioController('https://example.com/audio.mp3'))
+
+      act(() => {
+        result.current.setIsPlaying(true)
+      })
+
+      expect(result.current.isPlaying).toBe(true)
+
+      act(() => {
+        result.current.handleEnd()
+      })
+
+      expect(result.current.isPlaying).toBe(false)
+      expect(result.current.currentTime).toBe(0)
+    })
+
+    it('should end playback after seek completion using latest progress state', () => {
+      const { result } = renderHook(() => useAudioController('https://example.com/audio.mp3'))
+
+      act(() => {
+        result.current.setIsPlaying(true)
+        result.current.handleProgress({ currentTime: 2 })
+        result.current.seekTo(8)
+        result.current.handleSeekComplete()
+        result.current.handleProgress({ currentTime: 8.05 })
+      })
+
+      expect(result.current.isPlaying).toBe(true)
+      expect(result.current.currentTime).toBe(8.05)
+      expect(result.current.seekTime).toBe(null)
+
+      act(() => {
+        result.current.handleEnd()
+      })
+
+      expect(result.current.isPlaying).toBe(false)
+      expect(result.current.currentTime).toBe(0)
+      expect(result.current.seekTime).toBe(null)
     })
   })
 

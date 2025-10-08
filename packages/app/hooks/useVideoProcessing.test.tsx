@@ -7,6 +7,7 @@
 
 // Mock the logger
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     error: jest.fn(),

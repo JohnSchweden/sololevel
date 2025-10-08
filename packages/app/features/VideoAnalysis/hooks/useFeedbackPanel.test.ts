@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react'
 import { useFeedbackPanel } from './useFeedbackPanel'
 
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -80,6 +81,23 @@ describe('useFeedbackPanel', () => {
     act(() => {
       result.current.selectFeedback(null)
     })
+
+    expect(result.current.selectedFeedbackId).toBeNull()
+  })
+
+  it('syncs selection when highlighted feedback changes', () => {
+    const { result, rerender } = renderHook(
+      ({ highlightedFeedbackId }) => useFeedbackPanel({ highlightedFeedbackId }),
+      { initialProps: { highlightedFeedbackId: null as string | null } }
+    )
+
+    expect(result.current.selectedFeedbackId).toBeNull()
+
+    rerender({ highlightedFeedbackId: 'feedback-123' })
+
+    expect(result.current.selectedFeedbackId).toBe('feedback-123')
+
+    rerender({ highlightedFeedbackId: null })
 
     expect(result.current.selectedFeedbackId).toBeNull()
   })

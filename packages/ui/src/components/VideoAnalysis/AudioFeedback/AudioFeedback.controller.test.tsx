@@ -25,8 +25,9 @@ describe('AudioFeedback - Controller Interface', () => {
     const props: AudioFeedbackProps = {
       audioUrl: 'https://example.com/audio.mp3',
       controller: mockController,
-      onClose: jest.fn(),
       isVisible: true,
+      onInactivity: jest.fn(),
+      onClose: jest.fn(),
     }
 
     expect(props.controller).toBe(mockController)
@@ -57,8 +58,9 @@ describe('AudioFeedback - Controller Interface', () => {
     const props: AudioFeedbackProps = {
       audioUrl: 'https://example.com/audio.mp3',
       controller: mockController,
-      onClose: jest.fn(),
       isVisible: true,
+      onInactivity: jest.fn(),
+      onClose: jest.fn(),
     }
 
     // Verify controller properties are accessible

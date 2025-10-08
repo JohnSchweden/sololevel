@@ -1,0 +1,169 @@
+graph TB
+    User["👤 Users"]
+
+    subgraph "Client Applications"
+        ExpoApp["📱 Expo App (iOS/Android)"]
+        NextApp["🌐 Next.js App (Web SSR/SSG)"]
+        ExpoRouter["🧭 Expo Router (Universal Routing)"]
+        subgraph AuthLayer["🔐 Authentication Layer"]
+            AuthGate["🚪 AuthGate (Route Protection + Loading)"]
+            NextMiddleware["⚙️ Next.js Middleware (Server Auth)"]
+            SignInScreens["📝 Sign-in Screens (Expo + Next.js)"]
+        end
+    end
+
+    subgraph "Shared Packages (@my/*)"
+        UIPkg["🎨 @my/ui (Tamagui Components)"]
+        AppPkg["⚙️ @my/app (Business Logic, Screens, Hooks)"]
+        subgraph AuthPkg["🔐 Authentication (@my/app + @my/api)"]
+            UseAuth["🪝 useAuth Hook (React + Zustand)"]
+            AuthClient["🔌 Auth Client (Typed Wrapper)"]
+            TestBootstrap["🧪 Test Auth Bootstrap (Dev Mode)"]
+            RLSHelpers["🛡️ RLS Helpers (Security)"]
+        end
+        APIPkg["🔌 @my/api (Supabase Client)"]
+        ConfigPkg["🧰 @my/config (Config & Types)"]
+    end
+
+    subgraph "State & Data"
+        Zustand["🗃️ Zustand (Client State)"]
+        TSQ["📊 TanStack Query (Server State)"]
+    end
+
+    subgraph "Supabase Backend"
+        subgraph AuthBackend["🔐 Authentication Backend"]
+            Auth["🔑 Supabase Auth (JWT, Sessions)"]
+            AuthPolicies["🛡️ RLS Policies (auth.uid() = user_id)"]
+        end
+        subgraph DBGroup["🗄️ PostgreSQL (RLS Enforced)"]
+            DB[("public schema")]
+            VR["📄 video_recordings (id, user_id, storage_path, duration) 🔒 RLS"]
+            AJ["📄 analysis_jobs (id, user_id, video_recording_id, status, results, pose_data) 🔒 RLS"]
+        end
+        Storage["📁 Storage (raw: uploads • processed: AAC/MP3)"]
+        subgraph RTGroup["⚡ Realtime"]
+            RT1["Postgres Changes (analysis_jobs UPDATE)"]
+            RT2["Broadcast Channel (pose-data)"]
+        end
+        subgraph EdgeFns["🧩 Edge Functions"]
+            E1["ai-analyze-video"]
+            E1a["POST /ai-analyze-video 🔒 JWT → userId"]
+            E1b["GET /ai-analyze-video/status?id=<id>"]
+            E1c["POST /ai-analyze-video/tts"]
+            E1d["GET /ai-analyze-video/health"]
+            Obs["📝 Logger (_shared/logger.ts)"]
+        end
+        subgraph Providers["🔗 OAuth / OTP (Post‑MVP)"]
+            Apple[" Apple"]
+            Google["G Google"]
+            MagicLink["✉️ Magic Link (OTP)"]
+        end
+    end
+
+    subgraph "AI Analysis Pipeline (Hybrid)"
+        subgraph ClientSide["Client Responsibilities"]
+            Pose["🕺 Pose Detection (VisionCamera/MoveNet)"]
+        end
+        subgraph EdgeSide["Edge Responsibilities"]
+            LLM["🧠 Gemini 2.5 (Video Analysis)"]
+            SSML["🔤 SSML Generation (Gemini LLM)"]
+            TTS["🔊 TTS Generation (Gemini 2.0 → AAC/MP3)"]
+            RPC1["RPC: store_analysis_results"]
+            RPC2["RPC: get_enhanced_analysis_with_feedback"]
+        end
+    end
+
+    subgraph "Dev • Build • Quality"
+        Turbo["⚡ Turbo (Orchestration)"]
+        Yarn["🧶 Yarn 4 (Workspaces)"]
+        TS["📝 TypeScript (Strict)"]
+        Biome["✨ Biome (Lint/Format)"]
+        subgraph TestingInfra["🧪 Testing Infrastructure"]
+            Vitest["🧪 Vitest (Unit Tests)"]
+            Jest["🃏 Jest (RN Tests)"]
+            Playwright["🎭 Playwright (E2E + Pre-auth)"]
+            TestUser["👤 Test User Seeding"]
+        end
+        GHA["⚙️ GitHub Actions (CI)"]
+        EAS["📦 EAS (Native Builds)"]
+        Vercel["▲ Vercel (Web Deploy)"]
+    end
+
+    User --> ExpoApp
+    User --> NextApp
+    ExpoApp --> ExpoRouter
+    NextApp --> ExpoRouter
+    ExpoRouter --> AuthLayer
+    AuthLayer --> UIPkg
+    AuthLayer --> AppPkg
+    ExpoApp --> UIPkg
+    NextApp --> UIPkg
+    ExpoApp --> AppPkg
+    NextApp --> AppPkg
+    AppPkg --> AuthPkg
+    AppPkg --> APIPkg
+    UIPkg --> ConfigPkg
+    APIPkg --> ConfigPkg
+    ExpoApp --> Zustand
+    NextApp --> Zustand
+    ExpoApp --> TSQ
+    NextApp --> TSQ
+    APIPkg --> AuthBackend
+    APIPkg --> DB
+    APIPkg --> Storage
+    APIPkg --> RTGroup
+    APIPkg --> EdgeFns
+    AuthLayer --> AuthPkg
+    AuthPkg --> AuthBackend
+    AuthClient --> Auth
+    UseAuth --> AuthClient
+    TestBootstrap --> AuthClient
+    RLSHelpers --> AuthPolicies
+    AuthBackend --> DBGroup
+    AuthBackend --> Providers
+    EdgeFns --> Auth
+    ClientSide --> EdgeSide
+    Storage <--> EdgeFns
+    EdgeFns --> DBGroup
+    EdgeSide --> Storage
+    EdgeSide --> RPC1
+    EdgeSide --> RPC2
+    DBGroup --> RTGroup
+    RTGroup --> TSQ
+    AuthPolicies --> VR
+    AuthPolicies --> AJ
+    VR --> AJ
+    Turbo --> ExpoApp
+    Turbo --> NextApp
+    Turbo --> UIPkg
+    Turbo --> AppPkg
+    Turbo --> APIPkg
+    Yarn --> Turbo
+    TS --> Turbo
+    Biome --> Turbo
+    TestingInfra --> AuthPkg
+    Vitest --> AppPkg
+    Vitest --> APIPkg
+    Jest --> AuthPkg
+    Playwright --> AuthLayer
+    TestUser --> Auth
+    GHA --> Turbo
+    EAS --> ExpoApp
+    Vercel --> NextApp
+
+    classDef layerClient fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef layerShared fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef layerState fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef layerBackend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef layerAI fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    classDef layerDev fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef layerAuth fill:#fff8e1,stroke:#f57f17,stroke-width:3px
+
+    class ExpoApp,NextApp,ExpoRouter layerClient
+    class AuthLayer,AuthGate,NextMiddleware,SignInScreens layerAuth
+    class UIPkg,AppPkg,APIPkg,ConfigPkg layerShared
+    class AuthPkg,UseAuth,AuthClient,TestBootstrap,RLSHelpers layerAuth
+    class Zustand,TSQ layerState
+    class AuthBackend,Auth,AuthPolicies,DBGroup,Storage,RTGroup,EdgeFns layerBackend
+    class Pose,LLM,SSML,TTS,RPC1,RPC2 layerAI
+    class Turbo,Yarn,TS,Biome,TestingInfra,Vitest,Jest,Playwright,TestUser,GHA,EAS,Vercel layerDev

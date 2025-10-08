@@ -21,6 +21,15 @@ config.resolver.nodeModulesPaths = [
 // 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
 config.resolver.disableHierarchicalLookup = true
 
+// 4. Blocklist test directories to prevent test code from being bundled
+config.resolver.blockList = [
+  // Block test directories
+  /.*\/__tests__\/.*/,
+  /.*\/test-utils\/.*/,
+  /.*\.test\.(ts|tsx|js|jsx)$/,
+  /.*\.spec\.(ts|tsx|js|jsx)$/,
+]
+
 config.transformer = {
   ...config.transformer,
   unstable_allowRequireContext: true,
@@ -52,6 +61,10 @@ config.resolver.extraNodeModules = {
   // React 19 + Hermes compatibility
   react: path.resolve(workspaceRoot, 'node_modules/react'),
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
+  // Node.js polyfills for testing libraries
+  console: require.resolve('console-browserify'),
+  util: require.resolve('util'),
+  process: require.resolve('process/browser'),
 }
 
 // React 19 + Hermes compatibility: ensure consistent React resolution

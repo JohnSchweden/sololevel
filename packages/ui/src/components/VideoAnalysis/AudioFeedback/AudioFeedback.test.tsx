@@ -27,8 +27,9 @@ const mockController = {
 const mockProps = {
   audioUrl: 'https://example.com/audio.mp3',
   controller: mockController,
-  onClose: jest.fn(),
   isVisible: true,
+  onInactivity: jest.fn(),
+  onClose: jest.fn(),
 }
 
 describe('AudioFeedback', () => {
@@ -134,5 +135,16 @@ describe('AudioFeedback', () => {
     render(<AudioFeedback {...mockProps} />)
 
     expect(mockController.togglePlayback).toBeDefined()
+  })
+
+  it('renders null overlay when hidden', () => {
+    render(
+      <AudioFeedback
+        {...mockProps}
+        isVisible={false}
+      />
+    )
+
+    expect(screen.queryByTestId('audio-feedback-overlay')).not.toBeInTheDocument()
   })
 })

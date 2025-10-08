@@ -99,24 +99,18 @@
 ### **US-VF-08: Feedback Panel Component** ✅ 85% Complete
 **Status**: Core functionality present
 **Issues Found**:
-- Video resizing when bottom sheet expands not implemented
-- Progress bar scrubbing implementation is basic
 - Insights and Comments tabs show placeholder content
 
 **Next Steps**:
-- Implement video player resizing when bottom sheet expands
-- Enhance progress bar scrubbing accuracy
 - Implement Insights and Comments functionality
 
 ### **US-VF-09: Video Analysis Screen (Integration)** ⚠️ 70% Complete
 **Status**: Basic integration working
 **Issues Found**:
-- Uses mock API services (getAnalysisJob, getAnalysisResults)
 - Limited error handling across component integration
 - Props may not be properly typed/passed from routing
 
 **Next Steps**:
-- Replace mock APIs with real Supabase integration
 - Add comprehensive error handling for integration points
 - Ensure proper prop passing from Expo Router navigation
 

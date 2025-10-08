@@ -1,5 +1,7 @@
+import { LayoutAnimation, Platform } from 'react-native'
+
 import { log } from '@my/logging'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type FeedbackPanelTab = 'feedback' | 'insights' | 'comments'
 
@@ -20,10 +22,15 @@ export interface FeedbackPanelState {
 const COLLAPSED_FRACTION = 0.05
 const EXPANDED_FRACTION = 0.4
 
-export function useFeedbackPanel(): FeedbackPanelState {
+interface UseFeedbackPanelOptions {
+  highlightedFeedbackId?: string | null
+}
+
+export function useFeedbackPanel(options: UseFeedbackPanelOptions = {}): FeedbackPanelState {
   const [panelFraction, setPanelFraction] = useState(COLLAPSED_FRACTION)
   const [activeTab, setActiveTabState] = useState<FeedbackPanelTab>('feedback')
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
+  const { highlightedFeedbackId = null } = options
 
   const isExpanded = useMemo(() => panelFraction > COLLAPSED_FRACTION, [panelFraction])
 
@@ -61,6 +68,38 @@ export function useFeedbackPanel(): FeedbackPanelState {
     }
     setSelectedFeedbackId(null)
   }, [selectedFeedbackId])
+
+  useEffect(() => {
+    log.debug('useFeedbackPanel', 'highlightedFeedbackId prop changed', {
+      highlightedFeedbackId,
+      currentSelectedFeedbackId: selectedFeedbackId,
+    })
+    setSelectedFeedbackId((previous) => {
+      if (previous === highlightedFeedbackId) {
+        log.debug('useFeedbackPanel', 'selectedFeedbackId unchanged (same as highlighted)', {
+          id: previous,
+        })
+        return previous
+      }
+      log.debug('useFeedbackPanel', 'selectedFeedbackId updated from highlighted', {
+        previous,
+        next: highlightedFeedbackId,
+      })
+      return highlightedFeedbackId
+    })
+  }, [highlightedFeedbackId])
+
+  useEffect(() => {
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      LayoutAnimation.configureNext(
+        LayoutAnimation.create(
+          300,
+          LayoutAnimation.Types.easeInEaseOut,
+          LayoutAnimation.Properties.opacity
+        )
+      )
+    }
+  }, [panelFraction])
 
   return {
     panelFraction,

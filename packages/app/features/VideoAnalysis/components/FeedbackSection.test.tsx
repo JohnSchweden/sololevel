@@ -43,7 +43,7 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
 
 describe('FeedbackSection', () => {
   const mockSocialIcons = SocialIcons as jest.Mock
-  const mockFeedbackPanel = FeedbackPanel as jest.Mock
+  const mockFeedbackPanel = FeedbackPanel as jest.MockedFunction<typeof FeedbackPanel>
 
   beforeEach(() => {
     mockSocialIcons.mockClear()
@@ -71,7 +71,7 @@ describe('FeedbackSection', () => {
     panelProps.onSheetExpand()
     panelProps.onSheetCollapse()
     panelProps.onTabChange('insights')
-    panelProps.onFeedbackItemPress({ id: '1', timestamp: 2000, text: 'test' })
+    panelProps.onFeedbackItemPress(createItem({ id: '1', timestamp: 2000, text: 'test' }))
 
     expect(props.onExpand).toHaveBeenCalled()
     expect(props.onCollapse).toHaveBeenCalled()

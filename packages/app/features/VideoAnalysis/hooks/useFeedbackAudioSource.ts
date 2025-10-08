@@ -138,12 +138,15 @@ export function useFeedbackAudioSource(
         return
       }
 
+      // If selecting the same audio id again, append a cache-busting fragment to force controller reset
+      const urlToUse = activeAudio?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
+
       log.info(CONTEXT, 'Selecting audio for feedback', {
         feedbackId,
-        url: url.substring(0, 50) + '...',
+        url: urlToUse.substring(0, 50) + '...',
         previousActiveId: activeAudio?.id,
       })
-      setActiveAudio({ id: feedbackId, url })
+      setActiveAudio({ id: feedbackId, url: urlToUse })
     },
     [audioUrls, activeAudio?.id]
   )

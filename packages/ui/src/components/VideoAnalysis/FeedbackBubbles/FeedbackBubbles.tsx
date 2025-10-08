@@ -1,4 +1,4 @@
-import { Text, YStack } from 'tamagui'
+import { AnimatePresence, Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
 export interface FeedbackBubblesProps {
@@ -63,10 +63,12 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
         animation="quick"
         enterStyle={{
           opacity: 0,
+          y: 20,
           scale: 0.8,
         }}
         exitStyle={{
           opacity: 0,
+          y: 20,
           scale: 0.8,
         }}
         testID={`bubble-text-container-${message.id}`}
@@ -102,41 +104,46 @@ export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
 
   const visibleMessages = sortedMessages.slice(0, 3) // Show up to 3 messages
 
-  if (visibleMessages.length === 0) {
-    return null
-  }
-
   return (
-    <YStack
-      position="absolute"
-      bottom={120} // Position below video controls (controls are at bottom={80})
-      left={20}
-      right={20}
-      zIndex={0}
-      pointerEvents="box-none"
-      testID="feedback-bubbles"
-      accessibilityLabel="Feedback bubbles container"
-    >
-      <YStack
-        flexDirection="row"
-        flexWrap="wrap"
-        justifyContent="center"
-        gap="$2"
-        pointerEvents="auto"
-      >
-        {visibleMessages.map((message) => (
+    <AnimatePresence>
+      {visibleMessages.length > 0 && (
+        <YStack
+          key="feedback-bubbles"
+          position="absolute"
+          bottom={120} // Position below video controls (controls are at bottom={80})
+          left={20}
+          right={20}
+          zIndex={0}
+          pointerEvents="box-none"
+          testID="feedback-bubbles"
+          accessibilityLabel="Feedback bubbles container"
+          animation="quick"
+          enterStyle={{ opacity: 0, y: 20, scale: 0.8 }}
+          exitStyle={{ opacity: 0, y: 20, scale: 0.8 }}
+        >
           <YStack
-            key={message.id}
-            zIndex={message.isHighlighted ? 10 : 5}
-            animation="quick"
-            opacity={message.isActive ? 1 : 0}
-            scale={message.isHighlighted ? 1.05 : 1}
-            testID={`bubble-position-${message.id}`}
+            flexDirection="row"
+            flexWrap="wrap"
+            justifyContent="center"
+            gap="$2"
+            pointerEvents="auto"
           >
-            <SpeechBubble message={message} />
+            <AnimatePresence>
+              {visibleMessages.map((message) => (
+                <YStack
+                  key={message.id}
+                  zIndex={message.isHighlighted ? 10 : 5}
+                  opacity={message.isActive ? 1 : 0}
+                  scale={message.isHighlighted ? 1.05 : 1}
+                  testID={`bubble-position-${message.id}`}
+                >
+                  <SpeechBubble message={message} />
+                </YStack>
+              ))}
+            </AnimatePresence>
           </YStack>
-        ))}
-      </YStack>
-    </YStack>
+        </YStack>
+      )}
+    </AnimatePresence>
   )
 }

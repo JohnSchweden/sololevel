@@ -5,6 +5,7 @@ import { useFeedbackStatusIntegration } from './useFeedbackStatusIntegration'
 
 // Mock logging
 jest.mock('@my/logging', () => ({
+  logOnChange: jest.fn(),
   log: {
     debug: jest.fn(),
     info: jest.fn(),

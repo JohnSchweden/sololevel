@@ -114,7 +114,7 @@ export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
       "category": "Speech",
       "message": "Clear articulation and good pacing throughout",
       "confidence": 0.85,
-      "impact": 0.5
+      "impact": 0.65
     }
   ]
 }
@@ -170,7 +170,7 @@ export function getMockAnalysisResult(): GeminiVideoAnalysisResult {
         category: 'Speech',
         message: 'Clear articulation and good pacing throughout',
         confidence: 0.85,
-        impact: 0.5,
+        impact: 0.65,
       },
     ],
     metrics: {
