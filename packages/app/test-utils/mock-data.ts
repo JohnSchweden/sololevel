@@ -1,5 +1,8 @@
 import type { Tables } from '@my/api'
 
+// Re-export mocks from app/mocks for test compatibility
+export { mockFeedbackItems, FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
+
 // Mock user data variations
 export const mockUsers: Record<string, Tables<'profiles'>> = {
   complete: {

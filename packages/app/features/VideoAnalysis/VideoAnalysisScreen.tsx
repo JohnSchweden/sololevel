@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
+import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
 import { log } from '@my/logging'
 
 import { VideoControlsRef } from '@ui/components/VideoAnalysis'
@@ -30,42 +31,6 @@ export interface VideoAnalysisScreenProps {
   onMenuPress?: () => void
 }
 
-const FALLBACK_VIDEO_URI =
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-
-const DEFAULT_FEEDBACK_ITEMS: FeedbackPanelItem[] = [
-  {
-    id: 'seed-1',
-    timestamp: 2_000,
-    text: 'Great posture! Keep your shoulders relaxed.',
-    type: 'suggestion',
-    category: 'posture',
-    ssmlStatus: 'completed',
-    audioStatus: 'completed',
-    confidence: 1,
-  },
-  {
-    id: 'seed-2',
-    timestamp: 5_000,
-    text: 'Try speaking with more confidence.',
-    type: 'suggestion',
-    category: 'voice',
-    ssmlStatus: 'completed',
-    audioStatus: 'completed',
-    confidence: 1,
-  },
-  {
-    id: 'seed-3',
-    timestamp: 8_000,
-    text: 'Your hand gestures are too stiff.',
-    type: 'suggestion',
-    category: 'movement',
-    ssmlStatus: 'completed',
-    audioStatus: 'completed',
-    confidence: 1,
-  },
-]
-
 export function VideoAnalysisScreen({
   analysisJobId,
   videoRecordingId,
@@ -93,12 +58,8 @@ export function VideoAnalysisScreen({
 
   const videoControls = useVideoControls(analysisState.isProcessing, isPlaying, videoEnded)
 
-  const feedbackItems = useMemo(() => {
-    if (analysisState.feedback.feedbackItems.length > 0) {
-      return analysisState.feedback.feedbackItems
-    }
-    return DEFAULT_FEEDBACK_ITEMS
-  }, [analysisState.feedback.feedbackItems])
+  // Feedback items from hook already include mock fallback when needed
+  const feedbackItems = analysisState.feedback.feedbackItems
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
@@ -121,6 +82,7 @@ export function VideoAnalysisScreen({
 
   const [currentTime, setCurrentTime] = useState(0)
 
+  // Use provided video URI or fallback to sample video
   const resolvedVideoUri = videoUri ?? FALLBACK_VIDEO_URI
   const uploadError = analysisState.error?.phase === 'upload' ? analysisState.error?.message : null
 

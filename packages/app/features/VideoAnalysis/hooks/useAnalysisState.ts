@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
+import { mockFeedbackItems } from '@app/mocks/feedback'
 import type { AnalysisJob } from '@app/stores/analysisSubscription'
 import { useAnalysisSubscriptionStore } from '@app/stores/analysisSubscription'
+import { useFeatureFlagsStore } from '@app/stores/feature-flags'
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
 import { getAnalysisIdForJobId } from '@my/api'
 import { log } from '@my/logging'
@@ -339,6 +341,28 @@ export function useAnalysisState(
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined)
 
+  // Check feature flag for mock data control
+  const useMockData = useFeatureFlagsStore((state) => state.flags.useMockData)
+
+  // Apply mock fallback strategy based on feature flag
+  const feedbackWithFallback = useMemo(() => {
+    // Use real feedback items if available
+    if (feedbackStatus.feedbackItems.length > 0) {
+      return {
+        ...feedbackStatus,
+        feedbackItems: feedbackStatus.feedbackItems,
+      }
+    }
+
+    // Only use mock data if feature flag is enabled
+    const items = useMockData ? (mockFeedbackItems as typeof feedbackStatus.feedbackItems) : []
+
+    return {
+      ...feedbackStatus,
+      feedbackItems: items,
+    }
+  }, [feedbackStatus, useMockData])
+
   useEffect(() => {
     if (!subscriptionKey) {
       setChannelExhausted(false)
@@ -356,6 +380,7 @@ export function useAnalysisState(
   }, [subscriptionKey, subscriptionSnapshot?.status])
 
   const firstPlayableReady = useMemo(() => {
+    // Use real feedback items (not fallback) for playability detection
     if (!feedbackStatus.feedbackItems.length) {
       return false
     }
@@ -378,6 +403,7 @@ export function useAnalysisState(
   }, [feedbackStatus.feedbackItems])
 
   const analysisStatus = deriveAnalysisStatus(analysisJob)
+  // Use real feedback items (not fallback) for progress calculation
   const feedbackProgress = deriveFeedbackProgress(feedbackStatus.feedbackItems)
 
   const uploadTask = useMemo(() => {
@@ -390,6 +416,7 @@ export function useAnalysisState(
 
   const uploadErrorMessage = uploadTask?.error ?? null
 
+  // Use real feedback status (not fallback) for phase determination
   const { phase, error } = determinePhase({
     uploadStatus,
     analysisStatus,
@@ -432,7 +459,7 @@ export function useAnalysisState(
     analysisUuid,
     error,
     retry,
-    feedback: feedbackStatus,
+    feedback: feedbackWithFallback, // Return feedback with mock fallback applied
     firstPlayableReady,
     channelExhausted,
   }
