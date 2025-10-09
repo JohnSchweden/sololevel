@@ -106,13 +106,17 @@ export function extractContext(raw: any): Record<string, unknown> {
 }
 
 function humanMs(ms?: number): string | undefined {
-  if (ms == null) return undefined
+  if (ms == null || typeof ms !== 'number' || !Number.isFinite(ms)) {
+    return undefined
+  }
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(3)}s`
 }
 
 function humanSeconds(seconds?: number): string | undefined {
-  if (seconds == null) return undefined
+  if (seconds == null || typeof seconds !== 'number' || !Number.isFinite(seconds)) {
+    return undefined
+  }
   // // Handle milliseconds (values > 1000 are likely milliseconds)
   // if (seconds > 1000) {
   //   return `${(seconds / 1000).toFixed(2)}s`

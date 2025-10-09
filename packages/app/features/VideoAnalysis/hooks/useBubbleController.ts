@@ -355,27 +355,43 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         return null
       }
 
-      lastCheckTimestampRef.current = currentTimeMs
+      // Check for ANY feedback in the range we just crossed (handles sparse progress events)
+      // Only trigger feedbacks ahead of lastCheck to prevent re-triggering already-shown items
+      const rangeEnd = currentTimeMs + TIMESTAMP_THRESHOLD_MS
 
       for (let index = 0; index < feedbackItemsRef.current.length; index += 1) {
         const item = feedbackItemsRef.current[index]
-        const timeDiff = Math.abs(currentTimeMs - item.timestamp)
-        const isNearTimestamp = timeDiff < TIMESTAMP_THRESHOLD_MS
-        const canShow = isNearTimestamp && (!bubbleVisible || currentBubbleIndex !== index)
+
+        // On first check or when seeking backwards, use point-in-time matching
+        // Otherwise, only trigger feedbacks ahead of the last check (prevents re-triggers)
+        const isInRange =
+          lastCheck === null || currentTimeMs < lastCheck
+            ? Math.abs(item.timestamp - currentTimeMs) < TIMESTAMP_THRESHOLD_MS
+            : item.timestamp > lastCheck && item.timestamp <= rangeEnd
+
+        const canShow = isInRange && (!bubbleVisible || currentBubbleIndex !== index)
 
         if (canShow) {
+          // Update lastCheck to be at least the matched timestamp to prevent re-triggering
+          lastCheckTimestampRef.current = Math.max(currentTimeMs, item.timestamp)
+
           log.info('useBubbleController', 'Triggering bubble show', {
             index,
             itemId: item.id,
             itemTimestamp: item.timestamp,
             currentTimeMs,
-            timeDiff,
+            rangeEnd,
+            lastCheck,
+            newLastCheck: lastCheckTimestampRef.current,
+            matchType: lastCheck === null || currentTimeMs < lastCheck ? 'point' : 'range',
           })
           showBubble(index)
           return index
         }
       }
 
+      // No match - update lastCheck to current time
+      lastCheckTimestampRef.current = currentTimeMs
       return null
     },
     [bubbleVisible, currentBubbleIndex, showBubble]

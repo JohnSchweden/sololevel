@@ -170,4 +170,67 @@ describe('useBubbleController', () => {
 
     expect(clearTimeoutSpy).toHaveBeenCalled()
   })
+
+  it('catches feedback in range between sparse progress events', () => {
+    // Arrange: Feedback at 2.5s and 4.1s
+    const feedbackItems = [
+      { id: '1', timestamp: 2500 },
+      { id: '2', timestamp: 4100 },
+    ]
+    const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
+
+    // Act: First progress event at 2.25s (catches first feedback)
+    act(() => {
+      const index = result.current.checkAndShowBubbleAtTime(2250)
+      expect(index).toBe(0)
+    })
+    expect(result.current.currentBubbleIndex).toBe(0)
+
+    // Act: Simulate progress jump from 3.5s to 4.75s (range includes 4.1s feedback)
+    act(() => {
+      result.current.hideBubble('manual')
+    })
+
+    act(() => {
+      // First check at 3.5s (after first feedback audio ends)
+      result.current.checkAndShowBubbleAtTime(3500)
+    })
+
+    // Act: Next progress event at 4.75s (should catch feedback at 4.1s via range check)
+    act(() => {
+      const index = result.current.checkAndShowBubbleAtTime(4750)
+      expect(index).toBe(1)
+    })
+
+    // Assert: Second feedback was triggered
+    expect(result.current.currentBubbleIndex).toBe(1)
+    expect(result.current.bubbleVisible).toBe(true)
+  })
+
+  it('does not re-trigger already-shown feedback', () => {
+    // Arrange: Single feedback at 2.5s
+    const feedbackItems = [{ id: '1', timestamp: 2500 }]
+    const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
+
+    // Act: First check at 2.0s triggers feedback
+    act(() => {
+      const index = result.current.checkAndShowBubbleAtTime(2000)
+      expect(index).toBe(0)
+    })
+    expect(result.current.bubbleVisible).toBe(true)
+
+    act(() => {
+      result.current.hideBubble('manual')
+    })
+
+    // Act: Check at 3.0s - range would be 2000-3500ms which includes 2500ms,
+    // but should NOT re-trigger because timestamp <= lastCheck (2000ms)
+    act(() => {
+      const index = result.current.checkAndShowBubbleAtTime(3000)
+      expect(index).toBeNull()
+    })
+
+    // Assert: Bubble remains hidden
+    expect(result.current.bubbleVisible).toBe(false)
+  })
 })

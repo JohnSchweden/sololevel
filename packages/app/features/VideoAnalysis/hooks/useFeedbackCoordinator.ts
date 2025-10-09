@@ -278,24 +278,6 @@ export function useFeedbackCoordinator({
     videoPlayback.play()
   }, [bubbleIndexById, pendingFeedbackId, selection, showBubble, videoPlayback])
 
-  // Diagnostics: log when video end state changes
-  useEffect(() => {
-    log.info('useFeedbackCoordinator', 'Video end state changed', {
-      videoEnded: videoPlayback.videoEnded,
-      highlightedId: selection.highlightedFeedbackId,
-      pendingFeedbackId,
-      bubbleVisible,
-    })
-  }, [bubbleVisible, pendingFeedbackId, selection.highlightedFeedbackId, videoPlayback.videoEnded])
-
-  // Diagnostics: log when audio playback toggles
-  useEffect(() => {
-    log.info('useFeedbackCoordinator', 'Audio playing state changed', {
-      audioPlaying: audioController.isPlaying,
-      highlightedId: selection.highlightedFeedbackId,
-    })
-  }, [audioController.isPlaying, selection.highlightedFeedbackId])
-
   // Rule: After audio ends and video resumes playing, remove highlight
   useEffect(() => {
     if (!audioController.isPlaying && selection.highlightedFeedbackId && videoPlayback.isPlaying) {
@@ -308,21 +290,6 @@ export function useFeedbackCoordinator({
     audioController.isPlaying,
     selection,
     selection.highlightedFeedbackId,
-    videoPlayback.isPlaying,
-  ])
-
-  // Diagnostics: log highlight state changes
-  useEffect(() => {
-    log.debug('useFeedbackCoordinator', 'Highlighted feedback state changed', {
-      highlightedId: selection.highlightedFeedbackId,
-      isCoachSpeaking: selection.isCoachSpeaking,
-      audioPlaying: audioController.isPlaying,
-      videoPlaying: videoPlayback.isPlaying,
-    })
-  }, [
-    selection.highlightedFeedbackId,
-    selection.isCoachSpeaking,
-    audioController.isPlaying,
     videoPlayback.isPlaying,
   ])
 
