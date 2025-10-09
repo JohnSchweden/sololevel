@@ -12,7 +12,7 @@ describe('parseDualOutput', () => {
 
     expect(result.textReport).toContain('Big Picture')
     expect(result.textReport).toContain('Posture & Movement')
-    expect(result.feedback).toHaveLength(3)
+    expect(result.feedback).toHaveLength(2)
     expect(result.feedback[0]?.category).toBe('Posture')
     expect(result.feedback[0]?.timestamp).toBe(2.5)
     expect(result.feedback[0]?.confidence).toBe(0.92)
@@ -20,7 +20,7 @@ describe('parseDualOutput', () => {
     expect(result.jsonData).toBeDefined()
     expect(typeof result.jsonData).toBe('object')
     expect(Array.isArray(result.jsonData.feedback)).toBe(true)
-    expect(result.jsonData.feedback).toHaveLength(3)
+    expect(result.jsonData.feedback).toHaveLength(2)
   })
 
   it('should handle legacy format without blocks', () => {

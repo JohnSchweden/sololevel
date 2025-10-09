@@ -7,6 +7,11 @@ alwaysApply: true
 
 All summaries must be based on direct, recent verification. Do not make any positive statements unless supported by actual output.
 
+## Scope
+
+This protocol governs **reporting and verification**, not workflow. 
+When issues are found, fix them first, then verify the fix with evidence.
+
 ## Pre-Summary Checklist
 
 Run these commands before summarizing:
