@@ -40,7 +40,6 @@ export interface BubbleControllerOptions<TItem extends BubbleFeedbackItem> {
     displayDurationMs: number
     reason: BubbleTimerReason
   }) => boolean | void
-  getTraceContext?: (item: TItem | null) => Record<string, unknown> | undefined
 }
 
 export interface BubbleFeedbackItem {
@@ -133,24 +132,15 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   const hideBubble = useCallback(
     (reason: BubbleHideReason = 'manual') => {
-      const currentIndex = timerStateRef.current.index
-      const currentItem =
-        currentIndex !== null ? (feedbackItemsRef.current[currentIndex] ?? null) : null
-      const traceContext = options.getTraceContext?.(currentItem ?? null)
-
-      log.info('useBubbleController', 'hideBubble invoked', {
-        ...traceContext,
-        reason,
-        currentIndex,
-        itemId: currentItem?.id ?? null,
-      })
+      log.info('useBubbleController', 'hideBubble invoked', { reason })
 
       setBubbleVisible(false)
       clearBubbleTimer()
       resetTimerState()
 
-      setCurrentBubbleIndex(() => {
-        options.onBubbleHide?.({ index: currentIndex ?? null, item: currentItem, reason })
+      setCurrentBubbleIndex((prev) => {
+        const currentItem = prev !== null ? (feedbackItemsRef.current[prev] ?? null) : null
+        options.onBubbleHide?.({ index: prev, item: currentItem, reason })
         return null
       })
     },
@@ -173,7 +163,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
       if (remainingDurationMs <= 0) {
         log.info('useBubbleController', 'Timer expired immediately after reschedule', {
-          ...options.getTraceContext?.(item),
           itemId: item.id,
           totalDurationMs,
           elapsed,
@@ -194,25 +183,17 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
       if (totalDurationMs <= 0) {
         log.debug('useBubbleController', 'Timer scheduling skipped (unknown duration)', {
-          ...options.getTraceContext?.(item),
           reason,
         })
         return
       }
 
       bubbleTimerRef.current = setTimeout(() => {
-        const elapsedMs = timerStateRef.current.startedAtMs
-          ? Date.now() - timerStateRef.current.startedAtMs!
-          : totalDurationMs
-
-        const context = options.getTraceContext?.(timerStateRef.current.item ?? null)
-
         log.info('useBubbleController', 'Bubble hide timer triggered', {
-          ...context,
           itemId: item.id,
           totalDurationMs,
           reason,
-          elapsedMs,
+          actualElapsed: Date.now() - (timerStateRef.current.startedAtMs ?? startedAt),
         })
 
         const handled = options.onBubbleTimerElapsed?.({
@@ -250,7 +231,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       }
 
       log.info('useBubbleController', 'showBubble invoked', {
-        ...options.getTraceContext?.(item),
         index,
         itemId: item.id,
         timestamp: item.timestamp,
@@ -297,7 +277,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       if (currentState.waitingForPlayback && currentState.startedAtMs === null) {
         if (currentState.totalDurationMs > 0) {
           log.info('useBubbleController', 'Starting bubble timer on playback start', {
-            ...options.getTraceContext?.(currentState.item ?? null),
             itemId: currentState.item.id,
           })
           scheduleBubbleHide({
@@ -310,7 +289,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
             'useBubbleController',
             'Playback started but audio duration unknown; waiting for coordinator to hide',
             {
-              ...options.getTraceContext?.(currentState.item ?? null),
               itemId: currentState.item.id,
             }
           )
@@ -321,7 +299,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
     if (currentState.startedAtMs !== null) {
       log.info('useBubbleController', 'Playback paused or ended — hiding bubble immediately', {
-        ...options.getTraceContext?.(currentState.item ?? null),
         itemId: currentState.item.id,
       })
       hideBubble('playback-paused')
@@ -357,7 +334,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
     }
 
     log.info('useBubbleController', 'Resolved bubble duration', {
-      ...options.getTraceContext?.(item ?? null),
       itemId: item.id,
       previousDurationMs: currentState.totalDurationMs,
       nextDurationMs,

@@ -65,19 +65,6 @@ export function useFeedbackCoordinator({
     return map
   }, [bubbleFeedbackItems])
 
-  const traceContextForFeedback = useCallback(
-    (item: FeedbackPanelItem | null): Record<string, unknown> | undefined => {
-      if (!item) {
-        return undefined
-      }
-
-      return {
-        traceId: `feedback-${item.id}`,
-      }
-    },
-    []
-  )
-
   const bubbleController = useBubbleController(
     bubbleFeedbackItems,
     currentVideoTime,
@@ -89,13 +76,10 @@ export function useFeedbackCoordinator({
         const hasAudioUrl = Boolean(feedbackAudio.audioUrls[item.id])
 
         log.info('useFeedbackCoordinator', 'Bubble show event received', {
-          traceId: `feedback-${item.id}`,
           index,
           feedbackId: item.id,
           timestamp: item.timestamp,
           displayDurationMs,
-          audioDuration: audioController.duration,
-          hasAudioUrl,
         })
 
         selection.highlightAutoFeedback(item, {
@@ -106,7 +90,6 @@ export function useFeedbackCoordinator({
       },
       onBubbleHide: ({ item, reason }) => {
         log.info('useFeedbackCoordinator', 'Bubble hide event received', {
-          traceId: item ? `feedback-${item.id}` : null,
           feedbackId: item?.id ?? null,
           highlightedId: selection.highlightedFeedbackId,
           reason,
@@ -132,7 +115,6 @@ export function useFeedbackCoordinator({
         }
 
         log.info('useFeedbackCoordinator', 'Bubble timer anchored to playback', {
-          traceId: `feedback-${item.id}`,
           feedbackId: item.id,
           displayDurationMs,
           reason,
@@ -150,18 +132,13 @@ export function useFeedbackCoordinator({
         }
 
         log.info('useFeedbackCoordinator', 'Bubble timer elapsed — stopping audio for sync', {
-          traceId: `feedback-${item.id}`,
           feedbackId: item.id,
           reason,
-          overlayVisible,
-          bubbleVisible,
-          audioPlaying: audioController.isPlaying,
         })
 
         handleAudioStop('bubble-timer-elapsed')
         return true
       },
-      getTraceContext: traceContextForFeedback,
     }
   )
 
@@ -403,11 +380,6 @@ export function useFeedbackCoordinator({
 
   // Synchronous hide: when overlay becomes invisible, hide bubble immediately
   if (!overlayVisible && bubbleVisible) {
-    log.info('useFeedbackCoordinator', 'Overlay hidden — hiding bubble synchronously', {
-      traceId: activeAudioId ? `feedback-${activeAudioId}` : null,
-      activeAudioId,
-      highlightedId: selection.highlightedFeedbackId,
-    })
     hideBubble('audio-stop')
   }
 
@@ -415,14 +387,6 @@ export function useFeedbackCoordinator({
     if (!overlayVisible) {
       return
     }
-
-    log.info('useFeedbackCoordinator', 'Overlay visible', {
-      traceId: activeAudioId ? `feedback-${activeAudioId}` : null,
-      activeAudioId,
-      highlightedId: selection.highlightedFeedbackId,
-      bubbleVisible,
-      audioPlaying: audioController.isPlaying,
-    })
 
     const candidateId = selection.highlightedFeedbackId
 
@@ -435,13 +399,6 @@ export function useFeedbackCoordinator({
     if (nextBubbleIndex === null || (currentBubbleIndex === nextBubbleIndex && bubbleVisible)) {
       return
     }
-
-    log.info('useFeedbackCoordinator', 'Overlay visible — ensuring bubble alignment', {
-      candidateId,
-      nextBubbleIndex,
-      isBubbleVisible: bubbleVisible,
-      currentBubbleIndex,
-    })
 
     showBubble(nextBubbleIndex)
   }, [
@@ -469,27 +426,15 @@ export function useFeedbackCoordinator({
     onPlay: handlePlay,
     onPanelCollapse: handlePanelCollapse,
     onAudioOverlayClose: () => {
-      log.info('useFeedbackCoordinator', 'Audio overlay closed by user', {
-        traceId: selection.highlightedFeedbackId
-          ? `feedback-${selection.highlightedFeedbackId}`
-          : null,
-      })
+      log.info('useFeedbackCoordinator', 'Audio overlay closed by user')
       handleAudioStop('audio-overlay-close')
     },
     onAudioOverlayInactivity: () => {
-      log.info('useFeedbackCoordinator', 'Audio overlay inactivity detected', {
-        traceId: selection.highlightedFeedbackId
-          ? `feedback-${selection.highlightedFeedbackId}`
-          : null,
-      })
+      log.info('useFeedbackCoordinator', 'Audio overlay inactivity detected')
       handleAudioStop('audio-overlay-inactivity')
     },
     onAudioOverlayInteraction: () => {
-      log.debug('useFeedbackCoordinator', 'Audio overlay interaction detected', {
-        traceId: selection.highlightedFeedbackId
-          ? `feedback-${selection.highlightedFeedbackId}`
-          : null,
-      })
+      log.debug('useFeedbackCoordinator', 'Audio overlay interaction detected')
     },
     onPlayPendingFeedback: handlePlayPendingFeedback,
   }
