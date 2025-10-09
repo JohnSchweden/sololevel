@@ -4,10 +4,9 @@ globs: ["**/hooks/**/*", "**/stores/**/*", "**/api/**/*", "**/*query*", "**/*sto
 alwaysApply: false
 ---
 
+**Package context:** `packages/app/AGENTS.md` for state usage; `packages/api/AGENTS.md` for API clients.
+
 # State Management Guidelines
-- Use **Zustand** for managing global client-side state.
-- Use **TanStack Query** for all server state and asynchronous data fetching.
-- Prefer **useState** or **useReducer** for local component state.
 - **Do not** use Redux or MobX.
 
 # Data Fetching Best Practices

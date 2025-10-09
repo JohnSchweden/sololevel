@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import type { AnalysisJob } from '@app/stores/analysisSubscription'
 import { useAnalysisSubscriptionStore } from '@app/stores/analysisSubscription'
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
-import { getAnalysisIdForJobId, useUploadProgress } from '@my/api'
+import { getAnalysisIdForJobId } from '@my/api'
 import { log } from '@my/logging'
 
 import { useFeedbackStatusIntegration } from './useFeedbackStatusIntegration'

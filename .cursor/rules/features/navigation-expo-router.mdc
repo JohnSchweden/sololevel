@@ -5,6 +5,8 @@ alwaysApply: false
 ---
 
 # Navigation Rules
+
+**Package context:** See `packages/app/AGENTS.md` for screen organization.
 - Use Expo Router for ALL navigation (web + native)
 - NEVER use React Navigation directly
 - Use Expo Router Link component with asChild pattern
@@ -12,8 +14,6 @@ alwaysApply: false
 - Use typed navigation params with TypeScript
 
 # Screen Structure
-- Screens live in packages/app/features (business logic)
-- App routes live in apps/expo/app/ (routing layer)
 - Use .tsx extension for all screens
 - Use useLocalSearchParams() for dynamic route params
 
@@ -24,9 +24,7 @@ alwaysApply: false
 - Stack.Screen for configuring route options
 
 # Cross-Platform Integration
-- Shared screens in packages/app/features are platform-agnostic
 - Use dependency injection for navigation components via props
-- Platform-specific implementation in app route files
 - Next.js pages use Next.js router, Expo uses Expo Router
 
 # Platform-Specific Implementation

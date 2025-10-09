@@ -1,15 +1,35 @@
+// Unmock React Query to use real implementation (global setup mocks it)
+jest.unmock('@tanstack/react-query')
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React from 'react'
 import { useQueryWithErrorHandling, useQueryWithRetry } from './useQueryWithErrorHandling'
 
 // Mock toast controller
-const mockToastShow = vi.fn()
-vi.mock('@my/ui', () => ({
+const mockToastShow = jest.fn()
+jest.mock('@my/ui', () => ({
   useToastController: () => ({
     show: mockToastShow,
   }),
 }))
+
+// Polyfill window for SSR-safe hooks
+const originalWindow = (globalThis as any).window
+
+beforeAll(() => {
+  if (typeof window === 'undefined') {
+    ;(globalThis as any).window = {}
+  }
+})
+
+afterAll(() => {
+  if (originalWindow === undefined) {
+    delete (globalThis as any).window
+  } else {
+    ;(globalThis as any).window = originalWindow
+  }
+})
 
 // Test wrapper with QueryClient
 function createWrapper() {
@@ -27,17 +47,17 @@ function createWrapper() {
 
 describe('useQueryWithErrorHandling', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
     // Mock console.error to avoid noise in tests
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    jest.restoreAllMocks()
   })
 
   it('executes query successfully', async () => {
-    const mockQueryFn = vi.fn().mockResolvedValue('success')
+    const mockQueryFn = jest.fn().mockResolvedValue('success')
 
     const { result } = renderHook(
       () =>
@@ -60,7 +80,7 @@ describe('useQueryWithErrorHandling', () => {
 
   it('handles query error with default error toast', async () => {
     const mockError = new Error('Query failed')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -84,7 +104,7 @@ describe('useQueryWithErrorHandling', () => {
 
   it('handles query error with custom error message', async () => {
     const mockError = new Error('Custom error')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -108,7 +128,7 @@ describe('useQueryWithErrorHandling', () => {
 
   it('disables error toast when showErrorToast is false', async () => {
     const mockError = new Error('Silent error')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -130,7 +150,7 @@ describe('useQueryWithErrorHandling', () => {
   })
 
   it('passes through all other query options', async () => {
-    const mockQueryFn = vi.fn().mockResolvedValue('success')
+    const mockQueryFn = jest.fn().mockResolvedValue('success')
 
     const { result } = renderHook(
       () =>
@@ -151,7 +171,7 @@ describe('useQueryWithErrorHandling', () => {
 
   it('sets throwOnError to false', async () => {
     const mockError = new Error('Should not throw')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -173,7 +193,7 @@ describe('useQueryWithErrorHandling', () => {
   })
 
   it('only shows toast on error state, not loading', async () => {
-    const mockQueryFn = vi
+    const mockQueryFn = jest
       .fn()
       .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('success'), 100)))
 
@@ -202,17 +222,17 @@ describe('useQueryWithErrorHandling', () => {
 
 describe('useQueryWithRetry', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    jest.clearAllMocks()
+    jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    jest.restoreAllMocks()
   })
 
   it('retries on server errors', async () => {
     const mockError = new Error('500 Internal Server Error')
-    const mockQueryFn = vi
+    const mockQueryFn = jest
       .fn()
       .mockRejectedValueOnce(mockError)
       .mockRejectedValueOnce(mockError)
@@ -242,7 +262,7 @@ describe('useQueryWithRetry', () => {
 
   it('does not retry on client errors (4xx)', async () => {
     const mockError = new Error('404 Not Found')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -264,7 +284,7 @@ describe('useQueryWithRetry', () => {
 
   it('uses default retry count of 3', async () => {
     const mockError = new Error('500 Server Error')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     renderHook(
       () =>
@@ -299,7 +319,7 @@ describe('useQueryWithRetry', () => {
 
   it('respects custom retry count', async () => {
     const mockError = new Error('500 Server Error')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -324,7 +344,7 @@ describe('useQueryWithRetry', () => {
 
   it('applies exponential backoff with max delay', async () => {
     const mockError = new Error('500 Server Error')
-    const mockQueryFn = vi.fn().mockRejectedValue(mockError)
+    const mockQueryFn = jest.fn().mockRejectedValue(mockError)
 
     // Test the retry logic with controlled delays
     const { result } = renderHook(

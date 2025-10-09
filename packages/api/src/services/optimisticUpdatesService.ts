@@ -1,10 +1,10 @@
+import { analysisKeys } from '@app/hooks/useAnalysis'
+import { videoUploadKeys } from '@app/hooks/useVideoUpload'
 import { useAnalysisStatusStore } from '@app/stores/analysisStatus'
 import { useUploadProgressStore } from '@app/stores/uploadProgress'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import type { Tables, TablesInsert, TablesUpdate } from '../../types/database'
-import { analysisKeys } from '../hooks/useAnalysis'
-import { videoUploadKeys } from '../hooks/useVideoUpload'
 import type { AnalysisJob as SchemaAnalysisJob } from '../validation/cameraRecordingSchemas'
 
 export type VideoRecording = Tables<'video_recordings'>

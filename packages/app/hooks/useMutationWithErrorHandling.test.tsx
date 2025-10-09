@@ -1,11 +1,14 @@
+// Unmock React Query to use real implementation (global setup mocks it)
+jest.unmock('@tanstack/react-query')
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import React from 'react'
 import { useMutationWithErrorHandling } from './useMutationWithErrorHandling'
 
 // Mock toast controller
-const mockToastShow = vi.fn()
-vi.mock('@my/ui', () => ({
+const mockToastShow = jest.fn()
+jest.mock('@my/ui', () => ({
   useToastController: () => ({
     show: mockToastShow,
   }),
@@ -27,17 +30,17 @@ function createWrapper() {
 
 describe('useMutationWithErrorHandling', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
     // Mock console.error to avoid noise in tests
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    jest.restoreAllMocks()
   })
 
   it('executes mutation successfully', async () => {
-    const mockMutationFn = vi.fn().mockResolvedValue('success')
+    const mockMutationFn = jest.fn().mockResolvedValue('success')
 
     const { result } = renderHook(
       () =>
@@ -47,7 +50,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
@@ -59,7 +64,7 @@ describe('useMutationWithErrorHandling', () => {
   })
 
   it('shows success toast when enabled', async () => {
-    const mockMutationFn = vi.fn().mockResolvedValue('success')
+    const mockMutationFn = jest.fn().mockResolvedValue('success')
 
     const { result } = renderHook(
       () =>
@@ -71,7 +76,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
@@ -82,7 +89,7 @@ describe('useMutationWithErrorHandling', () => {
 
   it('handles mutation error with default error toast', async () => {
     const mockError = new Error('Mutation failed')
-    const mockMutationFn = vi.fn().mockRejectedValue(mockError)
+    const mockMutationFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -92,7 +99,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
@@ -106,7 +115,7 @@ describe('useMutationWithErrorHandling', () => {
 
   it('handles mutation error with custom error message', async () => {
     const mockError = new Error('Custom error')
-    const mockMutationFn = vi.fn().mockRejectedValue(mockError)
+    const mockMutationFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -117,7 +126,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
@@ -130,7 +141,7 @@ describe('useMutationWithErrorHandling', () => {
 
   it('disables error toast when showErrorToast is false', async () => {
     const mockError = new Error('Silent error')
-    const mockMutationFn = vi.fn().mockRejectedValue(mockError)
+    const mockMutationFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -141,7 +152,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
@@ -152,8 +165,8 @@ describe('useMutationWithErrorHandling', () => {
 
   it('calls custom onError handler', async () => {
     const mockError = new Error('Custom error')
-    const mockMutationFn = vi.fn().mockRejectedValue(mockError)
-    const mockOnError = vi.fn()
+    const mockMutationFn = jest.fn().mockRejectedValue(mockError)
+    const mockOnError = jest.fn()
 
     const { result } = renderHook(
       () =>
@@ -164,7 +177,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
@@ -174,8 +189,8 @@ describe('useMutationWithErrorHandling', () => {
   })
 
   it('calls custom onSuccess handler', async () => {
-    const mockMutationFn = vi.fn().mockResolvedValue('success')
-    const mockOnSuccess = vi.fn()
+    const mockMutationFn = jest.fn().mockResolvedValue('success')
+    const mockOnSuccess = jest.fn()
 
     const { result } = renderHook(
       () =>
@@ -186,7 +201,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
@@ -202,7 +219,7 @@ describe('useMutationWithErrorHandling', () => {
 
   it('includes mutation key in error logging', async () => {
     const mockError = new Error('Keyed error')
-    const mockMutationFn = vi.fn().mockRejectedValue(mockError)
+    const mockMutationFn = jest.fn().mockRejectedValue(mockError)
 
     const { result } = renderHook(
       () =>
@@ -213,7 +230,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true)
@@ -221,7 +240,7 @@ describe('useMutationWithErrorHandling', () => {
   })
 
   it('does not show success toast without success message', async () => {
-    const mockMutationFn = vi.fn().mockResolvedValue('success')
+    const mockMutationFn = jest.fn().mockResolvedValue('success')
 
     const { result } = renderHook(
       () =>
@@ -233,7 +252,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
@@ -243,8 +264,8 @@ describe('useMutationWithErrorHandling', () => {
   })
 
   it('passes through all other mutation options', async () => {
-    const mockMutationFn = vi.fn().mockResolvedValue('success')
-    const mockOnMutate = vi.fn()
+    const mockMutationFn = jest.fn().mockResolvedValue('success')
+    const mockOnMutate = jest.fn()
 
     const { result } = renderHook(
       () =>
@@ -256,7 +277,9 @@ describe('useMutationWithErrorHandling', () => {
       { wrapper: createWrapper() }
     )
 
-    result.current.mutate('test-input')
+    act(() => {
+      result.current.mutate('test-input')
+    })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)

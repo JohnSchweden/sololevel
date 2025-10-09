@@ -1,7 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import type { Tables } from '../../types/database'
-import { type AnalysisResults, type PoseData } from '../services/analysisService'
+import type { Tables } from '@my/api'
+import { type AnalysisResults, type PoseData } from '@my/api'
 import {
   completeAnalysisJob,
   createAnalysisJob,
@@ -18,7 +16,9 @@ import {
   subscribeToUserAnalysisJobs,
   updateAnalysisJob,
   updateAnalysisProgress,
-} from '../services/analysisService'
+} from '@my/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 export type AnalysisJob = Tables<'analysis_jobs'>
 

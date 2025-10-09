@@ -288,8 +288,8 @@ export type NetworkRecord = {
 let isDev = false
 try {
   isDev =
-    (typeof __DEV__ !== 'undefined' && !!__DEV__) ||
-    (typeof process !== 'undefined' && process?.env?.NODE_ENV !== 'production')
+    (typeof process !== 'undefined' && process?.env?.NODE_ENV !== 'production') ||
+    (typeof (globalThis as any).__DEV__ !== 'undefined' && !!(globalThis as any).__DEV__)
 } catch {
   isDev = false
 }

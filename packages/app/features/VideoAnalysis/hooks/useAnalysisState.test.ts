@@ -77,9 +77,14 @@ jest.mock('@my/api', () => {
   }
 
   return {
-    useUploadProgress: (recordingId: number) => ({ data: mockUploadProgress(recordingId) }),
     getAnalysisIdForJobId: (jobId: number) => mockGetAnalysisIdForJobId(jobId),
     supabase: mockSupabase,
+  }
+})
+
+jest.mock('@app/hooks/useVideoUpload', () => {
+  return {
+    useUploadProgress: (recordingId: number) => ({ data: mockUploadProgress(recordingId) }),
   }
 })
 

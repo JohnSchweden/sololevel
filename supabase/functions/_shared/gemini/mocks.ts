@@ -108,13 +108,6 @@ export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
       "message": "Nice hand gesture to emphasize your main point",
       "confidence": 0.88,
       "impact": 0.6
-    },
-    {
-      "timestamp": 6.8,
-      "category": "Speech",
-      "message": "Clear articulation and good pacing throughout",
-      "confidence": 0.85,
-      "impact": 0.65
     }
   ]
 }
@@ -164,13 +157,6 @@ export function getMockAnalysisResult(): GeminiVideoAnalysisResult {
         message: 'Nice hand gesture to emphasize your main point',
         confidence: 0.88,
         impact: 0.6,
-      },
-      {
-        timestamp: 6.8,
-        category: 'Speech',
-        message: 'Clear articulation and good pacing throughout',
-        confidence: 0.85,
-        impact: 0.65,
       },
     ],
     metrics: {

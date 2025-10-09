@@ -6,6 +6,19 @@
 
 ---
 
+## RECENT VERIFICATION
+
+### Architectural Refactor Verification — ✅ Complete (2025-10-09)
+- Moved hooks from `@my/api` to `@my/app` (useAnalysis, useUser, useVideoUpload, useMutationWithErrorHandling, useQueryWithErrorHandling)
+- Updated imports across codebase to use new locations (`@app/hooks/*`)
+- Fixed test mocks in `useAnalysisState.test.ts` to reference new hook locations
+- Verified package exports are clean (API only exports services/types/utilities)
+- Quality gates: `yarn type-check:all` → 0 errors, `yarn lint:all` → 0 errors (fixed 7 files), `yarn build` → success
+- Full test suite: 56 test suites passed, 619 tests passed (11 skipped)
+- Architecture now correctly separates: API package (backend client) vs App package (business logic/hooks)
+
+---
+
 ## COMPLETED
 
 ### Task 24: AudioFeedback Demotion — Presentation-Only, Lift Inactivity Up — ✅ Complete (2025-10-08)

@@ -1,6 +1,6 @@
 // Export Supabase client and types
 export { supabase } from './supabase'
-export type { Database, Enums, Tables } from './supabase'
+export type { Database, Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
 
 // Export validation utilities
 export * from './validation'
@@ -15,52 +15,65 @@ export * from './auth/authErrorMapping'
 // Export RLS utilities
 export * from './utils/rlsHelpers'
 
-// Export query hooks (explicit to avoid conflicts)
-export * from './hooks/useUser'
-export * from './hooks/useQueryWithErrorHandling'
-export * from './hooks/useMutationWithErrorHandling'
-// Export specific types and functions from hooks to avoid conflicts
-export {
-  useCreateVideoRecording,
-  useUploadProgress,
-  useVideoRecordings,
-  useVideoUpload,
-  videoUploadKeys,
-} from './hooks/useVideoUpload'
-export {
-  analysisKeys,
-  useAnalysisJob,
-  useAnalysisJobPolling,
-} from './hooks/useAnalysis'
-
 // Export services (explicit to avoid conflicts)
 // Video upload service
-export { uploadVideo } from './services/videoUploadService'
+export {
+  uploadVideo,
+  createSignedUploadUrl,
+  createVideoRecording,
+  updateVideoRecording,
+  deleteVideoRecording,
+  getUserVideoRecordings,
+  getUploadProgress,
+  cancelUpload,
+} from './services/videoUploadService'
 export type {
   UploadProgress,
   UploadSession,
   VideoRecordingInsert,
   VideoRecordingUpdate,
+  VideoUploadOptions,
 } from './services/videoUploadService'
 // Analysis service
 export type {
   AnalysisJob,
   AnalysisJobInsert,
   AnalysisJobUpdate,
+  AnalysisResults,
   AnalysisResults as AnalysisServiceResults,
+  AnalysisStatus,
   AnalysisStatus as AnalysisServiceStatus,
   PoseData,
 } from './services/analysisService'
 export {
+  // Core analysis job CRUD
+  createAnalysisJob,
+  getAnalysisJob,
+  getAnalysisJobByVideoId,
+  getUserAnalysisJobs,
+  updateAnalysisJob,
+  deleteAnalysisJob,
+  // Analysis job lifecycle
+  startAnalysisProcessing,
+  updateAnalysisProgress,
+  completeAnalysisJob,
+  failAnalysisJob,
+  // Analysis data extraction
+  getAnalysisResults,
+  getPoseData,
+  getAnalysisStats,
+  // Advanced analysis features
   createAnalysisJobWithPoseProcessing,
   updateAnalysisJobWithPoseData,
   startGeminiVideoAnalysis,
   computeVideoTimingParams,
+  // Realtime subscriptions
   subscribeToAnalysisJob,
+  subscribeToUserAnalysisJobs,
   subscribeToLatestAnalysisJobByRecordingId,
+  // Query helpers
   getLatestAnalysisJobForRecordingId,
   getAnalysisIdForJobId,
-  getAnalysisJobByVideoId,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,
   __mockUpdateAnalysisJob,

@@ -6,9 +6,10 @@ alwaysApply: false
 
 # API Mocking Strategy
 
+**Package context:** See `packages/api/AGENTS.md` for mock setup in this codebase.
+
 ### Principles
 - Don't bypass RLS in production. Mocks are for local dev and tests.
-- Toggle via `NEXT_PUBLIC_USE_MOCKS` (web) and `EXPO_PUBLIC_USE_MOCKS` (native).
 - Prefer interface-based clients (DI) so mocks swap cleanly.
 
 ## Web (Next.js, App Router) — MSW

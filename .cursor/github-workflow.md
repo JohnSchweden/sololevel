@@ -1,10 +1,4 @@
----
-description: GitHub Integration and Git Workflow
-globs: ["**/*"]
-alwaysApply: false
----
-
-# GitHub Integration Rules
+# GitHub Integration & Git Workflow
 
 ## Pre-Development Workflow
 
@@ -71,3 +65,4 @@ alwaysApply: false
 - Prioritize security and critical functionality
 - Test thoroughly before deployment
 - Document the hotfix in release notes
+

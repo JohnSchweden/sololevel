@@ -1,6 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Tables } from '../../types/database'
-import type { VideoUploadOptions } from '../services/videoUploadService'
+import type { Tables } from '@my/api'
+import type { VideoUploadOptions } from '@my/api'
 import {
   cancelUpload,
   createSignedUploadUrl,
@@ -10,7 +9,8 @@ import {
   getUserVideoRecordings,
   updateVideoRecording,
   uploadVideo,
-} from '../services/videoUploadService'
+} from '@my/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export type VideoRecording = Tables<'video_recordings'>
 

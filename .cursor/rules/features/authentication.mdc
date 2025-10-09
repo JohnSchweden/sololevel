@@ -6,9 +6,10 @@ alwaysApply: false
 
 # Authentication Rules
 
+**Package context:** `packages/app/AGENTS.md` for auth hooks; `packages/api/AGENTS.md` for Supabase integration.
+
 ## Supabase Auth Integration
 - Use Supabase Auth for ALL authentication
-- Handle auth state globally with Zustand
 - NEVER store tokens manually
 
 ```typescript

@@ -15,7 +15,7 @@ if (process.env.JEST_WORKER_ID && !supabaseUrl && !supabaseKey) {
 }
 
 // DEBUG: Log environment variables (without exposing keys)
-if (__DEV__) {
+if (process.env.NODE_ENV === 'development') {
 }
 
 // Ensure required environment variables are present
@@ -77,4 +77,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
 export type { Database } from '../types/database'
 export type Tables<T extends keyof Database['public']['Tables']> =
   Database['public']['Tables'][T]['Row']
+export type TablesInsert<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Insert']
+export type TablesUpdate<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Update']
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T]

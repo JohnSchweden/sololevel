@@ -82,50 +82,11 @@ See `quality/performance.mdc` for more details.
 
 ## Import Strategy & Package Resolution
 
-### Package-Level Imports (Scoped)
-Use `@my/` scoped package names for package-level exports, workspace dependencies in package.json, and cross-package imports:
-
-```typescript
-// ✅ Correct - package-level imports
-import { Button } from '@my/ui'
-import { useAuth } from '@my/app' 
-import { supabase } from '@my/api'
-```
-
-### Path-Level Imports (Aliases)
-Use path aliases for specific file imports within packages and internal package structure navigation:
-
-```typescript
-// ✅ Correct - path-level imports  
-import { Button } from '@ui/components/Button'
-import { useAuth } from '@app/hooks/useAuth'
-import { supabase } from '@api/supabase'
-```
-
-### Import Resolution Rules
-1. Package exports: Always use `@my/` scoped names
-2. File imports: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`)
-3. Never mix: Don't use `@api` without `/*` - use `@api/services/...`
-4. Export strategy: Export from package index files for `@my/` imports
+**See root `AGENTS.md` "Import Strategy" section** for package-level vs path-level import patterns and rules.
 
 ## Versioning & Compatibility
 
 - Align Expo SDK versions across `apps` and `packages`
 - Pin critical dependencies; use carets only for utilities
 - Document breaking changes in `CHANGELOG.md`
-- Maintain compatibility matrix for major versions (Expo, RN, Next, Node)
-
-## Version Matrix
-| Area          | Current        | Minimum | Source |
-| ------------- | -------------- | ------- | ------ |
-| Node          | 20.x           | 20.x    | `package.json engines.node` |
-| Yarn          | 4.9.3          | 4.0.0   | `package.json packageManager` |
-| Expo SDK      | 53.x           | 53.x    | root/workspace `expo` versions |
-| React Native  | 0.79.x         | 0.79.x  | root `react-native` |
-| React         | 19.x           | 19.x    | root `react` |
-| Next.js       | 15.x           | 15.x    | `apps/next/package.json` |
-| Turbo         | 1.13.x         | 1.13.x  | root `turbo` |
-
-CI enforces version alignment via Corepack. Any discrepancies must be resolved before PR merge.
-
-**For operational commands and scripts:** See root `AGENTS.md` "Workspace Scripts Reference" section.
+- **Version Matrix:** See root `AGENTS.md` "Version Matrix" section for current versions and compatibility requirements

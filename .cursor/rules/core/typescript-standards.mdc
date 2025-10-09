@@ -6,6 +6,8 @@ alwaysApply: false
 
 # TypeScript Standards
 
+**Package context:** See `packages/app/AGENTS.md` and `packages/api/AGENTS.md` for package-specific type conventions.
+
 ## Core Principles
 - Always enable strict mode in `tsconfig.json`.
 - Avoid using `any` or `unknown` types unless absolutely necessary and justified with a comment.
@@ -20,18 +22,10 @@ alwaysApply: false
 - For Tamagui components, use `GetProps<typeof Component>` to extract prop types.
 
 ## Supabase Type Integration
-- Generate database types with:  
-  `yarn supabase gen types typescript --local > packages/api/types/database.ts`
 - Use the generated `Database` type for all Supabase queries.
-- Type the Supabase client as `SupabaseClient<Database>`.
-- For table rows, use:  
-  `Database['public']['Tables']['table_name']['Row']`
 
 ## Zod Integration Guidelines
 - Validate all external data at runtime using Zod schemas.
-- For API responses, define schemas, e.g., `const UserSchema = z.object({...})`.
-- Use Zod with react-hook-form for form input validation.
-- Define navigation parameter schemas, e.g., `const ParamsSchema = z.object({...})`.
 - Keep Zod schemas in sync with SQL/database schemas.
 
 ## Tamagui Typing

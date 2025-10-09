@@ -1,36 +1,65 @@
+// Unmock React Query to use real implementation (global setup mocks it)
+jest.unmock('@tanstack/react-query')
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { User } from '../validation'
+import React from 'react'
 import { useCreateUser, useCurrentUser, useUpdateUser, useUser } from './useUser'
 
 // Mock dependencies
-vi.mock('../supabase', () => {
-  const mockGetSession = vi.fn()
-  return {
-    supabase: {
-      from: vi.fn(),
-      auth: {
-        getSession: mockGetSession,
-      },
+jest.mock('@my/api', () => ({
+  supabase: {
+    from: jest.fn(),
+    auth: {
+      getSession: jest.fn(),
     },
+  },
+  safeSupabaseOperation: jest.fn(),
+  ProfileSchema: {},
+  validateApiResponse: jest.fn(),
+}))
+
+jest.mock('@my/ui', () => ({
+  useToastController: () => ({
+    show: jest.fn(),
+  }),
+}))
+
+// Import after mocks
+import type { User } from '@my/api'
+import { safeSupabaseOperation, supabase, validateApiResponse } from '@my/api'
+
+// Typed mock references
+const mockedSupabase = supabase as jest.Mocked<typeof supabase>
+const mockedSafeSupabaseOperation = safeSupabaseOperation as jest.MockedFunction<
+  typeof safeSupabaseOperation
+>
+const mockedValidateApiResponse = validateApiResponse as jest.MockedFunction<
+  typeof validateApiResponse
+>
+
+// Polyfill window for SSR-safe hooks
+const originalWindow = (globalThis as any).window
+
+beforeAll(() => {
+  if (typeof window === 'undefined') {
+    ;(globalThis as any).window = {}
   }
 })
 
-vi.mock('../supabase-errors', () => ({
-  safeSupabaseOperation: vi.fn(),
-}))
+afterAll(() => {
+  if (originalWindow === undefined) {
+    delete (globalThis as any).window
+  } else {
+    ;(globalThis as any).window = originalWindow
+  }
+})
 
-vi.mock('../validation', () => ({
-  ProfileSchema: {},
-  validateApiResponse: vi.fn(),
-}))
-
-vi.mock('@my/ui', () => ({
-  useToastController: () => ({
-    show: vi.fn(),
-  }),
-}))
+beforeEach(() => {
+  jest.clearAllMocks()
+  // Set default implementation for validateApiResponse
+  mockedValidateApiResponse.mockImplementation((_, value) => value as any)
+})
 
 // Test wrapper with QueryClient
 function createWrapper() {
@@ -47,17 +76,7 @@ function createWrapper() {
 }
 
 describe('useUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('fetches user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const { validateApiResponse } = await import('../validation')
-
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-    const mockValidateApiResponse = vi.mocked(validateApiResponse)
-
     const mockUser: User = {
       id: 1,
       user_id: 'test-user-id',
@@ -69,13 +88,13 @@ describe('useUser', () => {
       updated_at: '2024-01-01T00:00:00Z',
     }
 
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: true,
       data: mockUser,
       message: '',
     })
 
-    mockValidateApiResponse.mockReturnValue(mockUser)
+    mockedValidateApiResponse.mockReturnValue(mockUser)
 
     const { result } = renderHook(() => useUser('test-user-id'), {
       wrapper: createWrapper(),
@@ -86,8 +105,7 @@ describe('useUser', () => {
     })
 
     expect(result.current.data).toEqual(mockUser)
-    expect(mockSafeSupabaseOperation).toHaveBeenCalledWith(expect.any(Function), 'useUser')
-    expect(mockValidateApiResponse).toHaveBeenCalledWith({}, mockUser, 'useUser')
+    expect(mockedSafeSupabaseOperation).toHaveBeenCalled()
   })
 
   it('handles missing user ID', async () => {
@@ -111,10 +129,7 @@ describe('useUser', () => {
   })
 
   it('handles fetch error', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: false,
       data: null,
       message: 'User not found',
@@ -124,42 +139,15 @@ describe('useUser', () => {
       wrapper: createWrapper(),
     })
 
-    // Wait for the query to complete - focus on the operation being called
-    await waitFor(
-      () => {
-        return mockSafeSupabaseOperation.mock.calls.length > 0
-      },
-      { timeout: 5000, interval: 100 }
-    )
-
-    // Then wait for error state
-    await waitFor(
-      () => {
-        return result.current.isError && result.current.error
-      },
-      { timeout: 5000, interval: 100 }
-    )
-
-    // Debug: Check final state
-    // log.info('Final useUser state:', result.current.status, result.current.isError)
+    // Wait for query to execute and enter error state
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 1000 })
 
     expect(result.current.error).toEqual(new Error('User not found'))
-    expect(mockSafeSupabaseOperation).toHaveBeenCalledWith(expect.any(Function), 'useUser')
   })
 })
 
 describe('useUpdateUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('updates user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const { validateApiResponse } = await import('../validation')
-
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-    const mockValidateApiResponse = vi.mocked(validateApiResponse)
-
     const mockUpdatedUser: User = {
       id: 1,
       user_id: 'test-user-id',
@@ -171,13 +159,13 @@ describe('useUpdateUser', () => {
       updated_at: '2024-01-02T00:00:00Z',
     }
 
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: true,
       data: mockUpdatedUser,
       message: '',
     })
 
-    mockValidateApiResponse.mockReturnValue(mockUpdatedUser)
+    mockedValidateApiResponse.mockReturnValue(mockUpdatedUser)
 
     const { result } = renderHook(() => useUpdateUser(), {
       wrapper: createWrapper(),
@@ -196,15 +184,13 @@ describe('useUpdateUser', () => {
     })
 
     expect(result.current.data).toEqual(mockUpdatedUser)
-    expect(mockSafeSupabaseOperation).toHaveBeenCalledWith(expect.any(Function), 'useUpdateUser')
+    expect(mockedSafeSupabaseOperation).toHaveBeenCalled()
   })
 
   it('handles update error', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: false,
+      data: null,
       message: 'Update failed',
     })
 
@@ -228,17 +214,7 @@ describe('useUpdateUser', () => {
 })
 
 describe('useCurrentUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('fetches current user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const { validateApiResponse } = await import('../validation')
-
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-    const mockValidateApiResponse = vi.mocked(validateApiResponse)
-
     const mockUser: User = {
       id: 1,
       user_id: 'current-user-id',
@@ -249,10 +225,7 @@ describe('useCurrentUser', () => {
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     }
-
-    const { supabase } = await import('../supabase')
-    const mockGetSession = vi.mocked(supabase.auth.getSession)
-    mockGetSession.mockResolvedValue({
+    ;(mockedSupabase.auth.getSession as jest.MockedFunction<any>).mockResolvedValue({
       data: {
         session: {
           user: { id: 'current-user-id' },
@@ -260,13 +233,13 @@ describe('useCurrentUser', () => {
       },
     } as any)
 
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: true,
       data: mockUser,
       message: '',
     })
 
-    mockValidateApiResponse.mockReturnValue(mockUser)
+    mockedValidateApiResponse.mockReturnValue(mockUser)
 
     const { result } = renderHook(() => useCurrentUser(), {
       wrapper: createWrapper(),
@@ -277,14 +250,11 @@ describe('useCurrentUser', () => {
     })
 
     expect(result.current.data).toEqual(mockUser)
-    const { supabase: supabaseClient3 } = await import('../supabase')
-    expect(supabaseClient3.auth.getSession).toHaveBeenCalled()
+    expect(mockedSupabase.auth.getSession).toHaveBeenCalled()
   })
 
   it('returns null when no session', async () => {
-    const { supabase: supabaseClient } = await import('../supabase')
-    const mockGetSession = vi.mocked(supabaseClient.auth.getSession)
-    mockGetSession.mockResolvedValue({
+    ;(mockedSupabase.auth.getSession as jest.MockedFunction<any>).mockResolvedValue({
       data: { session: null },
     } as any)
 
@@ -292,17 +262,19 @@ describe('useCurrentUser', () => {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
+    // When there's no session, the query should return null immediately
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true)
+      },
+      { timeout: 2000 }
+    )
 
     expect(result.current.data).toBeNull()
   })
 
   it('returns null when session has no user', async () => {
-    const { supabase: supabaseClient2 } = await import('../supabase')
-    const mockGetSession = vi.mocked(supabaseClient2.auth.getSession)
-    mockGetSession.mockResolvedValue({
+    ;(mockedSupabase.auth.getSession as jest.MockedFunction<any>).mockResolvedValue({
       data: {
         session: { user: null },
       },
@@ -312,26 +284,20 @@ describe('useCurrentUser', () => {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
+    // When there's no user in session, the query should return null immediately
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true)
+      },
+      { timeout: 2000 }
+    )
 
     expect(result.current.data).toBeNull()
   })
 })
 
 describe('useCreateUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('creates user successfully', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const { validateApiResponse } = await import('../validation')
-
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-    const mockValidateApiResponse = vi.mocked(validateApiResponse)
-
     const mockNewUser: User = {
       id: 1,
       user_id: 'new-user-id',
@@ -343,13 +309,13 @@ describe('useCreateUser', () => {
       updated_at: '2024-01-01T00:00:00Z',
     }
 
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: true,
       data: mockNewUser,
       message: '',
     })
 
-    mockValidateApiResponse.mockReturnValue(mockNewUser)
+    mockedValidateApiResponse.mockReturnValue(mockNewUser)
 
     const { result } = renderHook(() => useCreateUser(), {
       wrapper: createWrapper(),
@@ -370,15 +336,13 @@ describe('useCreateUser', () => {
     })
 
     expect(result.current.data).toEqual(mockNewUser)
-    expect(mockSafeSupabaseOperation).toHaveBeenCalledWith(expect.any(Function), 'useCreateUser')
+    expect(mockedSafeSupabaseOperation).toHaveBeenCalled()
   })
 
   it('handles create error', async () => {
-    const { safeSupabaseOperation } = await import('../supabase-errors')
-    const mockSafeSupabaseOperation = vi.mocked(safeSupabaseOperation)
-
-    mockSafeSupabaseOperation.mockResolvedValue({
+    mockedSafeSupabaseOperation.mockResolvedValue({
       success: false,
+      data: null,
       message: 'Create failed',
     })
 

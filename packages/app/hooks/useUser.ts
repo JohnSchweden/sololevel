@@ -1,7 +1,7 @@
-import type { TablesInsert, TablesUpdate } from '../../types/database'
-import { supabase } from '../supabase'
-import { safeSupabaseOperation } from '../supabase-errors'
-import { ProfileSchema, type User, validateApiResponse } from '../validation'
+import type { TablesInsert, TablesUpdate } from '@my/api'
+import { supabase } from '@my/api'
+import { safeSupabaseOperation } from '@my/api'
+import { ProfileSchema, type User, validateApiResponse } from '@my/api'
 import { useMutationWithErrorHandling } from './useMutationWithErrorHandling'
 import { useQueryWithErrorHandling } from './useQueryWithErrorHandling'
 
