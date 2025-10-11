@@ -46,8 +46,8 @@ export function SocialIcons({
     return count.toString()
   }
 
-  const fontColor = '$color2' // Highest contrast color - adapts to theme
-  const iconColor = '$color2' // Same high contrast color for icons
+  const fontColor = '$color' // Highest contrast color - adapts to theme
+  const iconColor = '$color' // Same high contrast color for icons
   const backgroundColor = 'transparent'
   const marginBottom = -4
 

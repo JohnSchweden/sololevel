@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AuthGate renders children when user is authenticated 1`] = `"Protected Content"`;
+
+exports[`AuthGate shows loading when auth is not initialized 1`] = `
+[
+  "Loading spinner",
+  "Loading...",
+]
+`;

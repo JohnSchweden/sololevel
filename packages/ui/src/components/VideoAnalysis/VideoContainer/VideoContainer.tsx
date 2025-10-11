@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { YStack } from 'tamagui'
 import type { GetProps } from 'tamagui'
-import { AppHeaderContainer } from '../../AppHeader/AppHeader'
 import { BottomNavigationContainer } from '../../BottomNavigation/BottomNavigation'
 
 export interface VideoContainerProps {
@@ -42,8 +41,8 @@ export function VideoContainer({
           {children}
         </YStack>
 
-        {/* Header Section - Mobile optimized */}
-        {header && <AppHeaderContainer>{header}</AppHeaderContainer>}
+        {/* Header Section - deprecated, use NavigationAppHeader instead */}
+        {header && header}
 
         {/* Bottom Navigation - Mobile optimized */}
         {bottomNavigation && (
@@ -72,8 +71,8 @@ export function VideoContainer({
         {children}
       </YStack>
 
-      {/* Header Section - Mobile optimized */}
-      {header && <AppHeaderContainer>{header}</AppHeaderContainer>}
+      {/* Header Section - deprecated, use NavigationAppHeader instead */}
+      {header && header}
 
       {/* Bottom Navigation - Mobile optimized */}
       {bottomNavigation && (

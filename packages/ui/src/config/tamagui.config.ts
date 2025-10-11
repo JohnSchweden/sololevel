@@ -65,11 +65,13 @@ const config = createTamagui({
       background: '#ffffff',
       backgroundHover: '#f5f5f5',
       backgroundPress: '#eeeeee',
+      color: '#000000',
     },
     dark: {
       background: '#111111',
       backgroundHover: '#222222',
       backgroundPress: '#333333',
+      color: '#ffffff',
     },
   },
 

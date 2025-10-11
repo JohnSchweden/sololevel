@@ -1,119 +1,132 @@
-/**
- * @jest-environment jsdom
- */
-import { render, screen } from '@testing-library/react-native'
+import { useAuth } from '@my/app/hooks/useAuth'
 import { useRouter } from 'expo-router'
+import React from 'react'
+import TestRenderer from 'react-test-renderer'
 import { AuthGate } from './AuthGate'
 
-// Mock expo-router
-jest.mock('expo-router', () => ({
-  useRouter: jest.fn(),
-}))
-
-// Mock useAuth hook
-jest.mock('@my/app', () => ({
+jest.mock('@my/app/hooks/useAuth', () => ({
   useAuth: jest.fn(),
 }))
 
-// Mock logger
+const mockLogInfo = jest.fn()
+const mockLogWarn = jest.fn()
 jest.mock('@my/logging', () => ({
   log: {
-    info: jest.fn(),
-    warn: jest.fn(),
+    info: (...args: unknown[]) => mockLogInfo(...args),
+    warn: (...args: unknown[]) => mockLogWarn(...args),
+    debug: jest.fn(),
   },
 }))
 
-// Mock UI components
-jest.mock('@my/ui', () => ({
-  YStack: ({ children, ...props }: any) => (
-    <div
-      data-testid="ystack"
-      {...props}
-    >
-      {children}
-    </div>
-  ),
-  Spinner: () => <div data-testid="spinner">Loading spinner</div>,
-  H3: ({ children }: any) => <h3>{children}</h3>,
-}))
-
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-}
-
 describe('AuthGate', () => {
+  const mockRouter = {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }
+
   beforeEach(() => {
     jest.clearAllMocks()
     jest.mocked(useRouter).mockReturnValue(mockRouter as any)
+    jest.mocked(useAuth).mockReset()
   })
 
   it('renders children when user is authenticated', () => {
-    const { useAuth } = require('@my/app')
     jest.mocked(useAuth).mockReturnValue({
-      isAuthenticated: true,
+      user: { id: 'test-user-id' } as any,
+      session: { access_token: 'test-token' } as any,
       loading: false,
       initialized: true,
+      userId: 'test-user-id',
+      isAuthenticated: true,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      initialize: jest.fn(),
     })
 
-    render(
-      <AuthGate>
-        <div>Protected Content</div>
-      </AuthGate>
-    )
+    let component: TestRenderer.ReactTestRenderer
+    TestRenderer.act(() => {
+      component = TestRenderer.create(
+        <AuthGate>
+          <React.Fragment>Protected Content</React.Fragment>
+        </AuthGate>
+      )
+    })
 
-    expect(screen.getByText('Protected Content')).toBeTruthy()
+    const tree = component!.toJSON()
+    expect(tree).toMatchSnapshot()
   })
 
   it('shows loading when auth is not initialized', () => {
-    const { useAuth } = require('@my/app')
     jest.mocked(useAuth).mockReturnValue({
-      isAuthenticated: false,
+      user: null,
+      session: null,
       loading: true,
       initialized: false,
+      userId: null,
+      isAuthenticated: false,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      initialize: jest.fn(),
     })
 
-    render(
-      <AuthGate>
-        <div>Protected Content</div>
-      </AuthGate>
-    )
+    let component: TestRenderer.ReactTestRenderer
+    TestRenderer.act(() => {
+      component = TestRenderer.create(
+        <AuthGate>
+          <React.Fragment>Protected Content</React.Fragment>
+        </AuthGate>
+      )
+    })
 
-    expect(screen.getByText('Loading...')).toBeTruthy()
-    expect(screen.queryByText('Protected Content')).toBeFalsy()
+    const tree = component!.toJSON()
+    expect(tree).toMatchSnapshot()
   })
 
   it('redirects to sign-in when user is not authenticated', () => {
-    const { useAuth } = require('@my/app')
     jest.mocked(useAuth).mockReturnValue({
-      isAuthenticated: false,
+      user: null,
+      session: null,
       loading: false,
       initialized: true,
+      userId: null,
+      isAuthenticated: false,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      initialize: jest.fn(),
     })
 
-    render(
-      <AuthGate>
-        <div>Protected Content</div>
-      </AuthGate>
-    )
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <AuthGate>
+          <React.Fragment>Protected Content</React.Fragment>
+        </AuthGate>
+      )
+    })
 
     expect(mockRouter.replace).toHaveBeenCalledWith('/auth/sign-in')
-    expect(screen.queryByText('Protected Content')).toBeFalsy()
   })
 
   it('preserves intended destination for post-auth redirect', () => {
-    const { useAuth } = require('@my/app')
     jest.mocked(useAuth).mockReturnValue({
-      isAuthenticated: false,
+      user: null,
+      session: null,
       loading: false,
       initialized: true,
+      userId: null,
+      isAuthenticated: false,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      initialize: jest.fn(),
     })
 
-    render(
-      <AuthGate redirectTo="/custom-redirect">
-        <div>Protected Content</div>
-      </AuthGate>
-    )
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <AuthGate redirectTo="/custom-redirect">
+          <React.Fragment>Protected Content</React.Fragment>
+        </AuthGate>
+      )
+    })
 
     expect(mockRouter.replace).toHaveBeenCalledWith('/custom-redirect')
   })

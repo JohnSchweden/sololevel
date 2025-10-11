@@ -28,7 +28,7 @@ export interface VideoAnalysisScreenProps {
   videoUri?: string
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
   onBack?: () => void
-  onMenuPress?: () => void
+  onControlsVisibilityChange?: (visible: boolean) => void
 }
 
 export function VideoAnalysisScreen({
@@ -37,7 +37,7 @@ export function VideoAnalysisScreen({
   videoUri,
   initialStatus = 'processing',
   onBack,
-  onMenuPress,
+  onControlsVisibilityChange,
 }: VideoAnalysisScreenProps) {
   const normalizedInitialStatus = initialStatus === 'ready' ? 'ready' : 'processing'
   const analysisState = useAnalysisState(analysisJobId, videoRecordingId, normalizedInitialStatus)
@@ -115,6 +115,14 @@ export function VideoAnalysisScreen({
     [coordinateFeedback, resolveSeek]
   )
 
+  const handleControlsVisibilityChange = useCallback(
+    (visible: boolean) => {
+      videoControls.setControlsVisible(visible)
+      onControlsVisibilityChange?.(visible)
+    },
+    [onControlsVisibilityChange, videoControls]
+  )
+
   const handlePlay = useCallback(() => {
     coordinateFeedback.onPlay()
   }, [coordinateFeedback])
@@ -190,9 +198,7 @@ export function VideoAnalysisScreen({
             onLoad={registerDuration}
             onEnd={handleVideoComplete}
             onTap={() => {}}
-            onMenuPress={onMenuPress}
-            onControlsVisibilityChange={videoControls.setControlsVisible}
-            headerBackHandler={onBack}
+            onControlsVisibilityChange={handleControlsVisibilityChange}
             audioPlayerController={audioController}
             bubbleState={{
               visible: coordinateFeedback.bubbleState.bubbleVisible,

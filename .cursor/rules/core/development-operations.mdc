@@ -30,7 +30,7 @@ Operational standards for daily development: command usage, Yarn 4 workspace man
 - Kill processes: `pkill -f "yarn native"` or `pkill -f "yarn web"`
 - Workspace ops: `yarn workspace <name> run <script>`
 - Supabase CLI: `yarn supabase <command>` (never direct `supabase`)
-- **Pre-PR gates (must pass 0 errors):** `yarn type-check:all && yarn lint:all && yarn build`
+- **Pre-PR gates (must pass 0 errors):** `yarn type-check:all && yarn lint:all && yarn test:all && yarn build`
 
 ## Yarn 4 Workspace Management
 - Always use Yarn (v4+). Never use npm/pnpm/npx
@@ -91,12 +91,14 @@ Fix peer dependency conflicts using `resolutions` and `packageExtensions` in roo
 ### Pre-PR (Required)
 - TypeScript: `yarn type-check:all` → 0 errors (includes Edge via Deno)
 - Linting: `yarn lint:all` → 0 errors
+- Tests: `yarn test:all` → all tests pass
 - Build: `yarn build` → success
 
 ### CI (Automated)
 - Install: `yarn install --immutable` → no lockfile changes
 - TypeScript: `yarn type-check:all` → 0 errors
 - Linting: `yarn lint:all` → 0 errors
+- Tests: `yarn test:all` → all tests pass
 - Build: `yarn build` → success
 - Security: `yarn security:audit:ci` → no high/critical vulnerabilities
 

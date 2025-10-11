@@ -12,10 +12,6 @@ export default function VideoAnalysis() {
           log.info('VideoAnalysis', '🔙 Navigate back')
           window.history.back()
         }}
-        onMenuPress={() => {
-          // Handle menu press
-          log.info('VideoAnalysis', '🎛️ Menu pressed')
-        }}
       />
     </AuthGate>
   )

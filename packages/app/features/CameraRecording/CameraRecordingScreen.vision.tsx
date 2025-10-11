@@ -13,12 +13,12 @@ import {
 
 // Test minimal hook to isolate issue
 import { log } from '@my/logging'
+import { useHeaderHeight } from '@react-navigation/elements'
 // Import external components directly
-import { AppHeader } from '@ui/components/AppHeader'
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { SideSheet } from '@ui/components/Sidesheet'
-import { useRouter } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useNavigation, useRouter } from 'expo-router'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { Button, YStack } from 'tamagui'
 import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
@@ -41,6 +41,8 @@ export function CameraRecordingScreen({
 }: CameraRecordingScreenProps) {
   useKeepAwake()
   const router = useRouter()
+  const navigation = useNavigation()
+  const headerHeight = useHeaderHeight()
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -156,174 +158,195 @@ export function CameraRecordingScreen({
   // Header title
   const displayHeaderTitle = headerTitle
 
+  // Update navigation header dynamically based on recording state
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      // @ts-ignore: custom appHeaderProps not in base type
+      appHeaderProps: {
+        title: displayHeaderTitle,
+        mode: getHeaderMode(),
+        showTimer: isInRecordingState,
+        timerValue: formattedDuration,
+        leftAction: isInRecordingState ? 'back' : 'sidesheet',
+        onMenuPress: () => setShowSideSheet(true),
+        onBackPress: handleBackPress,
+        onNotificationPress: handleNavigateBack,
+        cameraProps: { isRecording: isInRecordingState },
+      },
+    })
+  }, [
+    navigation,
+    displayHeaderTitle,
+    isInRecordingState,
+    formattedDuration,
+    recordingState,
+    handleBackPress,
+    setShowSideSheet,
+    handleNavigateBack,
+  ])
+
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
   return (
-    <CameraContainer
-      testID="camera-container"
-      header={
-        <AppHeader
-          title={displayHeaderTitle}
-          mode={getHeaderMode()}
-          showTimer={isInRecordingState}
-          timerValue={formattedDuration}
-          onMenuPress={() => setShowSideSheet(true)}
-          onBackPress={handleBackPress}
-          onNotificationPress={handleNavigateBack}
-          cameraProps={{ isRecording: isInRecordingState }}
-        />
-      }
-      bottomNavigation={
-        <BottomNavigation
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
-      }
+    <YStack
+      flex={1}
+      paddingTop={headerHeight}
+      backgroundColor="$background"
     >
-      <CameraPreviewArea isRecording={isRecording}>
-        {/* Camera Preview Mode */}
-        <CameraPreview
-          ref={cameraRef}
-          cameraType={cameraType}
-          isRecording={isRecording}
-          zoomLevel={zoomLevel} // Pass current zoom level for display purposes
-          permissionGranted={permission?.granted ?? false}
-          onCameraReady={handleCameraReady}
-          onVideoRecorded={handleVideoRecorded}
-          onError={(_error: string) => {
-            // TODO: Handle camera errors with user feedback
-          }}
-        />
+      <CameraContainer
+        testID="camera-container"
+        bottomNavigation={
+          <BottomNavigation
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        }
+      >
+        <CameraPreviewArea isRecording={isRecording}>
+          {/* Camera Preview Mode */}
+          <CameraPreview
+            ref={cameraRef}
+            cameraType={cameraType}
+            isRecording={isRecording}
+            zoomLevel={zoomLevel} // Pass current zoom level for display purposes
+            permissionGranted={permission?.granted ?? false}
+            onCameraReady={handleCameraReady}
+            onVideoRecorded={handleVideoRecorded}
+            onError={(_error: string) => {
+              // TODO: Handle camera errors with user feedback
+            }}
+          />
 
-        {/* MVP Pose Detection Overlay */}
-        {poseEnabled && currentPose && (
-          <PoseOverlay
+          {/* MVP Pose Detection Overlay */}
+          {poseEnabled && currentPose && (
+            <PoseOverlay
+              pose={currentPose}
+              width={screenWidth}
+              height={screenHeight}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 5, // Above camera but below controls
+              }}
+            />
+          )}
+
+          {/* MVP Debug Overlay - Development Only */}
+          <MVPPoseDebugOverlay
             pose={currentPose}
-            width={screenWidth}
-            height={screenHeight}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              zIndex: 5, // Above camera but below controls
-            }}
+            isDetecting={isDetecting}
+            isEnabled={poseEnabled}
           />
-        )}
 
-        {/* MVP Debug Overlay - Development Only */}
-        <MVPPoseDebugOverlay
-          pose={currentPose}
-          isDetecting={isDetecting}
-          isEnabled={poseEnabled}
+          {/* MVP Pose Detection Toggle - Below Debug Overlay */}
+          <YStack
+            position="absolute"
+            top={250}
+            right={20}
+            zIndex={10}
+          >
+            <PoseDetectionToggleCompact
+              isEnabled={poseEnabled}
+              onToggle={() => {
+                if (__DEV__) {
+                  log.debug('CameraRecordingScreen', '🎯 Toggle button pressed, poseEnabled:', {
+                    poseEnabled: poseEnabled,
+                  })
+                }
+                togglePoseDetection()
+              }}
+              testID="camera-pose-toggle"
+            />
+          </YStack>
+        </CameraPreviewArea>
+
+        {/* Camera Controls */}
+        {permission?.granted &&
+          (recordingState === RecordingState.IDLE ? (
+            <CameraControlsOverlay position="bottom">
+              <IdleControls
+                onStartRecording={handleStartRecording}
+                onUploadVideo={handleUploadVideo}
+                onVideoSelected={handleVideoSelected}
+                onCameraSwap={handleCameraSwap}
+                disabled={!cameraReady}
+                isCameraSwapping={isCameraSwapping}
+                cameraSwapTransitionDuration={cameraSwapTransitionDuration}
+                testID="idle-controls"
+                recordButtonTestID="record-button"
+                uploadButtonTestID="upload-button"
+                cameraSwapButtonTestID="camera-swap-button"
+              />
+            </CameraControlsOverlay>
+          ) : (
+            <CameraControlsOverlay position="bottom">
+              <RecordingControls
+                recordingState={recordingState}
+                duration={duration}
+                zoomLevel={zoomLevel}
+                canSwapCamera={recordingState !== RecordingState.RECORDING}
+                canStop={canStop}
+                onPause={handlePauseRecording}
+                onResume={handleResumeRecording}
+                onStop={handleStopRecording}
+                onCameraSwap={handleCameraSwap}
+                onZoomChange={handleZoomChange}
+                onSettingsOpen={handleSettingsOpen}
+              />
+            </CameraControlsOverlay>
+          ))}
+
+        {/* Navigation Confirmation Dialog */}
+        <NavigationDialog
+          open={showNavigationDialog}
+          onOpenChange={setShowNavigationDialog}
+          title="Discard Recording?"
+          message="Are you sure you want to leave? Your current recording will be lost."
+          onDiscard={confirmNavigation}
+          onCancel={cancelNavigation}
         />
 
-        {/* MVP Pose Detection Toggle - Below Debug Overlay */}
-        <YStack
-          position="absolute"
-          top={250}
-          right={20}
-          zIndex={10}
-        >
-          <PoseDetectionToggleCompact
-            isEnabled={poseEnabled}
-            onToggle={() => {
-              if (__DEV__) {
-                log.debug('CameraRecordingScreen', '🎯 Toggle button pressed, poseEnabled:', {
-                  poseEnabled: poseEnabled,
-                })
-              }
-              togglePoseDetection()
-            }}
-            testID="camera-pose-toggle"
-          />
-        </YStack>
-      </CameraPreviewArea>
+        {/* Side Sheet Navigation */}
+        <SideSheet
+          open={showSideSheet}
+          onOpenChange={setShowSideSheet}
+        />
 
-      {/* Camera Controls */}
-      {permission?.granted &&
-        (recordingState === RecordingState.IDLE ? (
-          <CameraControlsOverlay position="bottom">
-            <IdleControls
-              onStartRecording={handleStartRecording}
-              onUploadVideo={handleUploadVideo}
-              onVideoSelected={handleVideoSelected}
-              onCameraSwap={handleCameraSwap}
-              disabled={!cameraReady}
-              isCameraSwapping={isCameraSwapping}
-              cameraSwapTransitionDuration={cameraSwapTransitionDuration}
-              testID="idle-controls"
-              recordButtonTestID="record-button"
-              uploadButtonTestID="upload-button"
-              cameraSwapButtonTestID="camera-swap-button"
-            />
-          </CameraControlsOverlay>
-        ) : (
-          <CameraControlsOverlay position="bottom">
-            <RecordingControls
-              recordingState={recordingState}
-              duration={duration}
-              zoomLevel={zoomLevel}
-              canSwapCamera={recordingState !== RecordingState.RECORDING}
-              canStop={canStop}
-              onPause={handlePauseRecording}
-              onResume={handleResumeRecording}
-              onStop={handleStopRecording}
-              onCameraSwap={handleCameraSwap}
-              onZoomChange={handleZoomChange}
-              onSettingsOpen={handleSettingsOpen}
-            />
-          </CameraControlsOverlay>
-        ))}
-
-      {/* Navigation Confirmation Dialog */}
-      <NavigationDialog
-        open={showNavigationDialog}
-        onOpenChange={setShowNavigationDialog}
-        title="Discard Recording?"
-        message="Are you sure you want to leave? Your current recording will be lost."
-        onDiscard={confirmNavigation}
-        onCancel={cancelNavigation}
-      />
-
-      {/* Side Sheet Navigation */}
-      <SideSheet
-        open={showSideSheet}
-        onOpenChange={setShowSideSheet}
-      />
-
-      {/* Dev button for compression test */}
-      {__DEV__ && (
-        <YStack
-          position="absolute"
-          top={100}
-          left={20}
-          zIndex={10000}
-          backgroundColor="$red9"
-          padding="$2"
-          borderRadius="$4"
-        >
-          <Button
-            size="$4"
-            backgroundColor="transparent"
-            color="white"
-            onPress={() => router.push('/dev/compress-test')}
-            testID="dev-compress-test-button"
-            pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+        {/* Dev button for compression test */}
+        {__DEV__ && (
+          <YStack
+            position="absolute"
+            top={20}
+            left={20}
+            zIndex={10000}
+            backgroundColor="$red9"
+            padding="$2"
+            borderRadius="$4"
           >
-            🚀 DEV COMPRESSION TEST
-          </Button>
-          <Button
-            size="$4"
-            backgroundColor="transparent"
-            color="white"
-            onPress={() => router.push('/dev/pipeline-test')}
-            testID="dev-pipeline-test-button"
-            pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-          >
-            🔧 PIPELINE TEST
-          </Button>
-        </YStack>
-      )}
-    </CameraContainer>
+            <Button
+              size="$4"
+              backgroundColor="transparent"
+              color="white"
+              onPress={() => router.push('/dev/compress-test')}
+              testID="dev-compress-test-button"
+              pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              🚀 DEV COMPRESSION TEST
+            </Button>
+            <Button
+              size="$4"
+              backgroundColor="transparent"
+              color="white"
+              onPress={() => router.push('/dev/pipeline-test')}
+              testID="dev-pipeline-test-button"
+              pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              🔧 PIPELINE TEST
+            </Button>
+          </YStack>
+        )}
+      </CameraContainer>
+    </YStack>
   )
 }

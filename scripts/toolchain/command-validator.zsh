@@ -2,6 +2,19 @@
 
 # Zsh-compatible command validator for Cursor rules
 # Source this file in zsh sessions to enable confirmation prompts for blocked commands
+#
+# ENFORCED BLOCKS:
+#   - perl -i * (in-place file editing)
+#   - yarn workspace add/remove
+#   - supabase db reset variants
+#
+# DOCUMENTED BUT NOT ENFORCED (technical limitations):
+#   - cat * > * (shell parses redirection before function sees it)
+#   - echo * > .env* (shell parses redirection before function sees it)
+#   - python * (can't detect file writes without parsing script)
+#   These rely on AI assistant following .cursorrules
+#
+# To enable: source /path/to/command-validator.zsh in your .zshrc
 
 typeset -ga BLOCKED_COMMANDS=()
 typeset -gi COMMAND_RULES_LOADED=0
@@ -64,7 +77,8 @@ is_blocked() {
   if (( ${COMMAND_RULES_LOADED:-0} )); then
     local blocked
     for blocked in "${BLOCKED_COMMANDS[@]}"; do
-      if [[ "$cmd" == ${blocked}* ]]; then
+      # Use glob pattern matching (treat * as wildcard)
+      if [[ "$cmd" == $~blocked ]]; then
         return 0
       fi
     done
@@ -109,6 +123,23 @@ function supabase() {
   fi
   command supabase "$@"
 }
+
+# Wrap perl - only block in-place editing (-i flag)
+function perl() {
+  local full_cmd="perl $@"
+  # Check if using in-place editing flag
+  if [[ "$*" == *"-i"* ]]; then
+    echo "⚠️  BLOCKED: 'perl -i' (in-place editing) is disallowed by .cursorrules"
+    echo "   Use dedicated file editing tools instead (search_replace, write, edit_notebook)"
+    echo ""
+    echo "Command blocked."
+    return 1
+  fi
+  command perl "$@"
+}
+
+# Note: python/python3 not wrapped - can't reliably detect file editing without parsing script
+# Relies on AI assistant following .cursorrules to not use python for code editing
 
 echo "Zsh command validator loaded."
 

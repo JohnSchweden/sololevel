@@ -9,7 +9,6 @@ import {
   SkipBack,
   SkipForward,
 } from '@tamagui/lucide-icons'
-import { AppHeaderContainer } from '@ui/components/AppHeader'
 import React, {
   useCallback,
   useEffect,
@@ -255,8 +254,8 @@ export const VideoControls = React.memo(
             accessibilityRole="toolbar"
             accessibilityState={{ expanded: controlsVisible }}
           >
-            {/* Header */}
-            {headerComponent && <AppHeaderContainer>{headerComponent}</AppHeaderContainer>}
+            {/* Header - deprecated, use NavigationAppHeader instead */}
+            {headerComponent && headerComponent}
 
             {/* Center Controls - Absolutely positioned in vertical center of full screen */}
             <XStack
@@ -349,7 +348,7 @@ export const VideoControls = React.memo(
                 >
                   <Text
                     fontSize="$3"
-                    color="white"
+                    color="$color"
                     fontWeight="bold"
                     testID="current-time"
                   >
@@ -357,14 +356,14 @@ export const VideoControls = React.memo(
                   </Text>
                   <Text
                     fontSize="$3"
-                    color="white"
+                    color="$color"
                     marginHorizontal="$1"
                   >
                     /
                   </Text>
                   <Text
                     fontSize="$3"
-                    color="white"
+                    color="$color"
                     testID="total-time"
                   >
                     {formatTime(duration)}
@@ -437,7 +436,7 @@ export const VideoControls = React.memo(
                   backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
                   borderRadius={12}
                   borderWidth={3}
-                  borderColor="white"
+                  borderColor="$color12"
                   opacity={controlsVisible || isScrubbing ? 1 : 0.7}
                   animation="quick"
                   testID="scrubber-handle"

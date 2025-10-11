@@ -4,14 +4,15 @@ import React, { useEffect } from 'react'
 if (typeof global !== 'undefined') {
   global.React = React
 }
+import { NavigationAppHeader } from '@app/components/navigation'
 import { Provider } from '@app/provider'
 import { log } from '@my/logging'
 import { NativeToast } from '@my/ui'
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
+//import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
-import { useColorScheme } from 'react-native'
+//import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
 
 // React internals should not be accessed in app code
@@ -52,7 +53,7 @@ export default function App() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme()
+  //const colorScheme = useColorScheme()
 
   // // Auto-deeplink to Metro on simulator startup (prevents Expo Dev Launcher)
   // const didOpen = useRef(false)
@@ -70,50 +71,60 @@ function RootLayoutNav() {
   return (
     <ErrorBoundary>
       <Provider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          {(() => (
-            <Stack>
-              {/* Auth routes - public */}
-              <Stack.Screen
-                name="auth"
-                options={{
-                  headerShown: false,
-                }}
-              />
+        {/*<ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>*/}
+        {(() => (
+          <Stack>
+            {/* Auth routes - public */}
+            <Stack.Screen
+              name="auth"
+              options={{
+                headerShown: false,
+              }}
+            />
 
-              {/* Protected routes */}
-              <Stack.Screen
-                name="index"
-                options={{
-                  title: 'Camera Recording',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="video-analysis"
-                options={{
-                  title: 'Video Analysis',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="dev/compress-test"
-                options={{
-                  title: 'Compression Test',
-                  headerShown: true,
-                }}
-              />
-              <Stack.Screen
-                name="dev/pipeline-test"
-                options={{
-                  title: 'Pipeline Test',
-                  headerShown: true,
-                }}
-              />
-            </Stack>
-          ))()}
-          <NativeToast />
-        </ThemeProvider>
+            {/* Protected routes */}
+            <Stack.Screen
+              name="index"
+              options={{
+                title: 'Solo:Level',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+              }}
+            />
+            <Stack.Screen
+              name="video-analysis"
+              options={{
+                title: 'Video Analysis',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+              }}
+            />
+            <Stack.Screen
+              name="dev/compress-test"
+              options={{
+                title: 'Compression Test',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+              }}
+            />
+            <Stack.Screen
+              name="dev/pipeline-test"
+              options={{
+                title: 'Pipeline Test',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+              }}
+            />
+          </Stack>
+        ))()}
+        <NativeToast />
+        {/*</ThemeProvider>*/}
       </Provider>
     </ErrorBoundary>
   )

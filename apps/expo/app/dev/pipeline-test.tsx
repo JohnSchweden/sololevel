@@ -1,5 +1,6 @@
 import { startUploadAndAnalysis } from '@my/app/services/videoUploadAndAnalysis'
 import { log } from '@my/logging'
+import { useHeaderHeight } from '@react-navigation/elements'
 import { Asset } from 'expo-asset'
 import { router } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
@@ -36,6 +37,7 @@ function DurationProbe({ uri, onReady }: { uri: string; onReady: (seconds: numbe
 }
 
 export default function PipelineTestScreen() {
+  const headerHeight = useHeaderHeight()
   const [status, setStatus] = useState<PipelineStatus>('idle')
   const [details, setDetails] = useState<string>('')
   const [recordingId, setRecordingId] = useState<number | null>(null)
@@ -160,91 +162,96 @@ export default function PipelineTestScreen() {
           }}
         />
       )}
-      <ScrollView
+      <YStack
         flex={1}
+        paddingTop={headerHeight}
         backgroundColor="$background"
       >
-        <YStack
-          padding="$4"
-          gap="$3"
-          testID="pipeline-test-screen"
-        >
-          <Text
-            fontSize="$6"
-            fontWeight="bold"
-            testID="pipeline-test-title"
+        <ScrollView flex={1}>
+          <YStack
+            padding="$4"
+            gap="$3"
+            testID="pipeline-test-screen"
           >
-            Pipeline Test
-          </Text>
-
-          <YStack gap="$2">
             <Text
-              testID="pipeline-status"
-              fontWeight="600"
+              fontSize="$6"
+              fontWeight="bold"
+              testID="pipeline-test-title"
             >
-              Status: {status}
+              Pipeline Test
             </Text>
 
-            {recordingId && <Text testID="pipeline-recording-id">Recording ID: {recordingId}</Text>}
-
-            {errorMessage && (
+            <YStack gap="$2">
               <Text
-                testID="pipeline-error"
-                color="$red10"
+                testID="pipeline-status"
                 fontWeight="600"
               >
-                Error: {errorMessage}
+                Status: {status}
               </Text>
-            )}
-          </YStack>
 
-          <Button
-            onPress={handleRunPipeline}
-            testID="pipeline-run"
-            disabled={
-              status === 'loading-asset' ||
+              {recordingId && (
+                <Text testID="pipeline-recording-id">Recording ID: {recordingId}</Text>
+              )}
+
+              {errorMessage && (
+                <Text
+                  testID="pipeline-error"
+                  color="$red10"
+                  fontWeight="600"
+                >
+                  Error: {errorMessage}
+                </Text>
+              )}
+            </YStack>
+
+            <Button
+              onPress={handleRunPipeline}
+              testID="pipeline-run"
+              disabled={
+                status === 'loading-asset' ||
+                status === 'probing-duration' ||
+                status === 'uploading' ||
+                status === 'processing'
+              }
+            >
+              {status === 'loading-asset' ||
               status === 'probing-duration' ||
               status === 'uploading' ||
               status === 'processing'
-            }
-          >
-            {status === 'loading-asset' ||
-            status === 'probing-duration' ||
-            status === 'uploading' ||
-            status === 'processing'
-              ? 'Running...'
-              : 'Run Pipeline Test'}
-          </Button>
+                ? 'Running...'
+                : 'Run Pipeline Test'}
+            </Button>
 
-          <Button
-            onPress={handleReset}
-            testID="pipeline-reset"
-            variant="outlined"
-            disabled={status === 'idle'}
-          >
-            Reset
-          </Button>
-
-          <YStack gap="$2">
-            <Text fontWeight="600">Details:</Text>
-            <ScrollView
-              height={300}
-              borderWidth={1}
-              borderColor="$borderColor"
-              borderRadius="$2"
-              padding="$2"
+            <Button
+              onPress={handleReset}
+              testID="pipeline-reset"
+              variant="outlined"
+              disabled={status === 'idle'}
             >
-              <Text
-                testID="pipeline-details"
-                fontFamily="$mono"
-                fontSize="$3"
+              Reset
+            </Button>
+
+            <YStack gap="$2">
+              <Text fontWeight="600">Details:</Text>
+              <ScrollView
+                height={300}
+                borderWidth={1}
+                borderColor="$borderColor"
+                borderRadius="$2"
+                padding="$2"
               >
-                {details}
-              </Text>
-            </ScrollView>
+                <Text
+                  testID="pipeline-details"
+                  fontFamily="$mono"
+                  fontSize="$3"
+                >
+                  {details}
+                </Text>
+              </ScrollView>
+            </YStack>
           </YStack>
-        </YStack>
-      </ScrollView>
+        </ScrollView>
+      </YStack>
     </>
   )
 }

@@ -321,15 +321,18 @@ As a user, I want to see a complete video analysis experience that combines all 
 - Navigation integration with app routing
 - Cross-platform screen implementation
 - Performance optimization for component orchestration
+- Support for two modes: new analysis (from recording) and viewing existing analysis (from history - US-HI-02)
 
 ### Acceptance Criteria
-- Given I navigate to the video analysis screen
+- Given I navigate to the video analysis screen (from new recording or history item)
 - When the screen loads
 - Then all components are properly integrated and functional
 - And data flows correctly between components
 - And the screen performs smoothly on both web and native platforms
 - And navigation works correctly with the app routing system
 - And the screen handles errors gracefully across all components
+- And when opened from history (US-HI-02), existing analysis data loads without triggering new analysis
+- And when opened from new recording, AI analysis begins automatically
 
 ### Technical Notes
 - **Screen Location**: `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
@@ -339,4 +342,7 @@ As a user, I want to see a complete video analysis experience that combines all 
 - **Cross-platform**: Unified screen implementation for web and native
 - **Error Handling**: Comprehensive error handling across all integrated components
 - **Testing**: Integration tests for complete screen functionality
+- **Navigation Modes**: 
+  - New analysis: Accepts video file/URL, triggers AI analysis pipeline
+  - History view: Accepts analysis ID, loads pre-existing data from backend (no new analysis)
 

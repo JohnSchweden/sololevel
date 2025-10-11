@@ -2,7 +2,6 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 
 import { YStack } from 'tamagui'
 
-import { AppHeader } from '@my/ui'
 import {
   AudioFeedback,
   AudioPlayer,
@@ -53,9 +52,7 @@ interface VideoPlayerSectionProps {
   onLoad: (data: { duration: number }) => void
   onEnd: () => void
   onTap: () => void
-  onMenuPress?: () => void
   onControlsVisibilityChange?: (visible: boolean) => void
-  headerBackHandler?: () => void
   audioPlayerController: {
     setIsPlaying: (playing: boolean) => void
     isPlaying: boolean
@@ -111,9 +108,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onLoad,
   onEnd,
   onTap,
-  onMenuPress,
   onControlsVisibilityChange,
-  headerBackHandler,
   audioPlayerController,
   bubbleState,
   audioOverlay,
@@ -273,14 +268,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onReplay={onReplay}
             onSeek={onSeek}
             onControlsVisibilityChange={onControlsVisibilityChange}
-            headerComponent={
-              <AppHeader
-                title="Video Analysis"
-                mode="videoSettings"
-                onBackPress={headerBackHandler}
-                onMenuPress={onMenuPress}
-              />
-            }
           />
         </YStack>
       </VideoPlayerArea>

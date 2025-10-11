@@ -61,7 +61,7 @@ See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
 - Install: `yarn install --immutable`
 - Start: `yarn dev`
 - Native: `yarn native` | Web: `yarn web`
-- Pre-PR: `yarn type-check:all && yarn lint:all && yarn build`
+- Pre-PR: `yarn type-check:all && yarn lint:all && yarn test:all && yarn build`
 
 ## Workspace Scripts Reference
 - `yarn native` → `expo-app` (React Native development)

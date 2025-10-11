@@ -24,7 +24,7 @@ import { ToastViewport } from './ToastViewport'
 
 export function Provider({
   children,
-  defaultTheme = 'light',
+  defaultTheme = 'dark',
   locale,
   ...rest
 }: Omit<TamaguiProviderProps, 'config'> & {
@@ -37,7 +37,7 @@ export function Provider({
   }, [])
 
   const colorScheme = useColorScheme()
-  const theme = defaultTheme || (colorScheme === 'dark' ? 'dark' : 'light')
+  const theme = colorScheme === 'dark' ? 'dark' : defaultTheme || 'dark'
 
   // Ensure ActionSheetProvider is only rendered on client to avoid hydration mismatches
   const [mounted, setMounted] = useState(false)

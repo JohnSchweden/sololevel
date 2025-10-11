@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react'
 import { YStack } from 'tamagui'
 import type { GetProps } from 'tamagui'
-import { AppHeaderContainer } from '../../AppHeader/AppHeader'
 import { BottomNavigationContainer } from '../../BottomNavigation/BottomNavigation'
 
 export interface CameraContainerProps {
   children?: ReactNode
-  header?: ReactNode
   bottomNavigation?: ReactNode
   backgroundColor?: GetProps<typeof YStack>['backgroundColor']
   testID?: string
@@ -17,17 +15,11 @@ export interface CameraContainerProps {
  * Mobile-first YStack root container with safe area handling
  * Implements responsive breakpoints and 44px touch targets
  */
-export function CameraContainer({
-  children,
-  header,
-  bottomNavigation,
-  backgroundColor = 'black',
-  testID,
-}: CameraContainerProps) {
+export function CameraContainer({ children, bottomNavigation, testID }: CameraContainerProps) {
   return (
     <YStack
       flex={1}
-      backgroundColor={backgroundColor}
+      backgroundColor="$background"
       position="relative"
       testID={testID}
     >
@@ -42,9 +34,6 @@ export function CameraContainer({
       >
         {children}
       </YStack>
-
-      {/* Header Section - Mobile optimized */}
-      {header && <AppHeaderContainer>{header}</AppHeaderContainer>}
 
       {/* Bottom Navigation - Mobile optimized */}
       {bottomNavigation && (

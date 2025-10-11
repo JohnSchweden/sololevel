@@ -1,11 +1,13 @@
 import { compressVideo } from '@app/services/videoCompression'
 import { log } from '@my/logging'
+import { useHeaderHeight } from '@react-navigation/elements'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system'
 import { useState } from 'react'
 import { Button, ScrollView, Text, YStack } from 'tamagui'
 
 export default function CompressTestScreen() {
+  const headerHeight = useHeaderHeight()
   const [status, setStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle')
   const [details, setDetails] = useState<string>('')
   const [originalSize, setOriginalSize] = useState<number>(0)
@@ -66,68 +68,71 @@ export default function CompressTestScreen() {
   }
 
   return (
-    <ScrollView
+    <YStack
       flex={1}
+      paddingTop={headerHeight}
       backgroundColor="$background"
     >
-      <YStack
-        padding="$4"
-        gap="$3"
-        testID="compress-test-screen"
-      >
-        <Text
-          fontSize="$6"
-          fontWeight="bold"
-          testID="compress-test-title"
+      <ScrollView flex={1}>
+        <YStack
+          padding="$4"
+          gap="$3"
+          testID="compress-test-screen"
         >
-          Mini Speech Compression Test
-        </Text>
-
-        <YStack gap="$2">
           <Text
-            testID="compression-status"
-            fontWeight="600"
+            fontSize="$6"
+            fontWeight="bold"
+            testID="compress-test-title"
           >
-            Status: {status}
+            Mini Speech Compression Test
           </Text>
-          <Text testID="original-size">Original Size: {originalSize} bytes</Text>
-          <Text testID="compressed-size">Compressed Size: {compressedSize} bytes</Text>
-          <Text testID="compression-ratio">
-            Ratio:{' '}
-            {originalSize > 0
-              ? (((originalSize - compressedSize) / originalSize) * 100).toFixed(1)
-              : 0}
-            %
-          </Text>
-        </YStack>
 
-        <Button
-          onPress={run}
-          testID="run-compression"
-          disabled={status === 'running'}
-        >
-          {status === 'running' ? 'Running...' : 'Run Compression Test'}
-        </Button>
-
-        <YStack gap="$2">
-          <Text fontWeight="600">Details:</Text>
-          <ScrollView
-            height={300}
-            borderWidth={1}
-            borderColor="$borderColor"
-            borderRadius="$2"
-            padding="$2"
-          >
+          <YStack gap="$2">
             <Text
-              testID="compression-details"
-              fontFamily="$mono"
-              fontSize="$3"
+              testID="compression-status"
+              fontWeight="600"
             >
-              {details}
+              Status: {status}
             </Text>
-          </ScrollView>
+            <Text testID="original-size">Original Size: {originalSize} bytes</Text>
+            <Text testID="compressed-size">Compressed Size: {compressedSize} bytes</Text>
+            <Text testID="compression-ratio">
+              Ratio:{' '}
+              {originalSize > 0
+                ? (((originalSize - compressedSize) / originalSize) * 100).toFixed(1)
+                : 0}
+              %
+            </Text>
+          </YStack>
+
+          <Button
+            onPress={run}
+            testID="run-compression"
+            disabled={status === 'running'}
+          >
+            {status === 'running' ? 'Running...' : 'Run Compression Test'}
+          </Button>
+
+          <YStack gap="$2">
+            <Text fontWeight="600">Details:</Text>
+            <ScrollView
+              height={300}
+              borderWidth={1}
+              borderColor="$borderColor"
+              borderRadius="$2"
+              padding="$2"
+            >
+              <Text
+                testID="compression-details"
+                fontFamily="$mono"
+                fontSize="$3"
+              >
+                {details}
+              </Text>
+            </ScrollView>
+          </YStack>
         </YStack>
-      </YStack>
-    </ScrollView>
+      </ScrollView>
+    </YStack>
   )
 }

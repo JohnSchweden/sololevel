@@ -2,7 +2,10 @@
 
 ## IN PROGRESS
 
-
+### Navigation Header Alignment — 🟡 In Progress (2025-10-10)
+- Refactoring `AppHeader` to remain presentational while moving React Navigation wiring into `NavigationAppHeader`
+- Added configurable actions/slots to preserve flexibility without bundling navigation logic inside UI package
+- Pending validation: run `yarn type-check`, `yarn lint`, and targeted navigation tests once integration is finalized
 
 ---
 

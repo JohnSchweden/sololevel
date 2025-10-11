@@ -1,6 +1,6 @@
 ---
 
-Analyze our monorepo architecture and identify best practices.
+Analyze our monorepo architecture and identify mobile development improvements.
 
 CONTEXT:
 - Read @monorepo-foundation.mdc and @architecture.mermaid

@@ -11,10 +11,12 @@ import {
 
 import { log } from '@my/logging'
 // Import external components directly
-import { AppHeader } from '@my/ui/src/components/AppHeader/AppHeader'
 import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
 import { SideSheet } from '@my/ui/src/components/Sidesheet/SideSheet'
-import { useEffect, useRef, useState } from 'react'
+import { useHeaderHeight } from '@react-navigation/elements'
+import { useNavigation } from 'expo-router'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { YStack } from 'tamagui'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
@@ -27,6 +29,8 @@ export function CameraRecordingScreen({
   resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
+  const navigation = useNavigation()
+  const headerHeight = useHeaderHeight()
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -105,100 +109,121 @@ export function CameraRecordingScreen({
   // Header title
   const displayHeaderTitle = headerTitle
 
+  // Update navigation header dynamically based on recording state
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      // @ts-ignore: custom appHeaderProps not in base type
+      appHeaderProps: {
+        title: displayHeaderTitle,
+        mode: getHeaderMode(),
+        showTimer: isInRecordingState,
+        timerValue: formattedDuration,
+        leftAction: isInRecordingState ? 'back' : 'sidesheet',
+        onMenuPress: () => setShowSideSheet(true),
+        onBackPress: handleBackPress,
+        onNotificationPress: handleNavigateBack,
+        cameraProps: { isRecording: isInRecordingState },
+      },
+    })
+  }, [
+    navigation,
+    displayHeaderTitle,
+    isInRecordingState,
+    formattedDuration,
+    recordingState,
+    handleBackPress,
+    setShowSideSheet,
+    handleNavigateBack,
+  ])
+
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
   return (
-    <CameraContainer
-      header={
-        <AppHeader
-          title={displayHeaderTitle}
-          mode={getHeaderMode()}
-          showTimer={isInRecordingState}
-          timerValue={formattedDuration}
-          onMenuPress={() => setShowSideSheet(true)}
-          onBackPress={handleBackPress}
-          onNotificationPress={handleNavigateBack}
-          cameraProps={{ isRecording: isInRecordingState }}
-        />
-      }
-      bottomNavigation={
-        <BottomNavigation
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
-      }
+    <YStack
+      flex={1}
+      paddingTop={headerHeight}
+      backgroundColor="$background"
     >
-      <CameraPreviewArea isRecording={isRecording}>
-        {/* Camera Preview Mode */}
-        <CameraPreview
-          ref={cameraRef}
-          cameraType={cameraType}
-          isRecording={isRecording}
-          zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
-          // Debug: log zoom conversion
-          // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
-          onZoomChange={(continuousZoom) => {
-            // Convert continuous zoom (0-1) back to discrete (1-3)
-            // 0.0 → 1, 0.33 → 2, 0.67 → 3
-            const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
-            // Clamp to valid range
-            const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
-            handleZoomChange(clampedZoom)
-          }}
-          permissionGranted={permission?.granted ?? false}
-          onCameraReady={handleCameraReady}
-          onVideoRecorded={handleVideoRecorded}
-          onError={(_error: string) => {
-            // TODO: Handle camera errors with user feedback
-          }}
+      <CameraContainer
+        bottomNavigation={
+          <BottomNavigation
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        }
+      >
+        <CameraPreviewArea isRecording={isRecording}>
+          {/* Camera Preview Mode */}
+          <CameraPreview
+            ref={cameraRef}
+            cameraType={cameraType}
+            isRecording={isRecording}
+            zoomLevel={(zoomLevel - 1) * (1 / 3)} // Convert discrete zoom (1-3) to continuous (0-1)
+            // Debug: log zoom conversion
+            // zoomLevel 1 → 0.0, zoomLevel 2 → 0.33, zoomLevel 3 → 0.67
+            onZoomChange={(continuousZoom) => {
+              // Convert continuous zoom (0-1) back to discrete (1-3)
+              // 0.0 → 1, 0.33 → 2, 0.67 → 3
+              const discreteZoom = Math.round(continuousZoom * 3 + 1) as 1 | 2 | 3
+              // Clamp to valid range
+              const clampedZoom = Math.max(1, Math.min(3, discreteZoom)) as 1 | 2 | 3
+              handleZoomChange(clampedZoom)
+            }}
+            permissionGranted={permission?.granted ?? false}
+            onCameraReady={handleCameraReady}
+            onVideoRecorded={handleVideoRecorded}
+            onError={(_error: string) => {
+              // TODO: Handle camera errors with user feedback
+            }}
+          />
+        </CameraPreviewArea>
+
+        {/* Camera Controls */}
+        {permission?.granted &&
+          (recordingState === RecordingState.IDLE ? (
+            <CameraControlsOverlay position="bottom">
+              <IdleControls
+                onStartRecording={handleStartRecording}
+                onUploadVideo={handleUploadVideo}
+                onVideoSelected={handleVideoSelected}
+                onCameraSwap={handleCameraSwap}
+                disabled={!cameraReady}
+              />
+            </CameraControlsOverlay>
+          ) : (
+            <CameraControlsOverlay position="bottom">
+              <RecordingControls
+                recordingState={recordingState}
+                duration={duration}
+                zoomLevel={zoomLevel}
+                canSwapCamera={recordingState !== RecordingState.RECORDING}
+                canStop={canStop}
+                onPause={handlePauseRecording}
+                onResume={handleResumeRecording}
+                onStop={handleStopRecording}
+                onCameraSwap={handleCameraSwap}
+                onZoomChange={handleZoomChange}
+                onSettingsOpen={handleSettingsOpen}
+              />
+            </CameraControlsOverlay>
+          ))}
+
+        {/* Navigation Confirmation Dialog */}
+        <NavigationDialog
+          open={showNavigationDialog}
+          onOpenChange={setShowNavigationDialog}
+          title="Discard Recording?"
+          message="Are you sure you want to leave? Your current recording will be lost."
+          onDiscard={confirmNavigation}
+          onCancel={cancelNavigation}
         />
-      </CameraPreviewArea>
 
-      {/* Camera Controls */}
-      {permission?.granted &&
-        (recordingState === RecordingState.IDLE ? (
-          <CameraControlsOverlay position="bottom">
-            <IdleControls
-              onStartRecording={handleStartRecording}
-              onUploadVideo={handleUploadVideo}
-              onVideoSelected={handleVideoSelected}
-              onCameraSwap={handleCameraSwap}
-              disabled={!cameraReady}
-            />
-          </CameraControlsOverlay>
-        ) : (
-          <CameraControlsOverlay position="bottom">
-            <RecordingControls
-              recordingState={recordingState}
-              duration={duration}
-              zoomLevel={zoomLevel}
-              canSwapCamera={recordingState !== RecordingState.RECORDING}
-              canStop={canStop}
-              onPause={handlePauseRecording}
-              onResume={handleResumeRecording}
-              onStop={handleStopRecording}
-              onCameraSwap={handleCameraSwap}
-              onZoomChange={handleZoomChange}
-              onSettingsOpen={handleSettingsOpen}
-            />
-          </CameraControlsOverlay>
-        ))}
-
-      {/* Navigation Confirmation Dialog */}
-      <NavigationDialog
-        open={showNavigationDialog}
-        onOpenChange={setShowNavigationDialog}
-        title="Discard Recording?"
-        message="Are you sure you want to leave? Your current recording will be lost."
-        onDiscard={confirmNavigation}
-        onCancel={cancelNavigation}
-      />
-
-      {/* Side Sheet Navigation */}
-      <SideSheet
-        open={showSideSheet}
-        onOpenChange={setShowSideSheet}
-      />
-    </CameraContainer>
+        {/* Side Sheet Navigation */}
+        <SideSheet
+          open={showSideSheet}
+          onOpenChange={setShowSideSheet}
+        />
+      </CameraContainer>
+    </YStack>
   )
 }

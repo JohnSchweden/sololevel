@@ -1,5 +1,6 @@
 import { Bell, ChevronLeft, Menu, MoreHorizontal } from '@tamagui/lucide-icons'
-import { Circle, Text, XStack, YStack } from 'tamagui'
+import type { ComponentProps } from 'react'
+import { Circle, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
 
@@ -19,31 +20,91 @@ export function AppHeader({
   onNotificationPress,
   notificationBadgeCount = 0,
   cameraProps,
+  titleAlignment = 'center',
+  leftAction = 'auto',
+  rightAction = 'auto',
+  leftSlot,
+  rightSlot,
+  titleSlot,
+  themeName,
 }: AppHeaderProps) {
   // Derive state from mode
   const isRecording = mode === 'recording' || cameraProps?.isRecording
   const isAnalysis = mode === 'analysis'
   const isVideoSettings = mode === 'videoSettings'
-  const showBackButton = isRecording || isAnalysis || isVideoSettings
-  const showNotifications =
-    mode !== 'recording' && mode !== 'camera' && !isAnalysis && !isVideoSettings
-  return (
-    <>
-      {/* Left Section - Back Button (for recording/analysis) or Menu Button (for other modes) */}
+
+  const computedLeftAction = (() => {
+    if (leftAction !== 'auto') {
+      return leftAction
+    }
+
+    if (leftSlot) {
+      return 'none'
+    }
+
+    if (isRecording || isAnalysis || isVideoSettings) {
+      return 'back'
+    }
+
+    return 'sidesheet'
+  })()
+
+  const computedRightAction = (() => {
+    if (rightAction !== 'auto') {
+      return rightAction
+    }
+
+    if (rightSlot) {
+      return 'none'
+    }
+
+    if (isVideoSettings) {
+      return 'videoSettings'
+    }
+
+    if (isAnalysis) {
+      return 'menu'
+    }
+
+    if (mode !== 'recording' && mode !== 'camera') {
+      return 'notifications'
+    }
+
+    return 'none'
+  })()
+
+  type IconColor = ComponentProps<typeof Bell>['color']
+  type TextColor = ComponentProps<typeof Text>['color']
+
+  const foreground = '$color' as TextColor
+  const iconColor = '$color' as IconColor
+
+  const renderLeft = () => {
+    if (leftSlot) {
+      return leftSlot
+    }
+
+    if (computedLeftAction === 'none') {
+      return null
+    }
+
+    const isBackButton = computedLeftAction === 'back'
+
+    return (
       <Button
         chromeless
         size="$3"
-        onPress={showBackButton ? onBackPress : onMenuPress}
+        onPress={isBackButton ? onBackPress : onMenuPress}
         icon={
-          showBackButton ? (
+          isBackButton ? (
             <ChevronLeft
               size="$1.5"
-              color="white"
+              color={iconColor}
             />
           ) : (
             <Menu
               size="$1.5"
-              color="white"
+              color={iconColor}
             />
           )
         }
@@ -52,99 +113,40 @@ export function AppHeader({
         borderRadius="$4"
         backgroundColor="transparent"
         hoverStyle={{
-          backgroundColor: 'rgba(255,255,255,0.1)',
+          backgroundColor: '$backgroundHover',
         }}
         pressStyle={{
           scale: 0.95,
-          backgroundColor: 'rgba(255,255,255,0.2)',
+          backgroundColor: '$backgroundPress',
         }}
         accessibilityRole="button"
         accessibilityLabel={
-          showBackButton
+          isBackButton
             ? isRecording
               ? 'Stop recording and go back'
               : 'Go back to previous screen'
             : 'Open side menu'
         }
       />
+    )
+  }
 
-      {/* Center Section - Title or Timer */}
-      <YStack
-        flex={1}
-        alignItems="center"
-        justifyContent="center"
-      >
-        {showTimer ? (
-          <Text
-            fontSize="$5"
-            fontFamily="$body"
-            fontWeight="600"
-            color="white"
-            textAlign="center"
-            accessibilityRole="text"
-            accessibilityLabel={`Recording time: ${timerValue}`}
-          >
-            {timerValue}
-          </Text>
-        ) : (
-          <Text
-            fontSize={18}
-            fontWeight="600"
-            color="white"
-            textAlign="center"
-            numberOfLines={1}
-            letterSpacing={0.2}
-            accessibilityRole="header"
-            accessibilityLabel="header"
-          >
-            {title}
-          </Text>
-        )}
-      </YStack>
+  const renderRight = () => {
+    if (rightSlot) {
+      return rightSlot
+    }
 
-      {/* Right Section - Menu Button (for analysis/videoSettings) or Notification Button with Badge (for other modes) */}
-      {isAnalysis || isVideoSettings ? (
-        <Button
-          chromeless
-          size="$3"
-          onPress={onMenuPress}
-          icon={
-            isVideoSettings ? (
-              <MoreHorizontal
-                size="$1.5"
-                color="white"
-              />
-            ) : (
-              <Menu
-                size="$1.5"
-                color="white"
-              />
-            )
-          }
-          minWidth={44}
-          minHeight={44}
-          borderRadius="$4"
-          backgroundColor="transparent"
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.1)',
-          }}
-          pressStyle={{
-            scale: 0.95,
-            backgroundColor: 'rgba(255,255,255,0.2)',
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={isVideoSettings ? 'Open video settings menu' : 'Open side menu'}
-        />
-      ) : showNotifications ? (
-        <YStack position="relative">
+    switch (computedRightAction) {
+      case 'menu':
+        return (
           <Button
             chromeless
             size="$3"
-            onPress={onNotificationPress}
+            onPress={onMenuPress}
             icon={
-              <Bell
+              <Menu
                 size="$1.5"
-                color="white"
+                color={iconColor}
               />
             }
             minWidth={44}
@@ -152,89 +154,172 @@ export function AppHeader({
             borderRadius="$4"
             backgroundColor="transparent"
             hoverStyle={{
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: '$backgroundHover',
             }}
             pressStyle={{
               scale: 0.95,
-              backgroundColor: 'rgba(255,255,255,0.2)',
+              backgroundColor: '$backgroundPress',
             }}
             accessibilityRole="button"
-            accessibilityLabel={
-              notificationBadgeCount > 0
-                ? `Notifications: ${notificationBadgeCount} unread`
-                : 'Notifications'
-            }
+            accessibilityLabel="Open side menu"
           />
+        )
 
-          {/* Notification Badge */}
-          {notificationBadgeCount > 0 && (
-            <Circle
-              position="absolute"
-              top={6}
-              right={6}
-              size={16}
-              backgroundColor="$red9"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Text
-                fontSize="$1"
-                color="white"
-                fontWeight="600"
-                lineHeight="$1"
+      case 'videoSettings':
+        return (
+          <Button
+            chromeless
+            size="$3"
+            onPress={onMenuPress}
+            icon={
+              <MoreHorizontal
+                size="$1.5"
+                color={iconColor}
+              />
+            }
+            minWidth={44}
+            minHeight={44}
+            borderRadius="$4"
+            backgroundColor="transparent"
+            hoverStyle={{
+              backgroundColor: '$backgroundHover',
+            }}
+            pressStyle={{
+              scale: 0.95,
+              backgroundColor: '$backgroundPress',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Open video settings menu"
+          />
+        )
+
+      case 'notifications':
+        return (
+          <YStack position="relative">
+            <Button
+              chromeless
+              size="$3"
+              onPress={onNotificationPress}
+              icon={
+                <Bell
+                  size="$1.5"
+                  color={iconColor}
+                />
+              }
+              minWidth={44}
+              minHeight={44}
+              borderRadius="$4"
+              backgroundColor="transparent"
+              hoverStyle={{
+                backgroundColor: '$backgroundHover',
+              }}
+              pressStyle={{
+                scale: 0.95,
+                backgroundColor: '$backgroundPress',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                notificationBadgeCount > 0
+                  ? `Notifications: ${notificationBadgeCount} unread`
+                  : 'Notifications'
+              }
+            />
+
+            {notificationBadgeCount > 0 && (
+              <Circle
+                backgroundColor="$red9"
+                alignItems="center"
+                justifyContent="center"
               >
-                {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
-              </Text>
-            </Circle>
-          )}
-        </YStack>
-      ) : null}
-    </>
-  )
-}
+                <Text
+                  fontSize="$1"
+                  color="$text"
+                  fontWeight="600"
+                  lineHeight="$1"
+                >
+                  {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
+                </Text>
+              </Circle>
+            )}
+          </YStack>
+        )
 
-// Platform-agnostic safe area hook for header configuration
-const useSafeAreaInsets = () => {
-  // Default safe area values for cross-platform compatibility
-  return {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
+      default:
+        return null
+    }
   }
-}
 
-/**
- * Centralized App Header Container
- * Provides consistent header styling and layout across the app
- * Mobile-optimized with safe area handling and touch targets
- */
-export function AppHeaderContainer({
-  children,
-  backgroundColor = 'transparent',
-}: {
-  children: React.ReactNode
-  backgroundColor?: any
-}) {
-  const insets = useSafeAreaInsets()
+  const titleContent = (() => {
+    if (titleSlot) {
+      return titleSlot
+    }
 
-  return (
+    if (showTimer) {
+      return (
+        <Text
+          fontSize="$5"
+          fontFamily="$body"
+          fontWeight="600"
+          color={foreground}
+          textAlign="center"
+          accessibilityRole="text"
+          accessibilityLabel={`Recording time: ${timerValue}`}
+        >
+          {timerValue}
+        </Text>
+      )
+    }
+
+    return (
+      <Text
+        fontSize="$5"
+        fontWeight="600"
+        color={foreground}
+        textAlign={titleAlignment}
+        numberOfLines={1}
+        letterSpacing={0.2}
+        accessibilityRole="header"
+        accessibilityLabel="header"
+      >
+        {title}
+      </Text>
+    )
+  })()
+
+  const content = (
     <XStack
-      position="absolute"
-      top={0}
-      left={0}
-      right={0}
-      paddingTop={insets.top + 20}
-      height={80 + insets.top}
-      paddingHorizontal="$3"
       alignItems="center"
-      justifyContent="space-between"
-      zIndex={10}
-      backgroundColor={backgroundColor}
+      height={56}
+      paddingHorizontal="$2"
+      gap="$2"
+      flexDirection="row"
     >
-      {children}
+      <XStack
+        width={56}
+        alignItems="center"
+        justifyContent="center"
+      >
+        {renderLeft()}
+      </XStack>
+
+      <YStack
+        flex={1}
+        alignItems={titleAlignment === 'center' ? 'center' : 'flex-start'}
+      >
+        {titleContent}
+      </YStack>
+
+      <XStack
+        width={56}
+        alignItems="center"
+        justifyContent="center"
+      >
+        {renderRight()}
+      </XStack>
     </XStack>
   )
+
+  return themeName ? <Theme name={themeName}>{content}</Theme> : content
 }
 
 export interface RecordingTimerProps {
@@ -258,7 +343,7 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
       fontSize="$5"
       fontFamily="$body"
       fontWeight="600"
-      color="white"
+      color="$text"
       textAlign="center"
       accessibilityRole="text"
       accessibilityLabel={`Recording time: ${formatTime(duration)}`}
@@ -267,48 +352,3 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
     </Text>
   )
 }
-
-// Usage Examples (can be moved to a separate examples file)
-/*
-// Default mode - standard app header
-<AppHeader
-  title="Dashboard"
-  onMenuPress={() => log.info('Menu pressed')}
-  onNotificationPress={() => log.info('Notifications pressed')}
-/>
-
-// Camera mode - hides notifications, shows menu
-<AppHeader
-  title="Camera"
-  mode="camera"
-  onMenuPress={() => log.info('Menu pressed')}
-  onBackPress={() => log.info('Back pressed')}
-/>
-
-// Camera idle mode - shows notifications, shows menu
-<AppHeader
-  title="Camera Ready"
-  mode="camera-idle"
-  onMenuPress={() => log.info('Menu pressed')}
-  onNotificationPress={() => log.info('Notifications pressed')}
-  notificationBadgeCount={2}
-/>
-
-// Recording mode - shows back button, timer, hides notifications
-<AppHeader
-  title="Recording"
-  mode="recording"
-  showTimer={true}
-  timerValue="00:05:23"
-  onBackPress={() => log.info('Stop recording')}
-/>
-
-// Analysis mode - shows notifications, menu
-<AppHeader
-  title="Analysis"
-  mode="analysis"
-  onMenuPress={() => log.info('Menu pressed')}
-  onNotificationPress={() => log.info('Notifications pressed')}
-  notificationBadgeCount={3}
-/>
-*/

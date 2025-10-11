@@ -47,7 +47,15 @@
       "echo * > .env.development",
       "echo * >> .env.development",
       "echo * > .env.production",
-      "echo * >> .env.production"
+      "echo * >> .env.production",
+      "perl -i *",
+      "perl -i.bak *",
+      "perl -pi *",
+      "perl -pi.bak *",
+      "cat * > *",
+      "cat * >> *",
+      "python * > *",
+      "python * >> *"
     ]
   },
   "validation": {

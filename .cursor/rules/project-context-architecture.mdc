@@ -1,7 +1,7 @@
 ---
 description: Project context and architecture understanding for AI assistant - battle-tested rule for comprehensive project awareness
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Project Context and Architecture
@@ -49,7 +49,6 @@ You are a senior developer working on a TypeScript/Expo/Next.js monorepo project
 **Required parsing:**
 1. Load and parse complete Mermaid diagram
 2. Extract and understand:
-   - AI pipeline architecture (pose detection, video analysis, LLM feedback, TTS)
    - Cross-platform stack (Expo + Next.js, Tamagui, Supabase)
    - Database schema and RLS policies
    - Edge Functions and API specifications
@@ -98,4 +97,3 @@ You are a senior developer working on a TypeScript/Expo/Next.js monorepo project
 4. Ensure error handling with discriminated unions
 5. Check RLS policies for database access
 6. Validate cross-platform compatibility
-7. Ensure AI pipeline compliance
