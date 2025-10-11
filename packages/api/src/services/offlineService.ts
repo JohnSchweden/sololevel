@@ -1,4 +1,4 @@
-import { useUploadProgressStore } from '@app/stores/uploadProgress'
+import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import React from 'react'
 import { createAnalysisJob } from './analysisService'

@@ -26,7 +26,7 @@ jest.mock('@api/src/supabase', () => ({
 const mockSubscribeToJob = jest.fn()
 const mockUnsubscribeFromJob = jest.fn()
 
-jest.mock('../stores/analysisStatus', () => ({
+jest.mock('../features/VideoAnalysis/stores/analysisStatus', () => ({
   useAnalysisStatusStore: jest.fn(() => ({
     subscribeToJob: mockSubscribeToJob,
     unsubscribeFromJob: mockUnsubscribeFromJob,

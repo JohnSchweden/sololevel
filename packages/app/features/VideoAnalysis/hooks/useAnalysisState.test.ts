@@ -5,9 +5,9 @@ import type {
   AnalysisJob,
   SubscriptionOptions,
   SubscriptionState,
-} from '@app/stores/analysisSubscription'
-import type { FeedbackStatusState } from '@app/stores/feedbackStatus'
-import type { UploadTask } from '@app/stores/uploadProgress'
+} from '@app/features/VideoAnalysis/stores/analysisSubscription'
+import type { FeedbackStatusState } from '@app/features/VideoAnalysis/stores/feedbackStatus'
+import type { UploadTask } from '@app/features/VideoAnalysis/stores/uploadProgress'
 
 import { useAnalysisState } from './useAnalysisState'
 
@@ -88,7 +88,7 @@ jest.mock('@app/hooks/useVideoUpload', () => {
   }
 })
 
-jest.mock('@app/stores/uploadProgress', () => {
+jest.mock('@app/features/VideoAnalysis/stores/uploadProgress', () => {
   const selectorWrapper = (selector?: (state: typeof mockUploadStoreState) => any) => {
     return selector ? selector(mockUploadStoreState) : mockUploadStoreState
   }
@@ -100,7 +100,7 @@ jest.mock('@app/stores/uploadProgress', () => {
   }
 })
 
-jest.mock('@app/stores/analysisSubscription', () => {
+jest.mock('@app/features/VideoAnalysis/stores/analysisSubscription', () => {
   const selectorWrapper = (selector?: (state: typeof mockAnalysisStoreState) => any) => {
     return selector ? selector(mockAnalysisStoreState) : mockAnalysisStoreState
   }

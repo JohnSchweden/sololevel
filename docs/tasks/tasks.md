@@ -1,5 +1,839 @@
 # Tasks
 
+---
+
+## History & Progress Tracking Feature Implementation
+
+**Feature Overview:** Implement complete history and progress tracking system with dedicated full-screen navigation, cached data display, and historical video analysis viewing.
+
+**Related User Stories:** US-HI-00, US-HI-01, US-HI-02, US-HI-03, US-HI-04 (see `docs/spec/user_stories/P0/04_history_and_progress_tracking.md`)
+
+**Architecture Compliance:** Validated against `docs/spec/architecture.mermaid` and `docs/spec/TRD.md`
+
+**Architecture Note:** History is implemented as a dedicated full-screen route (`/history-progress`), NOT as a popup/dialog. Navigation flow: Camera → History Screen → Video Analysis Screen.
+
+**Implementation Status (Updated 2025-10-11):**
+- ✅ Backend APIs ready: `getUserAnalysisJobs()`, `getAnalysisJob(id)` with RLS
+- ✅ Route infrastructure exists: VideoAnalysisScreen accepts `analysisJobId` param
+- ✅ AppHeader component ready for integration
+- ✅ Database schema supports history: `analysis_jobs` + `video_recordings` tables
+- ❌ No persistent cache store (videoHistory.ts) → Task 26
+- ❌ No TanStack Query hooks (useHistoryQuery, useHistoricalAnalysis) → Tasks 27, 28
+- ❌ No VideosSection component (horizontal thumbnails) → Task 27
+- ❌ No VideoThumbnailCard component → Task 27
+- ❌ No CoachingSessionsSection component (vertical list, mock) → Task 27b
+- ❌ No CoachingSessionItem component → Task 27b
+- ❌ No history mode detection in VideoAnalysisScreen → Task 28
+- ❌ No thumbnail generation → Task 27
+- ❌ No "See all" button or Videos screen → Task 27 (P1 screen)
+- ❌ No History & Progress Tracking Screen (US-HI-00) → Task 25
+- ❌ No route files for `/history-progress` → Task 25
+
+**Tasks Status:** Tasks 26-29 reflect architecture with separate VideosSection (Task 27, real data) and CoachingSessionsSection (Task 27b, mock data), integrated into History Screen (Task 25).
+
+
+### Task 26: Video History Store - Cache Management Foundation
+**Effort:** 1 day | **Priority:** High | **Depends on:** None
+**User Story:** US-HI-03 (Cache analysis data for instant history display)
+
+@step-by-step.md - Create persistent Zustand store for video history caching with LRU eviction and cross-platform storage.
+
+**OBJECTIVE:** Implement cache-first strategy for instant history list display without database round-trips on every side sheet open.
+
+**ARCHITECTURE ALIGNMENT:**
+- State: Zustand (client state) per `docs/spec/architecture.mermaid`
+- Storage: AsyncStorage (native), localStorage/IndexedDB (web) per TRD
+- RLS: Data filtered by `auth.uid() = user_id` at fetch time
+- DB Schema: Uses `analysis_jobs` + `video_recordings` tables
+- API: `getUserAnalysisJobs()` from `packages/api/src/services/analysisService.ts` (lines 317-343)
+
+**CURRENT STATE (Validated 2025-10-11):**
+- ✅ `analysisStatus.ts` store exists for in-memory job tracking (packages/app/stores/analysisStatus.ts)
+- ✅ Backend API ready: `getUserAnalysisJobs()` returns joined data with RLS filtering
+- ❌ No dedicated history cache store with persistence
+- ❌ No persistence middleware configured
+- ❌ No thumbnail generation logic
+- ❌ No LRU eviction or TTL implementation
+
+**SCOPE:**
+
+#### Module 1: Video History Store
+**Summary:** Create Zustand store with persistence for analysis history caching.
+
+**File:** `packages/app/stores/videoHistory.ts`
+
+**Tasks:**
+- [ ] Define `CachedAnalysis` interface matching DB schema
+- [ ] Create Zustand store with `persist()` middleware
+- [ ] Implement cache operations: `addToCache()`, `updateCache()`, `removeFromCache()`, `getCached()`
+- [ ] Add LRU eviction logic (max 50 entries, 30 days retention)
+- [ ] Configure platform-specific storage (AsyncStorage/localStorage)
+- [ ] Add TTL expiration (7 days, refresh on access)
+- [ ] Implement cache invalidation on logout
+
+**TypeScript Interface:**
+```typescript
+interface CachedAnalysis {
+  id: number
+  videoId: number
+  userId: string
+  title: string
+  createdAt: string
+  thumbnail?: string
+  results: AnalysisResults
+  poseData?: PoseData
+  cachedAt: number
+}
+
+interface VideoHistoryStore {
+  cache: Map<number, CachedAnalysis>
+  lastSync: number
+  addToCache: (analysis: CachedAnalysis) => void
+  getCached: (id: number) => CachedAnalysis | null
+  getAllCached: () => CachedAnalysis[]
+  removeFromCache: (id: number) => void
+  clearCache: () => void
+  evictStale: () => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Store persists across app restarts
+- [ ] LRU eviction removes oldest entries when > 50
+- [ ] TTL expiration works (entries older than 7 days auto-removed)
+- [ ] Cache clears on logout
+- [ ] Cross-platform storage works (web + native)
+- [ ] Cache read latency < 50ms
+
+#### Module 2: Cache Integration with Analysis Store
+**Summary:** Integrate cache writes into existing analysis completion flow.
+
+**Files:** 
+- `packages/app/stores/analysisStatus.ts` (modify)
+- `packages/app/stores/videoHistory.ts` (consume)
+
+**Tasks:**
+- [ ] Import `useVideoHistoryStore` into `analysisStatus.ts`
+- [ ] Modify `setJobResults()` to write to cache on completion
+- [ ] Extract title from results or generate default (`"Analysis ${date}"`)
+- [ ] Handle thumbnail (placeholder URL for now, actual generation in Task 27)
+- [ ] Add error handling for cache write failures (non-blocking)
+
+**Acceptance Criteria:**
+- [ ] Completed analyses auto-write to cache
+- [ ] Cache write doesn't block analysis completion
+- [ ] Cache write errors don't crash app (graceful degradation)
+- [ ] Title extraction works for various result formats
+
+#### Module 3: Test Suite
+**Summary:** Unit tests for store operations and persistence.
+
+**File:** `packages/app/stores/videoHistory.test.ts`
+
+**Tasks:**
+- [ ] Test cache CRUD operations
+- [ ] Test LRU eviction (add 51st entry, verify oldest removed)
+- [ ] Test TTL expiration (mock date, verify stale removal)
+- [ ] Test persistence (write, remount store, verify data exists)
+- [ ] Test cache invalidation on logout
+- [ ] Test platform storage adapter selection
+
+**Acceptance Criteria:**
+- [ ] All tests pass with `yarn workspace @my/app test stores/videoHistory.test.ts`
+- [ ] Test coverage > 80% for store logic
+- [ ] Edge cases covered (empty cache, full cache, expired entries)
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes
+- [ ] `yarn workspace @my/app test stores/videoHistory.test.ts --runTestsByPath` → all tests pass
+- [ ] Manual test: Complete analysis, restart app, verify cached data persists
+- [ ] Performance: Cache read < 50ms (measure with `console.time()`)
+
+---
+
+### Task 27: Videos Section - Horizontal Thumbnail Gallery
+**Effort:** 1.5 days | **Priority:** High | **Depends on:** Task 26
+**User Story:** US-HI-01a (Videos Section - Horizontal Thumbnail Gallery)
+
+@step-by-step.md - Implement horizontal video thumbnail gallery with play overlay, "See all" button, and TanStack Query integration for real analysis data.
+
+**OBJECTIVE:** Create Videos section displaying top 3 recent video thumbnails with navigation to analysis screen and full videos list.
+
+**ARCHITECTURE ALIGNMENT:**
+- UI: Tamagui components per packages/ui/AGENTS.md
+- Data: TanStack Query (cache-first) per architecture diagram
+- RLS: Queries filtered by `auth.uid() = user_id`
+- DB Query: `SELECT * FROM analysis_jobs WHERE user_id = auth.uid() AND status = 'completed' ORDER BY created_at DESC LIMIT 3`
+- API: Uses existing `getUserAnalysisJobs()` from analysisService.ts
+- Layout: Horizontal `ScrollView` (not virtualized, max 3 items)
+- Screen: Rendered within History & Progress Tracking Screen (Task 25)
+
+**CURRENT STATE (Updated 2025-10-11):**
+- ✅ Backend API ready with proper RLS and ordering
+- ❌ No History Screen (blocked by Task 25)
+- ❌ No VideosSection component
+- ❌ No VideoThumbnailCard component
+- ❌ No TanStack Query hook for history
+- ❌ No "See all" button
+- ❌ No database integration
+
+**SCOPE:**
+
+#### Module 1: History Query Hook
+**Summary:** TanStack Query hook with cache-first strategy.
+
+**File:** `packages/app/features/HistoryProgress/hooks/useHistoryQuery.ts`
+
+**Tasks:**
+- [ ] Create `useHistoryQuery()` hook with TanStack Query
+- [ ] Implement cache-first logic (check `videoHistoryStore` first)
+- [ ] Add database fallback query via Supabase client
+- [ ] Join `analysis_jobs` with `video_recordings` for video metadata
+- [ ] Filter by `status = 'completed'` and order by `created_at DESC`
+- [ ] Update cache on successful DB fetch
+- [ ] Add stale-while-revalidate strategy (5 min stale time)
+
+**TypeScript Hook:**
+```typescript
+export function useHistoryQuery() {
+  const cache = useVideoHistoryStore()
+  
+  return useQuery({
+    queryKey: ['history', 'completed'],
+    queryFn: async () => {
+      // Check cache first
+      const cached = cache.getAllCached()
+      if (cached.length > 0 && Date.now() - cache.lastSync < 60000) {
+        return cached
+      }
+      
+      // Fallback to DB
+      const { data, error } = await supabase
+        .from('analysis_jobs')
+        .select('*, video_recordings(*)')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      if (error) throw error
+      
+      // Update cache
+      data.forEach(job => cache.addToCache(transformToCache(job)))
+      
+      return data
+    },
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 30 * 60 * 1000, // 30 min
+  })
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Cache-first lookup works (< 50ms when cached)
+- [ ] DB fallback works when cache miss
+- [ ] RLS filtering enforced (user sees only their analyses)
+- [ ] Query updates cache on success
+- [ ] Stale-while-revalidate prevents unnecessary refetches
+
+#### Module 2: Video Thumbnail Card Component
+**Summary:** Thumbnail card with play icon overlay for video previews.
+
+**File:** `packages/ui/src/components/HistoryProgress/VideoThumbnailCard/`
+
+**Tasks:**
+- [ ] Create `VideoThumbnailCard` component folder with Tamagui
+- [ ] Display thumbnail image from URL (180x280px, 9:14 aspect ratio)
+- [ ] Add play icon overlay (centered, 56px circle)
+- [ ] Show placeholder when no thumbnail available
+- [ ] Add loading state for image loading
+- [ ] Add error state for failed loads
+- [ ] Add press handler with scale animation (0.95)
+- [ ] Use theme tokens for all styling
+- [ ] Add accessibility labels ("Video thumbnail, [title], recorded on [date]")
+- [ ] Create `VideoThumbnailCard.test.tsx` with rendering and interaction tests
+- [ ] Create `VideoThumbnailCard.stories.tsx` with all states
+- [ ] Create `index.ts` with named export
+
+**Component Interface:**
+```typescript
+interface VideoThumbnailCardProps {
+  thumbnailUri?: string
+  onPress: () => void
+  width?: number
+  height?: number
+  accessibilityLabel?: string
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Thumbnail displays image with play overlay
+- [ ] Placeholder shows when no thumbnail
+- [ ] Loading state shows during image fetch
+- [ ] Error state shows on load failure
+- [ ] Press animation works (scale to 0.95)
+- [ ] Accessible (screen reader compatible)
+- [ ] No hardcoded values (all tokens)
+- [ ] Cross-platform compatible (web + native)
+- [ ] Tests pass and stories render
+
+#### Module 3: Videos Section Component
+**Summary:** Section header + horizontal scroll of video thumbnails + "See all" button.
+
+**File:** `packages/ui/src/components/HistoryProgress/VideosSection/`
+
+**Tasks:**
+- [ ] Create `VideosSection` component folder with Tamagui
+- [ ] Add section header with "Videos" title and "See all" link button
+- [ ] Add horizontal `ScrollView` with 3 `VideoThumbnailCard` components
+- [ ] Use `XStack` with `gap="$3"` (12px) between thumbnails
+- [ ] Add empty state when no videos ("Record your first video" CTA)
+- [ ] Add loading skeleton (3 placeholder cards with shimmer)
+- [ ] Add error state with retry button
+- [ ] Use theme tokens for all styling
+- [ ] Create `VideosSection.test.tsx` with rendering tests
+- [ ] Create `VideosSection.stories.tsx` with all states (0, 1, 3 videos, loading, error)
+- [ ] Create `index.ts` with named export
+
+**Component Interface:**
+```typescript
+interface VideosSectionProps {
+  videos: Array<{ id: number; thumbnailUri?: string; title: string; createdAt: string }>
+  onVideoPress: (analysisId: number) => void
+  onSeeAllPress: () => void
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Section header displays "Videos" with "See all" button
+- [ ] Horizontal scroll shows up to 3 video thumbnails
+- [ ] Empty state shows when no videos
+- [ ] Loading skeleton shows during fetch
+- [ ] Error state shows on fetch failure
+- [ ] Tapping thumbnail navigates to video analysis
+- [ ] "See all" button navigates to videos screen
+- [ ] Accessible (screen reader compatible)
+- [ ] No hardcoded values (all tokens)
+- [ ] Tests pass and stories render
+
+#### Module 4: Videos Section Integration
+**Summary:** Integrate VideosSection into History Screen with data fetching.
+
+**Files:**
+- `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (modify - from Task 25)
+
+**Tasks:**
+- [ ] Import `VideosSection` from `@my/ui`
+- [ ] Use `useHistoryQuery()` hook for data (top 3 analyses)
+- [ ] Pass analysis data to `VideosSection` component
+- [ ] Handle `onVideoPress` with `router.push('/video-analysis/[analysisId]')`
+- [ ] Handle `onSeeAllPress` with `router.push('/videos')` (placeholder console.log for P0)
+- [ ] Add pull-to-refresh functionality on main ScrollView
+- [ ] Position VideosSection at top of screen content
+- [ ] Add proper spacing below section (`marginBottom="$6"`)
+
+**Acceptance Criteria:**
+- [ ] VideosSection displays in History Screen
+- [ ] Real analysis data loads from backend (top 3, most recent)
+- [ ] Empty state shows when no analyses
+- [ ] Loading state shows during initial fetch
+- [ ] Error state shows on fetch failure
+- [ ] Tapping thumbnail navigates to video analysis screen with analysisId
+- [ ] "See all" logs to console (P0 placeholder)
+- [ ] Pull-to-refresh works correctly
+- [ ] Section renders above coaching sessions (Task 27b)
+
+#### Module 5: Test Suite
+**Summary:** Component and integration tests for VideosSection.
+
+**Files:**
+- `packages/ui/src/components/HistoryProgress/VideoThumbnailCard/VideoThumbnailCard.test.tsx`
+- `packages/ui/src/components/HistoryProgress/VideosSection/VideosSection.test.tsx`
+- `packages/app/features/HistoryProgress/hooks/useHistoryQuery.test.ts`
+
+**Tasks:**
+- [ ] Test `VideoThumbnailCard` component rendering (image + play overlay, placeholder, loading, error states)
+- [ ] Test `VideoThumbnailCard` press handling and scale animation
+- [ ] Test `VideoThumbnailCard` accessibility labels
+- [ ] Test `VideosSection` rendering with 0, 1, 3 videos
+- [ ] Test `VideosSection` loading skeleton
+- [ ] Test `VideosSection` error state with retry
+- [ ] Test `VideosSection` "See all" button press
+- [ ] Test `VideosSection` video thumbnail press with correct analysisId
+- [ ] Test `useHistoryQuery` cache-first behavior
+- [ ] Test `useHistoryQuery` DB fallback
+- [ ] Mock TanStack Query and Supabase client
+
+**Acceptance Criteria:**
+- [ ] All component tests pass
+- [ ] Hook tests cover cache hit/miss scenarios
+- [ ] Integration test covers video navigation flow
+- [ ] Thumbnail states covered (loading, success, error, placeholder)
+- [ ] Navigation tests cover both thumbnail press and "See all" button
+- [ ] Test coverage > 70% for VideosSection logic
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes
+- [ ] `yarn workspace @my/ui test components/HistoryProgress/VideoThumbnailCard --runTestsByPath` → all tests pass
+- [ ] `yarn workspace @my/ui test components/HistoryProgress/VideosSection --runTestsByPath` → all tests pass
+- [ ] `yarn workspace @my/app test features/HistoryProgress/hooks --runTestsByPath` → all tests pass
+- [ ] Manual QA: 
+  - [ ] History screen shows Videos section with real analyses (top 3)
+  - [ ] Thumbnails display with play icon overlay
+  - [ ] Horizontal scroll works smoothly
+  - [ ] Tapping thumbnail navigates to video analysis with correct analysisId
+  - [ ] "See all" button logs to console (P0 placeholder)
+  - [ ] Empty state shows when no videos
+  - [ ] Loading skeleton shows during fetch
+  - [ ] Pull-to-refresh works on main screen
+- [ ] Performance: VideosSection renders < 50ms with cached data
+
+---
+
+### Task 27b: Coaching Sessions Section - Mock Data Implementation
+**Effort:** 0.5 day | **Priority:** Medium | **Depends on:** None
+**User Story:** US-HI-01b (Coaching Sessions Section - Vertical List)
+
+@step-by-step.md - Implement coaching sessions section with mock data for P0, positioned below Videos section.
+
+**OBJECTIVE:** Create CoachingSessionsSection displaying mock coaching session items with vertical list layout for future backend integration.
+
+**ARCHITECTURE ALIGNMENT:**
+- UI: Tamagui components per packages/ui/AGENTS.md
+- Data: Hardcoded mock data in component (P0), real API in P1
+- Layout: Vertical list with date + title items
+- Screen: Rendered within History & Progress Tracking Screen (Task 25)
+
+**CURRENT STATE (Updated 2025-10-11):**
+- ❌ No CoachingSessionsSection component
+- ❌ No CoachingSessionItem component
+- ❌ No mock data structure
+- ❌ No backend support (P1 feature)
+
+**SCOPE:**
+
+#### Module 1: Coaching Session Item Component
+**Summary:** Simple list item with date label and session title.
+
+**File:** `packages/ui/src/components/HistoryProgress/CoachingSessionItem/`
+
+**Tasks:**
+- [ ] Create `CoachingSessionItem` component folder with Tamagui
+- [ ] Display date label (`fontSize="$3"`, `color="$gray10"`)
+- [ ] Display session title (`fontSize="$5"`, `fontWeight="400"`, `color="$gray12"`)
+- [ ] Add `Pressable` wrapper with press animation (`opacity: 0.7`)
+- [ ] Use `YStack` with `gap="$2"` for layout
+- [ ] Add accessibility labels ("[Date], [Title], coaching session")
+- [ ] Create `CoachingSessionItem.test.tsx` with rendering and press tests
+- [ ] Create `CoachingSessionItem.stories.tsx` with different dates/titles
+- [ ] Create `index.ts` with named export
+
+**Component Interface:**
+```typescript
+interface CoachingSessionItemProps {
+  date: string
+  title: string
+  onPress: () => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Component renders with date and title
+- [ ] Press animation works (opacity to 0.7)
+- [ ] Accessible (screen reader compatible)
+- [ ] No hardcoded values (all tokens)
+- [ ] Tests pass and stories render
+
+#### Module 2: Coaching Sessions Section Component
+**Summary:** Section header + vertical list of coaching session items.
+
+**File:** `packages/ui/src/components/HistoryProgress/CoachingSessionsSection/`
+
+**Tasks:**
+- [ ] Create `CoachingSessionsSection` component folder with Tamagui
+- [ ] Add section header with "Coaching sessions" title
+- [ ] Add `YStack` with `gap="$2"` (8px) for vertical list
+- [ ] Render multiple `CoachingSessionItem` components
+- [ ] Use theme tokens for all styling
+- [ ] Create `CoachingSessionsSection.test.tsx` with rendering tests
+- [ ] Create `CoachingSessionsSection.stories.tsx` with different session counts
+- [ ] Create `index.ts` with named export
+
+**Component Interface:**
+```typescript
+interface CoachingSessionsSectionProps {
+  sessions: Array<{ id: number; date: string; title: string }>
+  onSessionPress: (sessionId: number) => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Section header displays "Coaching sessions"
+- [ ] Vertical list displays all session items
+- [ ] Sessions render in order provided
+- [ ] Accessible (screen reader compatible)
+- [ ] No hardcoded values (all tokens)
+- [ ] Tests pass and stories render
+
+#### Module 3: Integration with History Screen
+**Summary:** Add CoachingSessionsSection to History Screen with mock data.
+
+**Files:**
+- `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (modify - from Task 25)
+
+**Tasks:**
+- [ ] Import `CoachingSessionsSection` from `@my/ui`
+- [ ] Define mock data array in screen file (4+ mock sessions)
+- [ ] Pass mock data to `CoachingSessionsSection` component
+- [ ] Handle `onSessionPress` with `console.log('Session pressed:', sessionId)` (P0 placeholder)
+- [ ] Position CoachingSessionsSection below VideosSection (Task 27)
+- [ ] Add proper spacing above section (`marginTop="$6"` if needed)
+
+**Mock Data Example:**
+```typescript
+const mockCoachingSessions = [
+  { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
+  { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+  { id: 3, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+  { id: 4, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+]
+```
+
+**Acceptance Criteria:**
+- [ ] CoachingSessionsSection displays below VideosSection
+- [ ] Mock sessions display with correct date/title
+- [ ] Tapping session logs to console (P0 placeholder)
+- [ ] Section maintains consistent styling with Videos section
+- [ ] Scrolling works smoothly for both sections
+
+#### Module 4: Test Suite
+**Summary:** Component tests for CoachingSessionsSection.
+
+**Files:**
+- `packages/ui/src/components/HistoryProgress/CoachingSessionItem/CoachingSessionItem.test.tsx`
+- `packages/ui/src/components/HistoryProgress/CoachingSessionsSection/CoachingSessionsSection.test.tsx`
+
+**Tasks:**
+- [ ] Test `CoachingSessionItem` rendering (date, title)
+- [ ] Test `CoachingSessionItem` press handling
+- [ ] Test `CoachingSessionItem` accessibility labels
+- [ ] Test `CoachingSessionsSection` rendering with 0, 1, 4+ sessions
+- [ ] Test `CoachingSessionsSection` session press with correct sessionId
+
+**Acceptance Criteria:**
+- [ ] All component tests pass
+- [ ] Press handling tests verify correct sessionId passed
+- [ ] Accessibility tests verify screen reader labels
+- [ ] Test coverage > 70% for components
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes
+- [ ] `yarn workspace @my/ui test components/HistoryProgress/CoachingSessionItem --runTestsByPath` → all tests pass
+- [ ] `yarn workspace @my/ui test components/HistoryProgress/CoachingSessionsSection --runTestsByPath` → all tests pass
+- [ ] Manual QA: 
+  - [ ] History screen shows Coaching sessions section below Videos
+  - [ ] Mock sessions display with correct formatting
+  - [ ] Vertical list scrolls smoothly
+  - [ ] Tapping session logs correct sessionId to console
+  - [ ] Section styling consistent with app theme
+- [ ] Performance: CoachingSessionsSection renders < 16ms (instant, no backend)
+
+---
+
+### Task 28: Video Analysis Screen - History Mode Support
+**Effort:** 1.5 days | **Priority:** High | **Depends on:** Task 26, Task 27
+**User Story:** US-HI-02 (Video Analysis Screen - History View Mode)
+
+@step-by-step.md - Add history mode detection to Video Analysis Screen for viewing past analyses without triggering new AI processing.
+
+**OBJECTIVE:** Enable Video Analysis Screen to load pre-analyzed data when opened from history list.
+
+**ARCHITECTURE ALIGNMENT:**
+- Navigation: Expo Router with `[analysisId]` param
+- State: `videoAnalysisStore` with mode flag
+- Cache: Read from `videoHistoryStore` first
+- DB: Fallback to `analysis_jobs` table query
+- API: Uses existing `getAnalysisJob(id)` from analysisService.ts (lines 263-284)
+
+**CURRENT STATE (Validated 2025-10-11):**
+- ✅ VideoAnalysisScreen exists (packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx)
+- ✅ Route infrastructure ready (apps/expo/app/video-analysis.tsx accepts analysisJobId, videoRecordingId, videoUri)
+- ✅ Screen accepts `analysisJobId` prop (line 26 interface, line 43 usage)
+- ✅ Backend API ready: `getAnalysisJob(id)` with RLS filtering
+- ❌ No history mode detection logic
+- ❌ No cache-first loading for history
+- ❌ Always triggers new analysis (no differentiation)
+- ❌ No `useHistoricalAnalysis` hook
+
+**SCOPE:**
+
+#### Module 1: History Mode Detection
+**Summary:** Detect history mode via route params and set store flag.
+
+**File:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (modify)
+
+**Tasks:**
+- [ ] Extract `analysisId` from route params using `useLocalSearchParams()`
+- [ ] Add `mode: 'new' | 'history'` flag to `videoAnalysisStore`
+- [ ] Set mode based on `analysisId` presence
+- [ ] Skip AI pipeline trigger when in history mode
+- [ ] Update screen title ("Analysis" vs "New Analysis")
+
+**Code Pattern:**
+```typescript
+const { analysisId } = useLocalSearchParams<{ analysisId?: string }>()
+const mode = analysisId ? 'history' : 'new'
+
+useEffect(() => {
+  if (mode === 'history' && analysisId) {
+    // Load from cache/DB
+    loadHistoricalAnalysis(Number(analysisId))
+  } else {
+    // Trigger new analysis
+    startNewAnalysis()
+  }
+}, [mode, analysisId])
+```
+
+**Acceptance Criteria:**
+- [ ] Mode detection works correctly
+- [ ] History mode skips AI pipeline
+- [ ] New mode triggers AI pipeline
+- [ ] Screen renders correctly in both modes
+- [ ] No flash/flicker when switching modes
+
+#### Module 2: Historical Data Loading Hook
+**Summary:** Cache-first loading for historical analysis data.
+
+**File:** `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.ts` (new)
+
+**Tasks:**
+- [ ] Create `useHistoricalAnalysis(analysisId)` hook
+- [ ] Check `videoHistoryStore` cache first
+- [ ] Fallback to TanStack Query + Supabase on cache miss
+- [ ] Load all required data: video URL, pose data, feedback, audio segments
+- [ ] Update `videoAnalysisStore` with loaded data
+- [ ] Handle loading/error states
+
+**Hook Interface:**
+```typescript
+export function useHistoricalAnalysis(analysisId: number | null) {
+  const cache = useVideoHistoryStore()
+  
+  return useQuery({
+    queryKey: ['analysis', analysisId],
+    queryFn: async () => {
+      if (!analysisId) return null
+      
+      // Check cache
+      const cached = cache.getCached(analysisId)
+      if (cached) return cached
+      
+      // DB fallback
+      const { data, error } = await supabase
+        .from('analysis_jobs')
+        .select('*, video_recordings(*), analysis_audio_segments(*)')
+        .eq('id', analysisId)
+        .single()
+      
+      if (error) throw error
+      
+      // Update cache
+      cache.addToCache(transformToCache(data))
+      
+      return data
+    },
+    enabled: !!analysisId,
+    staleTime: Infinity, // Historical data doesn't change
+  })
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Cache hit returns data < 50ms
+- [ ] DB fallback works on cache miss
+- [ ] All required data loads (video, pose, feedback, audio)
+- [ ] RLS filtering enforced
+- [ ] Loading states handled correctly
+- [ ] Error states handled gracefully
+
+#### Module 3: Store Integration
+**Summary:** Update videoAnalysisStore to support history mode.
+
+**File:** `packages/app/stores/videoAnalysis.ts` (modify if exists, or create)
+
+**Tasks:**
+- [ ] Add `mode` field to store
+- [ ] Add `loadHistoricalData(analysisId)` action
+- [ ] Prevent AI pipeline trigger in history mode
+- [ ] Update existing hooks to respect mode flag
+- [ ] Add `isHistoryMode` computed property
+
+**Acceptance Criteria:**
+- [ ] Store tracks current mode
+- [ ] Historical data loads into store correctly
+- [ ] AI pipeline doesn't trigger in history mode
+- [ ] Existing components work in both modes
+
+#### Module 4: Test Suite
+**Summary:** Tests for history mode detection and data loading.
+
+**Files:**
+- `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.test.ts`
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.test.tsx` (update)
+
+**Tasks:**
+- [ ] Test mode detection from route params
+- [ ] Test cache-first loading
+- [ ] Test DB fallback
+- [ ] Test AI pipeline skipped in history mode
+- [ ] Test AI pipeline triggered in new mode
+- [ ] Mock route params, cache, and Supabase
+
+**Acceptance Criteria:**
+- [ ] All tests pass
+- [ ] Mode detection covered
+- [ ] Cache/DB fallback scenarios covered
+- [ ] Test coverage > 70%
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes
+- [ ] `yarn workspace @my/app test features/VideoAnalysis --runTestsByPath` → all tests pass
+- [ ] Manual QA: 
+  - [ ] Tap history item → screen opens with cached data (< 100ms)
+  - [ ] No new analysis triggered
+  - [ ] All feedback/audio/overlays work correctly
+  - [ ] Navigation back to history works
+- [ ] Performance: Historical analysis loads < 100ms from cache
+
+---
+
+### Task 25: History & Progress Tracking Screen - Route and Layout
+**Effort:** 4 hours | **Priority:** High | **Depends on:** Task 27, Task 27b
+**User Story:** US-HI-00 (History & Progress Tracking Screen)
+
+@step-by-step.md - Create dedicated History & Progress Tracking screen with route files and basic layout structure, integrating VideosSection and CoachingSessionsSection.
+
+**OBJECTIVE:** Establish navigation target for history feature with proper route configuration and layout foundation, combining the UI components from Tasks 27 and 27b.
+
+**ARCHITECTURE ALIGNMENT:**
+- Navigation: Expo Router with `/history-progress` route
+- Layout: Standard screen with AppHeader + ScrollView
+- Components: Integrates VideosSection (Task 27) and CoachingSessionsSection (Task 27b)
+- State: Orchestrates hooks and UI components
+
+**SCOPE:**
+
+#### Module 1: Route Files
+**Summary:** Create Expo Router route files for web and native.
+
+**Files:**
+- `apps/expo/app/history-progress.tsx` (❌ to create)
+- `apps/next/app/history-progress.tsx` (❌ to create)
+
+**Tasks:**
+- [ ] Create native route file in `apps/expo/app/history-progress.tsx`
+- [ ] Create web route file in `apps/next/app/history-progress.tsx`
+- [ ] Import HistoryProgressScreen from `@my/app`
+- [ ] Configure route metadata (title, header options)
+- [ ] Add authentication guard (redirect if not authenticated)
+
+**Acceptance Criteria:**
+- [ ] Routes accessible at `/history-progress` on both platforms
+- [ ] Authenticated users can access the screen
+- [ ] Unauthenticated users redirect to login
+- [ ] Route appears in app navigation structure
+
+#### Module 2: Screen Component
+**Summary:** Create screen component with AppHeader and integrated sections.
+
+**File:** `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (❌ to create)
+
+**Tasks:**
+- [ ] Create `HistoryProgressScreen` component
+- [ ] Configure AppHeader via `navigation.setOptions()` (back button, profile icon)
+- [ ] Import and integrate `VideosSection` from Task 27
+- [ ] Import and integrate `CoachingSessionsSection` from Task 27b
+- [ ] Add ScrollView for content area with pull-to-refresh
+- [ ] Configure navigation handlers (back, profile)
+- [ ] Use Tamagui tokens for all styling
+- [ ] Position sections with proper spacing (`marginBottom="$6"`)
+
+**Acceptance Criteria:**
+- [ ] Screen renders with AppHeader at top
+- [ ] Back button navigates to camera recording screen
+- [ ] Profile button navigates to settings (or shows coming soon)
+- [ ] VideosSection displays above CoachingSessionsSection
+- [ ] Content area scrolls properly with both sections
+- [ ] Styling consistent with app theme
+- [ ] Cross-platform compatible
+
+#### Module 3: Navigation Integration
+**Summary:** Add navigation trigger from camera recording screen.
+
+**File:** Camera recording screen (location TBD)
+
+**Tasks:**
+- [ ] Add history/menu icon to camera recording screen
+- [ ] Wire icon to `router.push('/history-progress')`
+- [ ] Ensure icon is accessible (44px touch target)
+- [ ] Add proper accessibility labels
+
+**Acceptance Criteria:**
+- [ ] Icon visible on camera recording screen
+- [ ] Tapping icon navigates to history screen
+- [ ] Navigation animation smooth
+- [ ] Back navigation works correctly
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes
+- [ ] Routes accessible at `/history-progress`
+- [ ] Manual QA: Navigate from camera → history → back to camera
+- [ ] AppHeader renders with proper navigation
+- [ ] Both VideosSection and CoachingSessionsSection display correctly
+
+---
+
+### Task 29: App Header Integration in History Screen
+**Effort:** Completed in Task 25 | **Priority:** Medium | **Depends on:** Task 25
+**User Story:** US-HI-04 (History screen header integration)
+
+**NOTE:** This task is effectively completed as part of Task 25 (Module 2: Screen Component). The AppHeader is integrated into HistoryProgressScreen during initial screen creation. This task remains for tracking purposes but requires no additional implementation.
+
+**OBJECTIVE:** Ensure AppHeader is properly integrated in History Screen with correct navigation handlers.
+
+**ARCHITECTURE ALIGNMENT:**
+- Component: AppHeader from `packages/ui/src/components/AppHeader/`
+- Navigation: Expo Router for back/profile navigation
+- Screen: HistoryProgressScreen created in Task 25
+
+**CURRENT STATE (Updated 2025-10-11):**
+- ✅ AppHeader component exists and fully implemented
+- ✅ AppHeader integrated in Task 25 (Module 2)
+- ✅ Back button configured to navigate to camera
+- ✅ Profile button configured to navigate to settings
+- ✅ 44px touch targets, responsive design, accessibility
+- ❌ Sticky scroll behavior (to be implemented in Task 25 if needed)
+
+**VALIDATION CHECKLIST:**
+(Part of Task 25 Module 2 acceptance criteria)
+- [ ] AppHeader renders at top of History Screen
+- [ ] Back button navigates to camera recording screen
+- [ ] Profile button navigates to settings
+- [ ] Header styling consistent with app theme
+- [ ] Header remains visible during scroll (optional: sticky positioning)
+
+**SUCCESS VALIDATION:**
+- [ ] Completed as part of Task 25 Module 2
+- [ ] Manual QA:
+  - [ ] Header visible in history screen
+  - [ ] Back button works correctly
+  - [ ] Profile button navigates correctly
+
+---
+
 ### Task 11: Eliminate useFeedbackPanel Redundancy ✅
 **Effort:** 2 hours | **Priority:** Medium | **Depends on:** Task 10
 

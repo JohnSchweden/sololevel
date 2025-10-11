@@ -1,4 +1,4 @@
-import { useFeedbackStatusStore } from '@app/stores/feedbackStatus'
+import { useFeedbackStatusStore } from '@app/features/VideoAnalysis/stores/feedbackStatus'
 import { log } from '@my/logging'
 import { useEffect, useMemo, useRef, useState } from 'react'
 

@@ -21,28 +21,86 @@
 
 ## Visual Design Analysis Phase
 - [ ] **Layout Structure**: Identify main containers and map them 1:1 with the wireframe
-**Example Root Container**: Full-screen vertical layout with safe area handling
+**Example Root Container**: Full-screen vertical layout with AppHeader and safe area handling
 ```typescript
-// Root Layout Structure (Both States)
-YStack flex={1} backgroundColor="$background"
-├── Header: XStack height={60} paddingHorizontal="$4" alignItems="center"
-│   ├── Left: Button chromeless size={44x44} (hamburger/back)
-│   ├── Center: Text/Timer (screen title or recording duration)
-│   └── Right: Button chromeless size={44x44} (notifications)
-├── ContentArea: YStack flex={1} position="relative"
-│   ├── MainContent: Component (varies by screen)
-│   └── Overlays: Positioned absolute elements
-└── BottomNavigation: XStack height={80} justifyContent="space-between"
-    ├── Tab1: Button chromeless flex={1} icon={Icon1}
-    ├── Tab2: Button variant="primary" flex={1} icon={Icon2} (active)
-    └── Tab3: Button chromeless flex={1} icon={Icon3}
+// Code Composition Pattern (Following @my/app feature structure)
+// =====================================================
+
+// 1. SCREEN FILE: packages/app/features/[Feature]/[Feature]Screen.tsx
+//    - Orchestrator: Composes hooks + UI components
+//    - Configures AppHeader via navigation.setOptions()
+//    - NO business logic (delegated to hooks)
+//    - NO UI implementation (delegated to @my/ui components)
+
+export function FeatureScreen(props: FeatureScreenProps) {
+  const navigation = useNavigation()
+  
+  // Configure AppHeader via Expo Router navigation options
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      appHeaderProps: {
+        title: 'Screen Title',
+        mode: 'default',  // or 'recording', 'camera', 'camera-idle'
+        onBack: props.onBack,
+        onProfilePress: () => router.push('/settings'),
+      }
+    })
+  }, [navigation, props.onBack])
+
+  // Hooks: Data fetching and state management
+  const { data, isLoading, error } = useFeatureData()
+
+  // Render: UI components from @my/ui
+  return (
+    <YStack flex={1} backgroundColor="$background">
+      {/* AppHeader rendered automatically by Expo Router _layout.tsx */}
+      
+      <ScrollView flex={1}>
+        {/* Content components */}
+      </ScrollView>
+      
+      <SafeAreaView edges={['bottom']} />
+    </YStack>
+  )
+}
+
+// 2. APP HEADER: Configured via navigation.setOptions() in screen
+//    - AppHeader component rendered by apps/expo/app/_layout.tsx
+//    - Props passed via navigation.setOptions({ appHeaderProps: {...} })
+//    - Internal AppHeader structure (reference only):
+
+AppHeader (from @my/ui/components/AppHeader/)
+├── XStack height={60} paddingHorizontal="$4" paddingTop="$2" backgroundColor="$gray1"
+│   ├── Left: Button icon={ArrowLeft} onPress={appHeaderProps.onBack}
+│   ├── Center: Text text={appHeaderProps.title}
+│   └── Right: Avatar onPress={appHeaderProps.onProfilePress}
+
+// =====================================================
+// VISUAL LAYOUT STRUCTURE (What user sees)
+// =====================================================
+
+YStack flex={1} backgroundColor="$background" (full screen)
+├── AppHeader (rendered by _layout.tsx, configured by screen)
+│   // Internal structure: Left button + Title + Right avatar/button
+│   // Height: 60px, sticky positioning via _layout
+├── ContentArea: ScrollView flex={1} paddingHorizontal="$4" paddingTop="$4"
+│   ├── Section1: YStack gap="$3" marginBottom="$6"
+│   │   ├── SectionHeader: XStack justifyContent="space-between"
+│   │   │   ├── Text fontSize="$6" fontWeight="500"
+│   │   │   └── Button chromeless (optional action)
+│   │   └── Content: Components specific to section
+│   ├── Section2: YStack gap="$3" marginBottom="$6"
+│   │   └── Content: Components specific to section
+│   └── ...more sections
+└── SafeAreaView edges={['bottom']} (insets for gesture navigation)
 ```
 
 - [ ] **Tamagui Component Mapping**: Map each UI element 1:1 to Tamagui components
-  - [ ] **Layout Components**: YStack, XStack, ScrollView, SafeAreaView
-  - [ ] **Interactive Components**: Button, Input, Switch, Slider
+  - [ ] **Layout Components**: YStack, XStack, ScrollView, SafeAreaView (from `react-native-safe-area-context`)
+  - [ ] **Interactive Components**: Button, Input, Switch, Slider, Pressable
   - [ ] **Display Components**: Text, Image, Avatar, Card
   - [ ] **Overlay Components**: Sheet, Dialog, Popover, Toast
+  - [ ] **Navigation Hooks**: `useNavigation()`, `useLayoutEffect()` from Expo Router
   - [ ] **Custom Components**: Identify components needing custom implementation
 
 - [ ] **Design System Integration**: Theme tokens and styling consistency
@@ -72,8 +130,9 @@ YStack flex={1} backgroundColor="$background"
   - [ ] **Form Validation**: Real-time validation, error presentation
 
 - [ ] **Navigation Elements**: Screen transitions and routing
+  - [ ] **AppHeader Configuration**: Via `navigation.setOptions({ appHeaderProps: {...} })`
   - [ ] **Tab Navigation**: Active states, badge indicators, accessibility
-  - [ ] **Stack Navigation**: Header configurations, back button behavior
+  - [ ] **Stack Navigation**: Platform back gestures (iOS swipe, Android hardware button)
   - [ ] **Modal Navigation**: Sheet presentations, overlay interactions
   - [ ] **Deep Linking**: URL handling for web, universal links for native
 
@@ -91,13 +150,19 @@ YStack flex={1} backgroundColor="$background"
 
 ## Cross-Platform UI Considerations Phase
 - [ ] **Platform-Specific Adaptations**: Native feel on each platform
-  - [ ] **iOS Adaptations**: Navigation patterns, system colors, haptics
-  - [ ] **Android Adaptations**: Material Design elements, system navigation
-  - [ ] **Web Adaptations**: Hover states, keyboard shortcuts, URL handling
+  - [ ] **iOS Adaptations**: Navigation patterns, system colors, haptics, safe areas (notch, home indicator)
+  - [ ] **Android Adaptations**: Material Design elements, system navigation, edge-to-edge display
+  - [ ] **Web Adaptations**: Hover states, keyboard shortcuts, URL handling, no safe area insets
+
+- [ ] **Safe Area Handling**: Proper inset management for modern devices
+  - [ ] **AppHeader**: Handles top safe area automatically (status bar, notch)
+  - [ ] **Bottom Insets**: Use `<SafeAreaView edges={['bottom']} />` at root level
+  - [ ] **Full-Screen Content**: Use `edges={['left', 'right', 'bottom']}` when AppHeader is hidden
+  - [ ] **Web**: Safe area handling not needed (no notches), but doesn't break if present
 
 - [ ] **Component Platform Variants**: When to use platform-specific implementations
-  - [ ] **Native-Only Components**: Camera, file picker, notifications
-  - [ ] **Web-Only Components**: SEO meta tags, browser-specific features
+  - [ ] **Native-Only Components**: Camera, file picker, notifications, haptics
+  - [ ] **Web-Only Components**: SEO meta tags, browser-specific features, URL management
   - [ ] **Shared Components**: Business logic components with platform styling
 
 ## TDD UI Implementation Roadmap

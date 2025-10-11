@@ -25,12 +25,16 @@ graph TB
         video_recordings
         analysis_jobs
         analysis_feedback
+        analyses
+        analysis_audio_segments
+        analysis_ssml_segments
+        analysis_metrics
         🔒 RLS Enabled")]
         Storage["📁 Storage
         raw: videos
         processed: audio"]
         RT["⚡ Realtime
-        analysis_jobs UPDATE"]
+        analysis_jobs changes"]
         Edge["🧩 Edge Function
         ai-analyze-video"]
     end
@@ -42,6 +46,8 @@ graph TB
         Gemini 2.5 Video
         Gemini LLM Feedback
         Gemini TTS → AAC/MP3"]
+        SSMLW["🔤 SSML Worker"]
+        AudioW["🔊 Audio Worker"]
     end
 
     User --> Apps
@@ -63,6 +69,8 @@ graph TB
     Edge --> EdgeAI
     EdgeAI --> Storage
     EdgeAI --> DB
+    EdgeAI --> SSMLW
+    EdgeAI --> AudioW
     DB --> RT
     RT --> TSQ
 

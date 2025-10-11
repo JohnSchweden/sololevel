@@ -4,7 +4,7 @@
  */
 
 import { uploadVideo } from '@my/api'
-import { useUploadProgressStore } from '@my/app/stores/uploadProgress'
+import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
 import { compressVideo } from './videoCompression'

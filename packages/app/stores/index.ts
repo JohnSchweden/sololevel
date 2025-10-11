@@ -1,12 +1,7 @@
-// Export all stores
+// Export global stores only
+// VideoAnalysis-specific stores moved to packages/app/features/VideoAnalysis/stores/
 export { useAuthStore } from './auth'
 export type { AuthActions, AuthState, AuthStore } from './auth'
-export { useVideoAnalysisStore } from './videoAnalysisStore'
-export type {
-  VideoAnalysisActions,
-  VideoAnalysisState,
-  VideoAnalysisStore,
-} from './videoAnalysisStore'
 
 export { useThemeStore } from './theme'
 export type { ThemeActions, ThemeMode, ThemeState, ThemeStore } from './theme'
@@ -18,31 +13,6 @@ export type {
   FeatureFlagsState,
   FeatureFlagsStore,
 } from './feature-flags'
-
-export { useCameraRecordingStore } from './cameraRecording'
-
-export {
-  useUploadProgressSelectors,
-  useUploadProgressStore,
-  useUploadTask,
-} from './uploadProgress'
-export type {
-  UploadProgressStore,
-  UploadQueue,
-  UploadTask,
-} from './uploadProgress'
-
-export {
-  useAnalysisJobByVideo,
-  useAnalysisJobStatus,
-  useAnalysisStatusSelectors,
-  useAnalysisStatusStore,
-} from './analysisStatus'
-export type {
-  AnalysisJobState,
-  AnalysisQueue,
-  AnalysisStatusStore,
-} from './analysisStatus'
 
 // Import stores for use in selectors
 import { useAuthStore } from './auth'

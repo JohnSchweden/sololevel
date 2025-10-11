@@ -3,8 +3,8 @@ import type { AnalysisJob, PoseData } from '@api/src/validation/cameraRecordingS
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAnalysisStatusStore } from '../features/VideoAnalysis/stores/analysisStatus'
 import { usePoseStore } from '../stores/MVPposeStore'
-import { useAnalysisStatusStore } from '../stores/analysisStatus'
 
 /**
  * Real-time analysis progress subscription hook

@@ -1,8 +1,8 @@
 import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
-import { useCameraRecordingStore } from '../../../stores/cameraRecording'
 import { useFeatureFlagsStore } from '../../../stores/feature-flags'
+import { useCameraRecordingStore } from '../stores/cameraRecording'
 
 // Global singleton to prevent multiple permission requests across all component instances
 let globalPermissionRequestInProgress = false

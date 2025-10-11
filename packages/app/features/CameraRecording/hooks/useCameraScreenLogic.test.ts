@@ -15,7 +15,7 @@ const mockSetUploadStatus = jest.fn()
 const mockInitializeUploadTask = jest.fn()
 const mockSetUploadTaskRecordingId = jest.fn()
 
-jest.mock('@app/stores/uploadProgress', () => ({
+jest.mock('@app/features/VideoAnalysis/stores/uploadProgress', () => ({
   useUploadProgressStore: {
     getState: jest.fn(() => ({
       addUploadTask: mockAddUploadTask,

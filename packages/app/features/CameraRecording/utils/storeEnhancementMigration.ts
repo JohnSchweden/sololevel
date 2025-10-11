@@ -4,6 +4,7 @@
  * Maintains backward compatibility while enabling new features
  */
 
+import { useCameraRecordingStore } from "@app/features/CameraRecording/stores/cameraRecording";
 import type {
   CameraType,
   EnhancedCameraPermissions,
@@ -11,7 +12,6 @@ import type {
   EnhancedRecordingMetrics,
   PermissionStatus,
 } from "@app/features/CameraRecording/types/enhanced-state";
-import { useCameraRecordingStore } from "@app/stores/cameraRecording";
 import { useEnhancedCameraRecordingStore } from "@app/stores/cameraRecordingEnhanced";
 import { usePerformanceStore } from "@app/stores/performanceStore";
 

@@ -121,7 +121,6 @@
     "flag:vision": "./scripts/toggles/toggle-camera.sh vision",
     "flag:expo": "./scripts/toggles/toggle-camera.sh expo",
     "vercel:install": "yarn set version 3.5 && yarn install",
-    "almighty-push": "./scripts/toolchain/almighty-push.sh",
     "storybook": "storybook dev -p 6006",
     "storybook-generate": "sb-rn-get-stories",
     "build-storybook": "storybook build"

@@ -6,8 +6,8 @@
 
 import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
-import { useCameraRecordingStore } from '../../../stores/cameraRecording'
 import { mvpConfig } from '../config/MVPConfig'
+import { useCameraRecordingStore } from '../stores/cameraRecording'
 
 /**
  * MVP Pose Toggle State Interface

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { AnalysisJob } from '@app/features/VideoAnalysis/stores/analysisSubscription'
+import { useAnalysisSubscriptionStore } from '@app/features/VideoAnalysis/stores/analysisSubscription'
+import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import { mockFeedbackItems } from '@app/mocks/feedback'
-import type { AnalysisJob } from '@app/stores/analysisSubscription'
-import { useAnalysisSubscriptionStore } from '@app/stores/analysisSubscription'
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
-import { useUploadProgressStore } from '@app/stores/uploadProgress'
 import { getAnalysisIdForJobId } from '@my/api'
 import { log } from '@my/logging'
 

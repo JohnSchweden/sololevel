@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useCameraRecordingStore } from '../../../stores/cameraRecording'
+import { useCameraRecordingStore } from '../stores/cameraRecording'
 
 /**
  * Web stub implementation of camera permissions hook

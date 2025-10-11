@@ -305,7 +305,7 @@ jest.mock('../stores/MVPposeStore', () => ({
   })),
 }))
 
-jest.mock('../stores/analysisStatus', () => ({
+jest.mock('../features/VideoAnalysis/stores/analysisStatus', () => ({
   useAnalysisStatusStore: jest.fn(() => ({
     updateJob: jest.fn(),
     subscribeToJob: jest.fn(),
