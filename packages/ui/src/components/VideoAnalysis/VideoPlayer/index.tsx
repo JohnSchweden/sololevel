@@ -1,5 +1,5 @@
 import { Platform } from 'react-native'
-import { YStack } from 'tamagui'
+//import { YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
 export function VideoPlayer(props: VideoPlayerProps) {
@@ -8,5 +8,8 @@ export function VideoPlayer(props: VideoPlayerProps) {
     return <VideoPlayerNative {...props} />
   }
 
-  return <YStack flex={1} />
+  const { VideoPlayerWeb } = require('./VideoPlayer.web')
+  return <VideoPlayerWeb {...props} />
+
+  //return <YStack flex={1} />
 }

@@ -10,8 +10,19 @@ Cross-platform UI components built with Tamagui for web and native platforms.
 - **Platform-aware**: Handle web vs native differences properly
 - **App-agnostic**: No business logic, keep components reusable
 - **Named exports only**: No default exports
+- **Pure Tamagui preferred**: Avoid React Native primitives (Pressable, StyleSheet, View) unless platform-specific files are needed
+
+### Implementation Checklist
+
+**Before Writing Component:**
+- [ ] Can this be pure Tamagui? (preferred)
+- [ ] Does it need platform-specific files (.web/.native)?
+- [ ] What Tamagui components handle my use case?
+- [ ] Avoid React Native primitives unless absolutely necessary
 
 ## Component Structure
+
+**Basic Component:**
 ```tsx
 import { styled, YStack } from '@tamagui/core'
 
@@ -102,10 +113,38 @@ Always use tokens for consistency across platforms:
 - ✓ Support light/dark mode via theme tokens
 
 ## Testing
+
+### Overview
 - **Runner**: Jest with `jest-expo` preset, jsdom environment
 - **Queries**: `getByRole()`, `getByTestId()`, `getByLabelText()` all work
 - **Events**: `fireEvent.press()` for buttons (cross-platform compatible)
 - **Components**: All interactive elements need `accessibilityLabel` prop
+
+### Decision Tree for UI Component Testing
+
+**Component imports React Native primitives?**
+```
+├─ YES → Use @testing-library/react-native + renderWithProviderNative
+└─ NO  → Use @testing-library/react + renderWithProvider
+```
+
+**Component file extension?**
+```
+├─ .native.tsx → Always use React Native testing
+├─ .web.tsx    → Always use web testing  
+└─ .tsx        → Check imports (see above)
+```
+
+### Implementation Checklist
+
+**Before Writing Tests:**
+- [ ] Read component imports first
+- [ ] Match test environment to component environment
+- [ ] Verify test provider matches component type
+- [ ] Pure Tamagui components = web testing (@testing-library/react)
+- [ ] Components with React Native imports = native testing (@testing-library/react-native)
+
+**Key Rule:** If your component only imports from `tamagui` and has no React Native imports, use web testing tools. The `jsdom environment` in Jest means Tamagui components render to DOM, not React Native.
 
 ## References
 

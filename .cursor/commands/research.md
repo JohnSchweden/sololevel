@@ -3,7 +3,6 @@
 Analyze our monorepo architecture and identify best practices.
 
 CONTEXT:
-- Read @monorepo-foundation.mdc and @architecture.mermaid
 - Research @Web for modern best practices (2024-2025)
 - Focus on practices that directly impact our tech stack (Expo-RN/Next.js, Tamagui, Supabase)
 

@@ -104,6 +104,16 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="history-progress"
+              options={{
+                title: 'History & Progress',
+                headerShown: true,
+                headerTransparent: false,
+                headerStyle: { backgroundColor: '$background' },
+                header: (props) => <NavigationAppHeader {...props} />,
+              }}
+            />
+            <Stack.Screen
               name="dev/compress-test"
               options={{
                 title: 'Compression Test',

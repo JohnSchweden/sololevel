@@ -228,6 +228,8 @@ jest.mock('@my/api', () => ({
       results: { test: 'results' },
     })
   ),
+  // Expose analysis history fetcher for tests that need to control it
+  getUserAnalysisJobs: jest.fn(),
 }))
 
 // Mock TanStack Query

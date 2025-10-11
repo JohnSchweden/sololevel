@@ -56,6 +56,18 @@ export interface DialogComponentProps {
   [key: string]: unknown
 }
 
+export interface ImageProps {
+  source?: { uri?: string } | number
+  width?: number | string
+  height?: number | string
+  borderRadius?: number | string
+  testID?: string
+  onLoad?: () => void
+  onError?: () => void
+  accessibilityLabel?: string
+  [key: string]: unknown
+}
+
 // Comprehensive list of Tamagui props to filter out
 export const TAMAGUI_PROPS_TO_FILTER = new Set([
   // Layout props
@@ -221,6 +233,9 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
   'overflowX',
   'overflowY',
   'cursor',
+  'horizontal',
+  'showsHorizontalScrollIndicator',
+  'contentContainerStyle',
 
   // Additional spacing props
   'paddingBlock',
@@ -245,6 +260,7 @@ export const TAMAGUI_PROPS_TO_FILTER = new Set([
   // Additional typography props
   'fontStyle',
   'textDecoration',
+  'textDecorationLine',
   'textTransform',
   'letterSpacing',
   'wordSpacing',
@@ -538,6 +554,9 @@ export function createTamaguiMock() {
 
     // Loading components
     Spinner: createMockComponent('Spinner'),
+
+    // Image component (doesn't work in jsdom - use mock)
+    Image: MockImage,
   }
 }
 
@@ -586,6 +605,42 @@ export function createIconMocks() {
     Download: createIcon('Download'),
   }
 }
+
+/**
+ * Mock Image component for Tamagui (doesn't work in jsdom)
+ * Renders as a div with data-testid and simulates image loading
+ */
+export const MockImage = React.forwardRef<HTMLDivElement, ImageProps>((props, ref) => {
+  const { source, testID, onLoad, onError, accessibilityLabel, width, height, ...rest } = props
+
+  // Filter out Tamagui props
+  const domProps = Object.fromEntries(
+    Object.entries(rest).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key))
+  )
+
+  // Simulate image loading behavior
+  React.useEffect(() => {
+    if (source && typeof onLoad === 'function') {
+      // Simulate successful load by default
+      onLoad()
+    }
+  }, [source, onLoad])
+
+  return React.createElement('div', {
+    ...domProps,
+    ref,
+    'data-testid': testID || 'mock-image',
+    'aria-label': accessibilityLabel,
+    role: 'img',
+    style: {
+      width: typeof width === 'number' ? `${width}px` : width,
+      height: typeof height === 'number' ? `${height}px` : height,
+      ...(domProps.style as React.CSSProperties),
+    },
+  })
+})
+
+MockImage.displayName = 'MockImage'
 
 /**
  * Utility to silence console warnings during tests
