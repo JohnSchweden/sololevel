@@ -12,7 +12,7 @@
 | Area          | Current        | Minimum | Source |
 | ------------- | -------------- | ------- | ------ |
 | Node          | 20.x           | 20.x    | `package.json engines.node` |
-| Yarn          | 4.9.3          | 4.0.0   | `package.json packageManager` |
+| Yarn          | 4.10.3         | 4.0.0   | `package.json packageManager` |
 | Expo SDK      | 53.x           | 53.x    | root/workspace `expo` versions |
 | React Native  | 0.79.x         | 0.79.x  | root `react-native` |
 | React         | 19.x           | 19.x    | root `react` |
@@ -61,7 +61,6 @@ See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
 - Install: `yarn install --immutable`
 - Start: `yarn dev`
 - Native: `yarn native` | Web: `yarn web`
-- Pre-PR: `yarn type-check:all && yarn lint:all && yarn test:all && yarn build`
 
 ## Workspace Scripts Reference
 - `yarn native` → `expo-app` (React Native development)
@@ -75,12 +74,6 @@ See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
   - `yarn test:db` (pgTAP database tests)
 
 See `.cursor/rules/core/development-operations.mdc` for complete workspace commands reference table.
-
-## Git Workflow
-- Branch naming: `feature/PRD-123-description`
-- Commits: `feat(web):`, `fix(native):`, `chore(shared):`
-- Reference issues: `Closes #123` or `Fixes #456`
-- Keep commits atomic and focused
 
 ## TypeScript Quick Reference
 - Always enable strict mode

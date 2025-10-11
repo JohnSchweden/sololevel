@@ -4,9 +4,11 @@ import type {
   AnalysisStatus,
   PoseData,
 } from '@api/src/validation/cameraRecordingSchemas'
+import { log } from '@my/logging'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
+import { useVideoHistoryStore } from '../../HistoryProgress/stores/videoHistory'
 
 export interface AnalysisJobState extends AnalysisJob {
   // Additional UI state
@@ -271,6 +273,35 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
           results: results as any,
           pose_data: poseData as any,
         })
+
+        // Write to video history cache (non-blocking)
+        try {
+          const job = get().jobs.get(jobId)
+          if (job) {
+            const historyStore = useVideoHistoryStore.getState()
+
+            // Generate title from date (AnalysisResults doesn't have title field)
+            const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
+
+            historyStore.addToCache({
+              id: job.id,
+              videoId: job.video_recording_id,
+              userId: job.user_id,
+              title,
+              createdAt: job.created_at,
+              thumbnail: undefined, // Placeholder, actual thumbnail generation in Task 27
+              results,
+              poseData,
+            })
+
+            // Update last sync timestamp
+            historyStore.updateLastSync()
+          }
+        } catch (error) {
+          // Cache write failures should not block analysis completion
+          // Graceful degradation: cache miss will trigger DB fetch later
+          log.error('analysisStatus', 'Failed to write to video history cache', { error })
+        }
       },
 
       // Get jobs by status

@@ -55,6 +55,16 @@ export function Provider({
 
     // Initialize test auth after auth store is ready
     initializeTestAuth()
+
+    // Setup video history cache cleanup on logout
+    const {
+      setupVideoHistoryCacheCleanup,
+    } = require('../features/HistoryProgress/stores/videoHistory')
+    const unsubscribe = setupVideoHistoryCacheCleanup(useAuthStore)
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   // Add test hook for Immer MapSet plugin verification (development only)
