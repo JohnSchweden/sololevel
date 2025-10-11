@@ -42,6 +42,7 @@ jest.mock('../components/ErrorBoundary', () => ({
 jest.mock('../stores/auth', () => ({
   useAuthStore: {
     getState: () => ({ initialize: jest.fn() }),
+    subscribe: jest.fn(() => jest.fn()), // Mock subscribe to return an unsubscribe function
   },
 }))
 
