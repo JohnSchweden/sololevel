@@ -1,7 +1,7 @@
 import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { log } from '@my/logging'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { Dimensions, View } from 'react-native'
+import { Dimensions } from 'react-native'
 import {
   Camera,
   useCameraDevice,
@@ -9,6 +9,7 @@ import {
   useFrameProcessor,
 } from 'react-native-vision-camera'
 import { SizableText, YStack } from 'tamagui'
+import { CameraBackground } from '../CameraBackground/CameraBackground'
 import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**
@@ -28,6 +29,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       onVideoRecorded,
       children,
       permissionGranted = false,
+      backgroundImage,
+      backgroundOpacity = 0.2,
     },
     ref
   ) => {
@@ -465,10 +468,19 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     // Don't render camera if permission not granted
     if (!permissionGranted) {
       return (
-        <View
-          style={{ flex: 1, backgroundColor: 'black' }}
+        <YStack
+          flex={1}
+          position="relative"
           testID="black-screen"
-        />
+        >
+          {/* Background image overlay for simulator testing - show even when permission denied */}
+          <CameraBackground
+            imageSource={backgroundImage}
+            opacity={backgroundOpacity}
+            simulatorOnly={true}
+            showOnError={true}
+          />
+        </YStack>
       )
     }
 
@@ -481,10 +493,20 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           alignItems="center"
           justifyContent="center"
           padding="$4"
+          position="relative"
         >
+          {/* Background image overlay for simulator testing - show even in error state */}
+          <CameraBackground
+            imageSource={backgroundImage}
+            opacity={backgroundOpacity}
+            simulatorOnly={true}
+            showOnError={true}
+          />
+
           <YStack
             alignItems="center"
             gap="$3"
+            zIndex={10}
           >
             <SizableText
               size="$8"
@@ -541,6 +563,13 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           frameProcessor={frameProcessor}
           onInitialized={handleCameraInitialized}
           onError={handleCameraError}
+        />
+
+        {/* Background image overlay for simulator testing */}
+        <CameraBackground
+          imageSource={backgroundImage}
+          opacity={backgroundOpacity}
+          simulatorOnly={true}
         />
 
         {/* Recording indicator overlay */}

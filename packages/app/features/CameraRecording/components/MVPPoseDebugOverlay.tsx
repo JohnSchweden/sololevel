@@ -36,7 +36,7 @@ export function MVPPoseDebugOverlay({
   return (
     <YStack
       position="absolute"
-      top={100}
+      top={140}
       right={10}
       backgroundColor="rgba(0, 0, 0, 0.7)"
       padding={8}

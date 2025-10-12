@@ -22,53 +22,60 @@ config.resolver.nodeModulesPaths = [
 config.resolver.disableHierarchicalLookup = true
 
 // 4. Blocklist test directories and production-only files to prevent bundling
+// Note: Patterns must NOT match files in node_modules to avoid breaking dependencies
 config.resolver.blockList = [
-  // Block test directories
-  /.*\/__tests__\/.*/,
-  /.*\/test-utils\/.*/,
-  /.*\.test\.(ts|tsx|js|jsx)$/,
-  /.*\.spec\.(ts|tsx|js|jsx)$/,
+  // Block test directories (excluding node_modules)
+  /^(?!.*node_modules).*\/__tests__\/.*/,
+  /^(?!.*node_modules).*\/test-utils\/.*/,
+  /^(?!.*node_modules).*\.test\.(ts|tsx|js|jsx)$/,
+  /^(?!.*node_modules).*\.spec\.(ts|tsx|js|jsx)$/,
 
-  // Block production-only files (pose detection, performance monitoring, etc.)
+  // Block production-only files from project packages (not from node_modules)
   // These are excluded from MVP and should not be bundled
-  /.*\/usePoseMetrics\.ts$/,
-  /.*\/usePoseState\.ts$/,
-  /.*\/poseConfigManager\.ts$/,
-  /.*\/poseStateIntegrationTest\.ts$/,
-  /.*\/poseStatePersistence\.ts$/,
-  /.*\/storeEnhancementMigration\.ts$/,
-  /.*\/cameraRecordingEnhanced\.ts$/,
-  /.*\/enhancedCameraStore\.ts$/,
-  /.*\/performanceStore\.ts$/,
-  /.*\/useAdaptiveQuality\.ts$/,
-  /.*\/useEnhancedZoom\.ts$/,
-  /.*\/useEnhancedCameraSwap\.ts$/,
-  /.*\/useThermalMonitoring\.native\.ts$/,
-  /.*\/useFrameProcessing\.ts$/,
-  /.*\/useFrameProcessor\.native\.ts$/,
-  /.*\/useCameraFrameProcessor\.web\.ts$/,
-  /.*\/usePoseDetection\.native\.ts$/,
-  /.*\/usePoseDetection\.web\.ts$/,
-  /.*\/poseProcessing\.native\.ts$/,
-  /.*\/poseDetection\.web\.ts$/,
-  /.*\/PerformanceMonitor\.tsx$/,
-  /.*\/ThermalIndicator\.tsx$/,
-  /.*\/pose\.ts$/,
-  /.*\/enhanced-state\.ts$/,
-  /.*\/performance\.ts$/,
-  /.*\/thermal\.ts$/,
-  /.*\/cross-platform-state\.ts$/,
-  /.*\/poseDetectionConfig\.ts$/,
-  /.*\/poseDataBuffer\.ts$/,
-  /.*\/poseDataExport\.ts$/,
-  /.*\/poseDataValidation\.ts$/,
-  /.*\/poseThermalIntegration\.ts$/,
-  /.*\/storeMigration\.ts$/,
-  /.*\/cameraRecording\.ts\.backup\.prod$/,
-  /.*\/useCameraPermissions\.native\.ts\.backup\.prod$/,
-  /.*\/useCameraScreenLogic\.ts\.backup\.prod$/,
-  /.*\/useRecordingStateMachine\.ts\.backup\.prod$/,
-  /.*\/poseStore\.ts$/,
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/usePoseMetrics\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/usePoseState\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseConfigManager\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseStateIntegrationTest\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseStatePersistence\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/storeEnhancementMigration\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/cameraRecordingEnhanced\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/enhancedCameraStore\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/performanceStore\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useAdaptiveQuality\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useEnhancedZoom\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useEnhancedCameraSwap\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useThermalMonitoring\.native\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useFrameProcessing\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useFrameProcessor\.native\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/useCameraFrameProcessor\.web\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/usePoseDetection\.native\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/usePoseDetection\.web\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseProcessing\.native\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseDetection\.web\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/PerformanceMonitor\.tsx$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/ThermalIndicator\.tsx$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/pose\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/enhanced-state\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/performance\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/thermal\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/cross-platform-state\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseDetectionConfig\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseDataBuffer\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseDataExport\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseDataValidation\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseThermalIntegration\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/storeMigration\.ts$`),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/cameraRecording\.ts\.backup\.prod$`),
+  new RegExp(
+    `${path.resolve(workspaceRoot, 'packages')}.*\/useCameraPermissions\.native\.ts\.backup\.prod$`
+  ),
+  new RegExp(
+    `${path.resolve(workspaceRoot, 'packages')}.*\/useCameraScreenLogic\.ts\.backup\.prod$`
+  ),
+  new RegExp(
+    `${path.resolve(workspaceRoot, 'packages')}.*\/useRecordingStateMachine\.ts\.backup\.prod$`
+  ),
+  new RegExp(`${path.resolve(workspaceRoot, 'packages')}.*\/poseStore\.ts$`),
 ]
 
 config.transformer = {

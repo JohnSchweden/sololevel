@@ -13,7 +13,7 @@ import {
 
 // Test minimal hook to isolate issue
 import { log } from '@my/logging'
-import { useHeaderHeight } from '@react-navigation/elements'
+//import { useHeaderHeight } from '@react-navigation/elements'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { SideSheet } from '@ui/components/Sidesheet'
@@ -31,6 +31,9 @@ log.debug('CameraRecordingScreen', '🔍 Importing useMVPPoseDetection', {
 })
 import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
 import { CameraRecordingScreenProps, RecordingState } from './types'
+
+// Import golf background image for iOS simulator
+const golfBackgroundImage = require('../../../../apps/expo/assets/golf.png')
 // import { adaptMVPPoseToProduction } from './utils/MVPTypeAdapter'
 
 export function CameraRecordingScreen({
@@ -42,7 +45,7 @@ export function CameraRecordingScreen({
   useKeepAwake()
   const router = useRouter()
   const navigation = useNavigation()
-  const headerHeight = useHeaderHeight()
+  //const headerHeight = useHeaderHeight()
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -190,7 +193,7 @@ export function CameraRecordingScreen({
   return (
     <YStack
       flex={1}
-      paddingTop={headerHeight}
+      //paddingTop={headerHeight}
       backgroundColor="$background"
     >
       <CameraContainer
@@ -215,6 +218,8 @@ export function CameraRecordingScreen({
             onError={(_error: string) => {
               // TODO: Handle camera errors with user feedback
             }}
+            backgroundImage={golfBackgroundImage}
+            backgroundOpacity={1}
           />
 
           {/* MVP Pose Detection Overlay */}
@@ -317,7 +322,7 @@ export function CameraRecordingScreen({
         {__DEV__ && (
           <YStack
             position="absolute"
-            top={20}
+            top={120}
             left={20}
             zIndex={10000}
             backgroundColor="$red9"

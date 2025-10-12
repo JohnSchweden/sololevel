@@ -2,8 +2,9 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { log } from '@my/logging'
 import { CameraMode, CameraRatio, CameraView } from 'expo-camera'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Dimensions, View } from 'react-native'
+import { Dimensions } from 'react-native'
 import { SizableText, YStack } from 'tamagui'
+import { CameraBackground } from '../CameraBackground/CameraBackground'
 import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 
 /**
@@ -23,6 +24,8 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       onVideoRecorded,
       children,
       permissionGranted = false,
+      backgroundImage,
+      backgroundOpacity = 0.2,
     },
     ref
   ) => {
@@ -433,10 +436,20 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           alignItems="center"
           justifyContent="center"
           padding="$4"
+          position="relative"
         >
+          {/* Background image overlay for simulator testing - show even in error state */}
+          <CameraBackground
+            imageSource={backgroundImage}
+            opacity={backgroundOpacity}
+            simulatorOnly={true}
+            showOnError={true}
+          />
+
           <YStack
             alignItems="center"
             gap="$3"
+            zIndex={10}
           >
             <SizableText
               size="$8"
@@ -473,7 +486,21 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
     // Don't render camera if permission not granted
     if (!permissionGranted) {
       // Render a blank view while waiting for permissions
-      return <View style={{ flex: 1, backgroundColor: 'black' }} />
+      return (
+        <YStack
+          flex={1}
+          position="relative"
+          backgroundColor="black"
+        >
+          {/* Background image overlay for simulator testing - show even when permission denied */}
+          <CameraBackground
+            imageSource={backgroundImage}
+            opacity={backgroundOpacity}
+            simulatorOnly={true}
+            showOnError={true}
+          />
+        </YStack>
+      )
     }
 
     return (
@@ -482,6 +509,13 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         position="relative"
       >
         <CameraView {...cameraProps} />
+
+        {/* Background image overlay for simulator testing */}
+        <CameraBackground
+          imageSource={backgroundImage}
+          opacity={backgroundOpacity}
+          simulatorOnly={true}
+        />
 
         {/* Recording indicator overlay */}
         {isRecording && (

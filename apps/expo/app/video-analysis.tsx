@@ -1,6 +1,6 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
 import { log } from '@my/logging'
-import { useHeaderHeight } from '@react-navigation/elements'
+//import { useHeaderHeight } from '@react-navigation/elements'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useLayoutEffect, useState } from 'react'
 import { YStack } from 'tamagui'
@@ -10,7 +10,7 @@ export default function VideoAnalysis() {
   const router = useRouter()
   const navigation = useNavigation()
   const [controlsVisible, setControlsVisible] = useState(true)
-  const headerHeight = useHeaderHeight()
+  //const headerHeight = useHeaderHeight()
   const { videoUri, videoRecordingId, analysisJobId } = useLocalSearchParams<{
     videoUri: string
     videoRecordingId?: string
@@ -47,7 +47,7 @@ export default function VideoAnalysis() {
     <AuthGate>
       <YStack
         flex={1}
-        paddingTop={headerHeight - 60}
+        //paddingTop={headerHeight-60}
         backgroundColor="$background"
       >
         <VideoAnalysisScreen

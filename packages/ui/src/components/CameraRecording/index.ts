@@ -8,6 +8,9 @@ export {
 export { CameraPreview } from './CameraPreview/CameraPreview'
 export type { CameraPreviewContainerProps, CameraPreviewRef } from './types'
 
+export { CameraBackground } from './CameraBackground/CameraBackground'
+export type { CameraBackgroundProps } from './CameraBackground/CameraBackground'
+
 export { PoseOverlay } from './PoseOverlay/PoseOverlay'
 
 export {

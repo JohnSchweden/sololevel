@@ -22,6 +22,9 @@ import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
+// Import golf background image for iOS simulator
+const golfBackgroundImage = require('../../../../apps/expo/assets/golf.png')
+
 export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
@@ -175,6 +178,8 @@ export function CameraRecordingScreen({
             onError={(_error: string) => {
               // TODO: Handle camera errors with user feedback
             }}
+            backgroundImage={golfBackgroundImage}
+            backgroundOpacity={0.2}
           />
         </CameraPreviewArea>
 

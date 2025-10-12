@@ -13,6 +13,10 @@ export interface CameraPreviewContainerProps {
   onVideoRecorded?: (videoUri: string) => void
   children?: React.ReactNode
   permissionGranted?: boolean
+  /** Background image source for simulator testing */
+  backgroundImage?: string | number
+  /** Background image opacity (0-1) */
+  backgroundOpacity?: number
 }
 
 export interface CameraPreviewRef {
