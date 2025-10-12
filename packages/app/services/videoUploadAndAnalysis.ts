@@ -4,7 +4,6 @@
  */
 
 import { uploadVideo } from '@my/api'
-import { generateVideoThumbnail } from '@my/api/src/services/videoThumbnailService.native'
 import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
@@ -99,6 +98,7 @@ async function resolveVideoToUpload(params: {
 
     // Generate thumbnail (non-blocking - errors logged but don't fail upload)
     try {
+      const { generateVideoThumbnail } = await import('@my/api')
       const result = await generateVideoThumbnail(sourceUri)
       thumbnailUri = result?.uri
 
