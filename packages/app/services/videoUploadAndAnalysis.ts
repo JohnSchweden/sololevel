@@ -4,6 +4,7 @@
  */
 
 import { uploadVideo } from '@my/api'
+import { generateVideoThumbnail } from '@my/api/src/services/videoThumbnailService.native'
 import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
@@ -55,7 +56,7 @@ async function resolveVideoToUpload(params: {
   file?: File | Blob
   durationSeconds?: number
   format?: 'mp4' | 'mov'
-}): Promise<{ videoToUpload: File | Blob; metadata: VideoMetadata }> {
+}): Promise<{ videoToUpload: File | Blob; metadata: VideoMetadata; thumbnailUri?: string }> {
   const { sourceUri, file, durationSeconds, format } = params
 
   if (file) {
@@ -69,7 +70,8 @@ async function resolveVideoToUpload(params: {
       duration: metadata.duration,
       format: metadata.format,
     })
-    return { videoToUpload: file, metadata }
+    // No thumbnail generation for pre-processed files (P0 scope)
+    return { videoToUpload: file, metadata, thumbnailUri: undefined }
   }
 
   if (!sourceUri) {
@@ -84,6 +86,7 @@ async function resolveVideoToUpload(params: {
 
   // Attempt compression first, with graceful fallback
   let videoToUploadUri = sourceUri
+  let thumbnailUri: string | undefined
   try {
     log.info('videoUploadAndAnalysis', 'Starting video compression')
     const compressionResult = await compressVideo(sourceUri)
@@ -93,6 +96,24 @@ async function resolveVideoToUpload(params: {
       size: compressionResult.metadata.size,
       duration: durationSeconds ? durationSeconds : undefined,
     })
+
+    // Generate thumbnail (non-blocking - errors logged but don't fail upload)
+    try {
+      const result = await generateVideoThumbnail(sourceUri)
+      thumbnailUri = result?.uri
+
+      if (thumbnailUri) {
+        log.info('videoUploadAndAnalysis', 'Thumbnail generated successfully', {
+          thumbnailLength: thumbnailUri.length,
+          thumbnailType: thumbnailUri.startsWith('data:') ? 'data-url' : 'file-uri',
+        })
+      }
+    } catch (err) {
+      log.warn('videoUploadAndAnalysis', 'Thumbnail generation failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      thumbnailUri = undefined
+    }
 
     videoToUploadUri = compressionResult.compressedUri
     const compressedFormat = (compressionResult.metadata.format === 'mov' ? 'mov' : 'mp4') as
@@ -112,7 +133,7 @@ async function resolveVideoToUpload(params: {
 
   log.info('startUploadAndAnalysis', 'Converting video to Blob', { uri: videoToUploadUri })
   const videoToUpload = await uriToBlob(videoToUploadUri)
-  return { videoToUpload, metadata }
+  return { videoToUpload, metadata, thumbnailUri }
 }
 
 /**
@@ -121,6 +142,7 @@ async function resolveVideoToUpload(params: {
 async function uploadWithProgress(args: {
   videoToUpload: File | Blob
   metadata: VideoMetadata
+  thumbnailUri?: string
   originalFilename?: string
   tempTaskId: string
   onProgress?: (progress: number) => void
@@ -135,6 +157,7 @@ async function uploadWithProgress(args: {
   const {
     videoToUpload,
     metadata,
+    thumbnailUri,
     originalFilename,
     tempTaskId,
     onProgress,
@@ -153,6 +176,7 @@ async function uploadWithProgress(args: {
     originalFilename: originalFilename || `video.${metadata.format}`,
     durationSeconds: metadata.duration,
     format: metadata.format,
+    metadata: thumbnailUri ? { thumbnailUri } : undefined,
     onProgress: (progress: number) => {
       log.info('startUploadAndAnalysis', 'Upload progress', { progress })
       useUploadProgressStore.getState().updateUploadProgress(tempTaskId, {
@@ -220,17 +244,26 @@ export async function startUploadAndAnalysis(
 
   // 2) Process video in background (compression → upload → analysis)
   try {
-    const { videoToUpload, metadata } = await resolveVideoToUpload({
+    const { videoToUpload, metadata, thumbnailUri } = await resolveVideoToUpload({
       sourceUri,
       file,
       durationSeconds,
       format,
     })
 
+    // Log thumbnail generation success
+    if (thumbnailUri) {
+      log.info('startUploadAndAnalysis', 'Thumbnail generated and will be stored in metadata', {
+        thumbnailUri: thumbnailUri.substring(0, 50),
+        thumbnailType: thumbnailUri.startsWith('data:') ? 'data-url' : 'file-uri',
+      })
+    }
+
     // Step 3: Upload with progress callbacks and store updates
     await uploadWithProgress({
       videoToUpload,
       metadata,
+      thumbnailUri,
       originalFilename,
       tempTaskId,
       onProgress,

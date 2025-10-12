@@ -14,6 +14,7 @@ export interface VideoUploadOptions {
   originalFilename?: string
   durationSeconds: number
   format: 'mp4' | 'mov'
+  metadata?: Record<string, unknown> // Custom metadata (e.g. thumbnailUri)
   onProgress?: (progress: number) => void
   onError?: (error: Error) => void
   onUploadInitialized?: (details: {
@@ -149,6 +150,7 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     originalFilename,
     durationSeconds,
     format,
+    metadata,
     onProgress,
     onError,
     onUploadInitialized,
@@ -189,6 +191,7 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
       format,
       storage_path: path,
       upload_status: 'pending',
+      metadata: (metadata as any) || null,
     })
 
     // Create upload session

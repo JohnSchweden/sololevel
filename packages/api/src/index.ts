@@ -27,6 +27,8 @@ export {
   getUploadProgress,
   cancelUpload,
 } from './services/videoUploadService'
+// Video thumbnail service
+export { generateVideoThumbnail } from './services/videoThumbnailService'
 export type {
   UploadProgress,
   UploadSession,

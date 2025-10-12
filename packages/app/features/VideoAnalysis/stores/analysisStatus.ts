@@ -283,13 +283,56 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
             // Generate title from date (AnalysisResults doesn't have title field)
             const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
 
+            // Retrieve thumbnail from video_recordings metadata (async operation)
+            let thumbnailUri: string | undefined
+
+            // Use dynamic import to avoid circular dependencies and fetch thumbnail
+            import('@my/api')
+              .then(({ supabase }) =>
+                supabase
+                  .from('video_recordings')
+                  .select('metadata')
+                  .eq('id', job.video_recording_id)
+                  .single()
+              )
+              .then(({ data: videoRecording }) => {
+                if (videoRecording?.metadata && typeof videoRecording.metadata === 'object') {
+                  const metadata = videoRecording.metadata as Record<string, unknown>
+                  if (typeof metadata.thumbnailUri === 'string') {
+                    thumbnailUri = metadata.thumbnailUri
+
+                    // Update cache with thumbnail after retrieval
+                    historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
+
+                    log.debug(
+                      'analysisStatus',
+                      'Retrieved and updated thumbnail from video metadata',
+                      {
+                        videoId: job.video_recording_id,
+                        thumbnailLength: thumbnailUri.length,
+                      }
+                    )
+                  }
+                }
+              })
+              .catch((thumbnailError: unknown) => {
+                log.warn('analysisStatus', 'Failed to fetch thumbnail from video metadata', {
+                  error:
+                    thumbnailError instanceof Error
+                      ? thumbnailError.message
+                      : String(thumbnailError),
+                  videoId: job.video_recording_id,
+                })
+                // Non-blocking - continue without thumbnail
+              })
+
             historyStore.addToCache({
               id: job.id,
               videoId: job.video_recording_id,
               userId: job.user_id,
               title,
               createdAt: job.created_at,
-              thumbnail: undefined, // Placeholder, actual thumbnail generation in Task 27
+              thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
               results,
               poseData,
             })

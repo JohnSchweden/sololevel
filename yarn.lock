@@ -12517,6 +12517,7 @@ __metadata:
     expo-splash-screen: "npm:~0.30.10"
     expo-status-bar: "npm:~2.2.3"
     expo-updates: "npm:~0.28.17"
+    expo-video-thumbnails: "npm:^10.0.7"
     i18next: "npm:^25.4.2"
     jest: "npm:^29.7.0"
     jest-expo: "npm:^53.0.9"
@@ -12941,6 +12942,15 @@ __metadata:
   bin:
     expo-updates: bin/cli.js
   checksum: 10c0/cec43da7e5e3c6d6a644c5a4846b549105cdd47f99e80194bc3baddb7f0fea4864e91c40e541a9b6154cbd5eac600bffad0318c7b79a2a4137cf101274392d55
+  languageName: node
+  linkType: hard
+
+"expo-video-thumbnails@npm:^10.0.7":
+  version: 10.0.7
+  resolution: "expo-video-thumbnails@npm:10.0.7"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/0635c2552ec2391e9447374150f4e25c0e962d87ecf08e690b4acb0e4283e5055d2889e60bce974dbb31e0a6bff132441b8cf67b6ad6f03a8ae6d56d1237c641
   languageName: node
   linkType: hard
 
