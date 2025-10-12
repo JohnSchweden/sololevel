@@ -8,6 +8,7 @@ import { CameraRecordingScreenProps } from './types'
 export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
+  onNavigateToHistory,
   onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
@@ -15,6 +16,7 @@ export function CameraRecordingScreen({
     <CameraRecordingScreenWrapper
       onNavigateBack={onNavigateBack}
       onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
+      onNavigateToHistory={onNavigateToHistory}
       onTabChange={onTabChange}
       resetToIdle={resetToIdle}
     />

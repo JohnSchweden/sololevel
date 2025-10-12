@@ -8,6 +8,7 @@ import { useTabPersistence } from './useTabPersistence'
 export const useCameraScreenLogic = ({
   onNavigateBack,
   onNavigateToVideoAnalysis,
+  onNavigateToHistory: _onNavigateToHistory, // Prefixed with _ - passed through to screen components
   onTabChange,
   cameraRef,
 }: CameraRecordingScreenProps & {
@@ -16,7 +17,6 @@ export const useCameraScreenLogic = ({
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back')
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
-  const [showSideSheet, setShowSideSheet] = useState(false)
 
   // Camera swap visual feedback state
   const [isCameraSwapping, setIsCameraSwapping] = useState(false)
@@ -380,7 +380,6 @@ export const useCameraScreenLogic = ({
     cameraType,
     zoomLevel,
     showNavigationDialog,
-    showSideSheet,
     activeTab,
     recordingState,
     duration,
@@ -414,7 +413,6 @@ export const useCameraScreenLogic = ({
     cancelNavigation,
     handleTabChange,
     handleCameraReady,
-    setShowSideSheet,
     setShowNavigationDialog,
 
     // Recording actions

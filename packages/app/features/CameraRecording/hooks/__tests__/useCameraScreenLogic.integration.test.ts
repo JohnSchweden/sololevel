@@ -174,7 +174,6 @@ describe('useCameraScreenLogic Integration', () => {
       expect(typeof result.current.cancelNavigation).toBe('function')
       expect(typeof result.current.handleTabChange).toBe('function')
       expect(typeof result.current.handleCameraReady).toBe('function')
-      expect(typeof result.current.setShowSideSheet).toBe('function')
       expect(typeof result.current.setShowNavigationDialog).toBe('function')
     })
 

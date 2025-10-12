@@ -12,7 +12,6 @@ import {
 import { log } from '@my/logging'
 // Import external components directly
 import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
-import { SideSheet } from '@my/ui/src/components/Sidesheet/SideSheet'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { useNavigation } from 'expo-router'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -28,6 +27,7 @@ const golfBackgroundImage = require('../../../../apps/expo/assets/golf.png')
 export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
+  onNavigateToHistory,
   onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
@@ -60,7 +60,6 @@ export function CameraRecordingScreen({
     cameraType,
     zoomLevel,
     showNavigationDialog,
-    showSideSheet,
     activeTab,
     recordingState,
     duration,
@@ -84,11 +83,16 @@ export function CameraRecordingScreen({
     cancelNavigation,
     handleTabChange,
     handleCameraReady,
-    setShowSideSheet,
     setShowNavigationDialog,
     handleVideoRecorded,
     resetRecording,
-  } = useCameraScreenLogic({ onNavigateBack, onNavigateToVideoAnalysis, onTabChange, cameraRef })
+  } = useCameraScreenLogic({
+    onNavigateBack,
+    onNavigateToVideoAnalysis,
+    onNavigateToHistory,
+    onTabChange,
+    cameraRef,
+  })
 
   // Handle reset to idle state when navigating back from video analysis
   useEffect(() => {
@@ -122,7 +126,7 @@ export function CameraRecordingScreen({
         showTimer: isInRecordingState,
         timerValue: formattedDuration,
         leftAction: isInRecordingState ? 'back' : 'sidesheet',
-        onMenuPress: () => setShowSideSheet(true),
+        onMenuPress: () => onNavigateToHistory?.(),
         onBackPress: handleBackPress,
         onNotificationPress: handleNavigateBack,
         cameraProps: { isRecording: isInRecordingState },
@@ -135,7 +139,7 @@ export function CameraRecordingScreen({
     formattedDuration,
     recordingState,
     handleBackPress,
-    setShowSideSheet,
+    onNavigateToHistory,
     handleNavigateBack,
   ])
 
@@ -221,12 +225,6 @@ export function CameraRecordingScreen({
           message="Are you sure you want to leave? Your current recording will be lost."
           onDiscard={confirmNavigation}
           onCancel={cancelNavigation}
-        />
-
-        {/* Side Sheet Navigation */}
-        <SideSheet
-          open={showSideSheet}
-          onOpenChange={setShowSideSheet}
         />
       </CameraContainer>
     </YStack>

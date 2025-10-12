@@ -12,7 +12,6 @@ export { ToastProvider } from './components/ToastProvider'
 export { ToastViewport } from './components/ToastViewport'
 export { AppHeader } from './components/AppHeader'
 export { BottomNavigation } from './components/BottomNavigation/BottomNavigation'
-export { SideSheet } from './components/Sidesheet/SideSheet'
 
 // Hooks
 export { useToastController } from './hooks/useToastController'

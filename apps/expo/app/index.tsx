@@ -16,6 +16,11 @@ export default function Screen() {
     })
   }
 
+  const handleNavigateToHistory = () => {
+    // Navigate to history & progress tracking screen
+    router.push('/history-progress')
+  }
+
   // Reset to idle state when navigating back from video analysis
   useEffect(() => {
     if (resetToIdle === 'true') {
@@ -28,6 +33,7 @@ export default function Screen() {
     <AuthGate>
       <CameraRecordingScreen
         onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
+        onNavigateToHistory={handleNavigateToHistory}
         resetToIdle={resetToIdle === 'true'}
       />
     </AuthGate>
