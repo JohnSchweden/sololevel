@@ -1,6 +1,7 @@
 import type { NavAppHeaderOptions } from '@app/components/navigation/NavigationAppHeader'
 import { log } from '@my/logging'
-import { VideosSection } from '@my/ui/src/components/HistoryProgress'
+import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
+import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import { useNavigation, useRouter } from 'expo-router'
 import React, { useLayoutEffect } from 'react'
 import { RefreshControl } from 'react-native'
@@ -154,6 +155,24 @@ export function HistoryProgressScreen({
     }
   }, [onNavigateToVideos])
 
+  // Mock coaching sessions data (P0)
+  const mockCoachingSessions: SessionItem[] = React.useMemo(
+    () => [
+      { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
+      { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+      { id: 3, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+      { id: 4, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+    ],
+    []
+  )
+
+  const handleSessionPress = React.useCallback((sessionId: number) => {
+    log.debug('HistoryProgressScreen', 'Coaching session pressed (P0 placeholder)', { sessionId })
+    // P0: Console log placeholder
+    console.log('Navigate to coaching session:', sessionId)
+    // P1: router.push(`/coaching-sessions/${sessionId}`)
+  }, [])
+
   return (
     <YStack
       flex={1}
@@ -186,9 +205,12 @@ export function HistoryProgressScreen({
           testID={`${testID}-videos-section`}
         />
 
-        {/* Coaching Sessions Section - P1 Feature */}
-        {/* TODO: Implement CoachingSessionsSection in Task 27b */}
-        {/* <CoachingSessionsSection ... /> */}
+        {/* Coaching Sessions Section */}
+        <CoachingSessionsSection
+          sessions={mockCoachingSessions}
+          onSessionPress={handleSessionPress}
+          testID={`${testID}-coaching-sessions-section`}
+        />
       </ScrollView>
     </YStack>
   )
