@@ -1,15 +1,2 @@
-import { Platform } from 'react-native'
-//import { YStack } from 'tamagui'
-import type { VideoPlayerProps } from '../types'
-
-export function VideoPlayer(props: VideoPlayerProps) {
-  if (Platform.OS !== 'web') {
-    const { VideoPlayerNative } = require('./VideoPlayer.native')
-    return <VideoPlayerNative {...props} />
-  }
-
-  const { VideoPlayerWeb } = require('./VideoPlayer.web')
-  return <VideoPlayerWeb {...props} />
-
-  //return <YStack flex={1} />
-}
+export { VideoPlayer } from './VideoPlayer'
+export type { VideoPlayerProps } from './VideoPlayer'

@@ -55,12 +55,12 @@ const SwapButtonContainer = styled(Button, {
       detailed: {
         backgroundColor: '$background',
         borderColor: '$borderColor',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        elevation: 2,
       },
       floating: {
         backgroundColor: '$backgroundStrong',
         borderColor: '$borderColorHover',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+        elevation: 3,
       },
     },
 

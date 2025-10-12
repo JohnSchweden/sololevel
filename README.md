@@ -1,6 +1,6 @@
 # Tech Stack
 
-Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Webpack, Storybook, Playwright**
+Tech stack: **Tamagui, Expo Router, Expo, Zustand, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query, Storybook, Playwright**
 
 # Cursor SETUP / TO DO / FOLLOW / OR YOU EXPERIENCE A LOT OF PAIN :D 
 
@@ -201,16 +201,18 @@ npm create tamagui
 
 ## 🔦 About
 
-This monorepo is a starter for an Expo + Next.js + Tamagui + Expo Router app.
+This monorepo is built for cross-platform development with Expo + Expo Router + Tamagui.
 
-Many thanks to [@FernandoTheRojo](https://twitter.com/fernandotherojo) for the original Solito starter monorepo which this was forked from. This version has been updated to use Expo Router. Check out his [talk about using expo + next together at Next.js Conf 2021](https://www.youtube.com/watch?v=0lnbdRweJtA).
+**Architecture:** Both native (iOS/Android) and web use Metro bundler for maximum code sharing. Web platform uses Expo Router with static export (no SSR).
+
+Many thanks to [@FernandoTheRojo](https://twitter.com/fernandotherojo) for the original Solito starter monorepo which this was forked from.
 
 ## 📦 Included packages
 
 - [Tamagui](https://tamagui.dev) 🪄
-- [Expo Router](https://docs.expo.dev/router/) for cross-platform navigation
+- [Expo Router](https://docs.expo.dev/router/) for cross-platform navigation (web + native)
 - Expo SDK
-- Next.js
+- Metro bundler (for both web and native)
 
 ## 🗂 Folder layout
 
@@ -227,20 +229,16 @@ The main apps are:
 
 You can add other folders inside of `packages/` if you know what you're doing and have a good reason to.
 
-> [!TIP]
-> Switching from `app` to `pages` router:
->
-> - remove `app` folder from `apps/next`
-> - move `index.tsx` from `pages-example` to `pages` folder
-> - rename `pages-example-user` to `user` and be sure to update `linkTarget` in `screen.tsx` to `user` as well
-> - delete `SwitchRouterButton.tsx` component and remove it from `screen.tsx` and `packages/ui/src/index.tsx`
+> [!NOTE]
+> **Web Architecture:** The web app (`apps/web`) uses Expo Router with Metro bundler, not Next.js.
+> This enables maximum code sharing with native platforms. Uses static export for deployment.
 > - search for `pagesMode` keyword and remove it
 
 ## 🏁 Start the app
 
 - Install dependencies: `yarn`
 
-- Next.js local dev: `yarn web`
+- Web local dev: `yarn web` (Expo Router + Metro)
 
 To run with optimizer on in dev mode (just for testing, it's faster to leave it off): `yarn web:extract`. To build for production `yarn web:prod`.
 
@@ -292,7 +290,7 @@ You may potentially want to have the native module transpiled for the next app. 
 
 ### Deploying to Vercel
 
-- Root: `apps/next`
+- Root: `apps/web`
 - Install command to be `yarn set version stable && yarn install`
 - Build command: leave default setting
 - Output dir: leave default setting

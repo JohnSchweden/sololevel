@@ -109,12 +109,12 @@ packages/
   - [ ] **Memory Management**: Efficient resource cleanup
   - [ ] **Battery Optimization**: Background processing limits
 
-## Web Platform Implementation Phase (Next.js)
-- [ ] **Next.js Configuration**: Web app setup and optimization
+## Web Platform Implementation Phase (Expo Router)
+- [ ] **Expo Router Configuration**: Web app setup and optimization
 ```typescript
-// Example next.config.js
+// Example metro.config.js
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const metroConfig = {
   transpilePackages: [
     '@my/ui',
     '@my/app',
@@ -163,7 +163,7 @@ const nextConfig = {
 
 - [ ] **Web Performance Optimization**: Browser-specific optimizations
   - [ ] **Code Splitting**: Route-based and component-based splitting
-  - [ ] **Image Optimization**: Next.js Image component usage
+  - [ ] **Image Optimization**: Expo Image component usage
   - [ ] **Caching Strategy**: Static generation and ISR configuration
   - [ ] **Bundle Analysis**: Webpack bundle optimization
 

@@ -136,7 +136,7 @@ We are building a cross-platform mobile application that leverages AI to provide
 ### Architecture
 - **System Components:**
   - Frontend: Tamagui, Expo Router
-  - Backend: Next.js, Supabase
+  - Backend: Supabase (PostgreSQL, Storage, Edge Functions, Realtime)
   - State Management: Zustand
   - Testing: Playwright
 - **Integration Points:**

@@ -1,4 +1,5 @@
 import { supabase } from '@my/api'
+import { log } from '@my/logging'
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -59,21 +60,34 @@ export const useAuthStore = create<AuthStore>()(
       }
     },
 
-    initialize: async () => {
-      if (get().initialized) return
+    initialize: async (): Promise<void> => {
+      log.debug('auth.ts', 'initialize() called, checking if already initialized')
+      if (get().initialized) {
+        log.debug('auth.ts', 'Already initialized, returning early')
+        return
+      }
 
+      log.debug('auth.ts', 'Setting loading=true, initialized=false')
       set({ loading: true })
 
       try {
-        // Get initial session
+        log.debug('auth.ts', 'Calling supabase.auth.getSession()')
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession()
 
+        log.debug('auth.ts', 'getSession() completed', {
+          hasSession: !!session,
+          hasError: !!error,
+          errorMessage: error?.message,
+        })
+
         if (error) {
+          log.error('auth.ts', 'Error getting session', { error: error.message })
           set({ loading: false, initialized: true })
         } else {
+          log.debug('auth.ts', 'Session retrieved successfully, updating state')
           set({
             user: session?.user ?? null,
             session,
@@ -83,14 +97,21 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         // Listen for auth changes - store subscription for cleanup
+        log.debug('auth.ts', 'Setting up onAuthStateChange listener')
         authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+          log.debug('auth.ts', 'Auth state changed', {
+            event: _event,
+            hasSession: !!session,
+          })
           set({
             user: session?.user ?? null,
             session,
             loading: false,
           })
         })
+        log.debug('auth.ts', 'onAuthStateChange listener setup complete')
       } catch (_error) {
+        log.error('auth.ts', 'Exception in initialize()', { error: _error })
         set({ loading: false, initialized: true })
       }
     },

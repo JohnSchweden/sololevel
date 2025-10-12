@@ -91,7 +91,7 @@ A comprehensive, modern code review system has been implemented for the Solo:Lev
 
 #### Solo:Level Architecture Compliance
 - **Monorepo structure**: Validates `@my/ui`, `@my/app`, `@my/api`, `@my/config` boundaries
-- **Cross-platform**: Ensures React Native (Expo) and Web (Next.js) compatibility
+- **Cross-platform**: Ensures React Native (Expo) and Web (Expo Router) compatibility
 - **AI Pipeline**: Validates pose detection, video analysis, and TTS integration
 - **Authentication**: Checks JWT handling, RLS policies, and security patterns
 - **Tamagui**: Ensures proper cross-platform styling usage

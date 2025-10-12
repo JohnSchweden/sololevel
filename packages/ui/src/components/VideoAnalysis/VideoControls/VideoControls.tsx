@@ -441,10 +441,7 @@ export const VideoControls = React.memo(
                   animation="quick"
                   testID="scrubber-handle"
                   zIndex={10}
-                  shadowColor="rgba(0,0,0,0.3)"
-                  shadowOffset={{ width: 0, height: 2 }}
-                  shadowOpacity={isScrubbing ? 0.5 : 0}
-                  shadowRadius={4}
+                  elevation={isScrubbing ? 2 : 0}
                 />
               </YStack>
 

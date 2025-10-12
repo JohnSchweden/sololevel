@@ -21,13 +21,54 @@ config.resolver.nodeModulesPaths = [
 // 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
 config.resolver.disableHierarchicalLookup = true
 
-// 4. Blocklist test directories to prevent test code from being bundled
+// 4. Blocklist test directories and production-only files to prevent bundling
 config.resolver.blockList = [
   // Block test directories
   /.*\/__tests__\/.*/,
   /.*\/test-utils\/.*/,
   /.*\.test\.(ts|tsx|js|jsx)$/,
   /.*\.spec\.(ts|tsx|js|jsx)$/,
+
+  // Block production-only files (pose detection, performance monitoring, etc.)
+  // These are excluded from MVP and should not be bundled
+  /.*\/usePoseMetrics\.ts$/,
+  /.*\/usePoseState\.ts$/,
+  /.*\/poseConfigManager\.ts$/,
+  /.*\/poseStateIntegrationTest\.ts$/,
+  /.*\/poseStatePersistence\.ts$/,
+  /.*\/storeEnhancementMigration\.ts$/,
+  /.*\/cameraRecordingEnhanced\.ts$/,
+  /.*\/enhancedCameraStore\.ts$/,
+  /.*\/performanceStore\.ts$/,
+  /.*\/useAdaptiveQuality\.ts$/,
+  /.*\/useEnhancedZoom\.ts$/,
+  /.*\/useEnhancedCameraSwap\.ts$/,
+  /.*\/useThermalMonitoring\.native\.ts$/,
+  /.*\/useFrameProcessing\.ts$/,
+  /.*\/useFrameProcessor\.native\.ts$/,
+  /.*\/useCameraFrameProcessor\.web\.ts$/,
+  /.*\/usePoseDetection\.native\.ts$/,
+  /.*\/usePoseDetection\.web\.ts$/,
+  /.*\/poseProcessing\.native\.ts$/,
+  /.*\/poseDetection\.web\.ts$/,
+  /.*\/PerformanceMonitor\.tsx$/,
+  /.*\/ThermalIndicator\.tsx$/,
+  /.*\/pose\.ts$/,
+  /.*\/enhanced-state\.ts$/,
+  /.*\/performance\.ts$/,
+  /.*\/thermal\.ts$/,
+  /.*\/cross-platform-state\.ts$/,
+  /.*\/poseDetectionConfig\.ts$/,
+  /.*\/poseDataBuffer\.ts$/,
+  /.*\/poseDataExport\.ts$/,
+  /.*\/poseDataValidation\.ts$/,
+  /.*\/poseThermalIntegration\.ts$/,
+  /.*\/storeMigration\.ts$/,
+  /.*\/cameraRecording\.ts\.backup\.prod$/,
+  /.*\/useCameraPermissions\.native\.ts\.backup\.prod$/,
+  /.*\/useCameraScreenLogic\.ts\.backup\.prod$/,
+  /.*\/useRecordingStateMachine\.ts\.backup\.prod$/,
+  /.*\/poseStore\.ts$/,
 ]
 
 config.transformer = {

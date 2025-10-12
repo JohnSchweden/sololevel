@@ -148,10 +148,6 @@ export const FeedbackPanel = memo(
       <YStack
         flex={flex}
         backgroundColor="$background"
-        shadowColor="$shadowColor"
-        shadowOffset={{ width: 0, height: -2 }}
-        shadowOpacity={0.1}
-        shadowRadius={4}
         elevation={5}
         style={{ transition: 'all 0.5s ease-in-out' }}
         testID="feedback-panel"

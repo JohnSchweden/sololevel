@@ -55,10 +55,7 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
           WebkitBackdropFilter: 'blur(10px)', // Safari support
         }}
         // Enhanced shadow for glassy effect
-        shadowColor="$color12"
-        shadowOffset={{ width: 0, height: 4 }}
-        shadowOpacity={0.1}
-        shadowRadius={6}
+        elevation={3}
         // Soft animation effects
         animation="quick"
         enterStyle={{

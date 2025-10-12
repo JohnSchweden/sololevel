@@ -6,7 +6,7 @@ import { expect, test } from 'vitest'
 
 const treeKillAsync = promisify(treeKill)
 
-test.skip('Next.js dev server starts', async () => {
+test.skip('Expo Router dev server starts', async () => {
   let devProcess: ChildProcess | null = null
 
   try {

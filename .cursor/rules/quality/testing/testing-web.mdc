@@ -1,6 +1,6 @@
 ---
 description: Web testing with Vitest, browser APIs, and web-specific patterns
-globs: ["apps/next/**/*.test.*", "packages/**/*.web.test.*", "**/*.vitest.*"]
+globs: ["apps/web/**/*.test.*", "packages/**/*.web.test.*", "**/*.vitest.*"]
 parent: "quality/testing-unified"
 priority: medium
 ---
@@ -180,13 +180,13 @@ describe('Button', () => {
 })
 ```
 
-### Next.js Specific Patterns
+### Expo Router Specific Patterns
 ```typescript
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// Mock Next.js router
-vi.mock('next/router', () => ({
+// Mock Expo Router
+vi.mock('expo-router', () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
     pathname: '/',
@@ -195,9 +195,9 @@ vi.mock('next/router', () => ({
   }))
 }))
 
-// Mock Next.js Image
-vi.mock('next/image', () => ({
-  default: ({ src, alt, ...props }) => {
+// Mock Expo Image (if using expo-image)
+vi.mock('expo-image', () => ({
+  Image: ({ source, alt, ...props }) => {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={alt} {...props} />
   }

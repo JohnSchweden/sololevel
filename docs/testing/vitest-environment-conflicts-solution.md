@@ -1,7 +1,7 @@
-# Next.js Vitest Environment Conflicts - Solution Documentation
+# Web Vitest Environment Conflicts - Solution Documentation
 
 ## Problem Summary
-The Next.js Vitest configuration was experiencing complex test environment conflicts, specifically:
+The web Vitest configuration was experiencing complex test environment conflicts, specifically:
 - Module resolution failures for `@my/app/hooks/useAuth`
 - React undefined errors in JSX components
 - Inconsistent mock behavior between tests
@@ -16,7 +16,7 @@ The Next.js Vitest configuration was experiencing complex test environment confl
 
 ## Solution Implementation
 
-### 1. Enhanced Vitest Configuration (`apps/next/vitest.config.mts`)
+### 1. Enhanced Vitest Configuration (`apps/web/vitest.config.mts`)
 ```typescript
 export default defineConfig({
   resolve: {
@@ -57,7 +57,7 @@ export default defineConfig({
 })
 ```
 
-### 2. Improved Test Setup (`apps/next/test-setup.ts`)
+### 2. Improved Test Setup (`apps/web/test-setup.ts`)
 ```typescript
 import { vi, beforeEach, afterEach } from 'vitest'
 import '@testing-library/jest-dom'
@@ -115,7 +115,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 ```
 
-### 3. Fixed Test Implementation (`apps/next/__tests__/AuthGate.test.tsx`)
+### 3. Fixed Test Implementation (`apps/web/__tests__/AuthGate.test.tsx`)
 ```typescript
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -130,7 +130,7 @@ import { useRouter } from 'expo-router'
 const mockUseAuth = vi.mocked(useAuth)
 const mockUseRouter = vi.mocked(useRouter)
 
-describe('AuthGate (Next.js)', () => {
+describe('AuthGate (Web)', () => {
   let mockRouter: ReturnType<typeof useRouter>
 
   beforeEach(() => {
@@ -172,7 +172,7 @@ describe('AuthGate (Next.js)', () => {
 })
 ```
 
-### 4. Component React Import Fix (`apps/next/components/AuthGate.tsx`)
+### 4. Component React Import Fix (`apps/web/components/AuthGate.tsx`)
 ```typescript
 import React, { useEffect } from 'react'
 import { useAuth } from '@my/app/hooks/useAuth'
@@ -251,4 +251,4 @@ import { useAuth } from '@my/app/hooks/useAuth'
 
 **Document Version**: 1.0  
 **Last Updated**: 2025-09-24  
-**Status**: ✅ **RESOLVED** - All Next.js Vitest environment conflicts fixed
+**Status**: ✅ **RESOLVED** - All web Vitest environment conflicts fixed

@@ -5,19 +5,19 @@
  */
 
 import type {
-  PoseDetectionResult,
-  PoseOverlayConfig,
-} from '@app/features/CameraRecording/types/pose'
+  MVPPoseDetectionResult,
+  MVPPoseOverlayConfig,
+} from '@app/features/CameraRecording/types/MVPpose'
 import { Platform } from 'react-native'
 import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 
 export interface PoseOverlayProps {
-  pose: PoseDetectionResult | null
-  config?: Partial<PoseOverlayConfig>
+  pose: MVPPoseDetectionResult | null
+  config?: Partial<MVPPoseOverlayConfig>
   width: number
   height: number
   style?: any
-  onPoseUpdate?: (pose: PoseDetectionResult) => void
+  onPoseUpdate?: (pose: MVPPoseDetectionResult) => void
 }
 
 /**

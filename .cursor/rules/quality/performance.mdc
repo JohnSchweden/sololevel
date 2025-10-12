@@ -49,8 +49,8 @@ const updateMutation = useMutation({
 - Use optimized formats (WebP/AVIF for web)
 
 ```typescript
-// ✅ Good - Next.js
-import Image from 'next/image'
+// ✅ Good - Expo (web + native)
+import { Image } from 'expo-image'
 <Image 
   src="/image.jpg" 
   width={300} 

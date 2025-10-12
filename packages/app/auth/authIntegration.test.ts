@@ -25,6 +25,7 @@ jest.mock('@my/api', () => ({
 jest.mock('@my/logging', () => ({
   logOnChange: jest.fn(),
   log: {
+    debug: jest.fn(),
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),

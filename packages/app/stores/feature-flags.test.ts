@@ -5,11 +5,8 @@ import { useFeatureFlagsStore } from './feature-flags'
 // Mock environment variables
 const mockEnv = {
   NODE_ENV: 'test',
-  NEXT_PUBLIC_USE_MOCKS: 'false',
   EXPO_PUBLIC_USE_MOCKS: 'false',
-  NEXT_PUBLIC_ENABLE_BETA_FEATURES: 'false',
   EXPO_PUBLIC_ENABLE_BETA_FEATURES: 'false',
-  NEXT_PUBLIC_ENABLE_ANALYTICS: 'true',
   EXPO_PUBLIC_ENABLE_ANALYTICS: 'true',
 }
 
@@ -183,8 +180,8 @@ describe('FeatureFlagsStore', () => {
       expect(state.lastUpdated).toBeInstanceOf(Date)
     })
 
-    it('loads flags with beta features enabled via NEXT_PUBLIC env', async () => {
-      process.env.NEXT_PUBLIC_ENABLE_BETA_FEATURES = 'true'
+    it('loads flags with beta features enabled via EXPO_PUBLIC env', async () => {
+      process.env.EXPO_PUBLIC_ENABLE_BETA_FEATURES = 'true'
 
       await useFeatureFlagsStore.getState().loadFlags()
 
@@ -202,8 +199,8 @@ describe('FeatureFlagsStore', () => {
       expect(state.flags.enableBetaFeatures).toBe(true)
     })
 
-    it('loads flags with analytics disabled via NEXT_PUBLIC env', async () => {
-      process.env.NEXT_PUBLIC_ENABLE_ANALYTICS = 'false'
+    it('loads flags with analytics disabled via EXPO_PUBLIC env', async () => {
+      process.env.EXPO_PUBLIC_ENABLE_ANALYTICS = 'false'
 
       await useFeatureFlagsStore.getState().loadFlags()
 
@@ -221,7 +218,7 @@ describe('FeatureFlagsStore', () => {
     })
 
     it('handles multiple environment overrides', async () => {
-      process.env.NEXT_PUBLIC_ENABLE_BETA_FEATURES = 'true'
+      process.env.EXPO_PUBLIC_ENABLE_BETA_FEATURES = 'true'
       process.env.EXPO_PUBLIC_ENABLE_ANALYTICS = 'false'
 
       await useFeatureFlagsStore.getState().loadFlags()
@@ -238,7 +235,7 @@ describe('FeatureFlagsStore', () => {
       // Store original state for cleanup
       const originalSetFlags = useFeatureFlagsStore.getState().setFlags
 
-      process.env.NEXT_PUBLIC_ENABLE_BETA_FEATURES = 'true'
+      process.env.EXPO_PUBLIC_ENABLE_BETA_FEATURES = 'true'
 
       await useFeatureFlagsStore.getState().loadFlags()
 
@@ -288,7 +285,7 @@ describe('FeatureFlagsStore', () => {
       expect(state.flags.enableBetaFeatures).toBe(true) // Preserved
 
       // Load flags with environment overrides
-      process.env.NEXT_PUBLIC_ENABLE_ANALYTICS = 'false'
+      process.env.EXPO_PUBLIC_ENABLE_ANALYTICS = 'false'
       await store.loadFlags()
 
       state = useFeatureFlagsStore.getState()

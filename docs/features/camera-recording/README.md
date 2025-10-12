@@ -23,7 +23,7 @@ Camera recording screen with idle/recording states, live pose detection overlay,
 - **Technical Requirements**: Full TRD alignment (performance, security, architecture)
 - **Mobile-First Design**: Responsive breakpoints, 44px touch targets, safe areas
 - **Component Architecture**: TypeScript interfaces and testing strategy
-- **Cross-Platform**: Native (Expo) and Web (Next.js) implementation strategy
+- **Cross-Platform**: Native (Expo) and Web (Expo Router) implementation strategy
 
 ### 🧪 Validation Results
 - **User Story Coverage**: 100% (15/15 stories)

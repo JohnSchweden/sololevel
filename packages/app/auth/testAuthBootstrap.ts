@@ -1,8 +1,12 @@
 import { authClient } from '@my/api'
 import { log } from '@my/logging'
+import { Platform } from 'react-native'
 
 // Global state to prevent duplicate bootstrap calls
 let bootstrapInFlight = false
+
+// Platform detection helper
+const isWeb = Platform.OS === 'web'
 
 /**
  * Result of test auth bootstrap operation
@@ -20,14 +24,13 @@ function validateEnvironment(): TestAuthBootstrapResult {
   // Check if we're in production build
   const nodeEnv = process.env.NODE_ENV
   const expoEnv = process.env.EXPO_PUBLIC_ENV
-  const nextEnv = process.env.NEXT_PUBLIC_ENV
 
   // Allow in test, development, or when NODE_ENV is undefined
   const isAllowedEnv = !nodeEnv || nodeEnv === 'test' || nodeEnv === 'development'
-  const isProductionBuild = expoEnv === 'production' || nextEnv === 'production'
+  const isProductionBuild = expoEnv === 'production'
 
   if (!isAllowedEnv || isProductionBuild) {
-    const error = `Test auth bootstrap is disabled in production builds (NODE_ENV: ${nodeEnv}, EXPO_PUBLIC_ENV: ${expoEnv}, NEXT_PUBLIC_ENV: ${nextEnv})`
+    const error = `Test auth bootstrap is disabled in production builds (NODE_ENV: ${nodeEnv}, EXPO_PUBLIC_ENV: ${expoEnv})`
     log.error('testAuthBootstrap', error)
     return {
       success: false,
@@ -42,20 +45,18 @@ function validateEnvironment(): TestAuthBootstrapResult {
 /**
  * Check if test auth is enabled via environment variables
  * Reads platform-aware env vars with fallback to generic TEST_AUTH_ENABLED
+ * Uses EXPO_PUBLIC_ for both web and native (Metro bundler)
  */
 function isTestAuthEnabled(): boolean {
-  // Try platform-specific env vars first, then fallback to generic
-  const enabled =
-    process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED ||
-    process.env.NEXT_PUBLIC_TEST_AUTH_ENABLED ||
-    process.env.TEST_AUTH_ENABLED
+  // Both web and native use EXPO_PUBLIC_ (Metro bundler)
+  const enabled = process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED || process.env.TEST_AUTH_ENABLED
 
   const result = enabled === 'true' || enabled === '1'
 
   // Log resolved values for debugging
   log.info('testAuthBootstrap', 'Resolved TEST_AUTH_ENABLED', {
+    platform: isWeb ? 'web' : 'native',
     expoPublic: process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED,
-    nextPublic: process.env.NEXT_PUBLIC_TEST_AUTH_ENABLED,
     generic: process.env.TEST_AUTH_ENABLED,
     resolved: enabled,
     enabled: result,
@@ -67,25 +68,20 @@ function isTestAuthEnabled(): boolean {
 /**
  * Get test auth credentials from environment variables
  * Reads platform-aware env vars with fallback to generic TEST_AUTH_*
+ * Uses EXPO_PUBLIC_ for both web and native (Metro bundler)
  */
 function getTestAuthCredentials(): { email: string; password: string } | null {
-  // Try platform-specific env vars first, then fallback to generic
-  const email =
-    process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL ||
-    process.env.NEXT_PUBLIC_TEST_AUTH_EMAIL ||
-    process.env.TEST_AUTH_EMAIL
+  // Both web and native use EXPO_PUBLIC_ (Metro bundler)
+  const email = process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL || process.env.TEST_AUTH_EMAIL
 
-  const password =
-    process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD ||
-    process.env.NEXT_PUBLIC_TEST_AUTH_PASSWORD ||
-    process.env.TEST_AUTH_PASSWORD
+  const password = process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD || process.env.TEST_AUTH_PASSWORD
 
   // Log resolved values for debugging (mask password)
   log.info('testAuthBootstrap', 'Resolved test auth credentials', {
+    platform: isWeb ? 'web' : 'native',
     emailResolved: email ? 'present' : 'missing',
     passwordResolved: password ? 'present' : 'missing',
     expoEmail: process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL ? 'present' : 'missing',
-    nextEmail: process.env.NEXT_PUBLIC_TEST_AUTH_EMAIL ? 'present' : 'missing',
     genericEmail: process.env.TEST_AUTH_EMAIL ? 'present' : 'missing',
   })
 

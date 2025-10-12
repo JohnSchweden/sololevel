@@ -4,8 +4,8 @@
     "DISABLE_EXTRACTION",
     "NODE_ENV",
     "EAS_BUILD_PLATFORM",
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
+    "EXPO_PUBLIC_SUPABASE_URL",
+    "EXPO_PUBLIC_SUPABASE_KEY"
   ],
   "pipeline": {
     "build": {
@@ -13,8 +13,8 @@
         "DISABLE_EXTRACTION",
         "NODE_ENV",
         "EAS_BUILD_PLATFORM",
-        "NEXT_PUBLIC_SUPABASE_URL",
-        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_KEY"
       ],
       "dependsOn": ["^build"],
       "outputs": [

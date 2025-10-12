@@ -87,7 +87,7 @@
 - [ ] **TDD Step 2**: Implement screen components [Both] [M]
   - Create screen component in packages/app/features
   - Add Expo Router route in apps/expo/app [Native]
-  - Add Next.js page in apps/next/pages [Web]
+  - Add Expo Router page in apps/web/app [Web]
 - [ ] **TDD Step 3**: Write navigation integration tests [Both] [S]
   - Test navigation between screens
   - Test deep linking support
@@ -216,7 +216,7 @@
 - `packages/ui/components/ScreenName/` — UI component directory [ ]
 - `packages/app/features/ScreenName/` — Screen logic directory [ ]
 - `apps/expo/app/screen-name.tsx` — Native route [ ]
-- `apps/next/pages/screen-name.tsx` — Web route [ ]
+- `apps/web/app/screen-name.tsx` — Web route [ ]
 - `packages/api/hooks/useScreenNameData.ts` — Data hooks [ ]
 - `supabase/migrations/xxx_screen_tables.sql` — Database schema [ ]
 

@@ -40,7 +40,7 @@ interface PoseDetectionResult {
 interface PoseOverlayConfig {
   showKeypoints: boolean
   showConnections: boolean
-  showConfidence: boolean
+  showConfidence?: boolean
   keypointRadius: number
   connectionWidth: number
   colors: {
@@ -49,13 +49,14 @@ interface PoseOverlayConfig {
     lowConfidence: string
     highConfidence: string
   }
-  enableAnimation: boolean
-  animationDuration: number
-  interpolationFrames: number
-  scaleWithConfidence: boolean
-  minScale: number
-  maxScale: number
   confidenceThreshold: number
+  // Optional properties for advanced features (not used in MVP)
+  enableAnimation?: boolean
+  animationDuration?: number
+  interpolationFrames?: number
+  scaleWithConfidence?: boolean
+  minScale?: number
+  maxScale?: number
 }
 
 interface PoseConnection {
@@ -77,13 +78,13 @@ const DEFAULT_OVERLAY_CONFIG: PoseOverlayConfig = {
     lowConfidence: '#ff6b6b',
     highConfidence: '#51cf66',
   },
+  confidenceThreshold: 0.3,
   enableAnimation: true,
   animationDuration: 100,
   interpolationFrames: 3,
   scaleWithConfidence: true,
   minScale: 0.5,
   maxScale: 1.0,
-  confidenceThreshold: 0.3,
 }
 
 const POSE_CONNECTIONS: PoseConnection[] = [
@@ -175,7 +176,9 @@ export const PoseOverlayUtils = {
       return config.keypointRadius
     }
 
-    const scale = config.minScale + confidence * (config.maxScale - config.minScale)
+    const minScale = config.minScale ?? 0.5
+    const maxScale = config.maxScale ?? 1.0
+    const scale = minScale + confidence * (maxScale - minScale)
     return config.keypointRadius * scale
   },
 

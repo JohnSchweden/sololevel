@@ -18,7 +18,7 @@ yarn supabase gen types typescript --local > packages/api/types/database.ts
 Run after any database schema changes.
 
 ### Mocking Strategy
-- Toggle: `EXPO_PUBLIC_USE_MOCKS` / `NEXT_PUBLIC_USE_MOCKS`
+- Toggle: `EXPO_PUBLIC_USE_MOCKS`
 - DI pattern: Export real or mock client
 - Location: `mock.ts` for mock implementations
 

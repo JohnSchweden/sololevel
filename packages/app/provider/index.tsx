@@ -9,6 +9,7 @@ const getActionSheetProvider = () => {
     return ({ children }: { children: React.ReactNode }) => children
   }
 }
+import { log } from '@my/logging'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
 import { enableMapSet } from 'immer'
 import { useEffect, useState } from 'react'
@@ -50,10 +51,24 @@ export function Provider({
 
   // Initialize stores and test auth once
   useEffect(() => {
-    useAuthStore.getState().initialize()
+    log.debug('Provider', 'Starting initialization')
+
+    log.debug('Provider', 'Calling useAuthStore.getState().initialize()')
+    useAuthStore
+      .getState()
+      .initialize()
+      .then(() => {
+        log.debug('Provider', 'Auth store initialized successfully')
+      })
+      .catch((error) => {
+        log.error('Provider', 'Auth store initialization failed', { error })
+      })
+
+    log.debug('Provider', 'Loading feature flags')
     useFeatureFlagsStore.getState().loadFlags()
 
     // Initialize test auth after auth store is ready
+    log.debug('Provider', 'Initializing test auth')
     initializeTestAuth()
 
     // Setup video history cache cleanup on logout
@@ -61,8 +76,10 @@ export function Provider({
       setupVideoHistoryCacheCleanup,
     } = require('../features/HistoryProgress/stores/videoHistory')
     const unsubscribe = setupVideoHistoryCacheCleanup(useAuthStore)
+    log.debug('Provider', 'Video history cache cleanup configured')
 
     return () => {
+      log.debug('Provider', 'Cleanup: unsubscribing video history cache')
       unsubscribe()
     }
   }, [])

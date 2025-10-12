@@ -1,7 +1,7 @@
 # OPTIMIZED WEB APP PIPELINE v2.0 - Leveraging Native Synergies
 
 ## **Architecture & State Management**
-* **Next.js 14+** + **Tamagui** + **Zustand** (shared with native)
+* **Expo Router** + **Tamagui** + **Zustand** (shared with native)
 * **Progressive Web App (PWA)** capabilities with service worker optimization
 * **WebGPU acceleration** with WebGL fallback for maximum performance
 * **Shared component library** and state management with mobile app

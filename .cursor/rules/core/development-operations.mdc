@@ -46,10 +46,11 @@ Operational standards for daily development: command usage, Yarn 4 workspace man
 ## Dependency Strategy
 
 ### Categories
-- Core: React, React Native, Expo, Next.js, TypeScript
+- Core: React, React Native, Expo, Expo Router, TypeScript
 - UI: Tamagui, Expo Router, Lucide React
 - Backend: Supabase client/CLI
 - State: Zustand, TanStack Query, React Hook Form
+- Logging: Custom cross-platform structured logger (@my/logging)
 - Dev/Test: Turbo, Vitest, Biome, Playwright, React Testing Library
 
 ### Version Management
@@ -116,14 +117,15 @@ Fix peer dependency conflicts using `resolutions` and `packageExtensions` in roo
 | Add to app logic | `yarn workspace @my/app add <package>` | @my/app |
 | Add to API clients | `yarn workspace @my/api add <package>` | @my/api |
 | Add to config | `yarn workspace @my/config add <package>` | @my/config |
+| Add to logging | `yarn workspace @my/logging add <package>` | @my/logging |
 | Add to Expo app | `yarn workspace expo-app add <package>` | expo-app |
-| Add to Next.js app | `yarn workspace next-app add <package>` | next-app |
+| Add to Web app | `yarn workspace web-app add <package>` | web-app |
 | **General Operations** | | |
 | Run workspace script | `yarn workspace <name> run <script>` | Specific workspace |
 | List all workspaces | `yarn workspaces list` | Root |
 | **Build & Test Filters** | | |
 | Build native only | `yarn build --filter=expo-app` | expo-app |
-| Build web only | `yarn build --filter=next-app` | next-app |
+| Build web only | `yarn build --filter=web-app` | web-app |
 | Test without native | `yarn test --exclude expo-app` | All except expo-app |
 
 ## Supabase Local Development

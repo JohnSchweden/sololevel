@@ -18,7 +18,7 @@ e2e/setup-failure.png
 # expo
 **/.expo/*
 
-# next.js
+# expo router (web)
 **/.next/*
 /out/
 

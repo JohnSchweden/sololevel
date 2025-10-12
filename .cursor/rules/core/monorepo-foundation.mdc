@@ -14,12 +14,13 @@ Establishes a unified foundation for architectural principles, repository struct
 project-root/
 ├── apps/          # Applications
 │   ├── expo/      # React Native app (expo-app)
-│   └── next/      # Next.js web app (next-app)
+│   └── web/       # Expo Router web app (web-app)
 ├── packages/      # Shared code
 │   ├── ui/        # Tamagui components (@my/ui)
 │   ├── app/       # Business logic, screens, hooks (@my/app)
 │   ├── api/       # Backend integrations & clients (@my/api)
-│   └── config/    # Configuration & types (@my/config)
+│   ├── config/    # Configuration & types (@my/config)
+│   └── logging/   # Cross-platform structured logger (@my/logging)
 ├── docs/          # Documentation
 ├── supabase/      # Backend configuration
 └── .cursorrules   # AI behavior configuration
@@ -52,7 +53,7 @@ See `quality/security-best-practices.mdc` and `SECURITY.md` for detailed securit
 - Caching: edge caching for static content
 
 **Performance Budgets:**
-- Web (Next.js): Main route JS bundle ≤ 250KB gzipped; review weekly
+- Web (Expo Router): Main route JS bundle ≤ 250KB gzipped; review weekly
 - Native (Expo): Avoid large monolithic imports; prefer code splitting
 - Images: Use optimized formats and restrict remote image sizes
 
@@ -64,6 +65,7 @@ See `quality/performance.mdc` for more details.
 - **Shared UI:** Place reusable UI in `packages/ui`; avoid app-specific styles here
 - **Backend Access:** Route all backend calls through `packages/api`; do not fetch directly from UI
 - **Configuration & Types:** Centralize in `packages/config` for cross-package sharing
+- **Logging:** Use `packages/logging` for all structured logging; provides cross-platform logger with dev/prod gating
 - **Path Aliases:** Update `tsconfig.base.json` with new aliases when adding packages
 
 ### Adding a New Package
@@ -75,8 +77,8 @@ See `quality/performance.mdc` for more details.
 6. Build with Turbo and ensure consumers import via the alias
 
 ### Package Naming Conventions
-- **Apps:** `expo-app`, `next-app` (match directory names)
-- **Shared Packages:** `@my/ui`, `@my/app`, `@my/api`, `@my/config`
+- **Apps:** `expo-app`, `web-app` (match directory names)
+- **Shared Packages:** `@my/ui`, `@my/app`, `@my/api`, `@my/config`, `@my/logging`
 - **Internal Dependencies:** Use `workspace:*`
 - **Privacy:** All packages must include `"private": true` in `package.json`
 

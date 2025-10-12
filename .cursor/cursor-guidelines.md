@@ -2,7 +2,7 @@
 
 See also: [instructions.md](./instructions.md) for rule precedence, scoping, and file globs.
 
-Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query**
+Tech stack: **Tamagui, Expo Router, Expo, Zustand, Supabase, Yarn, TypeScript, Turborepo, Metro, Zod, TanStack Query**
 
 ---
 
@@ -30,14 +30,15 @@ Tech stack: **Tamagui, Expo Router, Expo, Zustand, Next.js, Supabase, Yarn, Type
 
 ### Expo / Metro
 
-* `expo start --clear`
+* `web --clear`
 * Device logs: `yarn react-native log-ios` / `yarn react-native log-android`
 * Use `Platform.OS` logs for iOS vs Android issues
 
-### Next.js
+### Expo Router (Web)
 
-* Check API routes separately from React components
-* Debug SSR/SSG/hydration differences
+* Debug static export and client-side routing
+* Check Metro bundling for environment variable inlining
+* Validate cross-platform navigation consistency
 
 ### Zustand
 

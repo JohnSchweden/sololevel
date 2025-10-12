@@ -135,7 +135,7 @@ RecordScreen
 - [ ] **E2E Tests**: Test critical user journeys
 
 ## Cross-Platform Validation Phase
-- [ ] **Web Implementation**: Next.js routing, SEO considerations
+- [ ] **Web Implementation**: Expo Router routing, SEO considerations
 - [ ] **Native Implementation**: Expo Router, platform-specific gestures
 - [ ] **Shared Logic**: Business logic in packages/app/features
 - [ ] **Performance Testing**: Bundle size, render performance, memory usage

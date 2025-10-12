@@ -4,7 +4,7 @@
 
 ## Core Stack
 
-**Clients:** Expo (iOS/Android) + Next.js (Web) | **UI:** Tamagui | **Backend:** Supabase | **State:** Zustand + TanStack Query
+**Clients:** Expo (iOS/Android) + Expo Router (Web) | **Bundler:** Metro | **UI:** Tamagui | **Backend:** Supabase | **State:** Zustand + TanStack Query
 
 ## Platform Implementations
 
@@ -95,8 +95,8 @@ GET /ai-analyze-video/health
 - Store: `packages/app/stores/auth.ts` (global state)
 
 **Route Protection:**
-- Expo: `AuthGate` component → redirects to `/auth/sign-in`
-- Next.js: Middleware (`apps/next/middleware.ts`) + `AuthGate`
+- Both platforms: `AuthGate` component → redirects to `/auth/sign-in`
+- Static export: No server middleware (client-side only)
 
 **Test Auth:** Set `TEST_AUTH_ENABLED=true` in dev environment
 
@@ -120,7 +120,7 @@ GET /ai-analyze-video/health
 - Analysis: `packages/app/stores/analysis.ts`
 
 **Screens:**
-- Sign-in: `apps/expo/app/auth/sign-in.tsx`, `apps/next/app/auth/sign-in.tsx`
+- Sign-in: `apps/expo/app/auth/sign-in.tsx`, `apps/web/app/auth/sign-in.tsx`
 - Video Analysis: `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
 
 **Edge Functions:**

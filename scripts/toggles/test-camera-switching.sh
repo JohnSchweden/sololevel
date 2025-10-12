@@ -69,7 +69,7 @@ if [ "$VISION_PASSED" = true ] && [ "$EXPO_PASSED" = true ]; then
     echo "🎉 All tests passed! Camera switching is working correctly."
     echo ""
     echo "Next steps:"
-    echo "1. Run 'yarn expo start' to test in Expo Go (uses Expo Camera)"
+    echo "1. Run 'yarn web' to test in Expo Go (uses Expo Camera)"
     echo "2. Build native app to test VisionCamera implementation"
     echo "3. Use './scripts/toggles/toggle-camera.sh' to switch between implementations"
 else

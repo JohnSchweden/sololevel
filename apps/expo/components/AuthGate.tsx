@@ -23,6 +23,10 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
   const { isAuthenticated, loading, initialized } = useAuth()
   const router = useRouter()
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    log.debug('AuthGate', 'Render', { isAuthenticated, loading, initialized })
+  }
+
   // Log deduplication ref - must be called unconditionally at component level
   const lastLoggedKeyRef = useRef<string>('')
 

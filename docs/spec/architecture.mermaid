@@ -2,9 +2,10 @@ graph TB
     User["👤 Users"]
 
     subgraph Client["Client Applications"]
-        Apps["📱 Expo + 🌐 Next.js"]
+        Apps["📱 Expo (Native) + 🌐 Expo Router (Web)"]
+        Bundler["📦 Metro Bundler"]
         Router["🧭 Expo Router"]
-        Auth["🔐 AuthGate + Middleware"]
+        Auth["🔐 AuthGate"]
     end
 
     subgraph Packages["Shared Packages (@my/*)"]

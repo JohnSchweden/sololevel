@@ -1,5 +1,5 @@
 {
-  "name": "next-app",
+  "name": "web-app",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -7,7 +7,7 @@
     "dev": "yarn expo start --web",
     "build": "expo export --platform web",
     "start": "yarn expo start --web",
-    "serve": "yarn serve dist -p 8151",
+    "serve": "serve dist -p 8151",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
@@ -60,6 +60,7 @@
     "babel-loader": "^10.0.0",
     "expo": "~53.0.23",
     "react-native": "0.79.6",
+    "serve": "^14.2.5",
     "tree-kill": "^1.2.2",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.2",

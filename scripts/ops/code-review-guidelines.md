@@ -168,7 +168,7 @@ yarn code-review --ci          # CI/CD pipeline validation
 - [ ] **Permissions**: Proper permission handling
 - [ ] **Camera integration**: Efficient camera usage
 
-#### Web (Next.js)
+#### Web (Expo Router)
 - [ ] **SSR compatibility**: Server-side rendering support
 - [ ] **Browser APIs**: Proper browser API usage
 - [ ] **SEO optimization**: Meta tags and structured data

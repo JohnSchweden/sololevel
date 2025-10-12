@@ -8,7 +8,7 @@ Based on comprehensive testing and analysis of the authentication implementation
 - ✅ **16+ integration tests passing** (auth flows, route protection)
 - ✅ **Linting clean** (705 files, no issues)
 - ⚠️ **TypeScript errors** in RLS helpers and test mocks
-- ⚠️ **Module resolution** issues in Next.js tests
+- ⚠️ **Module resolution** issues in web tests
 
 ## Priority Action Items
 
@@ -59,11 +59,11 @@ export function createUserScopedQuery<T extends keyof Database['public']['Tables
 
 ### Phase 2: Test Environment Fixes (Medium Priority)
 
-#### 4. Fix Next.js Vitest Module Resolution
-**Issue**: `Cannot find module '@my/app/hooks/useAuth'` in Next.js tests
+#### 4. Fix Web Vitest Module Resolution
+**Issue**: `Cannot find module '@my/app/hooks/useAuth'` in web tests
 **Solution**: Update Vitest configuration with correct path mappings
 ```typescript
-// apps/next/vitest.config.mts
+// apps/web/vitest.config.mts
 export default defineConfig({
   resolve: {
     alias: {
@@ -159,7 +159,7 @@ npx husky add .husky/pre-commit "yarn lint-staged"
 - [ ] Generate Supabase types and update imports
 - [ ] Fix RLS helper type issues
 - [ ] Standardize auth function signatures
-- [ ] Fix Next.js Vitest configuration
+- [ ] Fix Web Vitest configuration
 
 ### Week 2: Test Improvements
 - [ ] Improve Jest mock type safety
@@ -180,7 +180,7 @@ npx husky add .husky/pre-commit "yarn lint-staged"
 
 ### Test Reliability
 - [ ] All 64+ authentication tests pass consistently
-- [ ] Next.js AuthGate tests resolve module imports
+- [ ] Web AuthGate tests resolve module imports
 - [ ] Environment variable mocking prevents test failures
 
 ### Developer Experience
@@ -236,8 +236,8 @@ npx husky add .husky/pre-commit "yarn lint-staged"
 - **Code Quality**: Linting passes across 707 files with automatic fixes applied
 
 ### ⚠️ Partial Progress (Medium Priority)
-- **Next.js Vitest Configuration**: Path aliases configured but complex test environment issues remain
-- **Test Setup Files**: Created `apps/next/test-setup.ts` with module mocking
+- **Web Vitest Configuration**: Path aliases configured but complex test environment issues remain
+- **Test Setup Files**: Created `apps/web/test-setup.ts` with module mocking
 
 ### ✅ Additional Completions
 - **Environment Variable Mocking**: Added to `packages/app/__tests__/setup.ts` and `packages/api/vitest.setup.ts`
@@ -246,7 +246,7 @@ npx husky add .husky/pre-commit "yarn lint-staged"
 - **RLS Helper Types**: Resolved complex Supabase typing with pragmatic `UserScopedTable` approach
 
 ### ⚠️ Non-blocking Issue
-- **Next.js Vitest Configuration**: Complex test environment conflicts (functional code works correctly)
+- **Web Vitest Configuration**: Complex test environment conflicts (functional code works correctly)
 
 ## Key Achievements
 

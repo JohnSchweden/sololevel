@@ -169,6 +169,7 @@ export const DEFAULT_MVP_POSE_CONFIG: MVPPoseDetectionConfig = {
 export interface MVPPoseOverlayConfig {
   showKeypoints: boolean
   showConnections: boolean
+  showConfidence?: boolean
   keypointRadius: number
   connectionWidth: number
   colors: {
@@ -178,6 +179,9 @@ export interface MVPPoseOverlayConfig {
     highConfidence: string
   }
   confidenceThreshold: number
+  // Platform-specific configs (optional)
+  skia?: any
+  webgl?: any
 }
 
 /**

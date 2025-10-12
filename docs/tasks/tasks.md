@@ -198,7 +198,7 @@ interface VideoHistoryStore {
 
 **SCOPE:**
 
-#### Module 1: History Query Hook ✅
+d#### Module 1: History Query Hook ✅
 **Summary:** TanStack Query hook with cache-first strategy.
 
 **File:** `packages/app/features/HistoryProgress/hooks/useHistoryQuery.ts`
@@ -426,7 +426,7 @@ interface VideosSectionProps {
 - `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (Orchestrator screen with pull-to-refresh)
 - `packages/app/features/HistoryProgress/index.ts` (exports)
 - `apps/expo/app/history-progress.tsx` (Expo Router route)
-- `apps/next/app/history-progress.tsx` (Next.js route)
+- `apps/web/app/history-progress.tsx` (Expo Router route)
 
 **FILES MODIFIED:**
 - `apps/expo/app/_layout.tsx` (added `/history-progress` route with NavigationAppHeader)
@@ -774,11 +774,11 @@ export function useHistoricalAnalysis(analysisId: number | null) {
 
 **Files:**
 - `apps/expo/app/history-progress.tsx` (❌ to create)
-- `apps/next/app/history-progress.tsx` (❌ to create)
+- `apps/web/app/history-progress.tsx` (✅ created)
 
 **Tasks:**
 - [ ] Create native route file in `apps/expo/app/history-progress.tsx`
-- [ ] Create web route file in `apps/next/app/history-progress.tsx`
+- [x] Create web route file in `apps/web/app/history-progress.tsx`
 - [ ] Import HistoryProgressScreen from `@my/app`
 - [ ] Configure route metadata (title, header options)
 - [ ] Add authentication guard (redirect if not authenticated)

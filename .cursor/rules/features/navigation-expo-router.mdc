@@ -25,7 +25,7 @@ alwaysApply: false
 
 # Cross-Platform Integration
 - Use dependency injection for navigation components via props
-- Next.js pages use Next.js router, Expo uses Expo Router
+- Both web and native use Expo Router (unified navigation)
 
 # Platform-Specific Implementation
 ```typescript
@@ -53,8 +53,8 @@ export function HomeScreen({
   }
 />
 
-// ✅ Good - Next.js implementation  
-// apps/next/pages/index.tsx
+// ✅ Good - Web implementation  
+// apps/web/app/index.tsx
 <HomeScreen 
   linkComponent={
     <Link href="/user/nate" passHref legacyBehavior>

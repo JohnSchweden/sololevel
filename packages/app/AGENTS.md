@@ -11,7 +11,7 @@
 ### Structure
 - Screens: `features/<feature>/screens/`
 - Keep screens platform-agnostic
-- Route files in `apps/expo/app/` or `apps/next/app/`
+- Route files in `apps/expo/app/` or `apps/web/app/`
 
 **Patterns:** See `.cursor/rules/features/navigation-expo-router.mdc`
 - Platform-agnostic screen patterns (lines 33-67)

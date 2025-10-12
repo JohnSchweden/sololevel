@@ -33,7 +33,7 @@ As a developer, I want to use the existing centralized state management system f
 - **Performance**: Web Workers (web) and react-native-worklets-core (native) for background processing
 - **Error Handling**: Discriminated union results with Zod validation and structured error codes
 - **Persistence**: SQLite storage for pose data, AsyncStorage for user preferences
-- **Cross-platform**: Unified state interface for Expo (native) and Next.js (web) implementations
+- **Cross-platform**: Unified state interface for Expo (native) and Expo Router (web) implementations
 - **Real-time Sync**: WebSocket connections for live pose detection during recording
 
 ---
@@ -271,7 +271,7 @@ As a user, I want a consistent header in the video player that appears and disap
 - **UI Consistency**: Maintains design consistency with other app screens using AppHeader
 - **Accessibility**: WCAG 2.2 AA compliance with proper ARIA labels and keyboard navigation
 - **Component Integration**: Header integrated into existing VideoControls component with shared visibility state
-- **Cross-platform**: Unified header behavior for Expo (native) and Next.js (web) with synchronized controls
+- **Cross-platform**: Unified header behavior for Expo (native) and Expo Router (web) with synchronized controls
 
 ---
 
@@ -346,7 +346,7 @@ As a user, I want to view and interact with a detailed feedback timeline in a bo
 - **State Integration**: Subscribes to existing `videoAnalysisStore` for feedback data and timeline synchronization
 - **Database**: Real-time feedback data from Supabase `analyses` table via Realtime subscriptions
 - **Performance**: Virtualized feedback list with smooth scrolling for large datasets
-- **Cross-platform**: Unified bottom sheet behavior for Expo (native) and Next.js (web)
+- **Cross-platform**: Unified bottom sheet behavior for Expo (native) and Expo Router (web)
 - **Accessibility**: WCAG 2.2 AA compliance with screen reader support and keyboard navigation
 - **Component Location**: Existing `packages/ui/src/components/VideoAnalysis/FeedbackPanel/`
 - **Sticky Navigation**: Tab navigation becomes sticky on scroll with smooth transitions
@@ -380,12 +380,12 @@ As a user, I want to see a complete video analysis experience that combines all 
 
 ### Technical Notes
 - **Screen Location**: Existing `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-- **Route Integration**: Expo Router route in `apps/expo/app/video-analysis.tsx`, Expo Router route in `apps/next/app/video-analysis.tsx`
+- **Route Integration**: Expo Router route in `apps/expo/app/video-analysis.tsx`, Expo Router route in `apps/web/app/video-analysis.tsx`
 - **State Coordination**: Orchestrates all component state through existing unified `videoAnalysisStore` with Zustand
 - **AI Pipeline**: Complete integration with MoveNet Lightning pose detection and Gemini 2.5 analysis
 - **Database Integration**: Supabase Realtime subscriptions for live analysis updates
 - **Performance**: Optimized component rendering with < 10s total analysis time target
-- **Cross-platform**: Existing unified screen implementation for Expo (iOS/Android) and Next.js (web)
+- **Cross-platform**: Existing unified screen implementation for Expo (iOS/Android) and Expo Router (web)
 - **Error Handling**: Comprehensive error handling with discriminated unions and user-safe messages
 - **Testing**: Integration tests covering component interactions and end-to-end analysis flow
 - **Navigation**: Expo Router integration with proper navigation state management
@@ -427,7 +427,7 @@ As a user, I want to see the AI coach's avatar when receiving feedback using the
 - **State Integration**: Subscribes to existing `videoAnalysisStore` for feedback state and timing synchronization
 - **UI Components**: Tamagui View component with Lucide User icon for coach representation
 - **Performance**: Static avatar icon with minimal animations to maintain 60fps playback
-- **Cross-platform**: Unified avatar rendering for Expo (native) and Next.js (web) implementations
+- **Cross-platform**: Unified avatar rendering for Expo (native) and Expo Router (web) implementations
 - **Component Location**: Integrated within existing `packages/ui/src/components/VideoAnalysis/FeedbackBubbles/`
 - **Accessibility**: Screen reader support for avatar presence with testID and accessibility labels
 - **Asset Management**: Coach avatar implemented as Lucide icon with consistent theming

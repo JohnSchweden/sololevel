@@ -438,10 +438,14 @@ export function useFrameProcessing(
   ]);
 
   // Auto-initialize if enabled
+  // DISABLED: Auto-initialization causes app crash on web due to import.meta.url issue
+  // TODO: Re-enable once bundler configuration supports ES modules properly
   useEffect(() => {
-    if (frameProcessingConfig.enableFrameProcessor && !state.isInitialized) {
-      initialize().catch(console.error);
-    }
+    // Skip auto-initialization to prevent app crash
+    console.log('[useFrameProcessing] Auto-initialization disabled to prevent import.meta.url error');
+    // if (frameProcessingConfig.enableFrameProcessor && !state.isInitialized) {
+    //   initialize().catch(console.error);
+    // }
   }, [
     frameProcessingConfig.enableFrameProcessor,
     state.isInitialized,

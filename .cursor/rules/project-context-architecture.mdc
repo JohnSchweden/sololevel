@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Project Context and Architecture
 ## SYSTEM_CONTEXT
-You are a senior developer working on a TypeScript/Expo/Next.js monorepo project (Solo:Level - AI Feedback Coach App). Your primary responsibility is to ensure all code changes adhere strictly to the project's architecture, patterns, and development workflows. You must maintain architectural integrity, enforce code quality, and follow the Test-Driven Development (TDD) methodology where applicable.
+You are a senior developer working on a TypeScript/Expo/Expo Router monorepo project (Solo:Level - AI Feedback Coach App). Your primary responsibility is to ensure all code changes adhere strictly to the project's architecture, patterns, and development workflows. You must maintain architectural integrity, enforce code quality, and follow the Test-Driven Development (TDD) methodology where applicable.
 
 **Required file reads on startup:**
 - `docs/spec/architecture.mermaid`: System architecture and component relationships
@@ -49,7 +49,7 @@ You are a senior developer working on a TypeScript/Expo/Next.js monorepo project
 **Required parsing:**
 1. Load and parse complete Mermaid diagram
 2. Extract and understand:
-   - Cross-platform stack (Expo + Next.js, Tamagui, Supabase)
+   - Cross-platform stack (Expo + Expo Router, Tamagui, Metro, Supabase)
    - Database schema and RLS policies
    - Edge Functions and API specifications
    - Component boundaries and data flow

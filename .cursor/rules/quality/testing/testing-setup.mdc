@@ -15,7 +15,7 @@ Comprehensive setup for both Jest (React Native) and Vitest (Web) environments w
 | Environment | Tool | Use Cases |
 |-------------|------|-----------|
 | **React Native/Expo** | Jest with `jest-expo` | Native components, Tamagui, mobile-specific |
-| **Web/Next.js** | Vitest with `jsdom` | Web components, DOM APIs, browser-specific |
+| **Web/Expo Router** | Vitest with `jsdom` | Web components, DOM APIs, browser-specific |
 | **Node.js/Utilities** | Vitest with `node` | Pure functions, services, utilities |
 
 ## 🔧 Jest Setup (React Native)
@@ -176,7 +176,7 @@ module.exports = {
 
 ### Configuration File
 ```typescript
-// vitest.config.mjs (Web/Next.js)
+// vitest.config.mjs (Web/Expo Router)
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
@@ -245,8 +245,8 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 // Mock fetch globally
 global.fetch = vi.fn()
 
-// Mock Next.js modules
-vi.mock('next/router', () => ({
+// Mock Expo Router modules
+vi.mock('expo-router', () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -465,7 +465,7 @@ module.exports = {
 ### Vitest (Web) Setup  
 □ Correct environment: `jsdom` for components, `node` for utilities
 □ Browser APIs mocked (ResizeObserver, IntersectionObserver, matchMedia)
-□ Next.js modules mocked if using Next.js
+□ Expo Router modules mocked if needed
 □ Path aliases configured for workspace packages
 □ Test globals enabled or explicit imports used
 

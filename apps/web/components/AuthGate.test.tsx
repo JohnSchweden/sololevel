@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router'
 const mockUseAuth = vi.mocked(useAuth)
 const mockUseRouter = vi.mocked(useRouter)
 
-describe('AuthGate (Next.js)', () => {
+describe('AuthGate (Web)', () => {
   let mockRouter: ReturnType<typeof useRouter>
 
   beforeEach(() => {

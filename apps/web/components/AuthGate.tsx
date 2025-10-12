@@ -11,14 +11,14 @@ export interface AuthGateProps {
 }
 
 /**
- * AuthGate - Route protection component for Next.js with Expo Router
+ * AuthGate - Route protection component for Expo Router web app
  *
  * Protects child routes by:
  * - Showing loading state while auth is initializing
  * - Redirecting unauthenticated users to sign-in
  * - Rendering children only when user is authenticated
  * - Preserving intended destination for post-auth redirect
- * - Working with Next.js middleware for server-side protection
+ * - Client-side route protection for Expo Router
  */
 export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: AuthGateProps) {
   const { isAuthenticated, loading, initialized } = useAuth()

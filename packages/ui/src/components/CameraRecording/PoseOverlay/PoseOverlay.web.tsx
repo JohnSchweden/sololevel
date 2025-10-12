@@ -9,12 +9,12 @@
  */
 
 import {
-  DEFAULT_OVERLAY_CONFIG,
-  POSE_CONNECTIONS,
-  type PoseConnection,
-  type PoseDetectionResult,
-  type PoseKeypoint,
-} from '@app/features/CameraRecording/types/pose'
+  DEFAULT_MVP_OVERLAY_CONFIG,
+  type MVPPoseConnection,
+  type MVPPoseDetectionResult,
+  type MVPPoseKeypoint,
+  MVP_POSE_CONNECTIONS,
+} from '@app/features/CameraRecording/types/MVPpose'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
@@ -218,7 +218,7 @@ class WebGLPoseRenderer {
     // Get valid connections
     const validConnections = PoseOverlayUtils.getValidConnections(
       pose,
-      POSE_CONNECTIONS,
+      MVP_POSE_CONNECTIONS,
       config.confidenceThreshold || 0.3
     )
 
@@ -228,9 +228,9 @@ class WebGLPoseRenderer {
     const lineData: number[] = []
     const colorData: number[] = []
 
-    validConnections.forEach((connection: PoseConnection) => {
-      const fromKeypoint = pose.keypoints.find((kp: PoseKeypoint) => kp.name === connection.from)
-      const toKeypoint = pose.keypoints.find((kp: PoseKeypoint) => kp.name === connection.to)
+    validConnections.forEach((connection: MVPPoseConnection) => {
+      const fromKeypoint = pose.keypoints.find((kp: MVPPoseKeypoint) => kp.name === connection.from)
+      const toKeypoint = pose.keypoints.find((kp: MVPPoseKeypoint) => kp.name === connection.to)
 
       if (fromKeypoint && toKeypoint) {
         // Line vertices
@@ -393,7 +393,7 @@ export function PoseOverlayWeb({
   const rendererRef = useRef<WebGLPoseRenderer | null>(null)
   const animationRef = useRef<number | null>(null)
 
-  const overlayConfig = { ...DEFAULT_OVERLAY_CONFIG, ...config }
+  const overlayConfig = { ...DEFAULT_MVP_OVERLAY_CONFIG, ...config }
 
   // WebGL-specific configuration
   const webglConfig: WebGLOverlayConfig = {
@@ -490,7 +490,7 @@ export function PoseOverlayWeb({
     if (overlayConfig.showConnections) {
       const validConnections = PoseOverlayUtils.getValidConnections(
         filteredPose,
-        POSE_CONNECTIONS,
+        MVP_POSE_CONNECTIONS,
         overlayConfig.confidenceThreshold || 0.3
       )
 
@@ -498,12 +498,12 @@ export function PoseOverlayWeb({
       ctx.lineWidth = overlayConfig.connectionWidth
       ctx.lineCap = 'round'
 
-      validConnections.forEach((connection: PoseConnection) => {
+      validConnections.forEach((connection: MVPPoseConnection) => {
         const fromKeypoint = filteredPose.keypoints.find(
-          (kp: PoseKeypoint) => kp.name === connection.from
+          (kp: MVPPoseKeypoint) => kp.name === connection.from
         )
         const toKeypoint = filteredPose.keypoints.find(
-          (kp: PoseKeypoint) => kp.name === connection.to
+          (kp: MVPPoseKeypoint) => kp.name === connection.to
         )
 
         if (fromKeypoint && toKeypoint) {
@@ -517,7 +517,7 @@ export function PoseOverlayWeb({
 
     // Draw keypoints
     if (overlayConfig.showKeypoints) {
-      filteredPose.keypoints.forEach((keypoint: PoseKeypoint) => {
+      filteredPose.keypoints.forEach((keypoint: MVPPoseKeypoint) => {
         if (keypoint.confidence < (overlayConfig.confidenceThreshold || 0.3)) {
           return
         }
@@ -626,13 +626,13 @@ export const WebGLPoseUtils = {
    * Create pose trail data for WebGL
    */
   createTrailData: (
-    currentPose: PoseDetectionResult,
-    previousPoses: PoseDetectionResult[],
+    currentPose: MVPPoseDetectionResult,
+    previousPoses: MVPPoseDetectionResult[],
     maxLength: number
   ) => {
-    const trailData: PoseKeypoint[][] = []
+    const trailData: MVPPoseKeypoint[][] = []
 
-    currentPose.keypoints.forEach((keypoint: PoseKeypoint, index: number) => {
+    currentPose.keypoints.forEach((keypoint: MVPPoseKeypoint, index: number) => {
       const trail = [keypoint]
 
       for (let i = 0; i < Math.min(maxLength, previousPoses.length); i++) {

@@ -13,15 +13,15 @@ afterAll(() => {
   }
 })
 
-test.skip('Next.js build completes', async () => {
+test.skip('Web app build completes', async () => {
   try {
-    // Build directly in the next-app workspace to get Next.js output
-    buildProcess = exec('yarn workspace next-app build', {
+    // Build directly in the web-app workspace to get Expo Router output
+    buildProcess = exec('yarn workspace web-app build', {
       cwd: path.resolve(__dirname, '../../../..'),
       env: {
         ...process.env,
-        NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: 'test_anon_key',
+        EXPO_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+        EXPO_PUBLIC_SUPABASE_KEY: 'test_anon_key',
       },
     })
 
@@ -42,12 +42,12 @@ test.skip('Next.js build completes', async () => {
 
     const result = await buildOutput
 
-    // Check for successful build completion (Turbo or Next.js output)
+    // Check for successful build completion (Turbo or Expo Router output)
     const hasSuccessfulBuild =
       result.includes('Compiled successfully') ||
-      result.includes('next-app:build') ||
+      result.includes('web-app:build') ||
       result.includes('✓ Built successfully') ||
-      result.includes('next-app#build') ||
+      result.includes('web-app#build') ||
       (result.includes('[build-exit-code:0]') && !result.includes('command not found'))
 
     expect(hasSuccessfulBuild).toBe(true)

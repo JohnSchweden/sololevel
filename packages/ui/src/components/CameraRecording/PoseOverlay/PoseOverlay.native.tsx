@@ -10,12 +10,12 @@
  */
 
 import {
-  DEFAULT_OVERLAY_CONFIG,
-  POSE_CONNECTIONS,
-  type PoseConnection,
-  type PoseDetectionResult,
-  type PoseKeypoint,
-} from '@app/features/CameraRecording/types/pose'
+  DEFAULT_MVP_OVERLAY_CONFIG,
+  type MVPPoseConnection,
+  type MVPPoseDetectionResult,
+  type MVPPoseKeypoint,
+  MVP_POSE_CONNECTIONS,
+} from '@app/features/CameraRecording/types/MVPpose'
 import {
   Blur,
   Canvas,
@@ -57,7 +57,7 @@ export function PoseOverlayNative({
   style,
   onPoseUpdate,
 }: PoseOverlayProps) {
-  const overlayConfig = { ...DEFAULT_OVERLAY_CONFIG, ...config }
+  const overlayConfig = { ...DEFAULT_MVP_OVERLAY_CONFIG, ...config }
 
   // Skia-specific configuration
   const skiaConfig: SkiaOverlayConfig = {
@@ -141,7 +141,7 @@ export function PoseOverlayNative({
     if (!filteredPose) return []
     return PoseOverlayUtils.getValidConnections(
       filteredPose,
-      POSE_CONNECTIONS,
+      MVP_POSE_CONNECTIONS,
       overlayConfig.confidenceThreshold || 0.3
     )
   }, [filteredPose, overlayConfig.confidenceThreshold])
@@ -152,12 +152,12 @@ export function PoseOverlayNative({
 
     const path = Skia.Path.Make()
 
-    validConnections.forEach((connection: PoseConnection) => {
+    validConnections.forEach((connection: MVPPoseConnection) => {
       const fromKeypoint = filteredPose.keypoints.find(
-        (kp: PoseKeypoint) => kp.name === connection.from
+        (kp: MVPPoseKeypoint) => kp.name === connection.from
       )
       const toKeypoint = filteredPose.keypoints.find(
-        (kp: PoseKeypoint) => kp.name === connection.to
+        (kp: MVPPoseKeypoint) => kp.name === connection.to
       )
 
       if (fromKeypoint && toKeypoint) {
@@ -233,12 +233,12 @@ export function PoseOverlayNative({
           )}
 
           {/* Individual connection lines with animation */}
-          {validConnections.map((connection: PoseConnection, index: number) => {
+          {validConnections.map((connection: MVPPoseConnection, index: number) => {
             const fromKeypoint = filteredPose.keypoints.find(
-              (kp: PoseKeypoint) => kp.name === connection.from
+              (kp: MVPPoseKeypoint) => kp.name === connection.from
             )
             const toKeypoint = filteredPose.keypoints.find(
-              (kp: PoseKeypoint) => kp.name === connection.to
+              (kp: MVPPoseKeypoint) => kp.name === connection.to
             )
 
             if (!fromKeypoint || !toKeypoint) return null
@@ -257,7 +257,7 @@ export function PoseOverlayNative({
           })}
 
           {/* Keypoints with confidence-based styling */}
-          {filteredPose.keypoints.map((keypoint: PoseKeypoint, index: number) => {
+          {filteredPose.keypoints.map((keypoint: MVPPoseKeypoint, index: number) => {
             if (keypoint.confidence < (overlayConfig.confidenceThreshold || 0.3)) {
               return null
             }
@@ -335,8 +335,8 @@ export const SkiaPoseUtils = {
    * Create animated pose path with morphing
    */
   createAnimatedPath: (
-    fromPose: PoseDetectionResult,
-    toPose: PoseDetectionResult,
+    fromPose: MVPPoseDetectionResult,
+    toPose: MVPPoseDetectionResult,
     progress: number
   ) => {
     const path = Skia.Path.Make()
@@ -345,7 +345,7 @@ export const SkiaPoseUtils = {
     const interpolatedPose = PoseOverlayUtils.interpolatePoses(fromPose, toPose, progress)
 
     // Create path from interpolated pose
-    interpolatedPose.keypoints.forEach((keypoint: PoseKeypoint, index: number) => {
+    interpolatedPose.keypoints.forEach((keypoint: MVPPoseKeypoint, index: number) => {
       if (index === 0) {
         path.moveTo(keypoint.x, keypoint.y)
       } else {
@@ -359,7 +359,7 @@ export const SkiaPoseUtils = {
   /**
    * Create particle system for pose effects
    */
-  createParticleSystem: (pose: PoseDetectionResult, particleCount: number) => {
+  createParticleSystem: (pose: MVPPoseDetectionResult, particleCount: number) => {
     const particles: Array<{
       x: number
       y: number
@@ -368,7 +368,7 @@ export const SkiaPoseUtils = {
       velocity: { x: number; y: number }
     }> = []
 
-    pose.keypoints.forEach((keypoint: PoseKeypoint) => {
+    pose.keypoints.forEach((keypoint: MVPPoseKeypoint) => {
       if (keypoint.confidence > 0.5) {
         for (let i = 0; i < particleCount / pose.keypoints.length; i++) {
           particles.push({
@@ -392,13 +392,13 @@ export const SkiaPoseUtils = {
    * Create trail effect for pose movement
    */
   createTrailEffect: (
-    currentPose: PoseDetectionResult,
-    previousPoses: PoseDetectionResult[],
+    currentPose: MVPPoseDetectionResult,
+    previousPoses: MVPPoseDetectionResult[],
     trailLength: number
   ) => {
-    const trails: PoseKeypoint[][] = []
+    const trails: MVPPoseKeypoint[][] = []
 
-    currentPose.keypoints.forEach((keypoint: PoseKeypoint, keypointIndex: number) => {
+    currentPose.keypoints.forEach((keypoint: MVPPoseKeypoint, keypointIndex: number) => {
       const trail = [keypoint]
 
       // Add previous positions
@@ -418,9 +418,11 @@ export const SkiaPoseUtils = {
   /**
    * Optimize Skia rendering for performance
    */
-  optimizeForPerformance: (pose: PoseDetectionResult) => {
+  optimizeForPerformance: (pose: MVPPoseDetectionResult) => {
     // Reduce keypoint count for low-end devices
-    const highConfidenceKeypoints = pose.keypoints.filter((kp: PoseKeypoint) => kp.confidence > 0.7)
+    const highConfidenceKeypoints = pose.keypoints.filter(
+      (kp: MVPPoseKeypoint) => kp.confidence > 0.7
+    )
 
     return {
       ...pose,

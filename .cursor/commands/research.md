@@ -4,7 +4,7 @@ Analyze our monorepo architecture and identify best practices.
 
 CONTEXT:
 - Research @Web for modern best practices (2024-2025)
-- Focus on practices that directly impact our tech stack (Expo-RN/Next.js, Tamagui, Supabase)
+- Focus on practices that directly impact our tech stack (Expo-RN/Expo Router, Tamagui, Supabase)
 
 ANALYSIS FRAMEWORK:
 Evaluate each practice against our specific constraints:

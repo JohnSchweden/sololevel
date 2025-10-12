@@ -20,7 +20,7 @@ references: ["quality/testing/testing-patterns", "quality/testing/testing-react-
 
 **Enforcement**: Import validation in CI/CD pipeline prevents architectural violations.
 - **apps/expo** (React Native App): Jest with jest-expo preset → Full RN app testing → See `quality/testing/testing-react-native.mdc`
-- **apps/next** (Web App): Vitest → Web app testing → See `quality/testing/testing-web.mdc`
+- **apps/web** (Web App): Vitest → Web app testing → See `quality/testing/testing-web.mdc`
 - **NEVER mix**: Don't use Vitest for React Native or Jest for pure Node.js testing
 
 ### Critical Success Patterns
@@ -98,7 +98,7 @@ Jump directly to detailed guidance for each testing area:
    - packages/app: Jest + @testing-library/react-native + jsdom
    - packages/api: Vitest + native Node testing
    - apps/expo: Jest + jest-expo + @testing-library/react-native
-   - apps/next: Vitest + @testing-library/react
+   - apps/web: Vitest + @testing-library/react
    - supabase/shared: Vitest (Node)
    - supabase/functions/_shared: Vitest (Node)
    - supabase/functions (Edge): Deno test runner
@@ -128,6 +128,6 @@ This rule coordinates focused sub-rules. Update specific patterns in their respe
 - packages/app: React Native app testing (Jest + RN Testing Library)
 - packages/api: Node.js API testing (Vitest)
 - apps/expo: Full React Native app testing (Jest + jest-expo)
-- apps/next: Web app testing (Vitest)
+- apps/web: Web app testing (Vitest)
 
 → See `quality/testing/testing-metrics.mdc` for performance and maintenance guidelines

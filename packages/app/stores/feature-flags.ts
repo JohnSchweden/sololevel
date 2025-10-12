@@ -42,8 +42,7 @@ const defaultFlags: FeatureFlags = {
   // Development
   enableDevMode: process.env.NODE_ENV === 'development',
   showDebugInfo: false,
-  useMockData:
-    process.env.NEXT_PUBLIC_USE_MOCKS === 'true' || process.env.EXPO_PUBLIC_USE_MOCKS === 'true',
+  useMockData: process.env.EXPO_PUBLIC_USE_MOCKS === 'true',
 
   // Camera implementation
   useVisionCamera: process.env.EXPO_PUBLIC_USE_VISION_CAMERA !== 'false', // Default true, override with env
@@ -105,17 +104,11 @@ export const useFeatureFlagsStore = create<FeatureFlagsStore>()(
         const envFlags: Partial<FeatureFlags> = {}
 
         // Check environment variables
-        if (
-          process.env.NEXT_PUBLIC_ENABLE_BETA_FEATURES === 'true' ||
-          process.env.EXPO_PUBLIC_ENABLE_BETA_FEATURES === 'true'
-        ) {
+        if (process.env.EXPO_PUBLIC_ENABLE_BETA_FEATURES === 'true') {
           envFlags.enableBetaFeatures = true
         }
 
-        if (
-          process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'false' ||
-          process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'false'
-        ) {
+        if (process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'false') {
           envFlags.enableAnalytics = false
         }
 

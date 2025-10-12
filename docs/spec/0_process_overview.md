@@ -193,7 +193,7 @@ Focus on native vs web differences and deployment considerations.
 **Focus Areas for Platform Analysis:**
 - Platform-specific implementations (native vs web)
 - Expo configuration for native features
-- Next.js configuration for web optimization
+- Expo Router configuration for web optimization
 - Component abstraction strategies
 - Build and deployment configurations
 - Performance parity across platforms

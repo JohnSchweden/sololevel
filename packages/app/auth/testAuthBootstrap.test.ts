@@ -1,5 +1,12 @@
 import { testAuthBootstrap } from './testAuthBootstrap'
 
+// Mock react-native Platform
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'web', // Default to web for tests
+  },
+}))
+
 // Mock the auth client
 jest.mock('@my/api', () => ({
   authClient: {
@@ -34,7 +41,6 @@ describe('testAuthBootstrap', () => {
       NODE_ENV: 'test',
     }
     delete process.env.EXPO_PUBLIC_ENV
-    delete process.env.NEXT_PUBLIC_ENV
   })
 
   afterEach(() => {
@@ -104,7 +110,6 @@ describe('testAuthBootstrap', () => {
       configurable: true,
     })
     delete process.env.EXPO_PUBLIC_ENV
-    delete process.env.NEXT_PUBLIC_ENV
 
     process.env.TEST_AUTH_ENABLED = 'true'
     process.env.TEST_AUTH_EMAIL = 'test@example.com'
@@ -143,7 +148,6 @@ describe('testAuthBootstrap', () => {
       configurable: true,
     })
     delete process.env.EXPO_PUBLIC_ENV
-    delete process.env.NEXT_PUBLIC_ENV
 
     process.env.TEST_AUTH_ENABLED = 'true'
     process.env.TEST_AUTH_EMAIL = 'test@example.com'

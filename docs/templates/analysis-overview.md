@@ -17,7 +17,7 @@
 
 ### 4. **`analysis-platform.md`** - Cross-Platform Analysis Template
 - **Focus**: Native vs web differences, deployment, platform-specific optimizations
-- **Key Sections**: Expo/Next.js config, platform APIs, build processes, CI/CD
+- **Key Sections**: Expo/Expo Router config, platform APIs, build processes, CI/CD
 - **TDD Integration**: Platform parity tests, deployment tests, performance benchmarks
 
 ## 🎯 **Key Benefits of This Approach**
@@ -26,7 +26,7 @@
 2. **Domain Separation**: Clear boundaries matching your `@my/*` package structure
 3. **Cross-References**: Templates link to each other for complete coverage
 4. **TDD-First**: Each template maintains your 1:2 test-to-code ratio requirement
-5. **Monorepo Aligned**: Matches your Expo/Next.js/Tamagui/Supabase architecture
+5. **Monorepo Aligned**: Matches your Expo/Expo Router/Tamagui/Supabase architecture
 
 ## 🔗 **How They Work Together**
 

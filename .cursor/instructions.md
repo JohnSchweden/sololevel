@@ -2,14 +2,14 @@
 
 ### Platform-Specific Rules
 - Native-specific rules apply to `**/*.native.{ts,tsx}` files
-- Web-specific rules apply to `apps/next/**/*.{ts,tsx}` 
+- Web-specific rules apply to `apps/web/**/*.{ts,tsx}` 
 - Cross-platform rules apply to `packages/app/**/*.{ts,tsx}` and `packages/ui/**/*.{ts,tsx}`
 
 ### Framework-Specific Scoping
 - Tamagui UI rules target `packages/ui/**/*.{ts,tsx}` and `**/components/**/*.{ts,tsx}`
 - Expo Router navigation rules apply to `apps/expo/app/**/*.{ts,tsx}` and `packages/app/features/**/*.{ts,tsx}`
 - Expo rules are scoped to `apps/expo/**/*.{ts,tsx}` and `**/*.native.{ts,tsx}`
-- Next.js rules apply to `apps/next/**/*.{ts,tsx}` and take precedence for web-specific code
+- Expo Router rules apply to `apps/web/**/*.{ts,tsx}` and take precedence for web-specific code
 
 ### AI Integration Scoping
 - AI Coach integrations: `**/ai/**/*.{ts,tsx}` and files with "ai", "coach", "video", "pose" patterns

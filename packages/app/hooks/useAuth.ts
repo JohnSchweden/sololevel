@@ -11,6 +11,10 @@ export function useAuth() {
   const { user, session, loading, initialized, setAuth, setLoading, setInitialized } =
     useAuthStore()
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    log.debug('useAuth', 'Hook called', { hasUser: !!user, loading, initialized })
+  }
+
   // Log deduplication ref - must be called unconditionally at hook level
   // Removed unused logOnce helper
 

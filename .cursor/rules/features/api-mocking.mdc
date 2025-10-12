@@ -12,7 +12,7 @@ alwaysApply: false
 - Don't bypass RLS in production. Mocks are for local dev and tests.
 - Prefer interface-based clients (DI) so mocks swap cleanly.
 
-## Web (Next.js, App Router) — MSW
+## Web (Expo Router) — MSW
 ```ts
 // apps/web/app/providers/msw.ts
 'use client';
@@ -20,7 +20,7 @@ import { setupWorker } from 'msw/browser';
 import { handlers } from '../mocks/handlers';
 
 export async function initMSW() {
-  if (process.env.NEXT_PUBLIC_USE_MOCKS !== 'true') return;
+  if (process.env.EXPO_PUBLIC_USE_MOCKS !== 'true') return;
   const worker = setupWorker(...handlers);
   await worker.start({ onUnhandledRequest: 'bypass' });
 }
@@ -58,9 +58,7 @@ export const mockApi = {
 import { mockApi } from './mock';
 import { realApi } from './video'; // your real client
 
-const useMocks =
-  process.env.EXPO_PUBLIC_USE_MOCKS === 'true' ||
-  process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
+const useMocks = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 
 export const api = useMocks ? mockApi : realApi;
 ```

@@ -41,10 +41,9 @@ Follow this systematic process to diagnose and resolve bugs efficiently.
 *   **Error Boundaries**: Wrap components in error boundaries to catch rendering errors.
 *   **Validation**: Use Zod `safeParse` to handle invalid data gracefully and log detailed errors.
 
-### Cross-Platform (Expo / Next.js)
-*   **Expo**: Use `expo start --clear` to avoid cache issues. Check device-specific logs with `yarn react-native log-ios` or `log-android`.
-*   **Next.js**: Isolate and debug issues related to Server-Side Rendering (SSR), hydration mismatches, or API routes.
-*   **Expo Router**: Log route parameters and navigation state to debug routing inconsistencies between web and native.
+### Cross-Platform (Expo / Expo Router)
+*   **Expo**: Use `web --clear` to avoid cache issues. Check device-specific logs with `yarn react-native log-ios` or `log-android`.
+*   **Expo Router**: Debug static export, client-side routing, Metro bundling, and navigation state inconsistencies between web and native.
 
 ### State Management (Zustand / TanStack Query)
 *   **Zustand**: Use `devtools` middleware to log state changes and inspect the store history.

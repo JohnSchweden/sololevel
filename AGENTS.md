@@ -1,12 +1,13 @@
 # Solo:Level - AI Feedback Coach App
 
 ## Tech Stack Overview
-- **Frontend**: React Native (Expo) + Next.js
+- **Frontend**: React Native (Expo) + Expo Router Web
 - **UI**: Tamagui (cross-platform)
 - **Backend**: Supabase (PostgreSQL, Realtime, Storage, Edge Functions)
 - **State**: Zustand + TanStack Query
 - **Language**: TypeScript exclusively, functional components only
 - **Package Manager**: Yarn 4 workspaces + Turbo
+- **Web Bundler**: Metro (via Expo Router)
 
 ## Version Matrix
 | Area          | Current        | Minimum | Source |
@@ -16,7 +17,7 @@
 | Expo SDK      | 53.x           | 53.x    | root/workspace `expo` versions |
 | React Native  | 0.79.x         | 0.79.x  | root `react-native` |
 | React         | 19.x           | 19.x    | root `react` |
-| Next.js       | 15.x           | 15.x    | `apps/next/package.json` |
+| Expo Router   | 5.1.x          | 5.1.x   | `apps/web/package.json` |
 | Turbo         | 1.13.x         | 1.13.x  | root `turbo` |
 
 CI enforces version alignment via Corepack. See `.cursor/rules/core/development-operations.mdc` for detailed version management.
@@ -25,7 +26,7 @@ CI enforces version alignment via Corepack. See `.cursor/rules/core/development-
 - Mobile-first, cross-platform development
 - Named exports only (no default exports)
 - Row Level Security (RLS) enabled for all database access
-- Path aliases: `@ui/`, `@app/`, `@api/`, `@config/`
+- Path aliases: `@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`
 
 ## Import Strategy
 
@@ -37,6 +38,7 @@ Use `@my/` scoped package names for package-level exports and cross-package impo
 import { Button } from '@my/ui'
 import { useAuth } from '@my/app' 
 import { supabase } from '@my/api'
+import { logger } from '@my/logging'
 ```
 
 ### Path-Level Imports (Aliases)
@@ -47,11 +49,12 @@ Use path aliases for specific file imports within packages:
 import { Button } from '@ui/components/Button'
 import { useAuth } from '@app/hooks/useAuth'
 import { supabase } from '@api/supabase'
+import { logger } from '@logging/logger'
 ```
 
 ### Import Rules
 1. Package exports: Always use `@my/` scoped names
-2. File imports: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`)
+2. File imports: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`)
 3. Never mix: Don't use `@api` without `/*` - use `@api/services/...`
 4. Export strategy: Export from package index files for `@my/` imports
 
@@ -83,7 +86,7 @@ See `.cursor/rules/core/development-operations.mdc` for complete workspace comma
 - Prefer `as const` over enums
 
 ## Testing
-- **Test Runner by Package**: `@my/ui` & `@my/app` use Jest; `@my/api` uses Vitest
+- **Test Runner by Package**: `@my/ui`, `@my/app` & `@my/logging` use Jest; `@my/api` uses Vitest
 - **Commands**: `yarn workspace <package> test` (never mix runners across workspaces)
 - **Ratio**: Maximum 1:2 test-to-code ratio
 - **Pattern**: AAA (Arrange-Act-Assert) mandatory with comments

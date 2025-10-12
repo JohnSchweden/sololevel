@@ -195,7 +195,20 @@ export function useCameraFrameProcessor(
    */
   const initializeWorker = useCallback(async () => {
     try {
-      // Create worker
+      // Create worker - NOTE: import.meta.url requires ES modules
+      // For now, we'll skip worker initialization until the bundler is configured properly
+      console.warn('[useCameraFrameProcessor] Web Worker initialization skipped - import.meta.url not supported by current bundler config');
+      
+      setState((prev) => ({
+        ...prev,
+        error: "Web Worker not available - pose detection disabled",
+        isWorkerReady: false,
+      }));
+      
+      // Don't throw error to prevent app crash - just disable feature
+      return;
+      
+      /* ORIGINAL CODE - Commented out until bundler supports import.meta.url
       const workerUrl = new URL(
         "../workers/poseDetection.web.ts",
         import.meta.url,
@@ -223,6 +236,7 @@ export function useCameraFrameProcessor(
         isWorkerReady: true,
         error: null,
       }));
+      */
     } catch (error) {
       // console.error('Failed to initialize worker:', error);
       setState((prev) => ({
@@ -232,7 +246,8 @@ export function useCameraFrameProcessor(
           : "Worker initialization failed",
         isWorkerReady: false,
       }));
-      throw error;
+      // Don't throw - just disable the feature gracefully
+      return;
     }
   }, [frameProcessorConfig, handleWorkerMessage, sendWorkerMessage]);
 

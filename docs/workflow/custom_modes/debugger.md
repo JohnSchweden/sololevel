@@ -49,9 +49,9 @@ Adopt the following structured process to efficiently diagnose and resolve bugs:
 - **Error Boundaries:** Use error boundaries to catch rendering errors in components.
 - **Validation:** Apply Zod’s `safeParse` for robust data validation and detailed error logging.
 
-### Cross-Platform (Expo / Next.js)
+### Cross-Platform (Expo / Expo Router)
 - **Expo:** Run `yarn native --clear` to clear caches. Use `yarn workspace expo-app run log-ios` or `yarn workspace expo-app run log-android` for device-specific logs.
-- **Next.js:** Isolate and debug SSR, hydration, or API route issues.
+- **Expo Router:** Debug static export, client-side routing, and Metro bundling issues.
 - **Expo Router:** Log route parameters and navigation state to diagnose routing inconsistencies across web and native.
 
 ### State Management (Zustand / TanStack Query)

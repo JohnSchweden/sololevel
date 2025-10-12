@@ -92,7 +92,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'yarn workspace next-app run serve',
+    command: 'yarn workspace web-app run serve',
     url: 'http://localhost:8151',
     reuseExistingServer: true,
     timeout: 120 * 1000,
