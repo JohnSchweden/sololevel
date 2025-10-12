@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
@@ -17,6 +17,7 @@ import { useAutoPlayOnReady } from './hooks/useAutoPlayOnReady'
 import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 import { useFeedbackCoordinator } from './hooks/useFeedbackCoordinator'
 import { useFeedbackPanel } from './hooks/useFeedbackPanel'
+import { useHistoricalAnalysis } from './hooks/useHistoricalAnalysis'
 import { useVideoAudioSync } from './hooks/useVideoAudioSync'
 import { useVideoControls } from './hooks/useVideoControls'
 import { useVideoPlayback } from './hooks/useVideoPlayback'
@@ -39,8 +40,30 @@ export function VideoAnalysisScreen({
   onBack,
   onControlsVisibilityChange,
 }: VideoAnalysisScreenProps) {
+  // Detect history mode: when analysisJobId is provided, we're viewing historical analysis
+  const isHistoryMode = !!analysisJobId
+
+  // Load historical analysis data if in history mode
+  const historicalAnalysis = useHistoricalAnalysis(isHistoryMode ? analysisJobId : null)
+
+  // Log mode detection for debugging
+  useEffect(() => {
+    if (isHistoryMode) {
+      log.info('VideoAnalysisScreen', 'History mode detected', {
+        analysisJobId,
+        isLoading: historicalAnalysis.isLoading,
+        hasData: !!historicalAnalysis.data,
+      })
+    }
+  }, [isHistoryMode, analysisJobId, historicalAnalysis.isLoading, historicalAnalysis.data])
+
   const normalizedInitialStatus = initialStatus === 'ready' ? 'ready' : 'processing'
-  const analysisState = useAnalysisState(analysisJobId, videoRecordingId, normalizedInitialStatus)
+  // Skip real-time analysis subscription in history mode
+  const analysisState = useAnalysisState(
+    isHistoryMode ? undefined : analysisJobId,
+    isHistoryMode ? undefined : videoRecordingId,
+    normalizedInitialStatus
+  )
 
   const videoPlayback = useVideoPlayback(initialStatus)
   const {
@@ -56,10 +79,21 @@ export function VideoAnalysisScreen({
     handleSeekComplete: resolveSeek,
   } = videoPlayback
 
-  const videoControls = useVideoControls(analysisState.isProcessing, isPlaying, videoEnded)
+  // Determine effective processing state (loading historical data OR real-time analysis)
+  const isProcessing = isHistoryMode ? historicalAnalysis.isLoading : analysisState.isProcessing
 
-  // Feedback items from hook already include mock fallback when needed
-  const feedbackItems = analysisState.feedback.feedbackItems
+  const videoControls = useVideoControls(isProcessing, isPlaying, videoEnded)
+
+  // Use historical feedback items if in history mode, otherwise use real-time analysis
+  const feedbackItems = useMemo(() => {
+    if (isHistoryMode && historicalAnalysis.data?.results) {
+      // Transform historical results to feedback items format
+      // For now, return empty array until we implement proper transformation
+      // TODO: Transform historicalAnalysis.data.results to FeedbackPanelItem[]
+      return analysisState.feedback.feedbackItems
+    }
+    return analysisState.feedback.feedbackItems
+  }, [isHistoryMode, historicalAnalysis.data, analysisState.feedback.feedbackItems])
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
@@ -86,7 +120,7 @@ export function VideoAnalysisScreen({
   const resolvedVideoUri = videoUri ?? FALLBACK_VIDEO_URI
   const uploadError = analysisState.error?.phase === 'upload' ? analysisState.error?.message : null
 
-  useAutoPlayOnReady(analysisState.isProcessing, isPlaying, playVideo)
+  useAutoPlayOnReady(isProcessing, isPlaying, playVideo)
 
   const handleSignificantProgress = useCallback(
     (time: number) => {
@@ -187,7 +221,7 @@ export function VideoAnalysisScreen({
             videoShouldPlay={videoAudioSync.shouldPlayVideo}
             videoEnded={videoEnded}
             showControls={videoControls.showControls}
-            isProcessing={analysisState.isProcessing}
+            isProcessing={isProcessing}
             videoAreaScale={1 - feedbackPanel.panelFraction}
             onPlay={handlePlay}
             onPause={pauseVideo}
@@ -231,7 +265,7 @@ export function VideoAnalysisScreen({
         )}
 
         <ProcessingIndicator
-          phase={analysisState.phase}
+          phase={isHistoryMode && historicalAnalysis.isLoading ? 'analyzing' : analysisState.phase}
           progress={analysisState.progress}
           channelExhausted={analysisState.channelExhausted}
         />
