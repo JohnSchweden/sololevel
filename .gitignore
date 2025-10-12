@@ -77,6 +77,10 @@ thumbs.db
 # turbo build log
 **/.turbo/*
 
+# Test coverage
+**/coverage/
+coverage/
+
 # Playwright
 node_modules/
 /test-results/
