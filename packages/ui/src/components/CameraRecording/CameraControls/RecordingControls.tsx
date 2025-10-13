@@ -301,6 +301,8 @@ function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
       blurIntensity={isActive ? 30 : 20}
       blurTint={isActive ? 'dark' : 'light'}
       accessibilityLabel={`${level}x zoom`}
+      accessibilityRole="button"
+      accessibilityState={{ checked: isActive }}
       accessibilityHint={isActive ? 'Currently selected' : undefined}
     >
       <Text

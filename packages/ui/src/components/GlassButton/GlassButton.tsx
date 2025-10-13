@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur'
 import type { ComponentProps, ReactNode } from 'react'
 import { ImageBackground } from 'react-native'
+import type { AccessibilityRole } from 'react-native'
 import { Button, XStack, type XStackProps } from 'tamagui'
 
 // Import glass overlay asset
@@ -21,6 +22,10 @@ export type GlassButtonProps = {
   accessibilityLabel?: string
   /** Accessibility hint */
   accessibilityHint?: string
+  /** Accessibility role */
+  accessibilityRole?: AccessibilityRole
+  /** Accessibility state (for toggle buttons) */
+  accessibilityState?: { checked?: boolean; selected?: boolean; disabled?: boolean }
   /** Blur intensity (1-100, default 80) */
   blurIntensity?: number
   /** Blur tint ('light' | 'dark' | 'default', default 'dark') */
@@ -63,6 +68,8 @@ export const GlassButton = ({
   testID,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
   blurIntensity = 20,
   blurTint = 'light',
   minWidth = 52,
@@ -144,6 +151,8 @@ export const GlassButton = ({
         paddingHorizontal="$3"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
+        accessibilityRole={accessibilityRole}
+        accessibilityState={accessibilityState}
       >
         {icon}
         {children}
