@@ -1,6 +1,6 @@
-import { Bell, ChevronLeft, Menu, MoreHorizontal } from '@tamagui/lucide-icons'
+import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-icons'
 import type { ComponentProps } from 'react'
-import { Circle, Text, Theme, XStack, YStack } from 'tamagui'
+import { Circle, Image, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
 
@@ -18,6 +18,7 @@ export function AppHeader({
   onMenuPress,
   onBackPress,
   onNotificationPress,
+  onProfilePress,
   notificationBadgeCount = 0,
   cameraProps,
   titleAlignment = 'center',
@@ -27,6 +28,7 @@ export function AppHeader({
   rightSlot,
   titleSlot,
   themeName,
+  profileImageUri,
 }: AppHeaderProps) {
   // Derive state from mode
   const isRecording = mode === 'recording' || cameraProps?.isRecording
@@ -244,6 +246,42 @@ export function AppHeader({
           </YStack>
         )
 
+      case 'profile':
+        return (
+          <Button
+            chromeless
+            size="$3"
+            onPress={onProfilePress}
+            icon={
+              profileImageUri ? (
+                <Image
+                  source={{ uri: profileImageUri }}
+                  width={36}
+                  height={36}
+                />
+              ) : (
+                <User
+                  size="$1.5"
+                  color={iconColor}
+                />
+              )
+            }
+            minWidth={44}
+            minHeight={44}
+            borderRadius="$4"
+            backgroundColor="transparent"
+            hoverStyle={{
+              backgroundColor: '$backgroundHover',
+            }}
+            pressStyle={{
+              scale: 0.95,
+              backgroundColor: '$backgroundPress',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          />
+        )
+
       default:
         return null
     }
@@ -272,7 +310,8 @@ export function AppHeader({
 
     return (
       <Text
-        fontSize="$5"
+        fontSize="$7"
+        fontFamily="$heading"
         fontWeight="600"
         color={foreground}
         textAlign={titleAlignment}

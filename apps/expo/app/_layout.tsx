@@ -6,6 +6,7 @@ if (typeof global !== 'undefined') {
 }
 import { NavigationAppHeader } from '@app/components/navigation'
 import { Provider } from '@app/provider'
+import { JosefinSans_400Regular, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans'
 import { log } from '@my/logging'
 import { NativeToast } from '@my/ui'
 //import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
@@ -26,6 +27,8 @@ export default function App() {
   const [interLoaded, interError] = useFonts({
     Inter: require('@tamagui/font-inter/otf/Inter-Medium.otf'),
     InterBold: require('@tamagui/font-inter/otf/Inter-Bold.otf'),
+    JosefinSans: JosefinSans_400Regular,
+    JosefinSansBold: JosefinSans_700Bold,
   })
 
   // Network logging can be enabled via logger utils when needed
@@ -108,9 +111,10 @@ function RootLayoutNav() {
               options={{
                 title: 'History & Progress',
                 headerShown: true,
-                headerTransparent: false,
+                headerTransparent: true,
                 headerStyle: { backgroundColor: '$background' },
                 header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_left',
               }}
             />
             <Stack.Screen

@@ -2040,6 +2040,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo-google-fonts/josefin-sans@npm:^0.4.2":
+  version: 0.4.2
+  resolution: "@expo-google-fonts/josefin-sans@npm:0.4.2"
+  checksum: 10c0/12d04a16720c4f486d953ebf7dbf850b8f19a16ca90ad0a49553a8fefc334351107eb77f72fa40cbd821f75ef44392fc27ad42a208e4ae1b82bbf46a3cee8b12
+  languageName: node
+  linkType: hard
+
 "@expo/cli@npm:0.24.22":
   version: 0.24.22
   resolution: "@expo/cli@npm:0.24.22"
@@ -12480,6 +12487,7 @@ __metadata:
   resolution: "expo-app@workspace:apps/expo"
   dependencies:
     "@babel/core": "npm:^7.28.3"
+    "@expo-google-fonts/josefin-sans": "npm:^0.4.2"
     "@expo/config-plugins": "npm:~10.1.1"
     "@expo/metro-config": "npm:~0.20.0"
     "@expo/react-native-action-sheet": "npm:^4.1.1"

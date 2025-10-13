@@ -952,7 +952,7 @@ export function useHistoricalAnalysis(analysisId: number | null) {
 
 ---
 
-### Task 29: App Header Integration in History Screen ✅ COMPLETE (2025-10-12)
+### Task 29: App Header Integration in History Screen 
 **Effort:** Completed in Task 25 | **Priority:** Medium | **Depends on:** Task 25
 **User Story:** US-HI-04 (History screen header integration)
 
@@ -962,14 +962,15 @@ export function useHistoricalAnalysis(analysisId: number | null) {
 
 **COMPLETION SUMMARY:**
 - ✅ AppHeader component exists and fully implemented
-- ✅ AppHeader integrated via `navigation.setOptions()` (lines 72-88)
+- ✅ AppHeader integrated via `navigation.setOptions()` (lines 74-90)
 - ✅ Back button configured to navigate to camera (`onBackPress` handler)
-- ✅ Profile button configured with placeholder console.log (P0)
+- ✅ Profile button configured with rightAction: 'profile' and onProfilePress handler
+- ✅ Profile button uses User icon from @tamagui/lucide-icons
 - ✅ Title set to "History & Progress"
-- ✅ Mode set to "default" with leftAction: 'back', rightAction: 'auto'
+- ✅ Mode set to "default" with leftAction: 'back', rightAction: 'profile'
 - ✅ 44px touch targets, responsive design, accessibility (from AppHeader)
 - ✅ TypeScript: 0 errors
-- ✅ Lint: 0 errors
+- ✅ Lint: 0 errors (on changed files)
 
 **ARCHITECTURE ALIGNMENT:**
 - Component: AppHeader from `packages/ui/src/components/AppHeader/` ✅
@@ -978,33 +979,39 @@ export function useHistoricalAnalysis(analysisId: number | null) {
 - Configuration: Via `navigation.setOptions()` pattern ✅
 
 **IMPLEMENTATION DETAILS:**
-- **File:** `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx`
-- **Lines:** 72-88 (AppHeader configuration)
+- **Files Changed:**
+  - `packages/ui/src/components/AppHeader/types.ts`: Added 'profile' to AppHeaderRightAction, added onProfilePress prop
+  - `packages/ui/src/components/AppHeader/AppHeader.tsx`: Implemented profile button case with User icon
+  - `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx`: Lines 74-90 (AppHeader configuration)
 - **Pattern:** `useLayoutEffect` with `navigation.setOptions()`
-- **Props:** `appHeaderProps` with title, mode, actions, and handlers
+- **Props:** `appHeaderProps` with title, mode='default', leftAction='back', rightAction='profile', onProfilePress handler
 
 **VALIDATION CHECKLIST:**
 - [x] AppHeader renders at top of History Screen ✅
 - [x] Back button navigates to camera recording screen ✅
-- [x] Profile button shows console.log placeholder (P0) ✅
+- [x] Profile button implemented with User icon ✅
+- [x] Profile button logs to console (P0 placeholder) ✅
 - [x] Header styling consistent with app theme ✅
 - [x] Header remains visible during scroll (default behavior) ✅
 
 **SUCCESS VALIDATION:**
-- [x] `yarn type-check` passes ✅ (0 errors, 10/10 packages, 135ms)
-- [x] `yarn lint` passes ✅ (788 files, 182ms, 0 errors)
-- [ ] Manual QA:
+- [x] `yarn type-check` passes ✅ (0 errors, 10/10 packages, 6.16s)
+- [x] `yarn lint` passes ✅ (0 errors on changed files)
+- [x] `yarn workspace @my/ui build` passes ✅
+- [x] `yarn workspace @my/app build` passes ✅
+- [ ] Manual QA (requires runtime testing):
   - [ ] Header visible in history screen
   - [ ] Back button works correctly
-  - [ ] Profile button logs to console (P0 placeholder)
+  - [ ] Profile button visible with User icon
+  - [ ] Profile button logs to console when pressed (P0 placeholder)
   - [ ] Navigation callbacks work as expected
 
 **FILES INVOLVED:**
-- `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (AppHeader configuration)
+- `packages/ui/src/components/AppHeader/types.ts` (Added profile action and onProfilePress prop)
+- `packages/ui/src/components/AppHeader/AppHeader.tsx` (Implemented profile button with User icon)
+- `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx` (AppHeader configuration with profile action)
 - `apps/expo/app/history-progress.tsx` (Route with navigation injection)
 - `apps/expo/app/_layout.tsx` (Renders AppHeader from navigation options)
-
-**STATUS:** ✅ **FULLY COMPLETE** - No additional work required. Validated as part of Task 25.
 
 ---
 

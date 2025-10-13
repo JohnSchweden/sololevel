@@ -20,6 +20,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/josefin-sans": "^0.4.2",
     "@expo/config-plugins": "~10.1.1",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@my/api": "workspace:*",

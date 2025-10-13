@@ -44,6 +44,10 @@ jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
 }))
 
+jest.mock('expo-video-thumbnails', () => ({
+  getThumbnailAsync: jest.fn(),
+}))
+
 // Mock React Native modules
 // Note: NativeAnimatedHelper is not available in test environment
 

@@ -1,6 +1,8 @@
+import { createFont } from '@tamagui/core'
 import { createInterFont } from '@tamagui/font-inter'
 
-export const headingFont = createInterFont({
+export const headingFont = createFont({
+  family: 'JosefinSans',
   size: {
     6: 15,
   },
@@ -28,7 +30,8 @@ export const headingFont = createInterFont({
     15: -6,
   },
   face: {
-    700: { normal: 'InterBold' },
+    400: { normal: 'JosefinSans' },
+    700: { normal: 'JosefinSansBold' },
   },
 })
 

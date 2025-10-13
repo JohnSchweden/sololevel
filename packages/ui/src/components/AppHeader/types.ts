@@ -12,7 +12,13 @@ export type AppHeaderMode =
 
 export type AppHeaderLeftAction = 'auto' | 'back' | 'sidesheet' | 'none'
 
-export type AppHeaderRightAction = 'auto' | 'menu' | 'notifications' | 'videoSettings' | 'none'
+export type AppHeaderRightAction =
+  | 'auto'
+  | 'menu'
+  | 'notifications'
+  | 'videoSettings'
+  | 'profile'
+  | 'none'
 
 export interface AppHeaderProps {
   title: string
@@ -23,6 +29,7 @@ export interface AppHeaderProps {
   onMenuPress?: () => void
   onBackPress?: () => void
   onNotificationPress?: () => void
+  onProfilePress?: () => void
   notificationBadgeCount?: number
   titleAlignment?: 'center' | 'left'
   leftAction?: AppHeaderLeftAction
@@ -32,6 +39,8 @@ export interface AppHeaderProps {
   titleSlot?: ReactNode
   tintColor?: string
   themeName?: ThemeName
+  // Profile props
+  profileImageUri?: string
   // Mode-specific props
   cameraProps?: {
     isRecording?: boolean

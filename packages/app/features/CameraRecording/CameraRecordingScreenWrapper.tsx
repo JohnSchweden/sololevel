@@ -8,6 +8,7 @@ import { CameraRecordingScreenProps } from './types'
 export function CameraRecordingScreenWrapper({
   onNavigateBack,
   onNavigateToVideoAnalysis,
+  onNavigateToHistory,
   onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
@@ -21,6 +22,7 @@ export function CameraRecordingScreenWrapper({
       <VisionCameraScreen
         onNavigateBack={onNavigateBack}
         onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
+        onNavigateToHistory={onNavigateToHistory}
         onTabChange={onTabChange}
         resetToIdle={resetToIdle}
       />
@@ -33,6 +35,7 @@ export function CameraRecordingScreenWrapper({
     <ExpoCameraScreen
       onNavigateBack={onNavigateBack}
       onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
+      onNavigateToHistory={onNavigateToHistory}
       onTabChange={onTabChange}
       resetToIdle={resetToIdle}
     />

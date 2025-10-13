@@ -18,6 +18,10 @@ e2e/setup-failure.png
 # expo
 **/.expo/*
 
+# iOS build artifacts
+**/ios/build/
+**/ios/**/Build/
+
 # expo router (web)
 **/.next/*
 /out/

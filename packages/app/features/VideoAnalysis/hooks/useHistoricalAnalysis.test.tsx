@@ -1,6 +1,11 @@
 // Use real TanStack Query implementation
 jest.unmock('@tanstack/react-query')
 
+// Mock expo-video-thumbnails before importing @my/api
+jest.mock('expo-video-thumbnails', () => ({
+  getThumbnailAsync: jest.fn(),
+}))
+
 // Mock @my/api before importing
 jest.mock('@my/api', () => ({
   ...jest.requireActual('@my/api'),

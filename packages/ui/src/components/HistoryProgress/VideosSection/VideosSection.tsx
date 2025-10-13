@@ -77,21 +77,23 @@ export function VideosSection({
 
   return (
     <YStack
-      gap="$3"
-      marginBottom="$6"
+      gap="$1"
+      marginBottom="$8"
       testID={testID}
     >
       {/* Section Header */}
       <XStack
         justifyContent="space-between"
         alignItems="center"
-        marginBottom="$3"
+        marginBottom="$2"
+        paddingHorizontal="$8"
         testID={`${testID}-header`}
       >
         <Text
-          fontSize="$6"
+          fontSize="$4"
           fontWeight="500"
-          color="$gray10"
+          color="$color11"
+          //letterSpacing={0.5}
         >
           Videos
         </Text>
@@ -106,8 +108,11 @@ export function VideosSection({
         >
           <Text
             fontSize="$4"
-            color="$gray10"
-            textDecorationLine="underline"
+            fontWeight="500"
+            color="$color11"
+            borderBottomWidth={1}
+            borderBottomColor="$color11"
+            paddingTop="$1"
           >
             See all
           </Text>
@@ -124,11 +129,11 @@ export function VideosSection({
         >
           <Spinner
             size="large"
-            color="$gray10"
+            color="$color11"
           />
           <Text
             fontSize="$4"
-            color="$gray10"
+            color="$color11"
             marginTop="$3"
           >
             Loading videos...
@@ -143,7 +148,7 @@ export function VideosSection({
           justifyContent="center"
           alignItems="center"
           gap="$3"
-          backgroundColor="$gray2"
+          backgroundColor="$color2"
           borderRadius="$4"
           padding="$4"
           testID={`${testID}-error`}
@@ -157,7 +162,7 @@ export function VideosSection({
           </Text>
           <Text
             fontSize="$3"
-            color="$gray10"
+            color="$color11"
             textAlign="center"
           >
             {error.message}
@@ -166,8 +171,8 @@ export function VideosSection({
             <Button
               size="$3"
               onPress={onRetry}
-              backgroundColor="$gray5"
-              color="$gray12"
+              backgroundColor="$color5"
+              color="$color12"
               pressStyle={{ opacity: 0.7, scale: 0.95 }}
               testID={`${testID}-retry-button`}
             >
@@ -184,21 +189,21 @@ export function VideosSection({
           justifyContent="center"
           alignItems="center"
           gap="$3"
-          backgroundColor="$gray2"
+          backgroundColor="$color2"
           borderRadius="$4"
           padding="$4"
           testID={`${testID}-empty`}
         >
           <Text
             fontSize="$5"
-            color="$gray11"
+            color="$color11"
             textAlign="center"
           >
             No videos yet
           </Text>
           <Text
             fontSize="$3"
-            color="$gray10"
+            color="$color11"
             textAlign="center"
           >
             Record your first video to see it here
@@ -211,10 +216,13 @@ export function VideosSection({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingRight: 16 }}
+          contentContainerStyle={{ paddingRight: 0 }}
           testID={`${testID}-scroll`}
         >
-          <XStack gap="$3">
+          <XStack
+            gap="$2"
+            paddingLeft="$8"
+          >
             {displayVideos.map((video) => (
               <VideoThumbnailCard
                 key={video.id}

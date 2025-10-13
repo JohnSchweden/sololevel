@@ -2,11 +2,17 @@ import type { NavAppHeaderOptions } from '@app/components/navigation/NavigationA
 import { log } from '@my/logging'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
+import { useHeaderHeight } from '@react-navigation/elements'
 import { useNavigation, useRouter } from 'expo-router'
 import React, { useLayoutEffect } from 'react'
-import { RefreshControl } from 'react-native'
-import { ScrollView, YStack } from 'tamagui'
+import { ImageBackground } from 'react-native'
+import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
+
+// Import profile image
+const profileImage = require('../../../../apps/expo/assets/profile.png')
+// Import glass gradient background
+const glassGradient = require('../../../../apps/expo/assets/glass-gradient.png')
 
 export interface HistoryProgressScreenProps {
   /**
@@ -60,6 +66,7 @@ export function HistoryProgressScreen({
 }: HistoryProgressScreenProps): React.ReactElement {
   const navigation = useNavigation()
   const router = useRouter()
+  const headerHeight = useHeaderHeight()
 
   // Log screen mount
   React.useEffect(() => {
@@ -76,12 +83,13 @@ export function HistoryProgressScreen({
         title: 'History & Progress',
         mode: 'default',
         leftAction: 'back',
-        rightAction: 'auto',
+        rightAction: 'profile',
+        profileImageUri: profileImage,
         onBackPress: onBack || (() => router.back()),
-        onMenuPress: () => {
+        onProfilePress: () => {
           // Navigate to settings/profile (P0: console.log placeholder)
-          console.log('Navigate to settings')
-          // P1: router.push('/settings')
+          log.info('HistoryProgressScreen', 'Navigate to profile')
+          // P1: router.push('/profile')
         },
       },
     } as NavAppHeaderOptions)
@@ -150,7 +158,7 @@ export function HistoryProgressScreen({
       onNavigateToVideos()
     } else {
       // P0: Console log placeholder
-      console.log('Navigate to /videos screen (P1 feature)')
+      log.info('HistoryProgressScreen', 'Navigate to /videos screen (P1 feature)')
       // P1: router.push('/videos')
     }
   }, [onNavigateToVideos])
@@ -160,8 +168,10 @@ export function HistoryProgressScreen({
     () => [
       { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
       { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
-      { id: 3, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
-      { id: 4, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+      { id: 3, date: 'Sunday, Jul 27', title: 'Posture correction techniques' },
+      { id: 4, date: 'Saturday, Jul 26', title: 'Injury prevention strategies' },
+      { id: 5, date: 'Friday, Jul 25', title: 'Nutrition timing for optimal performance' },
+      { id: 6, date: 'Thursday, Jul 24', title: 'Recovery techniques for athletes' },
     ],
     []
   )
@@ -176,42 +186,50 @@ export function HistoryProgressScreen({
   return (
     <YStack
       flex={1}
-      backgroundColor="$background"
+      backgroundColor="$color3"
       testID={testID}
     >
       {/* AppHeader rendered automatically by _layout.tsx */}
-
-      <ScrollView
-        flex={1}
-        paddingHorizontal="$4"
-        paddingTop="$4"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="$gray10"
-          />
-        }
-        testID={`${testID}-scroll`}
+      <ImageBackground
+        source={glassGradient}
+        resizeMode="stretch"
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+        }}
       >
-        {/* Videos Section */}
-        <VideosSection
-          videos={videos.slice(0, 3)}
-          onVideoPress={handleVideoPress}
-          onSeeAllPress={handleSeeAllPress}
-          isLoading={isLoading}
-          error={error}
-          onRetry={refetch}
-          testID={`${testID}-videos-section`}
-        />
+        <YStack
+          flex={1}
+          paddingTop={headerHeight}
+          marginVertical="$4"
+          borderRadius="$8"
+          overflow="hidden"
+          elevation={8}
+          testID={`${testID}-glass-container`}
+        >
+          <YStack flex={1}>
+            {/* Videos Section - Full Width */}
+            <VideosSection
+              videos={videos.slice(0, 3)}
+              onVideoPress={handleVideoPress}
+              onSeeAllPress={handleSeeAllPress}
+              isLoading={isLoading}
+              error={error}
+              onRetry={refetch}
+              testID={`${testID}-videos-section`}
+            />
 
-        {/* Coaching Sessions Section */}
-        <CoachingSessionsSection
-          sessions={mockCoachingSessions}
-          onSessionPress={handleSessionPress}
-          testID={`${testID}-coaching-sessions-section`}
-        />
-      </ScrollView>
+            {/* Coaching Sessions Section - With ScrollView */}
+            <CoachingSessionsSection
+              sessions={mockCoachingSessions}
+              onSessionPress={handleSessionPress}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              testID={`${testID}-coaching-sessions-section`}
+            />
+          </YStack>
+        </YStack>
+      </ImageBackground>
     </YStack>
   )
 }

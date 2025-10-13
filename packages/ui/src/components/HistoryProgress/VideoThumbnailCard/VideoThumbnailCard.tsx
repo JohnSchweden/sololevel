@@ -53,8 +53,8 @@ export interface VideoThumbnailCardProps {
 export function VideoThumbnailCard({
   thumbnailUri,
   onPress,
-  width = 180,
-  height = 280,
+  width = 100,
+  height = 180,
   accessibilityLabel,
   testID = 'video-thumbnail-card',
 }: VideoThumbnailCardProps): React.ReactElement {
@@ -64,14 +64,18 @@ export function VideoThumbnailCard({
   return (
     <YStack
       onPress={onPress}
-      pressStyle={{ scale: 0.98, opacity: 0.9 }}
+      pressStyle={{ scale: 0.97, opacity: 0.9 }}
       hoverStyle={{ opacity: 0.95 }}
       cursor="pointer"
       width={width}
       height={height}
       borderRadius="$4"
       overflow="hidden"
-      backgroundColor="$gray3"
+      backgroundColor="$gray2"
+      borderWidth={1}
+      // Subtle light border to match glass card in side-sheet
+      borderColor="rgba(255,255,255,0.35)"
+      elevation={4}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || 'Video thumbnail'}
       testID={testID}
@@ -82,7 +86,6 @@ export function VideoThumbnailCard({
           source={{ uri: thumbnailUri }}
           width={width}
           height={height}
-          borderRadius={12}
           onLoad={() => setIsLoading(false)}
           onError={() => {
             setIsLoading(false)
@@ -94,14 +97,14 @@ export function VideoThumbnailCard({
         <Stack
           width={width}
           height={height}
-          backgroundColor="$gray5"
+          backgroundColor="$gray4"
           justifyContent="center"
           alignItems="center"
           testID={`${testID}-placeholder`}
         >
           <Play
-            size={48}
-            color="$gray8"
+            size={30}
+            color="$color4"
           />
         </Stack>
       )}
@@ -139,15 +142,18 @@ export function VideoThumbnailCard({
         testID={`${testID}-play-overlay`}
       >
         <Circle
-          size={56}
-          backgroundColor="rgba(255, 255, 255, 0.9)"
+          size={30}
+          backgroundColor="rgba(255, 255, 255, 0.92)"
           justifyContent="center"
           alignItems="center"
+          borderWidth={1}
+          borderColor="rgba(255, 255, 255, 0.5)"
           elevation={2}
         >
           <Play
-            size={24}
+            size={18}
             color="$gray12"
+            fill="currentColor"
           />
         </Circle>
       </YStack>

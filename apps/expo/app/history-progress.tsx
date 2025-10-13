@@ -1,5 +1,5 @@
 import { HistoryProgressScreen } from '@app/features/HistoryProgress/HistoryProgressScreen'
-import { useRouter } from 'expo-router'
+//import { useRouter } from 'expo-router'
 import { AuthGate } from '../components/AuthGate'
 
 /**
@@ -17,24 +17,11 @@ import { AuthGate } from '../components/AuthGate'
  * - AuthGate wrapper protects route from unauthenticated access
  */
 export default function HistoryProgressRoute() {
-  const router = useRouter()
+  //const router = useRouter()
 
   return (
     <AuthGate>
-      <HistoryProgressScreen
-        onNavigateToVideoAnalysis={(analysisId) => {
-          // Type assertion for dynamic route
-          router.push(`/video-analysis/${analysisId}` as any)
-        }}
-        onNavigateToVideos={() => {
-          // P0: Console log placeholder
-          console.log('Navigate to /videos screen (P1 feature)')
-          // P1: router.push('/videos')
-        }}
-        onBack={() => {
-          router.back()
-        }}
-      />
+      <HistoryProgressScreen />
     </AuthGate>
   )
 }

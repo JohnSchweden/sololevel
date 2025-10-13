@@ -21,20 +21,7 @@ export default function HistoryProgressRoute() {
 
   return (
     <AuthGate>
-      <HistoryProgressScreen
-        onNavigateToVideoAnalysis={(analysisId) => {
-          // Type assertion for dynamic route
-          router.push(`/video-analysis/${analysisId}` as any)
-        }}
-        onNavigateToVideos={() => {
-          // P0: Console log placeholder
-          console.log('Navigate to /videos screen (P1 feature)')
-          // P1: router.push('/videos')
-        }}
-        onBack={() => {
-          router.back()
-        }}
-      />
+      <HistoryProgressScreen />
     </AuthGate>
   )
 }

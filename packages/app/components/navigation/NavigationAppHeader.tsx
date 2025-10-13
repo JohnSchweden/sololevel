@@ -91,6 +91,7 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       onBackPress: override.onBackPress ?? (back ? () => navigation.goBack() : undefined),
       onMenuPress: override.onMenuPress,
       onNotificationPress: override.onNotificationPress,
+      onProfilePress: override.onProfilePress,
       notificationBadgeCount: override.notificationBadgeCount ?? 0,
       cameraProps: override.cameraProps,
       titleAlignment: override.titleAlignment ?? titleAlignment,
@@ -98,6 +99,7 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       rightAction: override.rightAction ?? (rightSlot ? 'none' : 'auto'),
       themeName:
         override.themeName ?? (isTransparent && colorScheme === 'dark' ? 'dark' : undefined),
+      profileImageUri: override.profileImageUri,
       leftSlot,
       rightSlot,
       titleSlot,

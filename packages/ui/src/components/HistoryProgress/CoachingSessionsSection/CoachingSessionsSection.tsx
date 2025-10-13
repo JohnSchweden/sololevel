@@ -1,5 +1,6 @@
 import type { GetProps } from '@tamagui/core'
-import { Text, YStack, styled } from 'tamagui'
+import { RefreshControl } from 'react-native'
+import { ScrollView, Text, YStack, styled } from 'tamagui'
 import { CoachingSessionItem } from '../CoachingSessionItem'
 
 /**
@@ -38,6 +39,12 @@ export interface CoachingSessionsSectionProps {
   onSessionPress: (sessionId: number) => void
 
   /**
+   * Pull-to-refresh functionality
+   */
+  refreshing?: boolean
+  onRefresh?: () => void
+
+  /**
    * Test ID for testing
    */
   testID?: string
@@ -48,8 +55,9 @@ export interface CoachingSessionsSectionProps {
  */
 const SectionContainer = styled(YStack, {
   name: 'CoachingSessionsSectionContainer',
-  gap: '$3',
+  gap: '$4',
   width: '100%',
+  marginTop: '$2',
 })
 
 /**
@@ -57,11 +65,11 @@ const SectionContainer = styled(YStack, {
  */
 const SectionHeader = styled(Text, {
   name: 'CoachingSessionsSectionHeader',
-  fontSize: '$6',
+  fontSize: '$4',
   fontWeight: '500',
-  color: '$gray10',
-  marginBottom: '$3',
+  color: '$color11',
   lineHeight: '$2',
+  marginLeft: '$8',
 })
 
 /**
@@ -69,7 +77,7 @@ const SectionHeader = styled(Text, {
  */
 const SessionsList = styled(YStack, {
   name: 'SessionsList',
-  gap: '$2',
+  gap: '$6',
   width: '100%',
 })
 
@@ -99,23 +107,39 @@ const SessionsList = styled(YStack, {
 export function CoachingSessionsSection({
   sessions,
   onSessionPress,
+  refreshing = false,
+  onRefresh,
   testID = 'coaching-sessions-section',
 }: CoachingSessionsSectionProps): React.ReactElement {
   return (
     <SectionContainer data-testid={testID}>
       <SectionHeader data-testid={`${testID}-header`}>Coaching sessions</SectionHeader>
 
-      <SessionsList data-testid={`${testID}-list`}>
-        {sessions.map((session) => (
-          <CoachingSessionItem
-            key={session.id}
-            date={session.date}
-            title={session.title}
-            onPress={() => onSessionPress(session.id)}
-            testID={`${testID}-item-${session.id}`}
-          />
-        ))}
-      </SessionsList>
+      <ScrollView
+        paddingHorizontal="$8"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="$gray10"
+            />
+          ) : undefined
+        }
+        testID={`${testID}-scroll`}
+      >
+        <SessionsList data-testid={`${testID}-list`}>
+          {sessions.map((session) => (
+            <CoachingSessionItem
+              key={session.id}
+              date={session.date}
+              title={session.title}
+              onPress={() => onSessionPress(session.id)}
+              testID={`${testID}-item-${session.id}`}
+            />
+          ))}
+        </SessionsList>
+      </ScrollView>
     </SectionContainer>
   )
 }

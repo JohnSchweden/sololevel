@@ -32,19 +32,18 @@ export interface CoachingSessionItemProps {
 const SessionItemContainer = styled(YStack, {
   name: 'SessionItemContainer',
   gap: '$2',
-  padding: '$4',
-  borderRadius: '$3',
+  padding: 0,
+  borderRadius: 0,
   backgroundColor: 'transparent',
   cursor: 'pointer',
   accessibilityRole: 'button',
 
   pressStyle: {
-    backgroundColor: '$gray3',
     opacity: 0.7,
   },
 
   hoverStyle: {
-    backgroundColor: '$gray2',
+    opacity: 0.8,
   },
 
   variants: {
@@ -57,10 +56,9 @@ const SessionItemContainer = styled(YStack, {
  */
 const DateLabel = styled(Text, {
   name: 'DateLabel',
-  fontSize: '$3',
-  fontWeight: '400',
-  color: '$gray10',
-  lineHeight: '$1',
+  fontSize: '$1',
+  fontWeight: '500',
+  color: '$color11',
 })
 
 /**
@@ -68,10 +66,9 @@ const DateLabel = styled(Text, {
  */
 const SessionTitle = styled(Text, {
   name: 'SessionTitle',
-  fontSize: '$5',
-  fontWeight: '400',
-  color: '$gray12',
-  lineHeight: '$2',
+  fontSize: '$4',
+  fontWeight: '500',
+  color: '$color12',
 })
 
 /**
