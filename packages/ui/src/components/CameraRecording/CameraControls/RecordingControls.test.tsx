@@ -278,13 +278,14 @@ describe('Recording Controls Component', () => {
         </TestProvider>
       )
 
-      const buttons = screen.getAllByRole('button')
-      buttons.forEach((button) => {
-        // Check if button has proper accessibility attributes
-        expect(button.getAttribute('role')).toBe('button')
-        // Verify button exists (dimensions may not be available in test environment)
-        expect(button).toBeTruthy()
-      })
+      // Verify buttons exist by their accessibility labels
+      const stopButton = screen.getByLabelText('Stop recording')
+      const settingsButton = screen.getByLabelText('Camera settings')
+      const swapButton = screen.getByLabelText('Switch camera')
+
+      expect(stopButton).toBeTruthy()
+      expect(settingsButton).toBeTruthy()
+      expect(swapButton).toBeTruthy()
     })
 
     it('provides proper screen reader feedback', () => {

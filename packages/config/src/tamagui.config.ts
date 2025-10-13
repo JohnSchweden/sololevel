@@ -47,7 +47,7 @@ export const config = createTamagui({
     color: {
       ...(defaultConfig.tokens as any).color,
       overlayGlass: 'rgba(20, 20, 20, 0.45)',
-      overlayGlassStrong: 'rgba(0, 0, 0, 0.6)',
+      overlayGlassStrong: 'rgba(0, 0, 0, 0.3)',
       whiteA70: 'rgba(255, 255, 255, 0.7)',
       orange10: '#FF6600',
     },

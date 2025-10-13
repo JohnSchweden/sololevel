@@ -1,4 +1,5 @@
 import { log } from '@my/logging'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
@@ -14,6 +15,7 @@ export const useCameraScreenLogic = ({
 }: CameraRecordingScreenProps & {
   cameraRef?: any
 }) => {
+  const queryClient = useQueryClient()
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back')
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
@@ -164,9 +166,16 @@ export const useCameraScreenLogic = ({
         sourceUri: videoUri,
         durationSeconds: duration,
         originalFilename: 'recorded_video.mp4',
+        onRecordingIdAvailable: (recordingId) => {
+          log.info('useCameraScreenLogic', 'Recording ID available - invalidating history cache', {
+            recordingId,
+          })
+          // Invalidate history cache so new video appears immediately when user navigates to History
+          queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+        },
       })
     },
-    [onNavigateToVideoAnalysis]
+    [onNavigateToVideoAnalysis, queryClient]
   )
 
   const handleCameraSwap = useCallback(async () => {
@@ -317,9 +326,16 @@ export const useCameraScreenLogic = ({
           `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
+        onRecordingIdAvailable: (recordingId) => {
+          log.info('handleVideoSelected', 'Recording ID available - invalidating history cache', {
+            recordingId,
+          })
+          // Invalidate history cache so new video appears immediately when user navigates to History
+          queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+        },
       })
     },
-    [onNavigateToVideoAnalysis]
+    [onNavigateToVideoAnalysis, queryClient]
   )
 
   const handleSettingsOpen = useCallback(() => {

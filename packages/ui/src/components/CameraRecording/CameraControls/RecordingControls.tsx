@@ -1,11 +1,9 @@
-import { shadows } from '@my/config'
 import { log } from '@my/logging'
 import { Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { useState } from 'react'
-// Use React Native Pressable with platform detection
-import { Platform, Pressable } from 'react-native'
+import { Pressable } from 'react-native'
 import { Text, XStack, YStack } from 'tamagui'
-import { Button } from 'tamagui'
+import { GlassButton } from '../../GlassButton'
 
 export enum RecordingState {
   IDLE = 'idle',
@@ -84,7 +82,7 @@ export function RecordingControls({
         backgroundColor="rgba(0,0,0,0.6)"
         paddingHorizontal="$4"
         paddingVertical="$2"
-        borderRadius="$4"
+        borderRadius="$12"
       >
         <Text
           fontSize="$6"
@@ -128,7 +126,6 @@ export function RecordingControls({
             minHeight={60}
             minWidth={120}
             gap="$2"
-            {...shadows.medium}
             // Touch feedback
             scale={isPausePressed ? 0.95 : 1.0}
             hoverStyle={{
@@ -167,30 +164,21 @@ export function RecordingControls({
         </Pressable>
 
         {/* Stop Button */}
-        <Button
+        <GlassButton
           onPress={onStop}
           disabled={disabled || !canStop}
-          backgroundColor="transparent" // Transparent
-          borderRadius="$4"
+          backgroundColor="transparent"
           minHeight={60}
           minWidth={60}
-          pressStyle={{
-            scale: 0.95,
-            backgroundColor: 'rgba(255,255,255,0.1)',
-          }}
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Stop recording"
-          accessibilityHint="Stop the current recording"
           icon={
             <Square
               size="$2"
-              color={!canStop ? 'rgba(255,255,255,0.5)' : 'red'} // Red when enabled, gray when disabled
-              fill={!canStop ? 'rgba(255,255,255,0.5)' : 'red'} // Red when enabled, gray when disabled
+              color={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
+              fill={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
             />
           }
+          accessibilityLabel="Stop recording"
+          accessibilityHint="Stop the current recording"
         />
       </XStack>
 
@@ -202,29 +190,17 @@ export function RecordingControls({
         paddingHorizontal="$4"
       >
         {/* Camera Settings Button */}
-        <Button
-          variant="outlined"
-          size="$3"
+        <GlassButton
           onPress={onSettingsOpen}
           disabled={disabled}
           icon={
             <Settings
-              size="$1.5"
+              size="$1"
               color="white"
             />
           }
-          backgroundColor="rgba(255,255,255,0.2)"
-          borderRadius="$4"
           minHeight={44}
           minWidth={44}
-          pressStyle={{
-            scale: 0.95,
-            backgroundColor: 'rgba(255,255,255,0.3)',
-          }}
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.25)',
-          }}
-          accessibilityRole="button"
           accessibilityLabel="Camera settings"
         />
 
@@ -236,9 +212,7 @@ export function RecordingControls({
         />
 
         {/* Camera Swap Button */}
-        <Button
-          variant="outlined"
-          size="$3"
+        <GlassButton
           onPress={async () => {
             try {
               await onCameraSwap?.()
@@ -252,24 +226,14 @@ export function RecordingControls({
           disabled={disabled || !canSwapCamera}
           icon={
             <SwitchCamera
-              size="$1.5"
+              size="$1"
               color="white"
             />
           }
-          backgroundColor="rgba(255,255,255,0.2)"
-          borderRadius="$4"
           minHeight={44}
           minWidth={44}
-          pressStyle={{
-            scale: 0.95,
-            backgroundColor: 'rgba(255,255,255,0.3)',
-          }}
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.25)',
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Switch camera"
           opacity={!canSwapCamera ? 0.5 : 1}
+          accessibilityLabel="Switch camera"
         />
       </XStack>
     </YStack>
@@ -298,7 +262,7 @@ export function ZoomControls({ currentZoom, onZoomChange, disabled = false }: Zo
     <XStack
       alignItems="center"
       gap="$2"
-      backgroundColor="rgba(0,0,0,0.4)"
+      backgroundColor="rgba(0,0,0,0.2)"
       borderRadius="$4"
       padding="$2"
     >
@@ -328,35 +292,24 @@ function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
   }
 
   return (
-    <Button
-      variant="outlined"
-      size="$2"
+    <GlassButton
       onPress={handlePress}
       disabled={disabled}
-      backgroundColor={disabled ? '$color8' : isActive ? '$blue9' : 'rgba(255,255,255,0.2)'}
-      borderRadius="$4"
+      backgroundColor={disabled ? '$color8' : isActive ? '$blue9' : 'rgba(255,255,255,0.05)'}
       minHeight={32}
       minWidth={36}
-      paddingHorizontal="$2"
-      pressStyle={{
-        scale: 0.95,
-        backgroundColor: isActive ? '$blue10' : 'rgba(255,255,255,0.3)',
-      }}
-      hoverStyle={{
-        backgroundColor: isActive ? '$blue10' : 'rgba(255,255,255,0.25)',
-      }}
-      accessibilityRole="button"
-      {...(Platform.OS === 'web'
-        ? { 'aria-label': `${level}x zoom`, 'aria-pressed': isActive }
-        : { accessibilityLabel: `${level}x zoom`, accessibilityState: { selected: isActive } })}
+      blurIntensity={isActive ? 30 : 20}
+      blurTint={isActive ? 'dark' : 'light'}
+      accessibilityLabel={`${level}x zoom`}
+      accessibilityHint={isActive ? 'Currently selected' : undefined}
     >
       <Text
         fontSize="$3"
         fontWeight="600"
-        color={disabled ? '$color11' : isActive ? 'white' : 'white'}
+        color={disabled ? '$color11' : 'white'}
       >
         {level}x
       </Text>
-    </Button>
+    </GlassButton>
   )
 }

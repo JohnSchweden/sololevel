@@ -6,6 +6,7 @@ import React, { useCallback, useState } from 'react'
 import { Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
 import type { VideoValidationResult } from '../../../utils/videoValidation'
+import { GlassButton } from '../../GlassButton'
 import { VideoFilePicker } from '../../VideoFilePicker/VideoFilePicker'
 
 export interface IdleControlsProps {
@@ -52,11 +53,7 @@ export function IdleControls({
   uploadButtonTestID = 'upload-button',
   cameraSwapButtonTestID = 'camera-swap-button',
 }: IdleControlsProps) {
-  const [isRecordPressed, setIsRecordPressed] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
-
-  // Use transition duration for accessibility and future animation timing
-  const transitionDuration = cameraSwapTransitionDuration
 
   const handleUploadVideo = useCallback(() => {
     if (onVideoSelected) {
@@ -88,6 +85,7 @@ export function IdleControls({
       alignItems="center"
       gap="$4"
       testID={testID}
+      elevation={1}
     >
       {/* Main Control Row */}
       <XStack
@@ -97,9 +95,7 @@ export function IdleControls({
         paddingHorizontal="$3"
       >
         {/* Upload Video Button */}
-        <Button
-          variant="outlined"
-          size="$3"
+        <GlassButton
           onPress={handleUploadVideo}
           disabled={disabled || showUploadProgress}
           testID={uploadButtonTestID}
@@ -109,97 +105,61 @@ export function IdleControls({
               color="white"
             />
           }
-          backgroundColor="$overlayGlassStrong"
-          borderRadius="$12"
-          minHeight={56}
-          minWidth={56}
-          pressStyle={{
-            scale: 0.96,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-          }}
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-          }}
-          accessibilityRole="button"
           accessibilityLabel="Upload video file"
           accessibilityHint="Select an existing video to upload for analysis"
         />
 
         {/* Primary Record Button */}
-        <Pressable
+        <GlassButton
           onPress={onStartRecording}
-          onPressIn={() => setIsRecordPressed(true)}
-          onPressOut={() => setIsRecordPressed(false)}
           disabled={disabled}
-          style={{ zIndex: 10 }}
           testID={recordButtonTestID}
-          accessibilityRole="button"
+          minWidth={82}
+          minHeight={82}
+          blurIntensity={20}
+          blurTint="light"
+          borderWidth={2}
+          borderColor="rgba(255,255,255,0.65)"
           accessibilityLabel="Start recording"
           accessibilityHint="Press to start recording a new video"
         >
-          <YStack
-            alignItems="center"
-            justifyContent="center"
-            width={88}
-            height={88}
-            backgroundColor="transparent"
-            borderRadius="$12"
-            borderWidth={2}
-            borderColor="rgba(255,255,255,0.95)"
-            {...shadows.medium}
-            scale={isRecordPressed ? 0.97 : 1.0}
-            pointerEvents="none"
-          >
-            {/* Inner Record Circle */}
-            <Circle
-              size={56}
-              backgroundColor="$orange10"
-              opacity={disabled ? 0.5 : 1.0}
-            />
-          </YStack>
-        </Pressable>
+          <Circle
+            size={52}
+            backgroundColor="$orange10"
+            opacity={disabled ? 0.5 : 1.0}
+          />
+        </GlassButton>
 
         {/* Camera Swap Button */}
-        <Button
-          variant="outlined"
-          size="$3"
-          onPress={async () => {
-            try {
-              await onCameraSwap?.()
-            } catch (error) {
-              // Error is handled in the camera logic, just log for debugging
-              log.warn('IdleControls', 'Camera swap failed', {
-                error: error instanceof Error ? error.message : String(error),
-              })
-            }
-          }}
-          disabled={disabled || cameraSwapDisabled || isCameraSwapping}
-          testID={cameraSwapButtonTestID}
-          icon={
-            <SwitchCamera
-              size="$1.5"
-              color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
-            />
-          }
-          backgroundColor={isCameraSwapping ? 'rgba(255,255,255,0.1)' : '$overlayGlassStrong'}
-          borderRadius="$12"
-          minHeight={56}
-          minWidth={56}
-          opacity={isCameraSwapping ? 0.7 : 1.0}
+        <YStack
           style={{
-            transitionDuration: `${transitionDuration}ms`,
+            transitionDuration: `${cameraSwapTransitionDuration}ms`,
           }}
-          pressStyle={{
-            scale: 0.96,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-          }}
-          hoverStyle={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={isCameraSwapping ? 'Switching camera' : 'Switch camera'}
-          accessibilityHint="Switch between front and back camera"
-        />
+        >
+          <GlassButton
+            onPress={async () => {
+              try {
+                await onCameraSwap?.()
+              } catch (error) {
+                // Error is handled in the camera logic, just log for debugging
+                log.warn('IdleControls', 'Camera swap failed', {
+                  error: error instanceof Error ? error.message : String(error),
+                })
+              }
+            }}
+            disabled={disabled || cameraSwapDisabled || isCameraSwapping}
+            testID={cameraSwapButtonTestID}
+            icon={
+              <SwitchCamera
+                size="$1.5"
+                color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
+              />
+            }
+            opacity={isCameraSwapping ? 0.7 : 1.0}
+            accessibilityLabel={isCameraSwapping ? 'Switching camera' : 'Switch camera'}
+            accessibilityHint="Switch between front and back camera"
+          />
+        </YStack>
       </XStack>
 
       {/* Integrated Video File Picker */}

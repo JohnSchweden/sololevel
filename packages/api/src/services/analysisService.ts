@@ -123,6 +123,20 @@ export type AnalysisJob = Tables<'analysis_jobs'>
 export type AnalysisJobInsert = TablesInsert<'analysis_jobs'>
 export type AnalysisJobUpdate = TablesUpdate<'analysis_jobs'>
 
+// Extended type for analysis jobs with video_recordings join
+export type AnalysisJobWithVideo = AnalysisJob & {
+  video_recordings?: {
+    id: number
+    filename: string
+    original_filename?: string | null
+    duration_seconds: number
+    created_at: string
+    metadata?: {
+      thumbnailUri?: string
+    } | null
+  } | null
+}
+
 export type AnalysisStatus = 'queued' | 'processing' | 'completed' | 'failed'
 
 export interface AnalysisResults {
@@ -312,9 +326,10 @@ export async function getAnalysisJobByVideoId(
 }
 
 /**
- * Get user's analysis jobs
+ * Get user's analysis jobs with video_recordings join
+ * @param limit - Maximum number of jobs to fetch (default: 10)
  */
-export async function getUserAnalysisJobs(): Promise<AnalysisJob[]> {
+export async function getUserAnalysisJobs(limit = 10): Promise<AnalysisJobWithVideo[]> {
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
     throw new Error('User not authenticated')
@@ -329,17 +344,20 @@ export async function getUserAnalysisJobs(): Promise<AnalysisJob[]> {
         filename,
         original_filename,
         duration_seconds,
-        created_at
+        created_at,
+        metadata
       )
     `)
     .eq('user_id', user.data.user.id)
     .order('created_at', { ascending: false })
+    .limit(limit)
 
   if (error) {
     throw new Error(`Failed to fetch analysis jobs: ${error.message}`)
   }
 
-  return jobs
+  // Cast to AnalysisJobWithVideo[] since Supabase join typing is complex
+  return jobs as unknown as AnalysisJobWithVideo[]
 }
 
 /**

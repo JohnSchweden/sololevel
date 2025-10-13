@@ -29,6 +29,7 @@ module.exports = {
   ],
   coverageReporters: ['text', 'html', 'lcov'],
   moduleNameMapper: {
+    '^@tamagui/linear-gradient$': '<rootDir>/src/__mocks__/@tamagui/linear-gradient.tsx',
     '^@my/(.*)$': '<rootDir>/../$1/src',
     '^@ui/(.*)$': '<rootDir>/src/$1',
     '^@app/(.*)$': '<rootDir>/../app/$1',

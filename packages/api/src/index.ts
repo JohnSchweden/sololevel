@@ -41,6 +41,7 @@ export type {
   AnalysisJob,
   AnalysisJobInsert,
   AnalysisJobUpdate,
+  AnalysisJobWithVideo,
   AnalysisResults,
   AnalysisResults as AnalysisServiceResults,
   AnalysisStatus,

@@ -77,7 +77,9 @@ const mockJob = {
     original_filename: 'video.mp4',
     duration_seconds: 30,
     created_at: '2025-10-11T09:55:00Z',
-    thumbnail_url: 'https://example.com/thumb.jpg',
+    metadata: {
+      thumbnailUri: 'https://example.com/thumb.jpg',
+    },
   },
 }
 
@@ -149,12 +151,12 @@ describe('useHistoryQuery', () => {
     // Verify mock was called
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
 
-    // ASSERT: Transformed data
+    // ASSERT: Transformed data (title from summary_text)
     expect(result.current.data).toEqual([
       {
         id: 1,
         videoId: 10,
-        title: 'Test Analysis',
+        title: 'Test analysis summary',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
       },
@@ -246,13 +248,13 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Fetched from database
+    // ASSERT: Fetched from database (title from summary_text)
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
     expect(result.current.data).toEqual([
       {
         id: 1,
         videoId: 10,
-        title: 'Test Analysis',
+        title: 'Test analysis summary',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
       },
@@ -297,12 +299,12 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Cache updated
+    // ASSERT: Cache updated (title from summary_text)
     const cache = useVideoHistoryStore.getState()
     const cached = cache.getCached(1)
 
     expect(cached).not.toBeNull()
-    expect(cached?.title).toBe('Test Analysis')
+    expect(cached?.title).toBe('Test analysis summary')
     expect(cached?.videoId).toBe(10)
   })
 
@@ -351,9 +353,9 @@ describe('useHistoryQuery', () => {
     expect(result.current.error).toEqual(new Error('Network error'))
   })
 
-  it('should generate default title when job has no title', async () => {
-    // ARRANGE: Job without title
-    const jobWithoutTitle = { ...mockJob, title: null }
+  it('should generate default title when job has no summary_text', async () => {
+    // ARRANGE: Job without summary_text (implementation uses summary_text, not title)
+    const jobWithoutTitle = { ...mockJob, summary_text: null }
     mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithoutTitle])
 
     // ACT: Render hook
@@ -388,5 +390,78 @@ describe('useHistoryQuery', () => {
 
     // ASSERT: Empty array returned
     expect(result.current.data).toEqual([])
+  })
+
+  it('should extract thumbnailUri from metadata (local device URI)', async () => {
+    // ARRANGE: Job with metadata containing local thumbnail URI
+    const jobWithMetadata = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        metadata: {
+          thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
+        },
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithMetadata])
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Local thumbnail URI extracted from metadata (title from summary_text)
+    expect(result.current.data).toEqual([
+      {
+        id: 1,
+        videoId: 10,
+        title: 'Test analysis summary',
+        createdAt: '2025-10-11T10:00:00Z',
+        thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
+      },
+    ])
+  })
+
+  it('should prioritize metadata thumbnailUri over thumbnail_url', async () => {
+    // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
+    const jobWithBoth = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {
+          thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
+        },
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithBoth])
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: metadata thumbnailUri takes precedence
+    expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
   })
 })

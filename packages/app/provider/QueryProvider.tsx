@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useAnalysisSubscriptionStore } from '../features/VideoAnalysis/stores/analysisSubscription'
 
 // Create a stable query client instance
 let browserQueryClient: QueryClient | undefined
@@ -47,6 +48,11 @@ export function QueryProvider({ children }: QueryProviderProps) {
   // suspend because React will throw away the client on the initial
   // render if it suspends and there is no boundary
   const [queryClient] = useState(() => getQueryClient())
+
+  // Inject QueryClient into AnalysisSubscriptionStore for cache invalidation
+  useEffect(() => {
+    useAnalysisSubscriptionStore.getState().setQueryClient(queryClient)
+  }, [queryClient])
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }

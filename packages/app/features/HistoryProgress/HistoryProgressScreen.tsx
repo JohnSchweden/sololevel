@@ -1,18 +1,16 @@
 import type { NavAppHeaderOptions } from '@app/components/navigation/NavigationAppHeader'
 import { log } from '@my/logging'
+import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import { useHeaderHeight } from '@react-navigation/elements'
-import { useNavigation, useRouter } from 'expo-router'
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router'
 import React, { useLayoutEffect } from 'react'
-import { ImageBackground } from 'react-native'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
 
 // Import profile image
 const profileImage = require('../../../../apps/expo/assets/profile.png')
-// Import glass gradient background
-const glassGradient = require('../../../../apps/expo/assets/glass-gradient.png')
 
 export interface HistoryProgressScreenProps {
   /**
@@ -98,6 +96,14 @@ export function HistoryProgressScreen({
   // Data fetching with TanStack Query + Zustand cache
   const { data: videos = [], isLoading, error, refetch } = useHistoryQuery()
 
+  // Refetch data when screen comes into focus (e.g., after recording a video)
+  useFocusEffect(
+    React.useCallback(() => {
+      log.debug('HistoryProgressScreen', 'Screen focused - refetching history')
+      refetch()
+    }, [refetch])
+  )
+
   // Log data state changes
   React.useEffect(() => {
     if (error) {
@@ -109,6 +115,12 @@ export function HistoryProgressScreen({
     } else if (!isLoading && videos.length > 0) {
       log.debug('HistoryProgressScreen', 'Videos loaded successfully', {
         count: videos.length,
+        videoSample: videos.slice(0, 3).map((v) => ({
+          id: v.id,
+          title: v.title,
+          hasThumbnail: !!v.thumbnailUri,
+          thumbnailPreview: v.thumbnailUri ? v.thumbnailUri.substring(0, 60) + '...' : 'none',
+        })),
       })
     }
   }, [videos, isLoading, error])
@@ -184,52 +196,42 @@ export function HistoryProgressScreen({
   }, [])
 
   return (
-    <YStack
-      flex={1}
+    <GlassBackground
       backgroundColor="$color3"
       testID={testID}
     >
       {/* AppHeader rendered automatically by _layout.tsx */}
-      <ImageBackground
-        source={glassGradient}
-        resizeMode="stretch"
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-        }}
+      <YStack
+        flex={1}
+        paddingTop={headerHeight}
+        marginVertical="$4"
+        borderRadius="$8"
+        overflow="hidden"
+        elevation={8}
+        testID={`${testID}-glass-container`}
       >
-        <YStack
-          flex={1}
-          paddingTop={headerHeight}
-          marginVertical="$4"
-          borderRadius="$8"
-          overflow="hidden"
-          elevation={8}
-          testID={`${testID}-glass-container`}
-        >
-          <YStack flex={1}>
-            {/* Videos Section - Full Width */}
-            <VideosSection
-              videos={videos.slice(0, 3)}
-              onVideoPress={handleVideoPress}
-              onSeeAllPress={handleSeeAllPress}
-              isLoading={isLoading}
-              error={error}
-              onRetry={refetch}
-              testID={`${testID}-videos-section`}
-            />
+        <YStack flex={1}>
+          {/* Videos Section - Full Width */}
+          <VideosSection
+            videos={videos.slice(0, 10)}
+            onVideoPress={handleVideoPress}
+            onSeeAllPress={handleSeeAllPress}
+            isLoading={isLoading}
+            error={error}
+            onRetry={refetch}
+            testID={`${testID}-videos-section`}
+          />
 
-            {/* Coaching Sessions Section - With ScrollView */}
-            <CoachingSessionsSection
-              sessions={mockCoachingSessions}
-              onSessionPress={handleSessionPress}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              testID={`${testID}-coaching-sessions-section`}
-            />
-          </YStack>
+          {/* Coaching Sessions Section - With ScrollView */}
+          <CoachingSessionsSection
+            sessions={mockCoachingSessions}
+            onSessionPress={handleSessionPress}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            testID={`${testID}-coaching-sessions-section`}
+          />
         </YStack>
-      </ImageBackground>
-    </YStack>
+      </YStack>
+    </GlassBackground>
   )
 }

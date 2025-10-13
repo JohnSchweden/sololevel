@@ -1,5 +1,6 @@
 import { subscribeToAnalysisJob, subscribeToLatestAnalysisJobByRecordingId } from '@my/api'
 import { log } from '@my/logging'
+import type { QueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 
@@ -33,6 +34,8 @@ export interface SubscriptionOptions {
 
 interface AnalysisSubscriptionStoreState {
   subscriptions: Map<string, SubscriptionState>
+  queryClient: QueryClient | null
+  setQueryClient: (client: QueryClient) => void
   subscribe: (key: string, options: SubscriptionOptions) => Promise<void>
   unsubscribe: (key: string) => void
   getJob: (key: string) => AnalysisJob | null
@@ -62,6 +65,13 @@ const createInitialState = (): Map<string, SubscriptionState> => new Map()
 export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreState>()(
   immer((set, get) => ({
     subscriptions: createInitialState(),
+    queryClient: null,
+
+    setQueryClient: (client) => {
+      set((draft) => {
+        draft.queryClient = client
+      })
+    },
 
     subscribe: async (_key, options) => {
       const subscriptionKey = buildSubscriptionKey(options)
@@ -258,7 +268,8 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
 )
 
 type StoreGetter = () => AnalysisSubscriptionStoreState
-type StoreSetter = (fn: (draft: AnalysisSubscriptionStoreState) => void) => void
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StoreSetter = any
 
 function parseSubscriptionKey(key: string): SubscriptionOptions | null {
   if (key.startsWith('job:')) {
@@ -287,9 +298,9 @@ function createSubscription(
     return new Promise((resolve, reject) => {
       const unsubscribe = subscribeToAnalysisJob(
         options.analysisJobId!,
-        (job) => handleJobUpdate(key, job, set),
+        (job) => handleJobUpdate(key, job, set, get),
         {
-          onStatus: (status, details) => handleStatusUpdate(key, status, details, set),
+          onStatus: (status, details) => handleStatusUpdate(key, status, details, set, get),
           onError: (error, details) => handleSubscriptionError(key, error, details, get, set),
         }
       )
@@ -321,9 +332,9 @@ function createSubscription(
     return new Promise((resolve, reject) => {
       const unsubscribe = subscribeToLatestAnalysisJobByRecordingId(
         options.recordingId!,
-        (job) => handleJobUpdate(key, job, set),
+        (job) => handleJobUpdate(key, job, set, get),
         {
-          onStatus: (status, details) => handleStatusUpdate(key, status, details, set),
+          onStatus: (status, details) => handleStatusUpdate(key, status, details, set, get),
           onError: (error, details) => handleSubscriptionError(key, error, details, get, set),
         }
       )
@@ -349,8 +360,10 @@ function createSubscription(
   return Promise.reject(new Error('Missing subscription parameters'))
 }
 
-function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter) {
-  set((draft) => {
+function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: StoreGetter) {
+  const previousStatus = get().subscriptions.get(key)?.job?.status
+
+  set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
     if (!subscription) {
       log.warn('AnalysisSubscriptionStore', 'Received job update for unknown key', {
@@ -374,10 +387,31 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter) {
       subscription.status = 'active'
     }
   })
+
+  // Invalidate history cache when analysis completes
+  if (previousStatus !== 'completed' && job.status === 'completed') {
+    const queryClient = get().queryClient
+    if (queryClient) {
+      log.info('AnalysisSubscriptionStore', 'Analysis completed - invalidating history cache', {
+        jobId: job.id,
+      })
+      queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+    } else {
+      log.warn('AnalysisSubscriptionStore', 'QueryClient not set - cannot invalidate cache', {
+        jobId: job.id,
+      })
+    }
+  }
 }
 
-function handleStatusUpdate(key: string, status: string, details: unknown, set: StoreSetter) {
-  set((draft) => {
+function handleStatusUpdate(
+  key: string,
+  status: string,
+  details: unknown,
+  set: StoreSetter,
+  get: StoreGetter
+) {
+  set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
     if (!subscription) return
 
@@ -404,7 +438,7 @@ function handleStatusUpdate(key: string, status: string, details: unknown, set: 
         subscription.backfillTimeoutId = null
       }
     } else if (status === 'BACKFILL_EMPTY') {
-      scheduleBackfillCheck(key, set)
+      scheduleBackfillCheck(key, set, get)
     }
   })
 }
@@ -422,7 +456,7 @@ function handleSubscriptionError(
     details,
   })
 
-  set((draft) => {
+  set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
     if (!subscription) return
     subscription.lastError = error
@@ -442,7 +476,7 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
       key,
       attempts: subscription.retryAttempts,
     })
-    set((draft) => {
+    set((draft: AnalysisSubscriptionStoreState) => {
       const current = draft.subscriptions.get(key)
       if (!current) return
       current.status = 'failed'
@@ -462,7 +496,7 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
     void get().retry(key)
   }, delay)
 
-  set((draft) => {
+  set((draft: AnalysisSubscriptionStoreState) => {
     const current = draft.subscriptions.get(key)
     if (!current) return
     if (current.retryTimeoutId) {
@@ -472,7 +506,7 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
   })
 }
 
-function scheduleBackfillCheck(key: string, set: StoreSetter) {
+function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) {
   log.info('AnalysisSubscriptionStore', 'Scheduling backfill check', { key })
 
   const timeoutId = setTimeout(async () => {
@@ -485,7 +519,7 @@ function scheduleBackfillCheck(key: string, set: StoreSetter) {
       const { getLatestAnalysisJobForRecordingId } = await import('@my/api')
       const job = await getLatestAnalysisJobForRecordingId(options.recordingId)
       if (job) {
-        handleJobUpdate(key, job, set)
+        handleJobUpdate(key, job, set, get)
       }
     } catch (error) {
       log.error('AnalysisSubscriptionStore', 'Backfill check failed', {
@@ -495,7 +529,7 @@ function scheduleBackfillCheck(key: string, set: StoreSetter) {
     }
   }, BACKFILL_DELAY_MS)
 
-  set((draft) => {
+  set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
     if (!subscription) return
     if (subscription.backfillTimeoutId) {

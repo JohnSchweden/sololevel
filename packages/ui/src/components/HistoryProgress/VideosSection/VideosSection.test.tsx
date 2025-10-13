@@ -72,7 +72,7 @@ describe('VideosSection', () => {
       expect(getByTestId('videos-section-see-all-button')).toBeTruthy()
     })
 
-    it('should render video thumbnails (max 3)', () => {
+    it('should render all provided video thumbnails', () => {
       // ARRANGE & ACT: Render with 3 videos
       const { getByTestId } = renderWithProvider(
         <VideosSection
@@ -88,8 +88,8 @@ describe('VideosSection', () => {
       expect(getByTestId('videos-section-thumbnail-3')).toBeTruthy()
     })
 
-    it('should only render first 3 videos when more provided', () => {
-      // ARRANGE: More than 3 videos
+    it('should render all videos when many provided', () => {
+      // ARRANGE: 5 videos
       const manyVideos = [
         ...mockVideos,
         { id: 4, videoId: 40, title: 'Video 4', createdAt: '2025-10-08T10:00:00Z' },
@@ -97,7 +97,7 @@ describe('VideosSection', () => {
       ]
 
       // ACT: Render with 5 videos
-      const { getByTestId, queryByTestId } = renderWithProvider(
+      const { getByTestId } = renderWithProvider(
         <VideosSection
           videos={manyVideos}
           onVideoPress={mockOnVideoPress}
@@ -105,12 +105,12 @@ describe('VideosSection', () => {
         />
       )
 
-      // ASSERT: Only first 3 rendered
+      // ASSERT: All 5 rendered (component doesn't limit, caller does)
       expect(getByTestId('videos-section-thumbnail-1')).toBeTruthy()
       expect(getByTestId('videos-section-thumbnail-2')).toBeTruthy()
       expect(getByTestId('videos-section-thumbnail-3')).toBeTruthy()
-      expect(queryByTestId('videos-section-thumbnail-4')).toBeNull()
-      expect(queryByTestId('videos-section-thumbnail-5')).toBeNull()
+      expect(getByTestId('videos-section-thumbnail-4')).toBeTruthy()
+      expect(getByTestId('videos-section-thumbnail-5')).toBeTruthy()
     })
 
     it('should render single video', () => {

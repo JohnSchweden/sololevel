@@ -19,6 +19,7 @@ import React, {
 } from 'react'
 import { PanResponder, Pressable, View } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
+import { GlassButton } from '../../GlassButton'
 
 export interface VideoControlsRef {
   triggerMenu: () => void
@@ -271,27 +272,46 @@ export const VideoControls = React.memo(
               opacity={isProcessing ? 0 : 1}
               pointerEvents={isProcessing ? 'none' : 'auto'}
             >
-              <Button
-                chromeless
-                icon={<SkipBack />}
-                size={60 * scaleFactor}
-                backgroundColor="rgba(255, 255, 255, 0.60)"
-                borderRadius={30 * scaleFactor}
+              <GlassButton
+                icon={
+                  <SkipBack
+                    size={20 * scaleFactor}
+                    color="white"
+                  />
+                }
+                minWidth={60 * scaleFactor}
+                minHeight={60 * scaleFactor}
+                borderRadius={60 * scaleFactor}
                 onPress={() => {
                   showControlsAndResetTimer()
                   onSeek(Math.max(0, currentTime - 10))
                 }}
                 testID="rewind-button"
                 accessibilityLabel="Rewind 10 seconds"
-                accessibilityRole="button"
                 accessibilityHint={`Skip backward 10 seconds from ${formatTime(currentTime)}`}
               />
-              <Button
-                chromeless
-                icon={videoEnded ? <RotateCcw /> : isPlaying ? <Pause /> : <Play />}
-                size={80 * scaleFactor}
-                backgroundColor="rgba(255,255,255,0.60)"
-                borderRadius={40 * scaleFactor}
+              <GlassButton
+                icon={
+                  videoEnded ? (
+                    <RotateCcw
+                      size={35 * scaleFactor}
+                      color="white"
+                    />
+                  ) : isPlaying ? (
+                    <Pause
+                      size={35 * scaleFactor}
+                      color="white"
+                    />
+                  ) : (
+                    <Play
+                      size={35 * scaleFactor}
+                      color="white"
+                    />
+                  )
+                }
+                minWidth={80 * scaleFactor}
+                minHeight={80 * scaleFactor}
+                borderRadius={70 * scaleFactor}
                 onPress={() => {
                   showControlsAndResetTimer()
                   if (videoEnded && onReplay) {
@@ -304,7 +324,6 @@ export const VideoControls = React.memo(
                 accessibilityLabel={
                   videoEnded ? 'Replay video' : isPlaying ? 'Pause video' : 'Play video'
                 }
-                accessibilityRole="button"
                 accessibilityHint={
                   videoEnded
                     ? 'Restart video from beginning'
@@ -312,21 +331,23 @@ export const VideoControls = React.memo(
                       ? 'Pause video playback'
                       : 'Start video playback'
                 }
-                accessibilityState={{ selected: isPlaying }}
               />
-              <Button
-                chromeless
-                icon={<SkipForward />}
-                size={60 * scaleFactor}
-                backgroundColor="rgba(255,255,255,0.60)"
-                borderRadius={30 * scaleFactor}
+              <GlassButton
+                icon={
+                  <SkipForward
+                    size={20 * scaleFactor}
+                    color="white"
+                  />
+                }
+                minWidth={60 * scaleFactor}
+                minHeight={60 * scaleFactor}
+                borderRadius={50 * scaleFactor}
                 onPress={() => {
                   showControlsAndResetTimer()
                   onSeek(Math.min(duration, currentTime + 10))
                 }}
                 testID="fast-forward-button"
                 accessibilityLabel="Fast forward 10 seconds"
-                accessibilityRole="button"
                 accessibilityHint={`Skip forward 10 seconds from ${formatTime(currentTime)}`}
               />
             </XStack>
@@ -489,40 +510,62 @@ export const VideoControls = React.memo(
                 </Text>
 
                 <YStack gap="$2">
-                  <Button
-                    onPress={() => handleMenuItemPress('share')}
-                    icon={<Share />}
-                    justifyContent="flex-start"
-                    backgroundColor="transparent"
-                    pressStyle={{ backgroundColor: '$color3' }}
-                    size="$4"
-                    borderRadius="$3"
-                  >
-                    Share Video
-                  </Button>
+                  <XStack>
+                    <GlassButton
+                      onPress={() => handleMenuItemPress('share')}
+                      icon={
+                        <Share
+                          size="$1"
+                          color="white"
+                        />
+                      }
+                      minHeight={44}
+                      backgroundColor="transparent"
+                    >
+                      <Text
+                        color="white"
+                        fontSize="$4"
+                      >
+                        Share Video
+                      </Text>
+                    </GlassButton>
+                  </XStack>
 
-                  <Button
-                    onPress={() => handleMenuItemPress('download')}
-                    icon={<Download />}
-                    justifyContent="flex-start"
-                    backgroundColor="transparent"
-                    pressStyle={{ backgroundColor: '$color3' }}
-                    size="$4"
-                    borderRadius="$3"
-                  >
-                    Download Video
-                  </Button>
+                  <XStack>
+                    <GlassButton
+                      onPress={() => handleMenuItemPress('download')}
+                      icon={
+                        <Download
+                          size="$1"
+                          color="white"
+                        />
+                      }
+                      minHeight={44}
+                      backgroundColor="transparent"
+                    >
+                      <Text
+                        color="white"
+                        fontSize="$4"
+                      >
+                        Download Video
+                      </Text>
+                    </GlassButton>
+                  </XStack>
 
-                  <Button
-                    onPress={() => handleMenuItemPress('export')}
-                    justifyContent="flex-start"
-                    backgroundColor="transparent"
-                    pressStyle={{ backgroundColor: '$color3' }}
-                    size="$4"
-                    borderRadius="$3"
-                  >
-                    Export Analysis
-                  </Button>
+                  <XStack>
+                    <GlassButton
+                      onPress={() => handleMenuItemPress('export')}
+                      minHeight={44}
+                      backgroundColor="transparent"
+                    >
+                      <Text
+                        color="white"
+                        fontSize="$4"
+                      >
+                        Export Analysis
+                      </Text>
+                    </GlassButton>
+                  </XStack>
                 </YStack>
               </YStack>
             )}

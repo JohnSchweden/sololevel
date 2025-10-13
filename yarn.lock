@@ -3468,6 +3468,7 @@ __metadata:
     "@shopify/react-native-skia": "npm:v2.0.0-next.4"
     "@tamagui/build": "npm:1.132.20"
     "@tamagui/core": "npm:1.132.20"
+    "@tamagui/linear-gradient": "npm:^1.135.2"
     "@tamagui/lucide-icons": "npm:1.132.20"
     "@tamagui/toast": "npm:1.132.20"
     "@testing-library/dom": "npm:^10.4.1"
@@ -3480,6 +3481,7 @@ __metadata:
     "@types/react": "npm:^19.1.12"
     babel-jest: "npm:^29.7.0"
     expo: "npm:~53.0.23"
+    expo-blur: "npm:^15.0.7"
     expo-camera: "npm:^16.1.11"
     expo-document-picker: "npm:^13.1.6"
     expo-file-system: "npm:^18.0.4"
@@ -5487,6 +5489,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/compose-refs@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/compose-refs@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/c55202100aefc315c5e828d8f7ca1c656add6e638726aca456c49f67d9582d60b73fdff7f923aaeb59fa35e89c68f5a8a361e5436c9c699bec44ee156d7499c6
+  languageName: node
+  linkType: hard
+
 "@tamagui/config-default@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/config-default@npm:1.132.20"
@@ -5540,6 +5551,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/constants@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/constants@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/3371332f1b0c9e2316ac5a3d9b2f079723a6a6aaade5e7b2bb9523cf1caef113351ac6a34614c827898abeea560ffa3e6c89f641c9c9ea18bf9dab53ecfbdbfb
+  languageName: node
+  linkType: hard
+
 "@tamagui/core@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/core@npm:1.132.20"
@@ -5573,6 +5594,24 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/dec5d038ccddeb1090bd1836ee58265dff84d13c54a74260c9f996162d360ff3460d799cf6990def55f2e419869cd6c303891cb354a46127f8c56fcd3529ad4d
+  languageName: node
+  linkType: hard
+
+"@tamagui/core@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/core@npm:1.135.2"
+  dependencies:
+    "@tamagui/helpers": "npm:1.135.2"
+    "@tamagui/react-native-media-driver": "npm:1.135.2"
+    "@tamagui/react-native-use-pressable": "npm:1.135.2"
+    "@tamagui/react-native-use-responder-events": "npm:1.135.2"
+    "@tamagui/use-element-layout": "npm:1.135.2"
+    "@tamagui/use-event": "npm:1.135.2"
+    "@tamagui/web": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/2e5c3c986a2796b0a283b5c3cbcabe2bad87332a332f97b973dfb011e397232dcb1432d773bdbca8507f78a9a71634f780e864ce0b1f961109d1002231ac40af
   languageName: node
   linkType: hard
 
@@ -5797,6 +5836,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/get-button-sized@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/get-button-sized@npm:1.135.2"
+  dependencies:
+    "@tamagui/get-token": "npm:1.135.2"
+    "@tamagui/web": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/33dd6ed137268004dea1ac08878dd257d35d6ff328d94dc1aaef77224c2dbf2565922c1a63203674470ead74b395c409540c537ca95bac9bb4f1275f5c980741
+  languageName: node
+  linkType: hard
+
 "@tamagui/get-font-sized@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/get-font-sized@npm:1.132.20"
@@ -5828,6 +5879,17 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/0fe31a7d38e973fa2b5845a11a15e42f18acdabfd907a0fc0e8e49c9cf3c14347e84a549b545b3da2e82ffdc37b3509909b5cfd8378a7eb2843f9341f24fa687
+  languageName: node
+  linkType: hard
+
+"@tamagui/get-token@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/get-token@npm:1.135.2"
+  dependencies:
+    "@tamagui/web": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/c413f0fe721efadfdfa4b58ab7990c6f948296e7a6aab47ee4cea03bb1e00f1e19bc0c68f1eca7f7c7a279e26dba43537b24a73145b8f7ad60a5b6a3c27c6002
   languageName: node
   linkType: hard
 
@@ -5905,6 +5967,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/helpers@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/helpers@npm:1.135.2"
+  dependencies:
+    "@tamagui/constants": "npm:1.135.2"
+    "@tamagui/simple-hash": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/726f044cedce549e51821f06d2abd686ed22c7ef170ddcfdcb88448f90abe5915b1b5e08847c4da84dccc29fbbb45c92cecb0fe2be3a447a4eb34950a5aa259a
+  languageName: node
+  linkType: hard
+
 "@tamagui/image@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/image@npm:1.132.20"
@@ -5933,6 +6007,15 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/b6e9dca91ef9f859fc18edf0a6ed727d84ebbea259f1bddeeeabedae87082d65e42d691fae97cd5438aa073853ceadca66f0f7372cabfe45c5919a04768a15f5
+  languageName: node
+  linkType: hard
+
+"@tamagui/is-equal-shallow@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/is-equal-shallow@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/a35d8610bf7d87977cc7db15c95c41c4f51a5d1636ca1ced85557b59d9d856f35a250167d0ad887d8739885be6705ff111c5e503fd23786a61234eb6a49cf649
   languageName: node
   linkType: hard
 
@@ -5965,6 +6048,19 @@ __metadata:
     react: "*"
     react-native: ^0.79.2
   checksum: 10c0/3203db6d8435614f6a06872919282dc1ad2b1aa6be8fc8ee582d11e04eac2e3736b9d48798b8a210b7d43a61aa49b5613d3182a11b71836fe31842848cd1ccbe
+  languageName: node
+  linkType: hard
+
+"@tamagui/linear-gradient@npm:^1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/linear-gradient@npm:1.135.2"
+  dependencies:
+    "@tamagui/core": "npm:1.135.2"
+    "@tamagui/stacks": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/9cd4cc6257e6363645c45e80cf6debc802e8666f96a78de896b6f13f067ab34b9c03a3931b1aa5720d4849968504a001925cc97f44195f4431f7712c1cd9fbd6
   languageName: node
   linkType: hard
 
@@ -6027,6 +6123,15 @@ __metadata:
   dependencies:
     "@react-native/normalize-color": "npm:^2.1.0"
   checksum: 10c0/5bd29d0ecde503c122f4d3b1608abadc886172a60d26669b30bcd04a8123ff22dfbd127a22ba40b6fc4d38b9e7c7b685fb8219821d46b185f17db5cf6fe4676c
+  languageName: node
+  linkType: hard
+
+"@tamagui/normalize-css-color@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/normalize-css-color@npm:1.135.2"
+  dependencies:
+    "@react-native/normalize-color": "npm:^2.1.0"
+  checksum: 10c0/571353d1be38e91ab19e73ea146943522a801b33a3a3b44663fff56b55c4e7fa4708a736cffed6ad2c30450e84236ed99bc7f4bfc8cfe9c48d6526e2a6e15340
   languageName: node
   linkType: hard
 
@@ -6213,6 +6318,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/react-native-media-driver@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/react-native-media-driver@npm:1.135.2"
+  dependencies:
+    "@tamagui/web": "npm:1.135.2"
+  peerDependencies:
+    react-native: "*"
+  checksum: 10c0/897fe5f22fe4dc31906230f0fff10ae9e6be0a27e585209fe75ecd824355e2b56e5d58b0ea48322abf0e6f9fe510669c1d983b2d5493408cdda1d88adcaf93fd
+  languageName: node
+  linkType: hard
+
 "@tamagui/react-native-svg@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/react-native-svg@npm:1.132.20"
@@ -6238,6 +6354,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/react-native-use-pressable@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/react-native-use-pressable@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/d66a55e59dce40a99b41f0aeb0542be7fa21b57aa5e84df885daae8987562813193c6866ae6d3d0c17f3502b016bea3fc3f393e72b93dbc9e2d26948b206551a
+  languageName: node
+  linkType: hard
+
 "@tamagui/react-native-use-responder-events@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/react-native-use-responder-events@npm:1.132.20"
@@ -6253,6 +6378,15 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/28b2e48e830b1225c2c24ef4dd52be229db271deafc16a965c85bb49409e278245f86c4dfe6b692d74861e5497e81aa4c2205810917328410a5cc50c42124ee9
+  languageName: node
+  linkType: hard
+
+"@tamagui/react-native-use-responder-events@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/react-native-use-responder-events@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/8b2fc4b78fe8a0198b1a731bb05bc9e4549cf3ef3659cb94dd1a6acb5c3010402d36ce467ff244c91c6be67ec6c42cff0aaaf1d664db19c1011ad2a78ffa71ae
   languageName: node
   linkType: hard
 
@@ -6494,6 +6628,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/simple-hash@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/simple-hash@npm:1.135.2"
+  checksum: 10c0/ca4fb67a01dea38f813de88f0f1fe2af0907195bf1f326ddc6a81aaf01229efe20f0c0361c5e96b79f93b5a7055b0f3182426b61140ac432e7919b8d2784f4c9
+  languageName: node
+  linkType: hard
+
 "@tamagui/slider@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/slider@npm:1.132.20"
@@ -6536,6 +6677,18 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/dbd818cb4483bf50a5b0715f478aec99f979e9e0a98e1decbad5912f4bb3ceb877f6c3a6f59ae8bba8a0087d6168f5a4d4eec5f41cf85f962c93b52d50ecb15b
+  languageName: node
+  linkType: hard
+
+"@tamagui/stacks@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/stacks@npm:1.135.2"
+  dependencies:
+    "@tamagui/core": "npm:1.135.2"
+    "@tamagui/get-button-sized": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/3dd236608a1a8cf04b2aa42c152c429b8c06bac00a71c25a0868bb6d63254878ee87b96cc6f55ab498b04d149840123312cd21369964620f91d305dc9d966688
   languageName: node
   linkType: hard
 
@@ -6727,6 +6880,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/timer@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/timer@npm:1.135.2"
+  checksum: 10c0/fa85fd5a76ea639a72fa09be4834dc74e06d79cb0ded4b1046a577c83657f7cd7988c53c231d4ff45d0b530eed7b5a7f970333448803f2ef501dcee21573aa10
+  languageName: node
+  linkType: hard
+
 "@tamagui/toast@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/toast@npm:1.132.20"
@@ -6811,6 +6971,13 @@ __metadata:
   version: 1.135.0
   resolution: "@tamagui/types@npm:1.135.0"
   checksum: 10c0/5245a78878c871bdb98ad2d47fa1ed06ad92cf95f25a6f69bb5274a365d551efc278cf50e1f1857cdc310bdb808b3bcd6c73f095f282fe82a10df4565f4069c3
+  languageName: node
+  linkType: hard
+
+"@tamagui/types@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/types@npm:1.135.2"
+  checksum: 10c0/daeb62e28b61c842bcf67c515fda14564d94288487865e97e7bf6afe70d0092a86346fb784100e9359b67e3afeed6cc9edecad1bbf9413ef38993fe73738dfbe
   languageName: node
   linkType: hard
 
@@ -6901,6 +7068,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/use-did-finish-ssr@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/use-did-finish-ssr@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/0f227bb3b76a1a9e5573dac8897aaec8624ab6bc4a33e0a5ffe7533724d77efb7b8b720fc9e94c15e702e322d57f4cdfe953ac83b0a1e2a3202718758c14b922
+  languageName: node
+  linkType: hard
+
 "@tamagui/use-direction@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/use-direction@npm:1.132.20"
@@ -6931,6 +7107,18 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/effb1b7a523ec72b72e339ffc563000aa81d9f32ae695857aa4085a28ab66a73e54c0c056478ffc6e0906044e67a0f5f813e3071d3334281fba3faac1888162b
+  languageName: node
+  linkType: hard
+
+"@tamagui/use-element-layout@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/use-element-layout@npm:1.135.2"
+  dependencies:
+    "@tamagui/constants": "npm:1.135.2"
+    "@tamagui/is-equal-shallow": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/64306e83491fdca4f28d313dfd705fa2874fe22b3dfd098bbd45a7ef6271794193224fb25cac59c26c280ab1661c808cdcd12cd9865891e21de4a3d110bfc70a
   languageName: node
   linkType: hard
 
@@ -6967,6 +7155,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tamagui/use-event@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/use-event@npm:1.135.2"
+  dependencies:
+    "@tamagui/constants": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/643854798dedbd7e7dafaa08f489689aa82361378d4628b6f9630a69380af344020efc40e6528ca0b78564ec663206f7616504666242dc8a8db3ffb804f9d9f3
+  languageName: node
+  linkType: hard
+
 "@tamagui/use-force-update@npm:1.132.20":
   version: 1.132.20
   resolution: "@tamagui/use-force-update@npm:1.132.20"
@@ -6982,6 +7181,15 @@ __metadata:
   peerDependencies:
     react: "*"
   checksum: 10c0/fd064ab11e967fd5d5f809d8082bec4255e2a8523ea6ea1de7fcf6f6a714af1c3a06221ea36f396abf8baeac917bd2f255c80078e64018f345837d1cb20da5c1
+  languageName: node
+  linkType: hard
+
+"@tamagui/use-force-update@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/use-force-update@npm:1.135.2"
+  peerDependencies:
+    react: "*"
+  checksum: 10c0/a0cdbd3eb58e06f03c9934584521323cc7231b70c65e7cc58e9e8b77d9f13ecba53d07524965414e5c109f4aef3022e3692f653b06c69482b02ebc249c3f3948
   languageName: node
   linkType: hard
 
@@ -7119,6 +7327,28 @@ __metadata:
     react-dom: "*"
     react-native: "*"
   checksum: 10c0/1516897208ab3caa75da5e2f6e488449931bb8418452f4c35f62f669ed84d3a90770bdc3b166c3cfdfe1cca78313eace58dec25796e7c9e3f2d58d3d9e7f90f9
+  languageName: node
+  linkType: hard
+
+"@tamagui/web@npm:1.135.2":
+  version: 1.135.2
+  resolution: "@tamagui/web@npm:1.135.2"
+  dependencies:
+    "@tamagui/compose-refs": "npm:1.135.2"
+    "@tamagui/constants": "npm:1.135.2"
+    "@tamagui/helpers": "npm:1.135.2"
+    "@tamagui/is-equal-shallow": "npm:1.135.2"
+    "@tamagui/normalize-css-color": "npm:1.135.2"
+    "@tamagui/timer": "npm:1.135.2"
+    "@tamagui/types": "npm:1.135.2"
+    "@tamagui/use-did-finish-ssr": "npm:1.135.2"
+    "@tamagui/use-event": "npm:1.135.2"
+    "@tamagui/use-force-update": "npm:1.135.2"
+  peerDependencies:
+    react: "*"
+    react-dom: "*"
+    react-native: "*"
+  checksum: 10c0/98c2973916f7ec13987feb3835d43a0087dd447b56dac7a404760458ad1ce99912dc102bd5e338deba73968253e3f80cb788558e99e24227f18d90dfd0fddd72
   languageName: node
   linkType: hard
 
@@ -12518,7 +12748,7 @@ __metadata:
     expo-file-system: "npm:^18.0.4"
     expo-font: "npm:~13.3.2"
     expo-image-picker: "npm:^16.1.4"
-    expo-linear-gradient: "npm:~14.1.5"
+    expo-linear-gradient: "npm:^15.0.7"
     expo-linking: "npm:^7.1.7"
     expo-localization: "npm:^16.1.6"
     expo-router: "npm:~5.1.7"
@@ -12569,6 +12799,17 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/32d1ccd630c7e62ec4b71cf03e2414fb389ca5d6383a5243ff9efe6ac71061ea626aa7f1503ccd3187d62451165034265b2ed04e508626710f810c0d0246a81d
+  languageName: node
+  linkType: hard
+
+"expo-blur@npm:^15.0.7":
+  version: 15.0.7
+  resolution: "expo-blur@npm:15.0.7"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/0285f0f39871fdcd94a397c07fd724b1ee1f4c055b5a733dc3b44cd6571a28016d863ae7e4205f00ce039ada730a8ad6d396b928ae4686cbc69cfcd232471431
   languageName: node
   linkType: hard
 
@@ -12776,14 +13017,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-linear-gradient@npm:~14.1.5":
-  version: 14.1.5
-  resolution: "expo-linear-gradient@npm:14.1.5"
+"expo-linear-gradient@npm:^15.0.7":
+  version: 15.0.7
+  resolution: "expo-linear-gradient@npm:15.0.7"
   peerDependencies:
     expo: "*"
     react: "*"
     react-native: "*"
-  checksum: 10c0/14484683a36d8346ee2339530edb4927bbdb58833728ac34cdfe2df38541705cd9ef5f460c89dd28617af760b12197870bc411c48780f57bf1ba969bf54b13a0
+  checksum: 10c0/ee9984f4bc8985b3ad32f8a59138fd7336e16e782c1d2d10110f70b2e05b9c563382d2c16cfbe21e6463fa896f573dcc3d70d0afd32f8d435bccd9afadf8b006
   languageName: node
   linkType: hard
 

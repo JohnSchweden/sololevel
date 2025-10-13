@@ -10,6 +10,7 @@ const useSafeAreaInsets = () => {
 }
 
 import { shadows } from '@my/config'
+import { LinearGradient } from '@tamagui/linear-gradient'
 import React from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
@@ -95,8 +96,8 @@ function NavigationTab({ label, isActive, onPress, disabled = false }: Navigatio
         justifyContent="flex-end"
       >
         <Text
-          fontSize={16}
-          fontWeight={isActive ? '700' : '500'}
+          fontSize="$5"
+          fontWeight={isActive ? '600' : '400'}
           color={isActive ? 'white' : '$whiteA70'}
           textAlign="center"
           numberOfLines={1}
@@ -137,6 +138,7 @@ export function TabBar({ children }: TabBarProps) {
  * Centralized Bottom Navigation Container
  * Provides consistent bottom navigation styling and layout across the app
  * Mobile-optimized with safe area handling and touch targets
+ * Features gradient from dark bottom to transparent top
  */
 export function BottomNavigationContainer({
   children,
@@ -146,20 +148,23 @@ export function BottomNavigationContainer({
   const insets = useSafeAreaInsets()
 
   return (
-    <XStack
+    <LinearGradient
+      colors={['rgba(0, 0, 0, 0.7)', 'transparent']}
+      locations={[0, 1]}
+      start={{ x: 0.5, y: 1 }}
+      end={{ x: 0.5, y: 0 }}
       position="absolute"
       bottom={0}
       left={0}
       right={0}
       paddingBottom={insets.bottom}
       height={72 + insets.bottom}
-      backgroundColor="$overlayGlass"
       paddingHorizontal="$4"
       alignItems="center"
       justifyContent="space-between"
       zIndex={10}
     >
       {children}
-    </XStack>
+    </LinearGradient>
   )
 }

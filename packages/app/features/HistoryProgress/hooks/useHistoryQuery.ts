@@ -1,4 +1,4 @@
-import { type AnalysisResults, getUserAnalysisJobs } from '@my/api'
+import { type AnalysisJobWithVideo, type AnalysisResults, getUserAnalysisJobs } from '@my/api'
 import { log } from '@my/logging'
 import { useQuery } from '@tanstack/react-query'
 import { useVideoHistoryStore } from '../stores/videoHistory'
@@ -16,29 +16,24 @@ export interface VideoItem {
 }
 
 /**
- * Transform AnalysisJob from API to CachedAnalysis format
+ * Transform AnalysisJobWithVideo from API to CachedAnalysis format
  */
-function transformToCache(job: {
-  id: number
-  user_id: string
-  video_recording_id: number
-  title: string | null
-  created_at: string
-  results: any
-  pose_data?: any
-  video_recordings?: {
-    thumbnail_url?: string
-  }
-}): Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> {
+function transformToCache(
+  job: AnalysisJobWithVideo
+): Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> {
+  // Extract thumbnail from metadata (local device URI)
+  // Note: video_recordings.thumbnail_url doesn't exist in schema, only metadata.thumbnailUri
+  const thumbnail = job.video_recordings?.metadata?.thumbnailUri
+
   return {
     id: job.id,
     videoId: job.video_recording_id,
     userId: job.user_id,
-    title: job.title || `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
+    title: job.summary_text || `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
     createdAt: job.created_at,
-    thumbnail: job.video_recordings?.thumbnail_url,
+    thumbnail,
     results: job.results as AnalysisResults,
-    poseData: job.pose_data,
+    poseData: job.pose_data as any,
   }
 }
 
@@ -64,13 +59,14 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  * 3. Otherwise, fetch from database and update cache
  * 4. Apply stale-while-revalidate (5 min stale time)
  *
+ * @param limit - Maximum number of videos to fetch (default: 10)
  * @returns Query result with video items for display
  */
-export function useHistoryQuery() {
+export function useHistoryQuery(limit = 10) {
   const cache = useVideoHistoryStore()
 
   return useQuery({
-    queryKey: ['history', 'completed'],
+    queryKey: ['history', 'completed', limit],
     queryFn: async (): Promise<VideoItem[]> => {
       const startTime = Date.now()
 
@@ -87,11 +83,13 @@ export function useHistoryQuery() {
           count: cached.length,
           cacheAge,
           duration,
+          limit,
         })
 
-        // Return cached data (sorted by createdAt desc)
+        // Return cached data (sorted by createdAt desc, limited to requested count)
         return cached
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, limit)
           .map(transformToVideoItem)
       }
 
@@ -99,10 +97,25 @@ export function useHistoryQuery() {
       log.debug('useHistoryQuery', 'Cache miss, fetching from database', {
         cachedCount: cached.length,
         cacheAge,
+        limit,
       })
 
       try {
-        const jobs = await getUserAnalysisJobs()
+        const jobs = await getUserAnalysisJobs(limit)
+
+        // Debug: Log raw jobs data
+        log.debug('useHistoryQuery', 'Raw jobs from API', {
+          totalJobs: jobs.length,
+          limit,
+          sampleJob: jobs[0]
+            ? {
+                id: jobs[0].id,
+                status: jobs[0].status,
+                hasVideoRecordings: !!jobs[0].video_recordings,
+                videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+              }
+            : 'no jobs',
+        })
 
         // Filter completed jobs only
         const completedJobs = jobs.filter((job: any) => job.status === 'completed')
@@ -119,13 +132,24 @@ export function useHistoryQuery() {
 
           // Get from cache to ensure we have cached and lastAccessed
           const cached = cache.getCached(job.id)
-          return cached
+          const videoItem = cached
             ? transformToVideoItem(cached)
             : transformToVideoItem({
                 ...cacheEntry,
                 cachedAt: Date.now(),
                 lastAccessed: Date.now(),
               })
+
+          // Debug: Log transformation
+          log.debug('useHistoryQuery', 'Transformed video item', {
+            jobId: job.id,
+            hasThumbnail: !!videoItem.thumbnailUri,
+            thumbnailPreview: videoItem.thumbnailUri
+              ? videoItem.thumbnailUri.substring(0, 80)
+              : 'none',
+          })
+
+          return videoItem
         })
 
         // Update last sync timestamp
@@ -142,6 +166,7 @@ export function useHistoryQuery() {
           completedJobs: completedJobs.length,
           cacheUpdated: true,
           duration,
+          limit,
         })
 
         return sortedVideoItems

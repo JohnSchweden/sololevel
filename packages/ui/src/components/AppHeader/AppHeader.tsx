@@ -310,7 +310,7 @@ export function AppHeader({
 
     return (
       <Text
-        fontSize="$7"
+        fontSize="$6"
         fontFamily="$heading"
         fontWeight="600"
         color={foreground}
@@ -328,13 +328,13 @@ export function AppHeader({
   const content = (
     <XStack
       alignItems="center"
-      height={56}
+      height={44}
       paddingHorizontal="$2"
       gap="$2"
       flexDirection="row"
     >
       <XStack
-        width={56}
+        width={44}
         alignItems="center"
         justifyContent="center"
       >
@@ -349,7 +349,7 @@ export function AppHeader({
       </YStack>
 
       <XStack
-        width={56}
+        width={44}
         alignItems="center"
         justifyContent="center"
       >

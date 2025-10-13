@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur'
 import { AnimatePresence, Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
@@ -6,31 +7,31 @@ export interface FeedbackBubblesProps {
 }
 
 function SpeechBubble({ message }: { message: FeedbackMessage }) {
-  const getBubbleBackgroundColor = () => {
-    // Glassy background with transparent theme-inspired colors
+  const getBlurTint = () => {
+    // Use different blur tints for different message types
     switch (message.type) {
       case 'positive':
-        return 'rgba(34, 197, 94, 0.15)' // transparent green
+        return 'light' as const
       case 'suggestion':
-        return 'rgba(59, 130, 246, 0.15)' // transparent blue
+        return 'light' as const
       case 'correction':
-        return 'rgba(239, 68, 68, 0.15)' // transparent red
+        return 'light' as const
       default:
-        return 'rgba(107, 114, 128, 0.15)' // transparent gray
+        return 'light' as const
     }
   }
 
-  const getTextColor = () => {
-    // Brighter text colors for better contrast on glassy background
+  const getBubbleBackgroundColor = () => {
+    // Subtle tinted overlay on top of blur
     switch (message.type) {
       case 'positive':
-        return '$green11'
+        return 'rgba(34, 197, 94, 0.2)' // transparent green
       case 'suggestion':
-        return '$blue11'
+        return 'rgba(59, 130, 246, 0.2)' // transparent blue
       case 'correction':
-        return '$red11'
+        return 'rgba(239, 68, 68, 0.2)' // transparent red
       default:
-        return '$color12'
+        return 'rgba(107, 114, 128, 0.2)' // transparent gray
     }
   }
 
@@ -41,22 +42,15 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
     >
       {/* Feedback Bubble */}
       <YStack
-        backgroundColor={getBubbleBackgroundColor()}
-        borderColor="$color12" // Thin white border
+        position="relative"
+        borderColor="rgba(255, 255, 255, 0.3)"
         borderWidth={1}
-        padding="$3"
         borderRadius="$6"
         maxWidth={280}
         opacity={message.isActive ? 1 : 0.7}
         scale={message.isHighlighted ? 1.05 : 1}
-        // Glassy blur effect using backdrop-filter style
-        style={{
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)', // Safari support
-        }}
-        // Enhanced shadow for glassy effect
+        overflow="hidden"
         elevation={3}
-        // Soft animation effects
         animation="quick"
         enterStyle={{
           opacity: 0,
@@ -70,17 +64,44 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
         }}
         testID={`bubble-text-container-${message.id}`}
       >
-        <Text
-          fontSize="$4"
-          color={getTextColor()}
-          fontWeight={message.isHighlighted ? '600' : '400'}
-          lineHeight="$5"
-          textAlign="center"
-          testID={`bubble-text-${message.id}`}
-          accessibilityLabel={message.text}
+        {/* Blur background layer */}
+        <BlurView
+          intensity={15}
+          tint={getBlurTint()}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        />
+        {/* Colored tint overlay */}
+        <YStack
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          backgroundColor={getBubbleBackgroundColor()}
+        />
+        {/* Text content */}
+        <YStack
+          padding="$3"
+          zIndex={1}
         >
-          {message.text}
-        </Text>
+          <Text
+            fontSize="$4"
+            color="white"
+            fontWeight={message.isHighlighted ? '600' : '400'}
+            lineHeight="$5"
+            textAlign="center"
+            testID={`bubble-text-${message.id}`}
+            accessibilityLabel={message.text}
+          >
+            {message.text}
+          </Text>
+        </YStack>
       </YStack>
     </YStack>
   )

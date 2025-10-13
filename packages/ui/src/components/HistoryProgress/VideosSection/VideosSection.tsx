@@ -4,7 +4,7 @@ import { VideoThumbnailCard } from '../VideoThumbnailCard'
 
 export interface VideosSectionProps {
   /**
-   * Array of videos to display (max 3 shown)
+   * Array of videos to display
    */
   videos: Array<{
     id: number
@@ -49,15 +49,15 @@ export interface VideosSectionProps {
  * Videos section component with header and horizontal thumbnail gallery
  *
  * Displays section header with "Videos" title and "See all" link button.
- * Shows horizontal scrollable row of up to 3 video thumbnails.
+ * Shows horizontal scrollable row of video thumbnails.
  * Includes empty, loading, and error states.
+ *
+ * Note: Caller should limit the videos array size (typically 10 or fewer).
  *
  * @example
  * ```tsx
  * <VideosSection
- *   videos={[
- *     { id: 1, videoId: 10, title: 'Golf Swing', createdAt: '2025-10-11T10:00:00Z', thumbnailUri: '...' }
- *   ]}
+ *   videos={videos.slice(0, 10)}
  *   onVideoPress={(id) => router.push(`/video-analysis/${id}`)}
  *   onSeeAllPress={() => router.push('/videos')}
  * />
@@ -72,9 +72,6 @@ export function VideosSection({
   onRetry,
   testID = 'videos-section',
 }: VideosSectionProps): React.ReactElement {
-  // Take only first 3 videos
-  const displayVideos = videos.slice(0, 3)
-
   return (
     <YStack
       gap="$1"
@@ -87,6 +84,7 @@ export function VideosSection({
         alignItems="center"
         marginBottom="$2"
         paddingHorizontal="$8"
+        paddingLeft="$10"
         testID={`${testID}-header`}
       >
         <Text
@@ -183,7 +181,7 @@ export function VideosSection({
       )}
 
       {/* Empty State */}
-      {!isLoading && !error && displayVideos.length === 0 && (
+      {!isLoading && !error && videos.length === 0 && (
         <YStack
           height={280}
           justifyContent="center"
@@ -212,7 +210,7 @@ export function VideosSection({
       )}
 
       {/* Videos Row - Horizontal Scroll */}
-      {!isLoading && !error && displayVideos.length > 0 && (
+      {!isLoading && !error && videos.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -221,9 +219,9 @@ export function VideosSection({
         >
           <XStack
             gap="$2"
-            paddingLeft="$8"
+            paddingLeft="$10"
           >
-            {displayVideos.map((video) => (
+            {videos.map((video) => (
               <VideoThumbnailCard
                 key={video.id}
                 thumbnailUri={video.thumbnailUri}

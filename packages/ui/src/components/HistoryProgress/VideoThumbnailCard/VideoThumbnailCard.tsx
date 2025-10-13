@@ -1,6 +1,7 @@
 import { Play } from '@tamagui/lucide-icons'
 import React, { useState } from 'react'
-import { Circle, Image, Spinner, Stack, YStack } from 'tamagui'
+import { Image, Spinner, Stack, YStack } from 'tamagui'
+import { GlassButton } from '../../GlassButton'
 
 export interface VideoThumbnailCardProps {
   /**
@@ -75,7 +76,7 @@ export function VideoThumbnailCard({
       borderWidth={1}
       // Subtle light border to match glass card in side-sheet
       borderColor="rgba(255,255,255,0.35)"
-      elevation={4}
+      elevation={0}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || 'Video thumbnail'}
       testID={testID}
@@ -102,10 +103,10 @@ export function VideoThumbnailCard({
           alignItems="center"
           testID={`${testID}-placeholder`}
         >
-          <Play
+          {/* <Play
             size={30}
-            color="$color4"
-          />
+            color="$color"
+          /> */}
         </Stack>
       )}
 
@@ -139,23 +140,27 @@ export function VideoThumbnailCard({
         justifyContent="center"
         alignItems="center"
         pointerEvents="none"
+        elevation={2}
         testID={`${testID}-play-overlay`}
       >
-        <Circle
-          size={30}
-          backgroundColor="rgba(255, 255, 255, 0.92)"
-          justifyContent="center"
-          alignItems="center"
+        <GlassButton
+          minWidth={38}
+          minHeight={38}
+          borderRadius="$12"
+          blurTint="light"
           borderWidth={1}
-          borderColor="rgba(255, 255, 255, 0.5)"
-          elevation={2}
+          borderColor="rgba(255, 255, 255, 0.2)"
+          onPress={onPress}
+          testID={`${testID}-play-button`}
+          accessibilityLabel="Play video"
+          accessibilityHint="Tap to play this video"
         >
           <Play
-            size={18}
-            color="$gray12"
+            size={10}
+            color="$color"
             fill="currentColor"
           />
-        </Circle>
+        </GlassButton>
       </YStack>
     </YStack>
   )

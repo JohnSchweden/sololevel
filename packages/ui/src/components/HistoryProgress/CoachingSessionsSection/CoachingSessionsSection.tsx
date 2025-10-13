@@ -58,6 +58,7 @@ const SectionContainer = styled(YStack, {
   gap: '$4',
   width: '100%',
   marginTop: '$2',
+  paddingLeft: '$3',
 })
 
 /**

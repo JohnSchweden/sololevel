@@ -66,16 +66,19 @@ const MockPressable = React.forwardRef<any, MockPressableProps>((props, ref) => 
   delete (cleanedProps as Record<string, unknown>).onPanResponderRelease
   delete (cleanedProps as Record<string, unknown>).onPanResponderTerminate
 
+  // Handle render prop pattern - children can be a function
+  const renderedChildren = typeof children === 'function' ? children({ pressed: false }) : children
+
   return React.createElement(
     'div',
     {
       ...cleanedProps,
       ref,
-      onClick: onPress,
-      onMouseDown: onPressIn,
-      onMouseUp: onPressOut,
+      onClick: props.disabled ? undefined : onPress,
+      onMouseDown: props.disabled ? undefined : onPressIn,
+      onMouseUp: props.disabled ? undefined : onPressOut,
       onMouseLeave: onLongPress,
-      style: { cursor: 'pointer', ...props.style },
+      style: { cursor: props.disabled ? 'not-allowed' : 'pointer', ...props.style },
       'data-testid': testID || 'Pressable',
       role: accessibilityRole || 'button',
       'aria-label': accessibilityLabel,
@@ -84,7 +87,7 @@ const MockPressable = React.forwardRef<any, MockPressableProps>((props, ref) => 
       'aria-pressed': accessibilityState?.pressed,
       tabIndex: props.disabled ? -1 : 0,
     },
-    children
+    renderedChildren
   )
 })
 
@@ -112,6 +115,12 @@ jest.mock('react-native', () => {
   const MockText = (props: any) => React.createElement('span', props, props.children)
   const MockScrollView = (props: any) => React.createElement('div', props, props.children)
   const MockSafeAreaView = (props: any) => React.createElement('div', props, props.children)
+  const MockImageBackground = (props: any) =>
+    React.createElement(
+      'div',
+      { ...props, style: { ...props.style, backgroundImage: `url(${props.source})` } },
+      props.children
+    )
 
   return {
     Alert: {
@@ -143,6 +152,7 @@ jest.mock('react-native', () => {
     ScrollView: MockScrollView,
     FlatList: 'div',
     Image: 'img',
+    ImageBackground: MockImageBackground,
     TextInput: 'input',
     SafeAreaView: MockSafeAreaView,
     StatusBar: {
@@ -364,6 +374,9 @@ jest.mock('expo-image-picker', () => ({
 jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn(),
 }))
+
+// Mock expo-blur (manual mock in __mocks__/expo-blur.tsx)
+jest.mock('expo-blur')
 
 // Mock expo-modules-core
 jest.mock('expo-modules-core', () => ({

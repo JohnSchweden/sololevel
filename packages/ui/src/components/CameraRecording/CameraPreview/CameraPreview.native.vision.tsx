@@ -460,6 +460,18 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       }
     }, [permissionGranted, onError])
 
+    // On iOS Simulator with camera error, still mark camera as "ready" so controls work
+    useEffect(() => {
+      if (__DEV__ && (cameraError || !device) && permissionGranted) {
+        // Simulate camera ready in dev builds on simulator so controls can be tested
+        log.info(
+          'VisionCamera',
+          'iOS Simulator: Camera unavailable but marking as ready for testing'
+        )
+        onCameraReady?.()
+      }
+    }, [cameraError, device, permissionGranted, onCameraReady])
+
     // Sync internal zoom state with prop
     useEffect(() => {
       setCurrentZoomLevel(zoomLevel)
