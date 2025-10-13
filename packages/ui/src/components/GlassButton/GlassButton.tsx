@@ -1,8 +1,6 @@
 import { BlurView } from 'expo-blur'
 import type { ComponentProps, ReactNode } from 'react'
-import { ImageBackground } from 'react-native'
-import type { AccessibilityRole } from 'react-native'
-import { Button, XStack, type XStackProps } from 'tamagui'
+import { Button, Image, XStack, type XStackProps } from 'tamagui'
 
 // Import glass overlay asset
 const defaultGlassOverlay = require('../../../../../apps/expo/assets/glass-button.png')
@@ -22,8 +20,8 @@ export type GlassButtonProps = {
   accessibilityLabel?: string
   /** Accessibility hint */
   accessibilityHint?: string
-  /** Accessibility role */
-  accessibilityRole?: AccessibilityRole
+  /** Role for accessibility (Tamagui/web-standard) */
+  role?: ComponentProps<typeof Button>['role']
   /** Accessibility state (for toggle buttons) */
   accessibilityState?: { checked?: boolean; selected?: boolean; disabled?: boolean }
   /** Blur intensity (1-100, default 80) */
@@ -68,12 +66,12 @@ export const GlassButton = ({
   testID,
   accessibilityLabel,
   accessibilityHint,
-  accessibilityRole,
+  role,
   accessibilityState,
   blurIntensity = 20,
   blurTint = 'light',
-  minWidth = 52,
-  minHeight = 52,
+  minWidth = 48,
+  minHeight = 48,
   borderRadius = '$12',
   opacity = 1,
   glassOverlaySource = defaultGlassOverlay,
@@ -104,17 +102,16 @@ export const GlassButton = ({
           bottom: 0,
         }}
       />
-      <ImageBackground
+      <Image
         source={glassOverlaySource}
-        style={{
-          borderRadius: numericRadius,
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 1,
-        }}
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        width="100%"
+        height="100%"
+        opacity={1}
         resizeMode="cover"
       />
       <Button
@@ -148,10 +145,10 @@ export const GlassButton = ({
               }
         }
         cursor={disabled ? 'not-allowed' : 'pointer'}
-        paddingHorizontal="$3"
+        paddingHorizontal="$2"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        accessibilityRole={accessibilityRole}
+        role={role}
         accessibilityState={accessibilityState}
       >
         {icon}

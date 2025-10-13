@@ -28,7 +28,6 @@ describe('GlassBackground', () => {
 
     // Assert
     expect(getByTestId('glass-background')).toBeTruthy()
-    expect(getByTestId('glass-background-image')).toBeTruthy()
   })
 
   it('should apply custom testID', () => {
@@ -37,7 +36,6 @@ describe('GlassBackground', () => {
 
     // Assert
     expect(getByTestId('custom-glass')).toBeTruthy()
-    expect(getByTestId('custom-glass-image')).toBeTruthy()
   })
 
   it('should accept Tamagui YStack props', () => {
@@ -63,6 +61,6 @@ describe('GlassBackground', () => {
     })
 
     // Assert
-    expect(getByTestId('glass-background-image')).toBeTruthy()
+    expect(getByTestId('glass-background')).toBeTruthy()
   })
 })

@@ -301,7 +301,8 @@ function ZoomButton({ level, isActive, onPress, disabled }: ZoomButtonProps) {
       blurIntensity={isActive ? 30 : 20}
       blurTint={isActive ? 'dark' : 'light'}
       accessibilityLabel={`${level}x zoom`}
-      accessibilityRole="button"
+      // biome-ignore lint/a11y/useSemanticElements: GlassButton is a styled button component
+      role="button"
       accessibilityState={{ checked: isActive }}
       accessibilityHint={isActive ? 'Currently selected' : undefined}
     >

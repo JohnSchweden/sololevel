@@ -101,7 +101,7 @@ export function IdleControls({
           testID={uploadButtonTestID}
           icon={
             <Upload
-              size="$1.5"
+              size="$1"
               color="white"
             />
           }
@@ -114,8 +114,8 @@ export function IdleControls({
           onPress={onStartRecording}
           disabled={disabled}
           testID={recordButtonTestID}
-          minWidth={82}
-          minHeight={82}
+          minWidth={70}
+          minHeight={70}
           blurIntensity={20}
           blurTint="light"
           borderWidth={2}
@@ -124,7 +124,7 @@ export function IdleControls({
           accessibilityHint="Press to start recording a new video"
         >
           <Circle
-            size={52}
+            size={48}
             backgroundColor="$orange10"
             opacity={disabled ? 0.5 : 1.0}
           />
@@ -151,7 +151,7 @@ export function IdleControls({
             testID={cameraSwapButtonTestID}
             icon={
               <SwitchCamera
-                size="$1.5"
+                size="$1"
                 color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
               />
             }

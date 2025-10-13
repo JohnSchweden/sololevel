@@ -1,6 +1,5 @@
-import React from 'react'
-import { ImageBackground, type ImageSourcePropType } from 'react-native'
-import { YStack, type YStackProps } from 'tamagui'
+import type { ComponentProps } from 'react'
+import { Image, YStack, type YStackProps } from 'tamagui'
 
 export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
   /**
@@ -12,7 +11,7 @@ export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
    * Background image source
    * @default glass-gradient.png from expo assets
    */
-  source?: ImageSourcePropType
+  source?: ComponentProps<typeof Image>['source']
 
   /**
    * Resize mode for the background image
@@ -66,20 +65,24 @@ export function GlassBackground({
   return (
     <YStack
       flex={1}
+      position="relative"
+      overflow="hidden"
       testID={testID}
       {...stackProps}
     >
-      <ImageBackground
+      <Image
         source={imageSource}
         resizeMode={resizeMode}
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-        }}
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        width="100%"
+        height="100%"
         testID={`${testID}-image`}
-      >
-        {children}
-      </ImageBackground>
+      />
+      {children}
     </YStack>
   )
 }
