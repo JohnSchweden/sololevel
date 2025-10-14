@@ -128,6 +128,7 @@ export type AnalysisJobWithVideo = AnalysisJob & {
   video_recordings?: {
     id: number
     filename: string
+    storage_path?: string // Optional for backward compatibility
     original_filename?: string | null
     duration_seconds: number
     created_at: string
@@ -342,6 +343,7 @@ export async function getUserAnalysisJobs(limit = 10): Promise<AnalysisJobWithVi
       video_recordings:video_recording_id (
         id,
         filename,
+        storage_path,
         original_filename,
         duration_seconds,
         created_at,

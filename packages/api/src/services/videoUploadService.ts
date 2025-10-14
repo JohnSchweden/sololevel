@@ -37,6 +37,16 @@ const CHUNK_SIZE = 1024 * 1024 // 1MB chunks
 const SIGNED_URL_TTL = 300 // 5 minutes
 
 /**
+ * Get public URL for a video file from storage path
+ * @param storagePath - The path stored in video_recordings.storage_path (e.g. "userId/timestamp_video.mp4")
+ * @returns Public URL for the video file
+ */
+export function getVideoPublicUrl(storagePath: string): string {
+  const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath)
+  return data.publicUrl
+}
+
+/**
  * Create a signed URL for video upload
  */
 export async function createSignedUploadUrl(

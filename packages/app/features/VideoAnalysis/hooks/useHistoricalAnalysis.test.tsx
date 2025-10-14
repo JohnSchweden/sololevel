@@ -2,26 +2,41 @@
 jest.unmock('@tanstack/react-query')
 
 // Mock @my/api before importing
-jest.mock('@my/api', () => ({
-  ...jest.requireActual('@my/api'),
-  getAnalysisJob: jest.fn(),
-}))
+jest.mock('@my/api', () => {
+  // Mock supabase query chain
+  const mockSingle = jest.fn()
+  const mockEq = jest.fn(() => ({ single: mockSingle }))
+  const mockSelect = jest.fn(() => ({ eq: mockEq }))
+  const mockFrom = jest.fn(() => ({ select: mockSelect }))
+
+  return {
+    ...jest.requireActual('@my/api'),
+    getAnalysisJob: jest.fn(),
+    supabase: {
+      from: mockFrom,
+    },
+  }
+})
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
-import { getAnalysisJob } from '@my/api'
+import { getAnalysisJob, supabase } from '@my/api'
 
 import { useHistoricalAnalysis } from './useHistoricalAnalysis'
 
-// Get typed mock reference
+// Get typed mock references
 const mockGetAnalysisJob = getAnalysisJob as jest.MockedFunction<typeof getAnalysisJob>
+const mockSupabase = supabase as jest.Mocked<typeof supabase>
 
-// Verify mock is initialized
+// Verify mocks are initialized
 if (!mockGetAnalysisJob || typeof mockGetAnalysisJob !== 'function') {
   throw new Error('getAnalysisJob mock not initialized')
+}
+if (!mockSupabase || typeof mockSupabase.from !== 'function') {
+  throw new Error('supabase mock not initialized')
 }
 
 describe('useHistoricalAnalysis', () => {
@@ -43,6 +58,21 @@ describe('useHistoricalAnalysis', () => {
     mockGetAnalysisJob.mockReset()
     const { clearCache } = useVideoHistoryStore.getState()
     clearCache()
+
+    // Setup default supabase mock response
+    const mockSingle = jest.fn().mockResolvedValue({
+      data: {
+        id: 100,
+        filename: 'test-video.mp4',
+        storage_path: 'videos/test-video.mp4',
+        duration_seconds: 30,
+        metadata: {},
+      },
+      error: null,
+    })
+    const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+    mockSupabase.from = jest.fn().mockReturnValue({ select: mockSelect })
   })
 
   afterEach(() => {

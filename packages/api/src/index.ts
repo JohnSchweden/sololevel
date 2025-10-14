@@ -26,7 +26,11 @@ export {
   getUserVideoRecordings,
   getUploadProgress,
   cancelUpload,
+  getVideoPublicUrl,
 } from './services/videoUploadService'
+// Storage service
+export { createSignedDownloadUrl } from './services/storageService'
+export type { SignedUrlResult } from './services/storageService'
 // Video thumbnail service
 export { generateVideoThumbnail } from './services/videoThumbnailService'
 export type {

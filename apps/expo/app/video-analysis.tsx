@@ -6,6 +6,16 @@ import { useLayoutEffect, useState } from 'react'
 import { YStack } from 'tamagui'
 import { AuthGate } from '../components/AuthGate'
 
+/**
+ * Video Analysis Route (Native)
+ *
+ * Supports two modes:
+ * 1. Live analysis: /video-analysis?videoUri=...&videoRecordingId=...
+ * 2. History mode: /video-analysis?analysisJobId=...
+ *
+ * Route: /video-analysis
+ * Auth: Protected (requires authentication)
+ */
 export default function VideoAnalysis() {
   const router = useRouter()
   const navigation = useNavigation()

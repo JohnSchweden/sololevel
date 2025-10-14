@@ -93,7 +93,7 @@ export default function HistoryProgressRoute() {
   return (
     <AuthGate>
       <HistoryProgressScreen 
-        onNavigateToVideoAnalysis={(analysisId) => router.push(`/video-analysis/${analysisId}`)}
+        onNavigateToVideoAnalysis={(analysisId) => router.push({ pathname: '/video-analysis', params: { analysisJobId: analysisId } })}
         onNavigateToVideos={() => router.push('/videos')}
         onBack={() => router.back()}
       />

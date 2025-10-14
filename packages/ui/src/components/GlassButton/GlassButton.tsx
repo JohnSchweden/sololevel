@@ -85,7 +85,7 @@ export const GlassButton = ({
   glassOverlaySource,
   borderWidth = 1,
   borderColor = 'rgba(255, 255, 255, 0.2)',
-  backgroundColor = 'rgba(255, 255, 255, 0.05)',
+  backgroundColor = 'rgba(255, 255, 255, 0.0)',
   variant = 'default',
   overlayOpacity = 1,
 }: GlassButtonProps) => {

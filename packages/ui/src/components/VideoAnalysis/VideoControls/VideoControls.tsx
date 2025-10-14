@@ -312,6 +312,7 @@ export const VideoControls = React.memo(
                 minWidth={80 * scaleFactor}
                 minHeight={80 * scaleFactor}
                 borderRadius={70 * scaleFactor}
+                overlayOpacity={0.5}
                 onPress={() => {
                   showControlsAndResetTimer()
                   if (videoEnded && onReplay) {

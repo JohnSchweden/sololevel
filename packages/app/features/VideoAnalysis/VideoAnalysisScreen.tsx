@@ -58,12 +58,9 @@ export function VideoAnalysisScreen({
   }, [isHistoryMode, analysisJobId, historicalAnalysis.isLoading, historicalAnalysis.data])
 
   const normalizedInitialStatus = initialStatus === 'ready' ? 'ready' : 'processing'
-  // Skip real-time analysis subscription in history mode
-  const analysisState = useAnalysisState(
-    isHistoryMode ? undefined : analysisJobId,
-    isHistoryMode ? undefined : videoRecordingId,
-    normalizedInitialStatus
-  )
+  // In history mode, still pass analysisJobId to load feedback from database
+  // but the hook will skip creating new analysis jobs
+  const analysisState = useAnalysisState(analysisJobId, videoRecordingId, normalizedInitialStatus)
 
   const videoPlayback = useVideoPlayback(initialStatus)
   const {
@@ -86,14 +83,13 @@ export function VideoAnalysisScreen({
 
   // Use historical feedback items if in history mode, otherwise use real-time analysis
   const feedbackItems = useMemo(() => {
-    if (isHistoryMode && historicalAnalysis.data?.results) {
-      // Transform historical results to feedback items format
-      // For now, return empty array until we implement proper transformation
-      // TODO: Transform historicalAnalysis.data.results to FeedbackPanelItem[]
+    if (isHistoryMode) {
+      // In history mode, use feedback from the database via the feedback status store
+      // The historicalAnalysis hook should have triggered subscription to analysis_feedback table
       return analysisState.feedback.feedbackItems
     }
     return analysisState.feedback.feedbackItems
-  }, [isHistoryMode, historicalAnalysis.data, analysisState.feedback.feedbackItems])
+  }, [isHistoryMode, analysisState.feedback.feedbackItems])
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
@@ -115,9 +111,69 @@ export function VideoAnalysisScreen({
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
   const [currentTime, setCurrentTime] = useState(0)
+  const [resolvedVideoUri, setResolvedVideoUri] = useState<string>(videoUri || FALLBACK_VIDEO_URI)
 
-  // Use provided video URI or fallback to sample video
-  const resolvedVideoUri = videoUri ?? FALLBACK_VIDEO_URI
+  // Resolve video URI: prop > historical data > fallback
+  // Use effect for async signed URL generation
+  useEffect(() => {
+    const resolveUri = async () => {
+      log.info('VideoAnalysisScreen', 'Resolving video URI', {
+        isHistoryMode,
+        hasVideoUriProp: !!videoUri,
+        hasHistoricalData: !!historicalAnalysis.data,
+        historicalVideoUri: historicalAnalysis.data?.videoUri,
+        videoUriProp: videoUri,
+      })
+
+      if (videoUri) {
+        log.info('VideoAnalysisScreen', 'Using video URI from prop', { videoUri })
+        setResolvedVideoUri(videoUri)
+        return
+      }
+      if (isHistoryMode && historicalAnalysis.data?.videoUri) {
+        // Convert storage path to signed URL if it looks like a storage path
+        const historicalUri = historicalAnalysis.data.videoUri
+        if (
+          historicalUri.startsWith('file://') ||
+          historicalUri.startsWith('http://') ||
+          historicalUri.startsWith('https://')
+        ) {
+          // Already a full URI
+          log.info('VideoAnalysisScreen', 'Using video URI from historical data', {
+            videoUri: historicalUri,
+          })
+          setResolvedVideoUri(historicalUri)
+          return
+        }
+        // Storage path - convert to signed URL for secure access
+        const { createSignedDownloadUrl } = await import('@my/api')
+        const { data, error } = await createSignedDownloadUrl('raw', historicalUri)
+        if (error || !data) {
+          log.error('VideoAnalysisScreen', 'Failed to create signed URL', {
+            storagePath: historicalUri,
+            error,
+          })
+          setResolvedVideoUri(FALLBACK_VIDEO_URI)
+          return
+        }
+        log.info('VideoAnalysisScreen', 'Converted storage path to signed URL', {
+          storagePath: historicalUri,
+          signedUrl: data.signedUrl,
+        })
+        setResolvedVideoUri(data.signedUrl)
+        return
+      }
+      log.warn('VideoAnalysisScreen', 'Falling back to sample video', {
+        isHistoryMode,
+        hasHistoricalData: !!historicalAnalysis.data,
+        fallbackUri: FALLBACK_VIDEO_URI,
+      })
+      setResolvedVideoUri(FALLBACK_VIDEO_URI)
+    }
+
+    resolveUri()
+  }, [videoUri, isHistoryMode, historicalAnalysis.data])
+
   const uploadError = analysisState.error?.phase === 'upload' ? analysisState.error?.message : null
 
   useAutoPlayOnReady(isProcessing, isPlaying, playVideo)

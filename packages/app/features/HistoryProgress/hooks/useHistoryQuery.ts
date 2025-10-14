@@ -21,9 +21,10 @@ export interface VideoItem {
 function transformToCache(
   job: AnalysisJobWithVideo
 ): Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> {
-  // Extract thumbnail from metadata (local device URI)
-  // Note: video_recordings.thumbnail_url doesn't exist in schema, only metadata.thumbnailUri
+  // Extract thumbnail and video URI from video_recordings join
   const thumbnail = job.video_recordings?.metadata?.thumbnailUri
+  // Use storage_path to construct Supabase Storage URL, or fall back to filename
+  const videoUri = job.video_recordings?.storage_path || job.video_recordings?.filename
 
   return {
     id: job.id,
@@ -32,6 +33,7 @@ function transformToCache(
     title: job.summary_text || `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
     createdAt: job.created_at,
     thumbnail,
+    videoUri,
     results: job.results as AnalysisResults,
     poseData: job.pose_data as any,
   }

@@ -1,4 +1,5 @@
 import type { AnalysisResults, PoseData } from '@api/src/validation/cameraRecordingSchemas'
+import { log } from '@my/logging'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
@@ -7,7 +8,7 @@ import { immer } from 'zustand/middleware/immer'
 const MAX_CACHE_ENTRIES = 50
 const TTL_DAYS = 7
 const MAX_AGE_DAYS = 30
-const CACHE_VERSION = 1
+const CACHE_VERSION = 4 // Incremented to regenerate cache with public URLs from storage_path
 
 /**
  * Cached analysis entry with metadata for cache management
@@ -19,6 +20,7 @@ export interface CachedAnalysis {
   title: string
   createdAt: string
   thumbnail?: string
+  videoUri?: string
   results: AnalysisResults
   poseData?: PoseData
   cachedAt: number
@@ -122,12 +124,28 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
 
       // Get cached entry
       getCached: (id) => {
-        const entry = get().cache.get(id)
+        const state = get()
+
+        // Check version and clear cache if outdated
+        if (state.version !== CACHE_VERSION) {
+          log.warn('VideoHistoryStore', 'Cache version mismatch, clearing cache', {
+            storedVersion: state.version,
+            expectedVersion: CACHE_VERSION,
+            cacheSize: state.cache.size,
+          })
+          state.clearCache()
+          set((draft) => {
+            draft.version = CACHE_VERSION
+          })
+          return null
+        }
+
+        const entry = state.cache.get(id)
         if (!entry) return null
 
         // Check if stale (before updating lastAccessed)
         if (isStale(entry) || isTooOld(entry)) {
-          get().removeFromCache(id)
+          state.removeFromCache(id)
           return null
         }
 

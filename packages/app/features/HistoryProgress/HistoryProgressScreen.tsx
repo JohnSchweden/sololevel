@@ -50,7 +50,7 @@ export interface HistoryProgressScreenProps {
  * @example
  * ```tsx
  * <HistoryProgressScreen
- *   onNavigateToVideoAnalysis={(id) => router.push(`/video-analysis/${id}`)}
+ *   onNavigateToVideoAnalysis={(id) => router.push({ pathname: '/video-analysis', params: { analysisJobId: id } })}
  *   onNavigateToVideos={() => router.push('/videos')}
  *   onBack={() => router.back()}
  * />
@@ -156,8 +156,11 @@ export function HistoryProgressScreen({
       if (onNavigateToVideoAnalysis) {
         onNavigateToVideoAnalysis(analysisId)
       } else {
-        // Type assertion for dynamic route
-        router.push(`/video-analysis/${analysisId}` as any)
+        // Navigate to video analysis with analysisJobId param for history mode
+        router.push({
+          pathname: '/video-analysis',
+          params: { analysisJobId: analysisId.toString() },
+        } as any)
       }
     },
     [onNavigateToVideoAnalysis, router]

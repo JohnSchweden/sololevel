@@ -58,7 +58,7 @@ export interface VideosSectionProps {
  * ```tsx
  * <VideosSection
  *   videos={videos.slice(0, 10)}
- *   onVideoPress={(id) => router.push(`/video-analysis/${id}`)}
+ *   onVideoPress={(id) => router.push({ pathname: '/video-analysis', params: { analysisJobId: id } })}
  *   onSeeAllPress={() => router.push('/videos')}
  * />
  * ```

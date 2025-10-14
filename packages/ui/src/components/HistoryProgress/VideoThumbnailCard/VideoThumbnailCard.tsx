@@ -146,10 +146,6 @@ export function VideoThumbnailCard({
         <GlassButton
           minWidth={38}
           minHeight={38}
-          borderRadius="$12"
-          blurTint="light"
-          borderWidth={1}
-          borderColor="rgba(255, 255, 255, 0.2)"
           onPress={onPress}
           testID={`${testID}-play-button`}
           accessibilityLabel="Play video"

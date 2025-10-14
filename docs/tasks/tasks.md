@@ -2,6 +2,389 @@
 
 ---
 
+### Task 32: Storage Path Optimization - Database IDs + Date Partitioning [P2] 🔄 PENDING
+**Effort:** 4 hours | **Priority:** P2 (Future optimization) | **Depends on:** None
+**User Story:** Infrastructure - Storage organization and data lifecycle management
+
+@step-by-step.md - Replace timestamp-based storage paths with database ID + date partitioning for better organization, debugging, and data lifecycle management.
+
+**OBJECTIVE:** Migrate from timestamp-based file naming (`{user_id}/{timestamp}_{filename}`) to semantic, database-driven paths with date partitioning for improved storage organization and lifecycle management.
+
+**RATIONALE:**
+- **Current State:** Files stored as `488a7161.../{timestamp}_{original_filename}` (e.g., `1760388359718_video.mp4`)
+  - ❌ No semantic meaning (what is "1760388359718"?)
+  - ❌ Hard to correlate with database records
+  - ❌ Debugging requires timestamp → DB lookup
+  - ❌ No natural data partitioning strategy
+  
+- **Future Goal:** Database ID-based paths with date folders
+  - ✅ Self-documenting (path contains video_recording_id)
+  - ✅ Easy debugging (see ID in path → query DB directly)
+  - ✅ Date partitioning for lifecycle management (delete old folders)
+  - ✅ Faster storage operations at scale (partitioned by date)
+  - ✅ Guaranteed uniqueness via primary keys
+  - ✅ **Bucket separation maintained:** Videos in `raw`, audio in `processed` (security model unchanged)
+
+**ARCHITECTURE ALIGNMENT:**
+- **Videos (raw bucket):** `{user_id}/videos/{yyyymmdd}/{video_recording_id}/video.{format}`
+- **Audio (processed bucket):** `{user_id}/videos/{yyyymmdd}/{video_recording_id}/audio/{feedback_id}/{segment_index}.{format}`
+- **Bucket separation maintained:** Videos in `raw` (private), audio in `processed` (service-role only)
+- **Video-centric grouping:** Logical grouping via matching paths, physical separation via buckets
+- Date source: Database `created_at` timestamp (UTC, consistent)
+- Migration: Backward compatible (old paths still accessible)
+
+**STORAGE STRUCTURE:**
+```
+Bucket: raw (private, authenticated users)
+└── {user_id}/videos/
+    └── 20251014/              ← Date partition
+        └── 1234/              ← video_recording_id
+            └── video.mp4      ← Original video
+
+Bucket: processed (private, service-role only)
+└── {user_id}/videos/
+    └── 20251014/              ← Date partition (matches raw bucket)
+        └── 1234/              ← video_recording_id (matches raw bucket)
+            └── audio/         ← Generated feedback audio
+                ├── 1069/      ← feedback_id
+                │   └── 0.wav  ← segment_index
+                └── 1070/
+                    └── 0.wav
+```
+
+**CURRENT STATE:**
+- ✅ Video uploads functional with timestamp paths
+- ✅ `video_recordings.storage_path` column exists
+- ✅ `upsert: false` prevents collisions
+- ❌ Paths use anonymous timestamps
+- ❌ No date partitioning
+- ❌ No audio storage_path column
+
+**SCOPE:**
+
+#### Module 1: Database Schema Updates
+**Summary:** Add `storage_path` column to `analysis_audio_segments` and update column comments.
+
+**File:** `supabase/migrations/[timestamp]_optimize_storage_paths.sql`
+
+**Tasks:**
+- [ ] Add `storage_path TEXT` column to `analysis_audio_segments`
+- [ ] Add index on `storage_path` for query performance
+- [ ] Update `video_recordings.storage_path` column comment with new format
+- [ ] Add column comment for `audio_segments.storage_path`
+- [ ] Test migration on local Supabase instance
+- [ ] Update TypeScript types in `packages/api/types/database.ts`
+
+**SQL Schema:**
+```sql
+-- Update video_recordings comment
+COMMENT ON COLUMN video_recordings.storage_path IS 
+'Storage path format: {user_id}/videos/{yyyymmdd}/{video_recording_id}/video.{format}
+Date extracted from created_at (UTC). Video-centric grouping for all related assets. Example: 488a7161.../videos/20251014/1234/video.mp4';
+
+-- Add storage_path to analysis_audio_segments
+ALTER TABLE analysis_audio_segments 
+ADD COLUMN storage_path TEXT;
+
+-- Add index for query performance
+CREATE INDEX idx_audio_segments_storage_path 
+ON analysis_audio_segments(storage_path) 
+WHERE storage_path IS NOT NULL;
+
+-- Add comment
+COMMENT ON COLUMN analysis_audio_segments.storage_path IS 
+'Storage path format: {user_id}/videos/{yyyymmdd}/{video_recording_id}/audio/{feedback_id}/{segment_index}.{format}
+Date extracted from video_recordings.created_at (UTC). Groups audio with video assets. Example: 488a7161.../videos/20251014/1234/audio/1069/0.wav';
+```
+
+**Acceptance Criteria:**
+- [ ] Migration runs without errors on local Supabase
+- [ ] Column comments updated with path format documentation
+- [ ] `audio_segments.storage_path` accepts NULL and TEXT values
+- [ ] Index created successfully
+- [ ] TypeScript types updated and type-check passes
+- [ ] Existing data unaffected (audio column defaults to NULL)
+
+#### Module 2: Storage Path Helper Functions
+**Summary:** Create utility functions for consistent path generation.
+
+**File:** `packages/api/src/services/storagePathHelpers.ts` (new file)
+
+**Tasks:**
+- [ ] Create `getDateFolder(isoTimestamp: string): string` utility
+- [ ] Create `buildVideoPath()` function
+- [ ] Create `buildAudioPath()` function
+- [ ] Add JSDoc documentation with examples
+- [ ] Export from `packages/api/src/index.ts`
+- [ ] Add unit tests
+
+**Function Interfaces:**
+```typescript
+/**
+ * Extract date folder from ISO timestamp
+ * @param isoTimestamp ISO 8601 timestamp (e.g., "2025-10-14T12:30:45.123Z")
+ * @returns Date folder in yyyymmdd format (e.g., "20251014")
+ */
+export function getDateFolder(isoTimestamp: string): string {
+  return isoTimestamp.slice(0, 10).replace(/-/g, '')
+}
+
+/**
+ * Build storage path for video recording
+ * @param userId User UUID
+ * @param videoRecordingId Video recording primary key
+ * @param createdAt ISO timestamp from video_recordings.created_at
+ * @param format File format (mp4, mov)
+ * @returns Storage path: {user_id}/videos/{yyyymmdd}/{video_recording_id}/video.{format}
+ * @example buildVideoPath('488a...', 1234, '2025-10-14T12:30:00Z', 'mp4')
+ *          // Returns: '488a.../videos/20251014/1234/video.mp4'
+ */
+export function buildVideoPath(
+  userId: string,
+  videoRecordingId: number,
+  createdAt: string,
+  format: string
+): string
+
+/**
+ * Build storage path for audio segment
+ * @param userId User UUID
+ * @param videoRecordingId Video recording primary key
+ * @param feedbackId Feedback primary key
+ * @param segmentIndex Segment index (0, 1, 2, ...)
+ * @param videoCreatedAt ISO timestamp from video_recordings.created_at
+ * @param format File format (mp3, wav)
+ * @returns Storage path: {user_id}/videos/{yyyymmdd}/{video_id}/audio/{feedback_id}/{segment_index}.{format}
+ * @example buildAudioPath('488a...', 1234, 1069, 0, '2025-10-14T12:30:00Z', 'wav')
+ *          // Returns: '488a.../videos/20251014/1234/audio/1069/0.wav'
+ */
+export function buildAudioPath(
+  userId: string,
+  videoRecordingId: number,
+  feedbackId: number,
+  segmentIndex: number,
+  videoCreatedAt: string,
+  format: string
+): string
+```
+
+**Acceptance Criteria:**
+- [ ] Date extraction handles UTC timestamps correctly
+- [ ] Paths match documented format exactly
+- [ ] Functions exported from `@my/api`
+- [ ] JSDoc examples provided
+- [ ] Unit tests cover edge cases (timezone, formats)
+
+#### Module 3: Video Upload Service Migration
+**Summary:** Update video upload to use new path format.
+
+**File:** `packages/api/src/services/videoUploadService.ts` (modify)
+
+**Tasks:**
+- [ ] Update `createSignedUploadUrl()` to use `buildVideoPath()`
+- [ ] Remove timestamp-based path generation (line 71-72)
+- [ ] Pass `video_recording_id` and `created_at` to path builder
+- [ ] Update `storage_path` in database with new format
+- [ ] Maintain backward compatibility (old paths still work)
+- [ ] Add logging for path generation
+- [ ] Update inline comments
+
+**Implementation Notes:**
+- Chicken-egg problem: Need `video_recording_id` before creating signed URL
+- Solution: Create DB record first (pending status), then generate path
+- **Bucket:** Videos uploaded to `raw` bucket (unchanged from current implementation)
+- Path is relative to bucket: `raw/{user_id}/videos/{yyyymmdd}/...`
+
+**Code Changes:**
+```typescript
+// OLD (line 71-72)
+const timestamp = Date.now()
+const path = `${user.data.user.id}/${timestamp}_${filename}`
+
+// NEW
+const recording = await createVideoRecording({
+  // ... initial fields ...
+  storage_path: '', // Temporary
+  upload_status: 'pending',
+})
+
+const storagePath = buildVideoPath(
+  user.data.user.id,
+  recording.id,
+  recording.created_at,
+  format
+)
+
+await updateVideoRecording(recording.id, {
+  storage_path: storagePath,
+})
+
+const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
+```
+
+**Acceptance Criteria:**
+- [ ] Video uploads use new path format
+- [ ] Database `storage_path` matches actual storage location
+- [ ] Old videos with timestamp paths still accessible
+- [ ] No upload failures due to path changes
+- [ ] Logging shows generated paths for debugging
+
+#### Module 4: Audio Worker Integration (Future)
+**Summary:** Prepare audio generation to use new path format (grouped by video).
+
+**File:** `supabase/functions/ai-analyze-video/workers/audioWorker.ts` (modify)
+
+**Tasks:**
+- [ ] Import `buildAudioPath()` helper
+- [ ] Fetch `video_recording_id` and `created_at` from job context
+- [ ] Generate path using video_recording_id/feedback IDs + video creation date
+- [ ] Store `storage_path` in `analysis_audio_segments` table
+- [ ] Keep `audio_url` for backward compatibility during migration
+- [ ] Add logging for path generation
+- [ ] Update Edge Function tests
+
+**Implementation Notes:**
+- Audio paths use `video_recordings.created_at` for date folder (not job/segment creation time)
+- Ensures all audio for a video grouped with the video file in same date folder
+- Path format: `{user_id}/videos/{yyyymmdd}/{video_id}/audio/{feedback_id}/{segment_index}.{format}`
+- Grouping by video (not job) since relationship is 1:1 and video is root entity
+- **Bucket:** Audio uploaded to `processed` bucket (unchanged from current implementation)
+- Path is relative to bucket: `processed/{user_id}/videos/{yyyymmdd}/...`
+
+**Acceptance Criteria:**
+- [ ] Audio segments use new path format
+- [ ] `storage_path` column populated correctly
+- [ ] Date folder matches `video_recordings.created_at`
+- [ ] Audio grouped under video folder structure
+- [ ] Old audio with `audio_url` only still works (fallback)
+
+#### Module 5: Client-Side Signed URL Generation
+**Summary:** Update client to generate signed URLs from storage_path.
+
+**Files:**
+- `packages/api/src/services/audioService.ts` (modify)
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (already done for videos)
+
+**Tasks:**
+- [ ] Update `getFirstAudioUrlForFeedback()` to prefer `storage_path`
+- [ ] Generate signed URL from `storage_path` if available
+- [ ] Fallback to `audio_url` for old records
+- [ ] Add logging for URL generation source
+- [ ] Document migration path in comments
+
+**Code Pattern:**
+```typescript
+// Prefer storage_path, fallback to audio_url
+if (row?.storage_path) {
+  const { data } = await createSignedDownloadUrl('processed', row.storage_path)
+  return { ok: true, url: data.signedUrl }
+}
+if (row?.audio_url) {
+  return { ok: true, url: row.audio_url } // Old records
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Audio playback works with new paths
+- [ ] Signed URLs generated with 1-hour TTL
+- [ ] Old records with `audio_url` still work
+- [ ] Logging indicates which path used (storage_path vs audio_url)
+
+#### Module 6: Data Lifecycle Benefits (Documentation)
+**Summary:** Document storage organization benefits for operations.
+
+**File:** `docs/architecture/storage-organization.md` (new file)
+
+**Tasks:**
+- [ ] Document path structure and rationale
+- [ ] Document date folder benefits (cleanup, archival)
+- [ ] Document retention policy examples
+- [ ] Document storage metrics by date
+- [ ] Document debugging workflows
+
+**Benefits to Document:**
+- Cleanup: `DELETE FROM storage.objects WHERE name LIKE '%/videos/202401%'` (delete January 2024 from both buckets)
+- Video grouping: All video assets in one logical folder `videos/20251014/1234/` (physical separation by bucket)
+- **Bucket security:** `raw` = authenticated users (videos), `processed` = service-role only (audio)
+- Archival: Move old date folders to cold storage (per bucket)
+- Metrics: Count files per month for analytics (aggregate across buckets)
+- Debugging: "Video uploaded Oct 14?" → check `videos/20251014/` in both buckets
+- Future expansion: Easy to add pose data, thumbnails under same video folder
+
+**Acceptance Criteria:**
+- [ ] Architecture documentation complete
+- [ ] Operations runbook includes storage lifecycle
+- [ ] Examples for cleanup/archival provided
+- [ ] Debugging workflows documented
+
+#### Module 7: Test Suite
+**Summary:** Unit tests for path generation and migration.
+
+**File:** `packages/api/src/services/storagePathHelpers.test.ts` (new file)
+
+**Tasks:**
+- [ ] Test `getDateFolder()` with various timestamps
+- [ ] Test `buildVideoPath()` output format
+- [ ] Test `buildAudioPath()` output format
+- [ ] Test timezone handling (UTC consistency)
+- [ ] Test format flexibility (mp4/mov, mp3/wav)
+- [ ] Mock database timestamps
+
+**Acceptance Criteria:**
+- [ ] All helper functions covered
+- [ ] Edge cases tested (leap years, timezone boundaries)
+- [ ] Output format validated against documentation
+- [ ] Tests pass with 100% coverage of helpers
+
+#### Module 8: Manual QA
+**Summary:** End-to-end validation of new storage paths.
+
+**Tasks:**
+- [ ] Upload video → verify path matches `{user_id}/videos/{yyyymmdd}/{id}.{format}`
+- [ ] Check database: `storage_path` populated correctly
+- [ ] Verify file accessible via signed URL
+- [ ] Generate audio → verify path matches documented format
+- [ ] Check audio playback works with new paths
+- [ ] Verify old videos/audio still accessible (backward compatibility)
+- [ ] Check Supabase Storage dashboard: organized by date folders
+- [ ] Test date folder cleanup (delete test folder manually)
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes ✅ (0 errors)
+- [ ] `yarn workspace @my/api test storagePathHelpers.test.ts --run` → all tests pass
+- [ ] `yarn lint` passes ✅ (0 errors)
+- [ ] Manual QA: All items above verified
+- [ ] Storage: Files organized by date folders in Supabase dashboard
+- [ ] Backward compatibility: Old timestamp paths still work
+
+**FILES TO CREATE:**
+- `supabase/migrations/[timestamp]_optimize_storage_paths.sql` (database migration)
+- `packages/api/src/services/storagePathHelpers.ts` (path generation utilities)
+- `packages/api/src/services/storagePathHelpers.test.ts` (unit tests)
+- `docs/architecture/storage-organization.md` (documentation)
+
+**FILES TO MODIFY:**
+- `packages/api/src/services/videoUploadService.ts` (use buildVideoPath)
+- `supabase/functions/ai-analyze-video/workers/audioWorker.ts` (use buildAudioPath)
+- `packages/api/src/services/audioService.ts` (prefer storage_path)
+- `packages/api/types/database.ts` (add storage_path to audio_segments)
+- `packages/api/src/index.ts` (export path helpers)
+
+**MIGRATION STRATEGY:**
+- Phase 1: Add `storage_path` columns (backward compatible)
+- Phase 2: Update services to populate both old and new fields
+- Phase 3: Client prefers `storage_path`, falls back to old fields
+- Phase 4: Deprecate old fields (future task, not in scope)
+
+**BENEFITS:**
+- 🔍 **Debugging**: See video/audio ID in path → instant DB correlation
+- 🗓️ **Lifecycle**: Delete old date folders for retention policies
+- 📊 **Analytics**: Storage metrics by month/year via folder counts
+- ⚡ **Performance**: Faster listing at scale (partitioned by date)
+- 🔒 **Uniqueness**: Primary key-based, guaranteed no collisions
+
+---
+
 ### Task 31: Video Thumbnail Cloud Storage Migration [P1] 🔄 PENDING
 **Effort:** 1 day | **Priority:** P1 (Future optimization) | **Depends on:** Task 30
 **User Story:** US-HI-01a (Videos Section - Horizontal Thumbnail Gallery)
