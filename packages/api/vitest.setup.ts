@@ -1,5 +1,5 @@
 // Vitest setup for Node.js environment
-//import { vi } from 'vitest'
+import { vi } from 'vitest'
 
 // Mock environment variables for consistent testing
 process.env.TEST_AUTH_ENABLED = 'false'
@@ -27,3 +27,23 @@ console.warn = (...args) => {
   }
   originalWarn(...args)
 }
+
+// Global logger mocking - silent by default, can be overridden in individual tests
+vi.mock('@my/logging', () => ({
+  log: {
+    trace: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+  },
+  logger: {
+    trace: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+  },
+}))

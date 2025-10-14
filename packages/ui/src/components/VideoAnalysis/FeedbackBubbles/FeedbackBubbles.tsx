@@ -25,13 +25,13 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
     // Subtle tinted overlay on top of blur
     switch (message.type) {
       case 'positive':
-        return 'rgba(34, 197, 94, 0.2)' // transparent green
+        return 'rgba(34, 197, 94, 0)' // transparent green
       case 'suggestion':
-        return 'rgba(59, 130, 246, 0.2)' // transparent blue
+        return 'rgba(59, 130, 246, 0)' // transparent blue
       case 'correction':
-        return 'rgba(239, 68, 68, 0.2)' // transparent red
+        return 'rgba(239, 68, 68, 0)' // transparent red
       default:
-        return 'rgba(107, 114, 128, 0.2)' // transparent gray
+        return 'rgba(107, 114, 128, 0)' // transparent gray
     }
   }
 

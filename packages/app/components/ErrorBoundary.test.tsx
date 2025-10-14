@@ -20,16 +20,6 @@ function renderWithProvider(component: React.ReactElement) {
   return render(component)
 }
 
-// Mock console.error to avoid noise in tests
-const originalError = console.error
-beforeAll(() => {
-  console.error = jest.fn()
-})
-
-afterAll(() => {
-  console.error = originalError
-})
-
 describe('ErrorBoundary', () => {
   it('renders children when there is no error', () => {
     renderWithProvider(

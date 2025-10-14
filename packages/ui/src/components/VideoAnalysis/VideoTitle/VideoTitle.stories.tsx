@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { VideoTitle } from './VideoTitle'
 
@@ -19,7 +20,7 @@ export const Default: Story = {
     isGenerating: false,
     isEditable: true,
     timestamp: '2 days ago',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (
@@ -42,7 +43,7 @@ export const Generating: Story = {
     isGenerating: true,
     isEditable: false,
     timestamp: 'Just now',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (
@@ -65,7 +66,7 @@ export const NoTitle: Story = {
     isGenerating: false,
     isEditable: true,
     timestamp: '1 hour ago',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (
@@ -88,7 +89,7 @@ export const ReadOnly: Story = {
     isGenerating: false,
     isEditable: false,
     timestamp: '3 days ago',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (
@@ -111,7 +112,7 @@ export const LongTitle: Story = {
     isGenerating: false,
     isEditable: true,
     timestamp: '5 hours ago',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (
@@ -134,7 +135,7 @@ export const EditingMode: Story = {
     isGenerating: false,
     isEditable: true,
     timestamp: '1 day ago',
-    onTitleEdit: (newTitle) => console.log('Title edited to:', newTitle),
+    onTitleEdit: (newTitle) => log.debug('VideoTitle', 'Title edited to', { newTitle }),
   },
   decorators: [
     (Story) => (

@@ -123,17 +123,12 @@ describe('AuthStore', () => {
       } as any
       mockSignOut.mockResolvedValue({ error: mockError })
 
-      // Mock console.error to avoid noise in tests
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-
       await useAuthStore.getState().signOut()
 
       expect(supabase.auth.signOut).toHaveBeenCalledTimes(1)
 
       // Loading should be false after error handling
       expect(useAuthStore.getState().loading).toBe(false)
-
-      consoleSpy.mockRestore()
     })
 
     it('handles unexpected error during sign out', async () => {
@@ -142,13 +137,9 @@ describe('AuthStore', () => {
       const mockError = new Error('Unexpected error')
       mockSignOut.mockRejectedValue(mockError)
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-
       await useAuthStore.getState().signOut()
 
       expect(useAuthStore.getState().loading).toBe(false)
-
-      consoleSpy.mockRestore()
     })
   })
 
@@ -228,14 +219,10 @@ describe('AuthStore', () => {
         },
       })
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-
       await useAuthStore.getState().initialize()
 
       // Should still be initialized even with session error
       expect(useAuthStore.getState().initialized).toBe(true)
-
-      consoleSpy.mockRestore()
     })
 
     it('does not initialize if already initialized', async () => {

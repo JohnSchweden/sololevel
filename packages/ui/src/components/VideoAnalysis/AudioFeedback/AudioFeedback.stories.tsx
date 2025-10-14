@@ -1,4 +1,5 @@
 import type { AudioControllerState } from '@app/features/VideoAnalysis/hooks/useAudioController'
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { AudioFeedback } from './AudioFeedback'
 
@@ -23,15 +24,15 @@ const createMockController = (
   duration: 120,
   isLoaded: true,
   seekTime: null,
-  setIsPlaying: () => console.log('setIsPlaying called'),
-  togglePlayback: () => console.log('togglePlayback called'),
-  handleLoad: () => console.log('handleLoad called'),
-  handleProgress: () => console.log('handleProgress called'),
-  handleEnd: () => console.log('handleEnd called'),
-  handleError: () => console.log('handleError called'),
-  handleSeekComplete: () => console.log('handleSeekComplete called'),
-  seekTo: () => console.log('seekTo called'),
-  reset: () => console.log('reset called'),
+  setIsPlaying: () => log.debug('AudioFeedback', 'setIsPlaying called'),
+  togglePlayback: () => log.debug('AudioFeedback', 'togglePlayback called'),
+  handleLoad: () => log.debug('AudioFeedback', 'handleLoad called'),
+  handleProgress: () => log.debug('AudioFeedback', 'handleProgress called'),
+  handleEnd: () => log.debug('AudioFeedback', 'handleEnd called'),
+  handleError: () => log.debug('AudioFeedback', 'handleError called'),
+  handleSeekComplete: () => log.debug('AudioFeedback', 'handleSeekComplete called'),
+  seekTo: () => log.debug('AudioFeedback', 'seekTo called'),
+  reset: () => log.debug('AudioFeedback', 'reset called'),
   ...overrides,
 })
 
@@ -43,7 +44,7 @@ export const Playing: Story = {
       currentTime: 45,
       duration: 120,
     }),
-    onClose: () => console.log('Close clicked'),
+    onClose: () => log.debug('AudioFeedback', 'Close clicked'),
     isVisible: true,
   },
   decorators: [
@@ -70,7 +71,7 @@ export const Paused: Story = {
       currentTime: 30,
       duration: 120,
     }),
-    onClose: () => console.log('Close clicked'),
+    onClose: () => log.debug('AudioFeedback', 'Close clicked'),
     isVisible: true,
   },
   decorators: [
@@ -97,7 +98,7 @@ export const Hidden: Story = {
       currentTime: 0,
       duration: 120,
     }),
-    onClose: () => console.log('Close clicked'),
+    onClose: () => log.debug('AudioFeedback', 'Close clicked'),
     isVisible: false,
   },
   decorators: [
@@ -124,7 +125,7 @@ export const NoAudio: Story = {
       currentTime: 0,
       duration: 0,
     }),
-    onClose: () => console.log('Close clicked'),
+    onClose: () => log.debug('AudioFeedback', 'Close clicked'),
     isVisible: true,
   },
   decorators: [
@@ -151,7 +152,7 @@ export const EndOfAudio: Story = {
       currentTime: 115,
       duration: 120,
     }),
-    onClose: () => console.log('Close clicked'),
+    onClose: () => log.debug('AudioFeedback', 'Close clicked'),
     isVisible: true,
   },
   decorators: [

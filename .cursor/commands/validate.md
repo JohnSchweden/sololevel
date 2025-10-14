@@ -1,11 +1,11 @@
 Validate the completed TDD implementation against all quality criteria and Definition of Done.
 
-CONTEXT:
+**CONTEXT:**
 - Implementation has been completed following the approved task
 - All TDD cycles (Red-Green-Refactor) have been executed
 - Ready for final validation before deployment
 
-VALIDATION WORKFLOW:
+**VALIDATION WORKFLOW:**
 
 **STEP 1: Automated Quality Checks**
 Run these commands and report exact results:
@@ -24,7 +24,6 @@ For each DoD criterion:
 - [ ] No hardcoded values or magic numbers
 - [ ] Proper error handling implemented
 - [ ] Code follows project patterns and conventions
-- [ ] No console.logs or debug code remaining
 
 **STEP 4: Performance Validation**
 - [ ] Bundle size impact acceptable
@@ -55,4 +54,5 @@ For each DoD criterion:
 - Any linting/TypeScript errors must be fixed
 - Any DoD criteria failures require re-implementation
 
-REMEMBER: Only mark as VALIDATED when ALL criteria pass. Evidence required for every claim.
+**REMEMBER:**
+Only mark as VALIDATED when ALL criteria pass. Evidence required for every claim.

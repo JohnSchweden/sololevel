@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { XStack, YStack } from 'tamagui'
 import { VideoThumbnailCard } from './VideoThumbnailCard'
@@ -65,7 +66,7 @@ type Story = StoryObj<typeof VideoThumbnailCard>
 export const Default: Story = {
   args: {
     thumbnailUri: 'https://picsum.photos/180/280',
-    onPress: () => console.log('Thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, Golf Swing Analysis, recorded on Oct 11',
   },
 }
@@ -75,7 +76,7 @@ export const Default: Story = {
  */
 export const Placeholder: Story = {
   args: {
-    onPress: () => console.log('Placeholder pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Placeholder pressed'),
     accessibilityLabel: 'Video thumbnail, no preview available',
   },
 }
@@ -88,7 +89,7 @@ export const CustomSize: Story = {
     thumbnailUri: 'https://picsum.photos/200/320',
     width: 200,
     height: 320,
-    onPress: () => console.log('Large thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Large thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, Running Form Analysis',
   },
 }
@@ -101,7 +102,7 @@ export const SmallSize: Story = {
     thumbnailUri: 'https://picsum.photos/140/220',
     width: 140,
     height: 220,
-    onPress: () => console.log('Small thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Small thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, Yoga Pose Check',
   },
 }
@@ -114,17 +115,17 @@ export const MultipleCards: Story = {
     <XStack gap="$3">
       <VideoThumbnailCard
         thumbnailUri="https://picsum.photos/180/280?random=1"
-        onPress={() => console.log('Thumbnail 1 pressed')}
+        onPress={() => log.debug('VideoThumbnailCard', 'Thumbnail 1 pressed')}
         accessibilityLabel="Video 1"
       />
       <VideoThumbnailCard
         thumbnailUri="https://picsum.photos/180/280?random=2"
-        onPress={() => console.log('Thumbnail 2 pressed')}
+        onPress={() => log.debug('VideoThumbnailCard', 'Thumbnail 2 pressed')}
         accessibilityLabel="Video 2"
       />
       <VideoThumbnailCard
         thumbnailUri="https://picsum.photos/180/280?random=3"
-        onPress={() => console.log('Thumbnail 3 pressed')}
+        onPress={() => log.debug('VideoThumbnailCard', 'Thumbnail 3 pressed')}
         accessibilityLabel="Video 3"
       />
     </XStack>
@@ -137,7 +138,7 @@ export const MultipleCards: Story = {
 export const ErrorState: Story = {
   args: {
     thumbnailUri: 'https://invalid-url-that-will-fail.com/image.jpg',
-    onPress: () => console.log('Error thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Error thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, failed to load',
   },
 }
@@ -148,7 +149,7 @@ export const ErrorState: Story = {
 export const DarkTheme: Story = {
   args: {
     thumbnailUri: 'https://picsum.photos/180/280',
-    onPress: () => console.log('Dark theme thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Dark theme thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, dark theme',
   },
   parameters: {
@@ -162,7 +163,7 @@ export const DarkTheme: Story = {
 export const LightTheme: Story = {
   args: {
     thumbnailUri: 'https://picsum.photos/180/280',
-    onPress: () => console.log('Light theme thumbnail pressed'),
+    onPress: () => log.debug('VideoThumbnailCard', 'Light theme thumbnail pressed'),
     accessibilityLabel: 'Video thumbnail, light theme',
   },
   parameters: {

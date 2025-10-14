@@ -15,6 +15,7 @@ import {
   type MVPPoseKeypoint,
   MVP_POSE_CONNECTIONS,
 } from '@app/features/CameraRecording/types/MVPpose'
+import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
@@ -161,7 +162,9 @@ class WebGLPoseRenderer {
     this.gl.linkProgram(program)
 
     if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
-      // console.error("Shader program linking failed:", this.gl.getProgramInfoLog(program));
+      log.error('WebGLPoseRenderer', 'Shader program linking failed', {
+        infoLog: this.gl.getProgramInfoLog(program),
+      })
       return null
     }
 
@@ -176,7 +179,9 @@ class WebGLPoseRenderer {
     this.gl.compileShader(shader)
 
     if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-      // console.error("Shader compilation failed:", this.gl.getShaderInfoLog(shader));
+      log.error('WebGLPoseRenderer', 'Shader compilation failed', {
+        infoLog: this.gl.getShaderInfoLog(shader),
+      })
       this.gl.deleteShader(shader)
       return null
     }
@@ -415,7 +420,9 @@ export function PoseOverlayWeb({
     try {
       rendererRef.current = new WebGLPoseRenderer(canvasRef.current)
     } catch (error) {
-      // console.warn("WebGL initialization failed, falling back to Canvas 2D:", error);
+      log.warn('PoseOverlayWeb', 'WebGL initialization failed, falling back to Canvas 2D', {
+        error,
+      })
       // Fallback to Canvas 2D rendering would be implemented here
     }
 

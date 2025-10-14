@@ -1,3 +1,4 @@
+import { log } from "@my/logging";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { useEnhancedCameraStore } from "../../../stores/enhancedCameraStore";
@@ -408,13 +409,13 @@ export const useAdaptiveQuality = (
         });
 
         // Log adaptive quality adjustment for debugging
-        // console.log('Adaptive quality adjustment applied:', {
-        //   score: newScore,
-        //   settings: optimalSettings,
-        // })
+        log.debug('useAdaptiveQuality', 'Adaptive quality adjustment applied', {
+          score: newScore,
+          settings: optimalSettings,
+        })
       }
     } catch (error) {
-      // console.error('Failed to apply quality adjustments:', error)
+      log.error('useAdaptiveQuality', 'Failed to apply quality adjustments', { error })
     } finally {
       setIsAdjusting(false);
     }

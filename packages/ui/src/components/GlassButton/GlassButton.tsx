@@ -2,8 +2,9 @@ import { BlurView } from 'expo-blur'
 import type { ComponentProps, ReactNode } from 'react'
 import { Button, Image, XStack, type XStackProps } from 'tamagui'
 
-// Import glass overlay asset
+// Import glass overlay assets
 const defaultGlassOverlay = require('../../../../../apps/expo/assets/glass-button.png')
+const glassButtonVariant2 = require('../../../../../apps/expo/assets/glass-button-variant2.png')
 
 export type GlassButtonProps = {
   /** Button content */
@@ -28,10 +29,12 @@ export type GlassButtonProps = {
   blurIntensity?: number
   /** Blur tint ('light' | 'dark' | 'default', default 'dark') */
   blurTint?: ComponentProps<typeof BlurView>['tint']
-  /** Minimum width (number only) */
-  minWidth?: number
+  /** Minimum width (number or string like "100%") */
+  minWidth?: number | string
   /** Minimum height (number only) */
   minHeight?: number
+  /** Width (number or string like "100%") */
+  width?: XStackProps['width']
   /** Border radius token */
   borderRadius?: XStackProps['borderRadius']
   /** Opacity */
@@ -44,6 +47,10 @@ export type GlassButtonProps = {
   borderColor?: XStackProps['borderColor']
   /** Background color override */
   backgroundColor?: XStackProps['backgroundColor']
+  /** Glass button variant ('default' | 'variant2') */
+  variant?: 'default' | 'variant2'
+  /** Glass overlay opacity (0-1, default 1) */
+  overlayOpacity?: number
 }
 
 /**
@@ -72,15 +79,22 @@ export const GlassButton = ({
   blurTint = 'light',
   minWidth = 48,
   minHeight = 48,
+  width,
   borderRadius = '$12',
   opacity = 1,
-  glassOverlaySource = defaultGlassOverlay,
+  glassOverlaySource,
   borderWidth = 1,
   borderColor = 'rgba(255, 255, 255, 0.2)',
   backgroundColor = 'rgba(255, 255, 255, 0.05)',
+  variant = 'default',
+  overlayOpacity = 1,
 }: GlassButtonProps) => {
   // Convert borderRadius token to number for BlurView
   const numericRadius = typeof borderRadius === 'string' ? 24 : Number(borderRadius) || 24
+
+  // Select glass overlay based on variant
+  const overlaySource =
+    glassOverlaySource || (variant === 'variant2' ? glassButtonVariant2 : defaultGlassOverlay)
 
   return (
     <XStack
@@ -88,6 +102,9 @@ export const GlassButton = ({
       borderRadius={borderRadius}
       overflow="hidden"
       opacity={disabled ? 1 : opacity}
+      minWidth={typeof minWidth === 'number' ? minWidth : undefined}
+      minHeight={minHeight}
+      width={(width || (typeof minWidth === 'string' ? minWidth : undefined)) as any}
     >
       <BlurView
         intensity={blurIntensity}
@@ -103,7 +120,7 @@ export const GlassButton = ({
         }}
       />
       <Image
-        source={glassOverlaySource}
+        source={overlaySource}
         position="absolute"
         top={0}
         left={0}
@@ -111,7 +128,7 @@ export const GlassButton = ({
         bottom={0}
         width="100%"
         height="100%"
-        opacity={1}
+        opacity={overlayOpacity}
         resizeMode="cover"
       />
       <Button
@@ -123,8 +140,9 @@ export const GlassButton = ({
         alignItems="center"
         justifyContent="center"
         gap="$2"
-        minWidth={minWidth}
+        minWidth={typeof minWidth === 'number' ? minWidth : undefined}
         minHeight={minHeight}
+        width={(width || (typeof minWidth === 'string' ? minWidth : undefined)) as any}
         borderRadius={borderRadius}
         borderWidth={borderWidth}
         borderColor={borderColor}

@@ -1,4 +1,4 @@
-import { logger } from '@my/logging'
+import { log } from '@my/logging'
 import { memo, useEffect, useMemo } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -64,7 +64,7 @@ export const FeedbackPanel = memo(
     // Trigger layout animation when flex changes
     useEffect(() => {
       if (__DEV__) {
-        logger.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
+        log.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
       }
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         LayoutAnimation.configureNext({
@@ -80,7 +80,7 @@ export const FeedbackPanel = memo(
           },
         })
         if (__DEV__) {
-          logger.debug('FeedbackPanel', 'layout animation configured')
+          log.debug('FeedbackPanel', 'layout animation configured')
         }
       }
     }, [flex])
@@ -88,7 +88,7 @@ export const FeedbackPanel = memo(
     // Log selected feedback changes (moved from render-time logging)
     useEffect(() => {
       if (__DEV__ && selectedFeedbackId) {
-        logger.debug('FeedbackPanel', 'Selected feedback changed', {
+        log.debug('FeedbackPanel', 'Selected feedback changed', {
           selectedFeedbackId,
         })
       }
@@ -130,7 +130,7 @@ export const FeedbackPanel = memo(
     // Debug: log selectedFeedbackId changes
     useEffect(() => {
       if (__DEV__) {
-        logger.debug('FeedbackPanel', 'selectedFeedbackId prop changed', {
+        log.debug('FeedbackPanel', 'selectedFeedbackId prop changed', {
           selectedFeedbackId,
         })
       }

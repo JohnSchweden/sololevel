@@ -223,10 +223,10 @@ log.info('Auth', 'user logged in', { userId: user.id })
 log.error('Upload', 'video upload failed', { error: err.message, jobId: job.id })
 ```
 
-### From Console.log
+### From log.info
 ```typescript
 // ❌ Avoid
-console.log('Debug info:', data)
+log.info('Debug info:', data)
 
 // ✅ Use logger
 log.debug('Component', 'debug info', { data })
@@ -248,7 +248,7 @@ grep -r "log\.info.*clicked" packages/ apps/
 // Get recent errors (for debugging)
 import { getRecentErrors } from '@ui/components/ErrorBoundary'
 const errors = getRecentErrors()
-console.log('Recent errors:', errors)
+log.info('Recent errors:', errors)
 ```
 
 ## Emergency Overrides

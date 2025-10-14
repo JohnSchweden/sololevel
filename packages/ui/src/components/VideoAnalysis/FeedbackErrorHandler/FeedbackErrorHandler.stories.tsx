@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { FeedbackErrorHandler } from './FeedbackErrorHandler'
 
@@ -26,11 +27,11 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const mockRetry = (feedbackId: string) => {
-  console.log('Retrying feedback:', feedbackId)
+  log.debug('FeedbackErrorHandler', 'Retrying feedback', { feedbackId })
 }
 
 const mockDismiss = (feedbackId: string) => {
-  console.log('Dismissing error for feedback:', feedbackId)
+  log.debug('FeedbackErrorHandler', 'Dismissing error for feedback', { feedbackId })
 }
 
 export const SSMLError: Story = {

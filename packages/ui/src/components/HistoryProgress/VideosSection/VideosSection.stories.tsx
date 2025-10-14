@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { YStack } from 'tamagui'
 import { VideosSection } from './VideosSection'
@@ -83,8 +84,8 @@ const mockVideos = [
 export const Default: Story = {
   args: {
     videos: mockVideos,
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
 }
 
@@ -94,8 +95,8 @@ export const Default: Story = {
 export const SingleVideo: Story = {
   args: {
     videos: [mockVideos[0]],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
 }
 
@@ -105,8 +106,8 @@ export const SingleVideo: Story = {
 export const TwoVideos: Story = {
   args: {
     videos: mockVideos.slice(0, 2),
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
 }
 
@@ -116,8 +117,8 @@ export const TwoVideos: Story = {
 export const Empty: Story = {
   args: {
     videos: [],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
 }
 
@@ -127,8 +128,8 @@ export const Empty: Story = {
 export const Loading: Story = {
   args: {
     videos: [],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
     isLoading: true,
   },
 }
@@ -139,10 +140,10 @@ export const Loading: Story = {
 export const ErrorState: Story = {
   args: {
     videos: [],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
     error: new globalThis.Error('Failed to fetch videos from server'),
-    onRetry: () => console.log('Retry pressed'),
+    onRetry: () => log.debug('VideosSection', 'Retry pressed'),
   },
 }
 
@@ -152,8 +153,8 @@ export const ErrorState: Story = {
 export const ErrorNoRetry: Story = {
   args: {
     videos: [],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
     error: new globalThis.Error('Network connection lost'),
   },
 }
@@ -180,8 +181,8 @@ export const MoreThanThree: Story = {
         thumbnailUri: 'https://picsum.photos/180/280?random=5',
       },
     ],
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
   parameters: {
     docs: {
@@ -198,8 +199,8 @@ export const MoreThanThree: Story = {
 export const NoThumbnails: Story = {
   args: {
     videos: mockVideos.map((v) => ({ ...v, thumbnailUri: undefined })),
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
 }
 
@@ -209,8 +210,8 @@ export const NoThumbnails: Story = {
 export const DarkTheme: Story = {
   args: {
     videos: mockVideos,
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
   parameters: {
     backgrounds: { default: 'dark' },
@@ -223,8 +224,8 @@ export const DarkTheme: Story = {
 export const LightTheme: Story = {
   args: {
     videos: mockVideos,
-    onVideoPress: (id) => console.log('Video pressed:', id),
-    onSeeAllPress: () => console.log('See all pressed'),
+    onVideoPress: (id) => log.debug('VideosSection', 'Video pressed', { id }),
+    onSeeAllPress: () => log.debug('VideosSection', 'See all pressed'),
   },
   parameters: {
     backgrounds: { default: 'light' },

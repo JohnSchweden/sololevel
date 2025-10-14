@@ -342,7 +342,7 @@ function pushError(
 }
 
 
-export const logger: LoggerLike = {
+export const log: LoggerLike = {
   trace(scope: string, message: string, context?: Record<string, unknown>) {
     const formatted = formatLine('trace', scope, message, context)
     if (isDev) {
@@ -433,8 +433,6 @@ export const logger: LoggerLike = {
     })
   },
 }
-
-export const log = logger
 
 export function getConsoleLogs(): ConsoleRecord[] {
   return [...consoleBuffer]
@@ -682,7 +680,7 @@ export function logOnChange<T>(
     changeCache.set(cacheKey, nextSignature)
     
     if (initialLog) {
-      logger[level](scope, `${message} (initial)`, {
+      log[level](scope, `${message} (initial)`, {
         ...nextSignature,
         ...context,
       })
@@ -703,7 +701,7 @@ export function logOnChange<T>(
   const diff = formatDiff(prevSignature, nextSignature)
   changeCache.set(cacheKey, nextSignature)
 
-  logger[level](scope, message, {
+  log[level](scope, message, {
     ...diff,
     ...context,
   })

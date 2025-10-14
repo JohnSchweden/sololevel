@@ -88,7 +88,7 @@ The script exits with code 1 on critical issues, failing the build.
 ```typescript
 useEffect(() => {
   const timer = setInterval(() => {
-    console.log('tick');
+    log.info('tick');
   }, 1000);
 }, []);
 ```
@@ -97,7 +97,7 @@ useEffect(() => {
 ```typescript
 useEffect(() => {
   const timer = setInterval(() => {
-    console.log('tick');
+    log.info('tick');
   }, 1000);
   
   return () => clearInterval(timer);

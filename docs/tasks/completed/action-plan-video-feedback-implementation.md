@@ -31,7 +31,7 @@ Deliver real analysis feedback to users as soon as the first audio feedback is a
 **DoD**:
 - Function exported and used by screen; returns first valid `audio_url` or typed error.
 - RPC primary path and SQL fallback both implemented with unit tests.
-- Strict TypeScript types; no `any`; logger used instead of console.
+- Strict TypeScript types; no `any`; use Custom project log.
 
 **Requirements**:
 - Use authenticated `supabase` client from `@my/api`; respect RLS.

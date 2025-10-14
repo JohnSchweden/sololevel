@@ -25,7 +25,9 @@ SplashScreen.preventAutoHideAsync()
 
 export default function App() {
   const [interLoaded, interError] = useFonts({
+    InterRegular: require('@tamagui/font-inter/otf/Inter-Regular.otf'),
     Inter: require('@tamagui/font-inter/otf/Inter-Medium.otf'),
+    InterSemiBold: require('@tamagui/font-inter/otf/Inter-SemiBold.otf'),
     InterBold: require('@tamagui/font-inter/otf/Inter-Bold.otf'),
     JosefinSans: JosefinSans_400Regular,
     JosefinSansBold: JosefinSans_700Bold,
@@ -115,6 +117,17 @@ function RootLayoutNav() {
                 headerStyle: { backgroundColor: '$background' },
                 header: (props) => <NavigationAppHeader {...props} />,
                 animation: 'slide_from_left',
+              }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{
+                title: 'Settings',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
               }}
             />
             <Stack.Screen

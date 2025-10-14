@@ -1,5 +1,54 @@
+### Task 30: Video Thumbnail Generation — ✅ Complete (2025-10-12)
+- Native thumbnail extraction with `expo-video-thumbnails` (iOS + Android)
+- Web thumbnail extraction with Canvas API (JPEG, 80% quality, 1s frame)
+- Platform-agnostic service layer with conditional imports (.native.ts / .web.ts)
+- Database storage in `video_recordings.metadata.thumbnailUri` JSONB field
+- Cache retrieval in analysisStatus.ts from database
+- Integration in compression pipeline (parallel, non-blocking)
+- 9/9 tests passing (native + web platforms, error handling)
+- Module 1 (Database Schema) and Module 4 (Cloud Storage Upload) deferred to Task 31 (P1 future)
 
+### Task 25: History & Progress Tracking Screen — ✅ Complete (2025-10-12)
+- Dedicated `/history-progress` route created for native and web with AuthGate protection
+- HistoryProgressScreen orchestrator component integrating VideosSection and CoachingSessionsSection
+- AppHeader integration with back navigation and profile button (User icon, log placeholder)
+- Hamburger menu wired to navigate to history screen (replaced mock SideSheet component)
+- Pull-to-refresh functionality implemented
+- All quality gates passing (TypeScript: 0 errors, Lint: 0 errors)
 
+### Task 26: Video History Store — ✅ Complete (2025-10-11)
+- In-memory Zustand store with LRU eviction (max 50 entries, 30 days retention)
+- TTL expiration (7 days, refresh on access) with cache-first strategy
+- Integrated cache writes into analysisStatus.ts setJobResults()
+- Auto-cache cleanup on logout via auth subscription
+- 18/18 tests passing (persistence deferred to P1 due to Map serialization complexity)
+
+### Task 27: Videos Section — ✅ Complete (2025-10-11)
+- TanStack Query hook (useHistoryQuery) with cache-first strategy and stale-while-revalidate
+- VideoThumbnailCard component with play overlay, loading/error states, press animation
+- VideosSection component with horizontal scroll, "See all" button, empty state, loading skeleton
+- Integration with HistoryProgressScreen displaying top 3 analyses
+- 28/28 tests passing (8 VideoThumbnailCard + 20 VideosSection)
+
+### Task 27b: Coaching Sessions Section — ✅ Complete (2025-10-12)
+- CoachingSessionItem component with date + title layout and press animation
+- CoachingSessionsSection component with vertical list below VideosSection
+- Mock data integration (4 sessions, P0 placeholder)
+- 19/19 tests passing (8 CoachingSessionItem + 11 CoachingSessionsSection)
+- 100% test coverage on both components
+
+### Task 28: Video Analysis Screen History Mode — ✅ Complete (2025-10-12)
+- useHistoricalAnalysis hook with cache-first loading (< 50ms on cache hit)
+- History mode detection via `!!analysisJobId` flag
+- Skip AI pipeline trigger when in history mode
+- Processing indicator during historical data loading
+- 7/7 tests passing for useHistoricalAnalysis, all 92 VideoAnalysis hook tests passing
+
+### Task 29: App Header Integration — ✅ Complete (2025-10-12)
+- Completed as part of Task 25 Module 2
+- AppHeader configured via navigation.setOptions() with back and profile actions
+- Profile button with User icon and log placeholder (P0)
+- Title set to "History & Progress"
 
 ### Task 10: Highlight Coordination — ✅ Complete (2025-10-07)
 - Coordinator hook owns bubble/progress/user-tap orchestration

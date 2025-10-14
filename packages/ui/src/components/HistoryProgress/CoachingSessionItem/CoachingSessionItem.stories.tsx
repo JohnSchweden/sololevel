@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { CoachingSessionItem } from './CoachingSessionItem'
 
@@ -34,7 +35,7 @@ export const Default: Story = {
   args: {
     date: 'Today',
     title: 'Muscle Soreness and Growth in Weightlifting',
-    onPress: () => console.log('Session pressed'),
+    onPress: () => log.debug('CoachingSessionItem', 'Session pressed'),
   },
 }
 
@@ -45,7 +46,7 @@ export const WithFormattedDate: Story = {
   args: {
     date: 'Monday, Jul 28',
     title: 'Personalised supplement recommendations',
-    onPress: () => console.log('Session pressed'),
+    onPress: () => log.debug('CoachingSessionItem', 'Session pressed'),
   },
 }
 
@@ -56,7 +57,7 @@ export const LongTitle: Story = {
   args: {
     date: 'Tuesday, Jul 29',
     title: 'Understanding Progressive Overload and Recovery Strategies for Advanced Athletes',
-    onPress: () => console.log('Session pressed'),
+    onPress: () => log.debug('CoachingSessionItem', 'Session pressed'),
   },
 }
 
@@ -67,7 +68,7 @@ export const MultipleItems: Story = {
   args: {
     date: 'Today',
     title: 'Muscle Soreness and Growth in Weightlifting',
-    onPress: () => console.log('Session pressed'),
+    onPress: () => log.debug('CoachingSessionItem', 'Session pressed'),
   },
   render: (args) => (
     <>
@@ -75,17 +76,17 @@ export const MultipleItems: Story = {
       <CoachingSessionItem
         date="Monday, Jul 28"
         title="Personalised supplement recommendations"
-        onPress={() => console.log('Session 2 pressed')}
+        onPress={() => log.debug('CoachingSessionItem', 'Session 2 pressed')}
       />
       <CoachingSessionItem
         date="Monday, Jul 28"
         title="Personalised supplement recommendations"
-        onPress={() => console.log('Session 3 pressed')}
+        onPress={() => log.debug('CoachingSessionItem', 'Session 3 pressed')}
       />
       <CoachingSessionItem
         date="Sunday, Jul 27"
         title="Pre-workout nutrition guidelines"
-        onPress={() => console.log('Session 4 pressed')}
+        onPress={() => log.debug('CoachingSessionItem', 'Session 4 pressed')}
       />
     </>
   ),

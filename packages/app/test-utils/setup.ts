@@ -28,6 +28,14 @@ jest.mock('expo-router', () => ({
     replace: jest.fn(),
     back: jest.fn(),
   },
+  useNavigation: jest.fn(() => ({
+    setOptions: jest.fn(),
+  })),
+}))
+
+// Mock React Navigation elements
+jest.mock('@react-navigation/elements', () => ({
+  useHeaderHeight: jest.fn(() => 0),
 }))
 
 jest.mock('expo-constants', () => ({
@@ -43,6 +51,15 @@ jest.mock('expo-file-system', () => ({
   readDirectoryAsync: jest.fn(),
   deleteAsync: jest.fn(),
 }))
+
+// Mock expo-blur for GlassBackground/GlassButton
+jest.mock('expo-blur', () => {
+  const React = require('react')
+  return {
+    BlurView: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID || 'blur-view', ...props }, children),
+  }
+})
 
 // Mock React Native modules
 // Note: NativeAnimatedHelper is not available in test environment
@@ -90,6 +107,7 @@ jest.mock('@tamagui/lucide-icons', () => ({
 jest.mock('@my/ui', () => {
   const React = require('react')
   return {
+    // Video Analysis components
     ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
       React.createElement(
         'div',
@@ -126,12 +144,110 @@ jest.mock('@my/ui', () => {
         { testID: testID || 'video-player-container', ...props },
         'Video Player'
       ),
-    log: {
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn(),
+    // Mock GlassBackground/GlassButton to avoid expo-blur and image import issues
+    GlassBackground: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'GlassBackground', ...props },
+        children
+      ),
+    GlassButton: ({
+      children,
+      testID,
+      onPress,
+      ...props
+    }: { children?: any; testID?: string; onPress?: () => void }) =>
+      React.createElement(
+        'button',
+        { 'data-testid': testID || 'GlassButton', onClick: onPress, ...props },
+        children
+      ),
+    // Mock ConfirmDialog to avoid Dialog component issues in tests
+    ConfirmDialog: ({
+      visible,
+      title,
+      message,
+      onConfirm,
+      onCancel,
+      testID = 'confirm-dialog',
+    }: any) =>
+      visible
+        ? React.createElement(
+            'div',
+            { 'data-testid': testID },
+            React.createElement('div', { 'data-testid': `${testID}-title` }, title),
+            React.createElement('div', { 'data-testid': `${testID}-message` }, message),
+            React.createElement(
+              'button',
+              { 'data-testid': `${testID}-cancel-button`, onClick: onCancel },
+              'Cancel'
+            ),
+            React.createElement(
+              'button',
+              { 'data-testid': `${testID}-confirm-button`, onClick: onConfirm },
+              'Confirm'
+            )
+          )
+        : null,
+    // Mock Settings components to avoid image import issues in SettingsScreen tests
+    ProfileSection: ({ user, isLoading, testID = 'profile-section' }: any) => {
+      if (isLoading) {
+        return React.createElement(
+          'div',
+          { 'data-testid': 'profile-section-skeleton' },
+          'Loading...'
+        )
+      }
+      return React.createElement(
+        'div',
+        { 'data-testid': testID },
+        user?.name || user?.user_metadata?.full_name || user?.email || 'No user'
+      )
     },
+    SettingsListItem: ({ label, onPress, testID = 'settings-list-item' }: any) =>
+      React.createElement('button', { 'data-testid': testID, onClick: onPress }, label),
+    SettingsNavigationList: ({ items, onNavigate, testID = 'settings-navigation-list' }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID },
+        ...(items || []).map((item: any) =>
+          React.createElement(
+            'button',
+            {
+              key: item.id,
+              'data-testid': `settings-nav-item-${item.id}`,
+              onClick: () => onNavigate(item.route),
+            },
+            item.label
+          )
+        )
+      ),
+    LogOutButton: ({ onPress, isLoading, testID = 'log-out-button' }: any) =>
+      React.createElement(
+        'button',
+        { 'data-testid': testID, onClick: onPress },
+        isLoading ? 'Logging out...' : 'Log out'
+      ),
+    SettingsFooter: ({ onLinkPress, testID = 'settings-footer' }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID },
+        React.createElement(
+          'button',
+          { 'data-testid': `${testID}-privacy`, onClick: () => onLinkPress('privacy') },
+          'Privacy'
+        ),
+        React.createElement(
+          'button',
+          { 'data-testid': `${testID}-terms`, onClick: () => onLinkPress('terms') },
+          'Terms of use'
+        ),
+        React.createElement(
+          'button',
+          { 'data-testid': `${testID}-faq`, onClick: () => onLinkPress('faq') },
+          'FAQ'
+        )
+      ),
   }
 })
 
@@ -501,3 +617,24 @@ global.console = {
   warn: jest.fn(),
   error: jest.fn(),
 }
+
+// Global logger mocking - silent by default, can be overridden in individual tests
+jest.mock('@my/logging', () => ({
+  log: {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  },
+  logger: {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  },
+  logOnChange: jest.fn(),
+}))

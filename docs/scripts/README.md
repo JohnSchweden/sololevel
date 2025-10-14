@@ -103,6 +103,7 @@ main()
 
 ```javascript
 import { loadSmokeEnv, createSmokeServiceClient } from './smoke/smoke-utils.mjs'
+import { log } from '@my/logging'
 
 // Load environment variables
 loadSmokeEnv()
@@ -120,7 +121,7 @@ async function runSmokeTest() {
     log.info('✅ PASSED: [description of what passed]')
 
   } catch (error) {
-    console.error('\n❌ Test failed:', error.message)
+    log.error('\n❌ Test failed:', error.message)
     process.exit(1)
   }
 

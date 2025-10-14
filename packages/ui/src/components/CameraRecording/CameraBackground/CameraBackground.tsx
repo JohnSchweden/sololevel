@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import { Image, Platform } from 'react-native'
 import { YStack } from 'tamagui'
 
@@ -44,7 +45,7 @@ export function CameraBackground({
   // Note: showOnError parameter is used by parent components to control when to show background
   // Currently always shown when simulatorOnly is true on iOS
   // This parameter is available for future use when needed
-  console.log('CameraBackground rendered', { showOnError, simulatorOnly })
+  log.debug('CameraBackground', 'Rendered', { showOnError, simulatorOnly })
 
   return (
     <YStack

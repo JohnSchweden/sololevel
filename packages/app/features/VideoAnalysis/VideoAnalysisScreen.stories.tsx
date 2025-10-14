@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { VideoAnalysisScreen } from './VideoAnalysisScreen'
 
@@ -17,7 +18,7 @@ export const ProcessingState: Story = {
   args: {
     analysisJobId: 1,
     initialStatus: 'processing',
-    onBack: () => console.log('Back pressed'),
+    onBack: () => log.debug('VideoAnalysisScreen', 'Back pressed'),
   },
   decorators: [
     (Story) => (
@@ -40,7 +41,7 @@ export const ReadyState: Story = {
   args: {
     analysisJobId: 1,
     initialStatus: 'ready',
-    onBack: () => console.log('Back pressed'),
+    onBack: () => log.debug('VideoAnalysisScreen', 'Back pressed'),
   },
   decorators: [
     (Story) => (
@@ -63,7 +64,7 @@ export const PlayingState: Story = {
   args: {
     analysisJobId: 1,
     initialStatus: 'playing',
-    onBack: () => console.log('Back pressed'),
+    onBack: () => log.debug('VideoAnalysisScreen', 'Back pressed'),
   },
   decorators: [
     (Story) => (
@@ -86,7 +87,7 @@ export const PausedState: Story = {
   args: {
     analysisJobId: 1,
     initialStatus: 'paused',
-    onBack: () => console.log('Back pressed'),
+    onBack: () => log.debug('VideoAnalysisScreen', 'Back pressed'),
   },
   decorators: [
     (Story) => (

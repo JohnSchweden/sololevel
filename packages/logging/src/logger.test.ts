@@ -10,7 +10,6 @@ import {
   getRecentErrors,
   isNetworkLoggingEnabled,
   log,
-  logger,
 } from './logger'
 
 // Mock console methods
@@ -48,16 +47,15 @@ describe('Logger', () => {
   })
 
   describe('Logger Methods', () => {
-    it('should export logger and log alias', () => {
-      expect(logger).toBeDefined()
-      expect(log).toBe(logger)
+    it('should export log', () => {
+      expect(log).toBeDefined()
     })
 
     it('should have all required methods', () => {
-      expect(logger.debug).toBeInstanceOf(Function)
-      expect(logger.info).toBeInstanceOf(Function)
-      expect(logger.warn).toBeInstanceOf(Function)
-      expect(logger.error).toBeInstanceOf(Function)
+      expect(log.debug).toBeInstanceOf(Function)
+      expect(log.info).toBeInstanceOf(Function)
+      expect(log.warn).toBeInstanceOf(Function)
+      expect(log.error).toBeInstanceOf(Function)
     })
 
     it('should call console methods with formatted messages', () => {
@@ -65,28 +63,28 @@ describe('Logger', () => {
       const message = 'Test message'
       const context = { key: 'value', count: 42 }
 
-      logger.debug(scope, message, context)
+      log.debug(scope, message, context)
       expect(mockConsole.debug).toHaveBeenCalledWith(
         expect.stringMatching(
           /\d{2}:\d{2}:\d{2}\.\d{3}Z.*🐛.*TestScope.*Test message.*key=value count=42/
         )
       )
 
-      logger.info(scope, message, context)
+      log.info(scope, message, context)
       expect(mockConsole.info).toHaveBeenCalledWith(
         expect.stringMatching(
           /\d{2}:\d{2}:\d{2}\.\d{3}Z.*ℹ️.*TestScope.*Test message.*key=value count=42/
         )
       )
 
-      logger.warn(scope, message, context)
+      log.warn(scope, message, context)
       expect(mockConsole.warn).toHaveBeenCalledWith(
         expect.stringMatching(
           /\d{2}:\d{2}:\d{2}\.\d{3}Z.*⚠️.*TestScope.*Test message.*key=value count=42/
         )
       )
 
-      logger.error(scope, message, context)
+      log.error(scope, message, context)
       expect(mockConsole.error).toHaveBeenCalledWith(
         expect.stringMatching(
           /\d{2}:\d{2}:\d{2}\.\d{3}Z.*⛔.*TestScope.*Test message.*key=value count=42/
@@ -97,7 +95,7 @@ describe('Logger', () => {
     it('should format messages with timestamp', () => {
       const scope = 'TestScope'
       const message = 'Test message'
-      logger.info(scope, message)
+      log.info(scope, message)
 
       const call = mockConsole.info.mock.calls[0]
       // In dev mode (test environment), expect time-only format like 15:30:17.687Z
@@ -118,7 +116,7 @@ describe('Logger', () => {
         normalField: 'safe value',
       }
 
-      logger.info(scope, message, context)
+      log.info(scope, message, context)
 
       const call = mockConsole.info.mock.calls[0]
       expect(call[0]).toContain('email=[redacted-email]')
@@ -133,7 +131,7 @@ describe('Logger', () => {
       const message = 'request completed'
       const context = { dur: 1500, status: 200 }
 
-      logger.info(scope, message, context)
+      log.info(scope, message, context)
 
       const call = mockConsole.info.mock.calls[0]
       expect(call[0]).toContain('dur=1500.000s')
@@ -149,7 +147,7 @@ describe('Logger', () => {
       // Reset the isDev detection
       jest.resetModules()
       const loggerModule = require('./logger')
-      const prodLogger = loggerModule.logger
+      const prodLogger = loggerModule.log
 
       // Clear console mocks
       jest.clearAllMocks()
@@ -320,7 +318,7 @@ describe('Logger', () => {
 
     it('should buffer recent errors', () => {
       const error = new Error('Test error')
-      logger.error('TestScope', 'test error occurred', { error, userId: '123' })
+      log.error('TestScope', 'test error occurred', { error, userId: '123' })
 
       const recentErrors = getRecentErrors()
       expect(recentErrors).toHaveLength(1)
@@ -337,7 +335,7 @@ describe('Logger', () => {
     it('should maintain maximum buffer size', () => {
       // Fill buffer beyond max (50)
       for (let i = 0; i < 60; i++) {
-        logger.error('TestScope', `error ${i}`, { index: i })
+        log.error('TestScope', `error ${i}`, { index: i })
       }
 
       const recentErrors = getRecentErrors()
@@ -350,7 +348,7 @@ describe('Logger', () => {
 
     it('should extract stack traces from Error objects', () => {
       const error = new Error('Stack trace error')
-      logger.error('TestScope', 'error with stack', { error })
+      log.error('TestScope', 'error with stack', { error })
 
       const recentErrors = getRecentErrors()
       expect(recentErrors[0].stack).toBe(error.stack)
@@ -358,15 +356,15 @@ describe('Logger', () => {
 
     it('should extract stack traces from context.stack', () => {
       const stackTrace = 'Custom stack trace'
-      logger.error('TestScope', 'error with custom stack', { stack: stackTrace })
+      log.error('TestScope', 'error with custom stack', { stack: stackTrace })
 
       const recentErrors = getRecentErrors()
       expect(recentErrors[0].stack).toBe(stackTrace)
     })
 
     it('should clear error buffer', () => {
-      logger.error('TestScope', 'first error')
-      logger.error('TestScope', 'second error')
+      log.error('TestScope', 'first error')
+      log.error('TestScope', 'second error')
 
       expect(getRecentErrors()).toHaveLength(2)
 
@@ -375,7 +373,7 @@ describe('Logger', () => {
     })
 
     it('should return a copy of the buffer', () => {
-      logger.error('TestScope', 'test error')
+      log.error('TestScope', 'test error')
       const errors1 = getRecentErrors()
       const errors2 = getRecentErrors()
 

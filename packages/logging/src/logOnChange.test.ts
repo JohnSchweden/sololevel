@@ -6,10 +6,10 @@ import * as loggerModule from './logger'
 
 // Spy on logger methods
 const loggerSpy = {
-  debug: jest.spyOn(loggerModule.logger, 'debug').mockImplementation(() => {}),
-  info: jest.spyOn(loggerModule.logger, 'info').mockImplementation(() => {}),
-  warn: jest.spyOn(loggerModule.logger, 'warn').mockImplementation(() => {}),
-  error: jest.spyOn(loggerModule.logger, 'error').mockImplementation(() => {}),
+  debug: jest.spyOn(loggerModule.log, 'debug').mockImplementation(() => {}),
+  info: jest.spyOn(loggerModule.log, 'info').mockImplementation(() => {}),
+  warn: jest.spyOn(loggerModule.log, 'warn').mockImplementation(() => {}),
+  error: jest.spyOn(loggerModule.log, 'error').mockImplementation(() => {}),
 }
 
 const { logOnChange, clearChangeCache } = loggerModule

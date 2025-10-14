@@ -156,7 +156,7 @@ export function HistoryProgressScreen(props: HistoryProgressScreenProps) {
             
             <CoachingSessionsSection 
               sessions={mockCoachingSessions}  // P1: Replace with real data
-              onSessionPress={(id) => console.log('Session', id)}
+              onSessionPress={(id) => log.info('Session', id)}
             />  // @my/ui component
           </>
         )}

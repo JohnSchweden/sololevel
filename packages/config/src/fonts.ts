@@ -38,6 +38,9 @@ export const headingFont = createFont({
 export const bodyFont = createInterFont(
   {
     face: {
+      400: { normal: 'InterRegular' },
+      500: { normal: 'Inter' },
+      600: { normal: 'InterSemiBold' },
       700: { normal: 'InterBold' },
     },
   },

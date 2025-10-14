@@ -38,6 +38,9 @@ function getQueryClient() {
   return browserQueryClient
 }
 
+// Export the query client getter for access in auth store
+export { getQueryClient }
+
 export interface QueryProviderProps {
   children: ReactNode
 }

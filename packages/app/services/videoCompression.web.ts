@@ -54,7 +54,7 @@ export async function compressVideo(
     }
   } catch (error) {
     // Graceful degradation - return original URI with minimal metadata
-    // Removed console.warn as per linting rules
+    // Removed log.warn as per linting rules
 
     return {
       compressedUri: fileUri,

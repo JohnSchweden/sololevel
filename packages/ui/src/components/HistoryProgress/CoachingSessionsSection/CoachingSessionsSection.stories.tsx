@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { CoachingSessionsSection } from './CoachingSessionsSection'
 
@@ -35,7 +36,7 @@ const mockSessions = [
 export const Default: Story = {
   args: {
     sessions: mockSessions,
-    onSessionPress: (id) => console.log('Session pressed:', id),
+    onSessionPress: (id) => log.debug('CoachingSessionsSection', 'Session pressed', { id }),
   },
 }
 
@@ -45,7 +46,7 @@ export const Default: Story = {
 export const SingleSession: Story = {
   args: {
     sessions: [mockSessions[0]],
-    onSessionPress: (id) => console.log('Session pressed:', id),
+    onSessionPress: (id) => log.debug('CoachingSessionsSection', 'Session pressed', { id }),
   },
 }
 
@@ -61,7 +62,7 @@ export const ManySessions: Story = {
       { id: 7, date: 'Thursday, Jul 24', title: 'Mental preparation for competitions' },
       { id: 8, date: 'Wednesday, Jul 23', title: 'Injury prevention and mobility work' },
     ],
-    onSessionPress: (id) => console.log('Session pressed:', id),
+    onSessionPress: (id) => log.debug('CoachingSessionsSection', 'Session pressed', { id }),
   },
 }
 
@@ -71,7 +72,7 @@ export const ManySessions: Story = {
 export const Empty: Story = {
   args: {
     sessions: [],
-    onSessionPress: (id) => console.log('Session pressed:', id),
+    onSessionPress: (id) => log.debug('CoachingSessionsSection', 'Session pressed', { id }),
   },
 }
 
@@ -98,6 +99,6 @@ export const LongTitles: Story = {
         title: 'Advanced Training Techniques: Periodization, Volume, and Intensity Management',
       },
     ],
-    onSessionPress: (id) => console.log('Session pressed:', id),
+    onSessionPress: (id) => log.debug('CoachingSessionsSection', 'Session pressed', { id }),
   },
 }

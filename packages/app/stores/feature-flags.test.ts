@@ -229,9 +229,6 @@ describe('FeatureFlagsStore', () => {
     })
 
     it('handles loading error gracefully', async () => {
-      // Mock console.error to avoid noise in tests
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-
       // Store original state for cleanup
       const originalSetFlags = useFeatureFlagsStore.getState().setFlags
 
@@ -246,8 +243,6 @@ describe('FeatureFlagsStore', () => {
         ...useFeatureFlagsStore.getState(),
         setFlags: originalSetFlags,
       })
-
-      consoleSpy.mockRestore()
     })
 
     it('sets loading state during flag loading', async () => {

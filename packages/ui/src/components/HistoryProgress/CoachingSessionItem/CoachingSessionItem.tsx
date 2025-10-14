@@ -88,7 +88,7 @@ const SessionTitle = styled(Text, {
  * <CoachingSessionItem
  *   date="Today"
  *   title="Muscle Soreness and Growth in Weightlifting"
- *   onPress={() => console.log('Session pressed')}
+ *   onPress={() => log.info('Session pressed')}
  * />
  * ```
  */

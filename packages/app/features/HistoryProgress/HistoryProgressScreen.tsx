@@ -85,9 +85,9 @@ export function HistoryProgressScreen({
         profileImageUri: profileImage,
         onBackPress: onBack || (() => router.back()),
         onProfilePress: () => {
-          // Navigate to settings/profile (P0: console.log placeholder)
-          log.info('HistoryProgressScreen', 'Navigate to profile')
-          // P1: router.push('/profile')
+          // Navigate to settings screen
+          log.info('HistoryProgressScreen', 'Navigate to settings')
+          router.push('/settings' as any)
         },
       },
     } as NavAppHeaderOptions)
@@ -190,8 +190,8 @@ export function HistoryProgressScreen({
 
   const handleSessionPress = React.useCallback((sessionId: number) => {
     log.debug('HistoryProgressScreen', 'Coaching session pressed (P0 placeholder)', { sessionId })
-    // P0: Console log placeholder
-    console.log('Navigate to coaching session:', sessionId)
+    // P0: Log placeholder
+    log.info('HistoryProgressScreen', 'Navigate to coaching session', { sessionId })
     // P1: router.push(`/coaching-sessions/${sessionId}`)
   }, [])
 
@@ -205,7 +205,7 @@ export function HistoryProgressScreen({
         flex={1}
         paddingTop={headerHeight}
         marginVertical="$4"
-        borderRadius="$8"
+        borderRadius="$10"
         overflow="hidden"
         elevation={8}
         testID={`${testID}-glass-container`}

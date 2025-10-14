@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { VideoControls } from './VideoControls'
 
@@ -19,9 +20,9 @@ export const Paused: Story = {
     currentTime: 30,
     duration: 120,
     showControls: true,
-    onPlay: () => console.log('Play clicked'),
-    onPause: () => console.log('Pause clicked'),
-    onSeek: (time) => console.log('Seek to', time),
+    onPlay: () => log.debug('VideoControls', 'Play clicked'),
+    onPause: () => log.debug('VideoControls', 'Pause clicked'),
+    onSeek: (time) => log.debug('VideoControls', 'Seek to', { time }),
   },
 }
 
@@ -31,9 +32,9 @@ export const Playing: Story = {
     currentTime: 45,
     duration: 120,
     showControls: true,
-    onPlay: () => console.log('Play clicked'),
-    onPause: () => console.log('Pause clicked'),
-    onSeek: (time) => console.log('Seek to', time),
+    onPlay: () => log.debug('VideoControls', 'Play clicked'),
+    onPause: () => log.debug('VideoControls', 'Pause clicked'),
+    onSeek: (time) => log.debug('VideoControls', 'Seek to', { time }),
   },
 }
 
@@ -43,9 +44,9 @@ export const ControlsHidden: Story = {
     currentTime: 60,
     duration: 120,
     showControls: false,
-    onPlay: () => console.log('Play clicked'),
-    onPause: () => console.log('Pause clicked'),
-    onSeek: (time) => console.log('Seek to', time),
+    onPlay: () => log.debug('VideoControls', 'Play clicked'),
+    onPause: () => log.debug('VideoControls', 'Pause clicked'),
+    onSeek: (time) => log.debug('VideoControls', 'Seek to', { time }),
   },
 }
 
@@ -55,8 +56,8 @@ export const EndOfVideo: Story = {
     currentTime: 115,
     duration: 120,
     showControls: true,
-    onPlay: () => console.log('Play clicked'),
-    onPause: () => console.log('Pause clicked'),
-    onSeek: (time) => console.log('Seek to', time),
+    onPlay: () => log.debug('VideoControls', 'Play clicked'),
+    onPause: () => log.debug('VideoControls', 'Pause clicked'),
+    onSeek: (time) => log.debug('VideoControls', 'Seek to', { time }),
   },
 }

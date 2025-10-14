@@ -1,3 +1,4 @@
+import { log } from '@my/logging'
 import type { Meta, StoryObj } from '@storybook/react'
 import { ProcessingOverlay } from './ProcessingOverlay'
 
@@ -18,8 +19,8 @@ export const FrameExtraction: Story = {
     progress: 20,
     currentStep: 'Extracting frames...',
     estimatedTime: 8,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: false,
   },
 }
@@ -29,8 +30,8 @@ export const PoseDetection: Story = {
     progress: 40,
     currentStep: 'Analyzing movement...',
     estimatedTime: 6,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: false,
   },
 }
@@ -40,8 +41,8 @@ export const VideoAnalysis: Story = {
     progress: 60,
     currentStep: 'Processing video/voice...',
     estimatedTime: 4,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: false,
   },
 }
@@ -51,8 +52,8 @@ export const LLMFeedback: Story = {
     progress: 80,
     currentStep: 'Generating feedback...',
     estimatedTime: 2,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: false,
   },
 }
@@ -62,8 +63,8 @@ export const TTSGeneration: Story = {
     progress: 95,
     currentStep: 'Creating audio...',
     estimatedTime: 1,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: false,
   },
 }
@@ -73,8 +74,8 @@ export const Complete: Story = {
     progress: 100,
     currentStep: 'Analysis complete!',
     estimatedTime: 0,
-    onCancel: () => console.log('Cancel clicked'),
-    onViewResults: () => console.log('View Results clicked'),
+    onCancel: () => log.debug('ProcessingOverlay', 'Cancel clicked'),
+    onViewResults: () => log.debug('ProcessingOverlay', 'View Results clicked'),
     isComplete: true,
   },
 }

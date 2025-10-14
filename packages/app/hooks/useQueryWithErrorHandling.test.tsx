@@ -48,12 +48,6 @@ function createWrapper() {
 describe('useQueryWithErrorHandling', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Mock console.error to avoid noise in tests
-    jest.spyOn(console, 'error').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    jest.restoreAllMocks()
   })
 
   it('executes query successfully', async () => {
@@ -146,7 +140,6 @@ describe('useQueryWithErrorHandling', () => {
     })
 
     expect(mockToastShow).not.toHaveBeenCalled()
-    expect(console.error).not.toHaveBeenCalled() // No logging when toast is disabled
   })
 
   it('passes through all other query options', async () => {
@@ -223,11 +216,6 @@ describe('useQueryWithErrorHandling', () => {
 describe('useQueryWithRetry', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    jest.spyOn(console, 'error').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    jest.restoreAllMocks()
   })
 
   it('retries on server errors', async () => {

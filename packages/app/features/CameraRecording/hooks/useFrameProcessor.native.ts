@@ -10,6 +10,7 @@
  * @requires react-native-worklets-core
  */
 
+import { log } from "@my/logging";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrameProcessor } from "react-native-vision-camera";
 import type { Frame } from "react-native-vision-camera";
@@ -286,7 +287,7 @@ export function useFrameProcessor(
   // Auto-initialize if enabled
   useEffect(() => {
     if (frameProcessorConfig.enableFrameProcessor && !state.isActive) {
-      initialize().catch(console.error);
+      initialize().catch((error) => log.error('useFrameProcessor', 'Failed to auto-initialize frame processor', { error }));
     }
   }, [frameProcessorConfig.enableFrameProcessor, state.isActive, initialize]);
 

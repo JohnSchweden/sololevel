@@ -8,6 +8,7 @@
  * @platform web
  */
 
+import { log } from "@my/logging";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   PoseDetectionConfig,
@@ -197,7 +198,7 @@ export function useCameraFrameProcessor(
     try {
       // Create worker - NOTE: import.meta.url requires ES modules
       // For now, we'll skip worker initialization until the bundler is configured properly
-      console.warn('[useCameraFrameProcessor] Web Worker initialization skipped - import.meta.url not supported by current bundler config');
+      log.warn('useCameraFrameProcessor', 'Web Worker initialization skipped - import.meta.url not supported by current bundler config');
       
       setState((prev) => ({
         ...prev,

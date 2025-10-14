@@ -39,6 +39,7 @@ export interface IconProps {
   size?: number
   color?: string
   className?: string
+  testID?: string
   [key: string]: unknown
 }
 
@@ -569,7 +570,7 @@ export function createIconMocks() {
       React.createElement('svg', {
         ...props,
         ref,
-        'data-testid': `${name}-icon`,
+        'data-testid': props.testID || `${name}-icon`,
         width: props.size || 24,
         height: props.size || 24,
         fill: props.color || 'currentColor',
@@ -584,6 +585,7 @@ export function createIconMocks() {
     Camera: createIcon('Camera'),
     BarChart3: createIcon('BarChart3'),
     ChevronLeft: createIcon('ChevronLeft'),
+    ChevronRight: createIcon('ChevronRight'),
     RefreshCw: createIcon('RefreshCw'),
     AlertCircle: createIcon('AlertCircle'),
     AlertTriangle: createIcon('AlertTriangle'),
@@ -641,6 +643,26 @@ export const MockImage = React.forwardRef<HTMLDivElement, ImageProps>((props, re
 })
 
 MockImage.displayName = 'MockImage'
+
+// Global logger mocking for UI package tests
+jest.mock('@my/logging', () => ({
+  log: {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  },
+  logger: {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  },
+}))
 
 /**
  * Utility to silence console warnings during tests

@@ -101,7 +101,7 @@ const SessionsList = styled(YStack, {
  *     { id: 1, date: 'Today', title: 'Muscle Soreness and Growth' },
  *     { id: 2, date: 'Monday, Jul 28', title: 'Supplement recommendations' },
  *   ]}
- *   onSessionPress={(id) => console.log('Session pressed:', id)}
+ *   onSessionPress={(id) => log.info('Session pressed:', id)}
  * />
  * ```
  */

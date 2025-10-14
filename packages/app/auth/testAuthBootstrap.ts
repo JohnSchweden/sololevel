@@ -184,6 +184,8 @@ export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
         userId: signInResult.data.user.id,
       })
 
+      // Note: Navigation after auto-sign-in is handled by the calling component
+      // (e.g., sign-in screen's useEffect that watches isAuthenticated)
       return {
         success: true,
         message: 'Test auth bootstrap completed successfully',

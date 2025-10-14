@@ -8,6 +8,7 @@
  * @platform both
  */
 
+import { log } from "@my/logging";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import type {
@@ -442,9 +443,9 @@ export function useFrameProcessing(
   // TODO: Re-enable once bundler configuration supports ES modules properly
   useEffect(() => {
     // Skip auto-initialization to prevent app crash
-    console.log('[useFrameProcessing] Auto-initialization disabled to prevent import.meta.url error');
+    log.info('useFrameProcessing', 'Auto-initialization disabled to prevent import.meta.url error');
     // if (frameProcessingConfig.enableFrameProcessor && !state.isInitialized) {
-    //   initialize().catch(console.error);
+    //   initialize().catch(log.error);
     // }
   }, [
     frameProcessingConfig.enableFrameProcessor,

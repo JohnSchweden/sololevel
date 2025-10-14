@@ -128,7 +128,7 @@ As a user, when I navigate to the History & Progress Tracking screen, I want to 
   - Item: `packages/ui/src/components/HistoryProgress/CoachingSessionItem/` (❌ to create)
 - **Data Source**: Mock data hardcoded in component (P0), real API integration in P1
 - **Layout**: Vertical `ScrollView` with session items
-- **Navigation**: `console.log` placeholder (P0), `router.push('/session/[id]')` in P1
+- **Navigation**: `log.info` placeholder (P0), `router.push('/session/[id]')` in P1
 - **Future Integration**: P1 will add `coaching_sessions` table and API endpoint
 
 ### Current Implementation Status

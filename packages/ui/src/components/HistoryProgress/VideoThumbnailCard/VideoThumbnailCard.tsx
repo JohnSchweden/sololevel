@@ -46,7 +46,7 @@ export interface VideoThumbnailCardProps {
  * ```tsx
  * <VideoThumbnailCard
  *   thumbnailUri="https://example.com/thumb.jpg"
- *   onPress={() => console.log('Pressed')}
+ *   onPress={() => log.info('Pressed')}
  *   accessibilityLabel="Video thumbnail, Golf Swing Analysis, recorded on Oct 11"
  * />
  * ```

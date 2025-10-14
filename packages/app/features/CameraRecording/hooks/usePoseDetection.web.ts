@@ -4,6 +4,7 @@
  * Integrates with Web Workers for background processing
  */
 
+import { log } from "@my/logging";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import * as tf from "@tensorflow/tfjs";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -87,9 +88,9 @@ export function usePoseDetectionWeb(
       }
 
       await tf.ready();
-      // console.log('TensorFlow.js backend initialized:', tf.getBackend());
+      log.debug('usePoseDetection', 'TensorFlow.js backend initialized', { backend: tf.getBackend() });
     } catch (error) {
-      // console.error('Failed to initialize TensorFlow.js backend:', error);
+      log.error('usePoseDetection', 'Failed to initialize TensorFlow.js backend', { error });
       throw new Error("Failed to initialize TensorFlow.js backend");
     }
   }, [state.config.web?.backend]);
@@ -195,7 +196,7 @@ export function usePoseDetectionWeb(
     if (enable && !webWorkerRef.current) {
       // Create Web Worker for pose detection
       // Note: In a real implementation, you'd create a separate worker file
-      // console.log('Web Worker pose detection would be initialized here');
+      log.debug('usePoseDetection', 'Web Worker pose detection would be initialized here');
     } else if (!enable && webWorkerRef.current) {
       webWorkerRef.current.terminate();
       webWorkerRef.current = null;
