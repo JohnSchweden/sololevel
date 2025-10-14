@@ -99,13 +99,8 @@ jest.mock('tamagui', () => {
   return createTamaguiMock()
 })
 
-// Mock Lucide icons globally
-jest.mock('@tamagui/lucide-icons', () => {
-  require('react')
-  const { createIconMocks } = require('./mocks')
-
-  return createIconMocks()
-})
+// Mock Lucide icons globally - using manual mock at packages/ui/__mocks__/@tamagui/lucide-icons.tsx
+// Jest automatically uses manual mocks in __mocks__ directory
 
 // Mock React Native components that might be used in tests
 jest.mock('react-native', () => {

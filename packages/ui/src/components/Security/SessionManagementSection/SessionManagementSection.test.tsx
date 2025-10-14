@@ -1,55 +1,6 @@
-import type { IconProps } from '@tamagui/helpers-icon'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { TamaguiProvider } from 'tamagui'
-import config from '../../../config/tamagui.config'
+import { fireEvent, screen } from '@testing-library/react'
+import { renderWithProvider } from '@ui/test-utils'
 import { SessionManagementSection } from './SessionManagementSection'
-
-// Mock lucide icons
-jest.mock('@tamagui/lucide-icons', () => ({
-  ChevronRight: (props: IconProps) => (
-    <svg
-      data-testid="chevron-right-icon"
-      width={props.size}
-      height={props.size}
-    >
-      <rect
-        width={props.size}
-        height={props.size}
-        fill={String(props.color)}
-      />
-    </svg>
-  ),
-  Clock: (props: IconProps) => (
-    <svg
-      data-testid="clock-icon"
-      width={props.size}
-      height={props.size}
-    >
-      <rect
-        width={props.size}
-        height={props.size}
-        fill={String(props.color)}
-      />
-    </svg>
-  ),
-  Smartphone: (props: IconProps) => (
-    <svg
-      data-testid="smartphone-icon"
-      width={props.size}
-      height={props.size}
-    >
-      <rect
-        width={props.size}
-        height={props.size}
-        fill={String(props.color)}
-      />
-    </svg>
-  ),
-}))
-
-const renderWithProvider = (component: React.ReactElement) => {
-  return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
-}
 
 describe('SessionManagementSection', () => {
   const defaultProps = {

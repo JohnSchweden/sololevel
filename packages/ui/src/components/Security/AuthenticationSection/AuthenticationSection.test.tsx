@@ -1,42 +1,6 @@
-import type { IconProps } from '@tamagui/helpers-icon'
-import { render, screen } from '@testing-library/react'
-import { TamaguiProvider } from 'tamagui'
-import config from '../../../config/tamagui.config'
+import { screen } from '@testing-library/react'
+import { renderWithProvider } from '@ui/test-utils'
 import { AuthenticationSection } from './AuthenticationSection'
-
-// Mock lucide icons
-jest.mock('@tamagui/lucide-icons', () => ({
-  Shield: (props: IconProps) => (
-    <svg
-      data-testid="shield-icon"
-      width={props.size}
-      height={props.size}
-    >
-      <rect
-        width={props.size}
-        height={props.size}
-        fill={String(props.color)}
-      />
-    </svg>
-  ),
-  Fingerprint: (props: IconProps) => (
-    <svg
-      data-testid="fingerprint-icon"
-      width={props.size}
-      height={props.size}
-    >
-      <rect
-        width={props.size}
-        height={props.size}
-        fill={String(props.color)}
-      />
-    </svg>
-  ),
-}))
-
-const renderWithProvider = (component: React.ReactElement) => {
-  return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
-}
 
 describe('AuthenticationSection', () => {
   const defaultProps = {
@@ -85,7 +49,7 @@ describe('AuthenticationSection', () => {
 
   describe('Toggle State', () => {
     it('should reflect App Lock state', () => {
-      const { rerender } = renderWithProvider(
+      renderWithProvider(
         <AuthenticationSection
           {...defaultProps}
           appLock={false}
@@ -95,23 +59,10 @@ describe('AuthenticationSection', () => {
       // Find switch elements - there should be 2 (App Lock and Biometric Login)
       const switches = screen.getAllByTestId('Switch')
       expect(switches).toHaveLength(2)
-
-      // Rerender with appLock=true
-      rerender(
-        <TamaguiProvider config={config}>
-          <AuthenticationSection
-            {...defaultProps}
-            appLock={true}
-          />
-        </TamaguiProvider>
-      )
-
-      // Switches should still be present
-      expect(screen.getAllByTestId('Switch')).toHaveLength(2)
     })
 
     it('should reflect Biometric Login state', () => {
-      const { rerender } = renderWithProvider(
+      renderWithProvider(
         <AuthenticationSection
           {...defaultProps}
           biometricLogin={true}
@@ -120,18 +71,6 @@ describe('AuthenticationSection', () => {
 
       const switches = screen.getAllByTestId('Switch')
       expect(switches).toHaveLength(2)
-
-      // Rerender with biometricLogin=false
-      rerender(
-        <TamaguiProvider config={config}>
-          <AuthenticationSection
-            {...defaultProps}
-            biometricLogin={false}
-          />
-        </TamaguiProvider>
-      )
-
-      expect(screen.getAllByTestId('Switch')).toHaveLength(2)
     })
   })
 

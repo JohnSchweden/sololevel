@@ -1,7 +1,6 @@
 import type { IconProps } from '@tamagui/helpers-icon'
-import { render, screen } from '@testing-library/react'
-import { TamaguiProvider } from 'tamagui'
-import config from '../../../config/tamagui.config'
+import { screen } from '@testing-library/react'
+import { renderWithProvider } from '@ui/test-utils'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 // Mock icon component for testing
@@ -18,10 +17,6 @@ const MockIcon = (props: IconProps) => (
     />
   </svg>
 )
-
-const renderWithProvider = (component: React.ReactElement) => {
-  return render(<TamaguiProvider config={config}>{component}</TamaguiProvider>)
-}
 
 describe('SettingsSectionHeader', () => {
   describe('Component Interface', () => {

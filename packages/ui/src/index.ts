@@ -25,6 +25,8 @@ export type {
   SettingsNavigationListProps,
   SettingsNavItem,
 } from './components/Settings/SettingsNavigationList'
+export { SettingsNavigationItem } from './components/Settings/SettingsNavigationItem'
+export type { SettingsNavigationItemProps } from './components/Settings/SettingsNavigationItem'
 export { SettingsSectionHeader } from './components/Settings/SettingsSectionHeader'
 export type { SettingsSectionHeaderProps } from './components/Settings/SettingsSectionHeader'
 export { SettingsToggleItem } from './components/Settings/SettingsToggleItem'

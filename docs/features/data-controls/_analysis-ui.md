@@ -42,7 +42,7 @@ export function DataControlsScreen(props: DataControlsScreenProps) {
   const { analyticsEnabled, crashReportsEnabled } = useDataControlsStore()
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <GlassBackground backgroundColor="$background">
       <ScrollView flex={1}>
         <YStack padding="$4" gap="$6">
           {/* Data Sharing Section */}
@@ -106,7 +106,7 @@ export function DataControlsScreen(props: DataControlsScreenProps) {
 }
 
 // Visual Hierarchy:
-YStack: flex={1} backgroundColor="$background" (full screen with glass morphism)
+GlassBackground: backgroundColor="$color3" (full screen with glass morphism)
 ├── AppHeader: title="Data Controls" (configured via navigation.setOptions)
 ├── ScrollView: flex={1} (scrollable content)
 │   └── YStack: padding="$4" gap="$6" (main container)

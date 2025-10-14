@@ -24,7 +24,7 @@ describe('SettingsListItem', () => {
 
       // Assert: Label and chevron visible
       expect(screen.getByText('Account')).toBeInTheDocument()
-      expect(screen.getByTestId('settings-list-item-chevron')).toBeInTheDocument()
+      expect(screen.getByTestId('chevron-right-icon')).toBeInTheDocument()
     })
 
     it('applies correct accessibility label', () => {
