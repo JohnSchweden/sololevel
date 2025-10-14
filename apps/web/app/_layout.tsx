@@ -38,6 +38,13 @@ export default function RootLayout() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="settings/security"
+            options={{
+              title: 'Security',
+              headerShown: false,
+            }}
+          />
         </Stack>
       </Provider>
     </ErrorBoundary>

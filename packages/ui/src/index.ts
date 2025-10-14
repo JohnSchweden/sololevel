@@ -25,6 +25,14 @@ export type {
   SettingsNavigationListProps,
   SettingsNavItem,
 } from './components/Settings/SettingsNavigationList'
+export { SettingsSectionHeader } from './components/Settings/SettingsSectionHeader'
+export type { SettingsSectionHeaderProps } from './components/Settings/SettingsSectionHeader'
+export { SettingsToggleItem } from './components/Settings/SettingsToggleItem'
+export type { SettingsToggleItemProps } from './components/Settings/SettingsToggleItem'
+export { AuthenticationSection } from './components/Security/AuthenticationSection'
+export type { AuthenticationSectionProps } from './components/Security/AuthenticationSection'
+export { SessionManagementSection } from './components/Security/SessionManagementSection'
+export type { SessionManagementSectionProps } from './components/Security/SessionManagementSection'
 export { LogOutButton } from './components/Settings/LogOutButton'
 export type { LogOutButtonProps } from './components/Settings/LogOutButton'
 export { SettingsFooter } from './components/Settings/SettingsFooter'

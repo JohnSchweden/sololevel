@@ -131,6 +131,17 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="settings/security"
+              options={{
+                title: 'Security',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
               name="dev/compress-test"
               options={{
                 title: 'Compression Test',

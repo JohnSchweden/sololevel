@@ -52,38 +52,29 @@ export function FeatureScreen(props: FeatureScreenProps) {
 
   // Render: UI components from @my/ui
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <GlassBackground backgroundColor="$background">
       {/* AppHeader rendered automatically by Expo Router _layout.tsx */}
       
-      <ScrollView flex={1}>
+      <YStack/ScrollView flex={1}>
         {/* Content components */}
-      </ScrollView>
+      </YStack/ScrollView>
       
       <SafeAreaView edges={['bottom']} />
-    </YStack>
+    </GlassBackground>
   )
 }
+
+// =====================================================
+// VISUAL LAYOUT STRUCTURE (What user sees)
+// =====================================================
 
 // 2. APP HEADER: Configured via navigation.setOptions() in screen
 //    - AppHeader component rendered by apps/expo/app/_layout.tsx
 //    - Props passed via navigation.setOptions({ appHeaderProps: {...} })
 //    - Internal AppHeader structure (reference only):
 
-AppHeader (from @my/ui/components/AppHeader/)
-├── XStack height={60} paddingHorizontal="$4" paddingTop="$2" backgroundColor="$gray1"
-│   ├── Left: Button icon={ArrowLeft} onPress={appHeaderProps.onBack}
-│   ├── Center: Text text={appHeaderProps.title}
-│   └── Right: Avatar onPress={appHeaderProps.onProfilePress}
-
-// =====================================================
-// VISUAL LAYOUT STRUCTURE (What user sees)
-// =====================================================
-
-YStack flex={1} backgroundColor="$background" (full screen)
-├── AppHeader (rendered by _layout.tsx, configured by screen)
-│   // Internal structure: Left button + Title + Right avatar/button
-│   // Height: 60px, sticky positioning via _layout
-├── ContentArea: ScrollView flex={1} paddingHorizontal="$4" paddingTop="$4"
+GlassBackground: backgroundColor="$background" (full screen)
+├── ContentArea: YStack/ScrollView flex={1} paddingHorizontal="$4" paddingTop="$4"
 │   ├── Section1: YStack gap="$3" marginBottom="$6"
 │   │   ├── SectionHeader: XStack justifyContent="space-between"
 │   │   │   ├── Text fontSize="$6" fontWeight="500"
