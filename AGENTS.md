@@ -9,6 +9,10 @@
 - **Package Manager**: Yarn 4 workspaces + Turbo
 - **Web Bundler**: Metro (via Expo Router)
 
+## Expo Router Notes
+- Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
+- Configure headers per route in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`.
+
 ## Version Matrix
 | Area          | Current        | Minimum | Source |
 | ------------- | -------------- | ------- | ------ |
@@ -91,6 +95,7 @@ See `.cursor/rules/core/development-operations.mdc` for complete workspace comma
 - **Ratio**: Maximum 1:2 test-to-code ratio
 - **Pattern**: AAA (Arrange-Act-Assert) mandatory with comments
 - **Focus**: Test user behavior, not implementation details
+ - **Event usage**: Web uses `fireEvent.click()`; Native uses `fireEvent.press()`
 
 ## Detailed Documentation
 

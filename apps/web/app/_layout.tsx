@@ -45,6 +45,20 @@ export default function RootLayout() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="settings/data-controls"
+            options={{
+              title: 'Data Controls',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings/about"
+            options={{
+              title: 'About',
+              headerShown: false,
+            }}
+          />
         </Stack>
       </Provider>
     </ErrorBoundary>

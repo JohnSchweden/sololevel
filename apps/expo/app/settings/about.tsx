@@ -1,51 +1,51 @@
-import { GlassBackground } from '@my/ui'
-import { useRouter } from 'expo-router'
-import { Text, YStack } from 'tamagui'
+import { AboutScreen } from '@my/app/features/About'
+import { log } from '@my/logging'
+import { Linking } from 'react-native'
+import { AuthGate } from '../../components/AuthGate'
 
-export default function AboutSettingsRoute() {
-  const router = useRouter()
+/**
+ * About Route - Expo Native App
+ *
+ * Displays app information, version, and legal links.
+ * Navigates to legal document screens when list items are pressed.
+ *
+ * Route: /settings/about
+ * Auth: Protected (requires authentication)
+ */
+export default function AboutRoute() {
+  const handlePrivacyPress = async (): Promise<void> => {
+    try {
+      log.info('AboutRoute', 'Opening Privacy Policy')
+      // P1: Replace with actual Privacy Policy URL
+      await Linking.openURL('https://sololevel.ai/privacy')
+    } catch (error) {
+      log.error('AboutRoute', 'Error opening Privacy Policy', { error })
+    }
+  }
+
+  const handleTermsPress = async (): Promise<void> => {
+    try {
+      log.info('AboutRoute', 'Opening Terms of Service')
+      // P1: Replace with actual Terms URL
+      await Linking.openURL('https://sololevel.ai/terms')
+    } catch (error) {
+      log.error('AboutRoute', 'Error opening Terms of Service', { error })
+    }
+  }
+
+  const handleLicensesPress = (): void => {
+    log.info('AboutRoute', 'Navigate to Licenses')
+    // P1: Implement navigation to Licenses screen
+    // router.push('/settings/licenses')
+  }
 
   return (
-    <GlassBackground backgroundColor="$color3">
-      <YStack
-        flex={1}
-        alignItems="center"
-        justifyContent="center"
-        padding="$6"
-      >
-        <Text
-          fontSize="$8"
-          fontWeight="600"
-          color="$color12"
-          marginBottom="$4"
-        >
-          About
-        </Text>
-        <Text
-          fontSize="$5"
-          color="$gray11"
-          textAlign="center"
-          marginBottom="$6"
-        >
-          Solo:Level AI Feedback Coach{'\n'}Version 1.0.0
-        </Text>
-        <Text
-          fontSize="$4"
-          color="$gray10"
-          textAlign="center"
-          marginBottom="$6"
-        >
-          © 2025 Solo:Level. All rights reserved.
-        </Text>
-        <Text
-          fontSize="$4"
-          color="$primary"
-          onPress={() => router.back()}
-          cursor="pointer"
-        >
-          ← Back to Settings
-        </Text>
-      </YStack>
-    </GlassBackground>
+    <AuthGate>
+      <AboutScreen
+        onPrivacyPress={handlePrivacyPress}
+        onTermsPress={handleTermsPress}
+        onLicensesPress={handleLicensesPress}
+      />
+    </AuthGate>
   )
 }

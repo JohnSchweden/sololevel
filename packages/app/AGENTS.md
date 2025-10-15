@@ -18,6 +18,12 @@
 - Navigation injection via props
 - Typed params with useLocalSearchParams()
 
+### Testing Guidance
+- Prefer web testing (`@testing-library/react`) for screens that import only `tamagui` and no RN primitives.
+- Mock `@my/ui` primitives in `test-utils/setup.ts` to avoid native/blur issues (GlassBackground, SettingsListItem, etc.).
+- When asserting click interactions in web tests, use `fireEvent.click()` (not `press`).
+- When reading `navigation.setOptions` calls from mocks, cast `mockSetOptions.mock.calls[0][0] as any` where necessary to satisfy strict TS.
+
 ## Authentication
 
 ### File Organization

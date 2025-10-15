@@ -7,6 +7,16 @@ import type { NavAppHeaderOptions } from '../../components/navigation'
 
 export interface SecurityScreenProps {
   /**
+   * Optional callback for Active Sessions navigation (for testing/dependency injection)
+   */
+  onActiveSessionsPress?: () => void
+
+  /**
+   * Optional callback for Login History navigation (for testing/dependency injection)
+   */
+  onLoginHistoryPress?: () => void
+
+  /**
    * Test ID for testing
    */
   testID?: string
@@ -24,6 +34,8 @@ export interface SecurityScreenProps {
  * ```
  */
 export function SecurityScreen({
+  onActiveSessionsPress,
+  onLoginHistoryPress,
   testID = 'security-screen',
 }: SecurityScreenProps = {}): React.ReactElement {
   const navigation = useNavigation()
@@ -47,17 +59,6 @@ export function SecurityScreen({
     } as NavAppHeaderOptions)
   }, [navigation, router])
 
-  // Handlers for navigation items
-  const handleActiveSessions = () => {
-    // P1: Navigate to /settings/security/active-sessions
-    // router.push('/settings/security/active-sessions')
-  }
-
-  const handleLoginHistory = () => {
-    // P1: Navigate to /settings/security/login-history
-    // router.push('/settings/security/login-history')
-  }
-
   return (
     <GlassBackground
       backgroundColor="$color3"
@@ -68,7 +69,7 @@ export function SecurityScreen({
         position="relative"
         paddingTop={headerHeight + 30}
         paddingHorizontal="$4"
-        marginVertical="$4"
+        gap="$6"
       >
         <AuthenticationSection
           appLock={appLock}
@@ -78,8 +79,8 @@ export function SecurityScreen({
         />
 
         <SessionManagementSection
-          onActiveSessionsPress={handleActiveSessions}
-          onLoginHistoryPress={handleLoginHistory}
+          onActiveSessionsPress={onActiveSessionsPress || (() => {})}
+          onLoginHistoryPress={onLoginHistoryPress || (() => {})}
         />
       </YStack>
     </GlassBackground>

@@ -207,6 +207,8 @@ jest.mock('@my/ui', () => {
     },
     SettingsListItem: ({ label, onPress, testID = 'settings-list-item' }: any) =>
       React.createElement('button', { 'data-testid': testID, onClick: onPress }, label),
+    SettingsSectionHeader: ({ title, testID = 'settings-section-header' }: any) =>
+      React.createElement('div', { 'data-testid': testID }, title),
     SettingsNavigationList: ({ items, onNavigate, testID = 'settings-navigation-list' }: any) =>
       React.createElement(
         'div',

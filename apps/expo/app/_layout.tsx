@@ -142,6 +142,28 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="settings/data-controls"
+              options={{
+                title: 'Data Controls',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="settings/about"
+              options={{
+                title: 'About',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
               name="dev/compress-test"
               options={{
                 title: 'Compression Test',

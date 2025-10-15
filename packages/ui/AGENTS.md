@@ -117,7 +117,7 @@ Always use tokens for consistency across platforms:
 ### Overview
 - **Runner**: Jest with `jest-expo` preset, jsdom environment
 - **Queries**: `getByRole()`, `getByTestId()`, `getByLabelText()` all work
-- **Events**: `fireEvent.press()` for buttons (cross-platform compatible)
+- **Events**: Web → `fireEvent.click()`; Native → `fireEvent.press()`
 - **Components**: All interactive elements need `accessibilityLabel` prop
 
 ### Decision Tree for UI Component Testing

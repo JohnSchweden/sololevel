@@ -1,43 +1,35 @@
-import { GlassBackground } from '@my/ui'
-import { useRouter } from 'expo-router'
-import { Text, YStack } from 'tamagui'
+import { DataControlsScreen } from '@my/app/features/DataControls'
+import { log } from '@my/logging'
+import { AuthGate } from '../../components/AuthGate'
 
-export default function DataControlsSettingsRoute() {
-  const router = useRouter()
+/**
+ * Data Controls Settings Route - Web App
+ *
+ * Data controls settings screen for managing data sharing, export, and deletion.
+ *
+ * Route: /settings/data-controls
+ * Auth: Protected (requires authentication)
+ */
+export default function DataControlsRoute() {
+  const handleDataExport = (): void => {
+    log.info('DataControlsRoute', 'Navigate to Data Export')
+    // P1: Implement data export flow
+    // const router = useRouter()
+    // router.push('/settings/data-controls/export')
+  }
+
+  const handleClearAllData = (): void => {
+    log.info('DataControlsRoute', 'Clear All Data requested')
+    // P1: Show confirmation dialog then trigger deletion
+    // showConfirmationDialog({ ... })
+  }
 
   return (
-    <GlassBackground backgroundColor="$color3">
-      <YStack
-        flex={1}
-        alignItems="center"
-        justifyContent="center"
-        padding="$6"
-      >
-        <Text
-          fontSize="$8"
-          fontWeight="600"
-          color="$color12"
-          marginBottom="$4"
-        >
-          Data Controls
-        </Text>
-        <Text
-          fontSize="$5"
-          color="$gray11"
-          textAlign="center"
-          marginBottom="$6"
-        >
-          Coming soon: Manage your data, privacy settings, and downloads.
-        </Text>
-        <Text
-          fontSize="$4"
-          color="$primary"
-          onPress={() => router.back()}
-          cursor="pointer"
-        >
-          ← Back to Settings
-        </Text>
-      </YStack>
-    </GlassBackground>
+    <AuthGate>
+      <DataControlsScreen
+        onDataExport={handleDataExport}
+        onClearAllData={handleClearAllData}
+      />
+    </AuthGate>
   )
 }

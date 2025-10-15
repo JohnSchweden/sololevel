@@ -22,69 +22,30 @@
 ## Visual Design Analysis Phase
 - [ ] **Layout Structure**: Identify main containers and map them 1:1 with the wireframe
 **Example Root Container**: Full-screen vertical layout with AppHeader and safe area handling
-```typescript
-// Code Composition Pattern (Following @my/app feature structure)
-// =====================================================
 
-// 1. SCREEN FILE: packages/app/features/[Feature]/[Feature]Screen.tsx
-//    - Orchestrator: Composes hooks + UI components
-//    - Configures AppHeader via navigation.setOptions()
-//    - NO business logic (delegated to hooks)
-//    - NO UI implementation (delegated to @my/ui components)
+**Code Composition Pattern**:
+- **Screen**: `packages/app/features/[Feature]/[Feature]Screen.tsx` - Orchestrator with callback props (`onAction?: () => void`)
+  - Hooks: Data fetching and state management
+  - Render: UI components from @my/ui
+  - NO business logic (delegated to hooks)
+  - NO navigation logic (callback props only)
+- **Route**: `apps/{expo,web}/app/[route].tsx` - Navigation handlers, AuthGate wrapper, platform-specific logic
+- **Pattern**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open)
 
-export function FeatureScreen(props: FeatureScreenProps) {
-  const navigation = useNavigation()
-  
-  // Configure AppHeader via Expo Router navigation options
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Screen Title',
-        mode: 'default',  // or 'recording', 'camera', 'camera-idle'
-        onBack: props.onBack,
-        onProfilePress: () => router.push('/settings'),
-      }
-    })
-  }, [navigation, props.onBack])
 
-  // Hooks: Data fetching and state management
-  const { data, isLoading, error } = useFeatureData()
-
-  // Render: UI components from @my/ui
-  return (
-    <GlassBackground backgroundColor="$background">
-      {/* AppHeader rendered automatically by Expo Router _layout.tsx */}
-      
-      <YStack/ScrollView flex={1}>
-        {/* Content components */}
-      </YStack/ScrollView>
-      
-      <SafeAreaView edges={['bottom']} />
-    </GlassBackground>
-  )
-}
-
-// =====================================================
-// VISUAL LAYOUT STRUCTURE (What user sees)
-// =====================================================
-
-// 2. APP HEADER: Configured via navigation.setOptions() in screen
-//    - AppHeader component rendered by apps/expo/app/_layout.tsx
-//    - Props passed via navigation.setOptions({ appHeaderProps: {...} })
-//    - Internal AppHeader structure (reference only):
-
-GlassBackground: backgroundColor="$background" (full screen)
-├── ContentArea: YStack/ScrollView flex={1} paddingHorizontal="$4" paddingTop="$4"
+**Visual Layout Structure**:
+```Typescript
+GlassBackground (full screen)
+├── Content: YStack/ScrollView paddingTop={headerHeight}
 │   ├── Section1: YStack gap="$3" marginBottom="$6"
 │   │   ├── SectionHeader: XStack justifyContent="space-between"
-│   │   │   ├── Text fontSize="$6" fontWeight="500"
-│   │   │   └── Button chromeless (optional action)
 │   │   └── Content: Components specific to section
 │   ├── Section2: YStack gap="$3" marginBottom="$6"
-│   │   └── Content: Components specific to section
-│   └── ...more sections
-└── SafeAreaView edges={['bottom']} (insets for gesture navigation)
+│   └── ...
+└── SafeAreaView edges={['bottom']}
 ```
+
+**AppHeader**: Configured via `navigation.setOptions({ appHeaderProps: {...} })` with callback fallbacks
 
 - [ ] **Tamagui Component Mapping**: Map each UI element 1:1 to Tamagui components
   - [ ] **Layout Components**: YStack, XStack, ScrollView, SafeAreaView (from `react-native-safe-area-context`)
@@ -121,11 +82,13 @@ GlassBackground: backgroundColor="$background" (full screen)
   - [ ] **Form Validation**: Real-time validation, error presentation
 
 - [ ] **Navigation Elements**: Screen transitions and routing
-  - [ ] **AppHeader Configuration**: Via `navigation.setOptions({ appHeaderProps: {...} })`
+  - [ ] **Pattern**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open)
+  - [ ] **Screen Component**: No `useRouter` or platform imports, only callback props for testing/DI
+  - [ ] **Route Files**: Handle navigation logic with `useRouter()`, wrap with AuthGate, pass callbacks to screen
+  - [ ] **AppHeader Configuration**: Via `navigation.setOptions()` with callback fallbacks
   - [ ] **Tab Navigation**: Active states, badge indicators, accessibility
   - [ ] **Stack Navigation**: Platform back gestures (iOS swipe, Android hardware button)
   - [ ] **Modal Navigation**: Sheet presentations, overlay interactions
-  - [ ] **Deep Linking**: URL handling for web, universal links for native
 
 ## Animation and Micro-interactions Phase
 - [ ] **Transition Animations**: Screen and component transitions

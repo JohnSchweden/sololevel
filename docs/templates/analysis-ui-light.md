@@ -7,47 +7,33 @@
 - [ ] **User Interaction Tests**: Touch/click scenarios (tap, swipe, type, scroll); visual feedback (hover, press, focus); touch target size (44px minimum); gesture handling (pan, pinch, long press)
 - [ ] **Accessibility Tests**: Screen reader navigation (semantic structure, ARIA labels); keyboard navigation (tab order, focus management); color contrast (WCAG 2.2 AA); dynamic type scaling
 
-## Visual Layout Structure
-```typescript
-// Screen Structure Pattern (packages/app/features/[Feature]/[Feature]Screen.tsx)
-export function FeatureScreen(props: FeatureScreenProps) {
-  const navigation = useNavigation()
-  
-  // Configure AppHeader via navigation.setOptions()
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Screen Title',
-        mode: 'default',  // or 'recording', 'camera', 'camera-idle'
-        onBack: props.onBack,
-        onProfilePress: () => router.push('/settings'),
-      }
-    })
-  }, [navigation, props.onBack])
+## Visual Design Analysis Phase
+- [ ] **Layout Structure**: Identify main containers and map them 1:1 with the wireframe
+**Example Root Container**: Full-screen vertical layout with AppHeader and safe area handling
 
-  const { data, isLoading, error } = useFeatureData()
+**Code Composition Pattern**:
+- **Screen**: `packages/app/features/[Feature]/[Feature]Screen.tsx` - Orchestrator with callback props (`onAction?: () => void`)
+  - Hooks: Data fetching and state management
+  - Render: UI components from @my/ui
+  - NO business logic (delegated to hooks)
+  - NO navigation logic (callback props only)
+- **Route**: `apps/{expo,web}/app/[route].tsx` - Navigation handlers, AuthGate wrapper, platform-specific logic
+- **Pattern**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open)
 
-  return (
-    <GlassBackground backgroundColor="$background">
-      {/* AppHeader rendered by _layout.tsx */}
-      <YStack/ScrollView flex={1}>
-        {/* Content sections */}
-      </YStack/ScrollView>
-      <SafeAreaView edges={['bottom']} />
-    </GlassBackground>
-  )
-}
 
-AppHeader: (configured via navigation.setOptions)
-
-// Visual Hierarchy:
-GlassBackground: backgroundColor="$background" (full screen)
-├── ContentArea: YStack/ScrollView (content area)
-│   ├── YStack (section 1) gap="$3" marginBottom="$6"
-│   ├── YStack (section 2) gap="$3" marginBottom="$6"
+**Visual Layout Structure**:
+```Typescript
+GlassBackground (full screen)
+├── Content: YStack/ScrollView paddingTop={headerHeight}
+│   ├── Section1: YStack gap="$3" marginBottom="$6"
+│   │   ├── SectionHeader: XStack justifyContent="space-between"
+│   │   └── Content: Components specific to section
+│   ├── Section2: YStack gap="$3" marginBottom="$6"
 │   └── ...
-└── SafeAreaView (bottom inset)
+└── SafeAreaView edges={['bottom']}
 ```
+
+**AppHeader**: Configured via `navigation.setOptions({ appHeaderProps: {...} })` with callback fallbacks
 
 - [ ] **Component Mapping**
   - Layout: YStack, XStack, ScrollView, SafeAreaView
@@ -70,7 +56,7 @@ GlassBackground: backgroundColor="$background" (full screen)
 ## Interactive Elements
 - [ ] **Buttons**: Define states (default, hover, pressed, disabled, loading) and variants (primary, secondary, destructive, icon-only with 44px touch targets)
 - [ ] **Form Elements**: Text inputs (placeholder, validation, errors), selection controls (dropdown, radio, checkbox), file uploads (progress, preview)
-- [ ] **Navigation**: AppHeader configuration via `navigation.setOptions()`, tab states, stack gestures (iOS swipe, Android back), modal sheets, deep linking
+- [ ] **Navigation**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open). AppHeader configuration via `navigation.setOptions()`, tab states, stack gestures (iOS swipe, Android back), modal sheets
 
 ## Animations & Loading States
 - [ ] **Transitions**: Screen animations (slide, fade, modal), component animations, gesture feedback (swipe, pull-to-refresh)
@@ -94,6 +80,12 @@ GlassBackground: backgroundColor="$background" (full screen)
 ## Quality Gates & Documentation
 - [ ] **Testing**: Visual regression (screenshot comparison), accessibility (WCAG 2.2 AA), performance (render < 16ms, 60fps animations), cross-platform parity
 - [ ] **Documentation**: Storybook stories for all component states, theme token usage examples, screen reader test results, animation timing/easing specs
+
+## Existing App Integration
+- [ ] **Screen**: `packages/app/features/[Feature]/[Feature]Screen.tsx` with callback props
+- [ ] **Routes**: `apps/{expo,web}/app/[route].tsx` with handlers + AuthGate
+- [ ] **Platform**: Native=Linking.openURL, Web=window.open
+- [ ] **Testing**: Mock callback props for testability
 
 ## Cross-References
 - **Feature Logic**: See `analysis-feature.md` for state management and business logic

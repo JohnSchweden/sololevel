@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: false
----
 # Improve the User's Prompt Following the Patterns Below
 
 
