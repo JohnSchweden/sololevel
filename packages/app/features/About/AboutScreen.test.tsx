@@ -49,7 +49,7 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      expect(screen.getByText('SoloLevel')).toBeTruthy()
+      expect(screen.getByText('Solo:Level')).toBeTruthy()
     })
 
     it('should render version number', () => {
@@ -71,7 +71,7 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      expect(screen.getByText(/AI-powered volleyball coaching/i)).toBeTruthy()
+      expect(screen.getByText(/Your healthy relationship with a coach/i)).toBeTruthy()
     })
 
     it('should render Legal section header', () => {
@@ -126,7 +126,7 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      expect(screen.getByText(/© 2024.*all rights reserved/i)).toBeTruthy()
+      expect(screen.getByText(/© 2025.*all rights reserved/i)).toBeTruthy()
     })
   })
 

@@ -1,43 +1,28 @@
-import { GlassBackground } from '@my/ui'
+import { PersonalisationScreen } from '@my/app/features/Personalisation'
+import { log } from '@my/logging'
 import { useRouter } from 'expo-router'
-import { Text, YStack } from 'tamagui'
+import { AuthGate } from '../../components/AuthGate'
 
-export default function PersonalisationSettingsRoute() {
+/**
+ * Personalisation Settings Route (Web)
+ *
+ * Renders the PersonalisationScreen with authentication protection.
+ * Navigation handlers are defined here for logging and testability.
+ *
+ * Route: /settings/personalisation
+ * Auth: Protected (requires authentication)
+ */
+export default function PersonalisationRoute() {
   const router = useRouter()
 
+  const handleBack = (): void => {
+    log.info('PersonalisationRoute', 'Navigate back from Personalisation')
+    router.back()
+  }
+
   return (
-    <GlassBackground backgroundColor="$color3">
-      <YStack
-        flex={1}
-        alignItems="center"
-        justifyContent="center"
-        padding="$6"
-      >
-        <Text
-          fontSize="$8"
-          fontWeight="600"
-          color="$color12"
-          marginBottom="$4"
-        >
-          Personalisation
-        </Text>
-        <Text
-          fontSize="$5"
-          color="$gray11"
-          textAlign="center"
-          marginBottom="$6"
-        >
-          Coming soon: Customize your coaching preferences and experience.
-        </Text>
-        <Text
-          fontSize="$4"
-          color="$primary"
-          onPress={() => router.back()}
-          cursor="pointer"
-        >
-          ← Back to Settings
-        </Text>
-      </YStack>
-    </GlassBackground>
+    <AuthGate>
+      <PersonalisationScreen onBack={handleBack} />
+    </AuthGate>
   )
 }

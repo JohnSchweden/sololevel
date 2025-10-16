@@ -46,6 +46,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="settings/personalisation"
+            options={{
+              title: 'Personalisation',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="settings/data-controls"
             options={{
               title: 'Data Controls',

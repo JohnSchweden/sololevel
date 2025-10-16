@@ -84,7 +84,7 @@ GlassBackground (full screen)
 - [ ] **Navigation Elements**: Screen transitions and routing
   - [ ] **Pattern**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open)
   - [ ] **Screen Component**: No `useRouter` or platform imports, only callback props for testing/DI
-  - [ ] **Route Files**: Handle navigation logic with `useRouter()`, wrap with AuthGate, pass callbacks to screen
+  - [ ] **Route Files**: Handle navigation logic with `useRouter()`, wrap with AuthGate, pass callbacks to screen, update `_layout.tsx`
   - [ ] **AppHeader Configuration**: Via `navigation.setOptions()` with callback fallbacks
   - [ ] **Tab Navigation**: Active states, badge indicators, accessibility
   - [ ] **Stack Navigation**: Platform back gestures (iOS swipe, Android hardware button)

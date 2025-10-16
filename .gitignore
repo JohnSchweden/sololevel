@@ -109,3 +109,6 @@ supabase/functions/**/*.bak
 supabase/functions/**/node_modules/
 
 .env.local
+
+# Database backups
+backups/

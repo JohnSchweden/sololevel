@@ -31,6 +31,13 @@ export { SettingsSectionHeader } from './components/Settings/SettingsSectionHead
 export type { SettingsSectionHeaderProps } from './components/Settings/SettingsSectionHeader'
 export { SettingsToggleItem } from './components/Settings/SettingsToggleItem'
 export type { SettingsToggleItemProps } from './components/Settings/SettingsToggleItem'
+export { SettingsSelectItem } from './components/Settings/SettingsSelectItem'
+export type {
+  SettingsSelectItemOption,
+  SettingsSelectItemProps,
+} from './components/Settings/SettingsSelectItem'
+export { SettingsRadioGroup } from './components/Settings/SettingsRadioGroup'
+export type { SettingsRadioGroupProps, ThemeValue } from './components/Settings/SettingsRadioGroup'
 export { AuthenticationSection } from './components/Security/AuthenticationSection'
 export type { AuthenticationSectionProps } from './components/Security/AuthenticationSection'
 export { SessionManagementSection } from './components/Security/SessionManagementSection'

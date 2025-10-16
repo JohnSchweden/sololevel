@@ -1009,7 +1009,7 @@ COMMENT ON COLUMN "public"."analysis_audio_segments"."duration_ms" IS 'Duration 
 
 
 
-COMMENT ON COLUMN "public"."analysis_audio_segments"."audio_format" IS 'Audio format (mp3, aac, wav)';
+COMMENT ON COLUMN "public"."analysis_audio_segments"."format" IS 'Audio format (mp3, aac, wav)';
 
 
 
@@ -1017,7 +1017,7 @@ COMMENT ON COLUMN "public"."analysis_audio_segments"."feedback_id" IS 'Reference
 
 
 
-COMMENT ON COLUMN "public"."analysis_audio_segments"."audio_prompt" IS 'Prompt used to generate the audio (TTS)';
+COMMENT ON COLUMN "public"."analysis_audio_segments"."prompt" IS 'Prompt used to generate the audio (TTS)';
 
 
 
@@ -1415,15 +1415,15 @@ CREATE INDEX "analysis_audio_segments_created_at_idx" ON "public"."analysis_audi
 
 
 
-CREATE INDEX "analysis_audio_segments_feedback_format_idx" ON "public"."analysis_audio_segments" USING "btree" ("analysis_feedback_id", "audio_format");
+CREATE INDEX "analysis_audio_segments_feedback_format_idx" ON "public"."analysis_audio_segments" USING "btree" ("feedback_id", "format");
 
 
 
-CREATE INDEX "analysis_audio_segments_feedback_id_idx" ON "public"."analysis_audio_segments" USING "btree" ("analysis_feedback_id");
+CREATE INDEX "analysis_audio_segments_feedback_id_idx" ON "public"."analysis_audio_segments" USING "btree" ("feedback_id");
 
 
 
-CREATE INDEX "analysis_audio_segments_format_idx" ON "public"."analysis_audio_segments" USING "btree" ("audio_format");
+CREATE INDEX "analysis_audio_segments_format_idx" ON "public"."analysis_audio_segments" USING "btree" ("format");
 
 
 
@@ -1683,7 +1683,7 @@ CREATE POLICY "Users can insert audio segments for their own analyses" ON "publi
    FROM ("public"."analysis_feedback" "af"
      JOIN "public"."analyses" "a" ON (("a"."id" = "af"."analysis_id"))
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid")))));
+  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
 
 
 
@@ -1767,9 +1767,10 @@ CREATE POLICY "Users can view analyses for their own jobs" ON "public"."analyses
 
 
 CREATE POLICY "Users can view audio segments for their own analyses" ON "public"."analysis_audio_segments" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
-   FROM ("public"."analyses" "a"
+   FROM ("public"."analysis_feedback" "af"
+     JOIN "public"."analyses" "a" ON (("a"."id" = "af"."analysis_id"))
      JOIN "public"."analysis_jobs" "aj" ON (("aj"."id" = "a"."job_id")))
-  WHERE (("a"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
+  WHERE (("af"."id" = "analysis_audio_segments"."feedback_id") AND ("aj"."user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
 
 
 

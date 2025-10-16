@@ -7,9 +7,9 @@ import { Text, XStack, YStack } from 'tamagui'
 import type { NavAppHeaderOptions } from '../../components/navigation'
 
 // App metadata (from package.json)
-const APP_NAME = 'SoloLevel'
+const APP_NAME = 'Solo:Level'
 const APP_VERSION = '1.0.0'
-const APP_DESCRIPTION = 'AI-powered volleyball coaching for solo players'
+const APP_DESCRIPTION = 'Your healthy relationship with a coach.'
 
 export interface AboutScreenProps {
   /**
@@ -171,7 +171,7 @@ export function AboutScreen({
             fontSize="$2"
             color="$gray9"
           >
-            © 2024 {APP_NAME}. All rights reserved.
+            © 2025 {APP_NAME}. All rights reserved.
           </Text>
         </YStack>
       </YStack>

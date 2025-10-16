@@ -393,6 +393,207 @@ export function createMockStyled(component?: string | React.ComponentType) {
 }
 
 /**
+ * Creates a comprehensive Select mock for Tamagui Select component
+ */
+function createSelectMock() {
+  const SelectRoot = ({ children, value, onValueChange, disabled }: any) => {
+    const [isOpen, setIsOpen] = React.useState(false)
+
+    return React.createElement(
+      'div',
+      {
+        'data-testid': 'select-root',
+        'data-value': value,
+        'data-disabled': disabled,
+      },
+      React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            value,
+            onValueChange,
+            disabled,
+            isOpen,
+            setIsOpen,
+          })
+        }
+        return child
+      })
+    )
+  }
+
+  const SelectTrigger = ({ children, testID, disabled, value, isOpen, setIsOpen, ...props }: any) =>
+    React.createElement(
+      'button',
+      {
+        'data-testid': testID || 'select-trigger',
+        'aria-label': props.accessibilityLabel,
+        'aria-describedby': props.accessibilityHint,
+        disabled,
+        onClick: disabled ? undefined : () => setIsOpen?.(!isOpen),
+        style: {
+          minHeight: props.minHeight || 44,
+          minWidth: props.minWidth,
+          ...props.style,
+        },
+      },
+      children
+    )
+
+  const SelectValue = ({ children, placeholder, color }: any) =>
+    React.createElement(
+      'span',
+      {
+        'data-testid': 'select-value',
+        style: { color },
+      },
+      children || placeholder
+    )
+
+  const SelectContent = ({ children, value, onValueChange, isOpen, setIsOpen }: any) => {
+    if (!isOpen) return null
+    return React.createElement(
+      'div',
+      {
+        'data-testid': 'select-content',
+        role: 'listbox',
+      },
+      React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            value,
+            onValueChange,
+            setIsOpen,
+          })
+        }
+        return child
+      })
+    )
+  }
+
+  const SelectViewport = ({ children, value, onValueChange, setIsOpen }: any) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'select-viewport',
+      },
+      React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            value,
+            onValueChange,
+            setIsOpen,
+          })
+        }
+        return child
+      })
+    )
+
+  const SelectGroup = ({ children, value, onValueChange, setIsOpen }: any) =>
+    React.createElement(
+      'div',
+      {
+        role: 'group',
+        'data-testid': 'select-group',
+      },
+      React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            value,
+            onValueChange,
+            setIsOpen,
+          })
+        }
+        return child
+      })
+    )
+
+  const SelectLabel = ({ children }: any) =>
+    React.createElement(
+      'div',
+      {
+        role: 'label',
+        'data-testid': 'select-label',
+      },
+      children
+    )
+
+  const SelectItem = ({ children, value: itemValue, testID, onValueChange, setIsOpen }: any) => {
+    return React.createElement(
+      'div',
+      {
+        'data-testid': testID || `select-item-${itemValue}`,
+        role: 'option',
+        'data-value': itemValue,
+        onClick: () => {
+          onValueChange?.(itemValue)
+          setIsOpen?.(false)
+        },
+        style: { cursor: 'pointer' },
+      },
+      children
+    )
+  }
+
+  const SelectItemText = ({ children }: any) =>
+    React.createElement(
+      'span',
+      {
+        'data-testid': 'select-item-text',
+      },
+      children
+    )
+
+  const SelectItemIndicator = ({ children }: any) =>
+    React.createElement(
+      'span',
+      {
+        'data-testid': 'select-item-indicator',
+      },
+      children
+    )
+
+  const SelectScrollUpButton = ({ children }: any) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'select-scroll-up',
+      },
+      children
+    )
+
+  const SelectScrollDownButton = ({ children }: any) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'select-scroll-down',
+      },
+      children
+    )
+
+  // Mock Adapt component for native sheet support
+  const SelectAdapt = () => null // Adapt doesn't render on web in jsdom
+  SelectAdapt.Contents = ({ children }: any) =>
+    React.createElement('div', { 'data-testid': 'select-adapt-contents' }, children)
+
+  // Attach sub-components
+  const Select: any = SelectRoot
+  Select.Trigger = SelectTrigger
+  Select.Value = SelectValue
+  Select.Content = SelectContent
+  Select.Viewport = SelectViewport
+  Select.Group = SelectGroup
+  Select.Label = SelectLabel
+  Select.Item = SelectItem
+  Select.ItemText = SelectItemText
+  Select.ItemIndicator = SelectItemIndicator
+  Select.ScrollUpButton = SelectScrollUpButton
+  Select.ScrollDownButton = SelectScrollDownButton
+  Select.Adapt = SelectAdapt
+
+  return Select
+}
+
+/**
  * Creates a comprehensive Dialog mock using a builder pattern
  * This makes the Dialog mock more maintainable and easier to extend
  */
@@ -511,6 +712,81 @@ export function createTamaguiMock() {
   const mockComponent = createMockComponent('Component')
   const mockStyled = createMockStyled()
 
+  // RadioGroup mock
+  let lastClickedLabel: any = null
+  let lastClickTime = 0
+
+  const RadioGroupComponent: any = ({
+    children,
+    value,
+    onValueChange,
+    testID,
+    disabled,
+    accessibilityLabel,
+  }: any) => {
+    const handleClick = (e: any) => {
+      // Only handle clicks directly on labels or their children, not on the container
+      if (e.target === e.currentTarget) return
+
+      const label = e.target.closest('label')
+      if (label && onValueChange && !disabled) {
+        // Get the htmlFor attribute to find the associated input
+        const inputId = label.getAttribute('for')
+        if (inputId) {
+          // Find the input with this ID anywhere in the RadioGroup
+          const radioGroup = e.currentTarget
+          const input = radioGroup.querySelector(`input[id="${inputId}"]`)
+          if (input && input.value !== value) {
+            // Prevent double-firing by tracking last click
+            const now = Date.now()
+            if (label === lastClickedLabel && now - lastClickTime < 10) {
+              return
+            }
+            lastClickedLabel = label
+            lastClickTime = now
+
+            onValueChange(input.value)
+          }
+        }
+      }
+    }
+
+    return React.createElement(
+      'div',
+      {
+        'data-testid': testID,
+        'data-value': value,
+        'data-disabled': disabled,
+        'aria-label': accessibilityLabel,
+        role: 'radiogroup',
+        onClick: handleClick,
+      },
+      children
+    )
+  }
+
+  RadioGroupComponent.Item = ({ value, id, disabled, testID, children, ...props }: any) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': testID,
+        ...Object.fromEntries(
+          Object.entries(props).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key.toLowerCase()))
+        ),
+      },
+      React.createElement('input', {
+        type: 'radio',
+        id,
+        value,
+        disabled,
+        'aria-label': `${value} theme`,
+        style: { position: 'absolute', opacity: 0 },
+      }),
+      children
+    )
+
+  RadioGroupComponent.Indicator = () => null
+
   return {
     // Provider
     TamaguiProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -535,6 +811,19 @@ export function createTamaguiMock() {
     TextArea: createMockComponent('TextArea'),
     Checkbox: createMockComponent('Checkbox'),
     Switch: createMockComponent('Switch'),
+    RadioGroup: RadioGroupComponent,
+    Label: ({ children, htmlFor, testID, ...props }: any) =>
+      React.createElement(
+        'label',
+        {
+          htmlFor,
+          'data-testid': testID,
+          ...Object.fromEntries(
+            Object.entries(props).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key.toLowerCase()))
+          ),
+        },
+        children
+      ),
 
     // Layout components
     ScrollView: mockComponent,
@@ -545,6 +834,15 @@ export function createTamaguiMock() {
 
     // Overlay components with improved composition
     Dialog: createDialogMock(),
+    Select: createSelectMock(),
+    Adapt: Object.assign(({ children }: any) => children, {
+      Contents: createMockComponent('Adapt.Contents'),
+    }),
+    Sheet: Object.assign(createMockComponent('Sheet'), {
+      Frame: createMockComponent('Sheet.Frame'),
+      ScrollView: createMockComponent('Sheet.ScrollView'),
+      Overlay: createMockComponent('Sheet.Overlay'),
+    }),
 
     // Theme and styling
     useTheme: jest.fn(() => ({ background: '#fff', color: '#000' })),

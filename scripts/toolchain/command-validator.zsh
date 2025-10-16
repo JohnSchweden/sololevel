@@ -4,6 +4,10 @@
 # Source this file in zsh sessions to enable confirmation prompts for blocked commands
 #
 # ENFORCED BLOCKS:
+#   - npx * (use yarn instead)
+#   - npm * (use yarn instead)
+#   - pnpm * (use yarn instead)
+#   - tsc * (use yarn type-check instead)
 #   - perl -i * (in-place file editing)
 #   - yarn workspace add/remove
 #   - supabase db reset variants
@@ -136,6 +140,58 @@ function perl() {
     return 1
   fi
   command perl "$@"
+}
+
+# Wrap npx
+function npx() {
+  local full_cmd="npx $@"
+  if is_blocked "$full_cmd"; then
+    echo "⚠️  BLOCKED: '$full_cmd' is disallowed by .cursorrules"
+    echo "   Use 'yarn' commands instead (e.g., 'yarn tsc' or 'yarn workspace <pkg> type-check')"
+    echo ""
+    echo "Command blocked."
+    return 1
+  fi
+  command npx "$@"
+}
+
+# Wrap npm
+function npm() {
+  local full_cmd="npm $@"
+  if is_blocked "$full_cmd"; then
+    echo "⚠️  BLOCKED: '$full_cmd' is disallowed by .cursorrules"
+    echo "   This project uses Yarn 4 exclusively. Use 'yarn' commands instead."
+    echo ""
+    echo "Command blocked."
+    return 1
+  fi
+  command npm "$@"
+}
+
+# Wrap pnpm
+function pnpm() {
+  local full_cmd="pnpm $@"
+  if is_blocked "$full_cmd"; then
+    echo "⚠️  BLOCKED: '$full_cmd' is disallowed by .cursorrules"
+    echo "   This project uses Yarn 4 exclusively. Use 'yarn' commands instead."
+    echo ""
+    echo "Command blocked."
+    return 1
+  fi
+  command pnpm "$@"
+}
+
+# Wrap tsc
+function tsc() {
+  local full_cmd="tsc $@"
+  if is_blocked "$full_cmd"; then
+    echo "⚠️  BLOCKED: '$full_cmd' is disallowed by .cursorrules"
+    echo "   Use 'yarn type-check' or 'yarn workspace <pkg> type-check' instead"
+    echo ""
+    echo "Command blocked."
+    return 1
+  fi
+  command tsc "$@"
 }
 
 # Note: python/python3 not wrapped - can't reliably detect file editing without parsing script

@@ -91,6 +91,30 @@ const MockPressable = React.forwardRef<any, MockPressableProps>((props, ref) => 
   )
 })
 
+// Mock @tamagui/sheet for Select native adapter
+jest.mock('@tamagui/sheet', () => {
+  const React = require('react')
+  return {
+    Sheet: Object.assign(
+      React.forwardRef((props: any) =>
+        React.createElement('div', { ...props, 'data-testid': 'sheet' }, props.children)
+      ),
+      {
+        Frame: (props: any) =>
+          React.createElement('div', { ...props, 'data-testid': 'sheet-frame' }, props.children),
+        ScrollView: (props: any) =>
+          React.createElement(
+            'div',
+            { ...props, 'data-testid': 'sheet-scrollview' },
+            props.children
+          ),
+        Overlay: (props: any) =>
+          React.createElement('div', { ...props, 'data-testid': 'sheet-overlay' }),
+      }
+    ),
+  }
+})
+
 // Mock Tamagui components globally
 jest.mock('tamagui', () => {
   require('react')

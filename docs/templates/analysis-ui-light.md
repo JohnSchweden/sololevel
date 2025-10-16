@@ -56,7 +56,8 @@ GlassBackground (full screen)
 ## Interactive Elements
 - [ ] **Buttons**: Define states (default, hover, pressed, disabled, loading) and variants (primary, secondary, destructive, icon-only with 44px touch targets)
 - [ ] **Form Elements**: Text inputs (placeholder, validation, errors), selection controls (dropdown, radio, checkbox), file uploads (progress, preview)
-- [ ] **Navigation**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open). AppHeader configuration via `navigation.setOptions()`, tab states, stack gestures (iOS swipe, Android back), modal sheets
+- [ ] **Navigation**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open).
+- [ ] **AppHeader**: Configuration via `navigation.setOptions()`, tab states, stack gestures (iOS swipe, Android back), modal sheets
 
 ## Animations & Loading States
 - [ ] **Transitions**: Screen animations (slide, fade, modal), component animations, gesture feedback (swipe, pull-to-refresh)
@@ -81,9 +82,10 @@ GlassBackground (full screen)
 - [ ] **Testing**: Visual regression (screenshot comparison), accessibility (WCAG 2.2 AA), performance (render < 16ms, 60fps animations), cross-platform parity
 - [ ] **Documentation**: Storybook stories for all component states, theme token usage examples, screen reader test results, animation timing/easing specs
 
-## Existing App Integration
+## Navigation & App integration
 - [ ] **Screen**: `packages/app/features/[Feature]/[Feature]Screen.tsx` with callback props
-- [ ] **Routes**: `apps/{expo,web}/app/[route].tsx` with handlers + AuthGate
+- [ ] **Routes**: `apps/{expo,web}/app/[route].tsx` with handlers + AuthGate + `_layout.tsx` update
+- [ ] **Navigation**: Callback props in screens → handlers in route files
 - [ ] **Platform**: Native=Linking.openURL, Web=window.open
 - [ ] **Testing**: Mock callback props for testability
 

@@ -13,10 +13,11 @@
   - Hooks: `useHeaderHeight()`, `useNavigation()`, `useLayoutEffect()` for AppHeader
   - Local state: Theme selection, language, accessibility toggles, interaction settings
   - Render: Sections from `@my/ui` (or create if needed)
-  - Callback props: `onBack?: () => void`
+  - Callback props: `onBack: () => void` (required, injected from route)
 - **Routes**: `apps/{expo,web}/app/settings/personalisation.tsx`
-  - Handler: `router.back()` for navigation
-  - AuthGate wrapper
+  - ✅ Handler: `handleBack()` with `router.back()` and logging
+  - ✅ AuthGate wrapper
+  - ✅ Passes `onBack` prop to screen (follows SecurityRoute/DataControlsRoute pattern)
 
 **Visual Layout Structure**:
 ```typescript
@@ -24,18 +25,18 @@ GlassBackground (full screen)
 ├── YStack paddingTop={headerHeight + 30} paddingHorizontal="$4" gap="$6"
 │   ├── Section: Appearance (YStack gap="$3" marginBottom="$6")
 │   │   ├── SectionHeader: XStack gap="$2" with Palette icon + title
-│   │   └── ThemeSelector: XStack gap="$3" with 3 theme buttons (Light/Dark/Auto)
+│   │   └── SettingsRadioGroup: XStack gap="$3" with 3 theme buttons (Light/Dark/Auto)
 │   ├── Section: Language & Region (YStack gap="$3" marginBottom="$6")
 │   │   ├── SectionHeader: XStack gap="$2" with Globe icon + title
-│   │   └── LanguageSelect: Select component
+│   │   └── SettingsSelectItem: Select component (XStack with label + Select)
 │   ├── Section: Accessibility (YStack gap="$3" marginBottom="$6")
 │   │   ├── SectionHeader: XStack gap="$2" with Type icon + title
-│   │   ├── SettingRow: Large Text (XStack with label + Switch)
-│   │   └── SettingRow: Reduce Animations (XStack with label + Switch)
+│   │   ├── SettingsToggleItem: Large Text (XStack with label + Switch)
+│   │   └── SettingsToggleItem: Reduce Animations (XStack with label + Switch)
 │   └── Section: Interaction (YStack gap="$3" marginBottom="$6")
 │       ├── SectionHeader: XStack gap="$2" with Zap icon + title
-│       ├── SettingRow: Sound Effects (XStack with icon + label + Switch)
-│       └── SettingRow: Haptic Feedback (XStack with icon + label + Switch)
+│       ├── SettingsToggleItem: Sound Effects (XStack with icon + label + Switch)
+│       └── SettingsToggleItem: Haptic Feedback (XStack with icon + label + Switch)
 ```
 
 **AppHeader**: Configured via `navigation.setOptions({ appHeaderProps: { title: 'Personalisation', leftAction: 'back', onBackPress } })`
@@ -45,17 +46,16 @@ GlassBackground (full screen)
   - Interactive: `Button` (theme selector), `Switch` (toggles), `Select`/`SelectTrigger`/`SelectContent`/`SelectItem` (language)
   - Display: `Text` (labels, descriptions), Icon components from `lucide-react-native`
   - Container: `GlassBackground` (from `@my/ui`)
-  - Custom: 
-    - `ThemeToggleButtons` - 3-button group for Light/Dark/Auto selection
-    - `SettingRow` - Reusable component for label + switch (similar to SecurityScreen pattern)
-    - `SectionHeader` - Icon + title with border-bottom divider
-
-**Reusable from SecurityScreen/SettingsScreen**:
-  - `GlassBackground` wrapper pattern
-  - `YStack` layout with `headerHeight` offset
-  - Section-based organization with icons
-  - Callback props for navigation
+  - Custom with Tamagui: 
+    - `SettingsRadioGroup` - 3-button group for Light/Dark/Auto selection (NEW)
+  
+**✅ Reusable Existing Components**:
+  - `SettingsSectionHeader` - Icon + title with border (from `@my/ui`)
+  - `SettingsToggleItem` - Icon + label + description + switch (from `@my/ui`)
+  - `GlassBackground` wrapper pattern (from `@my/ui`)
+  - `YStack`/`XStack` layout with `headerHeight` offset
   - `useLayoutEffect` for AppHeader configuration
+  - `Select`/`RadioGroup` for new components
 
 - [x] **Design Tokens**
   - Colors: `$color3` (background), `$white` (text), `$gray10` (section headers), `$green5`, `$purple5` (icon backgrounds)
@@ -77,9 +77,10 @@ GlassBackground (full screen)
   - Switch: Native toggle for boolean settings (Large Text, Reduce Animations, Sound Effects, Haptic Feedback)
   - Select: Language dropdown with trigger + content overlay, styled to match glass theme
 - [x] **Navigation**: 
-  - Back button via AppHeader (configured in `useLayoutEffect`)
-  - Callback prop: `onBack?: () => void` for testability
-  - Route handler: `router.back()` in route file
+  - ✅ Back button via AppHeader (configured in `useLayoutEffect`)
+  - ✅ Callback prop: `onBack?: () => void` for testability
+  - ✅ Route handler: `router.back()` in route file via callback prop
+  - ✅ AuthGate wrapper in route files for authentication
 
 ## Animations & Loading States
 - [x] **Transitions**: 
@@ -113,23 +114,35 @@ GlassBackground (full screen)
   - Performance: Render < 16ms, smooth animations
   - Cross-platform: Test on iOS/Android/Web
 - [ ] **Documentation**: 
-  - Storybook stories for ThemeToggleButtons, SettingRow, SectionHeader
+  - Storybook stories for SettingsRadioGroup, SettingsSelectItem, SettingRow, SectionHeader
   - Theme token usage examples
   - Accessibility labels for screen readers
 
 ## Existing App Integration
 - [ ] **Screen**: Create `packages/app/features/Personalisation/PersonalisationScreen.tsx` following SecurityScreen pattern
 - [ ] **Routes**: Update `apps/{expo,web}/app/settings/personalisation.tsx` to use new screen
-- [ ] **UI Components**: Create reusable components in `packages/ui/src/features/Personalisation/`
-  - `ThemeToggleButtons.tsx` - 3-state theme selector
-  - `SettingRow.tsx` - Icon + label + switch row (reusable pattern)
-  - `SectionHeader.tsx` - Icon + title with divider (reusable pattern)
+- [ ] **UI Components**: 
+  - ✅ Use existing `SettingsSectionHeader` from `@my/ui` for section headers
+  - ✅ Use existing `SettingsToggleItem` from `@my/ui` for toggle rows
+  - [ ] Create `SettingsRadioGroup` in `packages/ui/src/features/Settings/` for 3-state theme selector → Use Tamagui `RadioGroup`
+  - [ ] Create `SettingsSelectItem` in `packages/ui/src/features/Settings/`→ Use Tamagui `Select` component for language dropdown
 - [ ] **Testing**: Mock `onBack` prop, test theme selection, switch toggles, language selector
 
 ## Implementation Notes
 - Figma design uses web components (`div`, `className`) → Convert to Tamagui (`YStack`, `XStack`, theme tokens)
-- Glass morphism from Figma → Use existing `GlassBackground` component
-- Section pattern matches SecurityScreen → Extract reusable `SectionHeader` component
-- Setting rows match pattern → Create reusable `SettingRow` component
-- Theme tokens: Map Figma colors to existing Tamagui theme (`$color3`, `$gray1-12`, etc.)
+- Glass morphism from Figma → ✅ Use existing `GlassBackground` component
+- Section headers → ✅ Use existing `SettingsSectionHeader` component
+- Toggle rows → ✅ Use existing `SettingsToggleItem` component (has icon container, title, description, Switch)
+- Theme selector → NEW: Create `SettingsRadioGroup` component (3-button group: Light/Dark/Auto) → Use Tamagui `RadioGroup` component with theme styling
+- Language dropdown → NEW: Create `SettingsSelectItem` component → Use Tamagui `Select` component with theme styling
+- Theme tokens: Map Figma colors to existing Tamagui theme (`$color3`, `$gray1-12`, `$green2-10`, `$purple2-10`, etc.)
+
+## Component Reuse Summary
+| Figma Element | Component | Status |
+|---------------|-----------|---------|
+| Section headers | `SettingsSectionHeader` | ✅ Exists |
+| Toggle rows (4x) | `SettingsToggleItem` | ✅ Exists |
+| Glass background | `GlassBackground` | ✅ Exists |
+| Theme selector | `SettingsRadioGroup` | ⚠️ Create new with ✅ Built-in Tamagui |
+| Language dropdown | `SettingsSelectItem` | ⚠️ Create new with ✅ Built-in Tamagui |
 

@@ -142,6 +142,17 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="settings/personalisation"
+              options={{
+                title: 'Personalisation',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
               name="settings/data-controls"
               options={{
                 title: 'Data Controls',

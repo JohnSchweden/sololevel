@@ -94,7 +94,7 @@ export function ProfileSection({
           width={84}
           height={84}
           borderRadius={50} // Half of width for perfect circle
-          borderWidth={2}
+          borderWidth={1}
           borderColor="$primary"
           testID={`${testID}-avatar`}
           accessibilityLabel={`${userName}'s profile picture`}
@@ -106,7 +106,7 @@ export function ProfileSection({
           marginBottom="$4"
           borderRadius="$12"
           backgroundColor="$gray3"
-          borderWidth={2}
+          borderWidth={1}
           borderColor="$primary"
           alignItems="center"
           justifyContent="center"

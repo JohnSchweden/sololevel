@@ -17,6 +17,10 @@
   "exclude": [
     "**/node_modules",
     "**/dist",
+    "../../packages/**/*.test.ts",
+    "../../packages/**/*.test.tsx",
+    "../../packages/**/*.spec.ts",
+    "../../packages/**/*.spec.tsx",
     // 🚀 EXCLUDE ALL PRODUCTION POSE DETECTION FILES FROM MVP DEVELOPMENT
     "../../packages/ui/src/components/CameraRecording/CameraSwapButton.tsx",
     "../../packages/ui/src/components/CameraRecording/PerformanceMonitor.tsx",

@@ -7,9 +7,33 @@ DROP POLICY IF EXISTS "Users can update audio segments for their own analyses" O
 DROP POLICY IF EXISTS "Users can view audio segments for their own analyses" ON "public"."analysis_audio_segments";
 
 -- Step 2: Rename columns and drop unnecessary ones
-ALTER TABLE public.analysis_audio_segments 
-  RENAME COLUMN analysis_feedback_id TO feedback_id;
+-- Use IF EXISTS pattern since the baseline schema may already have these changes
+DO $$
+BEGIN
+  -- Rename analysis_feedback_id to feedback_id if it exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'analysis_audio_segments' 
+    AND column_name = 'analysis_feedback_id'
+  ) THEN
+    ALTER TABLE public.analysis_audio_segments 
+      RENAME COLUMN analysis_feedback_id TO feedback_id;
+  END IF;
 
+  -- Rename audio_prompt to prompt if it exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'analysis_audio_segments' 
+    AND column_name = 'audio_prompt'
+  ) THEN
+    ALTER TABLE public.analysis_audio_segments 
+      RENAME COLUMN audio_prompt TO prompt;
+  END IF;
+END $$;
+
+-- Drop columns if they exist
 ALTER TABLE public.analysis_audio_segments 
   DROP COLUMN IF EXISTS audio_duration_ms;
 
@@ -18,9 +42,6 @@ ALTER TABLE public.analysis_audio_segments
 
 ALTER TABLE public.analysis_audio_segments 
   DROP COLUMN IF EXISTS analysis_id;
-
-ALTER TABLE public.analysis_audio_segments 
-  RENAME COLUMN audio_prompt TO prompt;
 
 -- Step 3: Create new RLS policies using the updated schema
 -- These policies now check via feedback_id -> analysis_feedback -> analysis -> analysis_jobs -> user
