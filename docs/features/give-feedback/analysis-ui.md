@@ -44,7 +44,7 @@ GlassBackground (full screen)
 │   │   ├── MessageSection: YStack gap="$3"
 │   │   │   ├── Label: Text fontSize="$5" color="$gray12"
 │   │   │   ├── TextArea minHeight={140} placeholder="Tell us..."
-│   │   │   └── CharCount: Text fontSize="$3" color="$gray10" (conditional)
+│   │   │   └── CharCount: Text fontSize="$3" color="$color11" (conditional)
 │   │   │
 │   │   └── SubmitSection: YStack gap="$3" paddingTop="$4" borderTopWidth={1} borderColor="$borderColor"
 │   │       └── Button variant="primary" disabled={!message} icon={<Send />}
@@ -86,7 +86,7 @@ navigation.setOptions({
 
 **Colors**:
 - Background: Glass effect with `$backgroundTransparent` + custom gradients
-- Text: `$color` (white/$gray12), `$gray11` (secondary text), `$gray10` (tertiary)
+- Text: `$color` (white/$gray12), `$gray11` (secondary text), `$color11` (tertiary)
 - Borders: `$borderColor` (white/30 equivalent)
 - Type Colors: `$red9`, `$blue9`, `$orange9`, `$purple9` with opacity variants
 

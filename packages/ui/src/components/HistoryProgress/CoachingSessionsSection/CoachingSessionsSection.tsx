@@ -123,7 +123,7 @@ export function CoachingSessionsSection({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="$gray10"
+              tintColor="$color11"
             />
           ) : undefined
         }

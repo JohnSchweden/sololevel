@@ -55,6 +55,15 @@ export type { FeedbackTypeButtonProps } from './components/Feedback'
 export { TextArea } from './components/Form'
 export type { TextAreaProps } from './components/Form'
 
+// Coach Components
+export { ChatInput, MessageBubble, SuggestionChip, TypingIndicator } from './components/Coach'
+export type {
+  ChatInputProps,
+  MessageBubbleProps,
+  SuggestionChipProps,
+  TypingIndicatorProps,
+} from './components/Coach'
+
 // Dialog Components
 export { ConfirmDialog } from './components/ConfirmDialog'
 export type { ConfirmDialogProps } from './components/ConfirmDialog'

@@ -183,7 +183,7 @@ export const GiveFeedbackScreen = ({
             {message.trim() && (
               <Text
                 fontSize="$3"
-                color="$gray10"
+                color="$color11"
               >
                 {message.length} / 1000 characters
               </Text>

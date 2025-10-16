@@ -136,14 +136,14 @@ GlassBackground: backgroundColor="$color3" (full screen with glass morphism)
   - **Colors**:
     - Background: `$background` (glass morphism base)
     - Section headers: `$gray11` (default), `$red10` (destructive)
-    - Toggle items: `$color` (title), `$gray10` (description)
+    - Toggle items: `$color` (title), `$color11` (description)
     - Export button: `$blue10` (icon), `$blue3` (background)
     - Delete button: `$red10` (text), `$red3` (background), `$red6` (border)
     - Warning text: `$red11`
   - **Typography**:
     - Section headers: `fontSize="$4"` fontWeight="600"
     - Item titles: `fontSize="$4"` fontWeight="500"
-    - Item descriptions: `fontSize="$3"` color="$gray10"
+    - Item descriptions: `fontSize="$3"` color="$color11"
     - Warning text: `fontSize="$3"` color="$red11"
   - **Spacing**:
     - Screen padding: `$4` (16px)

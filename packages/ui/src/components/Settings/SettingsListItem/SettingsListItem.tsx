@@ -49,17 +49,17 @@ export function SettingsListItem({
       unstyled
       backgroundColor="$gray2"
       borderRadius="$3"
-      paddingVertical="$2"
+      paddingVertical="$3"
       paddingHorizontal="$4"
       minHeight={40}
       disabled={disabled}
       onPress={onPress}
       pressStyle={{
-        backgroundColor: '$gray4',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         scale: 0.98,
       }}
       hoverStyle={{
-        backgroundColor: '$gray3',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
       }}
       disabledStyle={{
         opacity: 0.5,

@@ -109,7 +109,7 @@ export function ProcessingOverlay({
         {/* Progress Percentage */}
         <Text
           fontSize="$3"
-          color="$gray10"
+          color="$color11"
           textAlign="center"
           accessibilityLabel={`Processing progress: ${progressPercentage} percent complete`}
         >
@@ -143,7 +143,7 @@ export function ProcessingOverlay({
         </Text>
         <Text
           fontSize="$3"
-          color="$gray10"
+          color="$color11"
           textAlign="center"
           accessibilityLabel={`Time estimate: ${formatTime(estimatedTime)}`}
         >

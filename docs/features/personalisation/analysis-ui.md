@@ -58,8 +58,8 @@ GlassBackground (full screen)
   - `Select`/`RadioGroup` for new components
 
 - [x] **Design Tokens**
-  - Colors: `$color3` (background), `$white` (text), `$gray10` (section headers), `$green5`, `$purple5` (icon backgrounds)
-  - Typography: Title `$6` (20px), body `$4` (16px), description `$3` (14px) with `color="$gray10"`
+  - Colors: `$color3` (background), `$white` (text), `$color11` (section headers), `$green5`, `$purple5` (icon backgrounds)
+  - Typography: Title `$6` (20px), body `$4` (16px), description `$3` (14px) with `color="$color11"`
   - Spacing: Section gap `$6`, row gap `$3`, horizontal padding `$4`, top padding `headerHeight + 30`
   - Borders: `borderBottomWidth={1}`, `borderColor="$gray6"` for section headers
   - Icon sizes: `size={20}` for section icons, `size={24}` for setting row icons

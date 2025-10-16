@@ -128,7 +128,7 @@ YStack flex={1} backgroundColor="$color3" (GlassBackground)
 │   │   ├── ListItem: Pressable backgroundColor="$gray2" borderRadius="$4" paddingVertical="$4" paddingHorizontal="$5"
 │   │   │   ├── XStack justifyContent="space-between" alignItems="center"
 │   │   │   │   ├── Text "Account" fontSize="$5" fontWeight="400" color="$color12"
-│   │   │   │   └── Icon ChevronRight size={20} color="$gray10"
+│   │   │   │   └── Icon ChevronRight size={20} color="$color11"
 │   │   ├── ListItem: (same structure for Personalisation)
 │   │   ├── ListItem: (same structure for Give feedback)
 │   │   ├── ListItem: (same structure for Data controls)
@@ -202,7 +202,7 @@ YStack flex={1} backgroundColor="$color3" (GlassBackground)
 - [x] **Text Primary**: `$color12` (high contrast)
 - [x] **Text Secondary**: `$gray11` (footer links)
 - [x] **Destructive**: `$red8` (border), `$red10` (text)
-- [x] **Icon**: `$gray10` (chevrons)
+- [x] **Icon**: `$color11` (chevrons)
 - [x] **Avatar Border**: `$primary` or `$color8`
 
 #### Typography (Theme Scale)

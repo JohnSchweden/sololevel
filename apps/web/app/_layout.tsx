@@ -32,6 +32,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="coach"
+            options={{
+              title: 'Coach AI',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="history-progress"
             options={{
               title: 'History & Progress',

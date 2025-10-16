@@ -112,6 +112,17 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="coach"
+              options={{
+                title: 'Chat/Mirror',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_left',
+              }}
+            />
+            <Stack.Screen
               name="history-progress"
               options={({ navigation }) =>
                 ({

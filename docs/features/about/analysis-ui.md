@@ -63,7 +63,7 @@ export function AboutScreen(props: AboutScreenProps) {
           <Text fontSize="$7" fontWeight="600" color="$color">
             {APP_NAME}
           </Text>
-          <Text fontSize="$3" color="$gray10">
+          <Text fontSize="$3" color="$color11">
             Version {APP_VERSION}
           </Text>
           <Text fontSize="$3" color="$gray11" textAlign="center">
@@ -139,7 +139,7 @@ GlassBackground: backgroundColor="$color3"
 - [x] **Design Tokens**
   - Colors: 
     - Primary text: `$color`
-    - Secondary text: `$gray10`, `$gray11`, `$gray9`
+    - Secondary text: `$color11`, `$gray11`, `$gray9`
     - Purple accent: `$purple10` (logo background)
     - Borders: `$borderColor`
     - Background: `$color3` (GlassBackground)

@@ -63,7 +63,7 @@ GlassBackground (full screen)
 ### Design Tokens
 
 - [ ] **Colors**: Glass background with gradient overlay; message bubbles `rgba(255,255,255,0.2)` user, `rgba(255,255,255,0.1)` coach; white input container; text white on glass, dark gray on white
-- [ ] **Typography**: Title fontSize="$6" (Josefin Sans Regular); message text fontSize="$3"; timestamp fontSize="$2" color="$gray10"; input placeholder fontSize="$4"
+- [ ] **Typography**: Title fontSize="$6" (Josefin Sans Regular); message text fontSize="$3"; timestamp fontSize="$2" color="$color11"; input placeholder fontSize="$4"
 - [ ] **Spacing**: Container padding `$6`; section gaps `$4`; element gaps `$2`, `$3`; message margins `$3`
 - [ ] **Sizes**: Avatar 80x80px with 4px border; touch targets 44px minimum; input max height 120px; suggestion pills padding `$3` `$4`
 

@@ -65,7 +65,6 @@ export function SettingsNavigationList({
 }: SettingsNavigationListProps): React.ReactElement {
   return (
     <YStack
-      gap="$1"
       paddingHorizontal="$4"
       marginBottom="$6"
       testID={testID}

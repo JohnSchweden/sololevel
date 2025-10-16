@@ -106,7 +106,7 @@ export function AboutScreen({
               {/* Version */}
               <Text
                 fontSize="$3"
-                color="$gray10"
+                color="$color11"
               >
                 Version {APP_VERSION}
               </Text>

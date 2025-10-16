@@ -18,7 +18,7 @@
     - Tablet (768-1024px): Larger thumbnails, optimized spacing
     - Desktop (>1024px): Multi-column grid for thumbnails if needed
   - [x] Test theme integration and token usage validation
-    - Dark theme: $background (dark gray), $gray10 text, $gray1 header
+    - Dark theme: $background (dark gray), $color11 text, $gray1 header
     - Light theme: $background (light), $gray12 text, white header
     - Validate all color tokens map to theme system
   - [x] Document animation and transition test scenarios
@@ -68,7 +68,7 @@
   - [x] Color contrast validation tests (WCAG 2.2 AA compliance)
     - Text on dark background: White/light gray text (18:1 ratio)
     - "See all" link: Underlined with sufficient contrast
-    - Date labels: $gray10 on $gray1 (minimum 4.5:1)
+    - Date labels: $color11 on $gray1 (minimum 4.5:1)
     - Session titles: White on dark gray (minimum 7:1)
   - [x] Dynamic type scaling tests (text size adjustments)
     - Support font scaling from 0.85x to 1.3x
@@ -210,8 +210,8 @@ YStack flex={1} backgroundColor="$background" (full screen)
 │   │
 │   ├── VideosSection: YStack gap="$3" marginBottom="$6"
 │   │   ├── SectionHeader: XStack justifyContent="space-between" alignItems="center" marginBottom="$3"
-│   │   │   ├── Text fontSize="$6" fontWeight="500" color="$gray10" text="Videos"
-│   │   │   └── Button chromeless size="$3" text="See all" color="$gray10" underline
+│   │   │   ├── Text fontSize="$6" fontWeight="500" color="$color11" text="Videos"
+│   │   │   └── Button chromeless size="$3" text="See all" color="$color11" underline
 │   │   └── VideosRow: ScrollView horizontal showsHorizontalScrollIndicator={false}
 │   │       └── XStack gap="$3" paddingRight="$4"
 │   │           ├── VideoThumbnailCard: Pressable width={180} height={280} borderRadius="$4"
@@ -223,11 +223,11 @@ YStack flex={1} backgroundColor="$background" (full screen)
 │   │           └── VideoThumbnailCard (duplicate structure)
 │   │
 │   └── CoachingSessionsSection: YStack gap="$3"
-│       ├── SectionHeader: Text fontSize="$6" fontWeight="500" color="$gray10" text="Coaching sessions" marginBottom="$3"
+│       ├── SectionHeader: Text fontSize="$6" fontWeight="500" color="$color11" text="Coaching sessions" marginBottom="$3"
 │       └── SessionsList: YStack gap="$2"
 │           ├── SessionCard: Pressable backgroundColor="transparent" pressStyle={{backgroundColor: "$gray3"}} 
 │           │   borderRadius="$3" padding="$4" gap="$2"
-│           │   ├── DateLabel: Text fontSize="$3" color="$gray10" text="Today"
+│           │   ├── DateLabel: Text fontSize="$3" color="$color11" text="Today"
 │           │   └── SessionTitle: Text fontSize="$5" fontWeight="400" color="$gray12" 
 │           │       text="Muscle Soreness and Growth in Weightlifting"
 │           ├── SessionCard: (duplicate structure with "Monday, Jul 28" date)
@@ -266,8 +266,8 @@ YStack flex={1} backgroundColor="$background" (full screen)
     - Background: `$background` (dark gray ~#2A2A2C or theme-based)
     - Header background: `$gray1` (darker gray)
     - Text primary: `$gray12` (white/near-white)
-    - Text secondary: `$gray10` (light gray)
-    - Link/accent: `$gray10` with underline (or `$blue10` for branded links)
+    - Text secondary: `$color11` (light gray)
+    - Link/accent: `$color11` with underline (or `$blue10` for branded links)
     - Press overlay: `$gray3` (subtle highlight)
   - [x] **Typography**: 
     - App title: `fontSize="$7"` (24px), `fontWeight="600"`

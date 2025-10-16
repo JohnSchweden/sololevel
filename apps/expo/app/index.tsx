@@ -1,5 +1,6 @@
 // No need to import React explicitly with automatic JSX runtime
 import { CameraRecordingScreen } from '@app/features/CameraRecording'
+import { log } from '@my/logging'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect } from 'react'
 import { AuthGate } from '../components/AuthGate'
@@ -21,6 +22,18 @@ export default function Screen() {
     router.push('/history-progress')
   }
 
+  const handleTabChange = (tab: 'coach' | 'record' | 'insights') => {
+    log.info('index', 'Tab changed', { tab })
+
+    // Navigate to respective screens when tabs are changed
+    if (tab === 'coach') {
+      router.push('/coach' as any)
+    } else if (tab === 'insights') {
+      router.push('/insights' as any)
+    }
+    // 'record' tab stays on current screen (index)
+  }
+
   // Reset to idle state when navigating back from video analysis
   useEffect(() => {
     if (resetToIdle === 'true') {
@@ -34,6 +47,7 @@ export default function Screen() {
       <CameraRecordingScreen
         onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
         onNavigateToHistory={handleNavigateToHistory}
+        onTabChange={handleTabChange}
         resetToIdle={resetToIdle === 'true'}
       />
     </AuthGate>

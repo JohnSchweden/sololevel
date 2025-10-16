@@ -53,13 +53,13 @@ export function PoseDetectionToggle({
         ) : (
           <EyeOff
             size={iconSize}
-            color="$gray10"
+            color="$color11"
             testID={`${testID}-icon-disabled`}
           />
         )}
         <Text
           fontSize={size === '$2' ? '$2' : size === '$4' ? '$4' : '$3'}
-          color={isEnabled ? '$blue10' : '$gray10'}
+          color={isEnabled ? '$blue10' : '$color11'}
           fontWeight="500"
           testID={`${testID}-text`}
         >
