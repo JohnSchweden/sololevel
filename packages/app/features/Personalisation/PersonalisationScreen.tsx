@@ -66,20 +66,15 @@ export function PersonalisationScreen({
         edges={['bottom']}
         style={{ flex: 1 }}
       >
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{
-            paddingTop: headerHeight + 30,
-            paddingHorizontal: 16, // $4 = 16px
-            paddingBottom: 24, // Extra padding for safe area
-          }}
-        >
-          <YStack gap="$6">
+        <ScrollView flex={1}>
+          <YStack
+            paddingTop={headerHeight + 30}
+            paddingHorizontal="$4"
+            gap="$6"
+            paddingBottom="$6"
+          >
             {/* Appearance Section */}
-            <YStack
-              gap="$3"
-              marginBottom="$6"
-            >
+            <YStack marginBottom="$4">
               <SettingsSectionHeader
                 title="Appearance"
                 icon={Palette}
@@ -97,10 +92,7 @@ export function PersonalisationScreen({
             </YStack>
 
             {/* Language & Region Section */}
-            <YStack
-              gap="$3"
-              marginBottom="$6"
-            >
+            <YStack marginBottom="$4">
               <SettingsSectionHeader
                 title="Language & Region"
                 icon={Globe}
@@ -119,65 +111,63 @@ export function PersonalisationScreen({
             </YStack>
 
             {/* Accessibility Section */}
-            <YStack
-              gap="$3"
-              marginBottom="$6"
-            >
+            <YStack marginBottom="$4">
               <SettingsSectionHeader
                 title="Accessibility"
                 icon={Type}
               />
-              <SettingsToggleItem
-                icon={AArrowUp}
-                iconColor="$blue10"
-                iconBackground="$blue2"
-                iconBorder="$blue4"
-                title="Large Text"
-                description="Increase text size for better readability"
-                value={largeText}
-                onValueChange={setLargeText}
-              />
-              <SettingsToggleItem
-                icon={Zap}
-                iconColor="$orange10"
-                iconBackground="$orange2"
-                iconBorder="$orange4"
-                title="Reduce Animations"
-                description="Minimize motion effects"
-                value={reduceAnimations}
-                onValueChange={setReduceAnimations}
-              />
+              <YStack gap="$4">
+                <SettingsToggleItem
+                  icon={AArrowUp}
+                  iconColor="$blue10"
+                  iconBackground="$blue2"
+                  iconBorder="$blue4"
+                  title="Large Text"
+                  description="Increase text size for better readability"
+                  value={largeText}
+                  onValueChange={setLargeText}
+                />
+                <SettingsToggleItem
+                  icon={Zap}
+                  iconColor="$orange10"
+                  iconBackground="$orange2"
+                  iconBorder="$orange4"
+                  title="Reduce Animations"
+                  description="Minimize motion effects"
+                  value={reduceAnimations}
+                  onValueChange={setReduceAnimations}
+                />
+              </YStack>
             </YStack>
 
             {/* Interaction Section */}
-            <YStack
-              gap="$3"
-              marginBottom="$6"
-            >
+            <YStack marginBottom="$4">
               <SettingsSectionHeader
                 title="Interaction"
                 icon={Zap}
               />
-              <SettingsToggleItem
-                icon={Volume2}
-                iconColor="$green10"
-                iconBackground="$green2"
-                iconBorder="$green4"
-                title="Sound Effects"
-                description="Play sounds for interactions"
-                value={soundEffects}
-                onValueChange={setSoundEffects}
-              />
-              <SettingsToggleItem
-                icon={Vibrate}
-                iconColor="$purple10"
-                iconBackground="$purple2"
-                iconBorder="$purple4"
-                title="Haptic Feedback"
-                description="Feel vibrations for actions"
-                value={hapticFeedback}
-                onValueChange={setHapticFeedback}
-              />
+              <YStack gap="$4">
+                <SettingsToggleItem
+                  icon={Volume2}
+                  iconColor="$green10"
+                  iconBackground="$green2"
+                  iconBorder="$green4"
+                  title="Sound Effects"
+                  description="Play sounds for interactions"
+                  value={soundEffects}
+                  onValueChange={setSoundEffects}
+                />
+                <SettingsToggleItem
+                  icon={Vibrate}
+                  iconColor="$purple10"
+                  iconBackground="$purple2"
+                  iconBorder="$purple4"
+                  title="Haptic Feedback"
+                  description="Feel vibrations for actions"
+                  value={hapticFeedback}
+                  onValueChange={setHapticFeedback}
+                />
+              </YStack>
             </YStack>
           </YStack>
         </ScrollView>

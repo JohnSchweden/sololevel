@@ -66,7 +66,70 @@ describe('ProfileSection', () => {
 
       // Assert: Name visible, avatar shows fallback
       expect(screen.getByText('No Avatar User')).toBeInTheDocument()
-      expect(screen.getByTestId('profile-section-avatar-fallback')).toBeInTheDocument()
+      expect(screen.getByTestId('profile-section-avatar-mock')).toBeInTheDocument()
+    })
+  })
+
+  describe('Email Display', () => {
+    it('renders email when provided', () => {
+      // Arrange: User with email
+      const user = {
+        id: '123',
+        name: 'Test User',
+        avatar_url: null,
+      }
+      const email = 'test@example.com'
+
+      // Act: Render with email
+      renderWithProvider(
+        <ProfileSection
+          user={user}
+          email={email}
+          isLoading={false}
+        />
+      )
+
+      // Assert: Email visible with correct styling
+      expect(screen.getByText('test@example.com')).toBeInTheDocument()
+      expect(screen.getByTestId('profile-section-email')).toBeInTheDocument()
+    })
+
+    it('does not render email when not provided', () => {
+      // Arrange: User without email prop
+      const user = {
+        id: '123',
+        name: 'Test User',
+        avatar_url: null,
+      }
+
+      // Act: Render without email
+      renderWithProvider(
+        <ProfileSection
+          user={user}
+          isLoading={false}
+        />
+      )
+
+      // Assert: Email not visible
+      expect(screen.queryByTestId('profile-section-email')).not.toBeInTheDocument()
+    })
+
+    it('includes email in skeleton during loading', () => {
+      // Arrange: Loading with email
+      const email = 'test@example.com'
+
+      // Act: Render loading state with email
+      renderWithProvider(
+        <ProfileSection
+          user={null}
+          email={email}
+          isLoading={true}
+        />
+      )
+
+      // Assert: Skeleton includes email placeholder
+      expect(screen.getByTestId('profile-section-skeleton')).toBeInTheDocument()
+      expect(screen.getByTestId('profile-section-skeleton-email')).toBeInTheDocument()
     })
   })
 })

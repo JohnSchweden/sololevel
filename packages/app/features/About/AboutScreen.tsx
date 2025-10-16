@@ -1,7 +1,8 @@
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { FileText } from '@tamagui/lucide-icons'
-import { Text, XStack, YStack } from 'tamagui'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScrollView, Text, XStack, YStack } from 'tamagui'
 
 // App metadata (from package.json)
 const APP_NAME = 'Solo:Level'
@@ -54,109 +55,116 @@ export function AboutScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <YStack
-        flex={1}
-        paddingTop={headerHeight + 30}
-        paddingHorizontal="$4"
-        gap="$6"
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
       >
-        {/* App Info Section - Custom */}
-        <YStack
-          alignItems="center"
-          gap="$4"
-          marginBottom="$4"
-        >
-          {/* Logo Container */}
-          <XStack
-            width={80}
-            height={80}
-            $md={{ width: 96, height: 96 }}
-            backgroundColor="$purple10"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            alignItems="center"
-            justifyContent="center"
-            testID={`${testID}-logo`}
-          >
-            <Text
-              fontSize="$9"
-              color="$color"
-              fontWeight="700"
-            >
-              S
-            </Text>
-          </XStack>
-
-          {/* App Name */}
-          <Text
-            fontSize="$7"
-            fontWeight="600"
-            color="$color"
-          >
-            {APP_NAME}
-          </Text>
-
-          {/* Version */}
-          <Text
-            fontSize="$3"
-            color="$gray10"
-          >
-            Version {APP_VERSION}
-          </Text>
-
-          {/* Description */}
-          <Text
-            fontSize="$3"
-            color="$gray11"
-            textAlign="center"
-            paddingHorizontal="$4"
-          >
-            {APP_DESCRIPTION}
-          </Text>
-        </YStack>
-
-        {/* Legal Section - Reusable Components */}
-        <YStack>
-          <SettingsSectionHeader
-            icon={FileText}
-            title="Legal"
-          />
-
+        <ScrollView flex={1}>
           <YStack
-            gap="$4"
-            marginBottom="$6"
+            paddingTop={headerHeight + 30}
+            paddingHorizontal="$4"
+            gap="$6"
+            paddingBottom="$6"
           >
-            <SettingsListItem
-              label="Privacy Policy"
-              onPress={onPrivacyPress || (() => {})}
-            />
-            <SettingsListItem
-              label="Terms of Service"
-              onPress={onTermsPress || (() => {})}
-            />
-            <SettingsListItem
-              label="Licenses"
-              onPress={onLicensesPress || (() => {})}
-            />
-          </YStack>
-        </YStack>
+            {/* App Info Section - Custom */}
+            <YStack
+              alignItems="center"
+              gap="$4"
+              marginBottom="$4"
+            >
+              {/* Logo Container */}
+              <XStack
+                width={80}
+                height={80}
+                $md={{ width: 96, height: 96 }}
+                backgroundColor="$purple10"
+                borderRadius="$6"
+                borderWidth={1}
+                borderColor="$borderColor"
+                alignItems="center"
+                justifyContent="center"
+                testID={`${testID}-logo`}
+              >
+                <Text
+                  fontSize="$9"
+                  color="$color"
+                  fontWeight="700"
+                >
+                  S
+                </Text>
+              </XStack>
 
-        {/* Copyright - Custom */}
-        <YStack
-          paddingTop="$6"
-          borderTopWidth={1}
-          borderTopColor="$borderColor"
-          alignItems="center"
-        >
-          <Text
-            fontSize="$2"
-            color="$gray9"
-          >
-            © 2025 {APP_NAME}. All rights reserved.
-          </Text>
-        </YStack>
-      </YStack>
+              {/* App Name */}
+              <Text
+                fontSize="$7"
+                fontWeight="600"
+                color="$color"
+              >
+                {APP_NAME}
+              </Text>
+
+              {/* Version */}
+              <Text
+                fontSize="$3"
+                color="$gray10"
+              >
+                Version {APP_VERSION}
+              </Text>
+
+              {/* Description */}
+              <Text
+                fontSize="$3"
+                color="$gray11"
+                textAlign="center"
+                paddingHorizontal="$4"
+              >
+                {APP_DESCRIPTION}
+              </Text>
+            </YStack>
+
+            {/* Legal Section - Reusable Components */}
+            <YStack>
+              <SettingsSectionHeader
+                icon={FileText}
+                title="Legal"
+              />
+
+              <YStack
+                gap="$4"
+                marginBottom="$6"
+              >
+                <SettingsListItem
+                  label="Privacy Policy"
+                  onPress={onPrivacyPress || (() => {})}
+                />
+                <SettingsListItem
+                  label="Terms of Service"
+                  onPress={onTermsPress || (() => {})}
+                />
+                <SettingsListItem
+                  label="Licenses"
+                  onPress={onLicensesPress || (() => {})}
+                />
+              </YStack>
+            </YStack>
+
+            {/* Copyright - Custom */}
+            <YStack
+              paddingTop="$6"
+              borderTopWidth={1}
+              borderTopColor="$borderColor"
+              alignItems="center"
+            >
+              <Text
+                fontSize="$2"
+                color="$gray9"
+              >
+                © 2025 {APP_NAME}. All rights reserved.
+              </Text>
+            </YStack>
+          </YStack>
+        </ScrollView>
+      </SafeAreaView>
     </GlassBackground>
   )
 }

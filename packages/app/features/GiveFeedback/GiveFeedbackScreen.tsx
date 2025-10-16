@@ -66,144 +66,144 @@ export const GiveFeedbackScreen = ({
       backgroundColor="$color3"
       testID={testID}
     >
-      <ScrollView
-        flex={1}
-        contentContainerStyle={{ flexGrow: 1 }}
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
       >
-        <YStack
-          flex={1}
-          position="relative"
-          paddingTop={headerHeight + 30}
-          paddingHorizontal="$4"
-          gap="$6"
-        >
-          {/* Introduction */}
+        <ScrollView flex={1}>
           <YStack
-            alignItems="center"
-            gap="$4"
-            marginBottom="$6"
+            paddingTop={headerHeight + 30}
             paddingHorizontal="$4"
-            paddingTop="$6"
-          >
-            <Avatar
-              circular
-              size="$8"
-              backgroundColor="$blue9"
-            >
-              <Gift
-                size={32}
-                color="white"
-              />
-            </Avatar>
-            <Text
-              fontSize="$7"
-              fontWeight="600"
-              color="$color"
-              textAlign="center"
-            >
-              Help us improve
-            </Text>
-            <Text
-              fontSize="$4"
-              color="$gray11"
-              textAlign="center"
-            >
-              We'd love to hear your thoughts, suggestions, or report any issues you've encountered.
-            </Text>
-          </YStack>
-
-          {/* Feedback Form */}
-          <YStack
             gap="$6"
-            paddingHorizontal="$4"
-            flex={1}
+            paddingBottom="$6"
           >
-            {/* Feedback Type Selection */}
-            <YStack gap="$3">
+            {/* Introduction */}
+            <YStack
+              alignItems="center"
+              gap="$4"
+              marginBottom="$6"
+              paddingHorizontal="$4"
+              paddingTop="$6"
+            >
+              <Avatar
+                circular
+                size="$8"
+                backgroundColor="$blue9"
+              >
+                <Gift
+                  size={32}
+                  color="white"
+                />
+              </Avatar>
               <Text
-                fontSize="$5"
+                fontSize="$7"
+                fontWeight="600"
                 color="$color"
-                fontWeight="500"
+                textAlign="center"
               >
-                What type of feedback is this?
+                Help us improve
               </Text>
-              <XStack
-                flexWrap="wrap"
-                gap="$3"
+              <Text
+                fontSize="$4"
+                color="$gray11"
+                textAlign="center"
               >
-                {FEEDBACK_TYPES.map((type) => (
-                  <YStack
-                    key={type.id}
-                    //flex={1}
-                    minWidth="45%"
-                  >
-                    <FeedbackTypeButton
-                      id={type.id}
-                      label={type.label}
-                      icon={type.icon}
-                      color={type.color}
-                      selected={selectedType === type.id}
-                      onPress={(id: string) => setSelectedType(id as FeedbackType)}
-                    />
-                  </YStack>
-                ))}
-              </XStack>
+                We'd love to hear your thoughts, suggestions, or report any issues you've
+                encountered.
+              </Text>
             </YStack>
 
-            {/* Message Input */}
+            {/* Feedback Form */}
             <YStack
-              gap="$3"
+              gap="$6"
+              paddingHorizontal="$4"
               flex={1}
             >
-              <Text
-                fontSize="$5"
-                color="$color"
-                fontWeight="500"
-              >
-                Your message
-              </Text>
-              <TextArea
-                value={message}
-                onChange={setMessage}
-                placeholder="Tell us what's on your mind..."
-                minHeight={140}
-                maxLength={1000}
-              />
-              {message.trim() && (
+              {/* Feedback Type Selection */}
+              <YStack gap="$3">
                 <Text
-                  fontSize="$3"
-                  color="$gray10"
+                  fontSize="$5"
+                  color="$color"
+                  fontWeight="500"
                 >
-                  {message.length} / 1000 characters
+                  What type of feedback is this?
                 </Text>
-              )}
-            </YStack>
+                <XStack
+                  flexWrap="wrap"
+                  gap="$3"
+                >
+                  {FEEDBACK_TYPES.map((type) => (
+                    <YStack
+                      key={type.id}
+                      //flex={1}
+                      minWidth="45%"
+                    >
+                      <FeedbackTypeButton
+                        id={type.id}
+                        label={type.label}
+                        icon={type.icon}
+                        color={type.color}
+                        selected={selectedType === type.id}
+                        onPress={(id: string) => setSelectedType(id as FeedbackType)}
+                      />
+                    </YStack>
+                  ))}
+                </XStack>
+              </YStack>
 
-            {/* Submit Button */}
-            <YStack
-              paddingTop="$4"
-              borderTopWidth={1}
-              borderColor="$borderColor"
-              paddingBottom="$4"
-            >
-              <Button
-                onPress={handleSubmit}
-                disabled={!message.trim() || isSubmitting}
-                opacity={!message.trim() || isSubmitting ? 0.5 : 1}
-                backgroundColor="$blue9"
-                color="white"
-                pressStyle={{ backgroundColor: '$blue10' }}
-                hoverStyle={{ backgroundColor: '$blue10' }}
-                icon={isSubmitting ? undefined : <Send size={16} />}
+              {/* Message Input */}
+              <YStack
+                gap="$3"
+                flex={1}
               >
-                {isSubmitting ? 'Sending...' : 'Send Feedback'}
-              </Button>
+                <Text
+                  fontSize="$5"
+                  color="$color"
+                  fontWeight="500"
+                >
+                  Your message
+                </Text>
+                <TextArea
+                  value={message}
+                  onChange={setMessage}
+                  placeholder="Tell us what's on your mind..."
+                  minHeight={140}
+                  maxLength={1000}
+                />
+                {message.trim() && (
+                  <Text
+                    fontSize="$3"
+                    color="$gray10"
+                  >
+                    {message.length} / 1000 characters
+                  </Text>
+                )}
+              </YStack>
+
+              {/* Submit Button */}
+              <YStack
+                paddingTop="$4"
+                borderTopWidth={1}
+                borderColor="$borderColor"
+                paddingBottom="$4"
+              >
+                <Button
+                  onPress={handleSubmit}
+                  disabled={!message.trim() || isSubmitting}
+                  opacity={!message.trim() || isSubmitting ? 0.5 : 1}
+                  backgroundColor="$blue9"
+                  color="white"
+                  pressStyle={{ backgroundColor: '$blue10' }}
+                  hoverStyle={{ backgroundColor: '$blue10' }}
+                  icon={isSubmitting ? undefined : <Send size={16} />}
+                >
+                  {isSubmitting ? 'Sending...' : 'Send Feedback'}
+                </Button>
+              </YStack>
             </YStack>
           </YStack>
-        </YStack>
-      </ScrollView>
-
-      <SafeAreaView edges={['bottom']} />
+        </ScrollView>
+      </SafeAreaView>
     </GlassBackground>
   )
 }

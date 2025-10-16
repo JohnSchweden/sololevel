@@ -46,9 +46,9 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
-            name="settings/security"
+            name="settings/account"
             options={{
-              title: 'Security',
+              title: 'Account',
               headerShown: false,
             }}
           />
@@ -56,6 +56,20 @@ export default function RootLayout() {
             name="settings/personalisation"
             options={{
               title: 'Personalisation',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings/give-feedback"
+            options={{
+              title: 'Give Feedback',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings/security"
+            options={{
+              title: 'Security',
               headerShown: false,
             }}
           />
@@ -70,13 +84,6 @@ export default function RootLayout() {
             name="settings/about"
             options={{
               title: 'About',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="settings/give-feedback"
-            options={{
-              title: 'Give Feedback',
               headerShown: false,
             }}
           />

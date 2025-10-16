@@ -7,6 +7,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Database, Download, Trash2 } from '@tamagui/lucide-icons'
 import { useState } from 'react'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, ScrollView, Text, YStack } from 'tamagui'
 
 export interface DataControlsScreenProps {
@@ -53,107 +54,111 @@ export function DataControlsScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <ScrollView flex={1}>
-        <YStack
-          flex={1}
-          position="relative"
-          paddingTop={headerHeight + 30}
-          paddingHorizontal="$4"
-          gap="$6"
-        >
-          {/* Data Sharing Section */}
-          <YStack>
-            <SettingsSectionHeader
-              icon={Database}
-              title="Data Sharing"
-            />
-            <YStack gap="$4">
-              <SettingsToggleItem
-                icon={Database}
-                iconColor="$blue10"
-                iconBackground="$blue3"
-                iconBorder="$blue5"
-                title="Analytics Data"
-                description="Share app usage data to improve experience"
-                value={analyticsEnabled}
-                onValueChange={setAnalyticsEnabled}
-                testID="settings-toggle-item-analytics"
-              />
-              <SettingsToggleItem
-                icon={Database}
-                iconColor="$blue10"
-                iconBackground="$blue3"
-                iconBorder="$blue5"
-                title="Crash Reports"
-                description="Automatically send crash reports"
-                value={crashReportsEnabled}
-                onValueChange={setCrashReportsEnabled}
-                testID="settings-toggle-item-crash-reports"
-              />
-            </YStack>
-          </YStack>
-
-          {/* Data Export Section */}
-          <YStack>
-            <SettingsSectionHeader
-              icon={Download}
-              title="Data Export"
-            />
-            <SettingsNavigationItem
-              icon={Download}
-              iconColor="$blue10"
-              iconBackgroundColor="$blue3"
-              iconBorderColor="$blue5"
-              title="Export Data"
-              subtitle="Download all your personal data"
-              onPress={onDataExport || (() => {})}
-              testID="settings-navigation-item-export"
-            />
-          </YStack>
-
-          {/* Data Deletion Section */}
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
+      >
+        <ScrollView flex={1}>
           <YStack
-            gap="$3"
-            marginBottom="$8"
+            paddingTop={headerHeight + 30}
+            paddingHorizontal="$4"
+            gap="$6"
+            paddingBottom="$6"
           >
-            <SettingsSectionHeader
-              icon={Trash2}
-              title="Data Deletion"
-            />
+            {/* Data Sharing Section */}
+            <YStack>
+              <SettingsSectionHeader
+                icon={Database}
+                title="Data Sharing"
+              />
+              <YStack gap="$4">
+                <SettingsToggleItem
+                  icon={Database}
+                  iconColor="$blue10"
+                  iconBackground="$blue3"
+                  iconBorder="$blue5"
+                  title="Analytics Data"
+                  description="Share app usage data to improve experience"
+                  value={analyticsEnabled}
+                  onValueChange={setAnalyticsEnabled}
+                  testID="settings-toggle-item-analytics"
+                />
+                <SettingsToggleItem
+                  icon={Database}
+                  iconColor="$blue10"
+                  iconBackground="$blue3"
+                  iconBorder="$blue5"
+                  title="Crash Reports"
+                  description="Automatically send crash reports"
+                  value={crashReportsEnabled}
+                  onValueChange={setCrashReportsEnabled}
+                  testID="settings-toggle-item-crash-reports"
+                />
+              </YStack>
+            </YStack>
+
+            {/* Data Export Section */}
+            <YStack>
+              <SettingsSectionHeader
+                icon={Download}
+                title="Data Export"
+              />
+              <SettingsNavigationItem
+                icon={Download}
+                iconColor="$blue10"
+                iconBackgroundColor="$blue3"
+                iconBorderColor="$blue5"
+                title="Export Data"
+                subtitle="Download all your personal data"
+                onPress={onDataExport || (() => {})}
+                testID="settings-navigation-item-export"
+              />
+            </YStack>
+
+            {/* Data Deletion Section */}
             <YStack
-              paddingHorizontal="$4"
               gap="$3"
+              marginBottom="$8"
             >
-              <Text
-                fontSize="$3"
-                color="$red11"
-              >
-                This will permanently delete all your app data including preferences, history, and
-                saved items.
-              </Text>
-              <Button
-                backgroundColor="$red3"
-                borderColor="$red6"
-                borderWidth={1}
-                color="$red11"
+              <SettingsSectionHeader
                 icon={Trash2}
-                size="$4"
-                onPress={onClearAllData || (() => {})}
-                pressStyle={{
-                  backgroundColor: '$red4',
-                  scale: 0.98,
-                }}
-                hoverStyle={{
-                  backgroundColor: '$red4',
-                }}
-                testID="button-clear-all-data"
+                title="Data Deletion"
+              />
+              <YStack
+                paddingHorizontal="$4"
+                gap="$3"
               >
-                Clear All Data
-              </Button>
+                <Text
+                  fontSize="$3"
+                  color="$red11"
+                >
+                  This will permanently delete all your app data including preferences, history, and
+                  saved items.
+                </Text>
+                <Button
+                  backgroundColor="$red3"
+                  borderColor="$red6"
+                  borderWidth={1}
+                  color="$red11"
+                  icon={Trash2}
+                  size="$4"
+                  onPress={onClearAllData || (() => {})}
+                  pressStyle={{
+                    backgroundColor: '$red4',
+                    scale: 0.98,
+                  }}
+                  hoverStyle={{
+                    backgroundColor: '$red4',
+                  }}
+                  testID="button-clear-all-data"
+                >
+                  Clear All Data
+                </Button>
+              </YStack>
             </YStack>
           </YStack>
-        </YStack>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     </GlassBackground>
   )
 }

@@ -1,7 +1,8 @@
 import { AuthenticationSection, GlassBackground, SessionManagementSection } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { useState } from 'react'
-import { YStack } from 'tamagui'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScrollView, YStack } from 'tamagui'
 
 export interface SecurityScreenProps {
   /**
@@ -47,25 +48,31 @@ export function SecurityScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <YStack
-        flex={1}
-        position="relative"
-        paddingTop={headerHeight + 30}
-        paddingHorizontal="$4"
-        gap="$6"
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
       >
-        <AuthenticationSection
-          appLock={appLock}
-          onAppLockChange={setAppLock}
-          biometricLogin={biometricLogin}
-          onBiometricLoginChange={setBiometricLogin}
-        />
+        <ScrollView flex={1}>
+          <YStack
+            paddingTop={headerHeight + 30}
+            paddingHorizontal="$4"
+            gap="$6"
+            paddingBottom="$6"
+          >
+            <AuthenticationSection
+              appLock={appLock}
+              onAppLockChange={setAppLock}
+              biometricLogin={biometricLogin}
+              onBiometricLoginChange={setBiometricLogin}
+            />
 
-        <SessionManagementSection
-          onActiveSessionsPress={onActiveSessionsPress || (() => {})}
-          onLoginHistoryPress={onLoginHistoryPress || (() => {})}
-        />
-      </YStack>
+            <SessionManagementSection
+              onActiveSessionsPress={onActiveSessionsPress || (() => {})}
+              onLoginHistoryPress={onLoginHistoryPress || (() => {})}
+            />
+          </YStack>
+        </ScrollView>
+      </SafeAreaView>
     </GlassBackground>
   )
 }

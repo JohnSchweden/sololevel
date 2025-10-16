@@ -9,6 +9,7 @@ import {
   SettingsNavigationList,
 } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
 
@@ -108,36 +109,39 @@ export function SettingsScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <YStack
-        flex={1}
-        position="relative"
-        paddingTop={headerHeight}
-        paddingHorizontal="$4"
-        marginVertical="$4"
-        paddingBottom={140}
-        overflow="hidden"
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
       >
-        {/* Profile Section */}
-        <ProfileSection
-          user={profileUser}
-          isLoading={isLoadingUser}
-        />
+        <YStack
+          flex={1}
+          paddingTop={headerHeight}
+          paddingHorizontal="$4"
+          gap="$6"
+          paddingBottom="$6"
+        >
+          {/* Profile Section */}
+          <ProfileSection
+            user={profileUser}
+            isLoading={isLoadingUser}
+          />
 
-        {/* Navigation List */}
-        <SettingsNavigationList
-          items={navigationItems}
-          onNavigate={handleNavigate}
-        />
+          {/* Navigation List */}
+          <SettingsNavigationList
+            items={navigationItems}
+            onNavigate={handleNavigate}
+          />
 
-        {/* Log Out Button */}
-        <LogOutButton
-          onPress={handleLogout}
-          isLoading={false} // P1: Track logout loading state
-        />
+          {/* Log Out Button */}
+          <LogOutButton
+            onPress={handleLogout}
+            isLoading={false} // P1: Track logout loading state
+          />
 
-        {/* Footer Links */}
-        <SettingsFooter onLinkPress={handleFooterLink} />
-      </YStack>
+          {/* Footer Links */}
+          <SettingsFooter onLinkPress={handleFooterLink} />
+        </YStack>
+      </SafeAreaView>
     </GlassBackground>
   )
 }

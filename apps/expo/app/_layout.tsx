@@ -152,6 +152,23 @@ function RootLayoutNav() {
               }
             />
             <Stack.Screen
+              name="settings/account"
+              options={
+                {
+                  title: 'Account',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
+            />
+            <Stack.Screen
               name="settings/personalisation"
               options={
                 {

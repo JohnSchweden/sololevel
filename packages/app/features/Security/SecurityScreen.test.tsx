@@ -22,6 +22,14 @@ jest.mock('tamagui', () => ({
       {children}
     </div>
   ),
+  ScrollView: ({ children, testID, ...props }: any) => (
+    <div
+      data-testid={testID}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
 }))
 
 // Mock navigation hooks

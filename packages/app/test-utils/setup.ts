@@ -191,18 +191,32 @@ jest.mock('@my/ui', () => {
           )
         : null,
     // Mock Settings components to avoid image import issues in SettingsScreen tests
-    ProfileSection: ({ user, isLoading, testID = 'profile-section' }: any) => {
+    ProfileSection: ({ user, email, isLoading, testID = 'profile-section' }: any) => {
       if (isLoading) {
         return React.createElement(
           'div',
           { 'data-testid': 'profile-section-skeleton' },
-          'Loading...'
+          email
+            ? [
+                'Loading...',
+                React.createElement('div', {
+                  key: 'email-skeleton',
+                  'data-testid': 'profile-section-skeleton-email',
+                }),
+              ]
+            : 'Loading...'
         )
       }
       return React.createElement(
         'div',
         { 'data-testid': testID },
-        user?.name || user?.user_metadata?.full_name || user?.email || 'No user'
+        user?.name || user?.user_metadata?.full_name || user?.email || 'No user',
+        email &&
+          React.createElement(
+            'div',
+            { 'data-testid': 'profile-section-email', key: 'email' },
+            email
+          )
       )
     },
     SettingsListItem: ({ label, onPress, testID = 'settings-list-item' }: any) =>
@@ -251,6 +265,43 @@ jest.mock('@my/ui', () => {
           'FAQ'
         )
       ),
+    SettingsNavigationItem: ({
+      title,
+      subtitle,
+      onPress,
+      testID = 'settings-navigation-item',
+    }: any) =>
+      React.createElement(
+        'button',
+        { 'data-testid': testID, onClick: onPress },
+        React.createElement('div', {}, title),
+        React.createElement('div', {}, subtitle)
+      ),
+    SettingsToggleItem: ({
+      title,
+      description,
+      value,
+      onValueChange,
+      testID = 'settings-toggle-item',
+    }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID },
+        React.createElement('div', {}, title),
+        React.createElement('div', {}, description),
+        React.createElement('input', {
+          type: 'checkbox',
+          role: 'switch',
+          checked: value,
+          'aria-label': title,
+          'aria-description': description,
+          onChange: (e: any) => onValueChange(e.target.checked),
+        })
+      ),
+    AuthenticationSection: (_props: any) =>
+      React.createElement('div', { 'data-testid': 'authentication-section' }),
+    SessionManagementSection: (_props: any) =>
+      React.createElement('div', { 'data-testid': 'session-management-section' }),
     // Mock Feedback components
     FeedbackTypeButton: ({
       id,
@@ -553,6 +604,8 @@ jest.mock('tamagui', () => {
         { testID, style: { display: 'flex', flexDirection: 'column' }, ...props },
         children
       ),
+    ScrollView: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { testID, style: { overflow: 'auto' }, ...props }, children),
     Circle: ({ children, testID, ...props }: any) =>
       React.createElement('div', { testID, style: { borderRadius: '50%' }, ...props }, children),
     Text: ({ children, testID, ...props }: any) =>

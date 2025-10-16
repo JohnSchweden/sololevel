@@ -1,5 +1,10 @@
 # Coach AI UI/UX Analysis
 
+## Test Scenarios (TDD Foundation)
+- [ ] **Visual Component Tests**: Snapshot tests for each state (idle, loading, error, success); responsive breakpoints (mobile, tablet, desktop); theme token validation
+- [ ] **User Interaction Tests**: Touch/click scenarios (tap, swipe, type, scroll); visual feedback (hover, press, focus); touch target size (44px minimum); gesture handling (pan, pinch, long press)
+- [ ] **Accessibility Tests**: Screen reader navigation (semantic structure, ARIA labels); keyboard navigation (tab order, focus management); color contrast (WCAG 2.2 AA); dynamic type scaling
+
 ## Visual Design Analysis
 
 ### Layout Structure
@@ -25,32 +30,30 @@ GlassBackground (full screen)
 │               └── XStack gap="$1.5" (voice buttons)
 ```
 
+### Code Composition Pattern
+
+- **Screen**: `packages/app/features/Coach/CoachScreen.tsx` - Orchestrator with callback props (`onBack?: () => void`, `onNavigateToSettings?: () => void`)
+  - Hooks: Chat state management, message handling, voice input state
+  - Render: UI components from @my/ui
+  - NO business logic (delegated to hooks)
+  - NO navigation logic (callback props only)
+- **Route**: `apps/{expo,web}/app/coach.tsx` - Navigation handlers, AuthGate wrapper, platform-specific logic
+- **Pattern**: Callback props in screens → handlers in route files → platform-specific (Linking/window.open)
+
 ### Component Mapping
 
-**Layout Components (Tamagui)**
-- `YStack` - vertical containers
-- `XStack` - horizontal containers  
-- `ScrollView` - messages area
-- `SafeAreaView` - bottom edge
-
-**Interactive Components**
-- `Button` - back, suggestions, voice controls
-  - Variants: ghost, icon-only (44px touch target)
-  - States: default, pressed, disabled
-- `TextArea` - message input with auto-resize
-- `Avatar` - coach image with fallback
-
-**Display Components**
-- `Text` - messages, timestamps, labels
-- `Sheet` - collapsible suggestions
-- Message bubbles - custom styled YStack
+- [ ] **Layout**: YStack, XStack, ScrollView, SafeAreaView
+- [ ] **Interactive**: Button (back, suggestions, voice controls), TextArea, Avatar
+- [ ] **Display**: Text, Sheet (collapsible suggestions), Message bubbles (custom styled YStack)
+- [ ] **Overlay**: Toast (for errors/confirmations)
+- [ ] **Custom**: CoachAvatar, MessageBubble, SuggestionChip, ChatInput, TypingIndicator
 
 **Reusable from @my/ui**
 - `GlassBackground` - existing component
-- `Button` - standard UI button
+- `Button` - standard UI button with variants (ghost, icon-only)
 - Base layout primitives (YStack, XStack, ScrollView)
 
-**New Components Needed**
+**New Components to Create**
 - `CoachAvatar` - animated avatar with typing indicator
 - `MessageBubble` - chat message with timestamp
 - `SuggestionChip` - interactive suggestion button
@@ -59,92 +62,72 @@ GlassBackground (full screen)
 
 ### Design Tokens
 
-**Colors**
-- Background: Glass effect with gradient overlay
-- Message bubbles: `rgba(255,255,255,0.2)` user, `rgba(255,255,255,0.1)` coach
-- Input container: White (`#FFFFFF`)
-- Text: White on glass, dark gray on white input
+- [ ] **Colors**: Glass background with gradient overlay; message bubbles `rgba(255,255,255,0.2)` user, `rgba(255,255,255,0.1)` coach; white input container; text white on glass, dark gray on white
+- [ ] **Typography**: Title fontSize="$6" (Josefin Sans Regular); message text fontSize="$3"; timestamp fontSize="$2" color="$gray10"; input placeholder fontSize="$4"
+- [ ] **Spacing**: Container padding `$6`; section gaps `$4`; element gaps `$2`, `$3`; message margins `$3`
+- [ ] **Sizes**: Avatar 80x80px with 4px border; touch targets 44px minimum; input max height 120px; suggestion pills padding `$3` `$4`
 
-**Typography**
-- Title: Josefin Sans Regular, fontSize="$6"
-- Message text: fontSize="$3", lineHeight="relaxed"
-- Timestamp: fontSize="$2", color="$gray10"
-- Input placeholder: fontSize="$4"
+### Responsive Breakpoints
 
-**Spacing**
-- Container padding: `$6`
-- Section gaps: `$4`
-- Element gaps: `$2`, `$3`
-- Message margins: `$3` (between bubbles)
+- [ ] **Mobile (< 768px)**: Single column layout, touch-optimized with 44px minimum touch targets
+- [ ] **Tablet (768-1024px)**: Similar to mobile with larger touch areas, adaptive input sizing
+- [ ] **Desktop (> 1024px)**: Hover states on all interactive elements, keyboard shortcuts enabled (Enter/Shift+Enter)
 
-**Sizes**
-- Avatar: 80x80px, border 4px
-- Touch targets: 44px minimum (icon buttons 32px with padding)
-- Input max height: 120px
-- Suggestion pills: auto height, padding `$3` `$4`
+## Interactive Elements
 
-### Interactive Elements
+- [ ] **Buttons**: States (default, hover, pressed, disabled); variants (ghost for voice controls, icon-only for back/actions with 44px touch targets)
+  - Back button: Icon-only, hover white color
+  - Avatar: Clickable with scale animation → navigate to settings
+  - Suggestion chips: Tap to send, disabled during typing, scale feedback
+  - Attachment (Plus): Ghost variant, left position in input
+  - Voice (Mic): Toggle state with red highlight when active
+  - Voice Mode (Headphones): Ghost variant
+- [ ] **Form Elements**: TextArea with auto-resize (32px-120px), Enter to send, Shift+Enter for newline, placeholder "Message your coach"
+- [ ] **Navigation**: Callback props (`onBack`, `onNavigateToSettings`) → handlers in route files
+- [ ] **AppHeader**: Not used (custom header in screen with back button)
 
-**Buttons**
-- Back button: Icon-only, hover: white
-- Avatar: Clickable → navigate to settings, scale animation
-- Suggestion chips: Tap to send, disabled during typing
-- Attachment (Plus): Ghost button, left in input
-- Voice (Mic): Toggle red when active
-- Voice Mode (Headphones): Ghost button
+## Animations & Loading States
 
-**Form Elements**
-- TextArea: Auto-resize (32px-120px), Enter to send, Shift+Enter for newline
-- Placeholder: "Message your coach"
+- [ ] **Transitions**: Button feedback scale(1.05) hover, scale(0.95) active; suggestions collapse/expand with height/opacity transition
+- [ ] **Loading UI**: Typing indicator (3 bouncing dots with staggered delay 0.1s, 0.2s); avatar pulse animation during AI typing
+- [ ] **Performance**: Smooth scroll to new messages; 60fps target for animations
 
-**Animations**
-- Avatar pulse: when AI typing
-- Typing indicator: 3 bouncing dots (staggered delay)
-- Suggestions: Collapse/expand with height transition
-- Button feedback: scale(1.05) hover, scale(0.95) active
-- Auto-scroll: smooth scroll to new messages
+## Cross-Platform Considerations
 
-### Cross-Platform Considerations
+- [ ] **Platform Adaptations**
+  - iOS: Custom header (no AppHeader), SafeAreaView bottom edge, keyboard dismiss on scroll/shift input up, haptics on button press
+  - Android: System back button support, material design feedback, keyboard behavior similar to iOS
+  - Web: Hover states on all interactive elements, keyboard shortcuts (Enter/Shift+Enter), no safe area insets, focus management
+- [ ] **Safe Area Handling**
+  - Custom header instead of AppHeader (no top inset handling needed)
+  - Use `<SafeAreaView edges={['bottom']} />` at screen root for input area
+- [ ] **Platform-Specific Components**
+  - Native-only: Voice input (speech recognition), haptics on interactions
+  - Web-only: Keyboard shortcuts, focus visible styles
+  - Shared: Chat UI with platform-specific styling (hover states web-only)
 
-**iOS**
-- Safe area: Top handled by AppHeader, bottom by SafeAreaView
-- Keyboard: Dismiss on scroll, shift input up
+## Quality Gates & Documentation
 
-**Android**
-- System navigation: Honor back button
-- Keyboard: Similar behavior to iOS
+- [ ] **Testing**: Visual regression (snapshot tests for message bubbles, input states); accessibility (WCAG 2.2 AA color contrast, keyboard navigation, screen reader message announcements); performance (render < 16ms, smooth 60fps animations); cross-platform parity (iOS/Android/Web)
+- [ ] **Documentation**: Storybook stories for CoachAvatar (idle/typing), MessageBubble (user/coach), SuggestionChip (default/disabled), ChatInput (empty/filled/disabled); theme token usage examples; screen reader test results; animation timing specs (bounce delays, transition durations)
 
-**Web**
-- Hover states: On all interactive elements
-- Keyboard shortcuts: Enter to send, Shift+Enter for newline
-- No safe area insets
+## Navigation & App Integration
 
-## Navigation & Integration
+- [ ] **Screen**: `packages/app/features/Coach/CoachScreen.tsx` with callback props
+  ```typescript
+  interface CoachScreenProps {
+    onBack?: () => void;
+    onNavigateToSettings?: () => void;
+  }
+  ```
+- [ ] **Routes**: `apps/{expo,web}/app/coach.tsx` with handlers + AuthGate + `_layout.tsx` update
+- [ ] **Navigation**: Callback props in screens → handlers in route files
+- [ ] **Platform**: Native=Linking.openURL, Web=window.open (if external links needed)
+- [ ] **Testing**: Mock callback props for testability
 
-**Screen Location**: `packages/app/features/Coach/CoachScreen.tsx`
+## Cross-References
 
-**Props**:
-```typescript
-interface CoachScreenProps {
-  onBack?: () => void;
-  onNavigateToSettings?: () => void;
-}
-```
-
-**Routes**: 
-- Native: `apps/expo/app/coach.tsx`
-- Web: `apps/web/app/coach.tsx`
-
-**Pattern**: Callback props → handlers in route files
-
-**Update**: `apps/{expo,web}/app/(tabs)/settings/_layout.tsx` for navigation
-
-## Test Scenarios
-
-- [ ] Visual: Glass background renders, avatar displays, messages layout correctly
-- [ ] Interaction: Send message, toggle voice, collapse suggestions, click avatar
-- [ ] Keyboard: Enter sends, Shift+Enter newline, auto-focus input
-- [ ] States: Loading (typing indicator), disabled inputs during typing
-- [ ] Accessibility: Screen reader announces messages, keyboard navigation
-- [ ] Responsive: Mobile layout, textarea auto-resize
+- **Feature Logic**: See `analysis-feature.md` for chat state management, AI integration, and business logic
+- **Backend Integration**: See `analysis-backend.md` for message storage, AI coach API requirements
+- **Platform Specifics**: See `analysis-platform.md` for voice input, speech recognition implementation details
 
