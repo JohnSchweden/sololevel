@@ -8,18 +8,11 @@ import {
 } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { AArrowUp, Globe, Palette, Type, Vibrate, Volume2, Zap } from '@tamagui/lucide-icons'
-import { useNavigation } from 'expo-router'
-import { useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, YStack } from 'tamagui'
-import type { NavAppHeaderOptions } from '../../components/navigation'
 
 export interface PersonalisationScreenProps {
-  /**
-   * Callback for back navigation (injected from route file)
-   */
-  onBack: () => void
-
   /**
    * Test ID for testing
    */
@@ -38,10 +31,8 @@ export interface PersonalisationScreenProps {
  * ```
  */
 export function PersonalisationScreen({
-  onBack,
   testID = 'personalisation-screen',
-}: PersonalisationScreenProps): React.ReactElement {
-  const navigation = useNavigation()
+}: PersonalisationScreenProps = {}): React.ReactElement {
   const headerHeight = useHeaderHeight()
 
   // Local state for personalisation settings (P1: Move to Zustand store)
@@ -65,19 +56,6 @@ export function PersonalisationScreen({
     { value: 'ko-KR', label: '한국어' },
     { value: 'zh-CN', label: '中文 (简体)' },
   ]
-
-  // Configure AppHeader: Back button on left, no right action
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Personalisation',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'none',
-        onBackPress: onBack,
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, onBack])
 
   return (
     <GlassBackground

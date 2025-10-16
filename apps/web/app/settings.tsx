@@ -1,9 +1,19 @@
 import { SettingsScreen } from '@my/app/features/Settings'
 import { useConfirmDialog } from '@my/app/hooks/useConfirmDialog'
 import { useAuthStore } from '@my/app/stores/auth'
-import { ConfirmDialog, type FooterLinkType } from '@my/ui'
+import { ConfirmDialog, type FooterLinkType, type SettingsNavItem } from '@my/ui'
 import { useRouter } from 'expo-router'
 import { AuthGate } from '../components/AuthGate'
+
+// Navigation items configuration for settings
+const NAVIGATION_ITEMS: SettingsNavItem[] = [
+  { id: 'account', label: 'Account', route: '/settings/account' },
+  { id: 'personalisation', label: 'Personalisation', route: '/settings/personalisation' },
+  { id: 'give-feedback', label: 'Give feedback', route: '/settings/give-feedback' },
+  { id: 'data-controls', label: 'Data controls', route: '/settings/data-controls' },
+  { id: 'security', label: 'Security', route: '/settings/security' },
+  { id: 'about', label: 'About', route: '/settings/about' },
+]
 
 /**
  * Settings Route - Web App
@@ -42,6 +52,7 @@ export default function SettingsRoute() {
   return (
     <AuthGate>
       <SettingsScreen
+        navigationItems={NAVIGATION_ITEMS}
         onNavigate={handleNavigate}
         onFooterLink={handleFooterLink}
         onLogout={logoutDialog.show}

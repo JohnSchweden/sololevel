@@ -32,6 +32,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="history-progress"
+            options={{
+              title: 'History & Progress',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="settings"
             options={{
               title: 'Settings',
@@ -63,6 +70,13 @@ export default function RootLayout() {
             name="settings/about"
             options={{
               title: 'About',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings/give-feedback"
+            options={{
+              title: 'Give Feedback',
               headerShown: false,
             }}
           />

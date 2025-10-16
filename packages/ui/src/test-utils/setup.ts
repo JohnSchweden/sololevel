@@ -123,6 +123,18 @@ jest.mock('tamagui', () => {
   return createTamaguiMock()
 })
 
+// Mock @tamagui/core to provide styled function
+jest.mock('@tamagui/core', () => {
+  require('react')
+  const { createTamaguiMock, createMockStyled } = require('./mocks')
+  const tamaguiMock = createTamaguiMock()
+
+  return {
+    ...tamaguiMock,
+    styled: createMockStyled(),
+  }
+})
+
 // Mock Lucide icons globally - using manual mock at packages/ui/__mocks__/@tamagui/lucide-icons.tsx
 // Jest automatically uses manual mocks in __mocks__ directory
 

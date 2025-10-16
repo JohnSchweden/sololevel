@@ -1,9 +1,7 @@
 import { AuthenticationSection, GlassBackground, SessionManagementSection } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
-import { useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
 import { YStack } from 'tamagui'
-import type { NavAppHeaderOptions } from '../../components/navigation'
 
 export interface SecurityScreenProps {
   /**
@@ -38,26 +36,11 @@ export function SecurityScreen({
   onLoginHistoryPress,
   testID = 'security-screen',
 }: SecurityScreenProps = {}): React.ReactElement {
-  const navigation = useNavigation()
-  const router = useRouter()
   const headerHeight = useHeaderHeight()
 
   // Local state for security settings (P1: Move to Zustand store)
   const [appLock, setAppLock] = useState(false)
   const [biometricLogin, setBiometricLogin] = useState(true)
-
-  // Configure AppHeader: Back button on left, no right action
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Security',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'none',
-        onBackPress: () => router.back(),
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, router])
 
   return (
     <GlassBackground

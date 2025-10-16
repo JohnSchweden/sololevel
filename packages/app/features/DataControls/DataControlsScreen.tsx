@@ -6,10 +6,8 @@ import {
 } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Database, Download, Trash2 } from '@tamagui/lucide-icons'
-import { useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button, ScrollView, Text, YStack } from 'tamagui'
-import type { NavAppHeaderOptions } from '../../components/navigation'
 
 export interface DataControlsScreenProps {
   /**
@@ -44,26 +42,11 @@ export function DataControlsScreen({
   onClearAllData,
   testID = 'data-controls-screen',
 }: DataControlsScreenProps = {}): React.ReactElement {
-  const navigation = useNavigation()
-  const router = useRouter()
   const headerHeight = useHeaderHeight()
 
   // Local state for data controls (P1: Move to Zustand store)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
   const [crashReportsEnabled, setCrashReportsEnabled] = useState(true)
-
-  // Configure AppHeader: Back button on left, no right action
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Data Controls',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'none',
-        onBackPress: () => router.back(),
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, router])
 
   return (
     <GlassBackground
@@ -137,33 +120,37 @@ export function DataControlsScreen({
               icon={Trash2}
               title="Data Deletion"
             />
-            <Text
-              fontSize="$3"
-              color="$red11"
+            <YStack
               paddingHorizontal="$4"
+              gap="$3"
             >
-              This will permanently delete all your app data including preferences, history, and
-              saved items.
-            </Text>
-            <Button
-              backgroundColor="$red3"
-              borderColor="$red6"
-              borderWidth={1}
-              color="$red11"
-              icon={Trash2}
-              size="$4"
-              onPress={onClearAllData || (() => {})}
-              pressStyle={{
-                backgroundColor: '$red4',
-                scale: 0.98,
-              }}
-              hoverStyle={{
-                backgroundColor: '$red4',
-              }}
-              testID="button-clear-all-data"
-            >
-              Clear All Data
-            </Button>
+              <Text
+                fontSize="$3"
+                color="$red11"
+              >
+                This will permanently delete all your app data including preferences, history, and
+                saved items.
+              </Text>
+              <Button
+                backgroundColor="$red3"
+                borderColor="$red6"
+                borderWidth={1}
+                color="$red11"
+                icon={Trash2}
+                size="$4"
+                onPress={onClearAllData || (() => {})}
+                pressStyle={{
+                  backgroundColor: '$red4',
+                  scale: 0.98,
+                }}
+                hoverStyle={{
+                  backgroundColor: '$red4',
+                }}
+                testID="button-clear-all-data"
+              >
+                Clear All Data
+              </Button>
+            </YStack>
           </YStack>
         </YStack>
       </ScrollView>

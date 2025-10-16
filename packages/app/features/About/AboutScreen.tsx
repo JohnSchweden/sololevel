@@ -1,10 +1,7 @@
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { FileText } from '@tamagui/lucide-icons'
-import { useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect } from 'react'
 import { Text, XStack, YStack } from 'tamagui'
-import type { NavAppHeaderOptions } from '../../components/navigation'
 
 // App metadata (from package.json)
 const APP_NAME = 'Solo:Level'
@@ -50,22 +47,7 @@ export function AboutScreen({
   onLicensesPress,
   testID = 'about-screen',
 }: AboutScreenProps = {}): React.ReactElement {
-  const navigation = useNavigation()
-  const router = useRouter()
   const headerHeight = useHeaderHeight()
-
-  // Configure AppHeader: Back button on left, no right action
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'About',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'none',
-        onBackPress: () => router.back(),
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, router])
 
   return (
     <GlassBackground

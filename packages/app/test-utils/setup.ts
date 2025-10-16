@@ -251,6 +251,54 @@ jest.mock('@my/ui', () => {
           'FAQ'
         )
       ),
+    // Mock Feedback components
+    FeedbackTypeButton: ({
+      id,
+      label,
+      icon,
+      selected,
+      onPress,
+      testID,
+    }: {
+      id: string
+      label: string
+      icon: string
+      selected: boolean
+      onPress: (id: string) => void
+      testID?: string
+    }) =>
+      React.createElement(
+        'button',
+        {
+          'data-testid': testID || `feedback-type-${id}`,
+          'aria-label': `${label}, ${selected ? 'selected' : 'not selected'}`,
+          onClick: () => onPress(id),
+          'data-selected': selected,
+        },
+        React.createElement('span', {}, icon),
+        React.createElement('span', {}, label)
+      ),
+    // Mock Form components
+    TextArea: ({
+      value,
+      onChange,
+      placeholder,
+      testID,
+      maxLength,
+    }: {
+      value?: string
+      onChange?: (value: string) => void
+      placeholder?: string
+      testID?: string
+      maxLength?: number
+    }) =>
+      React.createElement('textarea', {
+        'data-testid': testID || 'textarea',
+        value: value || '',
+        onChange: (e: any) => onChange?.(e.target.value),
+        placeholder,
+        maxLength,
+      }),
   }
 })
 

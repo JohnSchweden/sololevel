@@ -55,21 +55,6 @@ describe('SecurityScreen', () => {
       expect(screen.getByTestId('security-screen')).toBeInTheDocument()
     })
 
-    it('should configure AppHeader with correct title and navigation', () => {
-      render(<SecurityScreen />)
-
-      expect(mockNavigation.setOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          appHeaderProps: expect.objectContaining({
-            title: 'Security',
-            mode: 'default',
-            leftAction: 'back',
-            rightAction: 'none',
-          }),
-        })
-      )
-    })
-
     it('should render GlassBackground container', () => {
       render(<SecurityScreen testID="security-screen" />)
 

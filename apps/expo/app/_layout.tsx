@@ -23,6 +23,9 @@ import { SplashScreen, Stack } from 'expo-router'
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync()
 
+// Profile image for header
+const profileImage = require('../assets/profile.png')
+
 export default function App() {
   const [interLoaded, interError] = useFonts({
     InterRegular: require('@tamagui/font-inter/otf/Inter-Regular.otf'),
@@ -110,69 +113,128 @@ function RootLayoutNav() {
             />
             <Stack.Screen
               name="history-progress"
-              options={{
-                title: 'History & Progress',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: '$background' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_left',
-              }}
+              options={({ navigation }) =>
+                ({
+                  title: 'History & Progress',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: '$background' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  animation: 'slide_from_left',
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'profile',
+                    profileImageUri: profileImage,
+                    onProfilePress: () => {
+                      log.info('_layout', 'Navigate to settings from history-progress')
+                      navigation.navigate('settings' as any)
+                    },
+                  },
+                }) as any
+              }
             />
             <Stack.Screen
               name="settings"
-              options={{
-                title: 'Settings',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="settings/security"
-              options={{
-                title: 'Security',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
-              }}
+              options={
+                {
+                  title: 'Settings',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
             />
             <Stack.Screen
               name="settings/personalisation"
-              options={{
-                title: 'Personalisation',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
-              }}
+              options={
+                {
+                  title: 'Personalisation',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
+            />
+            <Stack.Screen
+              name="settings/give-feedback"
+              options={
+                {
+                  title: 'Give Feedback',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
             />
             <Stack.Screen
               name="settings/data-controls"
-              options={{
-                title: 'Data Controls',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
-              }}
+              options={
+                {
+                  title: 'Data Controls',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
+            />
+            <Stack.Screen
+              name="settings/security"
+              options={
+                {
+                  title: 'Security',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
             />
             <Stack.Screen
               name="settings/about"
-              options={{
-                title: 'About',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
-              }}
+              options={
+                {
+                  title: 'About',
+                  headerShown: true,
+                  headerTransparent: true,
+                  headerStyle: { backgroundColor: 'transparent' },
+                  header: (props: any) => <NavigationAppHeader {...props} />,
+                  appHeaderProps: {
+                    mode: 'default',
+                    leftAction: 'back',
+                    rightAction: 'none',
+                  },
+                } as any
+              }
             />
             <Stack.Screen
               name="dev/compress-test"

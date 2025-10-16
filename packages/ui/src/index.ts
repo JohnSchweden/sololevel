@@ -47,6 +47,14 @@ export type { LogOutButtonProps } from './components/Settings/LogOutButton'
 export { SettingsFooter } from './components/Settings/SettingsFooter'
 export type { SettingsFooterProps, FooterLinkType } from './components/Settings/SettingsFooter'
 
+// Feedback Components
+export { FeedbackTypeButton } from './components/Feedback'
+export type { FeedbackTypeButtonProps } from './components/Feedback'
+
+// Form Components
+export { TextArea } from './components/Form'
+export type { TextAreaProps } from './components/Form'
+
 // Dialog Components
 export { ConfirmDialog } from './components/ConfirmDialog'
 export type { ConfirmDialogProps } from './components/ConfirmDialog'

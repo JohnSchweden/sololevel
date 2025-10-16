@@ -9,17 +9,19 @@ import {
   SettingsNavigationList,
 } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
-import { useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect } from 'react'
 import { YStack } from 'tamagui'
-import type { NavAppHeaderOptions } from '../../components/navigation'
 import { useAuthStore } from '../../stores/auth'
 
 export interface SettingsScreenProps {
   /**
-   * Optional callback for navigation (for testing/dependency injection)
+   * Navigation items for settings categories (required)
    */
-  onNavigate?: (route: string) => void
+  navigationItems: SettingsNavItem[]
+
+  /**
+   * Callback for navigation (required)
+   */
+  onNavigate: (route: string) => void
 
   /**
    * Optional callback for footer links (for testing/dependency injection)
@@ -55,39 +57,15 @@ export interface SettingsScreenProps {
  * ```
  */
 export function SettingsScreen({
+  navigationItems,
   onNavigate,
   onFooterLink,
   onLogout,
   testID = 'settings-screen',
-}: SettingsScreenProps = {}): React.ReactElement {
+}: SettingsScreenProps): React.ReactElement {
   // Hooks: Auth state and header height
   const { user, loading: isLoadingUser } = useAuthStore()
   const headerHeight = useHeaderHeight()
-  const navigation = useNavigation()
-  const router = useRouter()
-
-  // Configure AppHeader: Back button on left, no right action
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'Settings',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'none', // No profile icon on settings screen
-        onBackPress: () => router.back(),
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, router])
-
-  // Navigation items for settings categories
-  const navigationItems: SettingsNavItem[] = [
-    { id: 'account', label: 'Account', route: '/settings/account' },
-    { id: 'personalisation', label: 'Personalisation', route: '/settings/personalisation' },
-    { id: 'feedback', label: 'Give feedback', route: '/settings/feedback' },
-    { id: 'data-controls', label: 'Data controls', route: '/settings/data-controls' },
-    { id: 'security', label: 'Security', route: '/settings/security' },
-    { id: 'about', label: 'About', route: '/settings/about' },
-  ]
 
   // Handlers
   const handleNavigate = (route: string): void => {

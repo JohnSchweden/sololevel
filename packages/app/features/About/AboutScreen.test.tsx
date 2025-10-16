@@ -171,58 +171,6 @@ describe('AboutScreen', () => {
     })
   })
 
-  describe('Navigation Configuration', () => {
-    it('should configure AppHeader with correct title', () => {
-      // Arrange
-      // (setup in beforeEach)
-
-      // Act
-      render(<AboutScreen />)
-
-      // Assert
-      expect(mockSetOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          appHeaderProps: expect.objectContaining({
-            title: 'About',
-          }),
-        })
-      )
-    })
-
-    it('should configure AppHeader with back button', () => {
-      // Arrange
-      // (setup in beforeEach)
-
-      // Act
-      render(<AboutScreen />)
-
-      // Assert
-      expect(mockSetOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          appHeaderProps: expect.objectContaining({
-            leftAction: 'back',
-          }),
-        })
-      )
-    })
-
-    it('should navigate back when onBackPress is called', () => {
-      // Arrange
-      // (setup in beforeEach)
-
-      // Act
-      render(<AboutScreen />)
-      const setOptionsCall = mockSetOptions.mock.calls[0][0] as any
-      const onBackPress = setOptionsCall.appHeaderProps.onBackPress
-
-      // Call the onBackPress handler
-      onBackPress()
-
-      // Assert
-      expect(mockBack).toHaveBeenCalledTimes(1)
-    })
-  })
-
   describe('Accessibility Tests', () => {
     it('should have correct testID', () => {
       // Arrange

@@ -88,8 +88,7 @@ describe('PersonalisationScreen', () => {
   describe('Component Rendering', () => {
     it('should render screen with all sections', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - All sections should be visible
       expect(screen.getByText('Appearance')).toBeInTheDocument()
@@ -100,8 +99,7 @@ describe('PersonalisationScreen', () => {
 
     it('should render theme selector with all options', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Theme options should be visible
       expect(screen.getByText('Light')).toBeInTheDocument()
@@ -111,8 +109,7 @@ describe('PersonalisationScreen', () => {
 
     it('should render language selector', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert
       expect(screen.getByText('Language')).toBeInTheDocument()
@@ -121,8 +118,7 @@ describe('PersonalisationScreen', () => {
 
     it('should render accessibility toggles', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert
       expect(screen.getByText('Large Text')).toBeInTheDocument()
@@ -133,8 +129,7 @@ describe('PersonalisationScreen', () => {
 
     it('should render interaction toggles', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert
       expect(screen.getByText('Sound Effects')).toBeInTheDocument()
@@ -145,55 +140,19 @@ describe('PersonalisationScreen', () => {
 
     it('should apply custom testID', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(
-        <PersonalisationScreen
-          onBack={handleBack}
-          testID="custom-screen"
-        />
-      )
+      render(<PersonalisationScreen testID="custom-screen" />)
 
       // Assert
       expect(screen.getByTestId('custom-screen')).toBeInTheDocument()
     })
   })
 
-  describe('AppHeader Configuration', () => {
-    it('should configure AppHeader with correct props', () => {
-      // Arrange
-      const handleBack = jest.fn()
-
-      // Act
-      render(<PersonalisationScreen onBack={handleBack} />)
-
-      // Assert - navigation.setOptions should be called
-      expect(mockNavigation.setOptions).toHaveBeenCalledTimes(1)
-
-      // Get the options that were passed
-      const callArgs = mockNavigation.setOptions.mock.calls[0][0] as any
-      expect(callArgs.appHeaderProps.title).toBe('Personalisation')
-      expect(callArgs.appHeaderProps.leftAction).toBe('back')
-      expect(callArgs.appHeaderProps.rightAction).toBe('none')
-    })
-
-    it('should pass onBack callback to AppHeader', () => {
-      // Arrange
-      const handleBack = jest.fn()
-
-      // Act
-      render(<PersonalisationScreen onBack={handleBack} />)
-
-      // Assert
-      const callArgs = mockNavigation.setOptions.mock.calls[0][0] as any
-      expect(callArgs.appHeaderProps.onBackPress).toBe(handleBack)
-    })
-  })
+  // AppHeader Configuration removed - now handled in _layout.tsx
 
   describe('Interactive Elements', () => {
     it('should have working theme selector', () => {
       // Arrange
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Act - Theme selection is tested in SettingsRadioGroup component tests
       // Just verify the component is rendered
@@ -205,8 +164,7 @@ describe('PersonalisationScreen', () => {
 
     it('should have working language selector', () => {
       // Arrange
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Act - Select is tested in SettingsSelectItem component tests
       // Just verify the component is rendered
@@ -218,8 +176,7 @@ describe('PersonalisationScreen', () => {
 
     it('should have working toggle switches', () => {
       // Arrange
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Act - Get all switches (4 total: Large Text, Reduce Animations, Sound Effects, Haptic Feedback)
       const switches = screen.getAllByTestId('Switch')
@@ -232,8 +189,7 @@ describe('PersonalisationScreen', () => {
   describe('Layout and Styling', () => {
     it('should use GlassBackground wrapper', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - GlassBackground is mocked in test
       expect(screen.getByTestId('personalisation-screen')).toBeInTheDocument()
@@ -241,8 +197,7 @@ describe('PersonalisationScreen', () => {
 
     it('should have proper section spacing', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Sections should be rendered with proper structure
       expect(screen.getByText('Appearance')).toBeInTheDocument()
@@ -255,8 +210,7 @@ describe('PersonalisationScreen', () => {
   describe('Accessibility', () => {
     it('should have accessible section headers', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - All section headers should be visible
       const sectionHeaders = [
@@ -273,8 +227,7 @@ describe('PersonalisationScreen', () => {
 
     it('should have accessible toggle labels', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - All toggle labels should be visible
       const toggleLabels = ['Large Text', 'Reduce Animations', 'Sound Effects', 'Haptic Feedback']
@@ -288,8 +241,7 @@ describe('PersonalisationScreen', () => {
   describe('Default State', () => {
     it('should initialize with default theme (auto)', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Auto should be present (default selected in SettingsRadioGroup)
       expect(screen.getByText('Auto')).toBeInTheDocument()
@@ -297,8 +249,7 @@ describe('PersonalisationScreen', () => {
 
     it('should initialize with default language (en-US)', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Default language should be displayed
       expect(screen.getByText('English (US)')).toBeInTheDocument()
@@ -306,8 +257,7 @@ describe('PersonalisationScreen', () => {
 
     it('should initialize accessibility toggles to false', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Switches should be present
       const switches = screen.getAllByTestId('Switch')
@@ -316,8 +266,7 @@ describe('PersonalisationScreen', () => {
 
     it('should initialize interaction toggles (sound effects and haptic feedback)', () => {
       // Arrange & Act
-      const handleBack = jest.fn()
-      render(<PersonalisationScreen onBack={handleBack} />)
+      render(<PersonalisationScreen />)
 
       // Assert - Both interaction settings should be present
       expect(screen.getByText('Sound Effects')).toBeInTheDocument()

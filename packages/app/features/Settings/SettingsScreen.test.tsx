@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import type { SettingsNavItem } from '@my/ui'
 import { SettingsScreen } from './SettingsScreen'
 
 // Mock dependencies
@@ -12,6 +13,16 @@ jest.mock('../../stores/auth', () => ({
     signOut: jest.fn(),
   })),
 }))
+
+// Test navigation items
+const TEST_NAVIGATION_ITEMS: SettingsNavItem[] = [
+  { id: 'account', label: 'Account', route: '/settings/account' },
+  { id: 'personalisation', label: 'Personalisation', route: '/settings/personalisation' },
+  { id: 'give-feedback', label: 'Give feedback', route: '/settings/give-feedback' },
+  { id: 'data-controls', label: 'Data controls', route: '/settings/data-controls' },
+  { id: 'security', label: 'Security', route: '/settings/security' },
+  { id: 'about', label: 'About', route: '/settings/about' },
+]
 
 const renderWithProvider = (ui: React.ReactElement) => {
   // UI components are already mocked in test-utils/setup.ts
@@ -40,7 +51,12 @@ describe('SettingsScreen', () => {
       })
 
       // Act: Render screen
-      renderWithProvider(<SettingsScreen />)
+      renderWithProvider(
+        <SettingsScreen
+          navigationItems={TEST_NAVIGATION_ITEMS}
+          onNavigate={jest.fn()}
+        />
+      )
 
       // Assert: Profile, navigation list, logout button, footer visible
       expect(screen.getByTestId('profile-section')).toBeInTheDocument()
@@ -59,7 +75,12 @@ describe('SettingsScreen', () => {
       })
 
       // Act: Render loading
-      renderWithProvider(<SettingsScreen />)
+      renderWithProvider(
+        <SettingsScreen
+          navigationItems={TEST_NAVIGATION_ITEMS}
+          onNavigate={jest.fn()}
+        />
+      )
 
       // Assert: Skeleton visible
       expect(screen.getByTestId('profile-section-skeleton')).toBeInTheDocument()
@@ -79,7 +100,12 @@ describe('SettingsScreen', () => {
       })
 
       // Act: Render screen
-      renderWithProvider(<SettingsScreen />)
+      renderWithProvider(
+        <SettingsScreen
+          navigationItems={TEST_NAVIGATION_ITEMS}
+          onNavigate={jest.fn()}
+        />
+      )
 
       // Assert: All 6 navigation items visible (per wireframe)
       expect(screen.getByText('Account')).toBeInTheDocument()

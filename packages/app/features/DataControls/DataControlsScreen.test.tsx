@@ -201,22 +201,5 @@ describe('DataControlsScreen', () => {
         expect(button).toHaveAccessibleName()
       })
     })
-
-    it('should configure AppHeader with back navigation', () => {
-      // Arrange & Act
-      render(<DataControlsScreen />)
-
-      // Assert
-      expect(mockNavigation.setOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          appHeaderProps: expect.objectContaining({
-            title: 'Data Controls',
-            mode: 'default',
-            leftAction: 'back',
-            rightAction: 'none',
-          }),
-        })
-      )
-    })
   })
 })

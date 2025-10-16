@@ -1,32 +1,23 @@
-import type { NavAppHeaderOptions } from '@app/components/navigation/NavigationAppHeader'
 import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import { useHeaderHeight } from '@react-navigation/elements'
-import { useFocusEffect, useNavigation, useRouter } from 'expo-router'
-import React, { useLayoutEffect } from 'react'
+import { useFocusEffect } from 'expo-router'
+import React from 'react'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
 
-// Import profile image
-const profileImage = require('../../../../apps/expo/assets/profile.png')
-
 export interface HistoryProgressScreenProps {
   /**
-   * Handler for navigating to video analysis screen
+   * Handler for navigating to video analysis screen (required)
    */
-  onNavigateToVideoAnalysis?: (analysisId: number) => void
+  onNavigateToVideoAnalysis: (analysisId: number) => void
 
   /**
-   * Handler for navigating to full videos screen
+   * Handler for navigating to full videos screen (required)
    */
-  onNavigateToVideos?: () => void
-
-  /**
-   * Handler for back navigation
-   */
-  onBack?: () => void
+  onNavigateToVideos: () => void
 
   /**
    * Test ID for testing
@@ -52,18 +43,14 @@ export interface HistoryProgressScreenProps {
  * <HistoryProgressScreen
  *   onNavigateToVideoAnalysis={(id) => router.push({ pathname: '/video-analysis', params: { analysisJobId: id } })}
  *   onNavigateToVideos={() => router.push('/videos')}
- *   onBack={() => router.back()}
  * />
  * ```
  */
 export function HistoryProgressScreen({
   onNavigateToVideoAnalysis,
   onNavigateToVideos,
-  onBack,
   testID = 'history-progress-screen',
 }: HistoryProgressScreenProps): React.ReactElement {
-  const navigation = useNavigation()
-  const router = useRouter()
   const headerHeight = useHeaderHeight()
 
   // Log screen mount
@@ -73,25 +60,6 @@ export function HistoryProgressScreen({
       log.debug('HistoryProgressScreen', 'Screen unmounted')
     }
   }, [])
-
-  // Configure AppHeader via navigation options
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      appHeaderProps: {
-        title: 'History & Progress',
-        mode: 'default',
-        leftAction: 'back',
-        rightAction: 'profile',
-        profileImageUri: profileImage,
-        onBackPress: onBack || (() => router.back()),
-        onProfilePress: () => {
-          // Navigate to settings screen
-          log.info('HistoryProgressScreen', 'Navigate to settings')
-          router.push('/settings' as any)
-        },
-      },
-    } as NavAppHeaderOptions)
-  }, [navigation, onBack, router])
 
   // Data fetching with TanStack Query + Zustand cache
   const { data: videos = [], isLoading, error, refetch } = useHistoryQuery()
@@ -152,30 +120,14 @@ export function HistoryProgressScreen({
   const handleVideoPress = React.useCallback(
     (analysisId: number) => {
       log.info('HistoryProgressScreen', 'Video thumbnail pressed', { analysisId })
-
-      if (onNavigateToVideoAnalysis) {
-        onNavigateToVideoAnalysis(analysisId)
-      } else {
-        // Navigate to video analysis with analysisJobId param for history mode
-        router.push({
-          pathname: '/video-analysis',
-          params: { analysisJobId: analysisId.toString() },
-        } as any)
-      }
+      onNavigateToVideoAnalysis(analysisId)
     },
-    [onNavigateToVideoAnalysis, router]
+    [onNavigateToVideoAnalysis]
   )
 
   const handleSeeAllPress = React.useCallback(() => {
-    log.debug('HistoryProgressScreen', '"See all" button pressed (P0 placeholder)')
-
-    if (onNavigateToVideos) {
-      onNavigateToVideos()
-    } else {
-      // P0: Console log placeholder
-      log.info('HistoryProgressScreen', 'Navigate to /videos screen (P1 feature)')
-      // P1: router.push('/videos')
-    }
+    log.debug('HistoryProgressScreen', '"See all" button pressed')
+    onNavigateToVideos()
   }, [onNavigateToVideos])
 
   // Mock coaching sessions data (P0)
