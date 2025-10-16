@@ -3,6 +3,7 @@ import { ChatInput, GlassBackground, MessageBubble, SuggestionChip, TypingIndica
 import { useHeaderHeight } from '@react-navigation/elements'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import { useRef, useState } from 'react'
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
 
@@ -74,7 +75,9 @@ export function CoachScreen({
   const [isListening, setIsListening] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
+  const [scrollOffset, setScrollOffset] = useState(0)
   const scrollViewRef = useRef<any>(null)
+  const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
 
   // Handlers
   const handleAvatarPress = (): void => {
@@ -148,6 +151,36 @@ export function CoachScreen({
     setShowSuggestions(!showSuggestions)
   }
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+    setScrollOffset(event.nativeEvent.contentOffset.y)
+  }
+
+  const getMessageOpacity = (messageId: string): number => {
+    const layout = messageLayoutsRef.current.get(messageId)
+    if (!layout) return 1
+
+    // Calculate message position relative to scroll
+    const messageTop = layout.y - scrollOffset
+    const fadeStart = 0 // Start fading when message is within 120px of top
+    const fadeEnd = 0 // Fully faded at 30px from top
+
+    if (messageTop < fadeStart) {
+      if (messageTop < fadeEnd) {
+        return 0.05 // Nearly invisible
+      }
+      // Cubic easing curve for ultra-smooth fade
+      const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
+      const eased = progress ** 3 // Cubic ease-in for smoothest fade
+      return eased
+    }
+
+    return 1
+  }
+
+  const handleMessageLayout = (messageId: string, y: number, height: number): void => {
+    messageLayoutsRef.current.set(messageId, { y, height })
+  }
+
   return (
     <GlassBackground
       backgroundColor="$color3"
@@ -201,6 +234,9 @@ export function CoachScreen({
             paddingHorizontal="$6"
             //marginBottom="$2"
             testID={`${testID}-messages`}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+            onScroll={handleScroll}
+            scrollEventThrottle={1}
           >
             <YStack
               gap="$4"
@@ -210,6 +246,12 @@ export function CoachScreen({
                 <XStack
                   key={message.id}
                   justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
+                  opacity={getMessageOpacity(message.id)}
+                  animation="lazy"
+                  onLayout={(event) => {
+                    const { y, height } = event.nativeEvent.layout
+                    handleMessageLayout(message.id, y, height)
+                  }}
                 >
                   <MessageBubble
                     type={message.type}
