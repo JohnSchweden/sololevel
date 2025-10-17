@@ -59,7 +59,8 @@
       "./plugins/withDisableCodeSigning"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "newArchEnabled": true
     },
     "extra": {
       "router": {},

@@ -105,7 +105,7 @@ export const GiveFeedbackScreen = ({
               </Text>
               <Text
                 fontSize="$4"
-                color="$gray11"
+                color="$color11"
                 textAlign="center"
               >
                 We'd love to hear your thoughts, suggestions, or report any issues you've

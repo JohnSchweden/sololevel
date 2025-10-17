@@ -166,7 +166,7 @@ if (retryStateRef.current.attempts >= maxRetries) {
 ```tsx
 {channelExhausted && (
   <YStack position="absolute" top="$4" right="$4" padding="$2" backgroundColor="$orange9" borderRadius="$2">
-    <Text color="$white" fontSize="$2">Connection unstable</Text>
+    <Text color="white" fontSize="$2">Connection unstable</Text>
   </YStack>
 )}
 ```

@@ -160,14 +160,14 @@ export function SettingsSelectItem({
           flex={1}
         >
           <Text
-            color="$text"
+            color="$color12"
             fontSize="$5"
             fontWeight="400"
           >
             {title}
           </Text>
           <Text
-            color="$textSecondary"
+            color="$color11"
             fontSize="$3"
           >
             {description}
@@ -181,12 +181,13 @@ export function SettingsSelectItem({
         onValueChange={onValueChange}
         disablePreventBodyScroll
       >
+        {/* @ts-ignore - TS union type complexity limit */}
         <Select.Trigger
           minWidth={140}
           minHeight={44}
-          backgroundColor="$gray2"
+          backgroundColor="$color2"
           borderWidth={1}
-          borderColor="$gray6"
+          borderColor="$color6"
           borderRadius="$3"
           paddingHorizontal="$3"
           paddingVertical="$2"

@@ -77,8 +77,8 @@ YStack fle ={1} backgroundColor="$background"
 │   │   │   │   ├── PlayPauseButton: Button size={44} icon={Play/Pause} backgroundColor="$primary" borderRadius="$2"
 │   │   │   │   ├── AudioProgress: YStack fle ={1} height={4} backgroundColor="$gray6" borderRadius="$1"
 │   │   │   │   │   └── AudioProgressFill: YStack height={4} backgroundColor="$primary" borderRadius="$1"
-│   │   │   │   ├── AudioTime: Te t fontSize="$2" color="$white" minWidth={40}
-│   │   │   │   └── CloseButton: Button size={32} icon={ } color="$white" chromeless
+│   │   │   │   ├── AudioTime: Te t fontSize="$2" color="white" minWidth={40}
+│   │   │   │   └── CloseButton: Button size={32} icon={ } color="white" chromeless
 │   │   │   └── AudioWaveform: YStack height={20} backgroundColor="rgba(255,255,255,0.1)" borderRadius="$2" (optional visual indicator)
 │   │   ├── AvatarPlaceholder: YStack position="absolute" bottom={20} right={20} width={60} height={60} backgroundColor="$color3" borderRadius={30}
 │   │   │   └── PersonIcon: Icon size={24} color="$color11"

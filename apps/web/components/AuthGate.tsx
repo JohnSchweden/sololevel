@@ -73,6 +73,7 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
         backgroundColor="$background"
         minHeight="100%"
       >
+        {/* @ts-ignore - TS union type complexity limit */}
         <Spinner size="large" />
         <H3 color="$color10">Loading...</H3>
       </YStack>

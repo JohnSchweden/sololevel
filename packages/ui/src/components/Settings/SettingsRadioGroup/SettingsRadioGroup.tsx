@@ -102,12 +102,12 @@ export function SettingsRadioGroup({
         flex={1}
         paddingHorizontal="$4"
         paddingVertical="$2"
-        backgroundColor={isSelected ? '$gray8' : '$gray2'}
+        backgroundColor={isSelected ? '$color8' : '$color2'}
         borderWidth={1}
-        borderColor={isSelected ? '$gray8' : '$gray6'}
+        borderColor={isSelected ? '$color8' : '$color6'}
         borderRadius="$4"
         // pressStyle={{ scale: 0.98 }}
-        // hoverStyle={{ backgroundColor: '$gray7' }}
+        // hoverStyle={{ backgroundColor: '$color7' }}
         gap="$2"
       >
         <RadioGroup.Item
@@ -120,7 +120,7 @@ export function SettingsRadioGroup({
 
         <Label
           htmlFor={id}
-          color={isSelected ? '$text' : '$textSecondary'}
+          color={isSelected ? '$color12' : '$color11'}
           fontSize="$4"
           fontWeight={isSelected ? '600' : '400'}
         >
@@ -169,14 +169,14 @@ export function SettingsRadioGroup({
           flex={1}
         >
           <Text
-            color="$text"
+            color="$color12"
             fontSize="$5"
             fontWeight="400"
           >
             {title}
           </Text>
           <Text
-            color="$textSecondary"
+            color="$color11"
             fontSize="$3"
           >
             {description}

@@ -59,11 +59,6 @@ export interface AccountScreenProps {
   onToggle2FA?: (enabled: boolean) => void
 
   /**
-   * Callback when back button is pressed (optional, AppHeader handles this by default)
-   */
-  onBack?: () => void
-
-  /**
    * Test ID for testing
    */
   testID?: string

@@ -66,27 +66,28 @@ export function ProfileSection({
           width={100}
           height={100}
           borderRadius="$12"
-          backgroundColor="$gray4"
+          backgroundColor="$color4"
           alignItems="center"
           justifyContent="center"
         >
+          {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
             size="large"
-            color="$gray8"
+            color="$color8"
           />
         </YStack>
         <YStack
           width={150}
           height={24}
           borderRadius="$2"
-          backgroundColor="$gray4"
+          backgroundColor="$color4"
         />
         {email && (
           <YStack
             width={200}
             height={16}
             borderRadius="$2"
-            backgroundColor="$gray4"
+            backgroundColor="$color4"
             testID={`${testID}-skeleton-email`}
           />
         )}
@@ -114,7 +115,7 @@ export function ProfileSection({
           height={84}
           borderRadius={42} // Half of width for perfect circle
           borderWidth={1}
-          borderColor="$primary"
+          borderColor="$color9"
           testID={`${testID}-avatar`}
           accessibilityLabel={`${userName}'s profile picture`}
         />
@@ -125,7 +126,7 @@ export function ProfileSection({
           height={84}
           borderRadius={42}
           borderWidth={1}
-          borderColor="$primary"
+          borderColor="$color9"
           testID={`${testID}-avatar-mock`}
           accessibilityLabel={`${userName}'s profile picture`}
         />
@@ -145,7 +146,7 @@ export function ProfileSection({
       {email && (
         <Text
           fontSize="$4"
-          color="$textSecondary"
+          color="$color11"
           testID={`${testID}-email`}
         >
           {email}

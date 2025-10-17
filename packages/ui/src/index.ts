@@ -47,6 +47,20 @@ export type { LogOutButtonProps } from './components/Settings/LogOutButton'
 export { SettingsFooter } from './components/Settings/SettingsFooter'
 export type { SettingsFooterProps, FooterLinkType } from './components/Settings/SettingsFooter'
 
+// Insights Components
+export { StatCard } from './components/Insights/StatCard'
+export type { StatCardProps } from './components/Insights/StatCard'
+export { Progress } from './components/Insights/Progress'
+export type { ProgressProps } from './components/Insights/Progress'
+export { Badge } from './components/Insights/Badge'
+export type { BadgeProps } from './components/Insights/Badge'
+export { ActivityChart } from './components/Insights/ActivityChart'
+export type { ActivityChartProps, ActivityData } from './components/Insights/ActivityChart'
+export { AchievementCard } from './components/Insights/AchievementCard'
+export type { AchievementCardProps } from './components/Insights/AchievementCard'
+export { FocusCard } from './components/Insights/FocusCard'
+export type { FocusCardProps } from './components/Insights/FocusCard'
+
 // Feedback Components
 export { FeedbackTypeButton } from './components/Feedback'
 export type { FeedbackTypeButtonProps } from './components/Feedback'

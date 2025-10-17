@@ -114,7 +114,7 @@ export function AboutScreen({
               {/* Description */}
               <Text
                 fontSize="$3"
-                color="$gray11"
+                color="$color11"
                 textAlign="center"
                 paddingHorizontal="$4"
               >
@@ -157,7 +157,7 @@ export function AboutScreen({
             >
               <Text
                 fontSize="$2"
-                color="$gray9"
+                color="$color9"
               >
                 © 2025 {APP_NAME}. All rights reserved.
               </Text>

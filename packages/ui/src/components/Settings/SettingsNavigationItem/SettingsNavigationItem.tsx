@@ -139,7 +139,7 @@ export function SettingsNavigationItem({
             flex={1}
           >
             <Text
-              color="$text"
+              color="$color12"
               fontSize="$5"
               fontWeight="400"
               testID={`${testID}-title`}
@@ -147,7 +147,7 @@ export function SettingsNavigationItem({
               {title}
             </Text>
             <Text
-              color="$textSecondary"
+              color="$color11"
               fontSize="$3"
               testID={`${testID}-subtitle`}
             >

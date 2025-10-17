@@ -125,6 +125,7 @@ export function VideosSection({
           alignItems="center"
           testID={`${testID}-loading`}
         >
+          {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
             size="large"
             color="$color11"
@@ -153,7 +154,7 @@ export function VideosSection({
         >
           <Text
             fontSize="$5"
-            color="$gray11"
+            color="$color11"
             textAlign="center"
           >
             Failed to load videos

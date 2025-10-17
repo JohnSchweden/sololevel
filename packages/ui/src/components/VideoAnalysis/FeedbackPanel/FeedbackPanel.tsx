@@ -118,7 +118,7 @@ export const FeedbackPanel = memo(
         case 'movement':
           return '$orange9'
         default:
-          return '$gray9'
+          return '$color9'
       }
     }
 
@@ -257,7 +257,7 @@ export const FeedbackPanel = memo(
                 <YStack
                   height="100%"
                   width={`${(currentVideoTime / videoDuration) * 100}%`}
-                  backgroundColor="$primary"
+                  backgroundColor="$color9"
                   borderRadius="$1"
                   testID="progress-bar-fill"
                 />

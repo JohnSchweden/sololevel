@@ -123,6 +123,17 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="insights"
+              options={{
+                title: 'Insights',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
               name="history-progress"
               options={({ navigation }) =>
                 ({

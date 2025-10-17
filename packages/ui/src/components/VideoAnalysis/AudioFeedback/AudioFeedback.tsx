@@ -140,7 +140,7 @@ export const AudioFeedback = memo(
                 <Button
                   size={32}
                   icon={SkipBack}
-                  color="$white"
+                  color="$color12"
                   chromeless
                   onPress={handleRewind}
                   testID="audio-rewind-button"
@@ -149,7 +149,7 @@ export const AudioFeedback = memo(
                 <Button
                   size={32}
                   icon={isPlaying ? Pause : Play}
-                  backgroundColor="$primary"
+                  backgroundColor="$color9"
                   borderRadius="$2"
                   onPress={handlePlayPause}
                   testID="audio-play-pause-button"
@@ -158,7 +158,7 @@ export const AudioFeedback = memo(
                 <Button
                   size={32}
                   icon={SkipForward}
-                  color="$white"
+                  color="$color12"
                   chromeless
                   onPress={handleFastForward}
                   testID="audio-fast-forward-button"
@@ -167,7 +167,7 @@ export const AudioFeedback = memo(
                 <Button
                   size={32}
                   icon={X}
-                  color="$white"
+                  color="$color12"
                   chromeless
                   onPress={handleClose}
                   testID="audio-close-button"
@@ -179,7 +179,7 @@ export const AudioFeedback = memo(
                 <YStack marginTop="$1">
                   <YStack
                     height={3}
-                    backgroundColor="$gray6"
+                    backgroundColor="$color6"
                     borderRadius="$1"
                     testID="audio-progress-track"
                     onPress={(event) => {
@@ -205,7 +205,7 @@ export const AudioFeedback = memo(
                     <YStack
                       height="100%"
                       width={`${progress}%`}
-                      backgroundColor="$primary"
+                      backgroundColor="$color9"
                       borderRadius="$1"
                       testID="audio-progress-fill"
                     />
@@ -220,14 +220,14 @@ export const AudioFeedback = memo(
               >
                 <Text
                   fontSize="$2"
-                  color="$white"
+                  color="$color12"
                   testID="audio-current-time"
                 >
                   {formatTime(currentTime)}
                 </Text>
                 <Text
                   fontSize="$2"
-                  color="$white"
+                  color="$color12"
                   opacity={0.7}
                   testID="audio-duration"
                 >

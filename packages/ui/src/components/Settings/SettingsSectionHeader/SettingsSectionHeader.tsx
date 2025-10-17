@@ -53,10 +53,10 @@ export function SettingsSectionHeader({
     >
       <Icon
         size={16}
-        color="$textSecondary"
+        color="$color11"
       />
       <Text
-        color="$textSecondary"
+        color="$color11"
         fontSize="$4"
       >
         {title}

@@ -78,7 +78,7 @@ const SwapButtonContainer = styled(Button, {
       },
       disabled: {
         opacity: 0.5,
-        borderColor: '$gray6',
+        borderColor: '$color6',
       },
     },
   } as const,
@@ -283,7 +283,7 @@ export const CameraSwapButton = ({
           <Paragraph
             fontSize={size === 'small' ? '$1' : '$2'}
             fontWeight="600"
-            color="$color"
+            color={"$color" as any}
             textAlign="center"
           >
             {getCameraLabel()}
@@ -292,7 +292,7 @@ export const CameraSwapButton = ({
           {swapError && (
             <Paragraph
               fontSize="$1"
-              color="$red10"
+              color={"$red10" as any}
               textAlign="center"
               maxWidth={120}
             >
@@ -303,7 +303,7 @@ export const CameraSwapButton = ({
           {isSwapping && (
             <Paragraph
               fontSize="$1"
-              color="$blue10"
+              color={"$blue10" as any}
               textAlign="center"
             >
               Switching...

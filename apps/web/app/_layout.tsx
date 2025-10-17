@@ -94,6 +94,13 @@ export default function RootLayout() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="insights"
+            options={{
+              title: 'Insights',
+              headerShown: false,
+            }}
+          />
         </Stack>
       </Provider>
     </ErrorBoundary>

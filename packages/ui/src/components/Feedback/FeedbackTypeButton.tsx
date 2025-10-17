@@ -32,7 +32,7 @@ const ButtonContainer = styled(YStack, {
   alignItems: 'center',
   justifyContent: 'center',
   gap: '$2',
-  backgroundColor: '$backgroundTransparent',
+  backgroundColor: 'transparent',
   borderColor: '$borderColor',
   cursor: 'pointer',
 
@@ -65,7 +65,7 @@ export const FeedbackTypeButton = ({
   return (
     <ButtonContainer
       selected={selected}
-      backgroundColor={selected ? colorMap[color].background : '$backgroundTransparent'}
+      backgroundColor={selected ? colorMap[color].background : 'transparent'}
       borderColor={selected ? colorMap[color].border : '$borderColor'}
       onPress={() => onPress(id)}
       accessibilityLabel={accessibilityLabel}

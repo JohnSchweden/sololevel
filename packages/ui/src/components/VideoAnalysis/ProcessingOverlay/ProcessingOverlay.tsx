@@ -57,9 +57,10 @@ export function ProcessingOverlay({
         accessibilityRole="progressbar"
         accessibilityState={{ busy: !isComplete }}
       >
+        {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
         <Spinner
           size="small"
-          color="white"
+          color="$color12"
         />
       </YStack>
 
@@ -72,7 +73,7 @@ export function ProcessingOverlay({
         <Text
           fontSize="$5"
           fontWeight="600"
-          color="white"
+          color="$color12"
           textAlign="center"
           accessibilityLabel={`Current step: ${currentStep}`}
         >
@@ -80,7 +81,7 @@ export function ProcessingOverlay({
         </Text>
         <Text
           fontSize="$4"
-          color="$gray11"
+          color="$color11"
           textAlign="center"
           accessibilityLabel={`Stage ${currentStage} of 5`}
         >
@@ -91,7 +92,7 @@ export function ProcessingOverlay({
         <YStack
           width="80%"
           height={4}
-          backgroundColor="$gray8"
+          backgroundColor="$color8"
           borderRadius="$1"
           testID="progress-bar"
           accessibilityLabel={`Progress bar: ${progressPercentage}% complete`}
@@ -128,14 +129,14 @@ export function ProcessingOverlay({
           fontSize="$5"
           fontWeight="600"
           textAlign="center"
-          color="white"
+          color="$color12"
           accessibilityLabel={isComplete ? 'AI Analysis Complete' : 'AI Analysis in Progress'}
         >
           {isComplete ? 'AI Analysis Complete' : 'AI Analysis in Progress'}
         </Text>
         <Text
           fontSize="$4"
-          color="$gray11"
+          color="$color11"
           textAlign="center"
           accessibilityLabel="Processing your video with advanced AI"
         >

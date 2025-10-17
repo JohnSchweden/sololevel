@@ -235,7 +235,7 @@ const getMetricConfig = (metric: keyof PerformanceMetrics) => {
         icon: Activity,
         label: 'Metric',
         shortLabel: 'Metric',
-        color: '$gray10',
+        color: '$color10',
       }
   }
 }
@@ -348,7 +348,7 @@ const MetricDisplay = ({
               <Paragraph
                 fontSize={variant === 'compact' ? '$1' : '$2'}
                 fontWeight="600"
-                color="$color"
+                color={"$color" as any}
               >
                 {variant === 'compact' ? config.shortLabel : config.label}
               </Paragraph>
@@ -356,7 +356,7 @@ const MetricDisplay = ({
                 <Progress
                   size="$2"
                   value={getProgressValue()}
-                  backgroundColor="$gray4"
+                  backgroundColor="$color4"
                 >
                   <Progress.Indicator
                     animation="bouncy"
@@ -457,7 +457,7 @@ const PerformanceSummary = ({
         {variant === 'detailed' && (
           <Paragraph
             fontSize="$1"
-            color="$gray10"
+            color={"$color10" as any}
           >
             Quality Score: {Math.round(metrics.qualityScore)}%
           </Paragraph>
@@ -529,7 +529,7 @@ export const PerformanceMonitor = ({
       >
         <H5
           fontWeight="600"
-          color="$color"
+          color={"$color" as any}
         >
           Performance Monitor
         </H5>
@@ -557,7 +557,7 @@ export const PerformanceMonitor = ({
           <YStack gap="$1">
             <H6
               fontWeight="600"
-              color="$gray10"
+              color={"$color10" as any}
               fontSize="$2"
             >
               System Metrics
@@ -580,7 +580,7 @@ export const PerformanceMonitor = ({
           <YStack gap="$1">
             <H6
               fontWeight="600"
-              color="$gray10"
+              color={"$color10" as any}
               fontSize="$2"
             >
               Quality Metrics
@@ -606,7 +606,7 @@ export const PerformanceMonitor = ({
             <Paragraph
               fontSize="$2"
               fontWeight="600"
-              color="$color"
+              color={"$color" as any}
             >
               Thermal State
             </Paragraph>

@@ -46,9 +46,10 @@ export const ProcessingIndicator = memo(function ProcessingIndicator({
             accessibilityRole="progressbar"
             accessibilityState={{ busy: true }}
           >
+            {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
             <Spinner
               size="large"
-              color="white"
+              color="$color12"
             />
           </YStack>
           <Text
@@ -80,7 +81,7 @@ export const ProcessingIndicator = memo(function ProcessingIndicator({
           borderRadius={8}
         >
           <Text
-            color="$white"
+            color="white"
             fontSize="$2"
           >
             Connection unstable

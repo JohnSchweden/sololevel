@@ -92,7 +92,7 @@ export function ConfirmDialog({
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
-          backgroundColor="$black"
+          backgroundColor="$color1"
         />
         <Dialog.Content
           bordered
@@ -131,7 +131,7 @@ export function ConfirmDialog({
             <Dialog.Description>
               <Text
                 fontSize="$5"
-                color="$gray11"
+                color="$color11"
                 lineHeight="$6"
               >
                 {message}
@@ -151,8 +151,8 @@ export function ConfirmDialog({
                 paddingHorizontal="$5"
                 paddingVertical="$3"
                 borderRadius="$4"
-                backgroundColor="$gray3"
-                pressStyle={{ backgroundColor: '$gray4', scale: 0.98 }}
+                backgroundColor="$color3"
+                pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
                 testID={`${testID}-cancel-button`}
               >
                 <Text
@@ -176,15 +176,16 @@ export function ConfirmDialog({
                 testID={`${testID}-confirm-button`}
               >
                 {isProcessing ? (
+                  // @ts-ignore - TS union type complexity limit
                   <Spinner
                     size="small"
-                    color="$white"
+                    color="$color12"
                   />
                 ) : (
                   <Text
                     fontSize="$4"
                     fontWeight="500"
-                    color="$white"
+                    color="$color12"
                   >
                     {confirmLabel}
                   </Text>

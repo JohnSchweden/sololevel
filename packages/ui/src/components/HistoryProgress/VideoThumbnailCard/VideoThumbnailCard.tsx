@@ -72,7 +72,7 @@ export function VideoThumbnailCard({
       height={height}
       borderRadius="$4"
       overflow="hidden"
-      backgroundColor="$gray2"
+      backgroundColor="$color2"
       borderWidth={1}
       // Subtle light border to match glass card in side-sheet
       borderColor="rgba(255,255,255,0.35)"
@@ -98,7 +98,7 @@ export function VideoThumbnailCard({
         <Stack
           width={width}
           height={height}
-          backgroundColor="$gray4"
+          backgroundColor="$color4"
           justifyContent="center"
           alignItems="center"
           testID={`${testID}-placeholder`}
@@ -123,9 +123,10 @@ export function VideoThumbnailCard({
           backgroundColor="rgba(0, 0, 0, 0.3)"
           testID={`${testID}-loading`}
         >
+          {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
             size="large"
-            color="$gray1"
+            color="$color1"
           />
         </YStack>
       )}

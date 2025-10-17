@@ -30,8 +30,12 @@ export const shadows = {
   },
 } as const
 
-// Export config separately to avoid circular dependency issues
+// Export config and themes separately to avoid circular dependency issues
 export { config } from './tamagui.config'
+export { themes } from './themes'
+
+// Export Tamagui type augmentation
+export type { Conf } from './tamagui.d'
 
 // Export Supabase database types
 export type { Database, Json } from './database.types'

@@ -102,7 +102,7 @@ export function IdleControls({
           icon={
             <Upload
               size="$1"
-              color="white"
+              color="$color"
             />
           }
           accessibilityLabel="Upload video file"
@@ -116,8 +116,6 @@ export function IdleControls({
           testID={recordButtonTestID}
           minWidth={70}
           minHeight={70}
-          blurIntensity={20}
-          blurTint="light"
           borderWidth={2}
           borderColor="rgba(255,255,255,0.65)"
           accessibilityLabel="Start recording"

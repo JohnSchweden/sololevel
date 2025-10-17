@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-i
 import { useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
+import { Button, Image, ScrollView, Text, XStack, YStack } from 'tamagui'
 
 export interface Message {
   id: string
@@ -156,25 +156,36 @@ export function CoachScreen({
   }
 
   const getMessageOpacity = (messageId: string): number => {
+    // Only fade when scrolled up
+    if (scrollOffset <= 0) return 1
+
     const layout = messageLayoutsRef.current.get(messageId)
     if (!layout) return 1
 
-    // Calculate message position relative to scroll
-    const messageTop = layout.y - scrollOffset
-    const fadeStart = 0 // Start fading when message is within 120px of top
-    const fadeEnd = 0 // Fully faded at 30px from top
+    // Calculate message position relative to viewport
+    // Account for padding and header by measuring distance from content top
+    const messageTop = layout.y - scrollOffset + headerHeight
 
-    if (messageTop < fadeStart) {
-      if (messageTop < fadeEnd) {
-        return 0.05 // Nearly invisible
-      }
-      // Cubic easing curve for ultra-smooth fade
-      const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
-      const eased = progress ** 3 // Cubic ease-in for smoothest fade
-      return eased
+    // Fade zone: start fading at header bottom (0px below header), fully faded when scrolled past
+    const fadeStart = 100 // Start fading 20px below the header
+    const fadeEnd = 0 // Fully faded 30px above header
+
+    // Fully visible when below fade start
+    if (messageTop >= fadeStart) {
+      return 1
     }
 
-    return 1
+    // Minimum opacity when at/above top
+    if (messageTop <= fadeEnd) {
+      return 0.2
+    }
+
+    // Smooth cubic fade between fadeStart and fadeEnd
+    const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
+    const eased = progress ** 3
+
+    // Ensure opacity stays between 0.2 and 1
+    return Math.max(0.2, Math.min(1, eased))
   }
 
   const handleMessageLayout = (messageId: string, y: number, height: number): void => {
@@ -213,16 +224,22 @@ export function CoachScreen({
                 width={64}
                 height={64}
                 borderRadius={32}
-                backgroundColor="$gray5"
-                borderWidth={4}
+                backgroundColor="$color5"
+                borderWidth={1}
                 borderColor="rgba(255,255,255,0.3)"
                 alignItems="center"
                 justifyContent="center"
                 animation="quick"
                 hoverStyle={{ scale: 1.05 }}
                 pressStyle={{ scale: 0.95 }}
+                overflow="hidden"
               >
-                <Text fontSize="$8">🤖</Text>
+                <Image
+                  source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                  width={66}
+                  height={66}
+                  borderRadius={32}
+                />
               </YStack>
             </Button>
           </YStack>
@@ -236,7 +253,7 @@ export function CoachScreen({
             testID={`${testID}-messages`}
             contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
             onScroll={handleScroll}
-            scrollEventThrottle={1}
+            scrollEventThrottle={16}
           >
             <YStack
               gap="$4"

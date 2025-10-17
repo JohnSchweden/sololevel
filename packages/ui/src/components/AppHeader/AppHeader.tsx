@@ -235,7 +235,7 @@ export function AppHeader({
               >
                 <Text
                   fontSize="$1"
-                  color="$text"
+                  color="$color12"
                   fontWeight="600"
                   lineHeight="$1"
                 >
@@ -382,7 +382,7 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
       fontSize="$5"
       fontFamily="$body"
       fontWeight="600"
-      color="$text"
+      color="$color12"
       textAlign="center"
       accessibilityRole="text"
       accessibilityLabel={`Recording time: ${formatTime(duration)}`}

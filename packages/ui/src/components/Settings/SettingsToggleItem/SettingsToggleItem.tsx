@@ -131,14 +131,14 @@ export function SettingsToggleItem({
           flex={1}
         >
           <Text
-            color="$text"
+            color="$color12"
             fontSize="$5"
             fontWeight="400"
           >
             {title}
           </Text>
           <Text
-            color="$textSecondary"
+            color="$color11"
             fontSize="$3"
           >
             {description}
@@ -154,8 +154,8 @@ export function SettingsToggleItem({
         disabled={disabled}
         accessibilityLabel={title}
         accessibilityHint={description}
-        backgroundColor={value ? '$green9' : '$gray6'}
-        borderColor={value ? '$green10' : '$gray7'}
+        backgroundColor={value ? '$green9' : '$color6'}
+        borderColor={value ? '$green10' : '$color7'}
         borderWidth={1}
       >
         {/* @ts-ignore - Switch.Thumb may not be available in test environment */}

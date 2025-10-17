@@ -98,7 +98,7 @@ function NavigationTab({ label, isActive, onPress, disabled = false }: Navigatio
         <Text
           fontSize="$5"
           fontWeight={isActive ? '600' : '400'}
-          color={isActive ? 'white' : '$whiteA70'}
+          color={isActive ? '$color12' : '$whiteA70'}
           textAlign="center"
           numberOfLines={1}
         >

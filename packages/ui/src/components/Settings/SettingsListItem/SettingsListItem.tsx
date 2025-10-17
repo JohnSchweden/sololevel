@@ -47,7 +47,6 @@ export function SettingsListItem({
   return (
     <Button
       unstyled
-      backgroundColor="$gray2"
       borderRadius="$3"
       paddingVertical="$3"
       paddingHorizontal="$4"

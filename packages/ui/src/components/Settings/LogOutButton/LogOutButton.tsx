@@ -64,6 +64,7 @@ export function LogOutButton({
         overlayOpacity={0.2}
       >
         {isLoading ? (
+          // @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web)
           <Spinner
             size="small"
             color="$red10"

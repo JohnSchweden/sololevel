@@ -30,14 +30,14 @@ export function PoseDetectionToggle({
       disabled={disabled}
       chromeless
       size={size}
-      backgroundColor={isEnabled ? '$blue2' : '$gray2'}
-      borderColor={isEnabled ? '$blue7' : '$gray7'}
+      backgroundColor={isEnabled ? '$blue2' : '$color2'}
+      borderColor={isEnabled ? '$blue7' : '$color7'}
       pressStyle={{
-        backgroundColor: isEnabled ? '$blue3' : '$gray3',
+        backgroundColor: isEnabled ? '$blue3' : '$color3',
       }}
       disabledStyle={{
         opacity: 0.5,
-        backgroundColor: '$gray1',
+        backgroundColor: '$color1',
       }}
     >
       <XStack
@@ -86,13 +86,13 @@ export function PoseDetectionToggleCompact({
       disabled={disabled}
       circular
       size="$3"
-      backgroundColor={isEnabled ? '$blue7' : '$gray5'}
+      backgroundColor={isEnabled ? '$blue7' : '$color5'}
       pressStyle={{
-        backgroundColor: isEnabled ? '$blue8' : '$gray6',
+        backgroundColor: isEnabled ? '$blue8' : '$color6',
       }}
       disabledStyle={{
         opacity: 0.5,
-        backgroundColor: '$gray3',
+        backgroundColor: '$color3',
       }}
     >
       {isEnabled ? (
@@ -104,7 +104,7 @@ export function PoseDetectionToggleCompact({
       ) : (
         <EyeOff
           size={18}
-          color="$gray11"
+          color="$color11"
           testID={`${testID}-icon-disabled`}
         />
       )}

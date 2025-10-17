@@ -52,19 +52,19 @@ export const InAudioOverlay = () => (
       <YStack
         width={36}
         height={36}
-        backgroundColor="$white"
+        backgroundColor="$color12"
         borderRadius="$1"
       />
       <YStack
         width={44}
         height={44}
-        backgroundColor="$primary"
+        backgroundColor="$color9"
         borderRadius="$2"
       />
       <YStack
         width={36}
         height={36}
-        backgroundColor="$white"
+        backgroundColor="$color12"
         borderRadius="$1"
       />
     </XStack>

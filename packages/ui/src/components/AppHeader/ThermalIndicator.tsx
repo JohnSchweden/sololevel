@@ -365,7 +365,7 @@ export const ThermalIndicator = ({
 
               <Paragraph
                 fontSize="$2"
-                color="$color"
+                color={"$color" as any}
               >
                 {config.description}
               </Paragraph>
@@ -374,7 +374,7 @@ export const ThermalIndicator = ({
                 <XStack justifyContent="space-between">
                   <Paragraph
                     fontSize="$2"
-                    color="$gray10"
+                    color={"$color10" as any}
                   >
                     Current Temperature:
                   </Paragraph>
@@ -391,7 +391,7 @@ export const ThermalIndicator = ({
                 <XStack justifyContent="space-between">
                   <Paragraph
                     fontSize="$2"
-                    color="$gray10"
+                    color={"$color10" as any}
                   >
                     Battery Level:
                   </Paragraph>
@@ -413,33 +413,33 @@ export const ThermalIndicator = ({
                 >
                   <Paragraph
                     fontSize="$1"
-                    color="$gray10"
+                    color={"$color10" as any}
                     fontWeight="600"
                   >
                     Recommendations:
                   </Paragraph>
                   <Paragraph
                     fontSize="$1"
-                    color="$gray10"
+                    color={"$color10" as any}
                   >
                     • Reduce recording quality
                   </Paragraph>
                   <Paragraph
                     fontSize="$1"
-                    color="$gray10"
+                    color={"$color10" as any}
                   >
                     • Lower zoom level
                   </Paragraph>
                   <Paragraph
                     fontSize="$1"
-                    color="$gray10"
+                    color={"$color10" as any}
                   >
                     • Take a break to cool down
                   </Paragraph>
                   {thermalState === 'critical' && (
                     <Paragraph
                       fontSize="$1"
-                      color="$red10"
+                      color={"$red10" as any}
                       fontWeight="600"
                     >
                       • Recording may auto-stop
@@ -529,7 +529,7 @@ export const ThermalWarningBanner = ({
         </H6>
         <Paragraph
           fontSize="$2"
-          color="$color"
+          color={"$color" as any}
         >
           {config.description}
           {temperature && ` (${Math.round(temperature)}°C)`}

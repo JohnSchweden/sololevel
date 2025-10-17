@@ -16,26 +16,26 @@
     "watch": "tamagui-build --skip-types --watch"
   },
   "dependencies": {
-    "@tamagui/animations-react-native": "1.132.20",
-    "@tamagui/config": "1.132.20",
-    "@tamagui/config-default": "1.132.20",
-    "@tamagui/create-theme": "1.132.20",
-    "@tamagui/font-inter": "1.132.20",
-    "@tamagui/shorthands": "1.132.20",
-    "@tamagui/themes": "1.132.20"
+    "@tamagui/animations-react-native": "1.135.2",
+    "@tamagui/config": "1.135.2",
+    "@tamagui/config-default": "1.135.2",
+    "@tamagui/create-theme": "1.135.2",
+    "@tamagui/font-inter": "1.135.2",
+    "@tamagui/shorthands": "1.135.2",
+    "@tamagui/themes": "1.135.2"
   },
   "devDependencies": {
-    "@tamagui/build": "1.132.20",
+    "@tamagui/build": "1.135.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
-    "tamagui": "1.132.20"
+    "tamagui": "1.135.2"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
     "react-native": "0.79.6",
-    "tamagui": "1.132.20"
+    "tamagui": "1.135.2"
   },
   "peerDependenciesMeta": {
     "react-native": {

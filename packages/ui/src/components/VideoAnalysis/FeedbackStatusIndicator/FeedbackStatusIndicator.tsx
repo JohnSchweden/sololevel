@@ -94,6 +94,7 @@ export function FeedbackStatusIndicator({
         gap="$2"
         testID={testID}
       >
+        {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
         <Spinner
           size={size === 'small' ? 'small' : 'large'}
           color="$blue9"
@@ -123,11 +124,11 @@ export function FeedbackStatusIndicator({
     >
       <Clock
         size={iconSize}
-        color="$gray9"
+        color="$color9"
       />
       <Text
         fontSize={textSize}
-        color="$gray9"
+        color="$color9"
       >
         Queued
       </Text>
