@@ -35,9 +35,7 @@ jest.mock('expo-router', () => ({
 }))
 
 // Mock React Navigation elements
-jest.mock('@react-navigation/elements', () => ({
-  useHeaderHeight: jest.fn(() => 0),
-}))
+jest.mock('@react-navigation/elements', () => ({}))
 
 jest.mock('expo-constants', () => ({
   expoConfig: { extra: {} },

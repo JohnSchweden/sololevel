@@ -66,7 +66,7 @@ const mockStartUploadAndAnalysis = startUploadAndAnalysis as jest.MockedFunction
 describe('useCameraScreenLogic', () => {
   const mockProps = {
     onNavigateBack: jest.fn(),
-    onNavigateToVideoAnalysis: jest.fn(),
+    onVideoProcessed: jest.fn(),
     cameraRef: { current: { startRecording: jest.fn(), stopRecording: jest.fn() } },
   }
 
@@ -114,8 +114,8 @@ describe('useCameraScreenLogic', () => {
       })
 
       // Verify navigation happens immediately
-      expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledWith(mockVideoUri)
-      expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledTimes(1)
+      expect(mockProps.onVideoProcessed).toHaveBeenCalledWith(mockVideoUri)
+      expect(mockProps.onVideoProcessed).toHaveBeenCalledTimes(1)
 
       // Verify the shared upload and analysis service was called
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledWith({
@@ -146,8 +146,8 @@ describe('useCameraScreenLogic', () => {
       })
 
       // Verify navigation happens immediately
-      expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledWith(mockMetadata.localUri)
-      expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledTimes(1)
+      expect(mockProps.onVideoProcessed).toHaveBeenCalledWith(mockMetadata.localUri)
+      expect(mockProps.onVideoProcessed).toHaveBeenCalledTimes(1)
 
       // Verify the shared upload and analysis service was called with file and metadata
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledWith({

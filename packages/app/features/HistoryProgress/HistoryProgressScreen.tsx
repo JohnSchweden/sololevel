@@ -1,8 +1,8 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { useFocusEffect } from 'expo-router'
 import React from 'react'
 import { YStack } from 'tamagui'
@@ -51,7 +51,8 @@ export function HistoryProgressScreen({
   onNavigateToVideos,
   testID = 'history-progress-screen',
 }: HistoryProgressScreenProps): React.ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Log screen mount
   React.useEffect(() => {
@@ -158,7 +159,7 @@ export function HistoryProgressScreen({
       {/* AppHeader rendered automatically by _layout.tsx */}
       <YStack
         flex={1}
-        paddingTop={headerHeight}
+        paddingTop={insets.top + APP_HEADER_HEIGHT}
         marginVertical="$4"
         borderRadius="$10"
         overflow="hidden"

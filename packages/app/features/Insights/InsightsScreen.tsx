@@ -1,3 +1,4 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   AchievementCard,
   ActivityChart,
@@ -7,22 +8,14 @@ import {
   SettingsSectionHeader,
   StatCard,
 } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { useNavigation } from 'expo-router'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 import { useInsightsData } from './hooks/useInsightsData'
 
 export interface InsightsScreenProps {
-  /**
-   * Callback when navigating to history/progress screen
-   * Implemented by route file with router.push()
-   */
-  onNavigateToHistory?: () => void
-
   /**
    * Test ID for testing
    */
@@ -35,37 +28,31 @@ export interface InsightsScreenProps {
  * Displays performance insights, achievements, and progress tracking.
  * Includes weekly stats, focus areas, achievements, and quick stats.
  *
- * **Navigation Pattern (Battle-Tested):**
- * - Screen receives callbacks as props (framework-agnostic)
- * - Route file implements callbacks with platform router
- * - No direct router/navigation imports in screen
+ * **Navigation Pattern (Expo Router Native):**
+ * - Screen is framework-agnostic with no navigation imports
+ * - Route file configures header via Tabs.Screen options
+ * - All navigation logic isolated in route files
  *
  * @example
  * ```tsx
  * // Route file (apps/expo/app/(tabs)/insights.tsx)
- * <InsightsScreen onNavigateToHistory={() => router.push('/history-progress')} />
+ * <Tabs.Screen
+ *   name="insights"
+ *   options={{
+ *     appHeaderProps: { onMenuPress: () => router.push('/history-progress') }
+ *   }}
+ * />
+ * <InsightsScreen />
  * ```
  */
 export function InsightsScreen({
-  onNavigateToHistory,
   testID = 'insights-screen',
 }: InsightsScreenProps = {}): React.ReactElement {
-  const navigation = useNavigation()
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
   const [sectionsVisible, setSectionsVisible] = useState<boolean[]>([false, false, false, false])
 
   const { data, isLoading, isError, refetch } = useInsightsData()
-
-  // Configure header with menu button for history navigation
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      // @ts-ignore: custom appHeaderProps not in base type
-      appHeaderProps: {
-        leftAction: 'sidesheet',
-        onMenuPress: () => onNavigateToHistory?.(),
-      },
-    })
-  }, [navigation, onNavigateToHistory])
 
   // Stagger section animations on mount
   useEffect(() => {
@@ -168,7 +155,7 @@ export function InsightsScreen({
           }
         >
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

@@ -62,9 +62,7 @@ jest.mock('expo-router', () => ({
   useNavigation: () => mockNavigation,
 }))
 
-jest.mock('@react-navigation/elements', () => ({
-  useHeaderHeight: () => 100,
-}))
+jest.mock('@react-navigation/elements', () => ({}))
 
 describe('GiveFeedbackScreen', () => {
   beforeEach(() => {

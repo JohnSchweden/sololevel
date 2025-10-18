@@ -1,9 +1,8 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import { ChatInput, GlassBackground, MessageBubble, SuggestionChip, TypingIndicator } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
-import { useNavigation } from 'expo-router'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, Image, ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -22,8 +21,6 @@ export interface Suggestion {
 }
 
 export interface CoachScreenProps {
-  onNavigateToSettings?: () => void
-  onNavigateToHistory?: () => void
   testID?: string
 }
 
@@ -49,32 +46,29 @@ const AI_RESPONSES = [
  * Chat interface for AI coaching with message history, suggestions, and voice input.
  * Mobile-first design with glass background.
  *
+ * **Navigation Pattern (Expo Router Native):**
+ * - Screen is framework-agnostic with no navigation imports
+ * - Route file configures header via Tabs.Screen options
+ * - All navigation logic isolated in route files
+ *
  * @example
  * ```tsx
- * <CoachScreen
- *   onNavigateToSettings={() => router.push('/settings/personalisation')}
+ * // Route file (apps/expo/app/(tabs)/coach.tsx)
+ * <Tabs.Screen
+ *   name="coach"
+ *   options={{
+ *     appHeaderProps: { onMenuPress: () => router.push('/history-progress') }
+ *   }}
  * />
+ * <CoachScreen />
  * ```
  */
 export function CoachScreen({
-  onNavigateToSettings,
-  onNavigateToHistory,
   testID = 'coach-screen',
-}: CoachScreenProps): React.ReactElement {
+}: CoachScreenProps = {}): React.ReactElement {
   // Hooks
-  const navigation = useNavigation()
-  const headerHeight = useHeaderHeight()
-
-  // Configure header with menu button for history navigation
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      // @ts-ignore: custom appHeaderProps not in base type
-      appHeaderProps: {
-        leftAction: 'sidesheet',
-        onMenuPress: () => onNavigateToHistory?.(),
-      },
-    })
-  }, [navigation, onNavigateToHistory])
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // State
   const [messages, setMessages] = useState<Message[]>([
@@ -95,14 +89,6 @@ export function CoachScreen({
   const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
 
   // Handlers
-  const handleAvatarPress = (): void => {
-    if (onNavigateToSettings) {
-      onNavigateToSettings()
-    } else {
-      log.info('CoachScreen', 'Avatar pressed (no handler)')
-    }
-  }
-
   const sendMessage = (message?: string): void => {
     const messageToSend = message || inputMessage
     if (!messageToSend.trim() || isTyping) return
@@ -179,7 +165,7 @@ export function CoachScreen({
 
     // Calculate message position relative to viewport
     // Account for padding and header by measuring distance from content top
-    const messageTop = layout.y - scrollOffset + headerHeight
+    const messageTop = layout.y - scrollOffset + insets.top + APP_HEADER_HEIGHT
 
     // Fade zone: start fading at header bottom (0px below header), fully faded when scrolled past
     const fadeStart = 100 // Start fading 20px below the header
@@ -218,7 +204,7 @@ export function CoachScreen({
       >
         <YStack
           flex={1}
-          paddingTop={headerHeight}
+          paddingTop={insets.top + APP_HEADER_HEIGHT}
           testID={`${testID}-content`}
         >
           {/* Avatar */}
@@ -227,36 +213,24 @@ export function CoachScreen({
             marginTop="$2"
             marginBottom="$5"
           >
-            <Button
-              onPress={handleAvatarPress}
-              disabled={!onNavigateToSettings}
-              chromeless
-              padding={0}
-              testID={`${testID}-avatar`}
-              accessibilityLabel="Coach settings"
+            <YStack
+              width={64}
+              height={64}
+              borderRadius={32}
+              backgroundColor="$color5"
+              borderWidth={1}
+              borderColor="rgba(255,255,255,0.3)"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
             >
-              <YStack
-                width={64}
-                height={64}
+              <Image
+                source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                width={66}
+                height={66}
                 borderRadius={32}
-                backgroundColor="$color5"
-                borderWidth={1}
-                borderColor="rgba(255,255,255,0.3)"
-                alignItems="center"
-                justifyContent="center"
-                animation="quick"
-                hoverStyle={{ scale: 1.05 }}
-                pressStyle={{ scale: 0.95 }}
-                overflow="hidden"
-              >
-                <Image
-                  source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                  width={66}
-                  height={66}
-                  borderRadius={32}
-                />
-              </YStack>
-            </Button>
+              />
+            </YStack>
           </YStack>
 
           {/* Messages */}

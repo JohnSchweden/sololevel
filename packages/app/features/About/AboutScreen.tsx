@@ -1,5 +1,5 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { FileText } from '@tamagui/lucide-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -48,7 +48,8 @@ export function AboutScreen({
   onLicensesPress,
   testID = 'about-screen',
 }: AboutScreenProps = {}): React.ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   return (
     <GlassBackground
@@ -61,7 +62,7 @@ export function AboutScreen({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

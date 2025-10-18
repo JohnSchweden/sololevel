@@ -4,6 +4,16 @@ import { useCallback, useEffect, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'
 
+/**
+ * Type definition for tab navigation parameters
+ * Used for type safety in Expo Router tab navigation
+ */
+export type TabParamList = {
+  record: undefined
+  coach: undefined
+  insights: undefined
+}
+
 const TAB_STORAGE_KEY = 'activeTab'
 const DEFAULT_TAB: TabType = 'record'
 

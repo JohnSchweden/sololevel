@@ -11,7 +11,8 @@
 
 ## Expo Router Notes
 - Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
-- Configure headers per route in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`.
+- **Static headers**: Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`
+- **Dynamic headers**: Use `useNavigation().setOptions()` in route files, triggered by screen callbacks
 
 ## Version Matrix
 | Area          | Current        | Minimum | Source |

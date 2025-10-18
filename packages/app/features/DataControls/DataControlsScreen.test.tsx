@@ -42,9 +42,7 @@ jest.mock('expo-router', () => ({
   useNavigation: () => mockNavigation,
 }))
 
-jest.mock('@react-navigation/elements', () => ({
-  useHeaderHeight: () => 60,
-}))
+jest.mock('@react-navigation/elements', () => ({}))
 
 describe('DataControlsScreen', () => {
   beforeEach(() => {

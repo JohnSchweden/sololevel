@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { YStack } from 'tamagui'
 import type { GetProps } from 'tamagui'
-import { BottomNavigationContainer } from '../../BottomNavigation/BottomNavigation'
 
 export interface CameraContainerProps {
   children?: ReactNode
@@ -15,7 +14,7 @@ export interface CameraContainerProps {
  * Mobile-first YStack root container with safe area handling
  * Implements responsive breakpoints and 44px touch targets
  */
-export function CameraContainer({ children, bottomNavigation, testID }: CameraContainerProps) {
+export function CameraContainer({ children, testID }: CameraContainerProps) {
   return (
     <YStack
       flex={1}
@@ -34,11 +33,6 @@ export function CameraContainer({ children, bottomNavigation, testID }: CameraCo
       >
         {children}
       </YStack>
-
-      {/* Bottom Navigation - Mobile optimized */}
-      {bottomNavigation && (
-        <BottomNavigationContainer>{bottomNavigation}</BottomNavigationContainer>
-      )}
     </YStack>
   )
 }

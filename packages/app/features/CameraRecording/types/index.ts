@@ -18,16 +18,50 @@ export enum RecordingState {
 
 export type ScreenState = 'camera' | 'videoPlayer'
 
+/**
+ * Header state for dynamic header updates
+ * Route file receives this via callback and updates header
+ */
+export interface HeaderState {
+  /** Recording timer display (e.g., "00:15") */
+  time: string
+  /** Recording mode indicator */
+  mode: RecordingState
+  /** Whether recording is in progress (for header styling) */
+  isRecording: boolean
+}
+
 // Core TypeScript Interfaces
 export interface CameraRecordingScreenProps {
-  // Navigation
-  onNavigateBack?: () => void
-  onNavigateToVideoAnalysis?: (videoUri: string) => void
   /**
-   * Callback to navigate to history/progress screen via hamburger menu.
-   * Opens history-progress modal over the tabs layout.
+   * Callback when video is processed and ready for analysis
+   * Route file handles navigation with router.push()
    */
-  onNavigateToHistory?: () => void
+  onVideoProcessed?: (videoUri: string) => void
+
+  /**
+   * Callback to update header state (timer, mode indicator)
+   * Route file receives state and calls navigation.setOptions()
+   */
+  onHeaderStateChange?: (state: HeaderState) => void
+
+  /**
+   * Callback when back button is pressed during recording
+   * Stops recording and resets to idle state
+   */
+  onBackPress?: React.MutableRefObject<(() => Promise<void>) | null>
+
+  /**
+   * Callback for dev navigation (compression test, pipeline test, etc.)
+   * Route file handles navigation with router.push()
+   */
+  onDevNavigate?: (route: string) => void
+
+  /**
+   * Reset camera to idle state (from URL params)
+   * Used when navigating back from video analysis
+   */
+  resetToIdle?: boolean
 
   // Camera state - optional for placeholder component
   cameraPermission?: CameraPermissionStatus
@@ -45,9 +79,6 @@ export interface CameraRecordingScreenProps {
   onPauseRecording?: () => void
   onStopRecording?: () => void
   onUploadVideo?: () => void
-
-  // Navigation state management
-  resetToIdle?: boolean
 }
 
 export interface PoseKeypoint {

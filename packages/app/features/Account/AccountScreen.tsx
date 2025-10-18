@@ -1,3 +1,4 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
   ProfileSection,
@@ -5,7 +6,6 @@ import {
   SettingsSectionHeader,
   SettingsToggleItem,
 } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { Lock, Mail, Shield, Trash2, User as UserIcon } from '@tamagui/lucide-icons'
 import type { ReactElement } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -94,7 +94,8 @@ export function AccountScreen({
   onToggle2FA,
   testID = 'account-screen',
 }: AccountScreenProps): ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Get auth state from store (fallback if props not provided)
   const { user: authUser, loading: authLoading } = useAuthStore()
@@ -127,7 +128,7 @@ export function AccountScreen({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight}
+            paddingTop={insets.top + APP_HEADER_HEIGHT}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

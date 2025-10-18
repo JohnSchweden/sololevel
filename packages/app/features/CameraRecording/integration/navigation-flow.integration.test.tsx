@@ -5,7 +5,7 @@
  * to the video analysis screen, testing the actual component integration.
  */
 
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { useCameraScreenLogic } from '../hooks/useCameraScreenLogic'
 
 // Mock logger
@@ -120,10 +120,10 @@ describe('Camera Recording Navigation Flow Integration', () => {
   })
 
   it('should navigate to video analysis screen when recording completes', async () => {
-    const mockOnNavigateToVideoAnalysis = jest.fn()
+    const mockOnVideoProcessed = jest.fn()
     const mockProps = {
       ...defaultProps,
-      onNavigateToVideoAnalysis: mockOnNavigateToVideoAnalysis,
+      onVideoProcessed: mockOnVideoProcessed,
     }
 
     const { result } = renderHook(() => useCameraScreenLogic(mockProps))
@@ -134,25 +134,27 @@ describe('Camera Recording Navigation Flow Integration', () => {
     })
 
     // Verify navigation callback was called with correct video URI
-    expect(mockOnNavigateToVideoAnalysis).toHaveBeenCalledWith('file:///recorded-video.mp4')
+    expect(mockOnVideoProcessed).toHaveBeenCalledWith('file:///recorded-video.mp4')
   })
 
-  it('should handle navigation back callback', () => {
-    const mockOnNavigateBack = jest.fn()
+  it('should handle navigation back callback', async () => {
+    const mockOnVideoProcessed = jest.fn()
     const mockProps = {
       ...defaultProps,
-      onNavigateBack: mockOnNavigateBack,
+      onVideoProcessed: mockOnVideoProcessed,
     }
 
     const { result } = renderHook(() => useCameraScreenLogic(mockProps))
 
-    // Simulate navigation back
+    // Video processing is now handled via callback, no navigation in hook
     act(() => {
-      result.current.handleNavigateBack()
+      result.current.handleVideoRecorded('test-video.mp4')
     })
 
-    // Verify navigation back callback was called
-    expect(mockOnNavigateBack).toHaveBeenCalled()
+    // Verify video processed callback was called
+    await waitFor(() => {
+      expect(mockOnVideoProcessed).toHaveBeenCalledWith('test-video.mp4')
+    })
   })
 
   it('should handle missing navigation callbacks gracefully', () => {
@@ -162,24 +164,22 @@ describe('Camera Recording Navigation Flow Integration', () => {
     expect(() => {
       act(() => {
         result.current.handleVideoRecorded('test-video.mp4')
-        result.current.handleNavigateBack()
       })
     }).not.toThrow()
   })
 
-  it('should provide all expected navigation functions', () => {
+  it('should provide all expected video processing functions', () => {
     const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
 
-    // Verify all navigation functions are available
+    // Verify video processing function is available
     expect(typeof result.current.handleVideoRecorded).toBe('function')
-    expect(typeof result.current.handleNavigateBack).toBe('function')
   })
 
   it('should handle multiple video recordings with navigation', async () => {
-    const mockOnNavigateToVideoAnalysis = jest.fn()
+    const mockOnVideoProcessed = jest.fn()
     const mockProps = {
       ...defaultProps,
-      onNavigateToVideoAnalysis: mockOnNavigateToVideoAnalysis,
+      onVideoProcessed: mockOnVideoProcessed,
     }
 
     const { result } = renderHook(() => useCameraScreenLogic(mockProps))
@@ -194,8 +194,8 @@ describe('Camera Recording Navigation Flow Integration', () => {
     })
 
     // Verify navigation was called for each video
-    expect(mockOnNavigateToVideoAnalysis).toHaveBeenCalledTimes(2)
-    expect(mockOnNavigateToVideoAnalysis).toHaveBeenNthCalledWith(1, 'file:///video1.mp4')
-    expect(mockOnNavigateToVideoAnalysis).toHaveBeenNthCalledWith(2, 'file:///video2.mp4')
+    expect(mockOnVideoProcessed).toHaveBeenCalledTimes(2)
+    expect(mockOnVideoProcessed).toHaveBeenNthCalledWith(1, 'file:///video1.mp4')
+    expect(mockOnVideoProcessed).toHaveBeenNthCalledWith(2, 'file:///video2.mp4')
   })
 })

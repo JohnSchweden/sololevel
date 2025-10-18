@@ -1,5 +1,5 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { AuthenticationSection, GlassBackground, SessionManagementSection } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, YStack } from 'tamagui'
@@ -37,7 +37,8 @@ export function SecurityScreen({
   onLoginHistoryPress,
   testID = 'security-screen',
 }: SecurityScreenProps = {}): React.ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Local state for security settings (P1: Move to Zustand store)
   const [appLock, setAppLock] = useState(false)
@@ -54,7 +55,7 @@ export function SecurityScreen({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

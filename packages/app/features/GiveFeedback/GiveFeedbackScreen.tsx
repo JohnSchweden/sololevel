@@ -1,5 +1,5 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { FeedbackTypeButton, GlassBackground, TextArea } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { Gift, Send } from '@tamagui/lucide-icons'
 import type React from 'react'
 import { useState } from 'react'
@@ -34,7 +34,8 @@ export const GiveFeedbackScreen = ({
   onSuccess,
   testID = 'give-feedback-screen',
 }: GiveFeedbackScreenProps): React.JSX.Element => {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   const [selectedType, setSelectedType] = useState<FeedbackType>('suggestion')
   const [message, setMessage] = useState('')
@@ -72,7 +73,7 @@ export const GiveFeedbackScreen = ({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

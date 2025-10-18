@@ -9,12 +9,11 @@ import {
   RecordingControls,
 } from '@my/ui/src/components/CameraRecording'
 
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 // Import external components directly
 import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
-import { useHeaderHeight } from '@react-navigation/elements'
-import { useNavigation } from 'expo-router'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
@@ -26,14 +25,15 @@ import { CameraRecordingScreenProps, RecordingState } from './types'
 const golfBackgroundImage = require('../../../../apps/expo/assets/golf.png')
 
 export function CameraRecordingScreen({
-  onNavigateBack,
-  onNavigateToVideoAnalysis,
-  onNavigateToHistory,
+  onVideoProcessed,
+  onHeaderStateChange,
+  onBackPress,
+  onDevNavigate: _onDevNavigate, // Unused - dev buttons only in vision camera
   resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
-  const navigation = useNavigation()
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -67,7 +67,7 @@ export function CameraRecordingScreen({
     duration,
     formattedDuration,
     isRecording,
-    headerTitle,
+    // headerTitle, // Not needed - route file provides title
     cameraReady,
     handleCameraSwap,
     handleZoomChange,
@@ -80,7 +80,6 @@ export function CameraRecordingScreen({
     handleUploadVideo,
     handleVideoSelected,
     handleSettingsOpen,
-    handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
     handleCameraReady,
@@ -88,9 +87,7 @@ export function CameraRecordingScreen({
     handleVideoRecorded,
     resetRecording,
   } = useCameraScreenLogic({
-    onNavigateBack,
-    onNavigateToVideoAnalysis,
-    onNavigateToHistory,
+    onVideoProcessed,
     cameraRef,
   })
 
@@ -106,49 +103,28 @@ export function CameraRecordingScreen({
   const isInRecordingState =
     recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
 
-  // Determine header mode based on recording state
-  const getHeaderMode = () => {
-    if (isInRecordingState) return 'recording'
-    if (recordingState === RecordingState.IDLE) return 'camera-idle'
-    return 'camera'
-  }
-
-  // Header title
-  const displayHeaderTitle = headerTitle
-
-  // Update navigation header dynamically based on recording state
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      // @ts-ignore: custom appHeaderProps not in base type
-      appHeaderProps: {
-        title: displayHeaderTitle,
-        mode: getHeaderMode(),
-        showTimer: isInRecordingState,
-        timerValue: formattedDuration,
-        leftAction: isInRecordingState ? 'back' : 'sidesheet',
-        onMenuPress: () => onNavigateToHistory?.(),
-        onBackPress: handleBackPress,
-        onNotificationPress: handleNavigateBack,
-        cameraProps: { isRecording: isInRecordingState },
-      },
+  // Communicate header state to route file via callback
+  useEffect(() => {
+    onHeaderStateChange?.({
+      time: formattedDuration,
+      mode: recordingState,
+      isRecording: isInRecordingState,
     })
-  }, [
-    navigation,
-    displayHeaderTitle,
-    isInRecordingState,
-    formattedDuration,
-    recordingState,
-    handleBackPress,
-    onNavigateToHistory,
-    handleNavigateBack,
-  ])
+  }, [formattedDuration, recordingState, isInRecordingState, onHeaderStateChange])
+
+  // Share back press handler with route file via ref
+  useEffect(() => {
+    if (onBackPress) {
+      onBackPress.current = handleBackPress
+    }
+  }, [onBackPress, handleBackPress])
 
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
   return (
     <YStack
       flex={1}
-      paddingTop={headerHeight}
+      paddingTop={insets.top + APP_HEADER_HEIGHT}
       backgroundColor="$background"
     >
       <CameraContainer

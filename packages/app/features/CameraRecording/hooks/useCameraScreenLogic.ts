@@ -1,14 +1,12 @@
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
 
 export const useCameraScreenLogic = ({
-  onNavigateBack,
-  onNavigateToVideoAnalysis,
-  onNavigateToHistory: _onNavigateToHistory, // Prefixed with _ - passed through to screen components
+  onVideoProcessed,
   cameraRef,
 }: CameraRecordingScreenProps & {
   cameraRef?: any
@@ -150,13 +148,13 @@ export const useCameraScreenLogic = ({
     onResetZoom: handleResetZoom,
   })
 
-  // Handle video recording completion - navigate immediately, process in background
+  // Handle video recording completion - notify parent, process in background
   const handleVideoRecorded = useCallback(
     async (videoUri: string) => {
       log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
 
-      // 1) Navigate immediately to analysis screen so user sees processing state right away
-      onNavigateToVideoAnalysis?.(videoUri)
+      // 1) Notify parent component (route file will handle navigation)
+      onVideoProcessed?.(videoUri)
 
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
@@ -172,7 +170,7 @@ export const useCameraScreenLogic = ({
         },
       })
     },
-    [onNavigateToVideoAnalysis, queryClient]
+    [onVideoProcessed, duration, queryClient]
   )
 
   const handleCameraSwap = useCallback(async () => {
@@ -311,8 +309,8 @@ export const useCameraScreenLogic = ({
         duration: metadata?.duration,
       })
 
-      // 1) Navigate immediately to analysis screen so user sees processing state right away
-      onNavigateToVideoAnalysis?.(metadata?.localUri)
+      // 1) Notify parent component (route file will handle navigation)
+      onVideoProcessed?.(metadata?.localUri)
 
       // 2) Start the upload and analysis pipeline in background
       void startUploadAndAnalysis({
@@ -332,26 +330,13 @@ export const useCameraScreenLogic = ({
         },
       })
     },
-    [onNavigateToVideoAnalysis, queryClient]
+    [onVideoProcessed, queryClient]
   )
 
   const handleSettingsOpen = useCallback(() => {
     // TODO: Implement camera settings modal
     log.info('handleSettingsOpen', 'Settings clicked')
   }, [])
-
-  // Stabilize optional navigation callback to avoid changing dependency array sizes
-  const onNavigateBackRef = useRef<typeof onNavigateBack>(onNavigateBack)
-  // Always update ref on every render to avoid conditional useEffect
-  onNavigateBackRef.current = onNavigateBack
-
-  const handleNavigateBack = useCallback(() => {
-    if (recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED) {
-      setShowNavigationDialog(true)
-      return
-    }
-    onNavigateBackRef.current?.()
-  }, [recordingState])
 
   const confirmNavigation = useCallback(() => {
     setShowNavigationDialog(false)
@@ -361,7 +346,6 @@ export const useCameraScreenLogic = ({
     } catch (error) {
       log.warn('confirmNavigation', `Error stopping recording on navigation: ${error}`)
     }
-    onNavigateBackRef.current?.()
   }, [stopRecording, resetRecording])
 
   const cancelNavigation = useCallback(() => {
@@ -409,7 +393,6 @@ export const useCameraScreenLogic = ({
     handleUploadVideo,
     handleVideoSelected,
     handleSettingsOpen,
-    handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
     handleCameraReady,

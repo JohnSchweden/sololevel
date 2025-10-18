@@ -6,9 +6,10 @@ import { CameraRecordingScreenProps } from './types'
  * This prevents Rules of Hooks violations by ensuring React never sees different hook structures
  */
 export function CameraRecordingScreenWrapper({
-  onNavigateBack,
-  onNavigateToVideoAnalysis,
-  onNavigateToHistory,
+  onVideoProcessed,
+  onHeaderStateChange,
+  onBackPress,
+  onDevNavigate,
   resetToIdle,
 }: CameraRecordingScreenProps) {
   const { flags } = useFeatureFlagsStore()
@@ -19,9 +20,10 @@ export function CameraRecordingScreenWrapper({
     const { CameraRecordingScreen: VisionCameraScreen } = require('./CameraRecordingScreen.vision')
     return (
       <VisionCameraScreen
-        onNavigateBack={onNavigateBack}
-        onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
-        onNavigateToHistory={onNavigateToHistory}
+        onVideoProcessed={onVideoProcessed}
+        onHeaderStateChange={onHeaderStateChange}
+        onBackPress={onBackPress}
+        onDevNavigate={onDevNavigate}
         resetToIdle={resetToIdle}
       />
     )
@@ -31,9 +33,10 @@ export function CameraRecordingScreenWrapper({
   const { CameraRecordingScreen: ExpoCameraScreen } = require('./CameraRecordingScreen.expo')
   return (
     <ExpoCameraScreen
-      onNavigateBack={onNavigateBack}
-      onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
-      onNavigateToHistory={onNavigateToHistory}
+      onVideoProcessed={onVideoProcessed}
+      onHeaderStateChange={onHeaderStateChange}
+      onBackPress={onBackPress}
+      onDevNavigate={onDevNavigate}
       resetToIdle={resetToIdle}
     />
   )

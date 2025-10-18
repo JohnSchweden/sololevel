@@ -1,10 +1,10 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
   SettingsNavigationItem,
   SettingsSectionHeader,
   SettingsToggleItem,
 } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { Database, Download, Trash2 } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -43,7 +43,8 @@ export function DataControlsScreen({
   onClearAllData,
   testID = 'data-controls-screen',
 }: DataControlsScreenProps = {}): React.ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Local state for data controls (P1: Move to Zustand store)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
@@ -60,7 +61,7 @@ export function DataControlsScreen({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

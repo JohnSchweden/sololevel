@@ -76,7 +76,7 @@ jest.mock('immer', () => {
 describe('upload-analysis-integration', () => {
   const mockProps = {
     onNavigateBack: jest.fn(),
-    onNavigateToVideoAnalysis: jest.fn(),
+    onVideoProcessed: jest.fn(),
     cameraRef: { current: { startRecording: jest.fn(), stopRecording: jest.fn() } },
   }
 
@@ -119,6 +119,6 @@ describe('upload-analysis-integration', () => {
     // Analysis is now auto-started server-side after upload (not called from client)
 
     // Navigates to analysis screen immediately
-    expect(mockProps.onNavigateToVideoAnalysis).toHaveBeenCalledWith(mockVideoUri)
+    expect(mockProps.onVideoProcessed).toHaveBeenCalledWith(mockVideoUri)
   })
 })

@@ -10,3 +10,7 @@
 - Don't create custom UI components (use `@my/ui`)
 - Keep app-specific code in respective app directories
 - Both apps use Metro bundler → use `EXPO_PUBLIC_*` environment variables
+
+## Navigation
+- Route files implement navigation callbacks for screens
+- See `packages/app/AGENTS.md` and `.cursor/rules/features/navigation-expo-router.mdc`

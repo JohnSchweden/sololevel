@@ -1,70 +1,176 @@
 ---
 description: Expo Router navigation for cross-platform routing
-globs: ["**/navigation/**/*", "**/screens/**/*", "packages/app/**/*", "**/app/**/*"]
 alwaysApply: false
 ---
-
-# Navigation Rules
+# Navigation Rules - Battle-Tested Pattern
 
 **Package context:** See `packages/app/AGENTS.md` for screen organization.
-- Use Expo Router for ALL navigation (web + native)
-- NEVER use React Navigation directly
-- Use Expo Router Link component with asChild pattern
-- File-based routing in apps/expo/app/ directory
-- Use typed navigation params with TypeScript
 
-# Screen Structure
-- Use .tsx extension for all screens
-- Use useLocalSearchParams() for dynamic route params
+## Core Principles
 
-# Hooks and Components
-- Link from 'expo-router' with asChild for custom components
-- useRouter() from 'expo-router' for programmatic navigation
-- useLocalSearchParams() for accessing route parameters
-- Stack.Screen for configuring route options
+### 1. Separation of Concerns
+- **Screens** (`packages/app/features/`): Business logic only, NO navigation imports
+- **Route Files** (`apps/{expo,web}/app/`): All navigation logic, header config, routing
 
-# Cross-Platform Integration
-- Use dependency injection for navigation components via props
-- Both web and native use Expo Router (unified navigation)
+### 2. Single API Source (Expo Router Native)
+- ✅ Use Expo Router APIs: `useRouter()`, `useLocalSearchParams()`, `Link`
+- ✅ Use `useHeaderHeight()` from `@react-navigation/elements` (utility hook only)
+- ❌ NEVER use `useNavigation()` from Expo Router in screens
+- ❌ NEVER use React Navigation directly
 
-# Platform-Specific Implementation
+### 3. Dependency Injection
+- Route files pass navigation callbacks as props
+- Screens accept callbacks: `onBack?: () => void`, `onNavigate?: (route: string) => void`
+- Headers configured in route file via `Stack.Screen options` or `useNavigation().setOptions()`
+
+## Implementation Patterns
+
+### Static Headers (Preferred)
 ```typescript
-// ✅ Good - Shared screen with navigation injection
-export function HomeScreen({ 
-  linkComponent 
-}: { 
-  linkComponent?: React.ReactNode 
-}) {
+// ✅ Route file - static header configuration
+// apps/expo/app/(tabs)/insights.tsx
+import { Tabs } from 'expo-router'
+
+export default function InsightsTab() {
+  const router = useRouter()
+  
   return (
-    <YStack>
-      {/* shared UI logic */}
-      {linkComponent || <Button>Default Link</Button>}
-    </YStack>
+    <>
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: "Insights",
+          headerRight: () => <Button onPress={() => router.push('/settings')}>Settings</Button>
+        }}
+      />
+      <InsightsScreen />
+    </>
   )
 }
 
-// ✅ Good - Expo Router implementation
-// apps/expo/app/index.tsx
-<HomeScreen 
-  linkComponent={
-    <Link href="/user/nate" asChild>
-      <Button>Link to user</Button>
-    </Link>
-  }
-/>
+// ✅ Screen - no navigation imports
+// packages/app/features/Insights/InsightsScreen.tsx
+export function InsightsScreen({ testID }: InsightsScreenProps) {
+  // Just business logic and UI
+  return <YStack>{/* ... */}</YStack>
+}
+```
 
-// ✅ Good - Web implementation  
-// apps/web/app/index.tsx
-<HomeScreen 
-  linkComponent={
-    <Link href="/user/nate" passHref legacyBehavior>
-      <Button>Link to user</Button>
-    </Link>
-  }
+### Dynamic Headers (When Needed)
+```typescript
+// ✅ Route file - dynamic header via callback props
+// apps/expo/app/(tabs)/record.tsx
+import { useNavigation } from 'expo-router' // Only in route files!
+
+export default function RecordTab() {
+  const router = useRouter()
+  const navigation = useNavigation()
+  
+  const handleHeaderStateChange = useCallback((state: HeaderState) => {
+    navigation.setOptions({
+      headerTitle: () => <RecordingTimer time={state.time} />,
+      headerRight: () => <RecordingModeIndicator mode={state.mode} />
+    })
+  }, [navigation])
+  
+  return (
+    <AuthGate>
+      <CameraRecordingScreen
+        onHeaderStateChange={handleHeaderStateChange}
+        onVideoProcessed={(uri) => router.push('/video-analysis')}
+      />
+    </AuthGate>
+  )
+}
+
+// ✅ Screen - communicates header state via callback
+// packages/app/features/CameraRecording/CameraRecordingScreen.tsx
+export function CameraRecordingScreen({
+  onHeaderStateChange,
+  onVideoProcessed
+}: CameraRecordingScreenProps) {
+  useEffect(() => {
+    onHeaderStateChange?.({ time: duration, mode: recordingState })
+  }, [duration, recordingState, onHeaderStateChange])
+  
+  // Business logic only
+}
+```
+
+### Navigation Callbacks
+```typescript
+// ✅ Screen accepts callbacks as props
+export interface ScreenProps {
+  onBack?: () => void
+  onNavigate?: (route: string) => void
+  onVideoProcessed?: (uri: string) => void
+}
+
+// ✅ Route file implements callbacks
+<Screen
+  onBack={() => router.back()}
+  onNavigate={(route) => router.push(route)}
+  onVideoProcessed={(uri) => router.push({ pathname: '/analysis', params: { uri }})}
 />
 ```
 
-# Navigation Props Pattern
-- Pass navigation callbacks and components as props
-- Keep shared screens platform-agnostic
-- Handle navigation in platform-specific route files
+## File-Based Routing
+
+- Routes live in `apps/{expo,web}/app/` directory
+- Use typed navigation params with `useLocalSearchParams<T>()`
+- Dynamic routes: `[id].tsx` for `/route/:id`
+- Groups: `(tabs)/` for tab navigation
+
+## Testing Strategy
+
+### Screen Tests
+```typescript
+// ✅ Test business logic with mocked callbacks
+it('should call onVideoProcessed when recording completes', () => {
+  const mockOnVideoProcessed = jest.fn()
+  render(<CameraRecordingScreen onVideoProcessed={mockOnVideoProcessed} />)
+  
+  // Trigger recording completion
+  fireEvent.press(screen.getByTestId('stop-button'))
+  
+  expect(mockOnVideoProcessed).toHaveBeenCalledWith('video-uri')
+})
+```
+
+### Route Tests
+```typescript
+// ✅ Test navigation logic in route files
+it('should navigate to video analysis after processing', () => {
+  const { router } = renderRouter('/record')
+  
+  // Simulate video processing
+  act(() => {
+    router.push({ pathname: '/video-analysis', params: { videoUri: 'test-uri' }})
+  })
+  
+  expect(router).toHavePathname('/video-analysis')
+})
+```
+
+## Benefits of This Pattern
+
+1. **Testability**: Mock callbacks, not hooks
+2. **Reusability**: Screens work in any navigation context
+3. **Framework-Agnostic**: Screens can be used outside Expo Router
+4. **Type Safety**: Explicit interfaces for all navigation behaviors
+5. **Future-Proof**: Aligns with Expo Router roadmap
+
+## Migration Checklist
+
+When refactoring screens to this pattern:
+- [ ] Remove all `useNavigation()` imports from screen files
+- [ ] Remove all `useRouter()` imports from screen files (except `useHeaderHeight()`)
+- [ ] Add callback props to screen interface
+- [ ] Move navigation logic to route files
+- [ ] Update header configuration in route files
+- [ ] Update tests to mock callbacks instead of navigation hooks
+
+## Cross-Links
+- Screen organization: `packages/app/AGENTS.md`
+- Route protection: `.cursor/rules/features/authentication.mdc`
+- TypeScript standards: `.cursor/rules/core/typescript-standards.mdc`

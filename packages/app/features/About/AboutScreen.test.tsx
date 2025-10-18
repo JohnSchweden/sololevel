@@ -11,16 +11,13 @@ const mockUseNavigation = jest.fn(() => ({
 const mockUseRouter = jest.fn(() => ({
   back: mockBack,
 }))
-const mockUseHeaderHeight = jest.fn(() => 100)
 
 jest.mock('expo-router', () => ({
   useNavigation: () => mockUseNavigation(),
   useRouter: () => mockUseRouter(),
 }))
 
-jest.mock('@react-navigation/elements', () => ({
-  useHeaderHeight: () => mockUseHeaderHeight(),
-}))
+jest.mock('@react-navigation/elements', () => ({}))
 
 describe('AboutScreen', () => {
   // Arrange: Reset mocks before each test

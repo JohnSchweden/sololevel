@@ -1,5 +1,4 @@
 import { InsightsScreen } from '@app/features/Insights'
-import { useRouter } from 'expo-router'
 import { AuthGate } from '../../components/AuthGate'
 
 /**
@@ -7,13 +6,13 @@ import { AuthGate } from '../../components/AuthGate'
  *
  * Route: /(tabs)/insights
  * Auth: Protected (requires authentication)
+ *
+ * Navigation configured in _layout.tsx via Tabs.Screen options
  */
 export default function InsightsTab() {
-  const router = useRouter()
-
   return (
     <AuthGate>
-      <InsightsScreen onNavigateToHistory={() => router.push('/history-progress')} />
+      <InsightsScreen />
     </AuthGate>
   )
 }

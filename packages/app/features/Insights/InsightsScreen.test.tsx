@@ -35,13 +35,13 @@ describe('InsightsScreen', () => {
     expect(typeof InsightsScreen).toBe('function')
   })
 
-  it('should accept onNavigateToHistory prop', () => {
+  it('should accept testID prop', () => {
     // Arrange
-    const onNavigateToHistory = jest.fn()
+    const testID = 'custom-test-id'
 
     // Act & Assert
-    // Component definition accepts onNavigateToHistory prop in its type signature
-    const props: React.ComponentProps<typeof InsightsScreen> = { onNavigateToHistory }
-    expect(props.onNavigateToHistory).toBe(onNavigateToHistory)
+    // Component definition accepts testID prop in its type signature
+    const props: React.ComponentProps<typeof InsightsScreen> = { testID }
+    expect(props.testID).toBe(testID)
   })
 })

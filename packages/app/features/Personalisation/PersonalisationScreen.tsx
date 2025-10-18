@@ -1,3 +1,4 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
   SettingsRadioGroup,
@@ -6,7 +7,6 @@ import {
   type SettingsSelectItemOption,
   SettingsToggleItem,
 } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { AArrowUp, Globe, Palette, Type, Vibrate, Volume2, Zap } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -33,7 +33,8 @@ export interface PersonalisationScreenProps {
 export function PersonalisationScreen({
   testID = 'personalisation-screen',
 }: PersonalisationScreenProps = {}): React.ReactElement {
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Local state for personalisation settings (P1: Move to Zustand store)
   const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto')
@@ -68,7 +69,7 @@ export function PersonalisationScreen({
       >
         <ScrollView flex={1}>
           <YStack
-            paddingTop={headerHeight + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"

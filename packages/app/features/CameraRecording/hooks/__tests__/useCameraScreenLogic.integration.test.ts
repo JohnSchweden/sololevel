@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 /// <reference types="jest" />
 // No imports needed - jest-expo preset provides globals
 import { useCameraScreenLogic } from '../useCameraScreenLogic'
@@ -107,7 +107,6 @@ jest.mock('../useTabPersistence', () => ({
 
 describe('useCameraScreenLogic Integration', () => {
   const defaultProps = {
-    onNavigateBack: jest.fn(),
     cameraRef: { current: null },
   }
 
@@ -169,7 +168,6 @@ describe('useCameraScreenLogic Integration', () => {
       expect(typeof result.current.handleUploadVideo).toBe('function')
       expect(typeof result.current.handleVideoSelected).toBe('function')
       expect(typeof result.current.handleSettingsOpen).toBe('function')
-      expect(typeof result.current.handleNavigateBack).toBe('function')
       expect(typeof result.current.confirmNavigation).toBe('function')
       expect(typeof result.current.cancelNavigation).toBe('function')
       expect(typeof result.current.handleCameraReady).toBe('function')
@@ -190,22 +188,26 @@ describe('useCameraScreenLogic Integration', () => {
   })
 
   describe('Navigation Integration', () => {
-    it('should handle navigation back', () => {
-      const onNavigateBack = jest.fn()
-      const { result } = renderHook(() => useCameraScreenLogic({ ...defaultProps, onNavigateBack }))
+    it('should notify parent when video is processed', async () => {
+      const onVideoProcessed = jest.fn()
+      const { result } = renderHook(() =>
+        useCameraScreenLogic({ ...defaultProps, onVideoProcessed })
+      )
 
       act(() => {
-        result.current.handleNavigateBack()
+        result.current.handleVideoRecorded('test-video-uri.mp4')
       })
 
-      expect(onNavigateBack).toHaveBeenCalled()
+      await waitFor(() => {
+        expect(onVideoProcessed).toHaveBeenCalledWith('test-video-uri.mp4')
+      })
     })
 
     it('should navigate to video analysis screen after recording stops', async () => {
-      const onNavigateToVideoAnalysis = jest.fn()
+      const onVideoProcessed = jest.fn()
       const mockProps = {
         ...defaultProps,
-        onNavigateToVideoAnalysis,
+        onVideoProcessed,
         cameraRef: { current: null },
       }
 
@@ -234,7 +236,7 @@ describe('useCameraScreenLogic Integration', () => {
       })
 
       // Navigation should happen after the async pipeline completes
-      expect(onNavigateToVideoAnalysis).toHaveBeenCalledWith('/path/to/recorded/video.mp4')
+      expect(onVideoProcessed).toHaveBeenCalledWith('/path/to/recorded/video.mp4')
     })
   })
 
@@ -251,13 +253,13 @@ describe('useCameraScreenLogic Integration', () => {
 
     it('should handle missing navigation callback gracefully', () => {
       const { result } = renderHook(() =>
-        useCameraScreenLogic({ ...defaultProps, onNavigateBack: undefined })
+        useCameraScreenLogic({ ...defaultProps, onVideoProcessed: undefined })
       )
 
-      // Should not throw when calling navigation functions
+      // Should not throw when calling video processed without callback
       expect(() => {
         act(() => {
-          result.current.handleNavigateBack()
+          result.current.handleVideoRecorded('test-video.mp4')
         })
       }).not.toThrow()
     })

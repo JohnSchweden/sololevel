@@ -1,3 +1,4 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
   type FooterLinkType,
@@ -8,7 +9,6 @@ import {
   type SettingsNavItem,
   SettingsNavigationList,
 } from '@my/ui'
-import { useHeaderHeight } from '@react-navigation/elements'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
@@ -66,7 +66,8 @@ export function SettingsScreen({
 }: SettingsScreenProps): React.ReactElement {
   // Hooks: Auth state and header height
   const { user, loading: isLoadingUser } = useAuthStore()
-  const headerHeight = useHeaderHeight()
+  const insets = useSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Handlers
   const handleNavigate = (route: string): void => {
@@ -115,7 +116,7 @@ export function SettingsScreen({
       >
         <YStack
           flex={1}
-          paddingTop={headerHeight}
+          paddingTop={insets.top + APP_HEADER_HEIGHT}
           paddingHorizontal="$4"
           gap="$6"
           paddingBottom="$6"

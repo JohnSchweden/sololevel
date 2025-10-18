@@ -2,11 +2,12 @@ import { NavigationAppHeader } from '@app/components/navigation'
 import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPersistence'
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
-import { Tabs, usePathname } from 'expo-router'
+import { Tabs, usePathname, useRouter } from 'expo-router'
 import { useEffect } from 'react'
 
 export default function TabsLayout() {
   const pathname = usePathname()
+  const router = useRouter()
   const { activeTab, setActiveTab, isLoading } = useTabPersistence()
 
   // Sync active tab with current route
@@ -52,15 +53,32 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="record"
-        options={{ title: 'Solo:Level' }}
+        options={{
+          title: 'Solo:Level',
+          lazy: true, // ✅ Lazy load for better performance
+        }}
       />
       <Tabs.Screen
         name="coach"
-        options={{ title: 'Chat/Mirror' }}
+        options={{
+          title: 'Chat/Mirror',
+          lazy: true, // ✅ Lazy load for better performance
+          // @ts-ignore: custom appHeaderProps extension
+          appHeaderProps: {
+            onMenuPress: () => router.push('/history-progress'),
+          },
+        }}
       />
       <Tabs.Screen
         name="insights"
-        options={{ title: 'Insights' }}
+        options={{
+          title: 'Insights',
+          lazy: true, // ✅ Lazy load for better performance
+          // @ts-ignore: custom appHeaderProps extension
+          appHeaderProps: {
+            onMenuPress: () => router.push('/history-progress'),
+          },
+        }}
       />
     </Tabs>
   )

@@ -10,15 +10,14 @@
 
 ### Navigation Pattern (Battle-Tested)
 **Screen/Route Separation:**
-- **Screens** (`packages/app/features/`): Accept callback props for navigation
-  - Props: `onBack?: () => void`, `onNavigate?: (route: string) => void`
-  - NO direct router/navigation imports (framework-agnostic, testable)
-  - Example: AccountScreen, SettingsScreen, CameraRecordingScreen
-- **Routes** (`apps/{expo,web}/app/`): Implement callbacks with platform router
-  - Provide callback implementations: `onBack={() => router.back()}`
+- **Screens** (`packages/app/features/`): Accept callback props, NO navigation imports
+  - Props: `onBack?: () => void`, `onNavigate?: (route: string) => void`, `onHeaderStateChange?: (state: HeaderState) => void`, `onBackPress?: React.MutableRefObject<(() => Promise<void>) | null>`
+  - Example: AccountScreen, SettingsScreen, CameraRecordingScreen, CoachScreen, InsightsScreen
+- **Routes** (`apps/{expo,web}/app/`): Own ALL navigation logic
+  - Implement callbacks: `onBack={() => router.back()}`, `onHeaderStateChange` → `navigation.setOptions()`
+  - Use ONLY Expo Router APIs: `useRouter()`, `useNavigation()`, `useLocalSearchParams()`
   - Wrap with `<AuthGate>` for protected routes
-  - Handle platform-specific: Linking (native) vs window.open (web)
-- **Benefits**: Framework-agnostic screens, easier testing (mock callbacks not hooks), reusable in different navigation contexts
+- **Benefits**: Framework-agnostic screens, easier testing (mock callbacks not hooks), single source of truth for navigation
 
 ## Testing
 - All icons used in components must be mocked in tests
