@@ -37,6 +37,16 @@ jest.mock('expo-router', () => ({
 // Mock React Navigation elements
 jest.mock('@react-navigation/elements', () => ({}))
 
+// Mock useSafeArea hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  }),
+}))
+
 jest.mock('expo-constants', () => ({
   expoConfig: { extra: {} },
 }))
