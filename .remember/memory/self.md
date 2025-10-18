@@ -75,4 +75,3 @@ expect(progress).toBeInTheDocument()
 // ARIA attributes are handled by Tamagui at runtime
 ```
 ARIA attributes passed as props to Tamagui components may be transformed or applied differently in the DOM. Focus tests on component presence and behavior rather than specific attribute values.
-

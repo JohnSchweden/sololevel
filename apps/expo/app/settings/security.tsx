@@ -1,6 +1,5 @@
 import { SecurityScreen } from '@my/app/features/Security'
 import { log } from '@my/logging'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Security Settings Route - Mobile App
@@ -26,11 +25,9 @@ export default function SecurityRoute() {
   }
 
   return (
-    <AuthGate>
-      <SecurityScreen
-        onActiveSessionsPress={handleActiveSessions}
-        onLoginHistoryPress={handleLoginHistory}
-      />
-    </AuthGate>
+    <SecurityScreen
+      onActiveSessionsPress={handleActiveSessions}
+      onLoginHistoryPress={handleLoginHistory}
+    />
   )
 }

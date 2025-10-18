@@ -1,7 +1,6 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
 import { log } from '@my/logging'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { AuthGate } from '../components/AuthGate'
 
 /**
  * Video Analysis Route (Web)
@@ -27,13 +26,11 @@ export default function VideoAnalysis() {
   }
 
   return (
-    <AuthGate>
-      <VideoAnalysisScreen
-        analysisJobId={analysisJobId ? Number.parseInt(analysisJobId, 10) : undefined}
-        videoRecordingId={videoRecordingId ? Number.parseInt(videoRecordingId, 10) : undefined}
-        videoUri={videoUri}
-        onBack={handleBack}
-      />
-    </AuthGate>
+    <VideoAnalysisScreen
+      analysisJobId={analysisJobId ? Number.parseInt(analysisJobId, 10) : undefined}
+      videoRecordingId={videoRecordingId ? Number.parseInt(videoRecordingId, 10) : undefined}
+      videoUri={videoUri}
+      onBack={handleBack}
+    />
   )
 }

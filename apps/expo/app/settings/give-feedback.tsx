@@ -1,7 +1,6 @@
 import { GiveFeedbackScreen } from '@my/app/features/GiveFeedback'
 import { useRouter } from 'expo-router'
 import type React from 'react'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Give Feedback Route (Native)
@@ -16,9 +15,5 @@ export default function GiveFeedbackRoute(): React.JSX.Element {
     router.back()
   }
 
-  return (
-    <AuthGate>
-      <GiveFeedbackScreen onSuccess={handleSuccess} />
-    </AuthGate>
-  )
+  return <GiveFeedbackScreen onSuccess={handleSuccess} />
 }

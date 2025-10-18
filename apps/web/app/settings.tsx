@@ -3,7 +3,6 @@ import { useConfirmDialog } from '@my/app/hooks/useConfirmDialog'
 import { useAuthStore } from '@my/app/stores/auth'
 import { ConfirmDialog, type FooterLinkType, type SettingsNavItem } from '@my/ui'
 import { useRouter } from 'expo-router'
-import { AuthGate } from '../components/AuthGate'
 
 // Navigation items configuration for settings
 const NAVIGATION_ITEMS: SettingsNavItem[] = [
@@ -28,7 +27,7 @@ export default function SettingsRoute() {
   const logoutDialog = useConfirmDialog(async () => {
     await signOut()
     // Navigate to camera screen (index) instead of login
-    // If test auth is disabled, AuthGate will redirect to sign-in
+    // If test auth is disabled, AuthGate (in main layout) will redirect to sign-in
     // If test auth is enabled, auto-sign-in will happen and user stays on camera
     router.replace('/')
   })
@@ -50,7 +49,7 @@ export default function SettingsRoute() {
   }
 
   return (
-    <AuthGate>
+    <>
       <SettingsScreen
         navigationItems={NAVIGATION_ITEMS}
         onNavigate={handleNavigate}
@@ -68,6 +67,6 @@ export default function SettingsRoute() {
         onConfirm={logoutDialog.confirm}
         onCancel={logoutDialog.hide}
       />
-    </AuthGate>
+    </>
   )
 }

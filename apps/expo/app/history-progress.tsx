@@ -1,7 +1,6 @@
 import { HistoryProgressScreen } from '@app/features/HistoryProgress/HistoryProgressScreen'
 import { log } from '@my/logging'
 import { useRouter } from 'expo-router'
-import { AuthGate } from '../components/AuthGate'
 
 /**
  * History & Progress Tracking Route (Native)
@@ -15,7 +14,7 @@ import { AuthGate } from '../components/AuthGate'
  * - Route file injects navigation dependencies via props
  * - Screen component orchestrates hooks and UI components
  * - No business logic in route file
- * - AuthGate wrapper protects route from unauthenticated access
+ * - Protected by AuthGate in main app layout
  */
 export default function HistoryProgressRoute() {
   const router = useRouter()
@@ -34,11 +33,9 @@ export default function HistoryProgressRoute() {
   }
 
   return (
-    <AuthGate>
-      <HistoryProgressScreen
-        onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
-        onNavigateToVideos={handleNavigateToVideos}
-      />
-    </AuthGate>
+    <HistoryProgressScreen
+      onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
+      onNavigateToVideos={handleNavigateToVideos}
+    />
   )
 }

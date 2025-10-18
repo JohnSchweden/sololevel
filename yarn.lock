@@ -3465,6 +3465,7 @@ __metadata:
     "@babel/preset-typescript": "npm:^7.27.1"
     "@expo/react-native-action-sheet": "npm:^4.1.1"
     "@my/config": "npm:0.0.1"
+    "@react-native-masked-view/masked-view": "npm:^0.3.2"
     "@shopify/react-native-skia": "npm:v2.0.0-next.4"
     "@tamagui/build": "npm:1.135.2"
     "@tamagui/core": "npm:1.135.2"
@@ -3828,6 +3829,16 @@ __metadata:
   version: 4.5.7
   resolution: "@react-native-community/slider@npm:4.5.7"
   checksum: 10c0/9154c88972eb97ecb53190ff215148b41ec195619991e51061f543dc67c8b2463d1d195dd9c166755b8db1cc4d5a1ae8a152c3ecd5d3285cc4a14c35fddb3716
+  languageName: node
+  linkType: hard
+
+"@react-native-masked-view/masked-view@npm:^0.3.2":
+  version: 0.3.2
+  resolution: "@react-native-masked-view/masked-view@npm:0.3.2"
+  peerDependencies:
+    react: ">=16"
+    react-native: ">=0.57"
+  checksum: 10c0/4ec84b7af2ded49dc21f17cc723a0ef341076cbe40cf758dd2daff8734bea63ba83e2fee7e63958984385314b8915b6804135997e07697abdd4141217c847fe9
   languageName: node
   linkType: hard
 
@@ -12497,6 +12508,7 @@ __metadata:
     "@my/logging": "workspace:*"
     "@my/ui": "npm:0.0.1"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
+    "@react-native-masked-view/masked-view": "npm:^0.3.2"
     "@react-navigation/native": "npm:^7.1.7"
     "@shopify/react-native-skia": "npm:v2.0.0-next.4"
     "@tamagui/babel-plugin": "npm:1.135.2"

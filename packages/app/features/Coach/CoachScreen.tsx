@@ -1,6 +1,14 @@
+import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
-import { ChatInput, GlassBackground, MessageBubble, SuggestionChip, TypingIndicator } from '@my/ui'
+import {
+  ChatInput,
+  GlassBackground,
+  MessageBubble,
+  StateDisplay,
+  SuggestionChip,
+  TypingIndicator,
+} from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import { useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
@@ -21,7 +29,30 @@ export interface Suggestion {
 }
 
 export interface CoachScreenProps {
+  /**
+   * Test ID for testing
+   */
   testID?: string
+
+  /**
+   * Loading state
+   */
+  isLoading?: boolean
+
+  /**
+   * Error state
+   */
+  isError?: boolean
+
+  /**
+   * Error message
+   */
+  errorMessage?: string
+
+  /**
+   * Retry handler for error state
+   */
+  onRetry?: () => void
 }
 
 // Mock suggestions
@@ -44,7 +75,7 @@ const AI_RESPONSES = [
  * CoachScreen Component
  *
  * Chat interface for AI coaching with message history, suggestions, and voice input.
- * Mobile-first design with glass background.
+ * Mobile-first design with glass background. Includes loading and error state handling.
  *
  * **Navigation Pattern (Expo Router Native):**
  * - Screen is framework-agnostic with no navigation imports
@@ -60,11 +91,19 @@ const AI_RESPONSES = [
  *     appHeaderProps: { onMenuPress: () => router.push('/history-progress') }
  *   }}
  * />
- * <CoachScreen />
+ * <CoachScreen
+ *   isLoading={loading}
+ *   isError={error}
+ *   onRetry={refetch}
+ * />
  * ```
  */
 export function CoachScreen({
   testID = 'coach-screen',
+  isLoading = false,
+  isError = false,
+  errorMessage,
+  onRetry,
 }: CoachScreenProps = {}): React.ReactElement {
   // Hooks
   const insets = useSafeArea()
@@ -85,6 +124,11 @@ export function CoachScreen({
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
   const [scrollOffset, setScrollOffset] = useState(0)
+  const { visibleItems: sectionsVisible } = useStaggeredAnimation({
+    itemCount: 4,
+    staggerDelay: 50,
+    dependencies: [isLoading, isError],
+  })
   const scrollViewRef = useRef<any>(null)
   const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
 
@@ -193,6 +237,40 @@ export function CoachScreen({
     messageLayoutsRef.current.set(messageId, { y, height })
   }
 
+  // State handling
+  if (isLoading) {
+    return (
+      <GlassBackground
+        backgroundColor="$color3"
+        testID={testID}
+      >
+        <StateDisplay
+          type="loading"
+          title="Loading coach..."
+          testID={`${testID}-loading`}
+        />
+      </GlassBackground>
+    )
+  }
+
+  if (isError) {
+    return (
+      <GlassBackground
+        backgroundColor="$color3"
+        testID={testID}
+      >
+        <StateDisplay
+          type="error"
+          title="Failed to load coach"
+          description={errorMessage || 'Please try again later or check your connection.'}
+          icon="🤖"
+          onRetry={onRetry}
+          testID={`${testID}-error`}
+        />
+      </GlassBackground>
+    )
+  }
+
   return (
     <GlassBackground
       backgroundColor="$color3"
@@ -205,6 +283,7 @@ export function CoachScreen({
         <YStack
           flex={1}
           paddingTop={insets.top + APP_HEADER_HEIGHT}
+          marginBottom={insets.bottom}
           testID={`${testID}-content`}
         >
           {/* Avatar */}
@@ -212,6 +291,9 @@ export function CoachScreen({
             alignItems="center"
             marginTop="$2"
             marginBottom="$5"
+            opacity={sectionsVisible[0] ? 1 : 0}
+            animation="quick"
+            testID={`${testID}-avatar`}
           >
             <YStack
               width={64}
@@ -234,46 +316,52 @@ export function CoachScreen({
           </YStack>
 
           {/* Messages */}
-          <ScrollView
-            ref={scrollViewRef}
+          <YStack
             flex={1}
-            paddingHorizontal="$6"
-            //marginBottom="$2"
-            testID={`${testID}-messages`}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
+            opacity={sectionsVisible[1] ? 1 : 0}
+            animation="quick"
           >
-            <YStack
-              gap="$4"
-              paddingBottom="$6"
+            <ScrollView
+              ref={scrollViewRef}
+              flex={1}
+              paddingHorizontal="$6"
+              //marginBottom="$2"
+              testID={`${testID}-messages`}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
             >
-              {messages.map((message) => (
-                <XStack
-                  key={message.id}
-                  justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
-                  opacity={getMessageOpacity(message.id)}
-                  animation="lazy"
-                  onLayout={(event) => {
-                    const { y, height } = event.nativeEvent.layout
-                    handleMessageLayout(message.id, y, height)
-                  }}
-                >
-                  <MessageBubble
-                    type={message.type}
-                    content={message.content}
-                    timestamp={message.timestamp}
-                  />
-                </XStack>
-              ))}
+              <YStack
+                gap="$4"
+                paddingBottom="$6"
+              >
+                {messages.map((message) => (
+                  <XStack
+                    key={message.id}
+                    justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
+                    opacity={getMessageOpacity(message.id)}
+                    animation="lazy"
+                    onLayout={(event) => {
+                      const { y, height } = event.nativeEvent.layout
+                      handleMessageLayout(message.id, y, height)
+                    }}
+                  >
+                    <MessageBubble
+                      type={message.type}
+                      content={message.content}
+                      timestamp={message.timestamp}
+                    />
+                  </XStack>
+                ))}
 
-              {isTyping && (
-                <XStack justifyContent="flex-start">
-                  <TypingIndicator />
-                </XStack>
-              )}
-            </YStack>
-          </ScrollView>
+                {isTyping && (
+                  <XStack justifyContent="flex-start">
+                    <TypingIndicator />
+                  </XStack>
+                )}
+              </YStack>
+            </ScrollView>
+          </YStack>
 
           {/* Input Area */}
           <YStack
@@ -286,7 +374,12 @@ export function CoachScreen({
             testID={`${testID}-input-area`}
           >
             {/* Suggestions */}
-            <YStack gap="$2">
+            <YStack
+              gap="$2"
+              opacity={sectionsVisible[2] ? 1 : 0}
+              animation="quick"
+              testID={`${testID}-suggestions`}
+            >
               {/* Suggestions Header */}
               <XStack
                 justifyContent="space-between"
@@ -335,18 +428,23 @@ export function CoachScreen({
             </YStack>
 
             {/* Chat Input */}
-            <ChatInput
-              value={inputMessage}
-              onChange={setInputMessage}
-              onSend={sendMessage}
-              onAttachment={handleAttachment}
-              onVoiceToggle={handleVoiceToggle}
-              onVoiceMode={handleVoiceMode}
-              isListening={isListening}
-              disabled={isTyping}
-              placeholder="Message your coach"
-              testID={`${testID}-input`}
-            />
+            <YStack
+              opacity={sectionsVisible[3] ? 1 : 0}
+              animation="quick"
+            >
+              <ChatInput
+                value={inputMessage}
+                onChange={setInputMessage}
+                onSend={sendMessage}
+                onAttachment={handleAttachment}
+                onVoiceToggle={handleVoiceToggle}
+                onVoiceMode={handleVoiceMode}
+                isListening={isListening}
+                disabled={isTyping}
+                placeholder="Message your coach"
+                testID={`${testID}-input`}
+              />
+            </YStack>
 
             {/* Helper Text */}
             {/* <XStack justifyContent="center">

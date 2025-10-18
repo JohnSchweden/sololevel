@@ -85,6 +85,10 @@ export type {
 export { ConfirmDialog } from './components/ConfirmDialog'
 export type { ConfirmDialogProps } from './components/ConfirmDialog'
 
+// State Display Components
+export { StateDisplay } from './components/StateDisplay'
+export type { StateDisplayProps } from './components/StateDisplay'
+
 // Hooks
 export { useToastController } from './hooks/useToastController'
 

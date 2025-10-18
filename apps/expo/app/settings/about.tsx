@@ -1,7 +1,6 @@
 import { AboutScreen } from '@my/app/features/About'
 import { log } from '@my/logging'
 import { Linking } from 'react-native'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * About Route - Expo Native App
@@ -40,12 +39,10 @@ export default function AboutRoute() {
   }
 
   return (
-    <AuthGate>
-      <AboutScreen
-        onPrivacyPress={handlePrivacyPress}
-        onTermsPress={handleTermsPress}
-        onLicensesPress={handleLicensesPress}
-      />
-    </AuthGate>
+    <AboutScreen
+      onPrivacyPress={handlePrivacyPress}
+      onTermsPress={handleTermsPress}
+      onLicensesPress={handleLicensesPress}
+    />
   )
 }

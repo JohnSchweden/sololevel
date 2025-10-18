@@ -1,5 +1,4 @@
 import { PersonalisationScreen } from '@my/app/features/Personalisation'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Personalisation Settings Route (Expo/Native)
@@ -10,9 +9,5 @@ import { AuthGate } from '../../components/AuthGate'
  * Auth: Protected (requires authentication)
  */
 export default function PersonalisationRoute() {
-  return (
-    <AuthGate>
-      <PersonalisationScreen />
-    </AuthGate>
-  )
+  return <PersonalisationScreen />
 }

@@ -3,7 +3,6 @@ import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef } from 'react'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Record Tab - Camera recording and video upload
@@ -70,14 +69,12 @@ export default function RecordTab() {
   }, [resetToIdle, router])
 
   return (
-    <AuthGate>
-      <CameraRecordingScreen
-        onVideoProcessed={handleVideoProcessed}
-        onHeaderStateChange={handleHeaderStateChange}
-        onBackPress={backPressHandlerRef}
-        onDevNavigate={(route) => router.push(route as any)}
-        resetToIdle={resetToIdle === 'true'}
-      />
-    </AuthGate>
+    <CameraRecordingScreen
+      onVideoProcessed={handleVideoProcessed}
+      onHeaderStateChange={handleHeaderStateChange}
+      onBackPress={backPressHandlerRef}
+      onDevNavigate={(route) => router.push(route as any)}
+      resetToIdle={resetToIdle === 'true'}
+    />
   )
 }

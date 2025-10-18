@@ -409,6 +409,28 @@ jest.mock('expo-document-picker', () => ({
 // Mock expo-blur (manual mock in __mocks__/expo-blur.tsx)
 jest.mock('expo-blur')
 
+// Mock @react-native-masked-view/masked-view
+jest.mock('@react-native-masked-view/masked-view', () => {
+  const React = require('react')
+  return React.forwardRef((props: any, ref: any) =>
+    React.createElement('div', { ...props, ref, 'data-testid': 'masked-view' }, props.children)
+  )
+})
+
+// Mock @tamagui/linear-gradient
+jest.mock('@tamagui/linear-gradient', () => {
+  const React = require('react')
+  return {
+    LinearGradient: React.forwardRef((props: any, ref: any) =>
+      React.createElement(
+        'div',
+        { ...props, ref, 'data-testid': 'linear-gradient' },
+        props.children
+      )
+    ),
+  }
+})
+
 // Mock expo-modules-core
 jest.mock('expo-modules-core', () => ({
   createPermissionHook: jest.fn(() => jest.fn(() => ({ granted: true }))),

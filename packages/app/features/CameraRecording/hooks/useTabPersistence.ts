@@ -56,7 +56,7 @@ export function useTabPersistence() {
   const saveTab = useCallback(async (tab: TabType) => {
     try {
       await AsyncStorage.setItem(TAB_STORAGE_KEY, tab)
-      log.info('useTabPersistence', 'Saved tab state', { tab })
+      log.debug('useTabPersistence', 'Saved tab state', { tab })
     } catch (error) {
       log.error('useTabPersistence', 'Failed to save tab state', {
         error: error instanceof Error ? error.message : String(error),

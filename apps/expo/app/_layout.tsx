@@ -13,6 +13,7 @@ import { NativeToast } from '@my/ui'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
+import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
 
@@ -80,9 +81,9 @@ function RootLayoutNav() {
     <ErrorBoundary>
       <Provider>
         {/*<ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>*/}
-        {(() => (
+        <AuthGate>
           <Stack>
-            {/* Auth routes - public */}
+            {/* Auth routes - public (not protected) */}
             <Stack.Screen
               name="auth"
               options={{
@@ -270,7 +271,7 @@ function RootLayoutNav() {
               }}
             />
           </Stack>
-        ))()}
+        </AuthGate>
         <NativeToast />
         {/*</ThemeProvider>*/}
       </Provider>

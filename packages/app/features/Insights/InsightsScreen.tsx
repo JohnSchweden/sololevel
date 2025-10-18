@@ -1,3 +1,4 @@
+import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   AchievementCard,
@@ -7,9 +8,9 @@ import {
   Progress,
   SettingsSectionHeader,
   StatCard,
+  StateDisplay,
 } from '@my/ui'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { useEffect, useState } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -50,29 +51,13 @@ export function InsightsScreen({
 }: InsightsScreenProps = {}): React.ReactElement {
   const insets = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-  const [sectionsVisible, setSectionsVisible] = useState<boolean[]>([false, false, false, false])
-
   const { data, isLoading, isError, refetch } = useInsightsData()
 
-  // Stagger section animations on mount
-  useEffect(() => {
-    if (data && !isLoading) {
-      const timers: ReturnType<typeof setTimeout>[] = []
-      sectionsVisible.forEach((_, index) => {
-        timers.push(
-          setTimeout(() => {
-            setSectionsVisible((prev) => {
-              const updated = [...prev]
-              updated[index] = true
-              return updated
-            })
-          }, index * 50) // 50ms stagger delay
-        )
-      })
-      return () => timers.forEach(clearTimeout)
-    }
-    return undefined
-  }, [data, isLoading])
+  const { visibleItems: sectionsVisible } = useStaggeredAnimation({
+    itemCount: 4,
+    staggerDelay: 50,
+    dependencies: [data, isLoading],
+  })
 
   if (isLoading) {
     return (
@@ -80,13 +65,11 @@ export function InsightsScreen({
         backgroundColor="$color3"
         testID={testID}
       >
-        <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Text color="$color12">Loading...</Text>
-        </YStack>
+        <StateDisplay
+          type="loading"
+          title="Loading insights..."
+          testID={`${testID}-loading`}
+        />
       </GlassBackground>
     )
   }
@@ -97,39 +80,18 @@ export function InsightsScreen({
         backgroundColor="$color3"
         testID={testID}
       >
-        <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          padding="$6"
-          gap="$4"
-        >
-          <Text
-            fontSize="$8"
-            textAlign="center"
-            color="$color12"
-          >
-            📊
-          </Text>
-          <Text
-            fontSize="$5"
-            fontWeight="500"
-            textAlign="center"
-            color="$color12"
-          >
-            {isError ? 'Failed to load insights' : 'No data available yet'}
-          </Text>
-          <Text
-            fontSize="$3"
-            textAlign="center"
-            color="$color11"
-            maxWidth={300}
-          >
-            {isError
+        <StateDisplay
+          type={isError ? 'error' : 'empty'}
+          title={isError ? 'Failed to load insights' : 'No data available yet'}
+          description={
+            isError
               ? 'Please try again later or pull to refresh.'
-              : 'Complete workouts to see insights about your performance and progress.'}
-          </Text>
-        </YStack>
+              : 'Complete workouts to see insights about your performance and progress.'
+          }
+          icon="📊"
+          onRetry={isError ? refetch : undefined}
+          testID={`${testID}-${isError ? 'error' : 'empty'}`}
+        />
       </GlassBackground>
     )
   }
@@ -140,7 +102,7 @@ export function InsightsScreen({
       testID={testID}
     >
       <SafeAreaView
-        edges={['bottom']}
+        edges={['left', 'right']}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -159,6 +121,7 @@ export function InsightsScreen({
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom="$6"
+            marginBottom={insets.bottom}
           >
             {/* Weekly Overview Section */}
             <YStack

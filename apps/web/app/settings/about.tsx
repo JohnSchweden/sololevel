@@ -1,6 +1,5 @@
 import { AboutScreen } from '@my/app/features/About'
 import { log } from '@my/logging'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * About Route - Web App
@@ -31,12 +30,10 @@ export default function AboutRoute() {
   }
 
   return (
-    <AuthGate>
-      <AboutScreen
-        onPrivacyPress={handlePrivacyPress}
-        onTermsPress={handleTermsPress}
-        onLicensesPress={handleLicensesPress}
-      />
-    </AuthGate>
+    <AboutScreen
+      onPrivacyPress={handlePrivacyPress}
+      onTermsPress={handleTermsPress}
+      onLicensesPress={handleLicensesPress}
+    />
   )
 }

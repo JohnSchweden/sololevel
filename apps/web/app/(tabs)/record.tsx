@@ -3,7 +3,6 @@ import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
 import { useNavigation, useRouter } from 'expo-router'
 import { useCallback, useRef } from 'react'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Record Tab - Camera recording and video upload (Web)
@@ -62,13 +61,11 @@ export default function RecordTab() {
   )
 
   return (
-    <AuthGate>
-      <CameraRecordingScreen
-        onVideoProcessed={handleVideoProcessed}
-        onHeaderStateChange={handleHeaderStateChange}
-        onBackPress={backPressHandlerRef}
-        onDevNavigate={(route) => router.push(route as any)}
-      />
-    </AuthGate>
+    <CameraRecordingScreen
+      onVideoProcessed={handleVideoProcessed}
+      onHeaderStateChange={handleHeaderStateChange}
+      onBackPress={backPressHandlerRef}
+      onDevNavigate={(route) => router.push(route as any)}
+    />
   )
 }

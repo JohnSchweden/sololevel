@@ -29,6 +29,7 @@
     "@my/logging": "workspace:*",
     "@my/ui": "0.0.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-navigation/native": "^7.1.7",
     "@shopify/react-native-skia": "v2.0.0-next.4",
     "@tamagui/font-inter": "1.135.2",

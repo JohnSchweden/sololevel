@@ -1,20 +1,12 @@
-// Platform-agnostic safe area hook for bottom navigation
-const useSafeAreaInsets = () => {
-  // Default safe area values for cross-platform compatibility
-  return {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  }
-}
-
 import { shadows } from '@my/config'
-import { LinearGradient } from '@tamagui/linear-gradient'
 import React from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
+import { BottomNavigationContainer } from './BottomNavigationContainer'
 import type { BottomNavigationProps, NavigationTabProps } from './types'
+
+// Re-export the platform-specific BottomNavigationContainer
+export { BottomNavigationContainer }
 
 /**
  * Bottom Navigation Component
@@ -131,40 +123,5 @@ export function TabBar({ children }: TabBarProps) {
     >
       {children}
     </XStack>
-  )
-}
-
-/**
- * Centralized Bottom Navigation Container
- * Provides consistent bottom navigation styling and layout across the app
- * Mobile-optimized with safe area handling and touch targets
- * Features gradient from dark bottom to transparent top
- */
-export function BottomNavigationContainer({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const insets = useSafeAreaInsets()
-
-  return (
-    <LinearGradient
-      colors={['rgba(0, 0, 0, 0.7)', 'transparent']}
-      locations={[0, 1]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      position="absolute"
-      bottom={0}
-      left={0}
-      right={0}
-      paddingBottom={insets.bottom}
-      height={72 + insets.bottom}
-      paddingHorizontal="$4"
-      alignItems="center"
-      justifyContent="space-between"
-      zIndex={10}
-    >
-      {children}
-    </LinearGradient>
   )
 }

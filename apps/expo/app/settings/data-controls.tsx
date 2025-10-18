@@ -1,6 +1,5 @@
 import { DataControlsScreen } from '@my/app/features/DataControls'
 import { log } from '@my/logging'
-import { AuthGate } from '../../components/AuthGate'
 
 /**
  * Data Controls Settings Route - Mobile App
@@ -25,11 +24,9 @@ export default function DataControlsRoute() {
   }
 
   return (
-    <AuthGate>
-      <DataControlsScreen
-        onDataExport={handleDataExport}
-        onClearAllData={handleClearAllData}
-      />
-    </AuthGate>
+    <DataControlsScreen
+      onDataExport={handleDataExport}
+      onClearAllData={handleClearAllData}
+    />
   )
 }

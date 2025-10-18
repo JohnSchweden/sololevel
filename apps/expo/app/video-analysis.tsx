@@ -4,7 +4,6 @@ import { log } from '@my/logging'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useLayoutEffect, useState } from 'react'
 import { YStack } from 'tamagui'
-import { AuthGate } from '../components/AuthGate'
 
 /**
  * Video Analysis Route (Native)
@@ -54,20 +53,18 @@ export default function VideoAnalysis() {
   }, [navigation, controlsVisible])
 
   return (
-    <AuthGate>
-      <YStack
-        flex={1}
-        //paddingTop={headerHeight-60}
-        backgroundColor="$background"
-      >
-        <VideoAnalysisScreen
-          analysisJobId={analysisJobId ? Number.parseInt(analysisJobId, 10) : undefined}
-          videoRecordingId={videoRecordingId ? Number.parseInt(videoRecordingId, 10) : undefined}
-          videoUri={videoUri} // Pass the video URI from navigation params
-          onBack={handleBack}
-          onControlsVisibilityChange={setControlsVisible}
-        />
-      </YStack>
-    </AuthGate>
+    <YStack
+      flex={1}
+      //paddingTop={headerHeight-60}
+      backgroundColor="$background"
+    >
+      <VideoAnalysisScreen
+        analysisJobId={analysisJobId ? Number.parseInt(analysisJobId, 10) : undefined}
+        videoRecordingId={videoRecordingId ? Number.parseInt(videoRecordingId, 10) : undefined}
+        videoUri={videoUri} // Pass the video URI from navigation params
+        onBack={handleBack}
+        onControlsVisibilityChange={setControlsVisible}
+      />
+    </YStack>
   )
 }

@@ -75,6 +75,7 @@ vi.mock('expo-router', () => ({
     back: vi.fn(),
     getPathname: vi.fn(() => '/'),
   })),
+  usePathname: vi.fn(() => '/'),
 }))
 
 // Mock browser APIs for jsdom compatibility

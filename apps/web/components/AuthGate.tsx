@@ -1,7 +1,7 @@
 import { useAuth } from '@my/app/hooks/useAuth'
 import { log } from '@my/logging'
 import { H3, Spinner, YStack } from '@my/ui'
-import { useRouter } from 'expo-router'
+import { usePathname, useRouter } from 'expo-router'
 import React, { useEffect, useRef } from 'react'
 
 export interface AuthGateProps {
@@ -23,6 +23,10 @@ export interface AuthGateProps {
 export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: AuthGateProps) {
   const { isAuthenticated, loading, initialized } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Check if current route is an auth route (should be accessible without authentication)
+  const isAuthRoute = pathname.startsWith('/auth')
 
   // Log deduplication ref - must be called unconditionally at component level
   const lastLoggedKeyRef = useRef<string>('')
@@ -37,7 +41,8 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
   useEffect(() => {
     // Only redirect after auth is initialized and user is not authenticated
-    if (initialized && !loading && !isAuthenticated) {
+    // Skip redirect if we're already on an auth route
+    if (initialized && !loading && !isAuthenticated && !isAuthRoute) {
       log.info('AuthGate', 'User not authenticated, redirecting to sign-in', {
         redirectTo,
       })
@@ -49,7 +54,12 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
       // Use replace to avoid adding to navigation stack
       router.replace(signInUrl as any)
     }
-  }, [initialized, loading, isAuthenticated, redirectTo, router])
+  }, [initialized, loading, isAuthenticated, redirectTo, router, isAuthRoute])
+
+  // Allow auth routes to pass through without authentication check
+  if (isAuthRoute) {
+    return <>{children}</>
+  }
 
   // Show loading state while auth is initializing
   if (!initialized || loading) {

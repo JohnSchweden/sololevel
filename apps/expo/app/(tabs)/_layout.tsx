@@ -3,24 +3,27 @@ import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPer
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
 import { Tabs, usePathname, useRouter } from 'expo-router'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export default function TabsLayout() {
   const pathname = usePathname()
   const router = useRouter()
   const { activeTab, setActiveTab, isLoading } = useTabPersistence()
+  const userInitiatedChange = useRef(false)
 
-  // Sync active tab with current route
+  // Sync active tab with current route (only for external navigation)
   useEffect(() => {
     const currentTab = pathname.split('/').pop()
     if (
       currentTab &&
       (currentTab === 'record' || currentTab === 'coach' || currentTab === 'insights')
     ) {
-      if (currentTab !== activeTab) {
+      if (currentTab !== activeTab && !userInitiatedChange.current) {
         log.info('TabsLayout', 'Syncing active tab with route', { currentTab, activeTab })
         setActiveTab(currentTab)
       }
+      // Reset the flag after processing
+      userInitiatedChange.current = false
     }
   }, [pathname, activeTab, setActiveTab])
 
@@ -44,6 +47,7 @@ export default function TabsLayout() {
             activeTab={activeTab}
             onTabChange={(tab) => {
               log.info('TabsLayout', 'Tab changed', { tab })
+              userInitiatedChange.current = true
               setActiveTab(tab)
               props.navigation.navigate(tab)
             }}
