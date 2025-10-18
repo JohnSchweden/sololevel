@@ -10,12 +10,14 @@
 
 **OBJECTIVE:** Replace current Stack navigation pattern with Expo Router Tabs Layout to enable instant tab switching without screen transitions, preserving tab state and eliminating back stack issues.
 
+**Total Effort:** 7.5 hours (reduced from 8 hours - Insights screen already exists)
+
 **SUB-TASKS:**
 - Task 33a: Tabs Layout Infrastructure Setup [1.5h]
 - Task 33b: Custom Tab Bar Integration [1.5h]
 - Task 33c: Migrate Camera/Record Tab [1.5h]
 - Task 33d: Migrate Coach Tab [1h]
-- Task 33e: Create Mock Insights Tab [1.5h]
+- Task 33e: Migrate Insights Tab [1h]
 - Task 33f: Clean Up & Documentation [1h]
 
 ---
@@ -50,8 +52,7 @@
 **CURRENT STATE:**
 - ✅ `BottomNavigation` component with 3 tabs (coach/record/insights)
 - ✅ `useTabPersistence` hook for AsyncStorage state
-- ✅ Screen components (CoachScreen, CameraRecordingScreen)
-- ❌ No InsightsScreen yet (will create mock)
+- ✅ Screen components (CoachScreen, CameraRecordingScreen, InsightsScreen)
 - ❌ Stack-based routing with `router.push()` navigation
 - ❌ Tab changes trigger animations and back stack growth
 - ❌ No state preservation between tabs
@@ -292,78 +293,54 @@ export default function CoachTab() {
 
 ---
 
-### Task 33e: Create Mock Insights Tab 
-**Effort:** 1.5 hours | **Priority:** P1 (UX Critical) | **Depends on:** Task 33b
-**User Story:** US-INS-01 - Insights Tab Placeholder
+### Task 33e: Migrate Insights Tab 
+**Effort:** 1 hour | **Priority:** P1 (UX Critical) | **Depends on:** Task 33b
+**User Story:** US-INS-01 - Insights Screen in Tabs Context
 
-@step-by-step.md - Create mock InsightsScreen and tab route as placeholder for future development.
+@step-by-step.md - Move insights screen to `(tabs)/insights.tsx` route with state preservation.
 
 **SCOPE:**
 
 **Files:**
-- `packages/app/features/Insights/InsightsScreen.tsx` (NEW - mock)
-- `packages/app/features/Insights/index.ts` (NEW)
 - `apps/expo/app/(tabs)/insights.tsx` (create)
 - `apps/web/app/(tabs)/insights.tsx` (create)
+- `packages/app/features/Insights/InsightsScreen.tsx` (already exists)
 
 **Tasks:**
-- [ ] Create `InsightsScreen` component (simple placeholder)
-- [ ] Add mock content: "Insights Coming Soon" message
-- [ ] Include GlassBackground for consistent styling
-- [ ] Add placeholder for future features (graphs, stats, etc.)
-- [ ] Create tab route wrapping `InsightsScreen`
-- [ ] Test tab switching to insights works
-- [ ] Ensure no crashes or navigation issues
+- [ ] Create tab route wrapping existing `InsightsScreen`
+- [ ] Keep any navigation callbacks (if needed)
+- [ ] Test scroll position preserved when switching tabs
+- [ ] Test filters/state preserved across tab switches
+- [ ] Test data persistence (charts, stats, etc.)
+- [ ] Verify header works correctly in tabs context
 
-**Mock InsightsScreen:**
-```typescript
-import { GlassBackground } from '@my/ui'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Text, YStack } from 'tamagui'
-
-export interface InsightsScreenProps {
-  testID?: string
-}
-
-export function InsightsScreen({ testID = 'insights-screen' }: InsightsScreenProps) {
-  return (
-    <GlassBackground backgroundColor="$color3" testID={testID}>
-      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
-        <YStack flex={1} justifyContent="center" alignItems="center" padding="$6">
-          <Text fontSize="$8" fontWeight="600" color="$color" marginBottom="$4">
-            📊 Insights
-          </Text>
-          <Text fontSize="$5" color="$gray10" textAlign="center">
-            Coming Soon
-          </Text>
-          <Text fontSize="$3" color="$gray9" textAlign="center" marginTop="$3">
-            Track your progress, view analytics, and get personalized recommendations
-          </Text>
-        </YStack>
-      </SafeAreaView>
-    </GlassBackground>
-  )
-}
-```
-
-**Tab Route:**
+**Implementation:**
 ```typescript
 import { InsightsScreen } from '@app/features/Insights'
+import { useRouter } from 'expo-router'
 import { AuthGate } from '../../components/AuthGate'
 
 export default function InsightsTab() {
+  const router = useRouter()
+
   return (
     <AuthGate>
-      <InsightsScreen />
+      <InsightsScreen
+        onNavigateToVideoAnalysis={(uri) =>
+          router.push({ pathname: '/video-analysis', params: { videoUri: uri } })
+        }
+        onNavigateToSettings={() => router.push('/settings' as any)}
+      />
     </AuthGate>
   )
 }
 ```
 
 **Acceptance Criteria:**
-- [ ] Mock screen renders with "Coming Soon" message
-- [ ] Tab navigation to insights works
-- [ ] Consistent styling with other screens
+- [ ] Insights screen renders in tab
+- [ ] Scroll position preserved across tab switches
+- [ ] State/filters preserved when switching tabs
+- [ ] Navigation to modals works (if applicable)
 - [ ] No crashes or errors
 - [ ] Works on both native and web
 
@@ -415,10 +392,10 @@ export default function InsightsTab() {
 - [ ] **Instant Switching:** Tap between tabs → no animation, instant view change
 - [ ] **Coach State:** Type message → switch away → switch back → message preserved
 - [ ] **Camera State:** Start camera → switch away → switch back → camera state preserved
-- [ ] **Insights State:** Mock screen renders correctly
+- [ ] **Insights State:** Scroll/filter → switch away → switch back → state preserved
 - [ ] **Tab Persistence:** Close app → reopen → last tab is active
 - [ ] **Modal Navigation:** Video-analysis modal works from any tab
-- [ ] **Settings Navigation:** Settings navigation works from Coach
+- [ ] **Settings Navigation:** Settings navigation works from Coach/Insights
 - [ ] **Performance:** Tab switching < 16ms (feels instant)
 - [ ] **No Crashes:** All tabs work without errors
 
@@ -449,8 +426,6 @@ export default function InsightsTab() {
 - `apps/web/app/(tabs)/record.tsx` (Task 33c)
 - `apps/web/app/(tabs)/coach.tsx` (Task 33d)
 - `apps/web/app/(tabs)/insights.tsx` (Task 33e)
-- `packages/app/features/Insights/InsightsScreen.tsx` (Task 33e)
-- `packages/app/features/Insights/index.ts` (Task 33e)
 - `docs/architecture/navigation-tabs.md` (Task 33f)
 
 **Files to Delete (Task 33f):**

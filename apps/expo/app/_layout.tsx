@@ -90,17 +90,15 @@ function RootLayoutNav() {
               }}
             />
 
-            {/* Protected routes */}
+            {/* Tabs Layout - Main app navigation */}
             <Stack.Screen
-              name="index"
+              name="(tabs)"
               options={{
-                title: 'Solo:Level',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
+                headerShown: false,
               }}
             />
+
+            {/* Modal routes - outside tabs */}
             <Stack.Screen
               name="video-analysis"
               options={{
@@ -109,28 +107,6 @@ function RootLayoutNav() {
                 headerTransparent: true,
                 headerStyle: { backgroundColor: 'transparent' },
                 header: (props) => <NavigationAppHeader {...props} />,
-              }}
-            />
-            <Stack.Screen
-              name="coach"
-              options={{
-                title: 'Chat/Mirror',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_left',
-              }}
-            />
-            <Stack.Screen
-              name="insights"
-              options={{
-                title: 'Insights',
-                headerShown: true,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                header: (props) => <NavigationAppHeader {...props} />,
-                animation: 'slide_from_right',
               }}
             />
             <Stack.Screen

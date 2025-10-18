@@ -77,7 +77,6 @@ describe('upload-analysis-integration', () => {
   const mockProps = {
     onNavigateBack: jest.fn(),
     onNavigateToVideoAnalysis: jest.fn(),
-    onTabChange: jest.fn(),
     cameraRef: { current: { startRecording: jest.fn(), stopRecording: jest.fn() } },
   }
 

@@ -9,7 +9,8 @@ import {
 } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { useEffect, useState } from 'react'
+import { useNavigation } from 'expo-router'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -17,10 +18,10 @@ import { useInsightsData } from './hooks/useInsightsData'
 
 export interface InsightsScreenProps {
   /**
-   * Callback when back button is pressed
-   * Implemented by route file with router.back()
+   * Callback when navigating to history/progress screen
+   * Implemented by route file with router.push()
    */
-  onBack?: () => void
+  onNavigateToHistory?: () => void
 
   /**
    * Test ID for testing
@@ -41,18 +42,30 @@ export interface InsightsScreenProps {
  *
  * @example
  * ```tsx
- * // Route file (apps/expo/app/insights.tsx)
- * <InsightsScreen onBack={() => router.back()} />
+ * // Route file (apps/expo/app/(tabs)/insights.tsx)
+ * <InsightsScreen onNavigateToHistory={() => router.push('/history-progress')} />
  * ```
  */
 export function InsightsScreen({
-  onBack: _onBack,
+  onNavigateToHistory,
   testID = 'insights-screen',
 }: InsightsScreenProps = {}): React.ReactElement {
+  const navigation = useNavigation()
   const headerHeight = useHeaderHeight()
   const [sectionsVisible, setSectionsVisible] = useState<boolean[]>([false, false, false, false])
 
   const { data, isLoading, isError, refetch } = useInsightsData()
+
+  // Configure header with menu button for history navigation
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      // @ts-ignore: custom appHeaderProps not in base type
+      appHeaderProps: {
+        leftAction: 'sidesheet',
+        onMenuPress: () => onNavigateToHistory?.(),
+      },
+    })
+  }, [navigation, onNavigateToHistory])
 
   // Stagger section animations on mount
   useEffect(() => {

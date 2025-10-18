@@ -9,7 +9,6 @@ export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onNavigateToHistory,
-  onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
   return (
@@ -17,7 +16,6 @@ export function CameraRecordingScreen({
       onNavigateBack={onNavigateBack}
       onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
       onNavigateToHistory={onNavigateToHistory}
-      onTabChange={onTabChange}
       resetToIdle={resetToIdle}
     />
   )

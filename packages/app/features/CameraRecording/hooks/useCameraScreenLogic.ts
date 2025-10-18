@@ -4,13 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
-import { useTabPersistence } from './useTabPersistence'
 
 export const useCameraScreenLogic = ({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onNavigateToHistory: _onNavigateToHistory, // Prefixed with _ - passed through to screen components
-  onTabChange,
   cameraRef,
 }: CameraRecordingScreenProps & {
   cameraRef?: any
@@ -36,8 +34,7 @@ export const useCameraScreenLogic = ({
   const handleResetZoom = useCallback(() => {
     setZoomLevel(1)
   }, [])
-  // Tab persistence across app sessions
-  const { activeTab, setActiveTab, isLoading: isTabLoading } = useTabPersistence()
+
   const [cameraReady, setCameraReady] = useState(false)
 
   // Handle recording state changes - simplified since we don't need screen transitions
@@ -371,14 +368,6 @@ export const useCameraScreenLogic = ({
     setShowNavigationDialog(false)
   }, [])
 
-  const handleTabChange = useCallback(
-    (tab: 'coach' | 'record' | 'insights') => {
-      setActiveTab(tab)
-      onTabChange?.(tab) // Call the tab change callback
-    },
-    [onTabChange]
-  )
-
   const handleCameraReady = useCallback(() => {
     setCameraReady(true)
     log.info('useCameraScreenLogic', 'Camera is ready for recording')
@@ -396,7 +385,6 @@ export const useCameraScreenLogic = ({
     cameraType,
     zoomLevel,
     showNavigationDialog,
-    activeTab,
     recordingState,
     duration,
     formattedDuration,
@@ -404,9 +392,6 @@ export const useCameraScreenLogic = ({
     headerTitle,
     cameraReady,
     canStop,
-
-    // Tab persistence state
-    isTabLoading,
 
     // Camera swap visual feedback
     isCameraSwapping,
@@ -427,7 +412,6 @@ export const useCameraScreenLogic = ({
     handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
-    handleTabChange,
     handleCameraReady,
     setShowNavigationDialog,
 

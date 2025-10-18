@@ -29,6 +29,7 @@ log.debug('CameraRecordingScreen', '🔍 Importing useMVPPoseDetection', {
   type: typeof useMVPPoseDetection,
 })
 import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
+import { useTabPersistence } from './hooks/useTabPersistence'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
 // Import golf background image for iOS simulator
@@ -39,7 +40,6 @@ export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onNavigateToHistory,
-  onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
@@ -102,11 +102,13 @@ export function CameraRecordingScreen({
     }
   }, [poseEnabled, isDetecting, currentPose, permission?.granted])
 
+  // Get active tab from tabs layout persistence
+  const { activeTab } = useTabPersistence()
+
   const {
     cameraType,
     zoomLevel,
     showNavigationDialog,
-    activeTab,
     recordingState,
     duration,
     formattedDuration,
@@ -130,7 +132,6 @@ export function CameraRecordingScreen({
     handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
-    handleTabChange,
     handleCameraReady,
     setShowNavigationDialog,
     handleVideoRecorded,
@@ -139,7 +140,6 @@ export function CameraRecordingScreen({
     onNavigateBack,
     onNavigateToVideoAnalysis,
     onNavigateToHistory,
-    onTabChange,
     cameraRef,
   })
 
@@ -205,7 +205,10 @@ export function CameraRecordingScreen({
         bottomNavigation={
           <BottomNavigation
             activeTab={activeTab}
-            onTabChange={handleTabChange}
+            onTabChange={() => {
+              // Tab changes handled by tabs layout - this is a no-op
+              log.debug('CameraRecordingScreen', 'Tab change ignored - handled by tabs layout')
+            }}
           />
         }
       >

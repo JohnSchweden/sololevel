@@ -35,13 +35,13 @@ describe('InsightsScreen', () => {
     expect(typeof InsightsScreen).toBe('function')
   })
 
-  it('should accept onBack prop', () => {
+  it('should accept onNavigateToHistory prop', () => {
     // Arrange
-    const onBack = jest.fn()
+    const onNavigateToHistory = jest.fn()
 
     // Act & Assert
-    // Component definition accepts onBack prop in its type signature
-    const props: React.ComponentProps<typeof InsightsScreen> = { onBack }
-    expect(props.onBack).toBe(onBack)
+    // Component definition accepts onNavigateToHistory prop in its type signature
+    const props: React.ComponentProps<typeof InsightsScreen> = { onNavigateToHistory }
+    expect(props.onNavigateToHistory).toBe(onNavigateToHistory)
   })
 })

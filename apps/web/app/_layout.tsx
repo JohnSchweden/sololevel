@@ -16,25 +16,19 @@ export default function RootLayout() {
             }}
           />
 
-          {/* Protected routes */}
+          {/* Tabs Layout - Main app navigation */}
           <Stack.Screen
-            name="index"
+            name="(tabs)"
             options={{
-              title: 'SoloLevel - AI Coach',
               headerShown: false,
             }}
           />
+
+          {/* Modal routes - outside tabs */}
           <Stack.Screen
             name="video-analysis"
             options={{
               title: 'Video Analysis',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="coach"
-            options={{
-              title: 'Coach AI',
               headerShown: false,
             }}
           />
@@ -91,13 +85,6 @@ export default function RootLayout() {
             name="settings/about"
             options={{
               title: 'About',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="insights"
-            options={{
-              title: 'Insights',
               headerShown: false,
             }}
           />

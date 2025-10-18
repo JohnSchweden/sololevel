@@ -6,6 +6,19 @@
 
 **Clients:** Expo (iOS/Android) + Expo Router (Web) | **Bundler:** Metro | **UI:** Tamagui | **Backend:** Supabase | **State:** Zustand + TanStack Query
 
+## Navigation Pattern
+
+**Tabs Layout (Expo Router):**
+- File structure: `apps/expo/app/(tabs)/_layout.tsx` with custom `BottomNavigation`
+- Routes: `record.tsx` (Camera), `coach.tsx` (AI Chat), `insights.tsx` (Progress)
+- State: `useTabPersistence` hook with AsyncStorage (preserves active tab across sessions)
+- Benefits: Instant switching (<16ms), state preservation, no back stack pollution
+- Pattern: Battle-tested approach matching Instagram/Spotify UX
+
+**Modal Routes (Outside Tabs):**
+- `video-analysis.tsx`, `settings/*.tsx`, `history-progress.tsx`
+- Present over tabs, return to last active tab on dismiss
+
 ## Platform Implementations
 
 ### Native (iOS/Android)
@@ -121,6 +134,7 @@ GET /ai-analyze-video/health
 
 **Screens:**
 - Sign-in: `apps/expo/app/auth/sign-in.tsx`, `apps/web/app/auth/sign-in.tsx`
+- Tabs: `apps/expo/app/(tabs)/[record|coach|insights].tsx`
 - Video Analysis: `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
 
 **Edge Functions:**

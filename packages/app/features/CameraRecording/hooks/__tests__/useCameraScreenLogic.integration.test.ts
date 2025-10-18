@@ -172,7 +172,6 @@ describe('useCameraScreenLogic Integration', () => {
       expect(typeof result.current.handleNavigateBack).toBe('function')
       expect(typeof result.current.confirmNavigation).toBe('function')
       expect(typeof result.current.cancelNavigation).toBe('function')
-      expect(typeof result.current.handleTabChange).toBe('function')
       expect(typeof result.current.handleCameraReady).toBe('function')
       expect(typeof result.current.setShowNavigationDialog).toBe('function')
     })
@@ -236,19 +235,6 @@ describe('useCameraScreenLogic Integration', () => {
 
       // Navigation should happen after the async pipeline completes
       expect(onNavigateToVideoAnalysis).toHaveBeenCalledWith('/path/to/recorded/video.mp4')
-    })
-
-    it('should handle tab changes', () => {
-      const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
-
-      expect(result.current.activeTab).toBe('record')
-
-      act(() => {
-        result.current.handleTabChange('coach')
-      })
-
-      // Verify that setActiveTab was called with the correct value
-      expect(mockSetActiveTab).toHaveBeenCalledWith('coach')
     })
   })
 

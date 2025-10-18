@@ -23,8 +23,11 @@ export interface CameraRecordingScreenProps {
   // Navigation
   onNavigateBack?: () => void
   onNavigateToVideoAnalysis?: (videoUri: string) => void
+  /**
+   * Callback to navigate to history/progress screen via hamburger menu.
+   * Opens history-progress modal over the tabs layout.
+   */
   onNavigateToHistory?: () => void
-  onTabChange?: (tab: 'coach' | 'record' | 'insights') => void
 
   // Camera state - optional for placeholder component
   cameraPermission?: CameraPermissionStatus

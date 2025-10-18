@@ -2,7 +2,8 @@ import { log } from '@my/logging'
 import { ChatInput, GlassBackground, MessageBubble, SuggestionChip, TypingIndicator } from '@my/ui'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
-import { useRef, useState } from 'react'
+import { useNavigation } from 'expo-router'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, Image, ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -22,6 +23,7 @@ export interface Suggestion {
 
 export interface CoachScreenProps {
   onNavigateToSettings?: () => void
+  onNavigateToHistory?: () => void
   testID?: string
 }
 
@@ -56,10 +58,23 @@ const AI_RESPONSES = [
  */
 export function CoachScreen({
   onNavigateToSettings,
+  onNavigateToHistory,
   testID = 'coach-screen',
 }: CoachScreenProps): React.ReactElement {
   // Hooks
+  const navigation = useNavigation()
   const headerHeight = useHeaderHeight()
+
+  // Configure header with menu button for history navigation
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      // @ts-ignore: custom appHeaderProps not in base type
+      appHeaderProps: {
+        leftAction: 'sidesheet',
+        onMenuPress: () => onNavigateToHistory?.(),
+      },
+    })
+  }, [navigation, onNavigateToHistory])
 
   // State
   const [messages, setMessages] = useState<Message[]>([

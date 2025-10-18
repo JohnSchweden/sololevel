@@ -1,55 +1,13 @@
-// No need to import React explicitly with automatic JSX runtime
-import { CameraRecordingScreen } from '@app/features/CameraRecording'
-import { log } from '@my/logging'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect } from 'react'
-import { AuthGate } from '../components/AuthGate'
+import { Redirect } from 'expo-router'
 
-export default function Screen() {
-  const router = useRouter()
-  const { resetToIdle } = useLocalSearchParams<{ resetToIdle?: string }>()
-
-  const handleNavigateToVideoAnalysis = (videoUri: string) => {
-    // Navigate to video analysis screen with the video URI as a parameter
-    router.push({
-      pathname: '/video-analysis',
-      params: { videoUri },
-    })
-  }
-
-  const handleNavigateToHistory = () => {
-    // Navigate to history & progress tracking screen
-    router.push('/history-progress')
-  }
-
-  const handleTabChange = (tab: 'coach' | 'record' | 'insights') => {
-    log.info('index', 'Tab changed', { tab })
-
-    // Navigate to respective screens when tabs are changed
-    if (tab === 'coach') {
-      router.push('/coach' as any)
-    } else if (tab === 'insights') {
-      router.push('/insights' as any)
-    }
-    // 'record' tab stays on current screen (index)
-  }
-
-  // Reset to idle state when navigating back from video analysis
-  useEffect(() => {
-    if (resetToIdle === 'true') {
-      // Clear the parameter to prevent repeated resets
-      router.setParams({ resetToIdle: undefined })
-    }
-  }, [resetToIdle, router])
-
-  return (
-    <AuthGate>
-      <CameraRecordingScreen
-        onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
-        onNavigateToHistory={handleNavigateToHistory}
-        onTabChange={handleTabChange}
-        resetToIdle={resetToIdle === 'true'}
-      />
-    </AuthGate>
-  )
+/**
+ * Root Index - Redirects to tabs layout
+ *
+ * This file handles the root route (/) and redirects authenticated users
+ * to the main tabs layout. The default tab is 'record' (camera).
+ *
+ * Authentication is handled by AuthGate in each tab route.
+ */
+export default function Index() {
+  return <Redirect href="/(tabs)/record" />
 }

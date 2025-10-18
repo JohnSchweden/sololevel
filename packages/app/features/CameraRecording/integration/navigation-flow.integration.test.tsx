@@ -112,7 +112,6 @@ describe('Camera Recording Navigation Flow Integration', () => {
   const defaultProps = {
     onNavigateBack: undefined,
     onNavigateToVideoAnalysis: undefined,
-    onTabChange: undefined,
     cameraRef: { current: null },
   }
 
@@ -156,24 +155,6 @@ describe('Camera Recording Navigation Flow Integration', () => {
     expect(mockOnNavigateBack).toHaveBeenCalled()
   })
 
-  it('should handle tab change callback', () => {
-    const mockOnTabChange = jest.fn()
-    const mockProps = {
-      ...defaultProps,
-      onTabChange: mockOnTabChange,
-    }
-
-    const { result } = renderHook(() => useCameraScreenLogic(mockProps))
-
-    // Simulate tab change
-    act(() => {
-      result.current.handleTabChange('coach')
-    })
-
-    // Verify tab change callback was called
-    expect(mockOnTabChange).toHaveBeenCalledWith('coach')
-  })
-
   it('should handle missing navigation callbacks gracefully', () => {
     const { result } = renderHook(() => useCameraScreenLogic(defaultProps))
 
@@ -182,7 +163,6 @@ describe('Camera Recording Navigation Flow Integration', () => {
       act(() => {
         result.current.handleVideoRecorded('test-video.mp4')
         result.current.handleNavigateBack()
-        result.current.handleTabChange('insights')
       })
     }).not.toThrow()
   })
@@ -193,7 +173,6 @@ describe('Camera Recording Navigation Flow Integration', () => {
     // Verify all navigation functions are available
     expect(typeof result.current.handleVideoRecorded).toBe('function')
     expect(typeof result.current.handleNavigateBack).toBe('function')
-    expect(typeof result.current.handleTabChange).toBe('function')
   })
 
   it('should handle multiple video recordings with navigation', async () => {

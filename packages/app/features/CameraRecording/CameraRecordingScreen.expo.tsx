@@ -19,6 +19,7 @@ import { YStack } from 'tamagui'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
+import { useTabPersistence } from './hooks/useTabPersistence'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
 // Import golf background image for iOS simulator
@@ -28,7 +29,6 @@ export function CameraRecordingScreen({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onNavigateToHistory,
-  onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
   useKeepAwake()
@@ -56,11 +56,13 @@ export function CameraRecordingScreen({
     }
   }, [permission?.granted, requestPermissionWithRationale, isRequestingPermission])
 
+  // Get active tab from tabs layout persistence
+  const { activeTab } = useTabPersistence()
+
   const {
     cameraType,
     zoomLevel,
     showNavigationDialog,
-    activeTab,
     recordingState,
     duration,
     formattedDuration,
@@ -81,7 +83,6 @@ export function CameraRecordingScreen({
     handleNavigateBack,
     confirmNavigation,
     cancelNavigation,
-    handleTabChange,
     handleCameraReady,
     setShowNavigationDialog,
     handleVideoRecorded,
@@ -90,7 +91,6 @@ export function CameraRecordingScreen({
     onNavigateBack,
     onNavigateToVideoAnalysis,
     onNavigateToHistory,
-    onTabChange,
     cameraRef,
   })
 
@@ -155,7 +155,10 @@ export function CameraRecordingScreen({
         bottomNavigation={
           <BottomNavigation
             activeTab={activeTab}
-            onTabChange={handleTabChange}
+            onTabChange={() => {
+              // Tab changes handled by tabs layout - this is a no-op
+              log.debug('CameraRecordingScreen', 'Tab change ignored - handled by tabs layout')
+            }}
           />
         }
       >

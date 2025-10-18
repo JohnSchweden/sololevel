@@ -12,7 +12,10 @@ export { GlassButton } from './components/GlassButton'
 export { ToastProvider } from './components/ToastProvider'
 export { ToastViewport } from './components/ToastViewport'
 export { AppHeader } from './components/AppHeader'
-export { BottomNavigation } from './components/BottomNavigation/BottomNavigation'
+export {
+  BottomNavigation,
+  BottomNavigationContainer,
+} from './components/BottomNavigation/BottomNavigation'
 export { GlassBackground } from './components/GlassBackground'
 
 // Settings Components

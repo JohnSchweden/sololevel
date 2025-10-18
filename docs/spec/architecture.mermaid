@@ -4,13 +4,21 @@ graph TB
     subgraph Client["Client Applications"]
         Apps["📱 Expo (Native) + 🌐 Expo Router (Web)"]
         Bundler["📦 Metro Bundler"]
-        Router["🧭 Expo Router"]
+        Router["🧭 Expo Router
+        (tabs) Layout:
+        - record (Camera)
+        - coach (AI Chat)
+        - insights (Progress)
+        BottomNavigation (Custom)"]
         Auth["🔐 AuthGate"]
     end
 
     subgraph Packages["Shared Packages (@my/*)"]
-        UI["🎨 @my/ui (Tamagui)"]
-        App["⚙️ @my/app (Logic + Screens)"]
+        UI["🎨 @my/ui (Tamagui)
+        BottomNavigation
+        BottomNavigationContainer"]
+        App["⚙️ @my/app (Logic + Screens)
+        useTabPersistence (AsyncStorage)"]
         API["🔌 @my/api (Supabase Client)"]
         Config["🧰 @my/config (Types)"]
     end

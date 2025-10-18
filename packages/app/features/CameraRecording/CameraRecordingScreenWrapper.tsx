@@ -9,7 +9,6 @@ export function CameraRecordingScreenWrapper({
   onNavigateBack,
   onNavigateToVideoAnalysis,
   onNavigateToHistory,
-  onTabChange,
   resetToIdle,
 }: CameraRecordingScreenProps) {
   const { flags } = useFeatureFlagsStore()
@@ -23,7 +22,6 @@ export function CameraRecordingScreenWrapper({
         onNavigateBack={onNavigateBack}
         onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
         onNavigateToHistory={onNavigateToHistory}
-        onTabChange={onTabChange}
         resetToIdle={resetToIdle}
       />
     )
@@ -36,7 +34,6 @@ export function CameraRecordingScreenWrapper({
       onNavigateBack={onNavigateBack}
       onNavigateToVideoAnalysis={onNavigateToVideoAnalysis}
       onNavigateToHistory={onNavigateToHistory}
-      onTabChange={onTabChange}
       resetToIdle={resetToIdle}
     />
   )
