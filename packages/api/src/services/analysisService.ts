@@ -132,6 +132,7 @@ export type AnalysisJobWithVideo = AnalysisJob & {
     original_filename?: string | null
     duration_seconds: number
     created_at: string
+    thumbnail_url?: string | null // Cloud CDN URL for thumbnail
     metadata?: {
       thumbnailUri?: string
     } | null

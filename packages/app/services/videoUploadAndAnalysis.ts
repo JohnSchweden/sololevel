@@ -3,7 +3,7 @@
  * Handles compression, upload, and AI analysis orchestration
  */
 
-import { uploadVideo } from '@my/api'
+import { supabase, uploadVideo, uploadVideoThumbnail } from '@my/api'
 import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
@@ -55,7 +55,12 @@ async function resolveVideoToUpload(params: {
   file?: File | Blob
   durationSeconds?: number
   format?: 'mp4' | 'mov'
-}): Promise<{ videoToUpload: File | Blob; metadata: VideoMetadata; thumbnailUri?: string }> {
+}): Promise<{
+  videoToUpload: File | Blob
+  metadata: VideoMetadata
+  thumbnailUri?: string
+  thumbnailUrl?: string
+}> {
   const { sourceUri, file, durationSeconds, format } = params
 
   if (file) {
@@ -70,7 +75,7 @@ async function resolveVideoToUpload(params: {
       format: metadata.format,
     })
     // No thumbnail generation for pre-processed files (P0 scope)
-    return { videoToUpload: file, metadata, thumbnailUri: undefined }
+    return { videoToUpload: file, metadata, thumbnailUri: undefined, thumbnailUrl: undefined }
   }
 
   if (!sourceUri) {
@@ -133,7 +138,7 @@ async function resolveVideoToUpload(params: {
 
   log.info('startUploadAndAnalysis', 'Converting video to Blob', { uri: videoToUploadUri })
   const videoToUpload = await uriToBlob(videoToUploadUri)
-  return { videoToUpload, metadata, thumbnailUri }
+  return { videoToUpload, metadata, thumbnailUri, thumbnailUrl: undefined }
 }
 
 /**
@@ -143,6 +148,7 @@ async function uploadWithProgress(args: {
   videoToUpload: File | Blob
   metadata: VideoMetadata
   thumbnailUri?: string
+  thumbnailUrl?: string
   originalFilename?: string
   tempTaskId: string
   onProgress?: (progress: number) => void
@@ -158,6 +164,7 @@ async function uploadWithProgress(args: {
     videoToUpload,
     metadata,
     thumbnailUri,
+    thumbnailUrl,
     originalFilename,
     tempTaskId,
     onProgress,
@@ -177,6 +184,7 @@ async function uploadWithProgress(args: {
     durationSeconds: metadata.duration,
     format: metadata.format,
     metadata: thumbnailUri ? { thumbnailUri } : undefined,
+    thumbnailUrl: thumbnailUrl || null,
     onProgress: (progress: number) => {
       log.info('startUploadAndAnalysis', 'Upload progress', { progress })
       useUploadProgressStore.getState().updateUploadProgress(tempTaskId, {
@@ -260,15 +268,64 @@ export async function startUploadAndAnalysis(
     }
 
     // Step 3: Upload with progress callbacks and store updates
+    // Cloud thumbnail upload happens in onUploadInitialized callback after we get recording ID
+    let cloudThumbnailUrl: string | null = null
+
     await uploadWithProgress({
       videoToUpload,
       metadata,
       thumbnailUri,
+      thumbnailUrl: undefined, // Will be uploaded after getting recordingId
       originalFilename,
       tempTaskId,
       onProgress,
       onError,
-      onUploadInitialized,
+      onUploadInitialized: async (details) => {
+        // Upload thumbnail to cloud storage after getting recording ID
+        if (thumbnailUri) {
+          try {
+            // Get user from supabase
+            const { data: userData } = await supabase.auth.getUser()
+            if (userData.user) {
+              // Get video recording to get created_at timestamp
+              const { data: recording } = await supabase
+                .from('video_recordings')
+                .select('created_at')
+                .eq('id', details.recordingId)
+                .single()
+
+              if (recording) {
+                cloudThumbnailUrl = await uploadVideoThumbnail(
+                  thumbnailUri,
+                  details.recordingId,
+                  userData.user.id,
+                  recording.created_at
+                )
+
+                if (cloudThumbnailUrl) {
+                  // Update video_recordings with thumbnail_url
+                  await supabase
+                    .from('video_recordings')
+                    .update({ thumbnail_url: cloudThumbnailUrl })
+                    .eq('id', details.recordingId)
+
+                  log.info('startUploadAndAnalysis', 'Thumbnail uploaded to CDN', {
+                    recordingId: details.recordingId,
+                    thumbnailUrl: cloudThumbnailUrl,
+                  })
+                }
+              }
+            }
+          } catch (err) {
+            log.warn('startUploadAndAnalysis', 'Cloud thumbnail upload failed (non-blocking)', {
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+        }
+
+        // Call original callback
+        onUploadInitialized?.(details)
+      },
       onRecordingIdAvailable,
     })
 

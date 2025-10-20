@@ -15,6 +15,7 @@ export interface VideoUploadOptions {
   durationSeconds: number
   format: 'mp4' | 'mov'
   metadata?: Record<string, unknown> // Custom metadata (e.g. thumbnailUri)
+  thumbnailUrl?: string | null // Public URL to CDN-hosted thumbnail
   onProgress?: (progress: number) => void
   onError?: (error: Error) => void
   onUploadInitialized?: (details: {
@@ -161,6 +162,7 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     durationSeconds,
     format,
     metadata,
+    thumbnailUrl,
     onProgress,
     onError,
     onUploadInitialized,
@@ -202,6 +204,7 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
       storage_path: path,
       upload_status: 'pending',
       metadata: (metadata as any) || null,
+      thumbnail_url: thumbnailUrl || null,
     })
 
     // Create upload session

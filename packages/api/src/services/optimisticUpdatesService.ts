@@ -56,6 +56,7 @@ export function createOptimisticVideoRecording(
     id: -1, // Temporary ID
     ...data,
     original_filename: data.original_filename ?? null,
+    thumbnail_url: data.thumbnail_url ?? null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     upload_status: data.upload_status || 'pending',

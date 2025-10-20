@@ -36,7 +36,7 @@
 ### AI Pipeline
 - **Video Analysis:** Gemini 2.5 Flash → Pro
 - **Feedback Generation:** Gemini 2.5 LLM (text + SSML)
-- **TTS:** Gemini 2.5 Flash Preview → AAC/MP3
+- **TTS:** Gemini 2.5 → MP3/WAV
 
 ## Data Flow
 
@@ -47,6 +47,10 @@ Client → Upload raw video → Supabase Storage (raw bucket)
       → DB: analysis_jobs + analysis_feedback + audio segments
       → Realtime: Client subscribes to analysis_jobs UPDATE → UI updates
 ```
+
+Notes:
+- Uploads create `upload_sessions` rows; progress tracked server-side.
+- Finalization and job enqueue are handled by Storage/DB webhook logic.
 
 ## Database Schema (Simplified)
 
@@ -74,10 +78,19 @@ analysis_feedback (
 )
 ```
 
+Also used in codebase:
+- upload_sessions (tracks signed upload progress)
+- analysis_audio_segments, analysis_ssml_segments, analysis_metrics
+- analyses
+
 **Storage Buckets:**
 - `raw`: User videos (500MB max, authenticated uploads)
-- `processed`: AI artifacts (100MB max, service-role only)
-- Path format: `userId/timestamp_filename.mp4` (no bucket prefix)
+- `processed`: AI artifacts (service-role only; audio and generated assets)
+- `thumbnails`: Generated thumbnails (optional/CDN-backed)
+- Path format examples:
+  - Raw video: `userId/timestamp_filename.mp4`
+  - Processed audio: `processed/audio/analysis_<id>/...`
+  - Thumbnails: `thumbnails/<userId>/<videoId>.jpg`
 
 ## API Endpoints
 
@@ -93,11 +106,16 @@ GET /ai-analyze-video/status?id=<id>
   Response: { id, status, progress, error?, results? }
 
 POST /ai-analyze-video/tts
-  Body: { ssml?: string, text?: string, format?: 'aac'|'mp3' }
+  Body: { ssml?: string, text?: string, format?: 'mp3'|'wav' }
   Response: { audioUrl: string, duration?: number, format: string }
 
 GET /ai-analyze-video/health
   Response: { status: 'ok'|'warning', version, message }
+ 
+// Internal/dev endpoints implemented
+GET /ai-analyze-video/test-env
+POST /ai-analyze-video/webhook
+POST /ai-analyze-video/upload-test
 ```
 
 ## Authentication
@@ -111,7 +129,7 @@ GET /ai-analyze-video/health
 - Both platforms: `AuthGate` component → redirects to `/auth/sign-in`
 - Static export: No server middleware (client-side only)
 
-**Test Auth:** Set `TEST_AUTH_ENABLED=true` in dev environment
+**Test Auth:** Prefer `EXPO_PUBLIC_TEST_AUTH_ENABLED=true` (Expo/Web). Fallback `TEST_AUTH_ENABLED=true` is also supported.
 
 ## Security Rules
 

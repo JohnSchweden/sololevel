@@ -27,11 +27,16 @@ export default function VideoAnalysis() {
   }>()
 
   const handleBack = () => {
-    // Navigate back to camera with reset to idle state
-    router.replace({
-      pathname: '/',
-      params: { resetToIdle: 'true' },
-    })
+    if (analysisJobId) {
+      // History mode: use proper back navigation to return to previous screen
+      router.back()
+    } else {
+      // Live mode: return to camera with reset
+      router.replace({
+        pathname: '/',
+        params: { resetToIdle: 'true' },
+      })
+    }
   }
 
   const handleMenuPress = () => {

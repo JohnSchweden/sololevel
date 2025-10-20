@@ -33,17 +33,20 @@ const SessionItemContainer = styled(YStack, {
   name: 'SessionItemContainer',
   gap: '$2',
   padding: 0,
-  borderRadius: 0,
+  borderRadius: '$3',
+  paddingVertical: '$4',
+  paddingHorizontal: '$4',
   backgroundColor: 'transparent',
   cursor: 'pointer',
   accessibilityRole: 'button',
 
   pressStyle: {
-    opacity: 0.7,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    scale: 0.98,
   },
 
   hoverStyle: {
-    opacity: 0.8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
 
   variants: {

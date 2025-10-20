@@ -18,6 +18,7 @@
     "@google/generative-ai": "^0.21.0",
     "@my/ui": "0.0.1",
     "@supabase/supabase-js": "^2.56.0",
+    "expo-crypto": "^15.0.7",
     "zod": "^4.0.17"
   },
   "devDependencies": {

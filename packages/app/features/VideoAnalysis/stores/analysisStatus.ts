@@ -283,7 +283,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
             // Generate title from date (AnalysisResults doesn't have title field)
             const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
 
-            // Retrieve thumbnail from video_recordings metadata (async operation)
+            // Retrieve thumbnail from video_recordings (prefer thumbnail_url, fallback to metadata)
             let thumbnailUri: string | undefined
 
             // Use dynamic import to avoid circular dependencies and fetch thumbnail
@@ -291,22 +291,37 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
               .then(({ supabase }) =>
                 supabase
                   .from('video_recordings')
-                  .select('metadata')
+                  .select('thumbnail_url, metadata')
                   .eq('id', job.video_recording_id)
                   .single()
               )
               .then(({ data: videoRecording }) => {
-                if (videoRecording?.metadata && typeof videoRecording.metadata === 'object') {
+                // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
+                if (videoRecording?.thumbnail_url) {
+                  thumbnailUri = videoRecording.thumbnail_url
+
+                  // Update cache with cloud thumbnail
+                  historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
+
+                  log.debug('analysisStatus', 'Retrieved and updated thumbnail from CDN', {
+                    videoId: job.video_recording_id,
+                    thumbnailUrl: thumbnailUri,
+                  })
+                } else if (
+                  videoRecording?.metadata &&
+                  typeof videoRecording.metadata === 'object'
+                ) {
+                  // Fallback to local URI for backward compatibility
                   const metadata = videoRecording.metadata as Record<string, unknown>
                   if (typeof metadata.thumbnailUri === 'string') {
                     thumbnailUri = metadata.thumbnailUri
 
-                    // Update cache with thumbnail after retrieval
+                    // Update cache with local thumbnail
                     historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
 
                     log.debug(
                       'analysisStatus',
-                      'Retrieved and updated thumbnail from video metadata',
+                      'Retrieved and updated thumbnail from local metadata (fallback)',
                       {
                         videoId: job.video_recording_id,
                         thumbnailLength: thumbnailUri.length,

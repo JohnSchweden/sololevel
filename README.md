@@ -9,34 +9,6 @@ Tech stack: **Tamagui, Expo Router, Expo, Zustand, Supabase, Yarn, TypeScript, T
 1. Open **Cursor → Settings → Cursor Settings → Rules & Memories → User Rules**.
 2. Click **Add Rule**.
 
-### Planner Mode
-
-1. Review scope across `apps/` and `packages/` in the Turborepo (check for cross-platform impact: web, native, shared packages).
-2. Ask 4–6 clarifying questions before proposing changes.
-3. Draft a plan → get approval → implement in phases (UI → state → API → types/schemas).
-4. After each phase, summarize what was done and outline next steps.
-
-### Planner Mode General
-
-When entering Planner Mode, follow these steps:
-
-1. Deeply reflect upon the changes being asked and analyze existing code to map the full scope of changes needed.
-2. Ask Clarifying Questions: Before proposing a plan, ask 4-6 clarifying questions based on your findings.
-3. Draft a Plan: Once questions are answered, draft a comprehensive plan of action and ask for approval on that plan.
-4. Implement in Phases: After approval, implement all steps in that plan.
-5. Communicate Progress: After completing each phase/step, mention what was just completed and outline the next steps, including phases remaining after these steps.
-
----
-
-### Debugger Mode
-
-1. List 5–7 possible sources (UI, navigation, state, queries, API, build tooling, schema) → narrow to top 1–2.
-2. Add targeted logs (console, Zustand snapshots, TanStack query lifecycle, Zod validation errors).
-3. Collect logs: `getConsoleLogs`, `getConsoleErrors`, `getNetworkLogs`, `getNetworkErrors`.
-4. Check Supabase Edge/DB logs when needed.
-5. Provide analysis + next log/trace suggestions if root cause is unclear.
-6. Clean up temporary debugging artifacts (logs, test hooks, debug flags) after fix.
-
 ---
 
 ### For you to get better responses 
@@ -288,12 +260,6 @@ You can also install the native library inside of `packages/app` if you want to 
 
 You may potentially want to have the native module transpiled for the next app. If you get error messages with `Cannot use import statement outside a module`, you may need to use `transpilePackages` in your `next.config.js` and add the module to the array there.
 
-### Deploying to Vercel
-
-- Root: `apps/web`
-- Install command to be `yarn set version stable && yarn install`
-- Build command: leave default setting
-- Output dir: leave default setting
 
 ## Camera Implementation Switching
 

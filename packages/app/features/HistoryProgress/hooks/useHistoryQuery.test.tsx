@@ -59,10 +59,11 @@ const mockJob = {
   error_message: null,
   processing_started_at: '2025-10-11T10:00:00Z',
   processing_completed_at: '2025-10-11T10:01:00Z',
+  processing_time_ms: 60000,
+  video_source_type: null,
   progress_percentage: 100,
   total_frames: 900,
   processed_frames: 900,
-  summary_text: 'Test analysis summary',
   results: {
     pose_analysis: {
       keypoints: [],
@@ -151,12 +152,12 @@ describe('useHistoryQuery', () => {
     // Verify mock was called
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
 
-    // ASSERT: Transformed data (title from summary_text)
+    // ASSERT: Transformed data (title from date)
     expect(result.current.data).toEqual([
       {
         id: 1,
         videoId: 10,
-        title: 'Test analysis summary',
+        title: 'Analysis 10/11/2025',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
       },
@@ -248,13 +249,13 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Fetched from database (title from summary_text)
+    // ASSERT: Fetched from database (title from date)
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
     expect(result.current.data).toEqual([
       {
         id: 1,
         videoId: 10,
-        title: 'Test analysis summary',
+        title: 'Analysis 10/11/2025',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
       },
@@ -299,12 +300,12 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Cache updated (title from summary_text)
+    // ASSERT: Cache updated (title from date)
     const cache = useVideoHistoryStore.getState()
     const cached = cache.getCached(1)
 
     expect(cached).not.toBeNull()
-    expect(cached?.title).toBe('Test analysis summary')
+    expect(cached?.title).toBe('Analysis 10/11/2025')
     expect(cached?.videoId).toBe(10)
   })
 
@@ -353,10 +354,9 @@ describe('useHistoryQuery', () => {
     expect(result.current.error).toEqual(new Error('Network error'))
   })
 
-  it('should generate default title when job has no summary_text', async () => {
-    // ARRANGE: Job without summary_text (implementation uses summary_text, not title)
-    const jobWithoutTitle = { ...mockJob, summary_text: null }
-    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithoutTitle])
+  it('should generate title from date', async () => {
+    // ARRANGE: Job with date-based title generation
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([mockJob])
 
     // ACT: Render hook
     const queryClient = createTestQueryClient()
@@ -369,8 +369,8 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Default title generated with date
-    expect(result.current.data?.[0].title).toMatch(/^Analysis \d/)
+    // ASSERT: Title generated from date
+    expect(result.current.data?.[0].title).toBe('Analysis 10/11/2025')
   })
 
   it('should handle empty result from API', async () => {
@@ -420,12 +420,12 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Local thumbnail URI extracted from metadata (title from summary_text)
+    // ASSERT: Local thumbnail URI extracted from metadata (title from date)
     expect(result.current.data).toEqual([
       {
         id: 1,
         videoId: 10,
-        title: 'Test analysis summary',
+        title: 'Analysis 10/11/2025',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
       },

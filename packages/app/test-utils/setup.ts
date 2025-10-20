@@ -101,6 +101,38 @@ jest.mock('expo-file-system', () => ({
   readAsStringAsync: jest.fn(),
 }))
 
+// Mock expo-crypto for all tests
+jest.mock('expo-crypto', () => ({
+  digestStringAsync: jest.fn(() => Promise.resolve('test-hash')),
+  getRandomBytesAsync: jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+  CryptoDigestAlgorithm: {
+    SHA256: 'SHA256',
+  },
+}))
+
+// Mock expo-modules-core for all tests
+jest.mock('expo-modules-core', () => ({
+  requireNativeModule: jest.fn((moduleName: string) => {
+    if (moduleName === 'ExpoCrypto') {
+      return {
+        digestStringAsync: jest.fn(() => Promise.resolve('test-hash')),
+        getRandomBytesAsync: jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+      }
+    }
+    return {}
+  }),
+  requireOptionalNativeModule: jest.fn((moduleName: string) => {
+    if (moduleName === 'ExpoCrypto') {
+      return {
+        digestStringAsync: jest.fn(() => Promise.resolve('test-hash')),
+        getRandomBytesAsync: jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+      }
+    }
+    return null
+  }),
+  NativeModule: class NativeModule {},
+}))
+
 // Tamagui mock defined later in this file to avoid duplication
 
 // Mock @tamagui/lucide-icons

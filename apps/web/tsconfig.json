@@ -42,14 +42,8 @@
       "vitest",
       "node"
     ],
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",

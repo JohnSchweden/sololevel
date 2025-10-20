@@ -23,8 +23,8 @@
     "native:prebuild:android": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform android",
     "ios": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn ios --no-install",
     "android": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn android --no-install",
-    "update:ios": "cd ios && pod install",
-    "update:android": "cd android && pod install",
+    "update:ios": "cd apps/expo/ios && pod install",
+    "update:android": "cd apps/expo/android && pod install",
     "ios:full": "yarn native:prebuild:ios && yarn update:ios && yarn ios",
     "android:full": "yarn native:prebuild:android && yarn update:android && yarn android",
     "web": "cd apps/web && yarn dev",
@@ -126,7 +126,6 @@
     "upgrade:tamagui:canary": "yarn up '*tamagui*'@canary '@tamagui/*'@canary",
     "flag:vision": "./scripts/toggles/toggle-camera.sh vision",
     "flag:expo": "./scripts/toggles/toggle-camera.sh expo",
-    "vercel:install": "yarn set version 3.5 && yarn install",
     "storybook": "storybook dev -p 6006",
     "storybook-generate": "sb-rn-get-stories",
     "build-storybook": "storybook build"
@@ -152,7 +151,6 @@
   "dependencies": {
     "@babel/core": "^7.28.3",
     "@babel/runtime": "^7.26.10",
-    "@sentry/react-native": "^6.22.0",
     "@tamagui/sheet": "^1.135.2",
     "check-dependency-version-consistency": "^4.1.0",
     "expo": "~53.0.23",

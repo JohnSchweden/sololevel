@@ -49,7 +49,7 @@ module.exports = {
     'expo-video-thumbnails': '<rootDir>/__mocks__/expo-video-thumbnails.ts',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?react-native|@react-native|@expo|expo|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@react-navigation|@shopify/react-native-skia|react-native-reanimated)',
+    'node_modules/(?!(jest-)?react-native|@react-native|@expo|expo|@unimodules|unimodules|native-base|react-native-svg|@react-navigation|@shopify/react-native-skia|react-native-reanimated)',
   ],
   testEnvironment: 'jsdom',
 }

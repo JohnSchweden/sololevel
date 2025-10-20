@@ -32,7 +32,7 @@ export {
 export { createSignedDownloadUrl } from './services/storageService'
 export type { SignedUrlResult } from './services/storageService'
 // Video thumbnail service
-export { generateVideoThumbnail } from './services/videoThumbnailService'
+export { generateVideoThumbnail, uploadVideoThumbnail } from './services/videoThumbnailService'
 export type {
   UploadProgress,
   UploadSession,

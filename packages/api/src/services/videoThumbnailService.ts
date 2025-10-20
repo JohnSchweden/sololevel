@@ -3,5 +3,8 @@
  * Exports the appropriate implementation based on platform
  */
 
-// Platform-specific implementations will be resolved by Metro bundler
+// Platform-specific thumbnail generation (Metro resolves .native or .web)
 export { generateVideoThumbnail } from './videoThumbnailService.native'
+
+// Shared upload logic (works on all platforms)
+export { uploadVideoThumbnail } from './videoThumbnailUpload'

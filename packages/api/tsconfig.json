@@ -8,7 +8,6 @@
     "types/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "src/services/videoThumbnailService.native.ts"
+    "node_modules"
   ]
 }

@@ -70,7 +70,9 @@ const SectionHeader = styled(Text, {
   fontWeight: '500',
   color: '$color11',
   lineHeight: '$2',
-  marginLeft: '$8',
+  paddingHorizontal: '$4',
+  paddingLeft: '$5',
+  marginLeft: '$5',
 })
 
 /**
@@ -78,8 +80,10 @@ const SectionHeader = styled(Text, {
  */
 const SessionsList = styled(YStack, {
   name: 'SessionsList',
-  gap: '$6',
+  //gap: '$6',
   width: '100%',
+  paddingHorizontal: '$4',
+  marginHorizontal: '$3',
 })
 
 /**
@@ -117,7 +121,6 @@ export function CoachingSessionsSection({
       <SectionHeader data-testid={`${testID}-header`}>Coaching sessions</SectionHeader>
 
       <ScrollView
-        paddingHorizontal="$8"
         refreshControl={
           onRefresh ? (
             <RefreshControl

@@ -113,5 +113,3 @@ For comprehensive patterns and enforcement policies, see:
 Read before starting:
 - Architecture: `docs/spec/architecture.mermaid`
 - Technical specs: `docs/spec/TRD.md`
-- Current tasks: `docs/tasks/tasks.md`
-- Project status: `docs/spec/status.md`

@@ -28,6 +28,38 @@ console.warn = (...args) => {
   originalWarn(...args)
 }
 
+// Define __DEV__ for React Native compatibility in tests
+if (typeof (globalThis as any).__DEV__ === 'undefined') {
+  ;(globalThis as any).__DEV__ = process.env.NODE_ENV === 'development'
+}
+// Mock expo modules for testing
+;(globalThis as any).expo = {
+  NativeModule: class NativeModule {},
+  modules: {
+    ExpoCrypto: {
+      digestStringAsync: vi.fn(),
+      getRandomBytesAsync: vi.fn(),
+    },
+  },
+}
+
+// Mock requireNativeModule to return our mocked modules
+vi.mock('expo-modules-core', () => ({
+  requireNativeModule: vi.fn((moduleName: string) => {
+    if (moduleName === 'ExpoCrypto') {
+      return globalThis.expo.modules.ExpoCrypto
+    }
+    return {}
+  }),
+  requireOptionalNativeModule: vi.fn((moduleName: string) => {
+    if (moduleName === 'ExpoCrypto') {
+      return globalThis.expo.modules.ExpoCrypto
+    }
+    return null
+  }),
+  NativeModule: class NativeModule {},
+}))
+
 // Global logger mocking - silent by default, can be overridden in individual tests
 vi.mock('@my/logging', () => ({
   log: {

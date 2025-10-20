@@ -501,7 +501,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       return (
         <YStack
           flex={1}
-          backgroundColor="$background1"
+          backgroundColor="$background"
           alignItems="center"
           justifyContent="center"
           padding="$4"

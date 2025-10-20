@@ -57,3 +57,6 @@ export async function generateVideoThumbnail(videoUri: string): Promise<{ uri: s
     video.src = videoUri
   })
 }
+
+// Re-export shared upload function (platform-agnostic)
+export { uploadVideoThumbnail } from './videoThumbnailUpload'

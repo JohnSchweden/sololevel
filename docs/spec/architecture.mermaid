@@ -38,10 +38,12 @@ graph TB
         analysis_audio_segments
         analysis_ssml_segments
         analysis_metrics
+        upload_sessions
         🔒 RLS Enabled")]
         Storage["📁 Storage
         raw: videos
-        processed: audio"]
+        processed: audio
+        thumbnails: images"]
         RT["⚡ Realtime
         analysis_jobs changes"]
         Edge["🧩 Edge Function
@@ -54,7 +56,7 @@ graph TB
         EdgeAI["🧠 Edge Processing
         Gemini 2.5 Video
         Gemini LLM Feedback
-        Gemini TTS → AAC/MP3"]
+        Gemini TTS → MP3/WAV"]
         SSMLW["🔤 SSML Worker"]
         AudioW["🔊 Audio Worker"]
     end
