@@ -7,33 +7,33 @@ export interface FeedbackBubblesProps {
 }
 
 function SpeechBubble({ message }: { message: FeedbackMessage }) {
-  const getBlurTint = () => {
-    // Use different blur tints for different message types
-    switch (message.type) {
-      case 'positive':
-        return 'light' as const
-      case 'suggestion':
-        return 'light' as const
-      case 'correction':
-        return 'light' as const
-      default:
-        return 'light' as const
-    }
-  }
+  // const getBlurTint = () => {
+  //   // Use different blur tints for different message types
+  //   switch (message.type) {
+  //     case 'positive':
+  //       return 'light' as const
+  //     case 'suggestion':
+  //       return 'light' as const
+  //     case 'correction':
+  //       return 'light' as const
+  //     default:
+  //       return 'light' as const
+  //   }
+  // }
 
-  const getBubbleBackgroundColor = () => {
-    // Subtle tinted overlay on top of blur
-    switch (message.type) {
-      case 'positive':
-        return 'rgba(34, 197, 94, 0)' // transparent green
-      case 'suggestion':
-        return 'rgba(59, 130, 246, 0)' // transparent blue
-      case 'correction':
-        return 'rgba(239, 68, 68, 0)' // transparent red
-      default:
-        return 'rgba(107, 114, 128, 0)' // transparent gray
-    }
-  }
+  // const getBubbleBackgroundColor = () => {
+  //   // Subtle tinted overlay on top of blur
+  //   switch (message.type) {
+  //     case 'positive':
+  //       return 'rgba(34, 197, 94, 0)' // transparent green
+  //     case 'suggestion':
+  //       return 'rgba(59, 130, 246, 0)' // transparent blue
+  //     case 'correction':
+  //       return 'rgba(239, 68, 68, 0)' // transparent red
+  //     default:
+  //       return 'rgba(107, 114, 128, 0)' // transparent gray
+  //   }
+  // }
 
   return (
     <YStack
@@ -52,22 +52,12 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
         overflow="hidden"
         elevation={3}
         animation="quick"
-        enterStyle={{
-          opacity: 0,
-          y: 20,
-          scale: 0.8,
-        }}
-        exitStyle={{
-          opacity: 0,
-          y: 20,
-          scale: 0.8,
-        }}
         testID={`bubble-text-container-${message.id}`}
       >
         {/* Blur background layer */}
         <BlurView
           intensity={15}
-          tint={getBlurTint()}
+          tint="light"
           style={{
             position: 'absolute',
             top: 0,
@@ -75,15 +65,6 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
             right: 0,
             bottom: 0,
           }}
-        />
-        {/* Colored tint overlay */}
-        <YStack
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          backgroundColor={getBubbleBackgroundColor()}
         />
         {/* Text content */}
         <YStack
@@ -126,7 +107,7 @@ export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
     <AnimatePresence>
       {visibleMessages.length > 0 && (
         <YStack
-          key="feedback-bubbles"
+          key="feedback-bubbles-container"
           position="absolute"
           bottom={120} // Position below video controls (controls are at bottom={80})
           left={20}
@@ -136,8 +117,10 @@ export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
           testID="feedback-bubbles"
           accessibilityLabel="Feedback bubbles container"
           animation="quick"
-          enterStyle={{ opacity: 0, y: 20, scale: 0.8 }}
-          exitStyle={{ opacity: 0, y: 20, scale: 0.8 }}
+          exitStyle={{
+            opacity: 0,
+            y: 20,
+          }}
         >
           <YStack
             flexDirection="row"
@@ -151,8 +134,13 @@ export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
                 <YStack
                   key={message.id}
                   zIndex={message.isHighlighted ? 10 : 5}
-                  opacity={message.isActive ? 1 : 0}
                   scale={message.isHighlighted ? 1.05 : 1}
+                  animation="quick"
+                  enterStyle={{
+                    opacity: 0,
+                    scale: 0.8,
+                    y: 20,
+                  }}
                   testID={`bubble-position-${message.id}`}
                 >
                   <SpeechBubble message={message} />
