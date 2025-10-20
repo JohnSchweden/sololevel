@@ -1,7 +1,7 @@
 import type React from 'react'
-import { TextArea as TamaguiTextArea, type TextAreaProps as TamaguiTextAreaProps } from 'tamagui'
+import { TextArea, type TextAreaProps } from 'tamagui'
 
-export interface TextAreaProps extends Omit<TamaguiTextAreaProps, 'onChange'> {
+export interface CustomTextAreaProps extends Omit<TextAreaProps, 'onChange'> {
   value?: string
   onChange?: (value: string) => void
   minHeight?: number
@@ -21,15 +21,15 @@ export interface TextAreaProps extends Omit<TamaguiTextAreaProps, 'onChange'> {
  * />
  * ```
  */
-export const TextArea = ({
+export const CustomTextArea = ({
   value,
   onChange,
   minHeight = 140,
   maxHeight,
   ...props
-}: TextAreaProps): React.JSX.Element => {
+}: CustomTextAreaProps): React.JSX.Element => {
   return (
-    <TamaguiTextArea
+    <TextArea
       value={value}
       onChangeText={onChange}
       minHeight={minHeight}
@@ -40,6 +40,7 @@ export const TextArea = ({
       borderRadius="$3"
       padding="$4"
       color="$color"
+      lineHeight="$1"
       fontSize="$5"
       focusStyle={{
         backgroundColor: '$backgroundHover',
