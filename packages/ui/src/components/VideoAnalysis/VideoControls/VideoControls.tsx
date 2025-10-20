@@ -276,7 +276,7 @@ export const VideoControls = React.memo(
                 icon={
                   <SkipBack
                     size={20 * scaleFactor}
-                    color="white"
+                    color="$color"
                   />
                 }
                 minWidth={60 * scaleFactor}
@@ -295,17 +295,17 @@ export const VideoControls = React.memo(
                   videoEnded ? (
                     <RotateCcw
                       size={35 * scaleFactor}
-                      color="white"
+                      color="$color"
                     />
                   ) : isPlaying ? (
                     <Pause
                       size={35 * scaleFactor}
-                      color="white"
+                      color="$color"
                     />
                   ) : (
                     <Play
                       size={35 * scaleFactor}
-                      color="white"
+                      color="$color"
                     />
                   )
                 }
@@ -337,7 +337,7 @@ export const VideoControls = React.memo(
                 icon={
                   <SkipForward
                     size={20 * scaleFactor}
-                    color="white"
+                    color="$color"
                   />
                 }
                 minWidth={60 * scaleFactor}

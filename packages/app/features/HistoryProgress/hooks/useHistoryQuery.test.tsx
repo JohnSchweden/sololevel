@@ -76,9 +76,11 @@ const mockJob = {
     id: 10,
     filename: 'video.mp4',
     original_filename: 'video.mp4',
+    storage_path: 'user-id/video.mp4',
     duration_seconds: 30,
     created_at: '2025-10-11T09:55:00Z',
     metadata: {
+      localUri: 'file:///local/path/to/video.mp4',
       thumbnailUri: 'https://example.com/thumb.jpg',
     },
   },
@@ -400,9 +402,11 @@ describe('useHistoryQuery', () => {
         id: 10,
         filename: 'video.mp4',
         original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
         duration_seconds: 30,
         created_at: '2025-10-11T09:55:00Z',
         metadata: {
+          localUri: 'file:///local/path/to/video.mp4',
           thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
         },
       },
@@ -430,6 +434,10 @@ describe('useHistoryQuery', () => {
         thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
       },
     ])
+
+    const { getLocalUri, getCached } = useVideoHistoryStore.getState()
+    expect(getLocalUri('user-id/video.mp4')).toBe('file:///local/path/to/video.mp4')
+    expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
   })
 
   it('should prioritize metadata thumbnailUri over thumbnail_url', async () => {
@@ -440,10 +448,12 @@ describe('useHistoryQuery', () => {
         id: 10,
         filename: 'video.mp4',
         original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
         duration_seconds: 30,
         created_at: '2025-10-11T09:55:00Z',
         thumbnail_url: 'https://example.com/cloud-thumb.jpg',
         metadata: {
+          localUri: 'file:///local/path/to/video.mp4',
           thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
         },
       },
@@ -463,5 +473,8 @@ describe('useHistoryQuery', () => {
 
     // ASSERT: metadata thumbnailUri takes precedence
     expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
+    const { getLocalUri, getCached } = useVideoHistoryStore.getState()
+    expect(getLocalUri('user-id/video.mp4')).toBe('file:///local/path/to/video.mp4')
+    expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
   })
 })

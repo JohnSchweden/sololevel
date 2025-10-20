@@ -264,6 +264,51 @@ describe('useAnalysisState', () => {
     expect(result.current.isProcessing).toBe(false)
   })
 
+  it('history mode returns ready when completed job and feedback loaded', () => {
+    mockAnalysisStoreState.subscriptions = new Map([
+      [
+        'job:120',
+        {
+          job: { id: 120, status: 'completed', progress_percentage: 100, video_recording_id: 999 },
+          status: 'active',
+        },
+      ],
+    ])
+
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: 'hist-1',
+            timestamp: 100,
+            text: 'Historical feedback',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'completed',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 1,
+          fullyCompleted: 1,
+          hasFailures: false,
+          isProcessing: false,
+          completionPercentage: 100,
+        },
+        isProcessing: false,
+        isFullyCompleted: true,
+      })
+    )
+
+    const { result } = renderHook(() => useAnalysisState(120, undefined, 'processing', true))
+
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.isProcessing).toBe(false)
+  })
+
   it('returns error when upload failed with message', () => {
     mockUploadProgress.mockReturnValueOnce({ status: 'failed', percentage: 20 })
     mockUploadStoreState.getTaskByRecordingId.mockReturnValue({

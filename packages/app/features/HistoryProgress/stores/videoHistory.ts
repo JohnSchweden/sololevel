@@ -1,4 +1,4 @@
-import type { AnalysisResults, PoseData } from '@api/src/validation/cameraRecordingSchemas'
+import type { AnalysisResults, PoseData } from '@my/api'
 import { log } from '@my/logging'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -21,11 +21,14 @@ export interface CachedAnalysis {
   createdAt: string
   thumbnail?: string
   videoUri?: string
+  storagePath?: string
   results: AnalysisResults
   poseData?: PoseData
   cachedAt: number
   lastAccessed: number
 }
+
+export type LocalUriMap = Map<string, string>
 
 /**
  * Video history store state
@@ -34,6 +37,7 @@ export interface VideoHistoryState {
   cache: Map<number, CachedAnalysis>
   lastSync: number
   version: number
+  localUriIndex: LocalUriMap
 }
 
 /**
@@ -46,6 +50,11 @@ export interface VideoHistoryActions {
   getCached: (id: number) => CachedAnalysis | null
   getAllCached: () => CachedAnalysis[]
   removeFromCache: (id: number) => void
+
+  // Local URI management
+  setLocalUri: (storagePath: string, localUri: string) => void
+  getLocalUri: (storagePath: string) => string | null
+  clearLocalUri: (storagePath: string) => void
 
   // Cache management
   clearCache: () => void
@@ -91,6 +100,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       cache: new Map<number, CachedAnalysis>(),
       lastSync: 0,
       version: CACHE_VERSION,
+      localUriIndex: new Map<string, string>(),
 
       // Add to cache
       addToCache: (analysis) => {
@@ -103,6 +113,9 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
 
         set((draft) => {
           draft.cache.set(analysis.id, entry)
+          if (analysis.storagePath && analysis.videoUri?.startsWith('file://')) {
+            draft.localUriIndex.set(analysis.storagePath, analysis.videoUri)
+          }
         })
 
         // Evict LRU if over limit (outside of set to avoid circular dependency)
@@ -118,6 +131,11 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           if (entry) {
             Object.assign(entry, updates)
             entry.lastAccessed = Date.now()
+            if (updates.storagePath && updates.videoUri?.startsWith('file://')) {
+              draft.localUriIndex.set(updates.storagePath, updates.videoUri)
+            } else if (entry.storagePath && updates.videoUri?.startsWith('file://')) {
+              draft.localUriIndex.set(entry.storagePath, updates.videoUri)
+            }
           }
         })
       },
@@ -149,6 +167,19 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           return null
         }
 
+        // Refresh cached entry with local URI if available
+        if (entry.storagePath) {
+          const localUri = state.localUriIndex.get(entry.storagePath)
+          if (localUri && entry.videoUri !== localUri) {
+            set((draft) => {
+              const draftEntry = draft.cache.get(id)
+              if (draftEntry) {
+                draftEntry.videoUri = localUri
+              }
+            })
+          }
+        }
+
         // Update last accessed time (only if not stale)
         set((draft) => {
           const draftEntry = draft.cache.get(id)
@@ -172,7 +203,38 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       // Remove from cache
       removeFromCache: (id) => {
         set((draft) => {
+          const entry = draft.cache.get(id)
+          if (entry?.storagePath) {
+            draft.localUriIndex.delete(entry.storagePath)
+          }
           draft.cache.delete(id)
+        })
+      },
+
+      // Local URI management
+      setLocalUri: (storagePath, localUri) => {
+        if (!storagePath || !localUri) {
+          return
+        }
+
+        set((draft) => {
+          draft.localUriIndex.set(storagePath, localUri)
+        })
+      },
+
+      getLocalUri: (storagePath) => {
+        if (!storagePath) {
+          return null
+        }
+        return get().localUriIndex.get(storagePath) ?? null
+      },
+
+      clearLocalUri: (storagePath) => {
+        if (!storagePath) {
+          return
+        }
+        set((draft) => {
+          draft.localUriIndex.delete(storagePath)
         })
       },
 
@@ -181,6 +243,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
         set((draft) => {
           draft.cache.clear()
           draft.lastSync = 0
+          draft.localUriIndex.clear()
         })
       },
 
@@ -191,6 +254,9 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
 
           for (const [id, entry] of entries) {
             if (isStale(entry) || isTooOld(entry)) {
+              if (entry.storagePath) {
+                draft.localUriIndex.delete(entry.storagePath)
+              }
               draft.cache.delete(id)
             }
           }
@@ -208,7 +274,10 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed)
 
           // Remove oldest entry
-          const [oldestId] = entries[0]
+          const [oldestId, oldestEntry] = entries[0]
+          if (oldestEntry?.storagePath) {
+            draft.localUriIndex.delete(oldestEntry.storagePath)
+          }
           draft.cache.delete(oldestId)
         })
       },

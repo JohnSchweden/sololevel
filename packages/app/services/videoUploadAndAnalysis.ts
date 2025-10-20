@@ -9,7 +9,7 @@ import { log } from '@my/logging'
 import { uriToBlob } from '../utils/files'
 import { compressVideo } from './videoCompression'
 
-type VideoMetadata = { duration: number; format: 'mp4' | 'mov' }
+export type VideoMetadata = { duration: number; format: 'mp4' | 'mov'; localUri?: string }
 
 export interface VideoUploadAndAnalysisOptions {
   // Source options - provide either sourceUri OR file
@@ -106,6 +106,11 @@ async function resolveVideoToUpload(params: {
       const { generateVideoThumbnail } = await import('@my/api')
       const result = await generateVideoThumbnail(sourceUri)
       thumbnailUri = result?.uri
+      metadata = {
+        duration: durationSeconds || 30,
+        format: format || 'mp4',
+        localUri: sourceUri,
+      }
 
       if (thumbnailUri) {
         log.info('videoUploadAndAnalysis', 'Thumbnail generated successfully', {
@@ -127,6 +132,7 @@ async function resolveVideoToUpload(params: {
     metadata = {
       duration: durationSeconds || 30,
       format: compressedFormat,
+      localUri: compressionResult.compressedUri,
     }
   } catch (compressionError) {
     log.warn('videoUploadAndAnalysis', 'Video compression failed, using original video', {
@@ -138,7 +144,12 @@ async function resolveVideoToUpload(params: {
 
   log.info('startUploadAndAnalysis', 'Converting video to Blob', { uri: videoToUploadUri })
   const videoToUpload = await uriToBlob(videoToUploadUri)
-  return { videoToUpload, metadata, thumbnailUri, thumbnailUrl: undefined }
+  return {
+    videoToUpload,
+    metadata: { ...metadata, localUri: metadata.localUri ?? sourceUri },
+    thumbnailUri,
+    thumbnailUrl: undefined,
+  }
 }
 
 /**
@@ -183,7 +194,14 @@ async function uploadWithProgress(args: {
     originalFilename: originalFilename || `video.${metadata.format}`,
     durationSeconds: metadata.duration,
     format: metadata.format,
-    metadata: thumbnailUri ? { thumbnailUri } : undefined,
+    metadata: thumbnailUri
+      ? {
+          thumbnailUri,
+          localUri: metadata.localUri,
+        }
+      : metadata.localUri
+        ? { localUri: metadata.localUri }
+        : undefined,
     thumbnailUrl: thumbnailUrl || null,
     onProgress: (progress: number) => {
       log.info('startUploadAndAnalysis', 'Upload progress', { progress })

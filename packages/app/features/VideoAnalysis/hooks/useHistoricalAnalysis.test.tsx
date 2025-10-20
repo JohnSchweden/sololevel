@@ -1,3 +1,7 @@
+jest.mock('expo-file-system', () => ({
+  getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
+}))
+
 // Use real TanStack Query implementation
 jest.unmock('@tanstack/react-query')
 
@@ -12,6 +16,7 @@ jest.mock('@my/api', () => {
   return {
     ...jest.requireActual('@my/api'),
     getAnalysisJob: jest.fn(),
+    createSignedDownloadUrl: jest.fn(),
     supabase: {
       from: mockFrom,
     },
@@ -23,12 +28,16 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
-import { getAnalysisJob, supabase } from '@my/api'
+import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
+import { createSignedDownloadUrl, getAnalysisJob, supabase } from '@my/api'
 
 import { useHistoricalAnalysis } from './useHistoricalAnalysis'
 
 // Get typed mock references
 const mockGetAnalysisJob = getAnalysisJob as jest.MockedFunction<typeof getAnalysisJob>
+const mockCreateSignedDownloadUrl = createSignedDownloadUrl as jest.MockedFunction<
+  typeof createSignedDownloadUrl
+>
 const mockSupabase = supabase as jest.Mocked<typeof supabase>
 
 // Verify mocks are initialized
@@ -56,6 +65,7 @@ describe('useHistoricalAnalysis', () => {
     // Clear mocks and real Zustand store
     jest.clearAllMocks()
     mockGetAnalysisJob.mockReset()
+    mockCreateSignedDownloadUrl.mockReset()
     const { clearCache } = useVideoHistoryStore.getState()
     clearCache()
 
@@ -64,7 +74,7 @@ describe('useHistoricalAnalysis', () => {
       data: {
         id: 100,
         filename: 'test-video.mp4',
-        storage_path: 'videos/test-video.mp4',
+        storage_path: 'user-123/video.mp4',
         duration_seconds: 30,
         metadata: {},
       },
@@ -73,6 +83,14 @@ describe('useHistoricalAnalysis', () => {
     const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
     const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
     mockSupabase.from = jest.fn().mockReturnValue({ select: mockSelect })
+
+    mockCreateSignedDownloadUrl.mockResolvedValue({
+      data: {
+        signedUrl: 'https://signed.example.com/videos/test-video.mp4',
+        path: 'user-123/video.mp4',
+      },
+      error: null,
+    })
   })
 
   afterEach(() => {
@@ -99,10 +117,13 @@ describe('useHistoricalAnalysis', () => {
             frame_count: 30,
           },
         },
+        storagePath: 'user-123/video.mp4',
+        videoUri: 'https://signed.example.com/videos/test-video.mp4',
       }
 
-      const { addToCache } = useVideoHistoryStore.getState()
+      const { addToCache, setLocalUri } = useVideoHistoryStore.getState()
       addToCache(mockCachedData)
+      setLocalUri('user-123/video.mp4', 'file:///cached/video.mp4')
 
       // Act
       const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
@@ -113,7 +134,10 @@ describe('useHistoricalAnalysis', () => {
       })
 
       // Should return cached data with cachedAt/lastAccessed added
-      expect(result.current.data).toMatchObject(mockCachedData)
+      expect(result.current.data).toMatchObject({
+        ...mockCachedData,
+        videoUri: 'file:///cached/video.mp4',
+      })
       expect(result.current.data?.cachedAt).toBeDefined()
       expect(result.current.data?.lastAccessed).toBeDefined()
       expect(mockGetAnalysisJob).not.toHaveBeenCalled()
@@ -145,6 +169,22 @@ describe('useHistoricalAnalysis', () => {
         summary_text: 'Test summary',
       } as any // Use any to bypass strict DB type checking in tests
 
+      const mockSingle = jest.fn().mockResolvedValue({
+        data: {
+          id: 100,
+          filename: 'test-video.mp4',
+          storage_path: 'user-123/video.mp4',
+          duration_seconds: 30,
+          metadata: {
+            localUri: 'file:///local/video.mp4',
+          },
+        },
+        error: null,
+      })
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+
       mockGetAnalysisJob.mockResolvedValue(mockDbData)
 
       // Act
@@ -155,23 +195,71 @@ describe('useHistoricalAnalysis', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetAnalysisJob).toHaveBeenCalledWith(1)
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-123/video.mp4')
 
-      // Should update cache and return cached entry
+      // Should update cache and return cached entry using local URI
       expect(result.current.data).toMatchObject({
         id: 1,
         videoId: 100,
         userId: 'user-123',
+        videoUri: 'file:///local/video.mp4',
+        storagePath: 'user-123/video.mp4',
       })
       expect(result.current.data?.cachedAt).toBeDefined()
       expect(result.current.data?.lastAccessed).toBeDefined()
       expect(result.current.data?.results).toBeDefined()
 
       // Verify cache was updated
-      const { getCached } = useVideoHistoryStore.getState()
+      const { getCached, getLocalUri } = useVideoHistoryStore.getState()
       const cached = getCached(1)
       expect(cached).not.toBeNull()
       expect(cached?.id).toBe(1)
+      expect(cached?.videoUri).toBe('file:///local/video.mp4')
+      expect(getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+    })
+
+    it('falls back to sample video when signed URL resolution fails', async () => {
+      const mockDbData = {
+        id: 2,
+        user_id: 'user-abc',
+        video_recording_id: 200,
+        status: 'completed' as const,
+        results: {},
+        pose_data: null,
+        created_at: '2025-10-12T00:00:00Z',
+        video_recordings: {
+          storage_path: 'user-abc/video.mp4',
+        },
+      } as any
+
+      const mockSingle = jest.fn().mockResolvedValue({
+        data: {
+          id: 200,
+          filename: 'test-video.mp4',
+          storage_path: 'user-abc/video.mp4',
+          duration_seconds: 30,
+          metadata: {},
+        },
+        error: null,
+      })
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+
+      mockGetAnalysisJob.mockResolvedValue(mockDbData)
+      mockCreateSignedDownloadUrl.mockResolvedValue({ data: null, error: 'failed' as any })
+
+      const { result } = renderHook(() => useHistoricalAnalysis(2), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-abc/video.mp4')
+      const { getCached, getLocalUri } = useVideoHistoryStore.getState()
+      const cached = getCached(2)
+      expect(cached?.videoUri).toBe(FALLBACK_VIDEO_URI)
+      expect(getLocalUri('user-abc/video.mp4')).toBeNull()
     })
 
     it('should not query database when analysisId is null', async () => {

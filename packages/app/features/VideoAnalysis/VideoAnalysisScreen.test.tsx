@@ -105,14 +105,6 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
       children
     )
   },
-  ProcessingOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
-    const React = require('react')
-    return React.createElement(
-      'div',
-      { 'data-testid': testID || 'ProcessingOverlay', ...props },
-      children
-    )
-  },
   SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) => {
     const React = require('react')
     return React.createElement(
@@ -156,10 +148,11 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
   VideoControlsRef: jest.fn(),
 }))
 
+const mockProcessingIndicator = jest.fn((_: any) => null)
 jest.mock('./components/ProcessingIndicator', () => ({
-  ProcessingIndicator: ({ children }: { children?: any }) => {
-    const React = require('react')
-    return React.createElement('View', { testID: 'processing-indicator' }, children)
+  ProcessingIndicator: (props: any) => {
+    mockProcessingIndicator(props)
+    return null
   },
 }))
 
@@ -241,6 +234,15 @@ describe('VideoAnalysisScreen - Simplified Version', () => {
       })
 
       expect(UNSAFE_root).toBeTruthy()
+    })
+
+    it('history mode: uses analysisState.phase directly (no phase override)', async () => {
+      render(<VideoAnalysisScreen analysisJobId={456} />)
+
+      // Assert ProcessingIndicator received phase from analysisState (default mock state is "analyzing")
+      expect(mockProcessingIndicator).toHaveBeenCalled()
+      const props = (mockProcessingIndicator.mock.calls.at(-1)?.[0] ?? {}) as any
+      expect(props.phase).toBe('analyzing')
     })
   })
 

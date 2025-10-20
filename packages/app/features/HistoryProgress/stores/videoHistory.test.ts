@@ -554,4 +554,37 @@ describe('VideoHistoryStore', () => {
       expect(result.current.lastSync).toBeGreaterThan(0)
     })
   })
+
+  describe('local URI management', () => {
+    it('should store and retrieve local URIs by storage path', () => {
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      act(() => {
+        result.current.setLocalUri('user-123/video.mp4', 'file:///local/video.mp4')
+      })
+
+      expect(result.current.getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+    })
+
+    it('should clear local URI when entry is removed', () => {
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const analysis = createMockAnalysis(1)
+
+      act(() => {
+        result.current.addToCache({
+          ...analysis,
+          storagePath: 'user-123/video.mp4',
+          videoUri: 'file:///local/video.mp4',
+        })
+      })
+
+      expect(result.current.getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+
+      act(() => {
+        result.current.removeFromCache(analysis.id)
+      })
+
+      expect(result.current.getLocalUri('user-123/video.mp4')).toBeNull()
+    })
+  })
 })

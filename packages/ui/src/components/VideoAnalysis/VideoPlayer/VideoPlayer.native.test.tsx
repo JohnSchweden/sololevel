@@ -125,8 +125,7 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
       // 🎬 ACT: Render the component (should show loading initially)
       renderWithProviders(<VideoPlayerNative {...testProps} />)
 
-      // ✅ ASSERT: Loading state should be visible initially
-      expect(screen.getByTestId('video-loading')).toBeTruthy()
+      // ✅ ASSERT: Video element should be visible (no separate loading state)
       expect(screen.getByTestId('native-video-element')).toBeTruthy()
     })
 

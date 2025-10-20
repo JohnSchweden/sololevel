@@ -159,8 +159,10 @@ const determinePhase = (params: {
   feedback: FeedbackState
   firstPlayableReady: boolean
   uploadError: string | null
+  isHistoryMode: boolean
 }): { phase: AnalysisPhase; error: AnalysisStateResult['error'] } => {
-  const { uploadStatus, analysisStatus, feedback, firstPlayableReady, uploadError } = params
+  const { uploadStatus, analysisStatus, feedback, firstPlayableReady, uploadError, isHistoryMode } =
+    params
 
   if (uploadStatus.status === 'failed') {
     return {
@@ -208,6 +210,10 @@ const determinePhase = (params: {
     return { phase: 'upload-complete', error: null }
   }
 
+  if (isHistoryMode) {
+    return { phase: 'generating-feedback', error: null }
+  }
+
   return { phase: 'uploading', error: null }
 }
 
@@ -222,7 +228,8 @@ const selectUploadTask = (recordingId: number | null) => {
 export function useAnalysisState(
   analysisJobId?: number,
   videoRecordingId?: number,
-  _initialStatus: 'processing' | 'ready' = 'processing'
+  _initialStatus: 'processing' | 'ready' = 'processing',
+  isHistoryMode = false
 ): AnalysisStateResult {
   const latestUploadTask = useUploadProgressStore((state) => state.getLatestActiveTask())
 
@@ -423,6 +430,7 @@ export function useAnalysisState(
     feedback: feedbackStatus,
     firstPlayableReady,
     uploadError: uploadErrorMessage,
+    isHistoryMode,
   })
 
   const progress = useMemo(

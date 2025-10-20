@@ -283,19 +283,21 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
             // Generate title from date (AnalysisResults doesn't have title field)
             const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
 
-            // Retrieve thumbnail from video_recordings (prefer thumbnail_url, fallback to metadata)
             let thumbnailUri: string | undefined
+            let storagePath: string | undefined
 
             // Use dynamic import to avoid circular dependencies and fetch thumbnail
             import('@my/api')
               .then(({ supabase }) =>
                 supabase
                   .from('video_recordings')
-                  .select('thumbnail_url, metadata')
+                  .select('thumbnail_url, metadata, storage_path')
                   .eq('id', job.video_recording_id)
                   .single()
               )
               .then(({ data: videoRecording }) => {
+                storagePath = videoRecording?.storage_path ?? undefined
+
                 // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
                 if (videoRecording?.thumbnail_url) {
                   thumbnailUri = videoRecording.thumbnail_url
@@ -328,6 +330,11 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                       }
                     )
                   }
+
+                  if (storagePath && typeof metadata.localUri === 'string') {
+                    historyStore.setLocalUri(storagePath, metadata.localUri)
+                    historyStore.updateCache(job.id, { videoUri: metadata.localUri })
+                  }
                 }
               })
               .catch((thumbnailError: unknown) => {
@@ -350,6 +357,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
               thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
               results,
               poseData,
+              storagePath,
             })
 
             // Update last sync timestamp

@@ -26,6 +26,7 @@ function transformToCache(
     job.video_recordings?.metadata?.thumbnailUri || job.video_recordings?.thumbnail_url || undefined
   // Use storage_path to construct Supabase Storage URL, or fall back to filename
   const videoUri = job.video_recordings?.storage_path || job.video_recordings?.filename
+  const storagePath = job.video_recordings?.storage_path || undefined
 
   return {
     id: job.id,
@@ -35,6 +36,7 @@ function transformToCache(
     createdAt: job.created_at,
     thumbnail,
     videoUri,
+    storagePath,
     results: job.results as AnalysisResults,
     poseData: job.pose_data as any,
   }
@@ -131,6 +133,19 @@ export function useHistoryQuery(limit = 10) {
         // Update cache with completed jobs and transform to VideoItem
         const videoItems = sortedCompletedJobs.map((job: any) => {
           const cacheEntry = transformToCache(job)
+
+          // Register local thumbnail / video URIs from metadata for cache reuse
+          const metadata = job.video_recordings?.metadata as Record<string, unknown> | undefined
+          if (cacheEntry.storagePath) {
+            const localVideoUri =
+              (metadata?.localUri as string | undefined) ||
+              (metadata?.videoUri as string | undefined)
+            if (typeof localVideoUri === 'string' && localVideoUri.startsWith('file://')) {
+              cache.setLocalUri(cacheEntry.storagePath, localVideoUri)
+              cacheEntry.videoUri = localVideoUri
+            }
+          }
+
           cache.addToCache(cacheEntry)
 
           // Get from cache to ensure we have cached and lastAccessed

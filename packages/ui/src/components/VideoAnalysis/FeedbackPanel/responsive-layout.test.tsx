@@ -2,7 +2,6 @@ import { screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 // VideoAnalysisScreen import removed as it's not used in this test
-import { ProcessingOverlay } from '../ProcessingOverlay/ProcessingOverlay'
 import { FeedbackPanel } from './FeedbackPanel'
 
 // Mock window dimensions for different breakpoints
@@ -47,26 +46,6 @@ describe('Responsive Layout Tests', () => {
       Dimensions.get.mockReturnValue(mockDimensions.mobile)
     })
 
-    it('renders ProcessingOverlay with mobile-optimized layout', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
-      expect(overlay).toBeTruthy()
-
-      // Should use mobile-appropriate spacing and sizing
-      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
-      expect(progressBar).toBeTruthy()
-    })
-
     it('renders FeedbackPanel with mobile gesture support', () => {
       const mockProps = {
         isExpanded: true,
@@ -92,49 +71,12 @@ describe('Responsive Layout Tests', () => {
       const dragHandle = screen.getByLabelText('Sheet handle')
       expect(dragHandle).toBeTruthy()
     })
-
-    it('maintains proper mobile viewport scaling', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      // Components should scale appropriately for mobile viewport
-      const container = screen.getByLabelText('Processing overlay: Analysis in progress')
-      expect(container).toBeTruthy()
-    })
   })
 
   describe('Tablet Layout (768px - 1024px)', () => {
     beforeEach(() => {
       const { Dimensions } = require('react-native')
       Dimensions.get.mockReturnValue(mockDimensions.tablet)
-    })
-
-    it('renders ProcessingOverlay with tablet-optimized spacing', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
-      expect(overlay).toBeTruthy()
-
-      // Should use larger spacing tokens for tablet
-      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
-      expect(progressBar).toBeTruthy()
     })
 
     it('renders FeedbackPanel with expanded content area', () => {
@@ -179,26 +121,6 @@ describe('Responsive Layout Tests', () => {
       Dimensions.get.mockReturnValue(mockDimensions.desktop)
     })
 
-    it('renders ProcessingOverlay with desktop-optimized layout', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      const overlay = screen.getByLabelText('Processing overlay: Analysis in progress')
-      expect(overlay).toBeTruthy()
-
-      // Should use desktop spacing and sizing
-      const progressBar = screen.getByLabelText('Progress bar: 50% complete')
-      expect(progressBar).toBeTruthy()
-    })
-
     it('renders FeedbackPanel with side panel layout option', () => {
       const mockProps = {
         isExpanded: true,
@@ -226,73 +148,7 @@ describe('Responsive Layout Tests', () => {
     })
   })
 
-  describe('Breakpoint Transitions', () => {
-    it('handles smooth transitions between breakpoints', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      const { rerender } = renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      // Start with mobile
-      const { Dimensions } = require('react-native')
-      Dimensions.get.mockReturnValue(mockDimensions.mobile)
-
-      rerender(<ProcessingOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
-
-      // Transition to tablet
-      Dimensions.get.mockReturnValue(mockDimensions.tablet)
-
-      rerender(<ProcessingOverlay {...mockProps} />)
-      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
-    })
-  })
-
-  describe('Accessibility Across Breakpoints', () => {
-    it('maintains proper contrast ratios across screen sizes', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-
-      const stepText = screen.getByLabelText('Current step: Processing...')
-      expect(stepText).toBeTruthy()
-    })
-  })
-
   describe('Performance Across Breakpoints', () => {
-    it('renders efficiently on mobile devices', () => {
-      const { Dimensions } = require('react-native')
-      Dimensions.get.mockReturnValue(mockDimensions.mobile)
-
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      const startTime = performance.now()
-      renderWithProviders(<ProcessingOverlay {...mockProps} />)
-      const endTime = performance.now()
-
-      expect(endTime - startTime).toBeLessThan(100)
-    })
-
     it('handles layout recalculation efficiently', () => {
       const mockProps = {
         isExpanded: true,

@@ -1,29 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { ProcessingOverlay } from '../components/VideoAnalysis/ProcessingOverlay/ProcessingOverlay'
 import { VideoControls } from '../components/VideoAnalysis/VideoControls/VideoControls'
 
 // Mocks are handled globally in src/test-utils/setup.ts
 
 describe('Theme Integration Tests', () => {
   describe('Basic Theme Functionality', () => {
-    it('ProcessingOverlay renders with theme integration', () => {
-      const mockProps = {
-        progress: 0.5,
-        currentStep: 'Processing...',
-        estimatedTime: 30,
-        onCancel: jest.fn(),
-        onViewResults: jest.fn(),
-        isComplete: false,
-      }
-
-      render(<ProcessingOverlay {...mockProps} />)
-
-      // Component should render without errors with theme
-      expect(screen.getByLabelText('Processing overlay: Analysis in progress')).toBeTruthy()
-      expect(screen.getByLabelText('Cancel processing')).toBeTruthy()
-    })
-
     it('VideoControls renders with theme integration', () => {
       const mockProps = {
         isPlaying: false,

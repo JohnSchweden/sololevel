@@ -81,28 +81,6 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
       position="relative"
       testID="video-player-native"
     >
-      {/* Loading State */}
-      {isLoading && (
-        <YStack
-          flex={1}
-          backgroundColor="$color2"
-          justifyContent="center"
-          alignItems="center"
-          testID="video-loading"
-        >
-          {/* Simple loading indicator */}
-          <YStack
-            width={40}
-            height={40}
-            borderRadius={20}
-            borderWidth={3}
-            borderColor="$color4"
-            borderTopColor="$color8"
-            testID="loading-spinner"
-          />
-        </YStack>
-      )}
-
       {/* Error State */}
       {error && (
         <YStack

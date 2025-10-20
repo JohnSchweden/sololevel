@@ -6,9 +6,6 @@ export type {
 } from './types'
 
 // Video Analysis UI Components - Explicit exports for better treeshaking
-export { ProcessingOverlay } from './ProcessingOverlay/ProcessingOverlay'
-export type { ProcessingOverlayProps } from './ProcessingOverlay/ProcessingOverlay'
-
 export { VideoControls } from './VideoControls/VideoControls'
 export type { VideoControlsProps, VideoControlsRef } from './VideoControls/VideoControls'
 
