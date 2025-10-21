@@ -275,99 +275,102 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
         })
 
         // Write to video history cache (non-blocking)
-        try {
-          const job = get().jobs.get(jobId)
-          if (job) {
-            const historyStore = useVideoHistoryStore.getState()
+        // Defer to avoid updating store during render cycle
+        setTimeout(() => {
+          try {
+            const job = get().jobs.get(jobId)
+            if (job) {
+              const historyStore = useVideoHistoryStore.getState()
 
-            // Generate title from date (AnalysisResults doesn't have title field)
-            const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
+              // Generate title from date (AnalysisResults doesn't have title field)
+              const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
 
-            let thumbnailUri: string | undefined
-            let storagePath: string | undefined
+              let thumbnailUri: string | undefined
+              let storagePath: string | undefined
 
-            // Use dynamic import to avoid circular dependencies and fetch thumbnail
-            import('@my/api')
-              .then(({ supabase }) =>
-                supabase
-                  .from('video_recordings')
-                  .select('thumbnail_url, metadata, storage_path')
-                  .eq('id', job.video_recording_id)
-                  .single()
-              )
-              .then(({ data: videoRecording }) => {
-                storagePath = videoRecording?.storage_path ?? undefined
+              // Use dynamic import to avoid circular dependencies and fetch thumbnail
+              import('@my/api')
+                .then(({ supabase }) =>
+                  supabase
+                    .from('video_recordings')
+                    .select('thumbnail_url, metadata, storage_path')
+                    .eq('id', job.video_recording_id)
+                    .single()
+                )
+                .then(({ data: videoRecording }) => {
+                  storagePath = videoRecording?.storage_path ?? undefined
 
-                // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
-                if (videoRecording?.thumbnail_url) {
-                  thumbnailUri = videoRecording.thumbnail_url
+                  // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
+                  if (videoRecording?.thumbnail_url) {
+                    thumbnailUri = videoRecording.thumbnail_url
 
-                  // Update cache with cloud thumbnail
-                  historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
-
-                  log.debug('analysisStatus', 'Retrieved and updated thumbnail from CDN', {
-                    videoId: job.video_recording_id,
-                    thumbnailUrl: thumbnailUri,
-                  })
-                } else if (
-                  videoRecording?.metadata &&
-                  typeof videoRecording.metadata === 'object'
-                ) {
-                  // Fallback to local URI for backward compatibility
-                  const metadata = videoRecording.metadata as Record<string, unknown>
-                  if (typeof metadata.thumbnailUri === 'string') {
-                    thumbnailUri = metadata.thumbnailUri
-
-                    // Update cache with local thumbnail
+                    // Update cache with cloud thumbnail
                     historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
 
-                    log.debug(
-                      'analysisStatus',
-                      'Retrieved and updated thumbnail from local metadata (fallback)',
-                      {
-                        videoId: job.video_recording_id,
-                        thumbnailLength: thumbnailUri.length,
-                      }
-                    )
-                  }
+                    log.debug('analysisStatus', 'Retrieved and updated thumbnail from CDN', {
+                      videoId: job.video_recording_id,
+                      thumbnailUrl: thumbnailUri,
+                    })
+                  } else if (
+                    videoRecording?.metadata &&
+                    typeof videoRecording.metadata === 'object'
+                  ) {
+                    // Fallback to local URI for backward compatibility
+                    const metadata = videoRecording.metadata as Record<string, unknown>
+                    if (typeof metadata.thumbnailUri === 'string') {
+                      thumbnailUri = metadata.thumbnailUri
 
-                  if (storagePath && typeof metadata.localUri === 'string') {
-                    historyStore.setLocalUri(storagePath, metadata.localUri)
-                    historyStore.updateCache(job.id, { videoUri: metadata.localUri })
+                      // Update cache with local thumbnail
+                      historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
+
+                      log.debug(
+                        'analysisStatus',
+                        'Retrieved and updated thumbnail from local metadata (fallback)',
+                        {
+                          videoId: job.video_recording_id,
+                          thumbnailLength: thumbnailUri.length,
+                        }
+                      )
+                    }
+
+                    if (storagePath && typeof metadata.localUri === 'string') {
+                      historyStore.setLocalUri(storagePath, metadata.localUri)
+                      historyStore.updateCache(job.id, { videoUri: metadata.localUri })
+                    }
                   }
-                }
-              })
-              .catch((thumbnailError: unknown) => {
-                log.warn('analysisStatus', 'Failed to fetch thumbnail from video metadata', {
-                  error:
-                    thumbnailError instanceof Error
-                      ? thumbnailError.message
-                      : String(thumbnailError),
-                  videoId: job.video_recording_id,
                 })
-                // Non-blocking - continue without thumbnail
+                .catch((thumbnailError: unknown) => {
+                  log.warn('analysisStatus', 'Failed to fetch thumbnail from video metadata', {
+                    error:
+                      thumbnailError instanceof Error
+                        ? thumbnailError.message
+                        : String(thumbnailError),
+                    videoId: job.video_recording_id,
+                  })
+                  // Non-blocking - continue without thumbnail
+                })
+
+              historyStore.addToCache({
+                id: job.id,
+                videoId: job.video_recording_id,
+                userId: job.user_id,
+                title,
+                createdAt: job.created_at,
+                thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
+                results,
+                poseData,
+                storagePath,
               })
 
-            historyStore.addToCache({
-              id: job.id,
-              videoId: job.video_recording_id,
-              userId: job.user_id,
-              title,
-              createdAt: job.created_at,
-              thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
-              results,
-              poseData,
-              storagePath,
-            })
-
-            // Update last sync timestamp
-            historyStore.updateLastSync()
+              // Update last sync timestamp
+              historyStore.updateLastSync()
+            }
+          } catch (error) {
+            // Cache write failures should not block analysis completion
+            // Graceful degradation: cache miss will trigger DB fetch later
+            log.error('analysisStatus', 'Failed to write to video history cache', { error })
           }
-        } catch (error) {
-          // Cache write failures should not block analysis completion
-          // Graceful degradation: cache miss will trigger DB fetch later
-          log.error('analysisStatus', 'Failed to write to video history cache', { error })
-        }
+        }, 0)
       },
 
       // Get jobs by status

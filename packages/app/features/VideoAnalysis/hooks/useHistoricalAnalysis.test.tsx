@@ -1,3 +1,10 @@
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((obj) => obj.ios || obj.default),
+  },
+}))
+
 jest.mock('expo-file-system', () => ({
   getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
 }))
@@ -195,9 +202,10 @@ describe('useHistoricalAnalysis', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-123/video.mp4')
+      // Should NOT call createSignedDownloadUrl because local URI from metadata is used
+      expect(mockCreateSignedDownloadUrl).not.toHaveBeenCalled()
 
-      // Should update cache and return cached entry using local URI
+      // Should update cache and return cached entry using local URI from metadata
       expect(result.current.data).toMatchObject({
         id: 1,
         videoId: 100,
@@ -215,7 +223,11 @@ describe('useHistoricalAnalysis', () => {
       expect(cached).not.toBeNull()
       expect(cached?.id).toBe(1)
       expect(cached?.videoUri).toBe('file:///local/video.mp4')
-      expect(getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+
+      // Wait for useEffect to complete and verify local URI mapping was set
+      await waitFor(() => {
+        expect(getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+      })
     })
 
     it('falls back to sample video when signed URL resolution fails', async () => {
@@ -267,7 +279,7 @@ describe('useHistoricalAnalysis', () => {
       const { result } = renderHook(() => useHistoricalAnalysis(null), { wrapper })
 
       // Assert - Query should be disabled
-      expect(result.current.data).toBeUndefined()
+      expect(result.current.data).toBeNull()
       expect(result.current.fetchStatus).toBe('idle')
       expect(mockGetAnalysisJob).not.toHaveBeenCalled()
     })

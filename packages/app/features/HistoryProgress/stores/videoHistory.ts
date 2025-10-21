@@ -140,7 +140,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
         })
       },
 
-      // Get cached entry
+      // Get cached entry (read-only, no side effects)
       getCached: (id) => {
         const state = get()
 
@@ -167,29 +167,9 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           return null
         }
 
-        // Refresh cached entry with local URI if available
-        if (entry.storagePath) {
-          const localUri = state.localUriIndex.get(entry.storagePath)
-          if (localUri && entry.videoUri !== localUri) {
-            set((draft) => {
-              const draftEntry = draft.cache.get(id)
-              if (draftEntry) {
-                draftEntry.videoUri = localUri
-              }
-            })
-          }
-        }
-
-        // Update last accessed time (only if not stale)
-        set((draft) => {
-          const draftEntry = draft.cache.get(id)
-          if (draftEntry) {
-            draftEntry.lastAccessed = Date.now()
-          }
-        })
-
-        // Return fresh reference after update
-        return get().cache.get(id) || null
+        // Return entry without side effects
+        // Note: lastAccessed updates should be done via updateCache() after initial read
+        return entry
       },
 
       // Get all cached entries

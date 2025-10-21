@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
 import type { AnalysisJob } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import { useAnalysisSubscriptionStore } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
@@ -32,6 +33,7 @@ export interface AnalysisStateResult {
   videoRecordingId: number | null
   analysisJobId: number | null
   analysisUuid: string | null
+  thumbnailUrl?: string | null
   error: {
     phase: 'upload' | 'analysis' | 'feedback'
     message: string
@@ -458,6 +460,18 @@ export function useAnalysisState(
     }
   }, [phase])
 
+  // Get thumbnail URL from video history store if available (Task 33 Module 3)
+  // Use Zustand selector to avoid render-phase store access
+  const thumbnailUrl = useVideoHistoryStore((state) => {
+    const jobId = analysisJobId ?? analysisJob?.id
+    if (!jobId) {
+      return undefined
+    }
+
+    const cached = state.getCached(jobId)
+    return cached?.thumbnail
+  })
+
   return {
     phase,
     isProcessing: phase !== 'ready' && phase !== 'error',
@@ -465,6 +479,7 @@ export function useAnalysisState(
     videoRecordingId: derivedRecordingId ?? null,
     analysisJobId: analysisJobId ?? analysisJob?.id ?? null,
     analysisUuid,
+    thumbnailUrl,
     error,
     retry,
     feedback: feedbackWithFallback, // Return feedback with mock fallback applied

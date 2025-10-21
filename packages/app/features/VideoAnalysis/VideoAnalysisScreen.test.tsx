@@ -336,4 +336,97 @@ describe('VideoAnalysisScreen - Simplified Version', () => {
       expect(() => unmount()).not.toThrow()
     })
   })
+
+  describe('Edge Warming & Preload', () => {
+    const mockFetch = jest.fn()
+
+    beforeEach(() => {
+      global.fetch = mockFetch
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 206,
+      })
+    })
+
+    afterEach(() => {
+      mockFetch.mockReset()
+    })
+
+    it('fires Range request to warm edge cache when video URL is available', async () => {
+      // 🧪 ARRANGE: Render with signed video URL
+      const videoUri = 'https://cdn.example.com/videos/test-video.mp4?token=abc123'
+
+      // 🎬 ACT: Render component with video URI
+      render(
+        <VideoAnalysisScreen
+          {...mockProps}
+          videoUri={videoUri}
+          {...mockCallbacks}
+        />
+      )
+
+      // ✅ ASSERT: fetch called with Range header for first 256KB
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        videoUri,
+        expect.objectContaining({
+          method: 'GET',
+          headers: { Range: 'bytes=0-262143' },
+        })
+      )
+    })
+
+    it('does not warm cache for local file:// URIs', async () => {
+      // 🧪 ARRANGE: Render with local file URI
+      const localUri = 'file:///data/videos/local-video.mp4'
+
+      // 🎬 ACT: Render component
+      render(
+        <VideoAnalysisScreen
+          {...mockProps}
+          videoUri={localUri}
+          {...mockCallbacks}
+        />
+      )
+
+      // ✅ ASSERT: No fetch call for local files
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('logs warning when edge warming fails', async () => {
+      // 🧪 ARRANGE: Mock fetch failure
+      mockFetch.mockRejectedValue(new Error('Network error'))
+      const { log } = require('@my/logging')
+      const videoUri = 'https://cdn.example.com/videos/test-video.mp4'
+
+      // 🎬 ACT: Render component
+      render(
+        <VideoAnalysisScreen
+          {...mockProps}
+          videoUri={videoUri}
+          {...mockCallbacks}
+        />
+      )
+
+      // ✅ ASSERT: Warning logged but component doesn't crash
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+
+      expect(log.warn).toHaveBeenCalledWith(
+        'VideoAnalysisScreen.warmEdgeCache',
+        'Failed to warm edge cache',
+        expect.objectContaining({
+          error: 'Network error',
+        })
+      )
+    })
+  })
 })

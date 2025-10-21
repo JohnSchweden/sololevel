@@ -43,6 +43,7 @@ interface VideoPlayerSectionProps {
   showControls: boolean
   isProcessing: boolean
   videoAreaScale: number
+  posterUri?: string // Optional thumbnail poster
   onPlay: () => void
   onPause: () => void
   onReplay: () => void
@@ -99,6 +100,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   showControls,
   isProcessing,
   videoAreaScale,
+  posterUri,
   onPlay,
   onPause,
   onReplay,
@@ -184,6 +186,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             <VideoPlayer
               videoUri={videoUri}
               isPlaying={videoShouldPlay}
+              posterUri={posterUri}
               onPause={onPause}
               onEnd={onEnd}
               onLoad={handleLoad}

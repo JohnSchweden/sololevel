@@ -373,11 +373,14 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         try {
           log.info('FeedbackStatusStore', `Subscribing to feedbacks for analysis ${analysisId}`)
 
-          set((draft) => {
-            draft.subscriptionStatus.set(analysisId, 'pending')
-            if (!draft.subscriptionRetries.has(analysisId)) {
-              draft.subscriptionRetries.set(analysisId, { attempts: 0, timeoutId: null })
-            }
+          // Defer state update to avoid updating during render cycle
+          await Promise.resolve().then(() => {
+            set((draft) => {
+              draft.subscriptionStatus.set(analysisId, 'pending')
+              if (!draft.subscriptionRetries.has(analysisId)) {
+                draft.subscriptionRetries.set(analysisId, { attempts: 0, timeoutId: null })
+              }
+            })
           })
 
           // First, fetch existing feedbacks

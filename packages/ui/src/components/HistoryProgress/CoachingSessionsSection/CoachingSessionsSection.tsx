@@ -55,10 +55,11 @@ export interface CoachingSessionsSectionProps {
  */
 const SectionContainer = styled(YStack, {
   name: 'CoachingSessionsSectionContainer',
-  gap: '$4',
+  gap: '$3',
   width: '100%',
   marginTop: '$2',
-  paddingLeft: '$3',
+  paddingLeft: '$6',
+  marginLeft: '$-1.5',
 })
 
 /**
@@ -71,8 +72,7 @@ const SectionHeader = styled(Text, {
   color: '$color11',
   lineHeight: '$2',
   paddingHorizontal: '$4',
-  paddingLeft: '$5',
-  marginLeft: '$5',
+  marginLeft: '$3',
 })
 
 /**
@@ -80,10 +80,8 @@ const SectionHeader = styled(Text, {
  */
 const SessionsList = styled(YStack, {
   name: 'SessionsList',
-  //gap: '$6',
   width: '100%',
   paddingHorizontal: '$4',
-  marginHorizontal: '$3',
 })
 
 /**

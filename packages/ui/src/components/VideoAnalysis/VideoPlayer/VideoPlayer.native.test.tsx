@@ -22,7 +22,7 @@ jest.mock('react-native-video', () => {
   const React = require('react')
 
   const MockVideo = React.forwardRef(
-    ({ source, onLoad, onError, testID, paused, ...props }: any, ref: any) => {
+    ({ source, onLoad, onError, testID, paused, poster, ...props }: any, ref: any) => {
       // Simulate video load behavior
       React.useEffect(() => {
         if (source?.uri && mockVideoShouldLoad) {
@@ -57,6 +57,7 @@ jest.mock('react-native-video', () => {
         ref,
         'data-testid': testID || 'native-video-element',
         'data-original-test-id': testID || 'native-video-element', // For debugging
+        'data-poster': poster, // Store poster for testing
         style: { flex: 1 },
         ...props,
       })
@@ -265,6 +266,51 @@ describe('VideoPlayerNative - React Native Environment Tests', () => {
       // ✅ ASSERT: onSeekComplete should be called for each seek
       expect(mockOnSeekComplete).toHaveBeenCalledTimes(3)
       expect(screen.getByTestId('native-video-element')).toBeTruthy()
+    })
+  })
+
+  describe('Poster Support - Native', () => {
+    it('renders with poster prop for thumbnail display', () => {
+      // 🧪 ARRANGE: Set up test data with poster URL
+      const mockOnLoad = jest.fn()
+      const testProps = {
+        videoUri: 'test-video.mp4',
+        isPlaying: false,
+        posterUri: 'https://cdn.example.com/thumbnail.jpg',
+        onLoad: mockOnLoad,
+        onProgress: jest.fn(),
+        seekToTime: undefined,
+        onSeekComplete: jest.fn(),
+      }
+
+      // 🎬 ACT: Render the component
+      renderWithProviders(<VideoPlayerNative {...testProps} />)
+
+      // ✅ ASSERT: Video element should have poster data attribute
+      const videoElement = screen.getByTestId('native-video-element')
+      expect(videoElement).toBeTruthy()
+      expect(videoElement.getAttribute('data-poster')).toBe('https://cdn.example.com/thumbnail.jpg')
+    })
+
+    it('renders without poster when posterUri is not provided', () => {
+      // 🧪 ARRANGE: Set up test data without poster
+      const mockOnLoad = jest.fn()
+      const testProps = {
+        videoUri: 'test-video.mp4',
+        isPlaying: false,
+        onLoad: mockOnLoad,
+        onProgress: jest.fn(),
+        seekToTime: undefined,
+        onSeekComplete: jest.fn(),
+      }
+
+      // 🎬 ACT: Render the component
+      renderWithProviders(<VideoPlayerNative {...testProps} />)
+
+      // ✅ ASSERT: Video element should not have poster data attribute
+      const videoElement = screen.getByTestId('native-video-element')
+      expect(videoElement).toBeTruthy()
+      expect(videoElement.getAttribute('data-poster')).toBeNull()
     })
   })
 })

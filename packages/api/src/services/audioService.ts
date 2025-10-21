@@ -95,6 +95,8 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
         }
         log.warn(CONTEXT, 'Failed to generate signed URL, falling back to audio_url', {
           feedbackId,
+          error: result.error,
+          storagePath: rpcFirst.storage_path,
         })
       }
       if (rpcFirst.audio_url) {
@@ -138,6 +140,8 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
         }
         log.warn(CONTEXT, 'Failed to generate signed URL, falling back to audio_url', {
           feedbackId,
+          error: result.error,
+          storagePath: row.storage_path,
         })
       }
       if (row.audio_url) {

@@ -45,6 +45,8 @@ export interface VideoPlayerProps {
    * Deprecated: do not drive playback with currentTime; use seekToTime for user-initiated scrubs
    */
   currentTime?: number
+  /** Optional poster/thumbnail image URL to display before video loads */
+  posterUri?: string
   onPause?: () => void
   onEnd?: () => void
   onLoad?: (data: { duration: number }) => void
@@ -53,6 +55,12 @@ export interface VideoPlayerProps {
   seekToTime?: number | null
   /** Called after native player performs the seek */
   onSeekComplete?: () => void
+}
+
+// VideoPlayerSection Component API
+export interface VideoPlayerSectionOptions {
+  /** Optional poster/thumbnail to display before video loads */
+  posterUri?: string
 }
 
 // AudioPlayer-specific types

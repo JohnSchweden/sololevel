@@ -9,6 +9,7 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   videoUri,
   isPlaying,
   currentTime: _currentTime, // Deprecated: kept for backward compatibility
+  posterUri,
   onEnd,
   onLoad,
   onProgress,
@@ -115,10 +116,12 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
       )}
 
       {/* Native Video Player */}
+      {/* Preload strategy: Video mounts early (paused) to warm buffer before user taps play */}
       {!error && (
         <Video
           ref={videoRef}
           source={{ uri: videoUri }}
+          {...(posterUri ? { poster: posterUri } : {})}
           style={{ flex: 1 }}
           paused={!isPlaying}
           onLoad={handleLoad}

@@ -47,7 +47,7 @@ export function SettingsListItem({
   return (
     <Button
       unstyled
-      borderRadius="$3"
+      borderRadius="$4"
       paddingVertical="$3"
       paddingHorizontal="$4"
       minHeight={40}

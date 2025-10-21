@@ -24,6 +24,34 @@ import { useVideoControls } from './hooks/useVideoControls'
 import { useVideoPlayback } from './hooks/useVideoPlayback'
 import type { FeedbackPanelItem } from './types'
 
+/**
+ * Warm CDN edge cache by fetching first 256KB of video
+ * Non-blocking operation that primes the buffer for instant playback
+ * @returns Success status and duration for performance tracking
+ */
+async function warmEdgeCache(videoUrl: string): Promise<{ success: boolean; duration: number }> {
+  try {
+    const startTime = Date.now()
+    await fetch(videoUrl, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-262143' }, // First 256KB
+    })
+    const duration = Date.now() - startTime
+    log.info('VideoAnalysisScreen.warmEdgeCache', 'Edge cache warmed', {
+      duration,
+      bytes: 262144,
+      edgeWarmingSuccess: true,
+    })
+    return { success: true, duration }
+  } catch (error) {
+    log.warn('VideoAnalysisScreen.warmEdgeCache', 'Failed to warm edge cache', {
+      error: error instanceof Error ? error.message : String(error),
+      edgeWarmingSuccess: false,
+    })
+    return { success: false, duration: 0 }
+  }
+}
+
 export interface VideoAnalysisScreenProps {
   analysisJobId?: number
   videoRecordingId?: number
@@ -109,6 +137,13 @@ export function VideoAnalysisScreen({
 
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
+  // Performance tracking state (Task 33 Module 5)
+  const performanceMetrics = useRef({
+    mountTime: Date.now(),
+    edgeWarmingSuccess: false,
+    edgeWarmingDuration: 0,
+  })
+
   const [currentTime, setCurrentTime] = useState(0)
   const [videoReady, setVideoReady] = useState(() => {
     if (isHistoryMode && historicalAnalysis.data?.videoUri?.startsWith('file://')) {
@@ -131,11 +166,40 @@ export function VideoAnalysisScreen({
     return FALLBACK_VIDEO_URI
   }, [videoUri, isHistoryMode, historicalAnalysis.data?.videoUri])
 
+  // Resolve thumbnail poster URL from analysis state (Task 33 Module 3)
+  const posterUri = useMemo(() => {
+    // Prefer thumbnailUrl from analysis state (cloud CDN URL)
+    if (analysisState.thumbnailUrl) {
+      return analysisState.thumbnailUrl
+    }
+
+    // Fallback to thumbnail from historical data (backward compatibility)
+    if (isHistoryMode && historicalAnalysis.data?.thumbnail) {
+      return historicalAnalysis.data.thumbnail
+    }
+
+    return undefined
+  }, [analysisState.thumbnailUrl, isHistoryMode, historicalAnalysis.data?.thumbnail])
+
   useEffect(() => {
     if (resolvedVideoUri.startsWith('file://')) {
       setVideoReady(true)
     } else {
       setVideoReady(false)
+    }
+  }, [resolvedVideoUri])
+
+  // Warm CDN edge cache when video URL is available (non-blocking)
+  useEffect(() => {
+    if (
+      resolvedVideoUri &&
+      !resolvedVideoUri.startsWith('file://') &&
+      resolvedVideoUri !== FALLBACK_VIDEO_URI
+    ) {
+      void warmEdgeCache(resolvedVideoUri).then((result) => {
+        performanceMetrics.current.edgeWarmingSuccess = result.success
+        performanceMetrics.current.edgeWarmingDuration = result.duration
+      })
     }
   }, [resolvedVideoUri])
 
@@ -159,10 +223,17 @@ export function VideoAnalysisScreen({
 
   const handleVideoLoad = useCallback(
     (data: { duration: number }) => {
+      const videoReadyTime = Date.now() - performanceMetrics.current.mountTime
+      log.info('VideoAnalysisScreen.videoReady', 'Video ready for playback', {
+        videoReadyTime,
+        edgeWarmingSuccess: performanceMetrics.current.edgeWarmingSuccess,
+        warmingDuration: performanceMetrics.current.edgeWarmingDuration,
+        posterDisplayed: !!posterUri,
+      })
       registerDuration(data)
       setVideoReady(true)
     },
-    [registerDuration]
+    [registerDuration, posterUri]
   )
 
   const handleSeek = useCallback(
@@ -193,8 +264,14 @@ export function VideoAnalysisScreen({
   )
 
   const handlePlay = useCallback(() => {
+    const playbackStartTime = Date.now() - performanceMetrics.current.mountTime
+    log.info('VideoAnalysisScreen.playbackStart', 'Playback initiated by user', {
+      playbackStartTime,
+      videoReadyTime: videoReady ? 'ready' : 'not ready',
+      edgeWarmingSuccess: performanceMetrics.current.edgeWarmingSuccess,
+    })
     coordinateFeedback.onPlay()
-  }, [coordinateFeedback])
+  }, [coordinateFeedback, videoReady])
 
   const handleFeedbackItemPress = useCallback(
     (item: FeedbackPanelItem) => {
@@ -258,6 +335,7 @@ export function VideoAnalysisScreen({
             showControls={videoReady && videoControls.showControls}
             isProcessing={isProcessing}
             videoAreaScale={1 - feedbackPanel.panelFraction}
+            posterUri={posterUri}
             onPlay={handlePlay}
             onPause={pauseVideo}
             onReplay={rerunVideo}

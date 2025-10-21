@@ -3,6 +3,7 @@
  * Implements storage bucket policies, rate limiting, and file management
  */
 
+import { log } from '@my/logging'
 import { supabase } from '../supabase'
 
 // Types for storage operations
@@ -113,6 +114,13 @@ export async function createSignedDownloadUrl(
 
     // Check if user can access this file
     if (fileUserId !== user.id) {
+      log.error('storageService', 'Access denied', {
+        bucket,
+        filePath,
+        fileUserId,
+        actualUserId: user.id,
+        match: fileUserId === user.id,
+      })
       return { data: null, error: 'Access denied: file does not belong to user' }
     }
 
@@ -120,6 +128,12 @@ export async function createSignedDownloadUrl(
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(filePath, 3600)
 
     if (error) {
+      log.error('storageService', 'Supabase storage createSignedUrl error', {
+        bucket,
+        filePath,
+        error: error.message,
+        errorDetails: error,
+      })
       return { data: null, error: error.message }
     }
 

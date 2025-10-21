@@ -5,9 +5,15 @@ import type { AudioPlayerProps } from '../types'
 
 // Defensive URL normalizer for dev environment
 const normalizeAudioUrl = (url: string): string => {
-  // Fix kong:8000 URLs in development
+  // iOS Simulator cannot access 127.0.0.1 directly - must use actual machine IP or localhost
+  // In dev environment, replace kong:8000 or 127.0.0.1:54321 with localhost which resolves correctly in simulator
   if (url.includes('kong:8000')) {
-    return url.replace('kong:8000', '127.0.0.1:54321')
+    // Kong is the internal Docker network name - replace with localhost for simulator access
+    return url.replace('kong:8000', 'localhost:54321')
+  }
+  if (url.includes('127.0.0.1:54321')) {
+    // Localhost loopback - replace with localhost for simulator
+    return url.replace('127.0.0.1:54321', 'localhost:54321')
   }
   return url
 }
