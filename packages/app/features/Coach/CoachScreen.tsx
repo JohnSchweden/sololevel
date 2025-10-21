@@ -10,6 +10,7 @@ import {
   TypingIndicator,
 } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
+import { BlurView } from 'expo-blur'
 import { useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -65,9 +66,20 @@ export interface CoachScreenProps {
   sessionTitle?: string
 
   /**
+   * Optional session date to display
+   */
+  sessionDate?: string
+
+  /**
    * Optional initial messages to pre-populate chat
    */
   initialMessages?: Message[]
+
+  /**
+   * Whether this screen is used in a tab context (has bottom navigation)
+   * @default true
+   */
+  hasBottomNavigation?: boolean
 }
 
 // Mock suggestions
@@ -99,17 +111,20 @@ const AI_RESPONSES = [
  *
  * @example
  * ```tsx
- * // Route file (apps/expo/app/(tabs)/coach.tsx)
- * <Tabs.Screen
- *   name="coach"
- *   options={{
- *     appHeaderProps: { onMenuPress: () => router.push('/history-progress') }
- *   }}
- * />
+ * // Tab route (apps/expo/app/(tabs)/coach.tsx)
  * <CoachScreen
  *   isLoading={loading}
  *   isError={error}
  *   onRetry={refetch}
+ *   hasBottomNavigation={true} // default
+ * />
+ *
+ * // Stack route (apps/expo/app/coaching-session.tsx)
+ * <CoachScreen
+ *   sessionId={sessionData.id}
+ *   sessionTitle={sessionData.title}
+ *   sessionDate={sessionData.date}
+ *   hasBottomNavigation={false} // no bottom tabs
  * />
  * ```
  */
@@ -121,11 +136,24 @@ export function CoachScreen({
   onRetry,
   sessionId,
   sessionTitle,
+  sessionDate,
   initialMessages,
+  hasBottomNavigation = true,
 }: CoachScreenProps = {}): React.ReactElement {
   // Hooks
   const insets = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // Format today's date for new sessions
+  const getTodayDate = (): string => {
+    const today = new Date()
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    }
+    return today.toLocaleDateString('en-US', options)
+  }
 
   // State
   const [messages, setMessages] = useState<Message[]>(
@@ -257,6 +285,13 @@ export function CoachScreen({
     messageLayoutsRef.current.set(messageId, { y, height })
   }
 
+  const handleContentSizeChange = (): void => {
+    // Only auto-scroll if we have initial messages (previous session)
+    if (initialMessages && initialMessages.length > 0) {
+      scrollViewRef.current?.scrollToEnd({ animated: false })
+    }
+  }
+
   // State handling
   if (isLoading) {
     return (
@@ -302,80 +337,110 @@ export function CoachScreen({
       >
         <YStack
           flex={1}
-          paddingTop={insets.top + APP_HEADER_HEIGHT}
-          marginBottom={insets.bottom}
           testID={`${testID}-content`}
         >
-          {/* Avatar */}
+          {/* Sticky Header Overlay */}
           <YStack
-            alignItems="center"
-            marginTop="$2"
-            marginBottom="$3"
-            opacity={sectionsVisible[0] ? 1 : 0}
-            animation="quick"
-            testID={`${testID}-avatar`}
+            position="absolute"
+            //top={insets.top + APP_HEADER_HEIGHT}
+            left={0}
+            right={0}
+            zIndex={10}
+            //paddingVertical="$2"
+            testID={`${testID}-sticky-header`}
           >
-            <YStack
-              width={64}
-              height={64}
-              borderRadius={32}
-              backgroundColor="$color5"
-              borderWidth={1}
-              borderColor="rgba(255,255,255,0.3)"
-              alignItems="center"
-              justifyContent="center"
-              overflow="hidden"
+            <BlurView
+              intensity={10}
+              tint="dark"
+              style={{
+                borderRadius: 0,
+                overflow: 'hidden',
+                paddingTop: insets.top + APP_HEADER_HEIGHT,
+                marginHorizontal: 2,
+                marginTop: 2,
+              }}
             >
-              <Image
-                source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                width={66}
-                height={66}
-                borderRadius={32}
-              />
-            </YStack>
+              <XStack
+                alignItems="center"
+                padding="$4"
+                gap="$4"
+                paddingHorizontal="$6"
+                opacity={sectionsVisible[0] ? 1 : 0}
+                animation="quick"
+                testID={`${testID}-avatar-section`}
+              >
+                {/* Avatar */}
+                <YStack
+                  width={64}
+                  height={64}
+                  borderRadius={32}
+                  backgroundColor="$color5"
+                  borderWidth={1}
+                  borderColor="rgba(255,255,255,0.3)"
+                  alignItems="center"
+                  justifyContent="center"
+                  overflow="hidden"
+                  testID={`${testID}-avatar`}
+                >
+                  <Image
+                    source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                    width={66}
+                    height={66}
+                    borderRadius={32}
+                  />
+                </YStack>
+
+                {/* Session Info */}
+                <YStack
+                  flex={1}
+                  gap="$2"
+                  testID={`${testID}-session-info`}
+                >
+                  <Text
+                    fontSize="$1"
+                    fontWeight="500"
+                    color="$color11"
+                    testID={`${testID}-session-date`}
+                  >
+                    {sessionDate || getTodayDate()}
+                  </Text>
+                  <Text
+                    fontSize="$4"
+                    fontWeight="500"
+                    color="$color12"
+                    numberOfLines={2}
+                    testID={`${testID}-session-title`}
+                  >
+                    {sessionTitle || 'New Coaching Session'}
+                  </Text>
+                </YStack>
+              </XStack>
+            </BlurView>
           </YStack>
 
-          {/* Session Header */}
-          {sessionId && sessionTitle && (
-            <YStack
-              alignItems="center"
-              marginBottom="$3"
-              paddingHorizontal="$6"
-              opacity={sectionsVisible[0] ? 1 : 0}
-              animation="quick"
-              testID={`${testID}-session-header`}
-            >
-              <Text
-                fontSize="$3"
-                fontWeight="400"
-                color="$color11"
-                textAlign="center"
-                numberOfLines={2}
-              >
-                {sessionTitle}
-              </Text>
-            </YStack>
-          )}
-
-          {/* Messages */}
+          {/* Messages - Extended to top */}
           <YStack
             flex={1}
             opacity={sectionsVisible[1] ? 1 : 0}
             animation="quick"
+            //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
           >
             <ScrollView
               ref={scrollViewRef}
               flex={1}
               paddingHorizontal="$6"
-              //marginBottom="$2"
               testID={`${testID}-messages`}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'flex-end',
+              }}
               onScroll={handleScroll}
+              onContentSizeChange={handleContentSizeChange}
               scrollEventThrottle={16}
             >
               <YStack
                 gap="$4"
-                paddingBottom="$6"
+                paddingBottom="$4"
               >
                 {messages.map((message) => (
                   <XStack
@@ -409,8 +474,8 @@ export function CoachScreen({
           <YStack
             marginHorizontal="$0.5"
             paddingHorizontal="$4"
-            //paddingTop="$1"
             gap="$2"
+            paddingBottom={hasBottomNavigation ? insets.bottom : -insets.bottom}
             backgroundColor="$color3"
             borderRadius="$9"
             testID={`${testID}-input-area`}
@@ -446,14 +511,24 @@ export function CoachScreen({
                   icon={showSuggestions ? ChevronUp : ChevronDown}
                   accessibilityLabel={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
                   testID={`${testID}-toggle-suggestions`}
+                  animation="quick"
+                  scale={1}
+                  hoverStyle={{ scale: 1.05 }}
+                  pressStyle={{ scale: 0.95 }}
                 />
               </XStack>
 
               {/* Suggestions List */}
-              {showSuggestions && (
+              <YStack
+                overflow="hidden"
+                animation="quick"
+                height={showSuggestions ? 'auto' : 0}
+                opacity={showSuggestions ? 1 : 0}
+              >
                 <XStack
                   gap="$2"
                   flexWrap="wrap"
+                  paddingTop="$1"
                 >
                   {SUGGESTIONS.map((suggestion, index) => (
                     <SuggestionChip
@@ -466,7 +541,7 @@ export function CoachScreen({
                     />
                   ))}
                 </XStack>
-              )}
+              </YStack>
             </YStack>
 
             {/* Chat Input */}

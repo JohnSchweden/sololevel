@@ -25,9 +25,9 @@ export type GlassButtonProps = {
   role?: ComponentProps<typeof Button>['role']
   /** Accessibility state (for toggle buttons) */
   accessibilityState?: { checked?: boolean; selected?: boolean; disabled?: boolean }
-  /** Blur intensity (1-100, default 80) */
+  /** Blur intensity (1-100, default 15) */
   blurIntensity?: number
-  /** Blur tint ('light' | 'dark' | 'default', default 'dark') */
+  /** Blur tint ('light' | 'dark' | 'default', default 'light') */
   blurTint?: ComponentProps<typeof BlurView>['tint']
   /** Minimum width (number or string like "100%") */
   minWidth?: number | string
@@ -51,16 +51,45 @@ export type GlassButtonProps = {
   variant?: 'default' | 'variant2'
   /** Glass overlay opacity (0-1, default 1) */
   overlayOpacity?: number
+  /** Highlight contrast intensity (0-1, default 0.3) - adds bright highlight overlay */
+  highlightContrast?: number
+  /** Highlight color (default 'rgba(255, 255, 255, 0.4)') */
+  highlightColor?: XStackProps['backgroundColor']
+  /** Edge glow intensity (0-1, default 0.1) - adds subtle edge lighting */
+  edgeGlowIntensity?: number
+  /** Edge glow color (default 'rgba(255, 255, 255, 0.2)') */
+  edgeGlowColor?: XStackProps['borderColor']
 }
 
 /**
  * GlassButton - A button with glassmorphism effect using expo-blur
+ * Enhanced with highlight contrast, shadows, and edge glow effects
  *
  * @example
  * ```tsx
+ * // Basic glass button
  * <GlassButton
  *   icon={<Upload size="$1.5" color="white" />}
  *   onPress={handlePress}
+ *   accessibilityLabel="Upload video"
+ * />
+ *
+ * // High contrast glass button with enhanced effects
+ * <GlassButton
+ *   icon={<Upload size="$1.5" color="white" />}
+ *   onPress={handlePress}
+ *   highlightContrast={0.5}
+ *   shadowIntensity={0.4}
+ *   edgeGlowIntensity={0.2}
+ *   accessibilityLabel="Upload video"
+ * />
+ *
+ * // Custom highlight colors
+ * <GlassButton
+ *   icon={<Upload size="$1.5" color="white" />}
+ *   onPress={handlePress}
+ *   highlightColor="rgba(255, 255, 255, 0.6)"
+ *   edgeGlowColor="rgba(0, 255, 255, 0.3)"
  *   accessibilityLabel="Upload video"
  * />
  * ```
@@ -75,7 +104,7 @@ export const GlassButton = ({
   accessibilityHint,
   role,
   accessibilityState,
-  blurIntensity = 15,
+  blurIntensity = 10,
   blurTint = 'light',
   minWidth = 48,
   minHeight = 48,
@@ -87,7 +116,11 @@ export const GlassButton = ({
   borderColor = 'rgba(255, 255, 255, 0.15)',
   backgroundColor = 'rgba(255, 255, 255, 0.0)',
   variant = 'default',
-  overlayOpacity = 1,
+  overlayOpacity = 0.8,
+  highlightContrast = 0,
+  highlightColor = 'rgba(255, 255, 255, 0.4)',
+  edgeGlowIntensity = 0.9,
+  edgeGlowColor = 'rgba(255, 255, 255, 0.9)',
 }: GlassButtonProps) => {
   // Convert borderRadius token to number for BlurView
   const numericRadius = typeof borderRadius === 'string' ? 24 : Number(borderRadius) || 24
@@ -106,6 +139,22 @@ export const GlassButton = ({
       minHeight={minHeight}
       width={(width || (typeof minWidth === 'string' ? minWidth : undefined)) as any}
     >
+      {/* Edge glow effect */}
+      {edgeGlowIntensity > 0 && (
+        <XStack
+          position="absolute"
+          top={-1}
+          left={-1}
+          right={-1}
+          bottom={-1}
+          borderRadius={borderRadius}
+          borderWidth={1}
+          borderColor={edgeGlowColor}
+          opacity={edgeGlowIntensity}
+          pointerEvents="none"
+        />
+      )}
+
       <BlurView
         intensity={blurIntensity}
         tint={blurTint}
@@ -119,6 +168,22 @@ export const GlassButton = ({
           bottom: 0,
         }}
       />
+
+      {/* Highlight contrast overlay */}
+      {highlightContrast > 0 && (
+        <XStack
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          borderRadius={borderRadius}
+          backgroundColor={highlightColor}
+          opacity={highlightContrast}
+          pointerEvents="none"
+        />
+      )}
+
       <Image
         source={overlaySource}
         position="absolute"
@@ -131,6 +196,7 @@ export const GlassButton = ({
         opacity={overlayOpacity}
         resizeMode="cover"
       />
+
       <Button
         testID={testID}
         onPress={disabled ? undefined : onPress}

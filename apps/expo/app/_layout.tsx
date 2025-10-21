@@ -134,6 +134,23 @@ function RootLayoutNav() {
               }
             />
             <Stack.Screen
+              name="coaching-session"
+              options={{
+                title: 'Coach',
+                headerShown: true,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                header: (props) => <NavigationAppHeader {...props} />,
+                animation: 'slide_from_right',
+                // @ts-ignore: custom appHeaderProps extension
+                appHeaderProps: {
+                  mode: 'default',
+                  leftAction: 'back',
+                  rightAction: 'none',
+                },
+              }}
+            />
+            <Stack.Screen
               name="settings"
               options={
                 {

@@ -35,7 +35,7 @@ export default function HistoryProgressRoute() {
   const handleNavigateToCoachingSession = (sessionId: number): void => {
     log.info('HistoryProgressRoute', 'Navigate to coaching session', { sessionId })
     router.push({
-      pathname: '/(tabs)/coach',
+      pathname: '/coaching-session',
       params: { sessionId: sessionId.toString() },
     })
   }

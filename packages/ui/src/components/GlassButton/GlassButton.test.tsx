@@ -132,4 +132,58 @@ describe('GlassButton', () => {
     expect(button).toBeTruthy()
     expect(button).toHaveAccessibleName('Upload video')
   })
+
+  it('renders with highlight contrast effects', () => {
+    // Arrange - Create button with highlight contrast
+    const { getByTestId } = renderWithProvider(
+      <GlassButton
+        {...defaultProps}
+        highlightContrast={0.5}
+        highlightColor="rgba(255, 255, 255, 0.6)"
+      />
+    )
+
+    // Act - Query for button
+    const button = getByTestId('glass-button')
+
+    // Assert - Button rendered with highlight effects
+    expect(button).toBeTruthy()
+  })
+
+  it('renders with shadow and edge glow effects', () => {
+    // Arrange - Create button with shadow and glow
+    const { getByTestId } = renderWithProvider(
+      <GlassButton
+        {...defaultProps}
+        shadowIntensity={0.4}
+        shadowColor="rgba(0, 0, 0, 0.5)"
+        edgeGlowIntensity={0.2}
+        edgeGlowColor="rgba(255, 255, 255, 0.3)"
+      />
+    )
+
+    // Act - Query for button
+    const button = getByTestId('glass-button')
+
+    // Assert - Button rendered with shadow and glow effects
+    expect(button).toBeTruthy()
+  })
+
+  it('disables highlight effects when intensity is 0', () => {
+    // Arrange - Create button with disabled highlight effects
+    const { getByTestId } = renderWithProvider(
+      <GlassButton
+        {...defaultProps}
+        highlightContrast={0}
+        shadowIntensity={0}
+        edgeGlowIntensity={0}
+      />
+    )
+
+    // Act - Query for button
+    const button = getByTestId('glass-button')
+
+    // Assert - Button rendered without highlight effects
+    expect(button).toBeTruthy()
+  })
 })

@@ -117,7 +117,7 @@ export const AudioFeedback = memo(
           <YStack
             key="audio-feedback"
             position="absolute"
-            bottom={100}
+            bottom={60}
             width="50%"
             alignSelf="center"
             testID={testID}
