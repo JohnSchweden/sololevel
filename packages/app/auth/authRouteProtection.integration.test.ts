@@ -7,7 +7,7 @@ import type { AuthResult, SignInData } from '@my/api'
 import { authClient } from '@my/api'
 import { useAuthStore } from '../stores/auth'
 import { createAuthFixtures } from '../test-utils/authFixtures'
-import { testAuthBootstrap } from './testAuthBootstrap'
+import { _resetBootstrapForTesting, testAuthBootstrap } from './testAuthBootstrap'
 
 // Mock the auth client
 jest.mock('@my/api', () => ({
@@ -32,10 +32,12 @@ jest.mock('@my/logging', () => ({
 }))
 
 describe('Route Protection Integration', () => {
-  const originalEnv = process.env
-
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // Reset testAuthBootstrap singleton for each test
+    _resetBootstrapForTesting()
+
     // Reset auth store to initial state
     useAuthStore.setState({
       user: null,
@@ -43,12 +45,24 @@ describe('Route Protection Integration', () => {
       loading: true,
       initialized: false,
     })
-    // Reset environment
-    process.env = { ...originalEnv }
+
+    // Clean up test auth environment variables
+    delete process.env.TEST_AUTH_ENABLED
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED
+    delete process.env.TEST_AUTH_EMAIL
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL
+    delete process.env.TEST_AUTH_PASSWORD
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD
   })
 
   afterEach(() => {
-    process.env = originalEnv
+    // Clean up after each test
+    delete process.env.TEST_AUTH_ENABLED
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED
+    delete process.env.TEST_AUTH_EMAIL
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL
+    delete process.env.TEST_AUTH_PASSWORD
+    delete process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD
   })
 
   describe('Authentication State Management', () => {

@@ -57,7 +57,7 @@ export const ChatInput = ({
       {/* Input Container */}
       <XStack
         backgroundColor="$background"
-        borderRadius="$4"
+        borderRadius="$5"
         //gap="$1"
         alignItems="center"
         borderWidth={1}

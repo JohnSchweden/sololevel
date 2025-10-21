@@ -32,10 +32,19 @@ export default function HistoryProgressRoute() {
     // P1: router.push('/videos')
   }
 
+  const handleNavigateToCoachingSession = (sessionId: number): void => {
+    log.info('HistoryProgressRoute', 'Navigate to coaching session', { sessionId })
+    router.push({
+      pathname: '/(tabs)/coach',
+      params: { sessionId: sessionId.toString() },
+    })
+  }
+
   return (
     <HistoryProgressScreen
       onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
       onNavigateToVideos={handleNavigateToVideos}
+      onNavigateToCoachingSession={handleNavigateToCoachingSession}
     />
   )
 }

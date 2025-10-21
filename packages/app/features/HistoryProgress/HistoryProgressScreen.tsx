@@ -20,6 +20,11 @@ export interface HistoryProgressScreenProps {
   onNavigateToVideos: () => void
 
   /**
+   * Handler for navigating to coaching session (required)
+   */
+  onNavigateToCoachingSession: (sessionId: number) => void
+
+  /**
    * Test ID for testing
    */
   testID?: string
@@ -49,6 +54,7 @@ export interface HistoryProgressScreenProps {
 export function HistoryProgressScreen({
   onNavigateToVideoAnalysis,
   onNavigateToVideos,
+  onNavigateToCoachingSession,
   testID = 'history-progress-screen',
 }: HistoryProgressScreenProps): React.ReactElement {
   const insets = useSafeArea()
@@ -144,12 +150,13 @@ export function HistoryProgressScreen({
     []
   )
 
-  const handleSessionPress = React.useCallback((sessionId: number) => {
-    log.debug('HistoryProgressScreen', 'Coaching session pressed (P0 placeholder)', { sessionId })
-    // P0: Log placeholder
-    log.info('HistoryProgressScreen', 'Navigate to coaching session', { sessionId })
-    // P1: router.push(`/coaching-sessions/${sessionId}`)
-  }, [])
+  const handleSessionPress = React.useCallback(
+    (sessionId: number) => {
+      log.info('HistoryProgressScreen', 'Coaching session pressed', { sessionId })
+      onNavigateToCoachingSession(sessionId)
+    },
+    [onNavigateToCoachingSession]
+  )
 
   return (
     <GlassBackground

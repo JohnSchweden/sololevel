@@ -1,4 +1,4 @@
-import { useAuth } from '@my/app/hooks/useAuth'
+import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
 import { H3, Spinner, YStack } from '@my/ui'
 import { usePathname, useRouter } from 'expo-router'
@@ -18,18 +18,20 @@ export interface AuthGateProps {
  * - Redirecting unauthenticated users to sign-in
  * - Rendering children only when user is authenticated
  * - Preserving intended destination for post-auth redirect
+ *
+ * Optimized with Zustand selectors to minimize rerenders
  */
 export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: AuthGateProps) {
-  const { isAuthenticated, loading, initialized } = useAuth()
+  // Use Zustand selectors with shallow equality to prevent unnecessary rerenders
+  const isAuthenticated = useAuthStore((state) => !!(state.user && state.session))
+  const loading = useAuthStore((state) => state.loading)
+  const initialized = useAuthStore((state) => state.initialized)
+
   const router = useRouter()
   const pathname = usePathname()
 
   // Check if current route is an auth route (should be accessible without authentication)
   const isAuthRoute = pathname.startsWith('/auth')
-
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    log.debug('AuthGate', 'Render', { isAuthenticated, loading, initialized })
-  }
 
   // Log deduplication ref - must be called unconditionally at component level
   const lastLoggedKeyRef = useRef<string>('')
@@ -62,13 +64,6 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
   // Show loading state while auth is initializing
   if (!initialized || loading) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      log.debug('AuthGate', 'Auth initializing, showing loading state', {
-        initialized,
-        loading,
-      })
-    }
-
     if (fallback) {
       return <>{fallback}</>
     }

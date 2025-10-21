@@ -1,4 +1,4 @@
-import { testAuthBootstrap } from './testAuthBootstrap'
+import { _resetBootstrapForTesting, testAuthBootstrap } from './testAuthBootstrap'
 
 // Mock react-native Platform
 jest.mock('react-native', () => ({
@@ -35,6 +35,7 @@ const originalEnv = process.env
 describe('testAuthBootstrap', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    _resetBootstrapForTesting() // Reset singleton between tests
     // Reset environment and ensure we're in test mode
     process.env = {
       ...originalEnv,
@@ -160,5 +161,50 @@ describe('testAuthBootstrap', () => {
     expect(result.success).toBe(true)
     expect(result.message).toBe('User already authenticated')
     expect(authClient.signInWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('uses singleton pattern - concurrent calls return same promise', async () => {
+    // Get the mocked functions
+    const { authClient } = require('@my/api')
+
+    // Explicitly set test environment
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'development',
+      configurable: true,
+    })
+    delete process.env.EXPO_PUBLIC_ENV
+
+    process.env.TEST_AUTH_ENABLED = 'true'
+    process.env.TEST_AUTH_EMAIL = 'test@example.com'
+    process.env.TEST_AUTH_PASSWORD = 'test-password-123'
+
+    // Mock authClient to return null (no existing user), then success
+    jest.mocked(authClient.getCurrentUserId).mockResolvedValue(null)
+    jest.mocked(authClient.signInWithPassword).mockResolvedValue({
+      success: true,
+      data: {
+        user: { id: 'test-user-id', email: 'test@example.com' },
+        session: { access_token: 'token' },
+      },
+    })
+
+    // Fire 5 concurrent bootstrap calls
+    const promises = [
+      testAuthBootstrap(),
+      testAuthBootstrap(),
+      testAuthBootstrap(),
+      testAuthBootstrap(),
+      testAuthBootstrap(),
+    ]
+
+    const results = await Promise.all(promises)
+
+    // All should succeed
+    results.forEach((result) => {
+      expect(result.success).toBe(true)
+    })
+
+    // BUT signInWithPassword should only be called ONCE (singleton pattern)
+    expect(authClient.signInWithPassword).toHaveBeenCalledTimes(1)
   })
 })

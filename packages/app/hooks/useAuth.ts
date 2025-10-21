@@ -6,20 +6,17 @@ import { useAuthStore } from '../stores/auth'
 /**
  * Auth hook that provides authentication state and actions
  * Uses the new typed authClient and integrates with Zustand store
+ *
+ * NOTE: Auth state listener is set up in the auth store's initialize() method.
+ * This hook only provides convenient access to store state and actions.
  */
 export function useAuth() {
   const { user, session, loading, initialized, setAuth, setLoading, setInitialized } =
     useAuthStore()
 
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    log.debug('useAuth', 'Hook called', { hasUser: !!user, loading, initialized })
-  }
-
-  // Log deduplication ref - must be called unconditionally at hook level
-  // Removed unused logOnce helper
-
   /**
    * Initialize auth state and set up listeners
+   * Delegates to the auth store's initialize() method
    */
   const initialize = useCallback(async () => {
     if (initialized) return
@@ -41,22 +38,14 @@ export function useAuth() {
         log.info('useAuth', 'No existing session found')
       }
 
-      // Set up auth state listener
-      const unsubscribe = authClient.onAuthStateChange((session) => {
-        if (__DEV__) {
-          log.debug('useAuth', 'Auth state changed', {
-            hasSession: !!session,
-            userId: session?.user?.id,
-          })
-        }
-        setAuth(session?.user ?? null, session)
-      })
+      // NOTE: Auth state listener is set up in auth store initialize()
+      // We don't set up a duplicate listener here
 
       setInitialized(true)
       setLoading(false)
 
-      // Return cleanup function
-      return unsubscribe
+      // No cleanup function needed - auth store manages the listener
+      return undefined
     } catch (error) {
       log.error('useAuth', 'Failed to initialize auth', { error })
       setAuth(null, null)
@@ -130,17 +119,9 @@ export function useAuth() {
    */
   const isAuthenticated = !!user && !!session
 
-  // Initialize on mount
+  // Initialize on mount - no cleanup needed (auth store handles listener)
   useEffect(() => {
-    let cleanup: (() => void) | undefined
-
-    initialize().then((unsubscribe) => {
-      cleanup = unsubscribe
-    })
-
-    return () => {
-      cleanup?.()
-    }
+    initialize()
   }, [initialize])
 
   return {

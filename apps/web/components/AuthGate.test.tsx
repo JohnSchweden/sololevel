@@ -7,11 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthGate } from './AuthGate'
 
 // Import the mocked modules properly
-import { useAuth } from '@my/app/hooks/useAuth'
+import { useAuthStore } from '@my/app/stores/auth'
 import { useRouter } from 'expo-router'
 
 // Get the mocked functions with proper typing
-const mockUseAuth = vi.mocked(useAuth)
+const mockUseAuthStore = vi.mocked(useAuthStore)
 const mockUseRouter = vi.mocked(useRouter)
 
 describe('AuthGate (Web)', () => {
@@ -31,17 +31,21 @@ describe('AuthGate (Web)', () => {
   })
 
   it('renders children when user is authenticated', async () => {
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: true,
-      loading: false,
-      initialized: true,
-      user: { id: 'test-user' } as any,
-      session: { access_token: 'test-token' } as any,
-      userId: 'test-user',
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      initialize: vi.fn(),
-    } as any)
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const mockState = {
+        user: { id: 'test-user' } as any,
+        session: { access_token: 'test-token' } as any,
+        loading: false,
+        initialized: true,
+        setAuth: vi.fn(),
+        setLoading: vi.fn(),
+        setInitialized: vi.fn(),
+        signOut: vi.fn(),
+        refresh: vi.fn(),
+        initialize: vi.fn(),
+      }
+      return selector(mockState)
+    })
 
     render(
       <AuthGate>
@@ -55,17 +59,21 @@ describe('AuthGate (Web)', () => {
   })
 
   it('shows loading when auth is not initialized', async () => {
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: false,
-      loading: true,
-      initialized: false,
-      user: null,
-      session: null,
-      userId: null,
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      initialize: vi.fn(),
-    } as any)
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const mockState = {
+        user: null,
+        session: null,
+        loading: true,
+        initialized: false,
+        setAuth: vi.fn(),
+        setLoading: vi.fn(),
+        setInitialized: vi.fn(),
+        signOut: vi.fn(),
+        refresh: vi.fn(),
+        initialize: vi.fn(),
+      }
+      return selector(mockState)
+    })
 
     render(
       <AuthGate>
@@ -79,17 +87,21 @@ describe('AuthGate (Web)', () => {
   })
 
   it('redirects to sign-in when user is not authenticated', async () => {
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: false,
-      loading: false,
-      initialized: true,
-      user: null,
-      session: null,
-      userId: null,
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      initialize: vi.fn(),
-    } as any)
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const mockState = {
+        user: null,
+        session: null,
+        loading: false,
+        initialized: true,
+        setAuth: vi.fn(),
+        setLoading: vi.fn(),
+        setInitialized: vi.fn(),
+        signOut: vi.fn(),
+        refresh: vi.fn(),
+        initialize: vi.fn(),
+      }
+      return selector(mockState)
+    })
 
     // Mock window.location.pathname since AuthGate uses it
     Object.defineProperty(window, 'location', {
@@ -109,17 +121,21 @@ describe('AuthGate (Web)', () => {
   })
 
   it('preserves intended destination for post-auth redirect', async () => {
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: false,
-      loading: false,
-      initialized: true,
-      user: null,
-      session: null,
-      userId: null,
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      initialize: vi.fn(),
-    } as any)
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const mockState = {
+        user: null,
+        session: null,
+        loading: false,
+        initialized: true,
+        setAuth: vi.fn(),
+        setLoading: vi.fn(),
+        setInitialized: vi.fn(),
+        signOut: vi.fn(),
+        refresh: vi.fn(),
+        initialize: vi.fn(),
+      }
+      return selector(mockState)
+    })
 
     // Mock window.location.pathname since AuthGate uses it
     Object.defineProperty(window, 'location', {

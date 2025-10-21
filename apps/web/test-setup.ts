@@ -30,6 +30,11 @@ if (!process.env.TEST_AUTH_ENABLED) {
   process.env.TEST_AUTH_ENABLED = 'false'
 }
 
+// Mock Supabase environment variables for tests
+process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.EXPO_PUBLIC_SUPABASE_KEY = 'test-anon-key'
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+
 // Mock @my/app/hooks/useAuth with factory function for better isolation
 vi.mock('@my/app/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({
@@ -42,6 +47,19 @@ vi.mock('@my/app/hooks/useAuth', () => ({
     signIn: vi.fn(),
     signOut: vi.fn(),
   })),
+}))
+
+// Mock @my/app/stores/auth (Zustand store)
+vi.mock('@my/app/stores/auth', () => ({
+  useAuthStore: vi.fn((selector) => {
+    const mockState = {
+      user: null,
+      session: null,
+      loading: false,
+      initialized: false,
+    }
+    return selector(mockState)
+  }),
 }))
 
 // Mock @my/logging
@@ -76,6 +94,17 @@ vi.mock('expo-router', () => ({
     getPathname: vi.fn(() => '/'),
   })),
   usePathname: vi.fn(() => '/'),
+}))
+
+// Mock expo-video-thumbnails (native module not available in web tests)
+vi.mock('expo-video-thumbnails', () => ({
+  getThumbnailAsync: vi.fn(() => Promise.resolve({ uri: 'mock-thumbnail.jpg' })),
+}))
+
+// Mock videoThumbnailService (native service not available in web tests)
+vi.mock('@my/api/services/videoThumbnailService', () => ({
+  generateVideoThumbnail: vi.fn(() => Promise.resolve({ uri: 'mock-thumbnail.jpg' })),
+  uploadVideoThumbnail: vi.fn(() => Promise.resolve('mock-uploaded-thumbnail.jpg')),
 }))
 
 // Mock browser APIs for jsdom compatibility

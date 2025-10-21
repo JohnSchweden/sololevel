@@ -53,6 +53,21 @@ export interface CoachScreenProps {
    * Retry handler for error state
    */
   onRetry?: () => void
+
+  /**
+   * Optional session ID for coaching session context
+   */
+  sessionId?: number
+
+  /**
+   * Optional session title to display
+   */
+  sessionTitle?: string
+
+  /**
+   * Optional initial messages to pre-populate chat
+   */
+  initialMessages?: Message[]
 }
 
 // Mock suggestions
@@ -104,25 +119,30 @@ export function CoachScreen({
   isError = false,
   errorMessage,
   onRetry,
+  sessionId,
+  sessionTitle,
+  initialMessages,
 }: CoachScreenProps = {}): React.ReactElement {
   // Hooks
   const insets = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // State
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'coach',
-      content:
-        "Hi there! I'm your Solo:Lvl coach. I'm here to help you improve your fitness technique, answer questions about your workouts, and provide personalized guidance. What would you like to work on today?",
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>(
+    initialMessages ?? [
+      {
+        id: '1',
+        type: 'coach',
+        content:
+          "Hi there! I'm your Solo:Lvl coach. I'm here to help you improve your fitness technique, answer questions about your workouts, and provide personalized guidance. What would you like to work on today?",
+        timestamp: new Date(),
+      },
+    ]
+  )
   const [inputMessage, setInputMessage] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(!sessionId)
   const [scrollOffset, setScrollOffset] = useState(0)
   const { visibleItems: sectionsVisible } = useStaggeredAnimation({
     itemCount: 4,
@@ -290,7 +310,7 @@ export function CoachScreen({
           <YStack
             alignItems="center"
             marginTop="$2"
-            marginBottom="$5"
+            marginBottom="$3"
             opacity={sectionsVisible[0] ? 1 : 0}
             animation="quick"
             testID={`${testID}-avatar`}
@@ -314,6 +334,28 @@ export function CoachScreen({
               />
             </YStack>
           </YStack>
+
+          {/* Session Header */}
+          {sessionId && sessionTitle && (
+            <YStack
+              alignItems="center"
+              marginBottom="$3"
+              paddingHorizontal="$6"
+              opacity={sectionsVisible[0] ? 1 : 0}
+              animation="quick"
+              testID={`${testID}-session-header`}
+            >
+              <Text
+                fontSize="$3"
+                fontWeight="400"
+                color="$color11"
+                textAlign="center"
+                numberOfLines={2}
+              >
+                {sessionTitle}
+              </Text>
+            </YStack>
+          )}
 
           {/* Messages */}
           <YStack

@@ -1,12 +1,16 @@
 import { authClient } from '@my/api'
 import { log } from '@my/logging'
-import { Platform } from 'react-native'
 
-// Global state to prevent duplicate bootstrap calls
-let bootstrapInFlight = false
+// Module-level singleton promise to ensure bootstrap runs exactly once
+let bootstrapPromise: Promise<TestAuthBootstrapResult> | null = null
 
-// Platform detection helper
-const isWeb = Platform.OS === 'web'
+/**
+ * Reset the bootstrap singleton - FOR TESTING ONLY
+ * @internal
+ */
+export function _resetBootstrapForTesting(): void {
+  bootstrapPromise = null
+}
 
 /**
  * Result of test auth bootstrap operation
@@ -51,18 +55,7 @@ function isTestAuthEnabled(): boolean {
   // Both web and native use EXPO_PUBLIC_ (Metro bundler)
   const enabled = process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED || process.env.TEST_AUTH_ENABLED
 
-  const result = enabled === 'true' || enabled === '1'
-
-  // Log resolved values for debugging
-  log.info('testAuthBootstrap', 'Resolved TEST_AUTH_ENABLED', {
-    platform: isWeb ? 'web' : 'native',
-    expoPublic: process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED,
-    generic: process.env.TEST_AUTH_ENABLED,
-    resolved: enabled,
-    enabled: result,
-  })
-
-  return result
+  return enabled === 'true' || enabled === '1'
 }
 
 /**
@@ -73,17 +66,7 @@ function isTestAuthEnabled(): boolean {
 function getTestAuthCredentials(): { email: string; password: string } | null {
   // Both web and native use EXPO_PUBLIC_ (Metro bundler)
   const email = process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL || process.env.TEST_AUTH_EMAIL
-
   const password = process.env.EXPO_PUBLIC_TEST_AUTH_PASSWORD || process.env.TEST_AUTH_PASSWORD
-
-  // Log resolved values for debugging (mask password)
-  log.info('testAuthBootstrap', 'Resolved test auth credentials', {
-    platform: isWeb ? 'web' : 'native',
-    emailResolved: email ? 'present' : 'missing',
-    passwordResolved: password ? 'present' : 'missing',
-    expoEmail: process.env.EXPO_PUBLIC_TEST_AUTH_EMAIL ? 'present' : 'missing',
-    genericEmail: process.env.TEST_AUTH_EMAIL ? 'present' : 'missing',
-  })
 
   if (!email || !password) {
     return null
@@ -102,26 +85,29 @@ function getTestAuthCredentials(): { email: string; password: string } | null {
  * - Not in production build
  *
  * This enables seamless development and testing workflows.
+ *
+ * Uses singleton pattern: Multiple concurrent calls return the same promise.
  */
 export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
-  // Prevent duplicate bootstrap calls
-  if (bootstrapInFlight) {
-    if (__DEV__) {
-      log.debug('testAuthBootstrap', 'Bootstrap already in progress, skipping')
-    }
-    return {
-      success: true,
-      message: 'Bootstrap already in progress',
-    }
+  // Return existing promise if bootstrap already in progress or completed
+  if (bootstrapPromise) {
+    return bootstrapPromise
   }
 
-  bootstrapInFlight = true
+  // Create and store the bootstrap promise
+  bootstrapPromise = executeBootstrap()
+  return bootstrapPromise
+}
+
+/**
+ * Internal bootstrap execution function
+ * Separated from testAuthBootstrap() to enable singleton pattern
+ */
+async function executeBootstrap(): Promise<TestAuthBootstrapResult> {
   const correlationId = `test_auth_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
   try {
-    if (__DEV__) {
-      log.debug('testAuthBootstrap', 'Starting test auth bootstrap', { correlationId })
-    }
+    log.info('testAuthBootstrap', 'Starting test auth bootstrap', { correlationId })
 
     // Build-time guard: prevent usage in production
     const envValidation = validateEnvironment()
@@ -131,9 +117,6 @@ export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
 
     // Check if test auth is enabled
     if (!isTestAuthEnabled()) {
-      if (__DEV__) {
-        log.debug('testAuthBootstrap', 'Test auth not enabled', { correlationId })
-      }
       return {
         success: true,
         message: 'Test auth not enabled',
@@ -155,12 +138,10 @@ export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
     // Check if user is already authenticated
     const currentUserId = await authClient.getCurrentUserId()
     if (currentUserId) {
-      if (__DEV__) {
-        log.debug('testAuthBootstrap', 'User already authenticated', {
-          correlationId,
-          userId: currentUserId,
-        })
-      }
+      log.info('testAuthBootstrap', 'User already authenticated', {
+        correlationId,
+        userId: currentUserId,
+      })
       return {
         success: true,
         message: 'User already authenticated',
@@ -212,21 +193,19 @@ export async function testAuthBootstrap(): Promise<TestAuthBootstrapResult> {
       message: '',
       error: errorMessage,
     }
-  } finally {
-    bootstrapInFlight = false
   }
 }
 
 /**
  * Initialize test auth bootstrap on app start
  * Call this in your app's initialization code
+ *
+ * Safe to call multiple times - uses singleton pattern internally
  */
 export async function initializeTestAuth(): Promise<void> {
   if (!isTestAuthEnabled()) {
     return
   }
-
-  log.info('testAuthBootstrap', 'Initializing test auth on app start')
 
   const result = await testAuthBootstrap()
 

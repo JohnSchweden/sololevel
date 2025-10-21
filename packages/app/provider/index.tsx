@@ -12,7 +12,7 @@ const getActionSheetProvider = () => {
 import { log } from '@my/logging'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
 import { enableMapSet } from 'immer'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { initializeTestAuth } from '../auth/testAuthBootstrap'
@@ -22,6 +22,9 @@ import { useFeatureFlagsStore } from '../stores/feature-flags'
 import { I18nProvider } from './I18nProvider'
 import { QueryProvider } from './QueryProvider'
 import { ToastViewport } from './ToastViewport'
+
+// Module-level flag to ensure initialization runs only once across all Provider instances
+let providerInitialized = false
 
 export function Provider({
   children,
@@ -49,26 +52,34 @@ export function Provider({
     setActionSheetProvider(() => getActionSheetProvider())
   }, [])
 
-  // Initialize stores and test auth once
+  // Initialize stores and test auth once - use module-level flag to prevent duplicate initialization
+  // across all Provider instances (handles React Strict Mode + multiple mounts)
+  const initRef = useRef(false)
   useEffect(() => {
-    log.debug('Provider', 'Starting initialization')
+    // Double guard: both module-level and ref-level
+    if (providerInitialized || initRef.current) {
+      return
+    }
+    initRef.current = true
+    providerInitialized = true
 
-    log.debug('Provider', 'Calling useAuthStore.getState().initialize()')
+    const startTime = Date.now()
+    log.info('Provider', 'Starting initialization')
+
     useAuthStore
       .getState()
       .initialize()
       .then(() => {
-        log.debug('Provider', 'Auth store initialized successfully')
+        const duration = Date.now() - startTime
+        log.info('Provider', 'Auth initialized', { duration })
       })
       .catch((error) => {
         log.error('Provider', 'Auth store initialization failed', { error })
       })
 
-    log.debug('Provider', 'Loading feature flags')
     useFeatureFlagsStore.getState().loadFlags()
 
     // Initialize test auth after auth store is ready
-    log.debug('Provider', 'Initializing test auth')
     initializeTestAuth()
 
     // Setup video history cache cleanup on logout
@@ -76,11 +87,12 @@ export function Provider({
       setupVideoHistoryCacheCleanup,
     } = require('../features/HistoryProgress/stores/videoHistory')
     const unsubscribe = setupVideoHistoryCacheCleanup(useAuthStore)
-    log.debug('Provider', 'Video history cache cleanup configured')
 
     return () => {
-      log.debug('Provider', 'Cleanup: unsubscribing video history cache')
       unsubscribe()
+      // Don't reset module-level flag - we want singleton behavior
+      // Only reset ref for this component instance
+      initRef.current = false
     }
   }, [])
 

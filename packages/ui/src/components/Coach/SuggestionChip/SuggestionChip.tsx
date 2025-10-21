@@ -44,7 +44,7 @@ export const SuggestionChip = ({
       backgroundColor="rgba(255,255,255,0.1)"
       borderWidth={0}
       borderColor="rgba(255,255,255,0.2)"
-      borderRadius="$4"
+      borderRadius="$5"
       hoverStyle={{
         backgroundColor: 'rgba(255,255,255,0.2)',
         scale: 1.05,
@@ -72,7 +72,11 @@ export const SuggestionChip = ({
             color="rgba(255,255,255,0.8)"
           />
         )}
-        <YStack alignItems="flex-start">
+        <YStack
+          alignItems="flex-start"
+          paddingLeft="$2"
+          marginLeft="$1"
+        >
           <Text
             fontSize="$3"
             color="$color"
