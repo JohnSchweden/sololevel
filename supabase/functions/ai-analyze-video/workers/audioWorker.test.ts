@@ -25,6 +25,24 @@ const mockSupabaseForAudio = {
                 audio_attempts: 0
               }],
               error: null
+            }),
+            single: () => Promise.resolve({
+              data: {
+                id: 123,
+                analysis_id: 1,
+                analyses: {
+                  job_id: 1,
+                  analysis_jobs: {
+                    video_recording_id: 1,
+                    video_recordings: {
+                      id: 1,
+                      created_at: '2024-01-01T00:00:00Z',
+                      user_id: 'test-user'
+                    }
+                  }
+                }
+              },
+              error: null
             })
           })
         }),
@@ -120,6 +138,10 @@ Deno.test('Audio worker - handles empty queue gracefully', async () => {
           limit: () => Promise.resolve({
             data: [], // No jobs
             error: null
+          }),
+          single: () => Promise.resolve({
+            data: null,
+            error: { message: 'No data' }
           })
         })
       })

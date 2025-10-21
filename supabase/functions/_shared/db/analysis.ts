@@ -525,6 +525,7 @@ export async function storeAudioSegmentForFeedback(
     provider?: string
     version?: string
     segmentIndex?: number
+    storagePath?: string | null
   },
   logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
 ): Promise<number | null> {
@@ -534,6 +535,7 @@ export async function storeAudioSegmentForFeedback(
   const format = options?.format ?? getEnvDefaultFormat()
   const durationMs = options?.durationMs ?? null
   const prompt = options?.prompt ?? null
+  const storagePath = options?.storagePath ?? null
 
   logger?.info('Storing audio segment for feedback item', {
     feedbackId,
@@ -541,6 +543,7 @@ export async function storeAudioSegmentForFeedback(
     format,
     durationMs,
     segmentIndex,
+    storagePath,
   })
 
   try {
@@ -555,6 +558,7 @@ export async function storeAudioSegmentForFeedback(
         provider,
         version,
         prompt,
+        storage_path: storagePath,
       })
       .select('id')
       .single()

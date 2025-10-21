@@ -51,7 +51,6 @@ docs/setup/
 docs/migration/
 docs/supabase/
 docs/testing/
-docs/linkedin-strategy.md
 docs/funny-steps-diagram.mermaid
 docs/**/README*.md
 !packages/**/README.md  # Keep package docs

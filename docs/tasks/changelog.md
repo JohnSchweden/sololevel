@@ -1,3 +1,17 @@
+### Task 32: Storage Path Optimization - Database IDs + Date Partitioning — ✅ Complete (2025-10-21)
+- Database migration: `storage_path` column added to `analysis_audio_segments` with index and comments
+- Path helper functions: `getDateFolder()`, `buildVideoPath()`, `buildAudioPath()` with comprehensive test suite (13/13 tests)
+- Video upload service: migrated to semantic paths using database ID + date partitioning
+- Audio worker: updated to generate semantic paths grouped by video with proper context fetching
+- Client-side audio service: prefers `storage_path` with fallback to `audio_url` for backward compatibility
+- Path format: Videos `{user_id}/videos/{yyyymmdd}/{video_id}/video.{format}`, Audio `{user_id}/videos/{yyyymmdd}/{video_id}/audio/{feedback_id}/{segment_index}.{format}`
+- Bucket architecture: Videos in `raw` bucket (private), audio in `processed` bucket (service-role only)
+- Date partitioning: Uses `video_recordings.created_at` (UTC) for consistent organization across buckets
+- Comprehensive documentation: `docs/architecture/storage-organization.md` with operational runbook
+- Performance benefits: faster storage operations at scale, instant debugging, simplified lifecycle management
+- All quality gates passed (TypeScript: 0 errors, Lint: 0 errors, Tests: 13/13 passing)
+- Manual QA validated: video uploads and audio generation use new semantic path format
+
 ### Task 31: Video Thumbnail Cloud Storage Migration — ✅ Complete (2025-10-20)
 - Dedicated `thumbnails` Supabase Storage bucket (public, CDN-backed delivery)
 - Database schema: `video_recordings.thumbnail_url` column with index and RLS policies

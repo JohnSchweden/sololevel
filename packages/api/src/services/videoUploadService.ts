@@ -1,6 +1,7 @@
 import { log } from '@my/logging'
 import type { Tables, TablesInsert, TablesUpdate } from '../../types/database'
 import { supabase } from '../supabase'
+import { buildVideoPath } from './storagePathHelpers'
 
 export type VideoRecording = Tables<'video_recordings'>
 export type VideoRecordingInsert = TablesInsert<'video_recordings'>
@@ -49,12 +50,14 @@ export function getVideoPublicUrl(storagePath: string): string {
 
 /**
  * Create a signed URL for video upload
+ * @param storagePath - Pre-computed storage path with database ID
+ * @param fileSize - File size for validation
  */
 export async function createSignedUploadUrl(
-  filename: string,
+  storagePath: string,
   fileSize: number
 ): Promise<{ signedUrl: string; path: string }> {
-  log.debug('videoUploadService', 'createSignedUploadUrl called')
+  log.debug('videoUploadService', 'createSignedUploadUrl called', { storagePath })
 
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
@@ -68,17 +71,14 @@ export async function createSignedUploadUrl(
     throw new Error('File size must be greater than 0')
   }
 
-  // Generate unique storage path
-  const timestamp = Date.now()
-  const path = `${user.data.user.id}/${timestamp}_${filename}`
-
-  log.debug('videoUploadService', 'Generated storage path', { path })
   log.debug('videoUploadService', 'Creating signed upload URL', { bucket: BUCKET_NAME })
 
   // Create signed URL for upload
-  const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUploadUrl(path, {
-    upsert: false,
-  })
+  const { data, error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .createSignedUploadUrl(storagePath, {
+      upsert: false,
+    })
 
   if (error) {
     throw new Error(`Failed to create signed URL: ${error.message}`)
@@ -86,7 +86,7 @@ export async function createSignedUploadUrl(
 
   return {
     signedUrl: data.signedUrl,
-    path,
+    path: storagePath,
   }
 }
 
@@ -184,27 +184,46 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
       throw new Error('Video duration cannot exceed 60 seconds')
     }
 
+    // Get authenticated user
+    const user = await supabase.auth.getUser()
+    if (!user.data.user) {
+      throw new Error('User not authenticated')
+    }
+    const userId = user.data.user.id
+
     // Generate filename
     const filename = originalFilename || `video_${Date.now()}.${format}`
 
-    // Create signed URL
-    log.debug('videoUploadService', 'Creating signed upload URL')
-    const { signedUrl, path } = await createSignedUploadUrl(filename, file.size)
-    log.debug('videoUploadService', 'Signed URL created', {
-      urlPrefix: signedUrl.substring(0, 50),
-    })
-
-    // Create video recording record
+    // Create video recording record first (with temporary empty storage_path)
+    // This gives us the video_recording_id needed for the semantic path
+    log.debug('videoUploadService', 'Creating video recording record')
     const recording = await createVideoRecording({
       filename,
       original_filename: originalFilename,
       file_size: file.size,
       duration_seconds: durationSeconds,
       format,
-      storage_path: path,
+      storage_path: '', // Temporary - will be updated immediately
       upload_status: 'pending',
       metadata: (metadata as any) || null,
       thumbnail_url: thumbnailUrl || null,
+    })
+
+    // Build semantic storage path using database ID and creation timestamp
+    const storagePath = buildVideoPath(userId, recording.id, recording.created_at, format)
+
+    log.debug('videoUploadService', 'Generated semantic storage path', { storagePath })
+
+    // Update recording with actual storage path
+    await updateVideoRecording(recording.id, {
+      storage_path: storagePath,
+    })
+
+    // Create signed URL using the semantic path
+    log.debug('videoUploadService', 'Creating signed upload URL')
+    const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
+    log.debug('videoUploadService', 'Signed URL created', {
+      urlPrefix: signedUrl.substring(0, 50),
     })
 
     // Create upload session
@@ -214,7 +233,7 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     onUploadInitialized?.({
       recordingId: recording.id,
       sessionId: session.id,
-      storagePath: recording.storage_path,
+      storagePath,
     })
 
     // Update recording status to uploading

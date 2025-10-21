@@ -97,6 +97,40 @@ async function processSingleAudioJob(job: AudioTask, supabase: any, logger: any)
 
   await updateFeedbackAudioStatus(job.id, 'processing', supabase)
 
+  // Fetch video context for semantic path generation
+  const { data: feedbackData, error: feedbackError } = await supabase
+    .from('analysis_feedback')
+    .select(`
+      id,
+      analysis_id,
+      analyses!inner(
+        job_id,
+        analysis_jobs!inner(
+          video_recording_id,
+          video_recordings!inner(
+            id,
+            created_at,
+            user_id
+          )
+        )
+      )
+    `)
+    .eq('id', job.id)
+    .single()
+
+  if (feedbackError || !feedbackData) {
+    throw new Error(`Failed to fetch video context: ${feedbackError?.message || 'No data'}`)
+  }
+
+  const videoRecording = feedbackData.analyses.analysis_jobs.video_recordings
+  const videoContext = {
+    userId: videoRecording.user_id,
+    videoRecordingId: videoRecording.id,
+    videoCreatedAt: videoRecording.created_at,
+  }
+
+  logger.info('Fetched video context', videoContext)
+
   const { data: ssmlSegments, error: ssmlError } = await supabase
     .from('analysis_ssml_segments')
     .select('*')
@@ -114,6 +148,7 @@ async function processSingleAudioJob(job: AudioTask, supabase: any, logger: any)
   for (const segment of ssmlSegments as SSMLSegment[]) {
     await processSSMLSegment({
       segment,
+      videoContext,
       supabase,
       logger,
       ttsService,
@@ -128,6 +163,11 @@ async function processSingleAudioJob(job: AudioTask, supabase: any, logger: any)
 
 interface ProcessSegmentContext {
   segment: SSMLSegment
+  videoContext: {
+    userId: string
+    videoRecordingId: number
+    videoCreatedAt: string
+  }
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
   ttsService: ReturnType<typeof getTTSServiceForRuntime>
@@ -136,6 +176,7 @@ interface ProcessSegmentContext {
 
 async function processSSMLSegment({
   segment,
+  videoContext,
   supabase,
   logger,
   ttsService,
@@ -147,11 +188,17 @@ async function processSSMLSegment({
     segmentIndex: segment.segment_index,
   })
 
+  // Generate semantic storage path using video context
   const storagePath = generateAudioStoragePath(
+    videoContext.userId,
+    videoContext.videoRecordingId,
     segment.feedback_id,
-    `feedback_${segment.feedback_id}_segment_${segment.segment_index}`,
-    resolvedFormat,
+    segment.segment_index ?? 0,
+    videoContext.videoCreatedAt,
+    resolvedFormat
   )
+
+  logger.info('Generated semantic audio storage path', { storagePath })
 
   const ttsResult = await ttsService.synthesize({
     ssml: segment.ssml,
@@ -174,6 +221,7 @@ async function processSSMLSegment({
       provider: 'gemini',
       version: segment.version ?? '1.0',
       segmentIndex: segment.segment_index,
+      storagePath, // Store semantic path
     },
     logger,
   )

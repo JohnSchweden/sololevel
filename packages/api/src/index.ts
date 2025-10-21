@@ -31,6 +31,8 @@ export {
 // Storage service
 export { createSignedDownloadUrl } from './services/storageService'
 export type { SignedUrlResult } from './services/storageService'
+// Storage path helpers
+export { getDateFolder, buildVideoPath, buildAudioPath } from './services/storagePathHelpers'
 // Video thumbnail service
 export { generateVideoThumbnail, uploadVideoThumbnail } from './services/videoThumbnailService'
 export type {

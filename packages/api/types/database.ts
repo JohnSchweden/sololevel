@@ -83,6 +83,7 @@ export type Database = {
           prompt: string | null
           provider: string | null
           segment_index: number | null
+          storage_path: string | null
           version: string | null
         }
         Insert: {
@@ -95,6 +96,7 @@ export type Database = {
           prompt?: string | null
           provider?: string | null
           segment_index?: number | null
+          storage_path?: string | null
           version?: string | null
         }
         Update: {
@@ -107,6 +109,7 @@ export type Database = {
           prompt?: string | null
           provider?: string | null
           segment_index?: number | null
+          storage_path?: string | null
           version?: string | null
         }
         Relationships: [

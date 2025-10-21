@@ -139,7 +139,34 @@ export async function uploadProcessedArtifact(
  * @param format Audio format from central configuration
  * @returns Storage path
  */
+/**
+ * Generate semantic storage path for audio segments with date partitioning
+ * @param userId User UUID
+ * @param videoRecordingId Video recording primary key  
+ * @param feedbackId Feedback primary key
+ * @param segmentIndex Segment index (0, 1, 2, ...)
+ * @param videoCreatedAt ISO timestamp from video_recordings.created_at
+ * @param format Audio format
+ * @returns Semantic path: {user_id}/videos/{yyyymmdd}/{video_id}/audio/{feedback_id}/{segment_index}.{format}
+ */
 export function generateAudioStoragePath(
+  userId: string,
+  videoRecordingId: number,
+  feedbackId: number,
+  segmentIndex: number,
+  videoCreatedAt: string,
+  format: AudioFormat = getEnvDefaultFormat()
+): string {
+  const dateFolder = videoCreatedAt.slice(0, 10).replace(/-/g, '')
+  const extension = AUDIO_FORMATS[format].extension
+  return `${userId}/videos/${dateFolder}/${videoRecordingId}/audio/${feedbackId}/${segmentIndex}.${extension}`
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use generateAudioStoragePath with video context instead
+ */
+export function generateLegacyAudioStoragePath(
   analysisId: string | number,
   segmentId?: string | number,
   format: AudioFormat = getEnvDefaultFormat()

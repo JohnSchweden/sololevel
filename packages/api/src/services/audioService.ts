@@ -1,9 +1,11 @@
 import { log } from '@my/logging'
 
 import { supabase } from '../supabase'
+import { createSignedDownloadUrl } from './storageService'
 
 type AudioSegmentRow = {
   audio_url: string
+  storage_path: string | null
 }
 
 const castedSupabase = supabase as unknown as {
@@ -11,7 +13,7 @@ const castedSupabase = supabase as unknown as {
     fn: string,
     args: { feedback_item_id: number }
   ) => Promise<{
-    data: { audio_url?: string }[]
+    data: { audio_url?: string; storage_path?: string | null }[]
     error: { message: string } | null
   }>
   from: (relation: string) => {
@@ -73,21 +75,40 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
     }
 
     const rpcFirst = Array.isArray(rpcData)
-      ? (rpcData as Array<{ audio_url?: string }>).find((segment) => !!segment.audio_url)
+      ? (rpcData as Array<{ audio_url?: string; storage_path?: string | null }>).find(
+          (segment) => !!(segment.storage_path || segment.audio_url)
+        )
       : undefined
-    if (rpcFirst?.audio_url) {
-      log.info(CONTEXT, 'Resolved audio url from RPC', {
-        feedbackId,
-      })
-      return {
-        ok: true,
-        url: rpcFirst.audio_url,
+    if (rpcFirst) {
+      // Prefer storage_path, fallback to audio_url
+      if (rpcFirst.storage_path) {
+        log.info(CONTEXT, 'Generating signed URL from storage_path (RPC)', {
+          feedbackId,
+          storagePath: rpcFirst.storage_path,
+        })
+        const result = await createSignedDownloadUrl('processed', rpcFirst.storage_path)
+        if (result.data) {
+          return {
+            ok: true,
+            url: result.data.signedUrl,
+          }
+        }
+        log.warn(CONTEXT, 'Failed to generate signed URL, falling back to audio_url', {
+          feedbackId,
+        })
+      }
+      if (rpcFirst.audio_url) {
+        log.info(CONTEXT, 'Using legacy audio_url (RPC)', { feedbackId })
+        return {
+          ok: true,
+          url: rpcFirst.audio_url,
+        }
       }
     }
 
     const { data: row, error: queryError } = await castedSupabase
       .from('analysis_audio_segments')
-      .select('audio_url')
+      .select('audio_url, storage_path')
       .eq('feedback_id', feedbackId)
       .order('segment_index', { ascending: true })
       .limit(1)
@@ -101,13 +122,30 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
       }
     }
 
-    if (row?.audio_url) {
-      log.info(CONTEXT, 'Resolved audio url from fallback query', {
-        feedbackId,
-      })
-      return {
-        ok: true,
-        url: row.audio_url,
+    if (row) {
+      // Prefer storage_path, fallback to audio_url
+      if (row.storage_path) {
+        log.info(CONTEXT, 'Generating signed URL from storage_path (direct query)', {
+          feedbackId,
+          storagePath: row.storage_path,
+        })
+        const result = await createSignedDownloadUrl('processed', row.storage_path)
+        if (result.data) {
+          return {
+            ok: true,
+            url: result.data.signedUrl,
+          }
+        }
+        log.warn(CONTEXT, 'Failed to generate signed URL, falling back to audio_url', {
+          feedbackId,
+        })
+      }
+      if (row.audio_url) {
+        log.info(CONTEXT, 'Using legacy audio_url (direct query)', { feedbackId })
+        return {
+          ok: true,
+          url: row.audio_url,
+        }
       }
     }
 

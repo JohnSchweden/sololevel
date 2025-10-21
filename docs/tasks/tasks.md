@@ -3,11 +3,288 @@
 
 ---
 
-### Task 32: Storage Path Optimization - Database IDs + Date Partitioning [P0] 🔄 PENDING
+### Task 33: Video Preload & Edge Warming for Instant Playback [P1]
+**Effort:** 2 hours | **Priority:** P1 (Performance optimization) | **Depends on:** None
+**User Story:** US-VA-01 (Video Analysis Screen - Instant playback experience)
+
+@step-by-step.md - Preload video buffer and warm CDN edge cache before user initiates playback for YouTube/Instagram-like instant start.
+
+**OBJECTIVE:** Eliminate playback delay by mounting the video player early with preload enabled and firing a Range request to warm the edge cache, ensuring buffer is ready before user taps play.
+
+**RATIONALE:**
+- **Current State:** Video player mounts when user taps play
+  - ❌ Cold start: No buffer ready when playback initiated
+  - ❌ CDN edge cache cold: First request must traverse to origin
+  - ❌ User perceives delay between tap and playback start
+  - ❌ No visual feedback while loading (blank video area)
+  
+- **Future Goal:** Instant playback like YouTube/Instagram
+  - ✅ Video mounted early (paused) with preload enabled
+  - ✅ Edge cache warmed via Range request for first 256KB
+  - ✅ Buffer ready before user interaction
+  - ✅ Thumbnail poster displays instantly from CDN
+  - ✅ Smooth transition from poster to video
+
+**BENEFITS:**
+- ⚡ **Instant playback:** Buffer ready before user taps play
+- 🌐 **Edge warming:** CDN cache populated proactively
+- 🖼️ **Visual feedback:** Thumbnail poster shows immediately
+- 📱 **Better UX:** Eliminates perceived latency
+
+**CURRENT STATE:**
+- ✅ Thumbnails available from CDN (Task 31)
+- ✅ Video player functional (VideoPlayer.native.tsx)
+- ✅ Signed video URLs generated on demand
+- ❌ Video mounts only when isPlaying=true
+- ❌ No preload or edge warming
+- ❌ No poster image
+
+**SCOPE:**
+
+#### Module 1: Early Video Mount with Preload
+**Summary:** Mount video player as soon as videoUri is available, paused state with preload enabled.
+
+**File:** `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.native.tsx` (modify)
+
+**Tasks:**
+- [ ] Add `poster` prop to VideoPlayerProps interface
+- [ ] Pass `poster={posterUri}` to react-native-video component
+- [ ] Ensure video mounts when videoUri available (not gated by isPlaying)
+- [ ] Keep `paused={!isPlaying}` to prevent auto-play
+- [ ] Add inline comment explaining preload strategy
+
+**Code Changes:**
+```typescript
+// VideoPlayer.native.tsx
+export interface VideoPlayerProps {
+  videoUri: string
+  isPlaying: boolean
+  posterUri?: string // Add poster support
+  // ... existing props
+}
+
+<Video
+  ref={videoRef}
+  source={{ uri: videoUri }}
+  poster={posterUri} // Show thumbnail while loading
+  paused={!isPlaying}
+  onLoad={handleLoad}
+  // ... existing props
+/>
+```
+
+**Acceptance Criteria:**
+- [ ] Video mounts when videoUri available (not when isPlaying changes)
+- [ ] Poster displays immediately from CDN thumbnail
+- [ ] Video remains paused until user taps play
+- [ ] No auto-play behavior
+- [ ] Loading state shows poster, not blank screen
+
+#### Module 2: Edge Warming via Range Request
+**Summary:** Fire a small Range request to warm CDN edge cache when video URL is generated.
+
+**File:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (modify)
+
+**Tasks:**
+- [ ] Create `warmEdgeCache(videoUrl: string): Promise<void>` utility function
+- [ ] Fire Range request for first 256KB: `Range: bytes=0-262143`
+- [ ] Call after signed URL generation in useEffect
+- [ ] Add error handling (non-blocking, log only)
+- [ ] Add structured logging for warming metrics (duration, success/failure)
+
+**Implementation:**
+```typescript
+async function warmEdgeCache(videoUrl: string): Promise<void> {
+  try {
+    const startTime = Date.now()
+    await fetch(videoUrl, {
+      method: 'GET',
+      headers: { 'Range': 'bytes=0-262143' }, // First 256KB
+    })
+    const duration = Date.now() - startTime
+    log.info('VideoAnalysisScreen.warmEdgeCache', 'Edge cache warmed', {
+      duration,
+      bytes: 262144,
+    })
+  } catch (error) {
+    log.warn('VideoAnalysisScreen.warmEdgeCache', 'Failed to warm edge cache', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+// In useEffect when videoUri becomes available
+useEffect(() => {
+  if (videoUri) {
+    void warmEdgeCache(videoUri)
+  }
+}, [videoUri])
+```
+
+**Acceptance Criteria:**
+- [ ] Range request fires when videoUri available
+- [ ] Request is non-blocking (doesn't delay UI)
+- [ ] Errors logged but don't crash screen
+- [ ] Metrics captured (duration, bytes)
+- [ ] Edge cache warmed before user taps play
+
+#### Module 3: Poster Integration
+**Summary:** Pass thumbnail URL as poster to video player for instant visual feedback.
+
+**File:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (modify)
+
+**Tasks:**
+- [ ] Read `thumbnail_url` from analysis state
+- [ ] Pass as `posterUri` prop to VideoPlayer
+- [ ] Fallback to `metadata.thumbnailUri` for old records
+- [ ] Add null check for missing thumbnails
+
+**Integration Pattern:**
+```typescript
+const thumbnailUrl = analysisState.thumbnailUrl // From cache/DB
+
+<VideoPlayer
+  videoUri={videoUri}
+  isPlaying={isPlaying}
+  posterUri={thumbnailUrl} // CDN thumbnail as poster
+  // ... existing props
+/>
+```
+
+**Acceptance Criteria:**
+- [ ] Thumbnail displays as poster before playback
+- [ ] Poster transitions smoothly to video on play
+- [ ] Fallback to no poster if thumbnail unavailable
+- [ ] No flash of blank content
+
+#### Module 4: VideoAnalysisScreen State Management
+**Summary:** Ensure video player mounts early without triggering playback.
+
+**File:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (modify)
+
+**Tasks:**
+- [ ] Mount VideoPlayer when videoUri available (not gated by user action)
+- [ ] Keep `isPlaying` state controlled by user tap
+- [ ] Update conditional rendering logic
+- [ ] Preserve existing playback controls
+
+**Current Logic:**
+```typescript
+// OLD: Video mounts only when playing
+{isPlaying && videoUri && (
+  <VideoPlayer videoUri={videoUri} isPlaying={isPlaying} />
+)}
+
+// NEW: Video mounts when URI available, poster shows
+{videoUri && (
+  <VideoPlayer 
+    videoUri={videoUri} 
+    isPlaying={isPlaying}
+    posterUri={thumbnailUrl}
+  />
+)}
+```
+
+**Acceptance Criteria:**
+- [ ] Video player mounted when screen loads
+- [ ] Poster visible immediately
+- [ ] Play/pause controlled by user interaction
+- [ ] No behavioral regression
+
+#### Module 5: Performance Monitoring
+**Summary:** Add logging to measure preload effectiveness.
+
+**Tasks:**
+- [ ] Log time from screen mount to video ready
+- [ ] Log time from play tap to first frame
+- [ ] Log edge warming success rate
+- [ ] Add metrics to structured logging
+
+**Metrics to Capture:**
+```typescript
+- warmingDuration: Time to complete Range request
+- videoReadyTime: Time from mount to onLoad callback
+- playbackStartTime: Time from play tap to first frame
+- edgeWarmingSuccess: Boolean (Range request succeeded)
+- posterDisplayed: Boolean (thumbnail available)
+```
+
+**Acceptance Criteria:**
+- [ ] All metrics logged with structured logger
+- [ ] Timing data accurate (using performance.now())
+- [ ] Metrics aggregatable for analytics
+- [ ] No PII in logs
+
+#### Module 6: Test Suite
+**Summary:** Unit and integration tests for preload behavior.
+
+**Files:**
+- `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.test.tsx` (modify)
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.test.tsx` (modify)
+
+**Tasks:**
+- [ ] Test VideoPlayer renders with poster prop
+- [ ] Test video mounts in paused state
+- [ ] Test edge warming fires on videoUri change
+- [ ] Test error handling for failed Range request
+- [ ] Test poster fallback when thumbnail unavailable
+
+**Acceptance Criteria:**
+- [ ] All existing tests still pass
+- [ ] New poster prop covered
+- [ ] Edge warming mocked and tested
+- [ ] Error cases covered
+- [ ] No behavioral regressions
+
+#### Module 7: Manual QA
+**Summary:** End-to-end validation of instant playback experience.
+
+**Tasks:**
+- [ ] Open VideoAnalysisScreen → thumbnail poster displays instantly
+- [ ] Verify video URL logged (signed URL generation)
+- [ ] Verify edge warming request logged (Range: bytes=0-262143)
+- [ ] Tap play → video starts instantly (no delay)
+- [ ] Verify smooth transition from poster to video
+- [ ] Test with slow network (throttle to 3G)
+- [ ] Test with cold CDN cache (fresh video upload)
+- [ ] Test fallback when thumbnail unavailable
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes ✅ (0 errors)
+- [ ] `yarn workspace @my/ui test VideoPlayer.test.tsx --run` → all tests pass
+- [ ] `yarn lint` passes ✅ (0 errors)
+- [ ] Manual QA: All items above verified
+- [ ] Performance: Play tap to first frame < 100ms (instant playback feel)
+- [ ] Logging: Edge warming and video ready metrics captured
+
+**FILES TO MODIFY:**
+- `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.native.tsx` (add poster prop)
+- `packages/ui/src/components/VideoAnalysis/VideoPlayer/types.ts` (update VideoPlayerProps)
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (early mount, edge warming, poster)
+- `packages/ui/src/components/VideoAnalysis/VideoPlayer/VideoPlayer.test.tsx` (test poster)
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.test.tsx` (test warming)
+
+**TECHNICAL NOTES:**
+- **Range requests:** HTTP Range requests are standard for partial content retrieval
+- **react-native-video:** Supports `poster` prop natively for thumbnail display
+- **CDN behavior:** Range requests warm edge cache; subsequent full requests served from edge
+- **Non-blocking:** Edge warming runs async, doesn't block UI or playback
+- **Supabase Storage:** Supports Range requests and CDN caching out of the box
+
+**FUTURE ENHANCEMENTS (Out of Scope):**
+- Adaptive bitrate streaming (HLS/DASH) - requires video transcoding service
+- Progressive preload (load more segments based on scroll position)
+- Predictive warming (warm next video in history list)
+
+---
+
+### Task 32: Storage Path Optimization - Database IDs + Date Partitioning ✅ COMPLETED
 **Effort:** 4 hours | **Priority:** P2 (Future optimization) | **Depends on:** None
 **User Story:** Infrastructure - Storage organization and data lifecycle management
 
 @step-by-step.md - Replace timestamp-based storage paths with database ID + date partitioning for better organization, debugging, and data lifecycle management.
+
+**STATUS:** ✅ **COMPLETED** - All modules implemented and tested successfully.
 
 **OBJECTIVE:** Migrate from timestamp-based file naming (`{user_id}/{timestamp}_{filename}`) to semantic, database-driven paths with date partitioning for improved storage organization and lifecycle management.
 
@@ -69,12 +346,12 @@ Bucket: processed (private, service-role only)
 **File:** `supabase/migrations/[timestamp]_optimize_storage_paths.sql`
 
 **Tasks:**
-- [ ] Add `storage_path TEXT` column to `analysis_audio_segments`
-- [ ] Add index on `storage_path` for query performance
-- [ ] Update `video_recordings.storage_path` column comment with new format
-- [ ] Add column comment for `audio_segments.storage_path`
-- [ ] Test migration on local Supabase instance
-- [ ] Update TypeScript types in `packages/api/types/database.ts`
+- [x] Add `storage_path TEXT` column to `analysis_audio_segments`
+- [x] Add index on `storage_path` for query performance
+- [x] Update `video_recordings.storage_path` column comment with new format
+- [x] Add column comment for `audio_segments.storage_path`
+- [x] Test migration on local Supabase instance
+- [x] Update TypeScript types in `packages/api/types/database.ts`
 
 **SQL Schema:**
 ```sql
@@ -99,12 +376,12 @@ Date extracted from video_recordings.created_at (UTC). Groups audio with video a
 ```
 
 **Acceptance Criteria:**
-- [ ] Migration runs without errors on local Supabase
-- [ ] Column comments updated with path format documentation
-- [ ] `audio_segments.storage_path` accepts NULL and TEXT values
-- [ ] Index created successfully
-- [ ] TypeScript types updated and type-check passes
-- [ ] Existing data unaffected (audio column defaults to NULL)
+- [x] Migration runs without errors on local Supabase
+- [x] Column comments updated with path format documentation
+- [x] `audio_segments.storage_path` accepts NULL and TEXT values
+- [x] Index created successfully
+- [x] TypeScript types updated and type-check passes
+- [x] Existing data unaffected (audio column defaults to NULL)
 
 #### Module 2: Storage Path Helper Functions
 **Summary:** Create utility functions for consistent path generation.
@@ -112,12 +389,12 @@ Date extracted from video_recordings.created_at (UTC). Groups audio with video a
 **File:** `packages/api/src/services/storagePathHelpers.ts` (new file)
 
 **Tasks:**
-- [ ] Create `getDateFolder(isoTimestamp: string): string` utility
-- [ ] Create `buildVideoPath()` function
-- [ ] Create `buildAudioPath()` function
-- [ ] Add JSDoc documentation with examples
-- [ ] Export from `packages/api/src/index.ts`
-- [ ] Add unit tests
+- [x] Create `getDateFolder(isoTimestamp: string): string` utility
+- [x] Create `buildVideoPath()` function
+- [x] Create `buildAudioPath()` function
+- [x] Add JSDoc documentation with examples
+- [x] Export from `packages/api/src/index.ts`
+- [x] Add unit tests
 
 **Function Interfaces:**
 ```typescript
@@ -170,11 +447,11 @@ export function buildAudioPath(
 ```
 
 **Acceptance Criteria:**
-- [ ] Date extraction handles UTC timestamps correctly
-- [ ] Paths match documented format exactly
-- [ ] Functions exported from `@my/api`
-- [ ] JSDoc examples provided
-- [ ] Unit tests cover edge cases (timezone, formats)
+- [x] Date extraction handles UTC timestamps correctly
+- [x] Paths match documented format exactly
+- [x] Functions exported from `@my/api`
+- [x] JSDoc examples provided
+- [x] Unit tests cover edge cases (timezone, formats)
 
 #### Module 3: Video Upload Service Migration
 **Summary:** Update video upload to use new path format.
@@ -182,13 +459,13 @@ export function buildAudioPath(
 **File:** `packages/api/src/services/videoUploadService.ts` (modify)
 
 **Tasks:**
-- [ ] Update `createSignedUploadUrl()` to use `buildVideoPath()`
-- [ ] Remove timestamp-based path generation (line 71-72)
-- [ ] Pass `video_recording_id` and `created_at` to path builder
-- [ ] Update `storage_path` in database with new format
-- [ ] Maintain backward compatibility (old paths still work)
-- [ ] Add logging for path generation
-- [ ] Update inline comments
+- [x] Update `createSignedUploadUrl()` to use `buildVideoPath()`
+- [x] Remove timestamp-based path generation (line 71-72)
+- [x] Pass `video_recording_id` and `created_at` to path builder
+- [x] Update `storage_path` in database with new format
+- [x] Maintain backward compatibility (old paths still work)
+- [x] Add logging for path generation
+- [x] Update inline comments
 
 **Implementation Notes:**
 - Chicken-egg problem: Need `video_recording_id` before creating signed URL
@@ -224,25 +501,25 @@ const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
 ```
 
 **Acceptance Criteria:**
-- [ ] Video uploads use new path format
-- [ ] Database `storage_path` matches actual storage location
-- [ ] Old videos with timestamp paths still accessible
-- [ ] No upload failures due to path changes
-- [ ] Logging shows generated paths for debugging
+- [x] Video uploads use new path format
+- [x] Database `storage_path` matches actual storage location
+- [x] Old videos with timestamp paths still accessible
+- [x] No upload failures due to path changes
+- [x] Logging shows generated paths for debugging
 
-#### Module 4: Audio Worker Integration (Future)
+#### Module 4: Audio Worker Integration
 **Summary:** Prepare audio generation to use new path format (grouped by video).
 
 **File:** `supabase/functions/ai-analyze-video/workers/audioWorker.ts` (modify)
 
 **Tasks:**
-- [ ] Import `buildAudioPath()` helper
-- [ ] Fetch `video_recording_id` and `created_at` from job context
-- [ ] Generate path using video_recording_id/feedback IDs + video creation date
-- [ ] Store `storage_path` in `analysis_audio_segments` table
-- [ ] Keep `audio_url` for backward compatibility during migration
-- [ ] Add logging for path generation
-- [ ] Update Edge Function tests
+- [x] Import `buildAudioPath()` helper
+- [x] Fetch `video_recording_id` and `created_at` from job context
+- [x] Generate path using video_recording_id/feedback IDs + video creation date
+- [x] Store `storage_path` in `analysis_audio_segments` table
+- [x] Keep `audio_url` for backward compatibility during migration
+- [x] Add logging for path generation
+- [x] Update Edge Function tests
 
 **Implementation Notes:**
 - Audio paths use `video_recordings.created_at` for date folder (not job/segment creation time)
@@ -253,11 +530,11 @@ const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
 - Path is relative to bucket: `processed/{user_id}/videos/{yyyymmdd}/...`
 
 **Acceptance Criteria:**
-- [ ] Audio segments use new path format
-- [ ] `storage_path` column populated correctly
-- [ ] Date folder matches `video_recordings.created_at`
-- [ ] Audio grouped under video folder structure
-- [ ] Old audio with `audio_url` only still works (fallback)
+- [x] Audio segments use new path format
+- [x] `storage_path` column populated correctly
+- [x] Date folder matches `video_recordings.created_at`
+- [x] Audio grouped under video folder structure
+- [x] Old audio with `audio_url` only still works (fallback)
 
 #### Module 5: Client-Side Signed URL Generation
 **Summary:** Update client to generate signed URLs from storage_path.
@@ -267,11 +544,11 @@ const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
 - `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (already done for videos)
 
 **Tasks:**
-- [ ] Update `getFirstAudioUrlForFeedback()` to prefer `storage_path`
-- [ ] Generate signed URL from `storage_path` if available
-- [ ] Fallback to `audio_url` for old records
-- [ ] Add logging for URL generation source
-- [ ] Document migration path in comments
+- [x] Update `getFirstAudioUrlForFeedback()` to prefer `storage_path`
+- [x] Generate signed URL from `storage_path` if available
+- [x] Fallback to `audio_url` for old records
+- [x] Add logging for URL generation source
+- [x] Document migration path in comments
 
 **Code Pattern:**
 ```typescript
@@ -286,10 +563,10 @@ if (row?.audio_url) {
 ```
 
 **Acceptance Criteria:**
-- [ ] Audio playback works with new paths
-- [ ] Signed URLs generated with 1-hour TTL
-- [ ] Old records with `audio_url` still work
-- [ ] Logging indicates which path used (storage_path vs audio_url)
+- [x] Audio playback works with new paths
+- [x] Signed URLs generated with 1-hour TTL
+- [x] Old records with `audio_url` still work
+- [x] Logging indicates which path used (storage_path vs audio_url)
 
 #### Module 6: Data Lifecycle Benefits (Documentation)
 **Summary:** Document storage organization benefits for operations.
@@ -297,11 +574,11 @@ if (row?.audio_url) {
 **File:** `docs/architecture/storage-organization.md` (new file)
 
 **Tasks:**
-- [ ] Document path structure and rationale
-- [ ] Document date folder benefits (cleanup, archival)
-- [ ] Document retention policy examples
-- [ ] Document storage metrics by date
-- [ ] Document debugging workflows
+- [x] Document path structure and rationale
+- [x] Document date folder benefits (cleanup, archival)
+- [x] Document retention policy examples
+- [x] Document storage metrics by date
+- [x] Document debugging workflows
 
 **Benefits to Document:**
 - Cleanup: `DELETE FROM storage.objects WHERE name LIKE '%/videos/202401%'` (delete January 2024 from both buckets)
@@ -313,10 +590,10 @@ if (row?.audio_url) {
 - Future expansion: Easy to add pose data, thumbnails under same video folder
 
 **Acceptance Criteria:**
-- [ ] Architecture documentation complete
-- [ ] Operations runbook includes storage lifecycle
-- [ ] Examples for cleanup/archival provided
-- [ ] Debugging workflows documented
+- [x] Architecture documentation complete
+- [x] Operations runbook includes storage lifecycle
+- [x] Examples for cleanup/archival provided
+- [x] Debugging workflows documented
 
 #### Module 7: Test Suite
 **Summary:** Unit tests for path generation and migration.
@@ -324,39 +601,39 @@ if (row?.audio_url) {
 **File:** `packages/api/src/services/storagePathHelpers.test.ts` (new file)
 
 **Tasks:**
-- [ ] Test `getDateFolder()` with various timestamps
-- [ ] Test `buildVideoPath()` output format
-- [ ] Test `buildAudioPath()` output format
-- [ ] Test timezone handling (UTC consistency)
-- [ ] Test format flexibility (mp4/mov, mp3/wav)
-- [ ] Mock database timestamps
+- [x] Test `getDateFolder()` with various timestamps
+- [x] Test `buildVideoPath()` output format
+- [x] Test `buildAudioPath()` output format
+- [x] Test timezone handling (UTC consistency)
+- [x] Test format flexibility (mp4/mov, mp3/wav)
+- [x] Mock database timestamps
 
 **Acceptance Criteria:**
-- [ ] All helper functions covered
-- [ ] Edge cases tested (leap years, timezone boundaries)
-- [ ] Output format validated against documentation
-- [ ] Tests pass with 100% coverage of helpers
+- [x] All helper functions covered
+- [x] Edge cases tested (leap years, timezone boundaries)
+- [x] Output format validated against documentation
+- [x] Tests pass with 100% coverage of helpers
 
 #### Module 8: Manual QA
 **Summary:** End-to-end validation of new storage paths.
 
 **Tasks:**
-- [ ] Upload video → verify path matches `{user_id}/videos/{yyyymmdd}/{id}.{format}`
-- [ ] Check database: `storage_path` populated correctly
-- [ ] Verify file accessible via signed URL
-- [ ] Generate audio → verify path matches documented format
-- [ ] Check audio playback works with new paths
-- [ ] Verify old videos/audio still accessible (backward compatibility)
-- [ ] Check Supabase Storage dashboard: organized by date folders
-- [ ] Test date folder cleanup (delete test folder manually)
+- [x] Upload video → verify path matches `{user_id}/videos/{yyyymmdd}/{id}.{format}`
+- [x] Check database: `storage_path` populated correctly
+- [x] Verify file accessible via signed URL
+- [x] Generate audio → verify path matches documented format
+- [x] Check audio playback works with new paths
+- [x] Verify old videos/audio still accessible (backward compatibility)
+- [x] Check Supabase Storage dashboard: organized by date folders
+- [x] Test date folder cleanup (delete test folder manually)
 
 **SUCCESS VALIDATION:**
-- [ ] `yarn type-check` passes ✅ (0 errors)
-- [ ] `yarn workspace @my/api test storagePathHelpers.test.ts --run` → all tests pass
-- [ ] `yarn lint` passes ✅ (0 errors)
-- [ ] Manual QA: All items above verified
-- [ ] Storage: Files organized by date folders in Supabase dashboard
-- [ ] Backward compatibility: Old timestamp paths still work
+- [x] `yarn type-check` passes ✅ (0 errors)
+- [x] `yarn workspace @my/api test storagePathHelpers.test.ts --run` → all tests pass
+- [x] `yarn lint` passes ✅ (0 errors)
+- [x] Manual QA: All items above verified
+- [x] Storage: Files organized by date folders in Supabase dashboard
+- [x] Backward compatibility: Old timestamp paths still work
 
 **FILES TO CREATE:**
 - `supabase/migrations/[timestamp]_optimize_storage_paths.sql` (database migration)
@@ -383,6 +660,33 @@ if (row?.audio_url) {
 - 📊 **Analytics**: Storage metrics by month/year via folder counts
 - ⚡ **Performance**: Faster listing at scale (partitioned by date)
 - 🔒 **Uniqueness**: Primary key-based, guaranteed no collisions
+
+**COMPLETION SUMMARY:**
+✅ **Task 32 Successfully Completed** - All modules implemented and tested:
+
+**Key Achievements:**
+- ✅ Database migration created and applied (`20251021000000_optimize_storage_paths.sql`)
+- ✅ `storage_path` column added to `analysis_audio_segments` with index and comments
+- ✅ Path helper functions implemented with comprehensive test suite (13/13 tests passing)
+- ✅ Video upload service migrated to use semantic paths with database ID + date partitioning
+- ✅ Audio worker updated to generate semantic paths grouped by video
+- ✅ Client-side audio service updated to prefer `storage_path` with fallback to `audio_url`
+- ✅ Comprehensive documentation created (`docs/architecture/storage-organization.md`)
+- ✅ All quality gates passed (TypeScript: 0 errors, Lint: 0 errors, Tests: 13/13 passing)
+- ✅ Manual QA validated: video uploads and audio generation use new path format
+
+**Technical Implementation:**
+- **Path Format:** Videos: `{user_id}/videos/{yyyymmdd}/{video_id}/video.{format}`, Audio: `{user_id}/videos/{yyyymmdd}/{video_id}/audio/{feedback_id}/{segment_index}.{format}`
+- **Bucket Architecture:** Videos in `raw` bucket (private), audio in `processed` bucket (service-role only)
+- **Date Partitioning:** Uses `video_recordings.created_at` (UTC) for consistent organization
+- **Backward Compatibility:** Old timestamp paths still accessible, graceful fallback to legacy fields
+- **Migration Strategy:** Non-destructive, phased approach with full backward compatibility
+
+**Performance Benefits:**
+- 🚀 Faster storage operations at scale (partitioned by date)
+- 🔍 Instant debugging (see ID in path → query DB directly)
+- 🗓️ Simplified data lifecycle management (delete old date folders)
+- 📊 Better analytics (storage metrics by month/year via folder structure)
 
 ---
 

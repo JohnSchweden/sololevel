@@ -8,7 +8,7 @@ import { getMockAudioBytes } from '../../assets/mock-audio-assets.ts'
 import { createValidatedGeminiConfig } from '../../gemini/config.ts'
 import { createLogger } from '../../logger.ts'
 import { AUDIO_FORMATS, AudioFormat, getEnvDefaultFormat, resolveAudioFormat } from '../../media/audio.ts'
-import { generateAudioStoragePath, uploadProcessedArtifact } from '../../storage/upload.ts'
+import { generateLegacyAudioStoragePath, uploadProcessedArtifact } from '../../storage/upload.ts'
 
 const logger = createLogger('tts-service')
 
@@ -94,7 +94,7 @@ export class GeminiTTSService implements ITTSService {
       if (supabase && analysisId) {
         // Upload to Supabase Storage
         const resolvedFormat = resolveAudioFormat(customParams?.format ? [customParams.format] : undefined, 'gemini')
-        const path = storagePath || generateAudioStoragePath(analysisId, undefined, resolvedFormat)
+        const path = storagePath || generateLegacyAudioStoragePath(analysisId, undefined, resolvedFormat)
         const uploadResult = await uploadProcessedArtifact(
           supabase,
           path,
@@ -158,7 +158,7 @@ export class MockTTSService implements ITTSService {
 
     // If supabase + analysisId provided, mimic upload flow to `processed` bucket
     if (context.supabase && context.analysisId) {
-      const path = context.storagePath || generateAudioStoragePath(context.analysisId, undefined, format)
+      const path = context.storagePath || generateLegacyAudioStoragePath(context.analysisId, undefined, format)
 
       // Try to use real feedback1.wav audio bytes, fallback to old mock bytes
       let mockBytes: Uint8Array
