@@ -54,12 +54,14 @@ export interface CoachingSessionsSectionProps {
  * Section container
  */
 const SectionContainer = styled(YStack, {
+  flex: 1,
   name: 'CoachingSessionsSectionContainer',
   gap: '$3',
   width: '100%',
   marginTop: '$2',
   paddingLeft: '$6',
   marginLeft: '$-1.5',
+  paddingBottom: '$3',
 })
 
 /**

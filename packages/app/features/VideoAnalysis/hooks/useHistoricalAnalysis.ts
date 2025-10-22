@@ -12,6 +12,44 @@ import { log } from '@my/logging'
 const isAbsoluteUri = (uri: string) =>
   uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('file://')
 
+/**
+ * Signed URL cache for session reuse (Task 35 Module 2)
+ * Stores signed URLs with expiry timestamps to reduce API calls and improve edge cache hit rate
+ */
+interface SignedUrlCacheEntry {
+  signedUrl: string
+  expiresAt: number
+}
+
+const signedUrlCache = new Map<string, SignedUrlCacheEntry>()
+
+/**
+ * Get cached signed URL if still valid, otherwise return null
+ */
+function getCachedSignedUrl(storagePath: string): string | null {
+  const cached = signedUrlCache.get(storagePath)
+  if (!cached) {
+    return null
+  }
+
+  const now = Date.now()
+  if (now >= cached.expiresAt) {
+    // Expired, remove from cache
+    signedUrlCache.delete(storagePath)
+    return null
+  }
+
+  return cached.signedUrl
+}
+
+/**
+ * Cache signed URL with TTL (slightly before actual expiry to prevent edge cases)
+ */
+function cacheSignedUrl(storagePath: string, signedUrl: string, ttlSeconds: number): void {
+  const expiresAt = Date.now() + (ttlSeconds - 60) * 1000 // Expire 60s before actual TTL
+  signedUrlCache.set(storagePath, { signedUrl, expiresAt })
+}
+
 async function tryResolveLocalUri(storagePath: string | null | undefined): Promise<string | null> {
   if (!storagePath || Platform.OS === 'web') {
     return null
@@ -85,9 +123,23 @@ async function resolveHistoricalVideoUri(
     return storagePath
   }
 
+  // Check session cache for signed URL (Task 35 Module 2: Session reuse for edge cache benefits)
+  const cachedSignedUrl = getCachedSignedUrl(storagePath)
+  if (cachedSignedUrl) {
+    log.info('useHistoricalAnalysis', 'Reusing cached signed URL', {
+      analysisId: context.analysisId,
+      storagePath,
+      urlReused: true,
+    })
+    return cachedSignedUrl
+  }
+
+  // Generate new signed URL with 1-hour TTL
+  const signedUrlTTL = 3600 // 1 hour
   const { data: signedResult, error: signedError } = await createSignedDownloadUrl(
     'raw',
-    storagePath
+    storagePath,
+    signedUrlTTL
   )
 
   if (signedError || !signedResult?.signedUrl) {
@@ -98,6 +150,16 @@ async function resolveHistoricalVideoUri(
     })
     return FALLBACK_VIDEO_URI
   }
+
+  // Cache the signed URL for session reuse
+  cacheSignedUrl(storagePath, signedResult.signedUrl, signedUrlTTL)
+
+  log.info('useHistoricalAnalysis', 'Generated new signed URL', {
+    analysisId: context.analysisId,
+    storagePath,
+    ttlSeconds: signedUrlTTL,
+    urlReused: false,
+  })
 
   return signedResult.signedUrl
 }

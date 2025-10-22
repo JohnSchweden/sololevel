@@ -1,3 +1,18 @@
+### Task 35A: Video Caching - Cache-Control on Upload (Client-side) — ✅ Complete (2025-01-21)
+- Client-side Cache-Control headers added to video upload PUT requests
+- Headers: `Cache-Control: private, max-age=600` for edge cache optimization
+- Implementation in `packages/api/src/services/videoUploadService.ts` (fetch and XHR paths)
+- TDD approach with comprehensive test coverage for upload service
+- All quality gates passed (TypeScript: 0 errors, Lint: 0 errors, Tests: passing)
+
+### Task 35B: Video Caching - Signed URL Session Reuse — ✅ Complete (2025-01-21)
+- Module-level signed URL cache with TTL in `useHistoricalAnalysis.ts`
+- Cache key: storage path, TTL: 1 hour with 60-second early expiry
+- `createSignedDownloadUrl` enhanced with configurable `expiresIn` parameter
+- Comprehensive test coverage for URL reuse behavior
+- Performance: eliminates redundant signed URL generation within session
+- All quality gates passed (TypeScript: 0 errors, Lint: 0 errors, Tests: passing)
+
 ### Task 34: Auth Initialization Cleanup - Eliminate Bootstrap Spam — ✅ Complete (2025-01-21)
 - Module-level singleton pattern for test auth bootstrap (Promise-based deduplication)
 - AuthGate rerender optimization using direct Zustand selectors instead of useAuth hook

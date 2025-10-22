@@ -89,10 +89,14 @@ export async function createSignedUploadUrl(
 
 /**
  * Create signed download URL with access validation
+ * @param bucket - Storage bucket name
+ * @param filePath - File path within bucket
+ * @param expiresIn - TTL in seconds (default: 3600 = 1 hour)
  */
 export async function createSignedDownloadUrl(
   bucket: string,
-  filePath: string
+  filePath: string,
+  expiresIn = 3600
 ): Promise<{ data: SignedUrlResult | null; error: string | null }> {
   try {
     // Get authenticated user
@@ -124,13 +128,14 @@ export async function createSignedDownloadUrl(
       return { data: null, error: 'Access denied: file does not belong to user' }
     }
 
-    // Create signed download URL with 1 hour TTL
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(filePath, 3600)
+    // Create signed download URL with configurable TTL (Task 35 Module 2)
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(filePath, expiresIn)
 
     if (error) {
       log.error('storageService', 'Supabase storage createSignedUrl error', {
         bucket,
         filePath,
+        expiresIn,
         error: error.message,
         errorDetails: error,
       })

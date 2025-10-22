@@ -267,7 +267,7 @@ describe('useHistoricalAnalysis', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-abc/video.mp4')
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-abc/video.mp4', 3600)
       const { getCached, getLocalUri } = useVideoHistoryStore.getState()
       const cached = getCached(2)
       expect(cached?.videoUri).toBe(FALLBACK_VIDEO_URI)
@@ -379,6 +379,77 @@ describe('useHistoricalAnalysis', () => {
 
       expect(mockGetAnalysisJob).not.toHaveBeenCalled()
       expect(result.current.data).toEqual(firstData)
+    })
+  })
+
+  describe('Signed URL session caching (Task 35 Module 2)', () => {
+    it('should reuse signed URL within session instead of regenerating', async () => {
+      // Arrange - DB data with storage path (no local URI)
+      const mockDbData = {
+        id: 1,
+        user_id: 'user-123',
+        video_recording_id: 100,
+        status: 'completed' as const,
+        results: {},
+        pose_data: null,
+        created_at: '2025-10-12T00:00:00Z',
+        updated_at: '2025-10-12T00:00:00Z',
+      } as any
+
+      const mockSingle = jest.fn().mockResolvedValue({
+        data: {
+          id: 100,
+          filename: 'test-video.mp4',
+          storage_path: 'user-123/video.mp4',
+          duration_seconds: 30,
+          metadata: {},
+        },
+        error: null,
+      })
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+
+      mockGetAnalysisJob.mockResolvedValue(mockDbData)
+      mockCreateSignedDownloadUrl.mockResolvedValue({
+        data: {
+          signedUrl: 'https://signed.example.com/videos/test-video.mp4?token=abc123',
+          path: 'user-123/video.mp4',
+        },
+        error: null,
+      })
+
+      // Act - First render fetches and generates signed URL
+      const { result, rerender } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledTimes(1)
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-123/video.mp4', 3600)
+      expect(result.current.data?.videoUri).toBe(
+        'https://signed.example.com/videos/test-video.mp4?token=abc123'
+      )
+
+      // Act - Clear cache and rerender (simulates remount within same session)
+      const { clearCache } = useVideoHistoryStore.getState()
+      clearCache()
+      queryClient.clear()
+      mockCreateSignedDownloadUrl.mockClear()
+
+      rerender()
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      // Assert - Signed URL should be reused (no new call to createSignedDownloadUrl)
+      // The module-level cache persists across component remounts within same session
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledTimes(0) // No new calls
+      expect(result.current.data?.videoUri).toBe(
+        'https://signed.example.com/videos/test-video.mp4?token=abc123'
+      )
     })
   })
 })

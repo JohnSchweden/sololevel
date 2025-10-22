@@ -73,7 +73,9 @@ export async function createSignedUploadUrl(
 
   log.debug('videoUploadService', 'Creating signed upload URL', { bucket: BUCKET_NAME })
 
-  // Create signed URL for upload
+  // Create signed URL for upload with cache headers
+  // Note: Cache-Control must be set during the actual upload via the signed URL
+  // See: https://supabase.com/docs/guides/storage/uploads/standard-uploads
   const { data, error } = await supabase.storage
     .from(BUCKET_NAME)
     .createSignedUploadUrl(storagePath, {
@@ -83,6 +85,9 @@ export async function createSignedUploadUrl(
   if (error) {
     throw new Error(`Failed to create signed URL: ${error.message}`)
   }
+
+  // TODO: Client must set Cache-Control header when uploading to this signed URL
+  // Example: fetch(signedUrl, { method: 'PUT', body: file, headers: { 'Cache-Control': 'private, max-age=600' } })
 
   return {
     signedUrl: data.signedUrl,
@@ -286,6 +291,8 @@ async function uploadWithProgress(
         body: file,
         headers: {
           'Content-Type': file.type || 'video/mp4',
+          // Set object metadata for CDN behavior (private per-user, 10m edge TTL)
+          'Cache-Control': 'private, max-age=600',
         },
       })
 
@@ -348,6 +355,8 @@ async function uploadWithProgress(
 
     xhr.open('PUT', signedUrl)
     xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+    // Set object metadata for CDN behavior (private per-user, 10m edge TTL)
+    xhr.setRequestHeader('Cache-Control', 'private, max-age=600')
     xhr.send(file)
   })
 }

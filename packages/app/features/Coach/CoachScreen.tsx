@@ -350,14 +350,16 @@ export function CoachScreen({
             testID={`${testID}-sticky-header`}
           >
             <BlurView
-              intensity={10}
-              tint="dark"
+              intensity={25}
+              tint="regular"
               style={{
                 borderRadius: 0,
                 overflow: 'hidden',
                 paddingTop: insets.top + APP_HEADER_HEIGHT,
-                marginHorizontal: 2,
-                marginTop: 2,
+                marginHorizontal: 1,
+                marginTop: 0,
+                borderBottomWidth: 1,
+                borderBottomColor: 'rgba(255, 255, 255, 0.4)',
               }}
             >
               <XStack
@@ -474,7 +476,7 @@ export function CoachScreen({
           <YStack
             marginHorizontal="$0.5"
             paddingHorizontal="$4"
-            gap="$2"
+            gap="$0"
             paddingBottom={hasBottomNavigation ? insets.bottom : -insets.bottom}
             backgroundColor="$color3"
             borderRadius="$9"
@@ -482,7 +484,6 @@ export function CoachScreen({
           >
             {/* Suggestions */}
             <YStack
-              gap="$2"
               opacity={sectionsVisible[2] ? 1 : 0}
               animation="quick"
               testID={`${testID}-suggestions`}
@@ -491,31 +492,31 @@ export function CoachScreen({
               <XStack
                 justifyContent="space-between"
                 alignItems="center"
-                paddingLeft="$4"
-                paddingRight="$1"
-                marginBottom="$-2"
               >
-                <Text
-                  fontSize="$3"
-                  color="$color11"
-                >
-                  Suggestions
-                </Text>
                 <Button
                   onPress={toggleSuggestions}
                   chromeless
-                  circular
-                  margin="$-0.5"
                   size="$5"
+                  flex={1}
+                  justifyContent="space-between"
+                  alignItems="center"
+                  paddingHorizontal="$4"
                   color="$color11"
-                  icon={showSuggestions ? ChevronUp : ChevronDown}
+                  iconAfter={showSuggestions ? ChevronDown : ChevronUp}
                   accessibilityLabel={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
                   testID={`${testID}-toggle-suggestions`}
                   animation="quick"
                   scale={1}
-                  hoverStyle={{ scale: 1.05 }}
-                  pressStyle={{ scale: 0.95 }}
-                />
+                  hoverStyle={{ scale: 1.05, backgroundColor: 'transparent' }}
+                  pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
+                >
+                  <Text
+                    fontSize="$3"
+                    color="$color11"
+                  >
+                    Suggestions
+                  </Text>
+                </Button>
               </XStack>
 
               {/* Suggestions List */}
@@ -529,6 +530,7 @@ export function CoachScreen({
                   gap="$2"
                   flexWrap="wrap"
                   paddingTop="$1"
+                  marginBottom="$2"
                 >
                   {SUGGESTIONS.map((suggestion, index) => (
                     <SuggestionChip

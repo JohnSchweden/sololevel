@@ -300,7 +300,7 @@ describe('FeedbackPanel', () => {
         )
 
         // Should show feedback content (feedback items)
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('00:01, Great posture!, feedback item')).toBeTruthy()
         expect(screen.queryByLabelText('Insights Coming Soon')).toBeFalsy()
 
         // Switch to insights tab
@@ -313,7 +313,7 @@ describe('FeedbackPanel', () => {
         )
 
         // Should show insights content
-        expect(screen.queryByLabelText('Feedback: Great posture!')).toBeFalsy()
+        expect(screen.queryByLabelText('00:01, Great posture!, feedback item')).toBeFalsy()
         expect(screen.getByLabelText('Insights Coming Soon')).toBeTruthy()
       })
     })
@@ -329,12 +329,14 @@ describe('FeedbackPanel', () => {
         )
 
         // Should display feedback item text
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: Bend your knees a little bit')).toBeTruthy()
+        expect(screen.getByLabelText('00:01, Great posture!, feedback item')).toBeTruthy()
+        expect(
+          screen.getByLabelText('00:02, Bend your knees a little bit, feedback item')
+        ).toBeTruthy()
 
-        // Should display categories
-        expect(screen.getByLabelText('Category: posture')).toBeTruthy()
-        expect(screen.getByLabelText('Category: movement')).toBeTruthy()
+        // Should display time and category info
+        expect(screen.getByTestId('feedback-item-1-time')).toHaveTextContent('00:01 posture')
+        expect(screen.getByTestId('feedback-item-2-time')).toHaveTextContent('00:02 movement')
       })
 
       it('handles empty feedback items gracefully', () => {
@@ -364,7 +366,7 @@ describe('FeedbackPanel', () => {
         )
 
         // Test that the component renders without errors - interaction testing is complex with current mocks
-        expect(screen.getByLabelText('Feedback: Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('00:01, Great posture!, feedback item')).toBeTruthy()
         // Note: Feedback item press interaction requires proper YStack onPress handling
       })
     })

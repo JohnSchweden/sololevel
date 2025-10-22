@@ -1,9 +1,73 @@
 import { log } from '@my/logging'
 import { memo, useEffect, useMemo } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
-import { Button, ScrollView, Text, XStack, YStack } from 'tamagui'
+import { Button, Image, ScrollView, Text, XStack, YStack, styled } from 'tamagui'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
+
+// Import the glass gradient background
+const glassGradientBackground = require('../../../../../../apps/expo/assets/glass-gradient-square.png')
+
+/**
+ * Styled components for feedback items following coaching session design pattern
+ */
+
+/**
+ * Pressable container for feedback item (matches SessionItemContainer exactly)
+ */
+const FeedbackItemContainer = styled(YStack, {
+  name: 'FeedbackItemContainer',
+  gap: '$2',
+  padding: 0,
+  borderRadius: '$4',
+  paddingVertical: '$3',
+  paddingHorizontal: '$3',
+  backgroundColor: 'transparent',
+  cursor: 'pointer',
+  accessibilityRole: 'button',
+
+  pressStyle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    scale: 0.98,
+  },
+
+  hoverStyle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+
+  variants: {
+    // Add variant support if needed in future
+  } as const,
+})
+
+/**
+ * Time label text (matches DateLabel exactly)
+ */
+const TimeLabel = styled(Text, {
+  name: 'TimeLabel',
+  fontSize: '$1',
+  fontWeight: '500',
+  color: '$color11',
+})
+
+/**
+ * Feedback text content (matches SessionTitle exactly)
+ */
+const FeedbackText = styled(Text, {
+  name: 'FeedbackText',
+  fontSize: '$4',
+  fontWeight: '500',
+  color: '$color12',
+})
+
+/**
+ * Metadata row for time and status indicators
+ */
+const FeedbackMetadata = styled(XStack, {
+  name: 'FeedbackMetadata',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+})
 
 // Types imported from VideoPlayer.tsx
 interface FeedbackItem {
@@ -107,21 +171,6 @@ export const FeedbackPanel = memo(
       return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     }
 
-    const getCategoryColor = (category: string) => {
-      switch (category) {
-        case 'voice':
-          return '$blue9'
-        case 'posture':
-          return '$green9'
-        case 'grip':
-          return '$purple9'
-        case 'movement':
-          return '$orange9'
-        default:
-          return '$color9'
-      }
-    }
-
     // Sort feedback items chronologically and determine current highlighted item
     const sortedFeedbackItems = useMemo(() => {
       return [...feedbackItems].sort((a, b) => a.timestamp - b.timestamp)
@@ -147,41 +196,59 @@ export const FeedbackPanel = memo(
     return (
       <YStack
         flex={flex}
-        backgroundColor="$background"
+        position="relative"
         elevation={5}
         style={{ transition: 'all 0.5s ease-in-out' }}
         testID="feedback-panel"
         accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
         accessibilityState={{ expanded: isExpanded }}
-        // accessibilityRole="region"
       >
-        <YStack flex={1}>
-          {/* Handle */}
-          <YStack
-            alignItems="center"
-            marginTop={-8}
-            //paddingVertical="$2"
-            testID="sheet-handle"
-            accessibilityLabel="Sheet handle"
-          >
-            <Button
-              chromeless
-              onPress={handleSheetToggle}
-              testID="sheet-toggle-button"
-              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
-              aria-role="button"
-              accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
-            >
-              <YStack
-                width={48}
-                height={5}
-                backgroundColor="$color8"
-                borderRadius={2}
-              />
-            </Button>
-          </YStack>
+        {/* Content Container */}
+        <YStack
+          flex={1}
+          zIndex={1}
+        >
+          {/* Background Image */}
+          <Image
+            source={glassGradientBackground}
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            width="100%"
+            height="200%"
+            resizeMode="stretch"
+            zIndex={0}
+          />
 
-          {/* Video Progress Bar
+          <YStack flex={1}>
+            {/* Handle */}
+            <YStack
+              alignItems="center"
+              marginTop={-8}
+              //paddingVertical="$2"
+              testID="sheet-handle"
+              accessibilityLabel="Sheet handle"
+            >
+              <Button
+                chromeless
+                onPress={handleSheetToggle}
+                testID="sheet-toggle-button"
+                accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} feedback panel`}
+                aria-role="button"
+                accessibilityHint={`Tap to ${isExpanded ? 'collapse' : 'expand'} the feedback panel`}
+              >
+                <YStack
+                  width={48}
+                  height={5}
+                  backgroundColor="$color8"
+                  borderRadius={2}
+                />
+              </Button>
+            </YStack>
+
+            {/* Video Progress Bar
         {isExpanded && videoDuration > 0 && activeTab === 'feedback' && (
           <YStack
             paddingHorizontal="$4"
@@ -276,225 +343,189 @@ export const FeedbackPanel = memo(
           </YStack>
         )} */}
 
-          {/* Header with Tabs */}
-          {isExpanded && (
-            <YStack
-              paddingHorizontal="$3"
-              //paddingBottom="$2"
-              testID="sheet-header"
-              accessibilityLabel="Sheet header with navigation tabs"
-            >
-              <XStack
-                borderBottomWidth={1}
-                borderBottomColor="$borderColor"
-                testID="tab-navigation"
-                accessibilityLabel="Tab navigation"
-                accessibilityRole="tablist"
-                backgroundColor="$background"
-                //paddingTop="$2"
+            {/* Header with Tabs */}
+            {isExpanded && (
+              <YStack
+                paddingHorizontal="$3"
+                //paddingBottom="$2"
+                testID="sheet-header"
+                accessibilityLabel="Sheet header with navigation tabs"
               >
-                {(['feedback', 'insights', 'comments'] as const).map((tab) => (
-                  <Button
-                    key={tab}
-                    chromeless
-                    flex={1}
-                    //paddingVertical="$3"
-                    onPress={() => onTabChange(tab)}
-                    testID={`tab-${tab}`}
-                    accessibilityLabel={`${tab} tab`}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: activeTab === tab }}
-                    accessibilityHint={`Switch to ${tab} view`}
-                    data-testid={`tab-${tab}`}
-                  >
-                    <Text
-                      fontSize="$4"
-                      fontWeight={activeTab === tab ? '600' : '400'}
-                      color={activeTab === tab ? '$purple9' : '$color11'}
-                      textTransform="capitalize"
+                <XStack
+                  borderBottomWidth={1}
+                  borderBottomColor="$borderColor"
+                  testID="tab-navigation"
+                  accessibilityLabel="Tab navigation"
+                  accessibilityRole="tablist"
+                  backgroundColor="transparent"
+                  //paddingTop="$2"
+                >
+                  {(['feedback', 'insights', 'comments'] as const).map((tab) => (
+                    <Button
+                      key={tab}
+                      chromeless
+                      flex={1}
+                      //paddingVertical="$3"
+                      onPress={() => onTabChange(tab)}
+                      testID={`tab-${tab}`}
+                      accessibilityLabel={`${tab} tab`}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: activeTab === tab }}
+                      accessibilityHint={`Switch to ${tab} view`}
+                      data-testid={`tab-${tab}`}
                     >
-                      {tab}
-                    </Text>
-                  </Button>
-                ))}
-              </XStack>
-            </YStack>
-          )}
-
-          {/* Content */}
-          <YStack
-            flex={1}
-            paddingHorizontal="$4"
-            accessibilityLabel={`${activeTab} content area`}
-          >
-            {activeTab === 'feedback' && (
-              <ScrollView
-                flex={1}
-                testID="feedback-content"
-                accessibilityLabel="Feedback items list"
-                accessibilityRole="list"
-              >
-                <YStack
-                  gap="$3"
-                  paddingTop="$4"
-                >
-                  {sortedFeedbackItems.map((item, index) => {
-                    const isHighlighted = selectedFeedbackId === item.id
-
-                    return (
-                      <YStack
-                        key={item.id}
-                        paddingVertical="$1"
-                        //borderBottomWidth={1}
-                        //borderBottomColor="$borderColor"
-                        backgroundColor="transparent"
-                        borderRadius={0}
-                        onPress={() => onFeedbackItemPress(item)}
-                        {...(item.audioUrl && onSelectAudio
-                          ? {
-                              onLongPress: () => onSelectAudio(item.id),
-                            }
-                          : {})}
-                        testID={`feedback-item-${index + 1}`}
-                        accessibilityLabel={`Feedback item: ${item.text}${isHighlighted ? ' (currently active)' : ''}`}
-                        accessibilityRole="button"
-                        accessibilityHint={`Tap to view details about ${item.category} feedback from ${formatTime(item.timestamp)}${item.audioUrl ? '. Long press to play audio feedback.' : ''}`}
-                        accessibilityState={{
-                          disabled: false,
-                          selected: isHighlighted,
-                        }}
-                        {...(item.audioUrl && onSelectAudio
-                          ? {
-                              onLongPress: () => onSelectAudio(item.id),
-                            }
-                          : {})}
+                      <Text
+                        fontSize="$4"
+                        fontWeight={activeTab === tab ? '600' : '400'}
+                        color={activeTab === tab ? '$color' : '$color11'}
+                        textTransform="capitalize"
                       >
-                        <XStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                          marginBottom="$1"
+                        {tab}
+                      </Text>
+                    </Button>
+                  ))}
+                </XStack>
+              </YStack>
+            )}
+
+            {/* Content */}
+            <YStack
+              flex={1}
+              paddingHorizontal="$4"
+              accessibilityLabel={`${activeTab} content area`}
+            >
+              {activeTab === 'feedback' && (
+                <ScrollView
+                  flex={1}
+                  testID="feedback-content"
+                  accessibilityLabel="Feedback items list"
+                  accessibilityRole="list"
+                >
+                  <YStack
+                    gap="$0"
+                    paddingTop="$4"
+                  >
+                    {sortedFeedbackItems.map((item, index) => {
+                      const isHighlighted = selectedFeedbackId === item.id
+                      const accessibilityLabel = `${formatTime(item.timestamp)}, ${item.text}, feedback item`
+
+                      return (
+                        <FeedbackItemContainer
+                          key={item.id}
+                          onPress={() => onFeedbackItemPress(item)}
+                          {...(item.audioUrl && onSelectAudio
+                            ? {
+                                onLongPress: () => onSelectAudio(item.id),
+                              }
+                            : {})}
+                          testID={`feedback-item-${index + 1}`}
+                          accessibilityLabel={accessibilityLabel}
+                          data-testid={`feedback-item-${index + 1}`}
                         >
-                          <XStack
-                            alignItems="center"
-                            gap="$3"
+                          <FeedbackMetadata>
+                            <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
+                              {formatTime(item.timestamp)} {item.category}
+                            </TimeLabel>
+
+                            {/* Status indicators for SSML and audio processing - positioned at top right */}
+                            {(item.ssmlStatus || item.audioStatus) && (
+                              <FeedbackStatusIndicator
+                                ssmlStatus={item.ssmlStatus || 'queued'}
+                                audioStatus={item.audioStatus || 'queued'}
+                                ssmlAttempts={item.ssmlAttempts || 0}
+                                audioAttempts={item.audioAttempts || 0}
+                                ssmlLastError={item.ssmlLastError || null}
+                                audioLastError={item.audioLastError || null}
+                                size="small"
+                                testID={`feedback-status-${index + 1}`}
+                              />
+                            )}
+                          </FeedbackMetadata>
+
+                          <FeedbackText
+                            data-testid={`feedback-item-${index + 1}-text`}
+                            color={isHighlighted ? '$yellow11' : undefined}
                           >
-                            <Text
-                              fontSize="$1"
-                              color="$color10"
-                              accessibilityLabel={`Time: ${formatTime(item.timestamp)}`}
-                            >
-                              {formatTime(item.timestamp)}
-                            </Text>
-                            <Text
-                              fontSize="$1"
-                              color={getCategoryColor(item.category)}
-                              fontWeight="600"
-                              textTransform="capitalize"
-                              accessibilityLabel={`Category: ${item.category}`}
-                            >
-                              {item.category}
-                            </Text>
-                          </XStack>
+                            {item.text}
+                          </FeedbackText>
 
-                          {/* Status indicators for SSML and audio processing */}
-                          {(item.ssmlStatus || item.audioStatus) && (
-                            <FeedbackStatusIndicator
-                              ssmlStatus={item.ssmlStatus || 'queued'}
-                              audioStatus={item.audioStatus || 'queued'}
-                              ssmlAttempts={item.ssmlAttempts || 0}
-                              audioAttempts={item.audioAttempts || 0}
-                              ssmlLastError={item.ssmlLastError || null}
-                              audioLastError={item.audioLastError || null}
-                              size="small"
-                              testID={`feedback-status-${index + 1}`}
-                            />
-                          )}
-                        </XStack>
-                        <Text
-                          fontSize="$4"
-                          color={isHighlighted ? '$yellow11' : '$color12'}
-                          lineHeight="$5"
-                          accessibilityLabel={`Feedback: ${item.text}`}
-                        >
-                          {item.text}
-                        </Text>
+                          {/* Error handler for failed processing */}
+                          {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
+                            onRetryFeedback && (
+                              <FeedbackErrorHandler
+                                feedbackId={item.id}
+                                feedbackText={item.text}
+                                ssmlFailed={item.ssmlStatus === 'failed'}
+                                audioFailed={item.audioStatus === 'failed'}
+                                onRetry={onRetryFeedback}
+                                onDismiss={onDismissError}
+                                size="small"
+                                testID={`feedback-error-${index + 1}`}
+                              />
+                            )}
+                        </FeedbackItemContainer>
+                      )
+                    })}
+                  </YStack>
+                </ScrollView>
+              )}
 
-                        {/* Error handler for failed processing */}
-                        {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
-                          onRetryFeedback && (
-                            <FeedbackErrorHandler
-                              feedbackId={item.id}
-                              feedbackText={item.text}
-                              ssmlFailed={item.ssmlStatus === 'failed'}
-                              audioFailed={item.audioStatus === 'failed'}
-                              onRetry={onRetryFeedback}
-                              onDismiss={onDismissError}
-                              size="small"
-                              testID={`feedback-error-${index + 1}`}
-                            />
-                          )}
-                      </YStack>
-                    )
-                  })}
+              {activeTab === 'insights' && (
+                <YStack
+                  flex={1}
+                  justifyContent="center"
+                  alignItems="center"
+                  testID="insights-content"
+                  accessibilityLabel="Insights content area"
+                >
+                  <Text
+                    fontSize="$5"
+                    color="$color11"
+                    textAlign="center"
+                    accessibilityLabel="Insights Coming Soon"
+                  >
+                    Insights Coming Soon
+                  </Text>
+                  <Text
+                    fontSize="$4"
+                    color="$color10"
+                    textAlign="center"
+                    marginTop="$2"
+                    accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
+                  >
+                    Advanced analysis and performance metrics will be displayed here.
+                  </Text>
                 </YStack>
-              </ScrollView>
-            )}
+              )}
 
-            {activeTab === 'insights' && (
-              <YStack
-                flex={1}
-                justifyContent="center"
-                alignItems="center"
-                testID="insights-content"
-                accessibilityLabel="Insights content area"
-              >
-                <Text
-                  fontSize="$5"
-                  color="$color11"
-                  textAlign="center"
-                  accessibilityLabel="Insights Coming Soon"
+              {activeTab === 'comments' && (
+                <YStack
+                  flex={1}
+                  justifyContent="center"
+                  alignItems="center"
+                  testID="comments-content"
+                  accessibilityLabel="Comments content area"
                 >
-                  Insights Coming Soon
-                </Text>
-                <Text
-                  fontSize="$4"
-                  color="$color10"
-                  textAlign="center"
-                  marginTop="$2"
-                  accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
-                >
-                  Advanced analysis and performance metrics will be displayed here.
-                </Text>
-              </YStack>
-            )}
-
-            {activeTab === 'comments' && (
-              <YStack
-                flex={1}
-                justifyContent="center"
-                alignItems="center"
-                testID="comments-content"
-                accessibilityLabel="Comments content area"
-              >
-                <Text
-                  fontSize="$5"
-                  color="$color11"
-                  textAlign="center"
-                  accessibilityLabel="Comments Coming Soon"
-                >
-                  Comments Coming Soon
-                </Text>
-                <Text
-                  fontSize="$4"
-                  color="$color10"
-                  textAlign="center"
-                  marginTop="$2"
-                  accessibilityLabel="Community discussions and expert feedback will appear here"
-                >
-                  Community discussions and expert feedback will appear here.
-                </Text>
-              </YStack>
-            )}
+                  <Text
+                    fontSize="$5"
+                    color="$color11"
+                    textAlign="center"
+                    accessibilityLabel="Comments Coming Soon"
+                  >
+                    Comments Coming Soon
+                  </Text>
+                  <Text
+                    fontSize="$4"
+                    color="$color10"
+                    textAlign="center"
+                    marginTop="$2"
+                    accessibilityLabel="Community discussions and expert feedback will appear here"
+                  >
+                    Community discussions and expert feedback will appear here.
+                  </Text>
+                </YStack>
+              )}
+            </YStack>
           </YStack>
         </YStack>
       </YStack>
