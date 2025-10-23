@@ -59,7 +59,7 @@ export function GlassBackground({
   ...stackProps
 }: GlassBackgroundProps): React.ReactElement {
   // Default to glass gradient from expo assets if no source provided
-  const defaultSource = require('../../../../../apps/expo/assets/glass-gradient.png')
+  const defaultSource = require('../../../../../apps/expo/assets/glass-gradient-square.png')
   const imageSource = source || defaultSource
 
   return (

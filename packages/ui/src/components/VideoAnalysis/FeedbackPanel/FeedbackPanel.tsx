@@ -1,12 +1,13 @@
 import { log } from '@my/logging'
 import { memo, useEffect, useMemo } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
-import { Button, Image, ScrollView, Text, XStack, YStack, styled } from 'tamagui'
+//import { Button, Image, ScrollView, Text, XStack, YStack, styled } from 'tamagui'
+import { Button, ScrollView, Text, XStack, YStack, styled } from 'tamagui'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
 
 // Import the glass gradient background
-const glassGradientBackground = require('../../../../../../apps/expo/assets/glass-gradient-square.png')
+//const glassGradientBackground = require('../../../../../../apps/expo/assets/glass-gradient-square.png')
 
 /**
  * Styled components for feedback items following coaching session design pattern
@@ -209,7 +210,7 @@ export const FeedbackPanel = memo(
           zIndex={1}
         >
           {/* Background Image */}
-          <Image
+          {/* <Image
             source={glassGradientBackground}
             position="absolute"
             top={0}
@@ -217,16 +218,17 @@ export const FeedbackPanel = memo(
             right={0}
             bottom={0}
             width="100%"
-            height="200%"
+            height={800}
             resizeMode="stretch"
             zIndex={0}
-          />
+          /> */}
 
           <YStack flex={1}>
             {/* Handle */}
             <YStack
               alignItems="center"
               marginTop={-8}
+              backgroundColor="transparent"
               //paddingVertical="$2"
               testID="sheet-handle"
               accessibilityLabel="Sheet handle"
@@ -247,101 +249,6 @@ export const FeedbackPanel = memo(
                 />
               </Button>
             </YStack>
-
-            {/* Video Progress Bar
-        {isExpanded && videoDuration > 0 && activeTab === 'feedback' && (
-          <YStack
-            paddingHorizontal="$4"
-            paddingTop="$2"
-            testID="video-progress-section"
-            accessibilityLabel="Video progress and time controls"
-          >
-            <XStack
-              alignItems="center"
-              gap="$3"
-              marginBottom="$2"
-            >
-              <Text
-                fontSize="$3"
-                color="$color12"
-                minWidth={40}
-                testID="current-video-time"
-                accessibilityLabel={`Current time: ${formatTime(currentVideoTime)}`}
-              >
-                {formatTime(currentVideoTime)}
-              </Text>
-
-              <YStack
-                flex={1}
-                height={4}
-                backgroundColor="$color12"
-                borderRadius="$1"
-                testID="video-progress-bar"
-                onPress={(event) => {
-                  // Simple click-to-seek implementation
-                  let clickX = 50 // Default to middle for test environment
-
-                  // Try to get click position from various event properties
-                  if (event.nativeEvent) {
-                    clickX =
-                      (event.nativeEvent as any).locationX ||
-                      (event.nativeEvent as any).pageX ||
-                      (event.nativeEvent as any).clientX ||
-                      50
-                  }
-
-                  // If we have a target element, try to get its dimensions
-                  if (
-                    event.currentTarget &&
-                    typeof (event.currentTarget as any).getBoundingClientRect === 'function'
-                  ) {
-                    try {
-                      const rect = (event.currentTarget as any).getBoundingClientRect()
-                      if (rect.width > 0) {
-                        // Adjust clickX relative to element position if we got pageX
-                        if ((event.nativeEvent as any).pageX && rect.left) {
-                          clickX = (event.nativeEvent as any).pageX - rect.left
-                        }
-                        const percentage = clickX / rect.width
-                        const newTime = percentage * videoDuration
-                        onVideoSeek?.(newTime)
-                        return
-                      }
-                    } catch (error) {
-                      // Fall back to default behavior
-                    }
-                  }
-
-                  // Fallback: assume 50% position for test environment
-                  const percentage = clickX / 100
-                  const newTime = percentage * videoDuration
-                  onVideoSeek?.(newTime)
-                }}
-                accessibilityLabel="Video progress bar"
-                accessibilityHint="Tap to seek to different time in video"
-                accessibilityRole="progressbar"
-              >
-                <YStack
-                  height="100%"
-                  width={`${(currentVideoTime / videoDuration) * 100}%`}
-                  backgroundColor="$color9"
-                  borderRadius="$1"
-                  testID="progress-bar-fill"
-                />
-              </YStack>
-
-              <Text
-                fontSize="$3"
-                color="$color12"
-                minWidth={40}
-                testID="video-duration"
-                accessibilityLabel={`Total duration: ${formatTime(videoDuration)}`}
-              >
-                {formatTime(videoDuration)}
-              </Text>
-            </XStack>
-          </YStack>
-        )} */}
 
             {/* Header with Tabs */}
             {isExpanded && (
