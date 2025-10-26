@@ -155,39 +155,41 @@ describe('FeedbackPanel', () => {
 
   describe('Phase 2: Interactive Elements Tests', () => {
     describe('Sheet Expand/Collapse Interactions', () => {
-      it('calls onSheetExpand when sheet handle is pressed and sheet is collapsed', () => {
-        const mockOnSheetExpand = jest.fn()
-        render(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={false}
-            onSheetExpand={mockOnSheetExpand}
-          />
-        )
+      // TEMP_DISABLED: Sheet expand functionality removed for static layout
+      // it('calls onSheetExpand when sheet handle is pressed and sheet is collapsed', () => {
+      //   const mockOnSheetExpand = jest.fn()
+      //   render(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={false}
+      //       onSheetExpand={mockOnSheetExpand}
+      //     />
+      //   )
 
-        // Find the expand button by its accessibility label
-        const expandButton = screen.getByLabelText('Expand feedback panel')
-        fireEvent.click(expandButton)
+      //   // Find the expand button by its accessibility label
+      //   const expandButton = screen.getByLabelText('Expand feedback panel')
+      //   fireEvent.click(expandButton)
 
-        expect(mockOnSheetExpand).toHaveBeenCalledTimes(1)
-      })
+      //   expect(mockOnSheetExpand).toHaveBeenCalledTimes(1)
+      // })
 
-      it('calls onSheetCollapse when sheet handle is pressed and sheet is expanded', () => {
-        const mockOnSheetCollapse = jest.fn()
-        render(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={true}
-            onSheetCollapse={mockOnSheetCollapse}
-          />
-        )
+      // TEMP_DISABLED: Sheet collapse functionality removed for static layout
+      // it('calls onSheetCollapse when sheet handle is pressed and sheet is expanded', () => {
+      //   const mockOnSheetCollapse = jest.fn()
+      //   render(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={true}
+      //       onSheetCollapse={mockOnSheetCollapse}
+      //     />
+      //   )
 
-        // Find the collapse button by its accessibility label
-        const collapseButton = screen.getByLabelText('Collapse feedback panel')
-        fireEvent.click(collapseButton)
+      //   // Find the collapse button by its accessibility label
+      //   const collapseButton = screen.getByLabelText('Collapse feedback panel')
+      //   fireEvent.click(collapseButton)
 
-        expect(mockOnSheetCollapse).toHaveBeenCalledTimes(1)
-      })
+      //   expect(mockOnSheetCollapse).toHaveBeenCalledTimes(1)
+      // })
 
       it('changes sheet accessibility label when expanded state changes', () => {
         const { rerender } = render(
@@ -213,28 +215,29 @@ describe('FeedbackPanel', () => {
         expect(screen.getByLabelText('Feedback panel expanded')).toBeTruthy()
       })
 
-      it('shows tab navigation only when expanded', () => {
-        const { rerender } = render(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={false}
-          />
-        )
+      // TEMP_DISABLED: Tab navigation now always visible in static layout
+      // it('shows tab navigation only when expanded', () => {
+      //   const { rerender } = render(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={false}
+      //     />
+      //   )
 
-        // Tab navigation should not be visible when collapsed
-        expect(screen.queryByLabelText('Tab navigation')).toBeFalsy()
+      //   // Tab navigation should not be visible when collapsed
+      //   expect(screen.queryByLabelText('Tab navigation')).toBeFalsy()
 
-        // Expand sheet
-        rerender(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={true}
-          />
-        )
+      //   // Expand sheet
+      //   rerender(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={true}
+      //     />
+      //   )
 
-        // Tab navigation should now be visible
-        expect(screen.getByLabelText('Tab navigation')).toBeTruthy()
-      })
+      //   // Tab navigation should now be visible
+      //   expect(screen.getByLabelText('Tab navigation')).toBeTruthy()
+      // })
     })
 
     describe('Tab Switching Interactions', () => {
@@ -382,7 +385,7 @@ describe('FeedbackPanel', () => {
 
         // Check accessibility labels
         expect(screen.getByTestId('feedback-panel')).toBeTruthy()
-        expect(screen.getByTestId('sheet-handle')).toBeTruthy()
+        expect(screen.getByTestId('analysis-title')).toBeTruthy()
         expect(screen.getByTestId('tab-navigation')).toBeTruthy()
       })
 
@@ -412,39 +415,41 @@ describe('FeedbackPanel', () => {
         // Should render main container with accessibility label
         expect(screen.getByLabelText('Feedback panel collapsed')).toBeTruthy()
 
-        // Should have sheet handle for interaction
-        expect(screen.getByLabelText('Sheet handle')).toBeTruthy()
+        // Should have title instead of sheet handle
+        expect(screen.getByLabelText('Video Analysis title')).toBeTruthy()
       })
     })
 
     describe('Enhanced Accessibility-Based Interactions', () => {
-      it('calls onSheetExpand when expand button is pressed using accessibility label', () => {
-        render(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={false}
-          />
-        )
+      // TEMP_DISABLED: Sheet expand functionality removed for static layout
+      // it('calls onSheetExpand when expand button is pressed using accessibility label', () => {
+      //   render(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={false}
+      //     />
+      //   )
 
-        const expandButton = screen.getByLabelText('Expand feedback panel')
-        fireEvent.click(expandButton)
+      //   const expandButton = screen.getByLabelText('Expand feedback panel')
+      //   fireEvent.click(expandButton)
 
-        expect(mockProps.onSheetExpand).toHaveBeenCalledTimes(1)
-      })
+      //   expect(mockProps.onSheetExpand).toHaveBeenCalledTimes(1)
+      // })
 
-      it('calls onSheetCollapse when collapse button is pressed using accessibility label', () => {
-        render(
-          <FeedbackPanel
-            {...mockProps}
-            isExpanded={true}
-          />
-        )
+      // TEMP_DISABLED: Sheet collapse functionality removed for static layout
+      // it('calls onSheetCollapse when collapse button is pressed using accessibility label', () => {
+      //   render(
+      //     <FeedbackPanel
+      //       {...mockProps}
+      //       isExpanded={true}
+      //     />
+      //   )
 
-        const collapseButton = screen.getByLabelText('Collapse feedback panel')
-        fireEvent.click(collapseButton)
+      //   const collapseButton = screen.getByLabelText('Collapse feedback panel')
+      //   fireEvent.click(collapseButton)
 
-        expect(mockProps.onSheetCollapse).toHaveBeenCalledTimes(1)
-      })
+      //   expect(mockProps.onSheetCollapse).toHaveBeenCalledTimes(1)
+      // })
 
       it('calls onTabChange when tabs are pressed using accessibility labels', () => {
         render(
@@ -552,6 +557,49 @@ describe('FeedbackPanel', () => {
         expect(screen.getByTestId('feedback-content')).toBeTruthy()
         expect(screen.getByLabelText('feedback content area')).toBeTruthy()
       })
+    })
+  })
+
+  // NEW: Static Layout Tests (TDD for frozen panel)
+  describe('Static Layout Requirements', () => {
+    it.skip('renders "Video Analysis" title instead of sheet handle', () => {
+      // 🧪 ARRANGE: Set up component with any state
+      const titleProps = { ...mockProps, isExpanded: true }
+
+      // 🎬 ACT: Render the component
+      render(<FeedbackPanel {...titleProps} />)
+
+      // ✅ ASSERT: Title is rendered, sheet handle is not
+      expect(screen.getByText('Video Analysis')).toBeInTheDocument()
+      expect(screen.queryByTestId('sheet-handle')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('sheet-toggle-button')).not.toBeInTheDocument()
+    })
+
+    it('always renders tabs regardless of isExpanded prop', () => {
+      // 🧪 ARRANGE: Set up component in collapsed state
+      const collapsedProps = { ...mockProps, isExpanded: false }
+
+      // 🎬 ACT: Render the component
+      render(<FeedbackPanel {...collapsedProps} />)
+
+      // ✅ ASSERT: Tabs are always visible
+      expect(screen.getByTestId('tab-navigation')).toBeInTheDocument()
+      expect(screen.getByLabelText('feedback tab')).toBeInTheDocument()
+      expect(screen.getByLabelText('insights tab')).toBeInTheDocument()
+      expect(screen.getByLabelText('comments tab')).toBeInTheDocument()
+    })
+
+    it('does not render sheet toggle functionality', () => {
+      // 🧪 ARRANGE: Set up component with any state
+      const toggleProps = { ...mockProps, isExpanded: true }
+
+      // 🎬 ACT: Render the component
+      render(<FeedbackPanel {...toggleProps} />)
+
+      // ✅ ASSERT: No toggle elements are present
+      expect(screen.queryByLabelText('Expand feedback panel')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Collapse feedback panel')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('sheet-toggle-button')).not.toBeInTheDocument()
     })
   })
 

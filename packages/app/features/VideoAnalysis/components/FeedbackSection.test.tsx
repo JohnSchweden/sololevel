@@ -41,6 +41,14 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
   FeedbackPanel: jest.fn(() => null),
 }))
 
+// Mock VideoAnalysisContext
+jest.mock('../contexts/VideoAnalysisContext', () => ({
+  useVideoAnalysisContext: () => ({
+    videoUri: 'video.mp4',
+    feedbackItems: [],
+  }),
+}))
+
 describe('FeedbackSection', () => {
   const mockSocialIcons = SocialIcons as jest.Mock
   const mockFeedbackPanel = FeedbackPanel as jest.MockedFunction<typeof FeedbackPanel>
@@ -63,18 +71,31 @@ describe('FeedbackSection', () => {
     expect(mockSocialIcons).not.toHaveBeenCalled()
   })
 
-  it('invokes panel callbacks', () => {
+  // TEMP_DISABLED: Sheet expand/collapse callbacks removed for static layout
+  // it('invokes panel callbacks', () => {
+  //   const props = createProps()
+  //   render(<FeedbackSection {...props} />)
+
+  //   const panelProps = mockFeedbackPanel.mock.calls[0][0]
+  //   panelProps.onSheetExpand()
+  //   panelProps.onSheetCollapse()
+  //   panelProps.onTabChange('insights')
+  //   panelProps.onFeedbackItemPress(createItem({ id: '1', timestamp: 2000, text: 'test' }))
+
+  //   expect(props.onExpand).toHaveBeenCalled()
+  //   expect(props.onCollapse).toHaveBeenCalled()
+  //   expect(props.onTabChange).toHaveBeenCalledWith('insights')
+  //   expect(props.onItemPress).toHaveBeenCalled()
+  // })
+
+  it('invokes remaining panel callbacks', () => {
     const props = createProps()
     render(<FeedbackSection {...props} />)
 
     const panelProps = mockFeedbackPanel.mock.calls[0][0]
-    panelProps.onSheetExpand()
-    panelProps.onSheetCollapse()
     panelProps.onTabChange('insights')
     panelProps.onFeedbackItemPress(createItem({ id: '1', timestamp: 2000, text: 'test' }))
 
-    expect(props.onExpand).toHaveBeenCalled()
-    expect(props.onCollapse).toHaveBeenCalled()
     expect(props.onTabChange).toHaveBeenCalledWith('insights')
     expect(props.onItemPress).toHaveBeenCalled()
   })

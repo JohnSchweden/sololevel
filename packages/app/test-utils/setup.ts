@@ -396,6 +396,45 @@ jest.mock('@my/ui', () => {
 // @ui/components/VideoAnalysis mocks are defined in individual test files
 // to avoid conflicts and allow test-specific behavior
 
+// Mock @ui/components/VideoAnalysis
+jest.mock('@ui/components/VideoAnalysis', () => {
+  const React = require('react')
+  return {
+    AudioFeedback: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'AudioFeedback', ...props }, children),
+    VideoPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoPlayer', ...props }, children),
+    VideoControls: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoControls', ...props }, children),
+    VideoPlayerArea: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'VideoPlayerArea', ...props },
+        children
+      ),
+    VideoContainer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'VideoContainer', ...props }, children),
+    MotionCaptureOverlay: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'MotionCaptureOverlay', ...props },
+        children
+      ),
+    FeedbackBubbles: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'FeedbackBubbles', ...props },
+        children
+      ),
+    CoachAvatar: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'CoachAvatar', ...props }, children),
+    SocialIcons: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'SocialIcons', ...props }, children),
+    AudioPlayer: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'AudioPlayer', ...props }, children),
+  }
+})
+
 // Mock @my/config
 jest.mock('@my/config', () => ({
   PoseData: [],
@@ -782,3 +821,113 @@ jest.mock('@my/logging', () => ({
   },
   logOnChange: jest.fn(),
 }))
+
+// Mock react-native-reanimated for animation hooks
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+  return {
+    useAnimatedStyle: () => ({}),
+    useAnimatedReaction: () => {},
+    useSharedValue: (initialValue: any) => ({
+      value: initialValue,
+    }),
+    useDerivedValue: (callback: () => any) => ({
+      value: callback(),
+    }),
+    useAnimatedGestureHandler: (handler: any) => handler,
+    withSpring: (targetValue: any) => targetValue,
+    withTiming: (targetValue: any) => targetValue,
+    scrollTo: jest.fn(),
+    interpolate: (value: any, inputRange: any, outputRange: any) => {
+      if (inputRange.length !== 2 || outputRange.length !== 2) return outputRange[0]
+      const [inMin, inMax] = inputRange
+      const [outMin, outMax] = outputRange
+      const ratio = (value - inMin) / (inMax - inMin)
+      return outMin + ratio * (outMax - outMin)
+    },
+    Extrapolation: {
+      CLAMP: 'clamp',
+      EXTEND: 'extend',
+    },
+    runOnJS: (fn: any) => fn,
+    runOnUI: (fn: any) => fn,
+    createAnimatedStyle: () => ({}),
+    Animated: {
+      View: ({ children, style, testID, ...props }: any) =>
+        React.createElement('div', { style, 'data-testid': testID, ...props }, children),
+      Text: ({ children, style, testID, ...props }: any) =>
+        React.createElement('span', { style, 'data-testid': testID, ...props }, children),
+      ScrollView: ({ children, style, testID, ...props }: any) =>
+        React.createElement(
+          'div',
+          { style: { ...style, overflow: 'auto' }, 'data-testid': testID, ...props },
+          children
+        ),
+    },
+    Easing: {
+      linear: (t: number) => t,
+      easeIn: (t: number) => t * t,
+      easeOut: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
+      easeInOut: (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
+      quad: (t: number) => t * t,
+      cubic: (t: number) => t * t * t,
+      quart: (t: number) => t * t * t * t,
+      quint: (t: number) => t * t * t * t * t,
+      sine: (t: number) => 1 - Math.cos((t * Math.PI) / 2),
+      expo: (t: number) => 2 ** (10 * (t - 1)),
+      circ: (t: number) => 1 - Math.sqrt(1 - t * t),
+      back: (t: number) => t * t * (2.70158 * t - 1.70158),
+      bounce: (t: number) => {
+        if (t < 1 / 2.75) {
+          return 7.5625 * t * t
+        }
+        if (t < 2 / 2.75) {
+          return 7.5625 * (t - 1.5 / 2.75) * t + 0.75
+        }
+        if (t < 2.5 / 2.75) {
+          return 7.5625 * (t - 2.25 / 2.75) * t + 0.9375
+        }
+        return 7.5625 * (t - 2.625 / 2.75) * t + 0.984375
+      },
+      bezier: (_x1: number, _y1: number, _x2: number, _y2: number) => (t: number) => t,
+    },
+    useAnimatedRef: () => React.useRef(null),
+  }
+})
+
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react')
+  return {
+    Gesture: {
+      Pan: jest.fn(() => ({
+        onUpdate: jest.fn(),
+        onFinalize: jest.fn(),
+      })),
+      Tap: jest.fn(() => ({
+        onEnd: jest.fn(),
+      })),
+      LongPress: jest.fn(() => ({
+        onStart: jest.fn(),
+      })),
+      Pinch: jest.fn(() => ({
+        onUpdate: jest.fn(),
+      })),
+      Rotation: jest.fn(() => ({
+        onUpdate: jest.fn(),
+      })),
+      Fling: jest.fn(() => ({
+        onEnd: jest.fn(),
+      })),
+      Race: jest.fn((...gestures: any) => gestures[0]),
+      Simultaneous: jest.fn((...gestures: any) => gestures[0]),
+      Exclusive: jest.fn((...gestures: any) => gestures[0]),
+    },
+    GestureDetector: ({ children }: { children: any; gesture?: any }) =>
+      React.createElement(React.Fragment, null, children),
+    GestureHandlerRootView: ({ children, ...props }: any) =>
+      React.createElement('div', { ...props }, children),
+    gestureHandlerRootHOC: (Component: any) => Component,
+    createNativeWrapper: (Component: any) => Component,
+  }
+})

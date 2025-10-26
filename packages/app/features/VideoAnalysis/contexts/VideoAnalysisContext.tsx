@@ -5,6 +5,7 @@ import type { FeedbackPanelItem } from '../types'
 export interface VideoAnalysisContextValue {
   videoUri: string | null
   feedbackItems: FeedbackPanelItem[]
+  isPullingToReveal: boolean
 }
 
 const VideoAnalysisContext = createContext<VideoAnalysisContextValue | null>(null)

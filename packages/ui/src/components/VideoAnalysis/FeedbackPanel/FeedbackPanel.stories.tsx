@@ -65,8 +65,9 @@ export const Collapsed: Story = {
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
     onTabChange: (tab) => log.debug('FeedbackPanel', 'Tab changed to', { tab }),
-    onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
-    onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
+    // TEMP_DISABLED: Sheet expand/collapse for static layout
+    // onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
+    // onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
     onFeedbackItemPress: (item) => log.debug('FeedbackPanel', 'Feedback item pressed', { item }),
   },
   decorators: [
@@ -91,8 +92,9 @@ export const ExpandedFeedback: Story = {
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
     onTabChange: (tab) => log.debug('FeedbackPanel', 'Tab changed to', { tab }),
-    onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
-    onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
+    // TEMP_DISABLED: Sheet expand/collapse for static layout
+    // onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
+    // onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
     onFeedbackItemPress: (item) => log.debug('FeedbackPanel', 'Feedback item pressed', { item }),
   },
   decorators: [
@@ -117,8 +119,9 @@ export const ExpandedInsights: Story = {
     activeTab: 'insights',
     feedbackItems: mockFeedbackItems,
     onTabChange: (tab) => log.debug('FeedbackPanel', 'Tab changed to', { tab }),
-    onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
-    onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
+    // TEMP_DISABLED: Sheet expand/collapse for static layout
+    // onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
+    // onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
     onFeedbackItemPress: (item) => log.debug('FeedbackPanel', 'Feedback item pressed', { item }),
   },
   decorators: [
@@ -143,8 +146,9 @@ export const ExpandedComments: Story = {
     activeTab: 'comments',
     feedbackItems: mockFeedbackItems,
     onTabChange: (tab) => log.debug('FeedbackPanel', 'Tab changed to', { tab }),
-    onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
-    onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
+    // TEMP_DISABLED: Sheet expand/collapse for static layout
+    // onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
+    // onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
     onFeedbackItemPress: (item) => log.debug('FeedbackPanel', 'Feedback item pressed', { item }),
   },
   decorators: [
@@ -169,8 +173,9 @@ export const HighEngagement: Story = {
     activeTab: 'feedback',
     feedbackItems: mockFeedbackItems,
     onTabChange: (tab) => log.debug('FeedbackPanel', 'Tab changed to', { tab }),
-    onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
-    onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
+    // TEMP_DISABLED: Sheet expand/collapse for static layout
+    // onSheetExpand: () => log.debug('FeedbackPanel', 'Panel expanded'),
+    // onSheetCollapse: () => log.debug('FeedbackPanel', 'Panel collapsed'),
     onFeedbackItemPress: (item) => log.debug('FeedbackPanel', 'Feedback item pressed', { item }),
   },
   decorators: [

@@ -2,7 +2,7 @@ import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
 import { useMemo } from 'react'
 import { Platform, StyleSheet, View, useColorScheme } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'tamagui'
 
 /**
@@ -41,6 +41,11 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
   const { navigation, back, options, route } = props
   const navOptions = options as unknown as NavAppHeaderOptions
   const colorScheme = useColorScheme()
+  const insets = useSafeAreaInsets()
+
+  // Keep a stable top inset on iOS to avoid header jumping when status bar toggles
+  // On Android we continue relying on SafeAreaView's top edge behavior
+  const topInset = Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top
 
   const tintColor = options.headerTintColor ?? undefined
   const isTransparent = options.headerTransparent ?? false
@@ -122,9 +127,11 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
   return (
     <SafeAreaView
-      edges={['top', 'left', 'right']}
+      // Avoid using the top edge on iOS to prevent layout shifts when status bar shows/hides
+      edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'left', 'right']}
       style={[styles.safeArea, { backgroundColor }]}
     >
+      {Platform.OS === 'ios' ? <View style={{ height: topInset, backgroundColor }} /> : null}
       <View style={styles.wrapper}>
         <Stack>
           <AppHeader {...appHeaderProps} />

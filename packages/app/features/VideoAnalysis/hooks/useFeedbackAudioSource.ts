@@ -31,22 +31,22 @@ export function useFeedbackAudioSource(
   const inFlightRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    log.debug(CONTEXT, 'useFeedbackAudioSource: Processing feedback items', {
-      totalItems: feedbackItems.length,
-      itemsByStatus: feedbackItems.reduce(
-        (acc, item) => {
-          const status = item.audioStatus || 'undefined'
-          acc[status] = (acc[status] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>
-      ),
-      itemDetails: feedbackItems.map((item) => ({
-        id: item.id,
-        audioStatus: item.audioStatus,
-        timestamp: item.timestamp,
-      })),
-    })
+    // log.debug(CONTEXT, 'useFeedbackAudioSource: Processing feedback items', {
+    //   totalItems: feedbackItems.length,
+    //   itemsByStatus: feedbackItems.reduce(
+    //     (acc, item) => {
+    //       const status = item.audioStatus || 'undefined'
+    //       acc[status] = (acc[status] || 0) + 1
+    //       return acc
+    //     },
+    //     {} as Record<string, number>
+    //   ),
+    //   itemDetails: feedbackItems.map((item) => ({
+    //     id: item.id,
+    //     audioStatus: item.audioStatus,
+    //     timestamp: item.timestamp,
+    //   })),
+    // })
 
     feedbackItems.forEach((item) => {
       if (!item || item.audioStatus !== 'completed') {
@@ -71,9 +71,9 @@ export function useFeedbackAudioSource(
       if (Number.isNaN(numericId)) {
         // For non-numeric IDs (like mock data), skip audio fetch silently
         // This is expected behavior for mock/seed data
-        log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
-          feedbackId,
-        })
+        // log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
+        //   feedbackId,
+        // })
         return
       }
 

@@ -1,0 +1,439 @@
+# VideoAnalysisScreen Dependency Graph
+
+## Hook Dependency Flow
+
+```mermaid
+graph TB
+    %% Main Component
+    VAS[VideoAnalysisScreen<br/>1131 lines]
+    
+    %% Props Input
+    PROPS[Props Input<br/>analysisJobId<br/>videoRecordingId<br/>videoUri<br/>initialStatus]
+    
+    %% Core State Hooks
+    HIST[useHistoricalAnalysis<br/>Loads historical data]
+    ANALYSIS[useAnalysisState<br/>Analysis lifecycle]
+    PLAYBACK[useVideoPlayback<br/>Video state]
+    CONTROLS[useVideoControls<br/>UI controls]
+    
+    %% Audio Hooks
+    AUDIO_SRC[useFeedbackAudioSource<br/>Audio URL resolution]
+    AUDIO_CTL[useAudioController<br/>Audio playback]
+    AUDIO_SYNC[useVideoAudioSync<br/>Video/Audio coordination]
+    
+    %% Feedback Hooks
+    COORDINATOR[useFeedbackCoordinator<br/>Feedback orchestration]
+    PANEL[useFeedbackPanel<br/>Panel UI state]
+    
+    %% Utility Hooks
+    AUTOPLAY[useAutoPlayOnReady<br/>Auto-play logic]
+    STATUSBAR[useStatusBar<br/>Native status bar]
+    
+    %% Components
+    VIDEO_SECTION[VideoPlayerSection]
+    FEEDBACK_SECTION[FeedbackSection]
+    PROCESSING[ProcessingIndicator]
+    ERROR[UploadErrorState]
+    
+    %% Context
+    CONTEXT[VideoAnalysisProvider<br/>Context value]
+    
+    %% Dependencies Flow
+    PROPS --> VAS
+    VAS --> HIST
+    VAS --> ANALYSIS
+    VAS --> PLAYBACK
+    VAS --> CONTROLS
+    VAS --> AUDIO_SRC
+    VAS --> AUDIO_CTL
+    VAS --> AUDIO_SYNC
+    VAS --> COORDINATOR
+    VAS --> PANEL
+    VAS --> AUTOPLAY
+    VAS --> STATUSBAR
+    
+    %% Hook Interdependencies
+    HIST -.->|analysisJobId| ANALYSIS
+    ANALYSIS -.->|feedbackItems| AUDIO_SRC
+    ANALYSIS -.->|feedbackItems| COORDINATOR
+    AUDIO_SRC -.->|audioUrls| COORDINATOR
+    AUDIO_CTL -.->|playback state| COORDINATOR
+    PLAYBACK -.->|video state| COORDINATOR
+    PLAYBACK -.->|isPlaying| AUDIO_SYNC
+    AUDIO_CTL -.->|isPlaying| AUDIO_SYNC
+    PLAYBACK -.->|isProcessing| CONTROLS
+    COORDINATOR -.->|highlightedId| PANEL
+    PLAYBACK -.->|isProcessing| AUTOPLAY
+    
+    %% Component Dependencies
+    VAS --> VIDEO_SECTION
+    VAS --> FEEDBACK_SECTION
+    VAS --> PROCESSING
+    VAS --> ERROR
+    VAS --> CONTEXT
+    
+    %% Styling
+    classDef mainComponent fill:#ff6b6b,stroke:#c92a2a,stroke-width:3px,color:#fff
+    classDef coreHook fill:#4dabf7,stroke:#1971c2,stroke-width:2px,color:#fff
+    classDef audioHook fill:#51cf66,stroke:#2f9e44,stroke-width:2px,color:#fff
+    classDef feedbackHook fill:#ffd43b,stroke:#f59f00,stroke-width:2px,color:#000
+    classDef utilityHook fill:#e599f7,stroke:#9c36b5,stroke-width:2px,color:#fff
+    classDef component fill:#74c0fc,stroke:#1864ab,stroke-width:2px,color:#fff
+    classDef context fill:#ffa94d,stroke:#e8590c,stroke-width:2px,color:#fff
+    
+    class VAS mainComponent
+    class HIST,ANALYSIS,PLAYBACK,CONTROLS coreHook
+    class AUDIO_SRC,AUDIO_CTL,AUDIO_SYNC audioHook
+    class COORDINATOR,PANEL feedbackHook
+    class AUTOPLAY,STATUSBAR utilityHook
+    class VIDEO_SECTION,FEEDBACK_SECTION,PROCESSING,ERROR component
+    class CONTEXT context
+```
+
+## Hook Details
+
+### 1. useHistoricalAnalysis
+**Purpose:** Load historical analysis data when viewing past recordings  
+**Inputs:**
+- `analysisJobId: number | null` (from props)
+
+**Outputs:**
+- `isLoading: boolean`
+- `data: { videoUri, thumbnail, feedback } | null`
+- `error: Error | null`
+
+**Dependencies:** None (TanStack Query)  
+**State:** Immutable historical data (`staleTime: Infinity`)
+
+---
+
+### 2. useAnalysisState
+**Purpose:** Manage analysis lifecycle (upload → analyze → feedback)  
+**Inputs:**
+- `analysisJobId?: number`
+- `videoRecordingId?: number`
+- `initialStatus: 'processing' | 'ready'`
+- `isHistoryMode: boolean`
+
+**Outputs:**
+- `phase: AnalysisPhase` (uploading | analyzing | generating-feedback | ready | error)
+- `isProcessing: boolean`
+- `progress: { upload, analysis, feedback }`
+- `feedback: FeedbackState` (from useFeedbackStatusIntegration)
+- `thumbnailUrl?: string`
+- `error: { phase, message } | null`
+- `retry: () => Promise<void>`
+
+**Dependencies:**
+- Zustand stores: `useAnalysisSubscriptionStore`, `useUploadProgressStore`, `useVideoHistoryStore`
+- Supabase Realtime subscriptions
+- `useFeedbackStatusIntegration` (nested hook)
+
+**Complexity:** HIGH (490 lines, multiple store integrations)
+
+---
+
+### 3. useVideoPlayback
+**Purpose:** Video playback state management  
+**Inputs:**
+- `initialStatus: 'processing' | 'ready' | 'playing' | 'paused'`
+
+**Outputs:**
+- `isPlaying: boolean`
+- `currentTime: number`
+- `duration: number`
+- `pendingSeek: number | null`
+- `videoEnded: boolean`
+- `play(), pause(), replay(), seek(time)`
+- `handleProgress(), handleLoad(), handleEnd(), handleSeekComplete()`
+
+**Dependencies:** None (pure state management)  
+**Complexity:** LOW (142 lines, straightforward)
+
+---
+
+### 4. useVideoControls
+**Purpose:** Video controls UI visibility logic  
+**Inputs:**
+- `isProcessing: boolean`
+- `isPlaying: boolean`
+- `videoEnded: boolean`
+
+**Outputs:**
+- `showControls: boolean`
+- `setControlsVisible: (visible: boolean) => void`
+
+**Dependencies:** None  
+**Complexity:** LOW (simple derived state)
+
+---
+
+### 5. useFeedbackAudioSource
+**Purpose:** Resolve feedback audio URLs from analysis state  
+**Inputs:**
+- `feedbackItems: FeedbackPanelItem[]`
+
+**Outputs:**
+- `audioUrls: Record<string, string>` (feedbackId → audio URL)
+- `activeAudio: { id, url } | null`
+- `errors: Record<string, string>`
+- `clearError: (feedbackId: string) => void`
+
+**Dependencies:**
+- Zustand store: `useFeedbackAudioStore`
+- Supabase Storage (signed URLs)
+
+**Complexity:** MEDIUM (audio URL resolution, error handling)
+
+---
+
+### 6. useAudioController
+**Purpose:** Audio player state management  
+**Inputs:**
+- `audioUrl: string | null`
+
+**Outputs:**
+- `isPlaying: boolean`
+- `currentTime: number`
+- `duration: number`
+- `isLoaded: boolean`
+- `seekTime: number | null`
+- `setIsPlaying(), togglePlayback(), seekTo(time)`
+- `handleLoad(), handleProgress(), handleEnd(), handleError()`
+
+**Dependencies:** None (pure audio state)  
+**Complexity:** MEDIUM (232 lines, audio lifecycle)
+
+---
+
+### 7. useVideoAudioSync
+**Purpose:** Coordinate video/audio playback (pause video when audio plays)  
+**Inputs:**
+- `isVideoPlaying: boolean`
+- `isAudioActive: boolean`
+
+**Outputs:**
+- `shouldPlayVideo: boolean` (video && !audio)
+- `shouldPlayAudio: boolean`
+- `isVideoPausedForAudio: boolean`
+
+**Dependencies:** None (pure derived state)  
+**Complexity:** LOW (56 lines, simple logic)
+
+---
+
+### 8. useFeedbackCoordinator
+**Purpose:** Orchestrate feedback highlighting, audio playback, and bubble display  
+**Inputs:**
+- `feedbackItems: FeedbackPanelItem[]`
+- `feedbackAudio: FeedbackAudioSourceState`
+- `audioController: AudioControllerState`
+- `videoPlayback: VideoPlaybackState`
+
+**Outputs:**
+- `highlightedFeedbackId: string | null`
+- `isCoachSpeaking: boolean`
+- `bubbleState: { currentBubbleIndex, bubbleVisible }`
+- `overlayVisible: boolean`
+- `activeAudio: { id, url } | null`
+- `onProgressTrigger(time), onUserTapFeedback(item), onPlay()`
+- `onPanelCollapse(), onAudioOverlayClose(), onAudioOverlayInactivity()`
+
+**Dependencies:**
+- `useFeedbackSelection` (nested hook)
+- `useBubbleController` (nested hook)
+
+**Complexity:** HIGH (409 lines, complex coordination logic)
+
+---
+
+### 9. useFeedbackPanel
+**Purpose:** Feedback panel UI state (expand/collapse, tab switching)  
+**Inputs:**
+- `highlightedFeedbackId?: string | null`
+
+**Outputs:**
+- `panelFraction: number` (0.05 collapsed, 0.4 expanded)
+- `isExpanded: boolean`
+- `activeTab: 'feedback' | 'insights' | 'comments'`
+- `selectedFeedbackId: string | null`
+- `expand(), collapse(), toggle()`
+- `setActiveTab(tab), selectFeedback(id), clearSelection()`
+
+**Dependencies:** None  
+**Complexity:** LOW (132 lines, simple UI state)  
+**Note:** Currently stubbed for static layout (TEMP_DISABLED)
+
+---
+
+### 10. useAutoPlayOnReady
+**Purpose:** Auto-play video when analysis completes  
+**Inputs:**
+- `isProcessing: boolean`
+- `isPlaying: boolean`
+- `play: () => void`
+
+**Outputs:** None (side effect only)
+
+**Dependencies:** None  
+**Complexity:** LOW (auto-play trigger)
+
+---
+
+### 11. useStatusBar
+**Purpose:** Hide/show native status bar  
+**Inputs:**
+- `hidden: boolean`
+- `animation: 'fade' | 'slide' | 'none'`
+
+**Outputs:** None (side effect only)
+
+**Dependencies:** React Navigation, Expo StatusBar  
+**Complexity:** LOW (native UI control)
+
+---
+
+## State Ownership Analysis
+
+### Video State
+**Owner:** `useVideoPlayback`  
+**Consumers:** `useVideoControls`, `useVideoAudioSync`, `useFeedbackCoordinator`, `useAutoPlayOnReady`
+
+### Audio State
+**Owner:** `useAudioController`  
+**Consumers:** `useVideoAudioSync`, `useFeedbackCoordinator`
+
+### Feedback State
+**Owner:** `useAnalysisState` (via `useFeedbackStatusIntegration`)  
+**Consumers:** `useFeedbackAudioSource`, `useFeedbackCoordinator`, `useFeedbackPanel`
+
+### UI State
+**Owner:** `useFeedbackPanel`  
+**Consumers:** VideoAnalysisScreen (for rendering)
+
+---
+
+## Callback Propagation Analysis
+
+### Deep Prop Drilling (5+ levels)
+1. `onSeek` → VideoPlayerSection → VideoControls → SeekBar → onValueChange
+2. `onFeedbackItemPress` → FeedbackSection → FeedbackPanel → FeedbackList → FeedbackCard → onPress
+3. `onControlsVisibilityChange` → VideoPlayerSection → VideoControls → onVisibilityChange
+
+### Handler Aggregation Opportunities
+Current: 12+ individual `useCallback` handlers in VideoAnalysisScreen  
+**Recommendation:** Aggregate into command objects:
+```typescript
+const videoHandlers = { onPlay, onPause, onSeek, onSeekComplete, onLoad, onEnd }
+const feedbackHandlers = { onItemPress, onCollapsePanel, onSelectAudio, onScrollY }
+const socialHandlers = { onShare, onLike, onComment, onBookmark }
+```
+
+---
+
+## Circular Dependency Detection
+
+### No Circular Dependencies Found ✅
+All hooks follow unidirectional data flow:
+1. Props → Core State Hooks (Analysis, Playback)
+2. Core State → Derived Hooks (Audio Source, Controls)
+3. Derived State → Coordinator Hooks (FeedbackCoordinator)
+4. Coordinator → UI Hooks (FeedbackPanel)
+
+---
+
+## Coupling Issues
+
+### High Coupling
+1. **useFeedbackCoordinator** ← Depends on 4 other hooks (feedbackItems, feedbackAudio, audioController, videoPlayback)
+   - **Impact:** Difficult to test in isolation
+   - **Recommendation:** Extract into orchestrator pattern
+
+2. **useAnalysisState** ← Depends on 3 Zustand stores + Supabase Realtime
+   - **Impact:** Complex state synchronization
+   - **Recommendation:** Already well-isolated, but consider extracting Realtime logic
+
+### Medium Coupling
+3. **useFeedbackAudioSource** ← Depends on feedbackItems + Zustand store
+   - **Impact:** Moderate complexity
+   - **Recommendation:** Acceptable for current scope
+
+---
+
+## Performance Considerations
+
+### Re-render Triggers
+1. **useAnalysisState** updates trigger cascading re-renders:
+   - feedbackItems change → useFeedbackAudioSource → useFeedbackCoordinator → useFeedbackPanel
+   - **Mitigation:** Memoize feedbackItems array
+
+2. **useVideoPlayback** currentTime updates at 60fps:
+   - **Mitigation:** Already throttled in handleProgress (0.01s threshold)
+
+3. **useFeedbackCoordinator** complex state updates:
+   - **Mitigation:** Consider splitting into smaller hooks
+
+---
+
+## Import Complexity
+
+### Total Imports: 42
+- React core: 6 (useCallback, useEffect, useMemo, useRef, useState, Platform)
+- React Native: 2 (Dimensions, Platform)
+- Gesture Handler: 3 (Gesture, GestureDetector, GestureHandlerRootView)
+- Reanimated: 10 (animations, worklets)
+- Tamagui: 1 (YStack)
+- Internal hooks: 11 (useAnalysisState, useVideoPlayback, etc.)
+- Internal components: 4 (FeedbackSection, VideoPlayerSection, etc.)
+- Types: 3 (FeedbackPanelItem, AnalysisPhase, VideoControlsRef)
+- Utils: 2 (FALLBACK_VIDEO_URI, log)
+
+**Recommendation:** Reduce by extracting gesture/animation logic into dedicated hooks
+
+---
+
+## Summary Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total Lines | 1,131 |
+| Custom Hooks | 11 |
+| React Hooks | 6 (useState, useEffect, useCallback, useMemo, useRef, useSharedValue) |
+| Local State Variables | 12+ |
+| Reanimated Shared Values | 8+ |
+| useCallback Handlers | 12+ |
+| Component Imports | 4 |
+| Platform Branching | 2 render trees (native/web) |
+| Gesture Logic Lines | ~230 (lines 353-582) |
+| Animation Logic Lines | ~70 (lines 584-651) |
+| Native Render Tree | ~190 (lines 847-1039) |
+| Web Render Tree | ~90 (lines 1042-1129) |
+
+---
+
+## Refactoring Recommendations
+
+### Priority 1: Extract Gesture Logic
+- **Lines:** 353-582 (~230 lines)
+- **Target:** `useGestureController` hook
+- **Benefit:** Testable gesture logic, reduced main component size
+
+### Priority 2: Extract Animation Logic
+- **Lines:** 584-651 (~70 lines)
+- **Target:** `useAnimationController` hook
+- **Benefit:** Isolated animation calculations, clearer interpolation logic
+
+### Priority 3: Extract Platform Layouts
+- **Lines:** 847-1039 (native), 1042-1129 (web)
+- **Target:** `VideoAnalysisLayout.native.tsx`, `VideoAnalysisLayout.web.tsx`
+- **Benefit:** Platform-specific code separation, smaller bundle size
+
+### Priority 4: Create Orchestrator Hook
+- **Target:** `useVideoAnalysisOrchestrator`
+- **Benefit:** Single hook coordination point, simplified testing
+
+### Expected Outcome
+- Main component: 1,131 → ~200 lines (83% reduction)
+- New modules: 5 hooks + 2 layout components
+- Improved testability and maintainability
+

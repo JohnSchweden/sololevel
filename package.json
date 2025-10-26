@@ -173,7 +173,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.3",
-    "@gorhom/bottom-sheet": "^5.2.3",
+    "@gorhom/bottom-sheet": "^5.2.6",
     "@playwright/test": "^1.55.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",

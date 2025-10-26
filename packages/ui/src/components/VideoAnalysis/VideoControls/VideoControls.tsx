@@ -18,7 +18,7 @@ import React, {
   useImperativeHandle,
 } from 'react'
 import { PanResponder, Pressable, View } from 'react-native'
-import { Button, Text, XStack, YStack } from 'tamagui'
+import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
 export interface VideoControlsRef {
@@ -32,12 +32,10 @@ export interface VideoControlsProps {
   showControls: boolean
   isProcessing?: boolean
   videoEnded?: boolean
-  scaleFactor?: number // Scale factor for proportional sizing when feedback panel is expanded
   onPlay: () => void
   onPause: () => void
   onReplay?: () => void
   onSeek: (time: number) => void
-  onToggleFullscreen?: () => void
   onControlsVisibilityChange?: (visible: boolean) => void
   onMenuPress?: () => void
   headerComponent?: React.ReactNode
@@ -53,12 +51,10 @@ export const VideoControls = React.memo(
         showControls,
         isProcessing = false,
         videoEnded = false,
-        scaleFactor = 1.0,
         onPlay,
         onPause,
         onReplay,
         onSeek,
-        onToggleFullscreen,
         onControlsVisibilityChange,
         onMenuPress,
         headerComponent,
@@ -179,12 +175,28 @@ export const VideoControls = React.memo(
         [progressBarWidth]
       )
 
-      // PanResponder for scrubbing functionality
+      // PanResponder for scrubbing functionality with gesture direction detection
       const panResponder = React.useMemo(
         () =>
           PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => {
+              // Always capture initial touch for potential horizontal gesture
+              return true
+            },
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+              // Only respond to horizontal gestures to prevent vertical scrolling interference
+              const { dx, dy } = gestureState
+              const horizontalThreshold = 10 // Minimum horizontal movement to trigger seeking
+              const verticalThreshold = 20 // Maximum vertical movement allowed before rejecting
+
+              // If vertical movement exceeds threshold, don't capture the gesture
+              if (Math.abs(dy) > verticalThreshold && Math.abs(dx) < horizontalThreshold) {
+                return false
+              }
+
+              // Capture if horizontal movement is significant
+              return Math.abs(dx) > horizontalThreshold
+            },
             onPanResponderGrant: (event) => {
               setIsScrubbing(true)
               showControlsAndResetTimer()
@@ -198,8 +210,17 @@ export const VideoControls = React.memo(
                 onSeek(seekTime)
               }
             },
-            onPanResponderMove: (event) => {
-              // Update scrubber position during drag
+            onPanResponderMove: (event, gestureState) => {
+              // Only update if this is a horizontal gesture
+              const { dx, dy } = gestureState
+              const horizontalThreshold = 5
+
+              // Ignore primarily vertical movements
+              if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > horizontalThreshold) {
+                return
+              }
+
+              // Update scrubber position during horizontal drag
               const { locationX } = event.nativeEvent
               const seekPercentage = computeSeekPercentage(locationX)
               setScrubbingPosition(seekPercentage)
@@ -213,6 +234,11 @@ export const VideoControls = React.memo(
               setScrubbingPosition(null)
             },
             onPanResponderTerminate: () => {
+              setIsScrubbing(false)
+              setScrubbingPosition(null)
+            },
+            onPanResponderReject: () => {
+              // Clean up if gesture was rejected
               setIsScrubbing(false)
               setScrubbingPosition(null)
             },
@@ -267,7 +293,7 @@ export const VideoControls = React.memo(
               y="-50%"
               justifyContent="center"
               alignItems="center"
-              gap="$4"
+              gap="$8"
               accessibilityLabel="Video playback controls"
               opacity={isProcessing ? 0 : 1}
               pointerEvents={isProcessing ? 'none' : 'auto'}
@@ -275,13 +301,16 @@ export const VideoControls = React.memo(
               <GlassButton
                 icon={
                   <SkipBack
-                    size={20 * scaleFactor}
+                    size={24}
                     color="$color"
                   />
                 }
-                minWidth={60 * scaleFactor}
-                minHeight={60 * scaleFactor}
-                borderRadius={60 * scaleFactor}
+                minWidth={40}
+                minHeight={40}
+                blurTint="dark"
+                blurIntensity={15}
+                borderWidth={0}
+                edgeGlowIntensity={0.3}
                 onPress={() => {
                   showControlsAndResetTimer()
                   onSeek(Math.max(0, currentTime - 10))
@@ -294,25 +323,28 @@ export const VideoControls = React.memo(
                 icon={
                   videoEnded ? (
                     <RotateCcw
-                      size={35 * scaleFactor}
+                      size={35}
                       color="$color"
                     />
                   ) : isPlaying ? (
                     <Pause
-                      size={35 * scaleFactor}
+                      size={35}
                       color="$color"
                     />
                   ) : (
                     <Play
-                      size={35 * scaleFactor}
+                      size={35}
                       color="$color"
                     />
                   )
                 }
-                minWidth={80 * scaleFactor}
-                minHeight={80 * scaleFactor}
-                borderRadius={70 * scaleFactor}
+                minWidth={54}
+                minHeight={54}
+                blurTint="dark"
+                blurIntensity={15}
                 overlayOpacity={0.5}
+                borderWidth={0}
+                edgeGlowIntensity={0.3}
                 onPress={() => {
                   showControlsAndResetTimer()
                   if (videoEnded && onReplay) {
@@ -336,13 +368,16 @@ export const VideoControls = React.memo(
               <GlassButton
                 icon={
                   <SkipForward
-                    size={20 * scaleFactor}
+                    size={24}
                     color="$color"
                   />
                 }
-                minWidth={60 * scaleFactor}
-                minHeight={60 * scaleFactor}
-                borderRadius={50 * scaleFactor}
+                minWidth={40}
+                minHeight={40}
+                blurTint="dark"
+                blurIntensity={15}
+                borderWidth={0}
+                edgeGlowIntensity={0.3}
                 onPress={() => {
                   showControlsAndResetTimer()
                   onSeek(Math.min(duration, currentTime + 10))
@@ -359,7 +394,7 @@ export const VideoControls = React.memo(
               <XStack
                 justifyContent="space-between"
                 alignItems="center"
-                paddingBottom="$6"
+                paddingBottom="$2"
                 accessibilityLabel="Video time and controls"
               >
                 {/* Time Display - Left side */}
@@ -371,21 +406,20 @@ export const VideoControls = React.memo(
                   <Text
                     fontSize="$3"
                     color="$color"
-                    fontWeight="bold"
                     testID="current-time"
                   >
                     {formatTime(currentTime)}
                   </Text>
                   <Text
                     fontSize="$3"
-                    color="$color"
+                    color="$color11"
                     marginHorizontal="$1"
                   >
                     /
                   </Text>
                   <Text
                     fontSize="$3"
-                    color="$color"
+                    color="$color11"
                     testID="total-time"
                   >
                     {formatTime(duration)}
@@ -393,7 +427,7 @@ export const VideoControls = React.memo(
                 </XStack>
 
                 {/* Fullscreen Button - Right side */}
-                <Button
+                {/* <Button
                   chromeless
                   // icon={<Maximize2 />}
                   size={44}
@@ -406,25 +440,27 @@ export const VideoControls = React.memo(
                   accessibilityLabel="Toggle fullscreen mode"
                   accessibilityRole="button"
                   accessibilityHint="Tap to enter or exit fullscreen mode"
-                />
+                /> */}
               </XStack>
             </YStack>
 
             {/* Progress Bar - Absolutely positioned at bottom, aligned with feedback panel */}
             <YStack
-              position="absolute"
-              bottom={5}
+              position="relative"
+              bottom={0}
               //bottom={-10} // Extend slightly below video area to align with feedback panel
               left={0}
               right={0}
-              height={40}
+              height={30}
               justifyContent="center"
               testID="progress-bar-container"
               zIndex={30}
+              // Prevent vertical scrolling in this area
+              pointerEvents="box-none"
             >
               {/* Background track */}
               <YStack
-                height={28}
+                height={4}
                 backgroundColor="$color3"
                 borderRadius={2}
                 position="relative"
@@ -451,13 +487,13 @@ export const VideoControls = React.memo(
                   position="absolute"
                   left={`${progress}%`}
                   top={0}
-                  width={24}
-                  height={24}
+                  width={14}
+                  height={14}
                   marginLeft={-12}
-                  marginTop={-10}
+                  marginTop={-6}
                   backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
                   borderRadius={12}
-                  borderWidth={3}
+                  borderWidth={0}
                   borderColor="$color12"
                   opacity={controlsVisible || isScrubbing ? 1 : 0.7}
                   animation="quick"
@@ -471,18 +507,22 @@ export const VideoControls = React.memo(
               <View
                 style={{
                   position: 'absolute',
-                  top: -10,
+                  top: 4,
                   left: 0,
                   right: 0,
-                  height: 44,
+                  height: 20,
                   backgroundColor: 'transparent',
+                  // Improve touch responsiveness
+                  zIndex: 1,
                 }}
                 {...panResponder.panHandlers}
                 accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
                 accessibilityRole="progressbar"
                 accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
-                accessibilityHint="Tap and drag to scrub through video"
+                accessibilityHint="Tap and drag horizontally to scrub through video"
                 testID="progress-scrubber"
+                // Prevent vertical scrolling from interfering
+                pointerEvents="auto"
               />
             </YStack>
 

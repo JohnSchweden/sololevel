@@ -63,9 +63,10 @@ load_blocked_commands() {
 
   BLOCKED_COMMANDS=()
   local line
+  # Use process substitution instead of heredoc to avoid temp file issues
   while IFS=$'\n' read -r line; do
     [[ -n "$line" ]] && BLOCKED_COMMANDS+="$line"
-  done <<< "$commands"
+  done < <(echo "$commands")
 
   COMMAND_RULES_LOADED=1
 

@@ -12,6 +12,7 @@ import {
 } from '@ui/components/CameraRecording'
 
 // Test minimal hook to isolate issue
+import { useStatusBar } from '@app/hooks/useStatusBar'
 import { log } from '@my/logging'
 //import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 // Import external components directly
@@ -42,6 +43,9 @@ export function CameraRecordingScreen({
   onDevNavigate,
   resetToIdle,
 }: CameraRecordingScreenProps) {
+  // Hide status bar when this screen is focused
+  useStatusBar(true, 'fade')
+
   useKeepAwake()
   //const insets = useSafeArea()
   //const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component

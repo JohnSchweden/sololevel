@@ -5,6 +5,7 @@ import { YStack } from 'tamagui'
 
 import { FeedbackPanel } from '@ui/components/VideoAnalysis'
 
+import { useVideoAnalysisContext } from '../contexts/VideoAnalysisContext'
 import type { FeedbackPanelItem } from '../types'
 
 interface FeedbackSectionProps {
@@ -24,6 +25,10 @@ interface FeedbackSectionProps {
   onRetryFeedback: (feedbackId: string) => void
   onDismissError: (feedbackId: string) => void
   onSelectAudio: (feedbackId: string) => void
+  onScrollYChange?: (scrollY: number) => void
+  onScrollEndDrag?: () => void
+  scrollEnabled?: boolean
+  rootPanRef?: React.RefObject<any>
 }
 
 export const FeedbackSection = memo(function FeedbackSection({
@@ -36,14 +41,20 @@ export const FeedbackSection = memo(function FeedbackSection({
   errors,
   audioUrls,
   onTabChange,
-  onExpand,
-  onCollapse,
+  // TEMP_DISABLED: Sheet expand/collapse for static layout
+  // onExpand,
+  // onCollapse,
   onItemPress,
   onSeek,
   onRetryFeedback,
   onDismissError,
   onSelectAudio,
+  onScrollYChange,
+  onScrollEndDrag,
+  scrollEnabled,
+  rootPanRef,
 }: FeedbackSectionProps) {
+  const { isPullingToReveal } = useVideoAnalysisContext()
   const preparedItems = useMemo(
     () =>
       feedbackItems.map((item) => ({
@@ -64,25 +75,33 @@ export const FeedbackSection = memo(function FeedbackSection({
 
   return (
     <YStack
-      flex={panelFraction}
+      height="100%"
+      width="100%"
       position="relative"
+      // Disable interactions while header pan is in pull-to-reveal to avoid gesture conflicts
+      pointerEvents={isPullingToReveal ? 'none' : 'auto'}
     >
       <FeedbackPanel
         flex={1}
-        isExpanded={panelFraction > 0.1}
+        isExpanded={true}
         activeTab={activeTab}
         feedbackItems={preparedItems}
         currentVideoTime={currentVideoTime}
         videoDuration={videoDuration}
         selectedFeedbackId={selectedFeedbackId}
         onTabChange={onTabChange}
-        onSheetExpand={onExpand}
-        onSheetCollapse={onCollapse}
+        // TEMP_DISABLED: Sheet expand/collapse for static layout
+        // onSheetExpand={onExpand}
+        // onSheetCollapse={onCollapse}
         onFeedbackItemPress={onItemPress}
         onVideoSeek={onSeek}
         onRetryFeedback={onRetryFeedback}
         onDismissError={onDismissError}
         onSelectAudio={onSelectAudio}
+        onScrollYChange={onScrollYChange}
+        onScrollEndDrag={onScrollEndDrag}
+        scrollEnabled={scrollEnabled}
+        rootPanRef={rootPanRef}
       />
     </YStack>
   )

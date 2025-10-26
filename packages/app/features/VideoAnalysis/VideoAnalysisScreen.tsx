@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { YStack } from 'tamagui'
+import { Platform } from 'react-native'
 
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
 import { log } from '@my/logging'
 
 import { VideoControlsRef } from '@ui/components/VideoAnalysis'
 
-import { FeedbackSection } from './components/FeedbackSection'
-import { ProcessingIndicator } from './components/ProcessingIndicator'
-import { UploadErrorState } from './components/UploadErrorState'
-import { VideoPlayerSection } from './components/VideoPlayerSection'
-import { VideoAnalysisProvider } from './contexts/VideoAnalysisContext'
+import { useStatusBar } from '@app/hooks/useStatusBar'
+import { VideoAnalysisLayout } from './components/VideoAnalysisLayout.native'
 import { useAnalysisState } from './hooks/useAnalysisState'
-import type { AnalysisPhase } from './hooks/useAnalysisState'
+import { useAnimationController } from './hooks/useAnimationController'
 import { useAudioController } from './hooks/useAudioController'
 import { useAutoPlayOnReady } from './hooks/useAutoPlayOnReady'
 import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 import { useFeedbackCoordinator } from './hooks/useFeedbackCoordinator'
 import { useFeedbackPanel } from './hooks/useFeedbackPanel'
+import { useGestureController } from './hooks/useGestureController'
 import { useHistoricalAnalysis } from './hooks/useHistoricalAnalysis'
 import { useVideoAudioSync } from './hooks/useVideoAudioSync'
 import { useVideoControls } from './hooks/useVideoControls'
@@ -69,6 +67,9 @@ export function VideoAnalysisScreen({
   onBack,
   onControlsVisibilityChange,
 }: VideoAnalysisScreenProps) {
+  // Hide status bar when this screen is focused
+  useStatusBar(true, 'fade')
+
   // Detect history mode: when analysisJobId is provided, we're viewing historical analysis
   const isHistoryMode = !!analysisJobId
 
@@ -103,10 +104,8 @@ export function VideoAnalysisScreen({
     videoEnded,
     play: playVideo,
     pause: pauseVideo,
-    replay: rerunVideo,
     seek: seekVideo,
     handleLoad: registerDuration,
-    handleEnd: handleVideoComplete,
     handleSeekComplete: resolveSeek,
   } = videoPlayback
 
@@ -116,7 +115,63 @@ export function VideoAnalysisScreen({
   const videoControls = useVideoControls(isProcessing, isPlaying, videoEnded)
 
   // Use unified feedback source for both modes
-  const feedbackItems = analysisState.feedback.feedbackItems
+  const realFeedbackItems = analysisState.feedback.feedbackItems
+
+  // TEMP: Add 5 dummy feedback items for testing
+  const dummyFeedback: FeedbackPanelItem[] = [
+    {
+      id: 'dummy-1',
+      timestamp: 5000,
+      text: 'Your backswing is looking great! Keep that smooth tempo.',
+      type: 'positive',
+      category: 'movement',
+      confidence: 0.92,
+      ssmlStatus: 'completed',
+      audioStatus: 'completed',
+    },
+    {
+      id: 'dummy-2',
+      timestamp: 10000,
+      text: 'Try to keep your head down through impact for better contact.',
+      type: 'suggestion',
+      category: 'posture',
+      confidence: 0.85,
+      ssmlStatus: 'completed',
+      audioStatus: 'completed',
+    },
+    {
+      id: 'dummy-3',
+      timestamp: 15000,
+      text: 'Excellent follow-through! Your weight transfer is on point.',
+      type: 'positive',
+      category: 'movement',
+      confidence: 0.88,
+      ssmlStatus: 'completed',
+      audioStatus: 'completed',
+    },
+    {
+      id: 'dummy-4',
+      timestamp: 20000,
+      text: 'Your grip pressure seems too tight. Try relaxing your hands slightly.',
+      type: 'correction',
+      category: 'grip',
+      confidence: 0.79,
+      ssmlStatus: 'completed',
+      audioStatus: 'completed',
+    },
+    {
+      id: 'dummy-5',
+      timestamp: 25000,
+      text: 'Nice rhythm! Keep that consistent pace throughout your swing.',
+      type: 'positive',
+      category: 'movement',
+      confidence: 0.91,
+      ssmlStatus: 'completed',
+      audioStatus: 'completed',
+    },
+  ]
+
+  const feedbackItems = [...realFeedbackItems, ...dummyFeedback]
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
@@ -154,6 +209,17 @@ export function VideoAnalysisScreen({
     }
     return false
   })
+
+  // Animation controller (native only - but called unconditionally to avoid Rules of Hooks violation)
+  const animation = useAnimationController()
+
+  // Gesture controller (native only - but called unconditionally to avoid Rules of Hooks violation)
+  const gesture = useGestureController(
+    animation.scrollY,
+    animation.feedbackContentOffsetY,
+    animation.scrollRef
+  )
+
   const resolvedVideoUri = useMemo(() => {
     if (videoUri) {
       return videoUri
@@ -291,8 +357,9 @@ export function VideoAnalysisScreen({
     () => ({
       videoUri: resolvedVideoUri,
       feedbackItems,
+      isPullingToReveal: gesture.isPullingToRevealJS,
     }),
-    [resolvedVideoUri, feedbackItems]
+    [resolvedVideoUri, feedbackItems, gesture.isPullingToRevealJS]
   )
 
   const handleShare = useCallback(() => log.info('VideoAnalysisScreen', 'Share button pressed'), [])
@@ -313,101 +380,111 @@ export function VideoAnalysisScreen({
     [coordinateFeedback]
   )
 
-  return (
-    <VideoAnalysisProvider value={contextValue}>
-      <YStack flex={1}>
-        <UploadErrorState
-          visible={shouldShowUploadError}
-          errorMessage={uploadError}
-          onRetry={() => {
-            onBack?.()
-          }}
-          onBack={onBack ?? (() => {})}
-        />
+  // Use gesture controller callbacks for feedback scroll
+  const handleFeedbackScrollY = gesture.onFeedbackScrollY
+  const handleFeedbackMomentumScrollEnd = gesture.onFeedbackMomentumScrollEnd
 
-        {!shouldShowUploadError && (
-          <VideoPlayerSection
-            videoControlsRef={videoControlsRef}
-            pendingSeek={pendingSeek}
-            userIsPlaying={isPlaying}
-            videoShouldPlay={videoAudioSync.shouldPlayVideo}
-            videoEnded={videoEnded}
-            showControls={videoReady && videoControls.showControls}
-            isProcessing={isProcessing}
-            videoAreaScale={1 - feedbackPanel.panelFraction}
-            posterUri={posterUri}
-            onPlay={handlePlay}
-            onPause={pauseVideo}
-            onReplay={rerunVideo}
-            onSeek={handleSeek}
-            onSeekComplete={handleSeekComplete}
-            onSignificantProgress={handleSignificantProgress}
-            onLoad={handleVideoLoad}
-            onEnd={handleVideoComplete}
-            onTap={() => {}}
-            onControlsVisibilityChange={handleControlsVisibilityChange}
-            audioPlayerController={audioController}
-            bubbleState={{
-              visible: coordinateFeedback.bubbleState.bubbleVisible,
-              currentIndex: coordinateFeedback.bubbleState.currentBubbleIndex,
-              items: feedbackItems,
-            }}
-            audioOverlay={{
-              shouldShow: coordinateFeedback.overlayVisible,
-              activeAudio: coordinateFeedback.activeAudio,
-              onClose: coordinateFeedback.onAudioOverlayClose,
-              onInactivity: coordinateFeedback.onAudioOverlayInactivity,
-              onInteraction: coordinateFeedback.onAudioOverlayInteraction,
-              audioDuration: audioController.duration,
-            }}
-            coachSpeaking={coordinateFeedback.isCoachSpeaking}
-            panelFraction={feedbackPanel.panelFraction}
-            socialCounts={{
-              likes: 1200,
-              comments: 89,
-              bookmarks: 234,
-              shares: 1500,
-            }}
-            onSocialAction={{
-              onShare: handleShare,
-              onLike: handleLike,
-              onComment: handleComment,
-              onBookmark: handleBookmark,
-            }}
-          />
-        )}
+  // Aggregate all props for layout component
+  const layoutProps = {
+    gesture: {
+      rootPan: gesture.rootPan,
+      feedbackScrollEnabled: gesture.feedbackScrollEnabled,
+      blockFeedbackScrollCompletely: gesture.blockFeedbackScrollCompletely,
+      isPullingToRevealJS: gesture.isPullingToRevealJS,
+      onFeedbackScrollY: gesture.onFeedbackScrollY,
+      onFeedbackMomentumScrollEnd: gesture.onFeedbackMomentumScrollEnd,
+      rootPanRef: gesture.rootPanRef,
+    },
+    animation: {
+      scrollY: animation.scrollY,
+      headerHeight: animation.headerHeight,
+      collapseProgress: animation.collapseProgress,
+      headerStyle: animation.headerStyle,
+      feedbackSectionStyle: animation.feedbackSectionStyle,
+      pullIndicatorStyle: animation.pullIndicatorStyle,
+      scrollRef: animation.scrollRef,
+      feedbackContentOffsetY: animation.feedbackContentOffsetY,
+    },
+    video: {
+      uri: resolvedVideoUri,
+      posterUri,
+      isReady: videoReady,
+      isProcessing,
+    },
+    playback: {
+      isPlaying,
+      videoEnded,
+      pendingSeek,
+      shouldPlayVideo: videoAudioSync.shouldPlayVideo,
+    },
+    feedback: {
+      items: feedbackItems,
+      panelFraction: feedbackPanel.panelFraction,
+      activeTab: feedbackPanel.activeTab,
+      selectedFeedbackId: coordinateFeedback.highlightedFeedbackId,
+      currentTime,
+      phase: analysisState.phase,
+      progress: analysisState.progress,
+      channelExhausted: analysisState.channelExhausted,
+      errors: feedbackAudio.errors,
+      audioUrls: feedbackAudio.audioUrls,
+    },
+    handlers: {
+      onPlay: handlePlay,
+      onPause: pauseVideo,
+      onSeek: handleSeek,
+      onSeekComplete: handleSeekComplete,
+      onVideoLoad: handleVideoLoad,
+      onSignificantProgress: handleSignificantProgress,
+      onFeedbackItemPress: handleFeedbackItemPress,
+      onCollapsePanel: handleCollapsePanel,
+      onRetry: () => onBack?.(),
+      onShare: handleShare,
+      onLike: handleLike,
+      onComment: handleComment,
+      onBookmark: handleBookmark,
+      onSelectAudio: handleSelectAudio,
+      onFeedbackScrollY: handleFeedbackScrollY,
+      onFeedbackMomentumScrollEnd: handleFeedbackMomentumScrollEnd,
+      onTabChange: feedbackPanel.setActiveTab,
+      onExpand: feedbackPanel.expand,
+      onRetryFeedback: analysisState.feedback.retryFailedFeedback,
+      onDismissError: feedbackAudio.clearError,
+    },
+    videoControlsRef,
+    controls: {
+      showControls: videoControls.showControls,
+      onControlsVisibilityChange: handleControlsVisibilityChange,
+    },
+    error: {
+      visible: shouldShowUploadError,
+      message: uploadError,
+      onRetry: () => onBack?.(),
+      onBack: onBack ?? (() => {}),
+    },
+    audioController,
+    bubbleState: {
+      visible: coordinateFeedback.bubbleState.bubbleVisible,
+      currentIndex: coordinateFeedback.bubbleState.currentBubbleIndex,
+      items: feedbackItems,
+    },
+    audioOverlay: {
+      shouldShow: coordinateFeedback.overlayVisible,
+      activeAudio: coordinateFeedback.activeAudio,
+      onClose: coordinateFeedback.onAudioOverlayClose,
+      onInactivity: coordinateFeedback.onAudioOverlayInactivity,
+      onInteraction: coordinateFeedback.onAudioOverlayInteraction,
+      audioDuration: audioController.duration,
+    },
+    coachSpeaking:
+      Platform.OS !== 'web' ? coordinateFeedback.isCoachSpeaking : audioController.isPlaying,
+    socialCounts:
+      Platform.OS !== 'web'
+        ? { likes: 1200, comments: 89, bookmarks: 234, shares: 1500 }
+        : { likes: 0, comments: 0, bookmarks: 0, shares: 0 },
+    contextValue,
+  }
 
-        <ProcessingIndicator
-          phase={
-            videoReady && analysisState.phase === 'generating-feedback'
-              ? ('ready' as AnalysisPhase)
-              : videoReady
-                ? analysisState.phase
-                : 'analyzing'
-          }
-          progress={analysisState.progress}
-          channelExhausted={analysisState.channelExhausted}
-        />
-
-        <FeedbackSection
-          panelFraction={feedbackPanel.panelFraction}
-          activeTab={feedbackPanel.activeTab}
-          feedbackItems={feedbackItems}
-          selectedFeedbackId={coordinateFeedback.highlightedFeedbackId}
-          currentVideoTime={currentTime}
-          videoDuration={0}
-          errors={feedbackAudio.errors}
-          audioUrls={feedbackAudio.audioUrls}
-          onTabChange={feedbackPanel.setActiveTab}
-          onExpand={feedbackPanel.expand}
-          onCollapse={handleCollapsePanel}
-          onItemPress={handleFeedbackItemPress}
-          onSeek={handleSeek}
-          onRetryFeedback={analysisState.feedback.retryFailedFeedback}
-          onDismissError={feedbackAudio.clearError}
-          onSelectAudio={handleSelectAudio}
-        />
-      </YStack>
-    </VideoAnalysisProvider>
-  )
+  // Platform-based layout selection
+  return <VideoAnalysisLayout {...layoutProps} />
 }

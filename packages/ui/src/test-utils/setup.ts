@@ -3,6 +3,23 @@ jest.mock('react-native-gesture-handler', () => ({
   GestureHandlerRootView: ({ children }: { children: React.ReactNode }) => children,
   PanGestureHandler: ({ children }: { children: React.ReactNode }) => children,
   TapGestureHandler: ({ children }: { children: React.ReactNode }) => children,
+  NativeViewGestureHandler: ({ children }: { children: React.ReactNode }) => children,
+  GestureDetector: ({ children }: { children: React.ReactNode }) => children,
+  Gesture: {
+    Pan: () => ({
+      withRef: () => ({}),
+      minDistance: () => ({}),
+      activeOffsetY: () => ({}),
+      activeOffsetX: () => ({}),
+      onBegin: () => ({}),
+      onUpdate: () => ({}),
+      onEnd: () => ({}),
+      simultaneousWithExternalGesture: () => ({}),
+    }),
+    Native: () => ({
+      simultaneousWithExternalGesture: () => ({}),
+    }),
+  },
   State: {},
   Directions: {},
 }))
@@ -372,10 +389,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }))
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
-
-// Mock react-native-worklets-core
+// Mock react-native-worklets-core BEFORE reanimated
 jest.mock('react-native-worklets-core', () => ({
   Worklets: {
     createRunInJsFn: jest.fn(),
@@ -384,6 +398,63 @@ jest.mock('react-native-worklets-core', () => ({
   },
   useSharedValue: jest.fn(),
 }))
+
+// Mock react-native-reanimated
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+  const Animated = {
+    View: ({ children, style, testID, ...props }: any) =>
+      React.createElement('div', { style, 'data-testid': testID, ...props }, children),
+    Text: ({ children, style, testID, ...props }: any) =>
+      React.createElement('span', { style, 'data-testid': testID, ...props }, children),
+    ScrollView: ({ children, style, testID, ...props }: any) =>
+      React.createElement(
+        'div',
+        { style: { ...style, overflow: 'auto' }, 'data-testid': testID, ...props },
+        children
+      ),
+    createAnimatedComponent: (component: React.ComponentType<any>) => component,
+  }
+  return {
+    __esModule: true,
+    default: Animated,
+    useAnimatedStyle: () => ({}),
+    useAnimatedReaction: () => {},
+    useSharedValue: (initialValue: any) => ({
+      value: initialValue,
+    }),
+    useAnimatedRef: () => React.useRef(null),
+    useAnimatedGestureHandler: (handler: any) => handler,
+    useAnimatedScrollHandler: (handler: any) => handler,
+    withSpring: (targetValue: any) => targetValue,
+    withTiming: (targetValue: any) => targetValue,
+    interpolate: (value: any, inputRange: any, outputRange: any) => {
+      if (inputRange.length !== 2 || outputRange.length !== 2) return outputRange[0]
+      const [inMin, inMax] = inputRange
+      const [outMin, outMax] = outputRange
+      const ratio = (value - inMin) / (inMax - inMin)
+      return outMin + ratio * (outMax - outMin)
+    },
+    Extrapolation: {
+      CLAMP: 'clamp',
+      EXTEND: 'extend',
+    },
+    runOnJS: (fn: any) => fn,
+    runOnUI: (fn: any) => fn,
+    createAnimatedStyle: () => ({}),
+    Easing: {
+      linear: (t: number) => t,
+      easeIn: (t: number) => t * t,
+      easeOut: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
+      bezier: (_x1: number, _y1: number, _x2: number, _y2: number) => (t: number) => t,
+    },
+    Worklets: {
+      createRunInJsFn: jest.fn(),
+      createSharedValue: jest.fn(),
+      runOnUI: jest.fn(),
+    },
+  }
+})
 
 // Mock react-native-video
 jest.mock('react-native-video', () => 'Video')

@@ -67,9 +67,14 @@ describe('Responsive Layout Tests', () => {
       const bottomSheet = screen.getByLabelText('Feedback panel expanded')
       expect(bottomSheet).toBeTruthy()
 
+      // TEMP_DISABLED: Drag handle removed for static layout
       // Should show drag handle for mobile gesture interaction
-      const dragHandle = screen.getByLabelText('Sheet handle')
-      expect(dragHandle).toBeTruthy()
+      // const dragHandle = screen.getByLabelText('Sheet handle')
+      // expect(dragHandle).toBeTruthy()
+
+      // Should show title instead of drag handle
+      const title = screen.getByLabelText('Video Analysis title')
+      expect(title).toBeTruthy()
     })
   })
 

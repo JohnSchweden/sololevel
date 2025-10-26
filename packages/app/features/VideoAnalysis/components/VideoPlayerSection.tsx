@@ -1,5 +1,11 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 
+import Animated, {
+  Extrapolation,
+  type SharedValue,
+  interpolate,
+  useAnimatedStyle,
+} from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
 import {
@@ -87,6 +93,8 @@ interface VideoPlayerSectionProps {
     onComment: () => void
     onBookmark: () => void
   }
+  // NEW: Animation props
+  collapseProgress?: SharedValue<number> // 0 expanded → 1 collapsed
 }
 
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
@@ -99,7 +107,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   videoEnded,
   showControls,
   isProcessing,
-  videoAreaScale,
   posterUri,
   onPlay,
   onPause,
@@ -115,9 +122,10 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   bubbleState,
   audioOverlay,
   coachSpeaking,
-  panelFraction,
+  panelFraction: _panelFraction,
   socialCounts,
   onSocialAction,
+  collapseProgress,
 }: VideoPlayerSectionProps) {
   // Get rarely-changing data from context
   const { videoUri } = useVideoAnalysisContext()
@@ -149,6 +157,28 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     },
     [onLoad]
   )
+
+  // Animation styles for avatar and social icons
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
+    if (!collapseProgress) return { opacity: 1 }
+    return {
+      opacity: interpolate(collapseProgress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+      transform: [
+        { translateY: interpolate(collapseProgress.value, [0, 1], [0, -12], Extrapolation.CLAMP) },
+        { scale: interpolate(collapseProgress.value, [0, 1], [1, 0.9], Extrapolation.CLAMP) },
+      ],
+    }
+  })
+
+  const socialAnimatedStyle = useAnimatedStyle(() => {
+    if (!collapseProgress) return { opacity: 1 }
+    return {
+      opacity: interpolate(collapseProgress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        { translateY: interpolate(collapseProgress.value, [0, 1], [16, 0], Extrapolation.CLAMP) },
+      ],
+    }
+  })
   const activeBubbleMessages = useMemo(() => {
     if (!bubbleState.visible || bubbleState.currentIndex === null) {
       return []
@@ -172,14 +202,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   return (
     <VideoContainer
       useFlexLayout
-      flex={1 - panelFraction}
+      flex={1}
     >
       <VideoPlayerArea>
         <YStack
           flex={1}
           position="relative"
           onPress={onTap}
-          marginBottom={-34}
           testID="video-player-container"
         >
           {videoUri && (
@@ -223,10 +252,11 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             />
           )}
 
-          {panelFraction <= 0.1 && (
+          {/* Avatar - Always render with animated style */}
+          <Animated.View style={avatarAnimatedStyle}>
             <CoachAvatar
               isSpeaking={coachSpeaking}
-              size={90 * (1 - panelFraction)}
+              size={90}
               testID="video-analysis-coach-avatar"
               animation="quick"
               enterStyle={{
@@ -238,10 +268,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
                 scale: 0.8,
               }}
             />
-          )}
+          </Animated.View>
 
-          {/* Social Icons - Show when panel is expanded */}
-          {panelFraction > 0.1 && (
+          {/* Social Icons - Always render with animated style */}
+          <Animated.View
+            style={socialAnimatedStyle}
+            testID="social-icons-container"
+          >
             <SocialIcons
               likes={socialCounts.likes}
               comments={socialCounts.comments}
@@ -255,7 +288,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               placement="rightBottom"
               offsetBottom={64}
             />
-          )}
+          </Animated.View>
 
           <VideoControls
             ref={videoControlsRef}
@@ -265,7 +298,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             showControls={showControls}
             isProcessing={isProcessing}
             videoEnded={videoEnded}
-            scaleFactor={videoAreaScale}
             onPlay={onPlay}
             onPause={onPause}
             onReplay={onReplay}

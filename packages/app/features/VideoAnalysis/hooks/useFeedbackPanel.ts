@@ -27,29 +27,44 @@ interface UseFeedbackPanelOptions {
 }
 
 export function useFeedbackPanel(options: UseFeedbackPanelOptions = {}): FeedbackPanelState {
-  const [panelFraction, setPanelFraction] = useState(COLLAPSED_FRACTION)
+  // TEMP_DISABLED: Initialize with expanded state for static layout
+  const [panelFraction] = useState(EXPANDED_FRACTION)
   const [activeTab, setActiveTabState] = useState<FeedbackPanelTab>('feedback')
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
   const { highlightedFeedbackId = null } = options
 
   const isExpanded = useMemo(() => panelFraction > COLLAPSED_FRACTION, [panelFraction])
 
+  // TEMP_DISABLED: Panel sizing functions for static layout
+  // const expand = useCallback(() => {
+  //   log.info('useFeedbackPanel', 'expand invoked')
+  //   setPanelFraction(EXPANDED_FRACTION)
+  // }, [])
+
+  // const collapse = useCallback(() => {
+  //   log.info('useFeedbackPanel', 'collapse invoked')
+  //   setPanelFraction(COLLAPSED_FRACTION)
+  // }, [])
+
+  // const toggle = useCallback(() => {
+  //   setPanelFraction((fraction) => {
+  //     const next = fraction > COLLAPSED_FRACTION ? COLLAPSED_FRACTION : EXPANDED_FRACTION
+  //     log.info('useFeedbackPanel', 'toggle invoked', { previous: fraction, next })
+  //     return next
+  //   })
+  // }, [])
+
+  // Stub functions to maintain interface compatibility
   const expand = useCallback(() => {
-    log.info('useFeedbackPanel', 'expand invoked')
-    setPanelFraction(EXPANDED_FRACTION)
+    log.info('useFeedbackPanel', 'expand invoked (stub for static layout)')
   }, [])
 
   const collapse = useCallback(() => {
-    log.info('useFeedbackPanel', 'collapse invoked')
-    setPanelFraction(COLLAPSED_FRACTION)
+    log.info('useFeedbackPanel', 'collapse invoked (stub for static layout)')
   }, [])
 
   const toggle = useCallback(() => {
-    setPanelFraction((fraction) => {
-      const next = fraction > COLLAPSED_FRACTION ? COLLAPSED_FRACTION : EXPANDED_FRACTION
-      log.info('useFeedbackPanel', 'toggle invoked', { previous: fraction, next })
-      return next
-    })
+    log.info('useFeedbackPanel', 'toggle invoked (stub for static layout)')
   }, [])
 
   const setActiveTab = useCallback((tab: FeedbackPanelTab) => {

@@ -51,10 +51,6 @@ export type GlassButtonProps = {
   variant?: 'default' | 'variant2'
   /** Glass overlay opacity (0-1, default 1) */
   overlayOpacity?: number
-  /** Highlight contrast intensity (0-1, default 0.3) - adds bright highlight overlay */
-  highlightContrast?: number
-  /** Highlight color (default 'rgba(255, 255, 255, 0.4)') */
-  highlightColor?: XStackProps['backgroundColor']
   /** Edge glow intensity (0-1, default 0.1) - adds subtle edge lighting */
   edgeGlowIntensity?: number
   /** Edge glow color (default 'rgba(255, 255, 255, 0.2)') */
@@ -106,8 +102,8 @@ export const GlassButton = ({
   accessibilityState,
   blurIntensity = 10,
   blurTint = 'light',
-  minWidth = 48,
-  minHeight = 48,
+  minWidth = 44,
+  minHeight = 44,
   width,
   borderRadius = '$12',
   opacity = 1,
@@ -117,8 +113,6 @@ export const GlassButton = ({
   backgroundColor = 'rgba(255, 255, 255, 0.0)',
   variant = 'default',
   overlayOpacity = 0.8,
-  highlightContrast = 0,
-  highlightColor = 'rgba(255, 255, 255, 0.4)',
   edgeGlowIntensity = 0.9,
   edgeGlowColor = 'rgba(255, 255, 255, 0.9)',
 }: GlassButtonProps) => {
@@ -168,21 +162,6 @@ export const GlassButton = ({
           bottom: 0,
         }}
       />
-
-      {/* Highlight contrast overlay */}
-      {highlightContrast > 0 && (
-        <XStack
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          borderRadius={borderRadius}
-          backgroundColor={highlightColor}
-          opacity={highlightContrast}
-          pointerEvents="none"
-        />
-      )}
 
       <Image
         source={overlaySource}
