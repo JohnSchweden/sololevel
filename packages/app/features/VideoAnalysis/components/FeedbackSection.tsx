@@ -5,7 +5,6 @@ import { YStack } from 'tamagui'
 
 import { FeedbackPanel } from '@ui/components/VideoAnalysis'
 
-import { useVideoAnalysisContext } from '../contexts/VideoAnalysisContext'
 import type { FeedbackPanelItem } from '../types'
 
 interface FeedbackSectionProps {
@@ -54,7 +53,6 @@ export const FeedbackSection = memo(function FeedbackSection({
   scrollEnabled,
   rootPanRef,
 }: FeedbackSectionProps) {
-  const { isPullingToReveal } = useVideoAnalysisContext()
   const preparedItems = useMemo(
     () =>
       feedbackItems.map((item) => ({
@@ -78,8 +76,6 @@ export const FeedbackSection = memo(function FeedbackSection({
       height="100%"
       width="100%"
       position="relative"
-      // Disable interactions while header pan is in pull-to-reveal to avoid gesture conflicts
-      pointerEvents={isPullingToReveal ? 'none' : 'auto'}
     >
       <FeedbackPanel
         flex={1}

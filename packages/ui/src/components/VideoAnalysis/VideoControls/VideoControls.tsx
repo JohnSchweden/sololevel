@@ -16,8 +16,11 @@ import React, {
   useState,
   forwardRef,
   useImperativeHandle,
+  useMemo,
 } from 'react'
-import { PanResponder, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import { runOnJS, useSharedValue } from 'react-native-reanimated'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -39,6 +42,8 @@ export interface VideoControlsProps {
   onControlsVisibilityChange?: (visible: boolean) => void
   onMenuPress?: () => void
   headerComponent?: React.ReactNode
+  // NEW: Video mode for persistent progress bar
+  videoMode?: 'max' | 'normal' | 'min'
 }
 
 export const VideoControls = React.memo(
@@ -58,14 +63,27 @@ export const VideoControls = React.memo(
         onControlsVisibilityChange,
         onMenuPress,
         headerComponent,
+        videoMode = 'max',
       },
       ref
     ) => {
       const [controlsVisible, setControlsVisible] = useState(showControls)
       const [isScrubbing, setIsScrubbing] = useState(false)
       const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null)
+      const [lastScrubbedPosition, setLastScrubbedPosition] = useState<number | null>(null)
+      const lastScrubbedPositionShared = useSharedValue<number>(0) // Shared value for worklet access
+      const [isPersistentScrubbing, setIsPersistentScrubbing] = useState(false)
+      const [persistentScrubbingPosition, setPersistentScrubbingPosition] = useState<number | null>(
+        null
+      )
+      const [lastPersistentScrubbedPosition, setLastPersistentScrubbedPosition] = useState<
+        number | null
+      >(null)
       const [showMenu, setShowMenu] = useState(false)
       const [progressBarWidth, setProgressBarWidth] = useState(300) // default width
+      const [persistentProgressBarWidth, setPersistentProgressBarWidth] = useState(300) // default width for persistent bar
+      const progressBarWidthShared = useSharedValue(300)
+      const persistentProgressBarWidthShared = useSharedValue(300)
       const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
       // Auto-hide controls after 3 seconds when playing (only if showControls allows it)
@@ -79,7 +97,7 @@ export const VideoControls = React.memo(
           hideTimeoutRef.current = setTimeout(() => {
             setControlsVisible(false)
             onControlsVisibilityChange?.(false)
-          }, 3000)
+          }, 2000)
         }
       }, [isPlaying, isScrubbing, showControls, onControlsVisibilityChange])
 
@@ -147,10 +165,80 @@ export const VideoControls = React.memo(
       const progress =
         isScrubbing && scrubbingPosition !== null
           ? scrubbingPosition
-          : duration > 0
-            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
-            : 0
-      const progressPercentage = Math.round(progress)
+          : lastScrubbedPosition !== null
+            ? lastScrubbedPosition
+            : duration > 0
+              ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+              : 0
+
+      // Separate progress calculation for persistent progress bar - with snapback prevention
+      const persistentProgress =
+        isPersistentScrubbing && persistentScrubbingPosition !== null
+          ? persistentScrubbingPosition
+          : lastPersistentScrubbedPosition !== null
+            ? lastPersistentScrubbedPosition
+            : duration > 0
+              ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+              : 0
+      const persistentProgressPercentage = Math.round(persistentProgress)
+
+      // Log state changes for debugging
+      React.useEffect(() => {
+        log.debug('VideoControls', 'State update', {
+          isScrubbing,
+          scrubbingPosition,
+          isPersistentScrubbing,
+          persistentScrubbingPosition,
+          progress,
+          persistentProgress,
+          currentTime,
+          duration,
+          progressBarWidth,
+          persistentProgressBarWidth,
+        })
+      }, [
+        isScrubbing,
+        scrubbingPosition,
+        isPersistentScrubbing,
+        persistentScrubbingPosition,
+        progress,
+        persistentProgress,
+        currentTime,
+        duration,
+        progressBarWidth,
+        persistentProgressBarWidth,
+      ])
+
+      // Clear lastScrubbedPosition when video catches up to the scrubbed position
+      React.useEffect(() => {
+        if (lastScrubbedPosition !== null && duration > 0) {
+          const currentProgress = (currentTime / duration) * 100
+          const tolerance = 1 // 1% tolerance
+          if (Math.abs(currentProgress - lastScrubbedPosition) < tolerance) {
+            setLastScrubbedPosition(null)
+          }
+        }
+      }, [currentTime, duration, lastScrubbedPosition])
+
+      // Clear lastPersistentScrubbedPosition when video catches up to the scrubbed position
+      React.useEffect(() => {
+        if (lastPersistentScrubbedPosition !== null && duration > 0) {
+          const currentProgress = (currentTime / duration) * 100
+          const tolerance = 1 // 1% tolerance
+          if (Math.abs(currentProgress - lastPersistentScrubbedPosition) < tolerance) {
+            setLastPersistentScrubbedPosition(null)
+          }
+        }
+      }, [currentTime, duration, lastPersistentScrubbedPosition])
+
+      // Update shared values when state changes
+      React.useEffect(() => {
+        progressBarWidthShared.value = progressBarWidth
+      }, [progressBarWidth, progressBarWidthShared])
+
+      React.useEffect(() => {
+        persistentProgressBarWidthShared.value = persistentProgressBarWidth
+      }, [persistentProgressBarWidth, persistentProgressBarWidthShared])
 
       const handleMenuPress = useCallback(() => {
         setShowMenu(true)
@@ -166,84 +254,437 @@ export const VideoControls = React.memo(
         // Could add specific handlers for different menu actions here
       }, [])
 
-      // Helper to compute seek percentage safely
-      const computeSeekPercentage = useCallback(
-        (locationX: number) => {
-          if (!progressBarWidth || progressBarWidth <= 0) return 0
-          return Math.max(0, Math.min(100, (locationX / progressBarWidth) * 100))
-        },
-        [progressBarWidth]
+      // Enhanced combined gesture for progress bar - handles both tap and drag with better reliability
+      const progressBarCombinedGesture = useMemo(
+        () =>
+          Gesture.Pan()
+            .minDistance(0) // Allow immediate activation (for taps)
+            .maxPointers(1) // Single finger only for reliability
+            .activateAfterLongPress(0) // Immediate activation
+            .onBegin((event) => {
+              // Early activation - more reliable than onStart
+              const seekPercentage =
+                progressBarWidthShared.value > 0
+                  ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                  : 0
+
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Progress bar touch begin', {
+                eventX: event.x,
+                eventY: event.y,
+                progressBarWidth: progressBarWidthShared.value,
+                seekPercentage,
+                duration,
+              })
+            })
+            .onStart((event) => {
+              // Calculate seek percentage from touch position
+              const seekPercentage =
+                progressBarWidthShared.value > 0
+                  ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                  : 0
+
+              // Store position for potential drag
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Progress bar touch start', {
+                eventX: event.x,
+                progressBarWidth: progressBarWidthShared.value,
+                seekPercentage,
+                duration,
+              })
+              // For immediate taps (no dragging), seek right away
+              if (duration > 0 && seekPercentage >= 0) {
+                // Changed condition: allow seeking to 0%
+                const seekTime = (seekPercentage / 100) * duration
+                runOnJS(log.debug)('VideoControls', 'Immediate seek', {
+                  seekPercentage,
+                  seekTime,
+                  duration,
+                })
+                runOnJS(onSeek)(seekTime)
+              } else {
+                runOnJS(log.debug)('VideoControls', 'Seek skipped', {
+                  duration,
+                  seekPercentage,
+                  reason: duration <= 0 ? 'duration is 0' : 'other',
+                })
+              }
+            })
+            .onUpdate((event) => {
+              // Lower threshold for drag detection - more responsive
+              const dragThreshold = 3
+              if (
+                Math.abs(event.translationX) > dragThreshold ||
+                Math.abs(event.translationY) > dragThreshold
+              ) {
+                runOnJS(setIsScrubbing)(true)
+                runOnJS(showControlsAndResetTimer)()
+
+                const seekPercentage =
+                  progressBarWidthShared.value > 0
+                    ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                    : 0
+
+                runOnJS(setScrubbingPosition)(seekPercentage)
+                lastScrubbedPositionShared.value = seekPercentage
+                runOnJS(log.debug)('VideoControls', 'Progress bar drag', {
+                  eventX: event.x,
+                  translationX: event.translationX,
+                  progressBarWidth: progressBarWidthShared.value,
+                  seekPercentage,
+                })
+              }
+            })
+            .onEnd(() => {
+              // Only seek again if we were in scrubbing mode (dragging)
+              const wasScrubbing = isScrubbing
+              runOnJS(setIsScrubbing)(false)
+
+              if (wasScrubbing) {
+                const currentPosition = lastScrubbedPositionShared.value
+                runOnJS(setLastScrubbedPosition)(currentPosition)
+                runOnJS(setScrubbingPosition)(null)
+
+                if (duration > 0 && currentPosition >= 0) {
+                  // Allow seeking to 0%
+                  const seekTime = (currentPosition / 100) * duration
+                  runOnJS(log.debug)('VideoControls', 'Drag end seek', {
+                    seekPercentage: currentPosition,
+                    seekTime,
+                    duration,
+                  })
+                  runOnJS(onSeek)(seekTime)
+                }
+              }
+            })
+            .onFinalize(() => {
+              // Ensure cleanup on gesture cancellation
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setScrubbingPosition)(null)
+            })
+            .simultaneousWithExternalGesture(),
+        [duration, onSeek, showControlsAndResetTimer, isScrubbing]
       )
 
-      // PanResponder for scrubbing functionality with gesture direction detection
-      const panResponder = React.useMemo(
+      // Enhanced combined gesture for persistent progress bar - handles both tap and drag with better reliability
+      const persistentProgressBarCombinedGesture = useMemo(
         () =>
-          PanResponder.create({
-            onStartShouldSetPanResponder: () => {
-              // Always capture initial touch for potential horizontal gesture
-              return true
-            },
-            onMoveShouldSetPanResponder: (_, gestureState) => {
-              // Only respond to horizontal gestures to prevent vertical scrolling interference
-              const { dx, dy } = gestureState
-              const horizontalThreshold = 10 // Minimum horizontal movement to trigger seeking
-              const verticalThreshold = 20 // Maximum vertical movement allowed before rejecting
+          Gesture.Pan()
+            .minDistance(0) // Allow immediate activation (for taps)
+            .maxPointers(1) // Single finger only for reliability
+            .activateAfterLongPress(0) // Immediate activation
+            .onBegin((event) => {
+              // Early activation - more reliable than onStart
+              const seekPercentage =
+                persistentProgressBarWidthShared.value > 0
+                  ? Math.max(
+                      0,
+                      Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                    )
+                  : 0
 
-              // If vertical movement exceeds threshold, don't capture the gesture
-              if (Math.abs(dy) > verticalThreshold && Math.abs(dx) < horizontalThreshold) {
-                return false
-              }
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Persistent progress bar touch begin', {
+                eventX: event.x,
+                eventY: event.y,
+                progressBarWidth: persistentProgressBarWidthShared.value,
+                seekPercentage,
+                duration,
+              })
+            })
+            .onStart((event) => {
+              // Calculate seek percentage from touch position using persistent bar width
+              const seekPercentage =
+                persistentProgressBarWidthShared.value > 0
+                  ? Math.max(
+                      0,
+                      Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                    )
+                  : 0
 
-              // Capture if horizontal movement is significant
-              return Math.abs(dx) > horizontalThreshold
-            },
-            onPanResponderGrant: (event) => {
-              setIsScrubbing(true)
-              showControlsAndResetTimer()
-              // Get initial touch position
-              const { locationX } = event.nativeEvent
-              const seekPercentage = computeSeekPercentage(locationX)
-              setScrubbingPosition(seekPercentage)
-              // Avoid seeking to 0 when duration isn't known yet
-              if (duration > 0) {
+              // Store position for potential drag
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Persistent progress bar touch start', {
+                eventX: event.x,
+                progressBarWidth: persistentProgressBarWidthShared.value,
+                seekPercentage,
+                duration,
+              })
+
+              // For immediate taps (no dragging), seek right away - allow seeking to 0%
+              if (duration > 0 && seekPercentage >= 0) {
                 const seekTime = (seekPercentage / 100) * duration
-                onSeek(seekTime)
+                runOnJS(log.debug)('VideoControls', 'Persistent immediate seek', {
+                  seekPercentage,
+                  seekTime,
+                  duration,
+                })
+                runOnJS(onSeek)(seekTime)
+              } else {
+                runOnJS(log.debug)('VideoControls', 'Persistent seek skipped', {
+                  duration,
+                  seekPercentage,
+                  reason: duration <= 0 ? 'duration is 0' : 'other',
+                })
               }
-            },
-            onPanResponderMove: (event, gestureState) => {
-              // Only update if this is a horizontal gesture
-              const { dx, dy } = gestureState
-              const horizontalThreshold = 5
+            })
+            .onUpdate((event) => {
+              // Lower threshold for drag detection - more responsive
+              const dragThreshold = 3
+              if (
+                Math.abs(event.translationX) > dragThreshold ||
+                Math.abs(event.translationY) > dragThreshold
+              ) {
+                runOnJS(setIsPersistentScrubbing)(true)
+                runOnJS(showControlsAndResetTimer)()
 
-              // Ignore primarily vertical movements
-              if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > horizontalThreshold) {
+                const seekPercentage =
+                  persistentProgressBarWidthShared.value > 0
+                    ? Math.max(
+                        0,
+                        Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                      )
+                    : 0
+
+                runOnJS(setPersistentScrubbingPosition)(seekPercentage)
+                lastScrubbedPositionShared.value = seekPercentage
+                runOnJS(log.debug)('VideoControls', 'Persistent progress bar drag', {
+                  eventX: event.x,
+                  translationX: event.translationX,
+                  progressBarWidth: persistentProgressBarWidthShared.value,
+                  seekPercentage,
+                })
+              }
+            })
+            .onEnd(() => {
+              // Only seek again if we were in scrubbing mode (dragging)
+              const wasScrubbing = isPersistentScrubbing
+              runOnJS(setIsPersistentScrubbing)(false)
+
+              if (wasScrubbing) {
+                const currentPosition = lastScrubbedPositionShared.value
+                runOnJS(setLastPersistentScrubbedPosition)(currentPosition) // Store for snapback prevention
+                runOnJS(setPersistentScrubbingPosition)(null)
+
+                if (duration > 0 && currentPosition >= 0) {
+                  // Allow seeking to 0%
+                  const seekTime = (currentPosition / 100) * duration
+                  runOnJS(log.debug)('VideoControls', 'Persistent drag end seek', {
+                    seekPercentage: currentPosition,
+                    seekTime,
+                    duration,
+                  })
+                  runOnJS(onSeek)(seekTime)
+                }
+              }
+            })
+            .onFinalize(() => {
+              // Ensure cleanup on gesture cancellation
+              runOnJS(setIsPersistentScrubbing)(false)
+              runOnJS(setPersistentScrubbingPosition)(null)
+            })
+            .simultaneousWithExternalGesture(),
+        [duration, onSeek, showControlsAndResetTimer, isPersistentScrubbing]
+      )
+
+      // Enhanced gesture handler for main progress bar scrubbing functionality - more reliable
+      const mainProgressGesture = useMemo(
+        () =>
+          Gesture.Pan()
+            .maxPointers(1) // Single finger only for reliability
+            .activateAfterLongPress(0) // Immediate activation
+            .onBegin((event) => {
+              // Early activation - more reliable
+              runOnJS(setIsScrubbing)(true)
+              runOnJS(showControlsAndResetTimer)()
+
+              const seekPercentage =
+                progressBarWidthShared.value > 0
+                  ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                  : 0
+
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Main gesture begin', {
+                eventX: event.x,
+                eventY: event.y,
+                progressBarWidth: progressBarWidthShared.value,
+                seekPercentage,
+              })
+            })
+            .onStart((event) => {
+              runOnJS(setIsScrubbing)(true)
+              runOnJS(showControlsAndResetTimer)()
+              // Calculate seek percentage inline to avoid worklet issues
+              const seekPercentage =
+                progressBarWidthShared.value > 0
+                  ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                  : 0
+              runOnJS(setScrubbingPosition)(seekPercentage)
+              // Store the position in shared value for onEnd
+              lastScrubbedPositionShared.value = seekPercentage
+              // Debug logging
+              runOnJS(log.debug)('VideoControls', 'Gesture onStart', {
+                eventX: event.x,
+                eventAbsoluteX: event.absoluteX,
+                progressBarWidth: progressBarWidthShared.value,
+                seekPercentage,
+              })
+              // DO NOT SEEK HERE - wait for gesture end
+            })
+            .onUpdate((event) => {
+              // More lenient horizontal gesture detection - reduced threshold
+              const horizontalThreshold = 3
+              if (
+                Math.abs(event.translationY) > Math.abs(event.translationX) &&
+                Math.abs(event.translationY) > horizontalThreshold
+              ) {
                 return
               }
+              // Calculate seek percentage inline to avoid worklet issues
+              const seekPercentage =
+                progressBarWidthShared.value > 0
+                  ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                  : 0
+              runOnJS(setScrubbingPosition)(seekPercentage)
+              // Store the position in shared value for onEnd
+              lastScrubbedPositionShared.value = seekPercentage
+              // Debug logging
+              runOnJS(log.debug)('VideoControls', 'Gesture onUpdate', {
+                eventX: event.x,
+                eventAbsoluteX: event.absoluteX,
+                translationX: event.translationX,
+                progressBarWidth: progressBarWidthShared.value,
+                seekPercentage,
+              })
+              // DO NOT SEEK HERE - wait for gesture end
+            })
+            .onEnd(() => {
+              // Seek ONLY on gesture end with the final scrubbed position
+              const currentPosition = lastScrubbedPositionShared.value
+              runOnJS(log.debug)('VideoControls', 'Gesture onEnd called', {
+                lastScrubbedPosition: currentPosition,
+                duration,
+              })
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+              runOnJS(setScrubbingPosition)(null)
 
-              // Update scrubber position during horizontal drag
-              const { locationX } = event.nativeEvent
-              const seekPercentage = computeSeekPercentage(locationX)
-              setScrubbingPosition(seekPercentage)
-              if (duration > 0) {
-                const seekTime = (seekPercentage / 100) * duration
-                onSeek(seekTime)
+              // SEEK ONLY ONCE AT END with final position - allow seeking to 0%
+              if (duration > 0 && currentPosition >= 0) {
+                const seekTime = (currentPosition / 100) * duration
+                runOnJS(log.debug)('VideoControls', 'Gesture end - seeking', {
+                  seekPercentage: currentPosition,
+                  seekTime,
+                  duration,
+                })
+                runOnJS(onSeek)(seekTime)
               }
-            },
-            onPanResponderRelease: () => {
-              setIsScrubbing(false)
-              setScrubbingPosition(null)
-            },
-            onPanResponderTerminate: () => {
-              setIsScrubbing(false)
-              setScrubbingPosition(null)
-            },
-            onPanResponderReject: () => {
-              // Clean up if gesture was rejected
-              setIsScrubbing(false)
-              setScrubbingPosition(null)
-            },
-          }),
-        [computeSeekPercentage, duration, onSeek, showControlsAndResetTimer]
+            })
+            .onFinalize(() => {
+              const currentPosition = lastScrubbedPositionShared.value
+              runOnJS(log.debug)('VideoControls', 'Gesture onFinalize called', {
+                lastScrubbedPosition: currentPosition,
+                duration,
+              })
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+              runOnJS(setScrubbingPosition)(null)
+            })
+            .shouldCancelWhenOutside(false)
+            .minDistance(0)
+            .simultaneousWithExternalGesture(),
+        [duration, onSeek, showControlsAndResetTimer]
+      )
+
+      // Enhanced gesture handler for persistent progress bar scrubbing functionality - more reliable
+      const persistentProgressGesture = useMemo(
+        () =>
+          Gesture.Pan()
+            .maxPointers(1) // Single finger only for reliability
+            .activateAfterLongPress(0) // Immediate activation
+            .onBegin((event) => {
+              // Early activation - more reliable
+              runOnJS(setIsPersistentScrubbing)(true)
+              runOnJS(showControlsAndResetTimer)()
+
+              const seekPercentage =
+                persistentProgressBarWidthShared.value > 0
+                  ? Math.max(
+                      0,
+                      Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                    )
+                  : 0
+
+              lastScrubbedPositionShared.value = seekPercentage
+              runOnJS(log.debug)('VideoControls', 'Persistent gesture begin', {
+                eventX: event.x,
+                eventY: event.y,
+                progressBarWidth: persistentProgressBarWidthShared.value,
+                seekPercentage,
+              })
+            })
+            .onStart((event) => {
+              runOnJS(setIsPersistentScrubbing)(true)
+              runOnJS(showControlsAndResetTimer)()
+              // Calculate seek percentage inline to avoid worklet issues
+              const seekPercentage =
+                persistentProgressBarWidthShared.value > 0
+                  ? Math.max(
+                      0,
+                      Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                    )
+                  : 0
+              runOnJS(setPersistentScrubbingPosition)(seekPercentage)
+              lastScrubbedPositionShared.value = seekPercentage
+              // DO NOT SEEK HERE - wait for gesture end
+            })
+            .onUpdate((event) => {
+              // More lenient horizontal gesture detection - reduced threshold
+              const horizontalThreshold = 3
+              if (
+                Math.abs(event.translationY) > Math.abs(event.translationX) &&
+                Math.abs(event.translationY) > horizontalThreshold
+              ) {
+                return
+              }
+              // Calculate seek percentage inline to avoid worklet issues
+              const seekPercentage =
+                persistentProgressBarWidthShared.value > 0
+                  ? Math.max(
+                      0,
+                      Math.min(100, (event.x / persistentProgressBarWidthShared.value) * 100)
+                    )
+                  : 0
+              runOnJS(setPersistentScrubbingPosition)(seekPercentage)
+              lastScrubbedPositionShared.value = seekPercentage
+              // DO NOT SEEK HERE - wait for gesture end
+            })
+            .onEnd(() => {
+              // Seek ONLY on gesture end with the final scrubbed position
+              const currentPosition = lastScrubbedPositionShared.value
+              runOnJS(setIsPersistentScrubbing)(false)
+              runOnJS(setLastPersistentScrubbedPosition)(currentPosition) // Store for snapback prevention
+              runOnJS(setPersistentScrubbingPosition)(null)
+
+              // SEEK ONLY ONCE AT END with final position - allow seeking to 0%
+              if (duration > 0 && currentPosition >= 0) {
+                const seekTime = (currentPosition / 100) * duration
+                runOnJS(log.debug)('VideoControls', 'Persistent gesture end - seeking', {
+                  seekPercentage: currentPosition,
+                  seekTime,
+                  duration,
+                })
+                runOnJS(onSeek)(seekTime)
+              }
+            })
+            .onFinalize(() => {
+              runOnJS(setIsPersistentScrubbing)(false)
+              runOnJS(setPersistentScrubbingPosition)(null)
+            })
+            .shouldCancelWhenOutside(false)
+            .minDistance(0)
+            .simultaneousWithExternalGesture(),
+        [duration, onSeek, showControlsAndResetTimer]
       )
 
       // Expose handleMenuPress function to parent component via ref
@@ -451,79 +892,103 @@ export const VideoControls = React.memo(
               //bottom={-10} // Extend slightly below video area to align with feedback panel
               left={0}
               right={0}
-              height={30}
+              height={44} // Increased from 30 to 44 for better touch target
               justifyContent="center"
               testID="progress-bar-container"
               zIndex={30}
-              // Prevent vertical scrolling in this area
-              pointerEvents="box-none"
+              // Allow touch events for gesture handling
+              pointerEvents="auto"
             >
-              {/* Background track */}
-              <YStack
-                height={4}
-                backgroundColor="$color3"
-                borderRadius={2}
-                position="relative"
-                testID="progress-track"
-                onLayout={(event) => {
-                  const { width } = event.nativeEvent.layout
-                  setProgressBarWidth(width)
-                }}
-              >
-                {/* Completed progress fill */}
-                <YStack
-                  height="100%"
-                  width={`${progress}%`}
-                  backgroundColor="$yellow9"
-                  borderRadius={2}
-                  testID="progress-fill"
-                  position="absolute"
-                  left={0}
-                  top={0}
-                />
+              {/* Enhanced touch-friendly background track */}
+              <GestureDetector gesture={progressBarCombinedGesture}>
+                <Pressable
+                  onPress={(event) => {
+                    // Fallback handler for cases where gesture fails
+                    const { locationX } = event.nativeEvent
+                    if (progressBarWidth > 0 && duration > 0) {
+                      const seekPercentage = Math.max(
+                        0,
+                        Math.min(100, (locationX / progressBarWidth) * 100)
+                      )
+                      const seekTime = (seekPercentage / 100) * duration
+                      log.debug('VideoControls', 'Fallback press handler', {
+                        locationX,
+                        progressBarWidth,
+                        seekPercentage,
+                        seekTime,
+                        duration,
+                      })
+                      onSeek(seekTime)
+                      showControlsAndResetTimer()
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <YStack
+                    height={44} // Match container height for full touch area
+                    backgroundColor="transparent" // Transparent for larger touch area
+                    borderRadius={2}
+                    position="relative"
+                    testID="progress-track"
+                    justifyContent="center" // Center the visual track
+                    onLayout={(event) => {
+                      const { width } = event.nativeEvent.layout
+                      setProgressBarWidth(width)
+                    }}
+                  >
+                    {/* Visual progress track - smaller but touch area is larger */}
+                    <YStack
+                      height={4}
+                      backgroundColor="$color3"
+                      borderRadius={2}
+                      position="relative"
+                    >
+                      {/* Completed progress fill */}
+                      <YStack
+                        height="100%"
+                        width={`${progress}%`}
+                        backgroundColor="$teal9"
+                        borderRadius={2}
+                        testID="progress-fill"
+                        position="absolute"
+                        left={0}
+                        top={0}
+                      />
 
-                {/* Visible scrubber handle - always shown */}
-                <YStack
-                  position="absolute"
-                  left={`${progress}%`}
-                  top={0}
-                  width={14}
-                  height={14}
-                  marginLeft={-12}
-                  marginTop={-6}
-                  backgroundColor={isScrubbing ? '$yellow10' : '$yellow9'}
-                  borderRadius={12}
-                  borderWidth={0}
-                  borderColor="$color12"
-                  opacity={controlsVisible || isScrubbing ? 1 : 0.7}
-                  animation="quick"
-                  testID="scrubber-handle"
-                  zIndex={10}
-                  elevation={isScrubbing ? 2 : 0}
-                />
-              </YStack>
-
-              {/* PanResponder touch area for scrubbing */}
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 4,
-                  left: 0,
-                  right: 0,
-                  height: 20,
-                  backgroundColor: 'transparent',
-                  // Improve touch responsiveness
-                  zIndex: 1,
-                }}
-                {...panResponder.panHandlers}
-                accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
-                accessibilityRole="progressbar"
-                accessibilityValue={{ min: 0, max: 100, now: progressPercentage }}
-                accessibilityHint="Tap and drag horizontally to scrub through video"
-                testID="progress-scrubber"
-                // Prevent vertical scrolling from interfering
-                pointerEvents="auto"
-              />
+                      {/* Enhanced scrubber handle with larger touch area */}
+                      <GestureDetector gesture={mainProgressGesture}>
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: `${progress}%`,
+                            top: -20, // Centered within the 44px touch area
+                            width: 44, // Larger touch area
+                            height: 44, // Larger touch area
+                            marginLeft: -22, // Center the touch area
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {/* Visual handle - smaller but touch area is larger */}
+                          <YStack
+                            width={14}
+                            height={14}
+                            backgroundColor={isScrubbing ? '$teal10' : '$teal9'}
+                            borderRadius={12}
+                            borderWidth={0}
+                            borderColor="$color12"
+                            opacity={controlsVisible || isScrubbing ? 1 : 0.7}
+                            animation="quick"
+                            testID="scrubber-handle"
+                            elevation={isScrubbing ? 2 : 0}
+                          />
+                        </View>
+                      </GestureDetector>
+                    </YStack>
+                  </YStack>
+                </Pressable>
+              </GestureDetector>
             </YStack>
 
             {/* Fly-out Menu - Temporarily disabled for testing */}
@@ -611,6 +1076,111 @@ export const VideoControls = React.memo(
               </YStack>
             )}
           </YStack>
+
+          {/* Enhanced Persistent Progress Bar - Hidden in max mode */}
+          {videoMode !== 'max' && (
+            <GestureDetector gesture={persistentProgressBarCombinedGesture}>
+              <Pressable
+                onPress={(event) => {
+                  // Fallback handler for cases where gesture fails
+                  const { locationX } = event.nativeEvent
+                  if (persistentProgressBarWidth > 0 && duration > 0) {
+                    const seekPercentage = Math.max(
+                      0,
+                      Math.min(100, (locationX / persistentProgressBarWidth) * 100)
+                    )
+                    const seekTime = (seekPercentage / 100) * duration
+                    log.debug('VideoControls', 'Persistent fallback press handler', {
+                      locationX,
+                      persistentProgressBarWidth,
+                      seekPercentage,
+                      seekTime,
+                      duration,
+                    })
+                    onSeek(seekTime)
+                    showControlsAndResetTimer()
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: -21,
+                  left: 0,
+                  right: 0,
+                  height: 44, // Increased from 2 to 44 for better touch target
+                  justifyContent: 'center',
+                }}
+              >
+                <YStack
+                  height={44} // Match container height for full touch area
+                  backgroundColor="transparent" // Transparent for larger touch area
+                  opacity={0.8}
+                  testID="persistent-progress-bar"
+                  accessibilityLabel={`Video progress: ${persistentProgressPercentage}% complete`}
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{ min: 0, max: 100, now: persistentProgressPercentage }}
+                  justifyContent="center" // Center the visual track
+                  onLayout={(event) => {
+                    const { width } = event.nativeEvent.layout
+                    setPersistentProgressBarWidth(width)
+                  }}
+                >
+                  {/* Visual progress track - smaller but touch area is larger */}
+                  <YStack
+                    height={2}
+                    backgroundColor="$color8"
+                    position="relative"
+                  >
+                    {/* Progress fill */}
+                    <YStack
+                      height="100%"
+                      width={`${persistentProgress}%`}
+                      backgroundColor={controlsVisible ? '$teal9' : '$color11'}
+                      testID="persistent-progress-fill"
+                    />
+
+                    <YStack paddingLeft={10}>
+                      {/* Enhanced scrubber handle with larger touch area */}
+                      <GestureDetector gesture={persistentProgressGesture}>
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: `${persistentProgress}%`,
+                            top: -22, // Centered within the 44px touch area
+                            width: 44, // Larger touch area
+                            height: 44, // Larger touch area
+                            marginLeft: -17, // Center the touch area
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {/* Visual handle - smaller but touch area is larger */}
+                          <YStack
+                            width={10}
+                            height={10}
+                            backgroundColor={
+                              controlsVisible
+                                ? isPersistentScrubbing
+                                  ? '$teal10'
+                                  : '$teal9'
+                                : '$color8'
+                            }
+                            borderRadius={8}
+                            borderWidth={0}
+                            borderColor="$color12"
+                            opacity={controlsVisible || isPersistentScrubbing ? 1 : 0}
+                            animation="quick"
+                            testID="persistent-scrubber-handle"
+                            elevation={isPersistentScrubbing ? 2 : 0}
+                          />
+                        </View>
+                      </GestureDetector>
+                    </YStack>
+                  </YStack>
+                </YStack>
+              </Pressable>
+            </GestureDetector>
+          )}
         </Pressable>
       )
     }

@@ -350,7 +350,7 @@ export function CoachScreen({
             testID={`${testID}-sticky-header`}
           >
             <BlurView
-              intensity={25}
+              intensity={10}
               tint="regular"
               style={{
                 borderRadius: 0,
@@ -430,6 +430,7 @@ export function CoachScreen({
             <ScrollView
               ref={scrollViewRef}
               flex={1}
+              paddingTop={insets.top + APP_HEADER_HEIGHT + 116}
               paddingHorizontal="$6"
               testID={`${testID}-messages`}
               contentContainerStyle={{

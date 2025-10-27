@@ -51,7 +51,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           videoResolution: { width: 1280, height: 720 },
         },
         {
-          fps: 24,
+          fps: 30, // Use 30 fps for better duration precision
         },
         {
           videoAspectRatio: 16 / 9,
@@ -64,18 +64,18 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
     const targetFps = useMemo(() => {
       if (!format) {
-        return 24
+        return 30 // Default to 30 fps for better duration precision
       }
 
-      if (24 < format.minFps) {
+      if (30 < format.minFps) {
         return format.minFps
       }
 
-      if (24 > format.maxFps) {
+      if (30 > format.maxFps) {
         return format.maxFps
       }
 
-      return 24
+      return 30 // Use 30 fps for better duration precision
     }, [format])
 
     useEffect(() => {

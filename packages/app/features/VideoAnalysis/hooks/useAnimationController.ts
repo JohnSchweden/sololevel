@@ -94,12 +94,13 @@ export function useAnimationController(): UseAnimationControllerReturn {
     // Mode-based transitions with smooth interpolation
     if (scrollValue <= MODE_SCROLL_POSITIONS.normal) {
       // Phase 1: Max → Normal
-      return interpolate(
+      const result = interpolate(
         scrollValue,
         [MODE_SCROLL_POSITIONS.max, MODE_SCROLL_POSITIONS.normal],
         [VIDEO_HEIGHTS.max, VIDEO_HEIGHTS.normal],
         Extrapolation.CLAMP
       )
+      return result
     }
     // Phase 2: Normal → Min
     return interpolate(
@@ -111,14 +112,39 @@ export function useAnimationController(): UseAnimationControllerReturn {
   })
 
   // Collapse progress: 0 → max, 0.5 → normal, 1 → min
-  const collapseProgress = useDerivedValue(() =>
-    interpolate(
-      headerHeight.value,
-      [VIDEO_HEIGHTS.max, VIDEO_HEIGHTS.normal, VIDEO_HEIGHTS.min],
-      [0, 0.5, 1],
-      Extrapolation.CLAMP
-    )
-  )
+  const collapseProgress = useDerivedValue(() => {
+    const headerHeightValue = headerHeight.value
+    const scrollValue = scrollY.value
+
+    // Use two separate interpolations for smooth transitions
+    let progress: number
+    if (headerHeightValue >= VIDEO_HEIGHTS.normal) {
+      // Phase 1: Max (852) → Normal (511) maps to 0 → 0.5
+      progress = interpolate(
+        headerHeightValue,
+        [VIDEO_HEIGHTS.max, VIDEO_HEIGHTS.normal],
+        [0, 0.5],
+        Extrapolation.CLAMP
+      )
+    } else {
+      // Phase 2: Normal (511) → Min (281) maps to 0.5 → 1
+      progress = interpolate(
+        headerHeightValue,
+        [VIDEO_HEIGHTS.normal, VIDEO_HEIGHTS.min],
+        [0.5, 1],
+        Extrapolation.CLAMP
+      )
+    }
+
+    console.log('AnimationController Debug:', {
+      scrollY: scrollValue,
+      headerHeight: headerHeightValue,
+      collapseProgress: progress,
+      timestamp: new Date().toISOString(),
+    })
+
+    return progress
+  })
 
   const headerStyle = useAnimatedStyle(() => ({
     height: headerHeight.value,

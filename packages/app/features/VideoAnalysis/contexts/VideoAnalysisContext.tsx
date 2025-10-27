@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react'
 import type { FeedbackPanelItem } from '../types'
 
 export interface VideoAnalysisContextValue {
-  videoUri: string | null
+  videoUri: string
   feedbackItems: FeedbackPanelItem[]
   isPullingToReveal: boolean
 }

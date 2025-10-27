@@ -95,6 +95,8 @@ export interface VideoAnalysisLayoutProps {
   handlers: {
     onPlay: () => void
     onPause: () => void
+    onReplay: () => void
+    onEnd: () => void
     onSeek: (time: number) => void
     onSeekComplete: (time: number | null) => void
     onVideoLoad: (data: { duration: number }) => void
@@ -249,12 +251,12 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     posterUri={video.posterUri}
                     onPlay={handlers.onPlay}
                     onPause={handlers.onPause}
-                    onReplay={handlers.onPause}
+                    onReplay={handlers.onReplay}
                     onSeek={handlers.onSeek}
                     onSeekComplete={handlers.onSeekComplete}
                     onSignificantProgress={handlers.onSignificantProgress}
                     onLoad={handlers.onVideoLoad}
-                    onEnd={handlers.onPause}
+                    onEnd={handlers.onEnd}
                     onTap={() => {}}
                     onControlsVisibilityChange={controls.onControlsVisibilityChange}
                     audioPlayerController={audioController}

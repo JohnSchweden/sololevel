@@ -53,8 +53,8 @@ export interface VideoPlayerProps {
   onProgress?: (data: { currentTime: number }) => void
   /** Time to seek to when user scrubs; set to null to do nothing */
   seekToTime?: number | null
-  /** Called after native player performs the seek */
-  onSeekComplete?: () => void
+  /** Called after native player performs the seek with the time that was sought */
+  onSeekComplete?: (seekTime?: number) => void
 }
 
 // VideoPlayerSection Component API

@@ -66,24 +66,6 @@ export function useVideoPlayback(
     setVideoEnded(false)
   }, [])
 
-  const handleProgress = useCallback((data: { currentTime: number }) => {
-    const { currentTime: nextTime } = data
-
-    if (!Number.isFinite(nextTime)) {
-      log.warn('useVideoPlayback', 'Received invalid currentTime from progress event', {
-        currentTime: nextTime,
-      })
-      return
-    }
-
-    if (Math.abs(nextTime - lastReportedProgressRef.current) < 0.01) {
-      return
-    }
-
-    lastReportedProgressRef.current = nextTime
-    setCurrentTime(nextTime)
-  }, [])
-
   const handleLoad = useCallback((data: { duration: number }) => {
     const { duration: loadedDuration } = data
 
@@ -102,6 +84,41 @@ export function useVideoPlayback(
     setIsPlaying(false)
     setVideoEnded(true)
   }, [])
+
+  // Add progress-based end detection to handle fractional durations
+  const handleProgress = useCallback(
+    (data: { currentTime: number }) => {
+      const { currentTime: nextTime } = data
+
+      if (!Number.isFinite(nextTime)) {
+        log.warn('useVideoPlayback', 'Received invalid currentTime from progress event', {
+          currentTime: nextTime,
+        })
+        return
+      }
+
+      if (Math.abs(nextTime - lastReportedProgressRef.current) < 0.01) {
+        return
+      }
+
+      lastReportedProgressRef.current = nextTime
+      setCurrentTime(nextTime)
+
+      // Check if we've reached the actual end of the video
+      // This handles cases where onEnd is triggered prematurely
+      if (duration > 0 && nextTime >= duration - 0.05) {
+        // 50ms tolerance
+        log.info('useVideoPlayback', 'Progress-based end detection triggered', {
+          currentTime: nextTime,
+          duration,
+          difference: duration - nextTime,
+        })
+        setIsPlaying(false)
+        setVideoEnded(true)
+      }
+    },
+    [duration]
+  )
 
   const handleSeekComplete = useCallback(
     (time: number | null) => {

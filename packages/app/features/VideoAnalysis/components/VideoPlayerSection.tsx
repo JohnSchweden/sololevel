@@ -5,6 +5,10 @@ import Animated, {
   type SharedValue,
   interpolate,
   useAnimatedStyle,
+  Easing,
+  useDerivedValue,
+  useAnimatedReaction,
+  runOnJS,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -158,11 +162,47 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     [onLoad]
   )
 
+  // Determine video mode from collapseProgress using useDerivedValue for SharedValue reactivity
+  const videoMode = useDerivedValue(() => {
+    if (!collapseProgress) {
+      return 'max' as const
+    }
+
+    const progress = collapseProgress.value
+    let mode: 'max' | 'normal' | 'min'
+
+    if (progress <= 0.25) {
+      mode = 'max'
+    } else if (progress <= 0.75) {
+      mode = 'normal'
+    } else {
+      mode = 'min'
+    }
+
+    return mode
+  })
+
+  // Convert shared value to state for use in render
+  const [currentVideoMode, setCurrentVideoMode] = useState<'max' | 'normal' | 'min'>('max')
+
+  useAnimatedReaction(
+    () => videoMode.value,
+    (currentMode) => {
+      runOnJS(setCurrentVideoMode)(currentMode)
+    },
+    [videoMode]
+  )
+
   // Animation styles for avatar and social icons
   const avatarAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
+    // Apply cubic easing for smooth slow-start fast-end effect
+    const easeFunction = Easing.inOut(Easing.cubic)
+    const easedProgress = easeFunction(collapseProgress.value)
+
+    // Fade in when transitioning to max mode (collapseProgress 0-0.15), fade out otherwise
     return {
-      opacity: interpolate(collapseProgress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(easedProgress, [0, 0.25], [1, 0], Extrapolation.CLAMP),
       transform: [
         { translateY: interpolate(collapseProgress.value, [0, 1], [0, -12], Extrapolation.CLAMP) },
         { scale: interpolate(collapseProgress.value, [0, 1], [1, 0.9], Extrapolation.CLAMP) },
@@ -172,8 +212,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
   const socialAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
+    // Apply cubic easing for smooth slow-start fast-end effect
+    const easeFunction = Easing.inOut(Easing.cubic)
+    const easedProgress = easeFunction(collapseProgress.value)
+
+    // Fade out at max mode (0) and min mode (1), visible in normal mode (0.5)
+    const opacity = interpolate(easedProgress, [0, 0.5, 1], [0, 1, 0], Extrapolation.CLAMP)
     return {
-      opacity: interpolate(collapseProgress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+      opacity,
       transform: [
         { translateY: interpolate(collapseProgress.value, [0, 1], [16, 0], Extrapolation.CLAMP) },
       ],
@@ -221,7 +267,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               onLoad={handleLoad}
               onProgress={handleProgress}
               seekToTime={pendingSeek}
-              onSeekComplete={() => onSeekComplete(pendingSeek ?? null)}
+              onSeekComplete={(seekTime) => onSeekComplete(seekTime ?? pendingSeek ?? null)}
             />
           )}
 
@@ -253,7 +299,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           )}
 
           {/* Avatar - Always render with animated style */}
-          <Animated.View style={avatarAnimatedStyle}>
+          <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
             <CoachAvatar
               isSpeaking={coachSpeaking}
               size={90}
@@ -272,7 +318,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
           {/* Social Icons - Always render with animated style */}
           <Animated.View
-            style={socialAnimatedStyle}
+            style={[socialAnimatedStyle, { zIndex: 10 }]}
             testID="social-icons-container"
           >
             <SocialIcons
@@ -298,6 +344,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             showControls={showControls}
             isProcessing={isProcessing}
             videoEnded={videoEnded}
+            videoMode={currentVideoMode}
             onPlay={onPlay}
             onPause={onPause}
             onReplay={onReplay}

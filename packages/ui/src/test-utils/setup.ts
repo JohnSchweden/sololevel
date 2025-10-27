@@ -6,16 +6,33 @@ jest.mock('react-native-gesture-handler', () => ({
   NativeViewGestureHandler: ({ children }: { children: React.ReactNode }) => children,
   GestureDetector: ({ children }: { children: React.ReactNode }) => children,
   Gesture: {
-    Pan: () => ({
-      withRef: () => ({}),
-      minDistance: () => ({}),
-      activeOffsetY: () => ({}),
-      activeOffsetX: () => ({}),
-      onBegin: () => ({}),
-      onUpdate: () => ({}),
-      onEnd: () => ({}),
-      simultaneousWithExternalGesture: () => ({}),
-    }),
+    Pan: () => {
+      const gesture = {
+        withRef: () => gesture,
+        minDistance: () => gesture,
+        maxPointers: () => gesture,
+        activeOffsetY: () => gesture,
+        activeOffsetX: () => gesture,
+        activateAfterLongPress: () => gesture,
+        onBegin: () => gesture,
+        onStart: () => gesture,
+        onUpdate: () => gesture,
+        onEnd: () => gesture,
+        onFinalize: () => gesture,
+        shouldCancelWhenOutside: () => gesture,
+        simultaneousWithExternalGesture: () => gesture,
+      }
+      return gesture
+    },
+    Tap: () => {
+      const gesture = {
+        withRef: () => gesture,
+        minDistance: () => gesture,
+        onEnd: () => gesture,
+        simultaneousWithExternalGesture: () => gesture,
+      }
+      return gesture
+    },
     Native: () => ({
       simultaneousWithExternalGesture: () => ({}),
     }),

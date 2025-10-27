@@ -13,6 +13,7 @@ import Animated, {
   type AnimatedRef,
   type SharedValue,
 } from 'react-native-reanimated'
+import { useGestureConflictDetector } from './useGestureConflictDetector'
 
 // Animation constants - Mode-based system
 const { height: SCREEN_H } = Dimensions.get('window')
@@ -135,6 +136,9 @@ export function useGestureController(
   feedbackContentOffsetY: SharedValue<number>,
   scrollRef: AnimatedRef<Animated.ScrollView>
 ): UseGestureControllerReturn {
+  // AI-powered gesture conflict detection
+  const gestureDetector = useGestureConflictDetector()
+
   // Scroll blocking state - controls whether feedback ScrollView can scroll
   const [feedbackScrollEnabled, setFeedbackScrollEnabled] = useState(true)
   const [blockFeedbackScrollCompletely, setBlockFeedbackScrollCompletely] = useState(false)
@@ -192,6 +196,18 @@ export function useGestureController(
       const scrollValue = scrollY.value
       const currentVideoHeight = calculateVideoHeight(scrollValue)
       const isInVideoArea = touchY < currentVideoHeight
+
+      // Track gesture event for AI analysis
+      runOnJS(gestureDetector.trackGestureEvent)({
+        gestureType: 'rootPan',
+        phase: 'begin',
+        location: {
+          x: event.allTouches[0]?.x ?? 0,
+          y: touchY,
+        },
+        translation: { x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
+      })
 
       runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Touch down', {
         scrollY: scrollValue,
@@ -274,7 +290,7 @@ export function useGestureController(
         )
       }
     })
-    .onStart(() => {
+    .onStart((event) => {
       'worklet'
       if (!gestureIsActive.value) {
         runOnJS(log.debug)(
@@ -284,6 +300,15 @@ export function useGestureController(
         )
         return
       }
+
+      // Track gesture start for AI analysis
+      runOnJS(gestureDetector.trackGestureEvent)({
+        gestureType: 'rootPan',
+        phase: 'start',
+        location: { x: event.x, y: event.y },
+        translation: { x: event.translationX, y: event.translationY },
+        velocity: { x: event.velocityX, y: event.velocityY },
+      })
 
       isPullingToReveal.value = false
       runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture start - ACTIVE', {
@@ -314,8 +339,8 @@ export function useGestureController(
         const isNormalMode =
           scrollValue >= MODE_SCROLL_POSITIONS.max && scrollValue <= MODE_SCROLL_POSITIONS.normal
 
-        // Fast swipe threshold (adjust based on testing)
-        const FAST_SWIPE_THRESHOLD = 0.5 // pixels per millisecond (500 px/s)
+        // Fast swipe threshold (adjust based on testing) - more lenient for reliability
+        const FAST_SWIPE_THRESHOLD = 0.3 // pixels per millisecond (300 px/s) - reduced for easier triggering
         const isFastSwipe = gestureVelocity.value > FAST_SWIPE_THRESHOLD
 
         // Decision logic for feedback area touches:
@@ -389,6 +414,15 @@ export function useGestureController(
       isPullingToReveal.value = next < -PULL_THRESHOLD
       scrollTo(scrollRef, 0, next, false)
 
+      // Track gesture change for AI analysis
+      runOnJS(gestureDetector.trackGestureEvent)({
+        gestureType: 'rootPan',
+        phase: 'change',
+        location: { x: e.x, y: e.y },
+        translation: { x: e.translationX, y: e.translationY },
+        velocity: { x: e.velocityX, y: e.velocityY },
+      })
+
       if (Math.abs(e.changeY) > 10) {
         runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture onChange - moving video', {
           changeY: Math.round(e.changeY * 100) / 100,
@@ -398,12 +432,21 @@ export function useGestureController(
         })
       }
     })
-    .onEnd(() => {
+    .onEnd((event) => {
       'worklet'
       if (!gestureIsActive.value) {
         runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - SKIPPED (not active)', {})
         return
       }
+
+      // Track gesture end for AI analysis
+      runOnJS(gestureDetector.trackGestureEvent)({
+        gestureType: 'rootPan',
+        phase: 'end',
+        location: { x: event.x, y: event.y },
+        translation: { x: event.translationX, y: event.translationY },
+        velocity: { x: event.velocityX, y: event.velocityY },
+      })
 
       // ← CRITICAL: Re-enable ScrollView when gesture ends
       runOnJS(setFeedbackScrollEnabled)(true)
@@ -426,8 +469,17 @@ export function useGestureController(
         }
       )
     })
-    .onFinalize(() => {
+    .onFinalize((event) => {
       'worklet'
+      // Track gesture finalize for AI analysis
+      runOnJS(gestureDetector.trackGestureEvent)({
+        gestureType: 'rootPan',
+        phase: 'finalize',
+        location: { x: event.x, y: event.y },
+        translation: { x: event.translationX, y: event.translationY },
+        velocity: { x: event.velocityX, y: event.velocityY },
+      })
+
       gestureIsActive.value = false
       gestureDirection.value = 'unknown'
       gestureVelocity.value = 0

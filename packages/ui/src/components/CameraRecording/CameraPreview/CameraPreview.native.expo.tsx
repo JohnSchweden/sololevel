@@ -80,6 +80,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             }
             const video = await cameraRef.current.recordAsync({
               codec: 'avc1',
+              maxDuration: 60, // Maximum 60 seconds to prevent frame rate rounding issues
             })
             if (!video?.uri) {
               throw new Error('Recording failed: no video data received')

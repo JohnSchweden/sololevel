@@ -18,7 +18,11 @@ graph TB
         BottomNavigation
         BottomNavigationContainer"]
         App["⚙️ @my/app (Logic + Screens)
-        useTabPersistence (AsyncStorage)"]
+        useTabPersistence (AsyncStorage)
+        VideoAnalysisScreen (111 lines)
+        ├── useVideoAnalysisOrchestrator
+        ├── VideoAnalysisLayout.native
+        └── VideoAnalysisLayout.web"]
         API["🔌 @my/api (Supabase Client)"]
         Config["🧰 @my/config (Types)"]
     end

@@ -61,12 +61,13 @@ load_blocked_commands() {
     return 1
   }
 
+  # Parse output directly without process substitution or heredoc
   BLOCKED_COMMANDS=()
-  local line
-  # Use process substitution instead of heredoc to avoid temp file issues
-  while IFS=$'\n' read -r line; do
+  # Use printf with IFS to split on newlines
+  IFS=$'\n' read -d '' -A lines <<< "$commands"
+  for line in "${lines[@]}"; do
     [[ -n "$line" ]] && BLOCKED_COMMANDS+="$line"
-  done < <(echo "$commands")
+  done
 
   COMMAND_RULES_LOADED=1
 

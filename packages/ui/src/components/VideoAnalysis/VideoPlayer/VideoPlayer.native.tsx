@@ -71,7 +71,8 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   useEffect(() => {
     if (videoRef.current && seekToTime !== undefined && seekToTime !== null && seekToTime >= 0) {
       videoRef.current.seek(seekToTime)
-      onSeekComplete?.()
+      log.debug('VideoPlayerNative', 'Seeking to', { seekToTime })
+      onSeekComplete?.(seekToTime)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seekToTime])
