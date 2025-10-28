@@ -1,4 +1,4 @@
-import { logOnChange } from '@my/logging'
+// import { logOnChange } from '@my/logging'
 
 export interface VideoAudioSyncState {
   shouldPlayVideo: boolean
@@ -25,27 +25,27 @@ export function useVideoAudioSync({
   // Audio should play when active
   const shouldPlayAudio = isAudioActive
 
-  const syncState = {
-    isVideoPlaying,
-    isAudioActive,
-    shouldPlayVideo,
-    shouldPlayAudio,
-    isVideoPausedForAudio,
-  }
+  // const syncState = {
+  //   isVideoPlaying,
+  //   isAudioActive,
+  //   shouldPlayVideo,
+  //   shouldPlayAudio,
+  //   isVideoPausedForAudio,
+  // }
 
   // Only log when sync state actually changes (only in dev mode)
-  if (__DEV__) {
-    logOnChange('videoAudioSync', syncState, 'useVideoAudioSync', 'Sync state calculated', {
-      selector: (state) => ({
-        isVideoPlaying: state.isVideoPlaying,
-        isAudioActive: state.isAudioActive,
-        shouldPlayVideo: state.shouldPlayVideo,
-        shouldPlayAudio: state.shouldPlayAudio,
-        isVideoPausedForAudio: state.isVideoPausedForAudio,
-      }),
-      level: 'debug',
-    })
-  }
+  // if (__DEV__) {
+  //   logOnChange('videoAudioSync', syncState, 'useVideoAudioSync', 'Sync state calculated', {
+  //     selector: (state) => ({
+  //       isVideoPlaying: state.isVideoPlaying,
+  //       isAudioActive: state.isAudioActive,
+  //       shouldPlayVideo: state.shouldPlayVideo,
+  //       shouldPlayAudio: state.shouldPlayAudio,
+  //       isVideoPausedForAudio: state.isVideoPausedForAudio,
+  //     }),
+  //     level: 'debug',
+  //   })
+  // }
 
   return {
     shouldPlayVideo,

@@ -1,6 +1,6 @@
-import { log } from '@my/logging'
+//import { log } from '@my/logging'
 import { useCallback, useRef, useState } from 'react'
-import { runOnJS } from 'react-native-reanimated'
+//import { runOnJS } from 'react-native-reanimated'
 
 export interface GestureEvent {
   id: string
@@ -149,11 +149,11 @@ export function useGestureConflictDetector(): UseGestureConflictDetectorReturn {
       gestureConflicts.current = [...gestureConflicts.current, ...conflicts]
 
       // AI-powered conflict analysis
-      runOnJS(log.debug)('GestureConflictDetector', 'Event tracked', {
-        event: fullEvent,
-        activeGestures: Array.from(activeGestures),
-        conflicts: conflicts.length,
-      })
+      // runOnJS(log.debug)('GestureConflictDetector', 'Event tracked', {
+      //   event: fullEvent,
+      //   activeGestures: Array.from(activeGestures),
+      //   conflicts: conflicts.length,
+      // })
     },
     [activeGestures]
   )

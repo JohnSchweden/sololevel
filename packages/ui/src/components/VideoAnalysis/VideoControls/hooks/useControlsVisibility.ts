@@ -191,7 +191,7 @@ export function useControlsVisibility(
     showControls,
     isPlaying,
     isScrubbing,
-    autoHideDelayMs = 1000,
+    autoHideDelayMs = 1500,
     onControlsVisibilityChange,
   } = config
 
@@ -213,9 +213,8 @@ export function useControlsVisibility(
     // 1. Video is playing
     // 2. User is not scrubbing
     // 3. Controls are currently visible
-    // Note: showControls can be true or false - timer should start in both cases when playing
-    // showControls true = user tapped to show controls (should auto-hide)
-    // showControls false = external API showing controls (should auto-hide)
+    // Note: Timer should start when controls are visible and playing, regardless of showControls
+    // showControls only affects forced visibility, timer manages auto-hide
     const shouldStartTimer = isPlaying && !isScrubbing && controlsVisible
 
     log.debug('useControlsVisibility', 'resetAutoHideTimer called', {
@@ -314,9 +313,11 @@ export function useControlsVisibility(
   }, [isPlaying, onControlsVisibilityChange])
 
   // Reset timer when dependencies change or when explicitly triggered
+  // Include showControls to reset timer when visibility control changes
   useEffect(() => {
     resetAutoHideTimer()
-  }, [resetAutoHideTimer, resetTrigger])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, isScrubbing, controlsVisible, showControls, autoHideDelayMs, resetTrigger])
 
   // Cleanup timer on unmount
   useEffect(() => {

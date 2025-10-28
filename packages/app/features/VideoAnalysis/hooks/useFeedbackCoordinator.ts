@@ -72,15 +72,15 @@ export function useFeedbackCoordinator({
     feedbackAudio.audioUrls,
     audioController.duration,
     {
-      onBubbleShow: ({ index, item, displayDurationMs }) => {
+      onBubbleShow: ({ item, displayDurationMs }) => {
         const hasAudioUrl = Boolean(feedbackAudio.audioUrls[item.id])
 
-        log.info('useFeedbackCoordinator', 'Bubble show event received', {
-          index,
-          feedbackId: item.id,
-          timestamp: item.timestamp,
-          displayDurationMs,
-        })
+        // log.info('useFeedbackCoordinator', 'Bubble show event received', {
+        //   index,
+        //   feedbackId: item.id,
+        //   timestamp: item.timestamp,
+        //   displayDurationMs,
+        // })
 
         selection.highlightAutoFeedback(item, {
           seek: false,
@@ -89,11 +89,11 @@ export function useFeedbackCoordinator({
         })
       },
       onBubbleHide: ({ item, reason }) => {
-        log.info('useFeedbackCoordinator', 'Bubble hide event received', {
-          feedbackId: item?.id ?? null,
-          highlightedId: selection.highlightedFeedbackId,
-          reason,
-        })
+        // log.info('useFeedbackCoordinator', 'Bubble hide event received', {
+        //   feedbackId: item?.id ?? null,
+        //   highlightedId: selection.highlightedFeedbackId,
+        //   reason,
+        // })
 
         if (!item) {
           selection.clearHighlight({
@@ -114,11 +114,11 @@ export function useFeedbackCoordinator({
           return
         }
 
-        log.info('useFeedbackCoordinator', 'Bubble timer anchored to playback', {
-          feedbackId: item.id,
-          displayDurationMs,
-          reason,
-        })
+        // log.info('useFeedbackCoordinator', 'Bubble timer anchored to playback', {
+        //   feedbackId: item.id,
+        //   displayDurationMs,
+        //   reason,
+        // })
 
         selection.highlightAutoFeedback(item, {
           seek: false,
@@ -126,15 +126,15 @@ export function useFeedbackCoordinator({
           autoDurationMs: displayDurationMs,
         })
       },
-      onBubbleTimerElapsed: ({ item, reason }) => {
+      onBubbleTimerElapsed: ({ item }) => {
         if (!item) {
           return false
         }
 
-        log.info('useFeedbackCoordinator', 'Bubble timer elapsed — stopping audio for sync', {
-          feedbackId: item.id,
-          reason,
-        })
+        // log.info('useFeedbackCoordinator', 'Bubble timer elapsed — stopping audio for sync', {
+        //   feedbackId: item.id,
+        //   reason,
+        // })
 
         handleAudioStop('bubble-timer-elapsed')
         return true
@@ -174,11 +174,11 @@ export function useFeedbackCoordinator({
 
       // Do not trigger bubbles/highlights while paused or when a pending tap exists
       if (!videoPlayback.isPlaying || pendingFeedbackId) {
-        log.info('useFeedbackCoordinator', 'Progress gating active — skipping bubble check', {
-          isPlaying: videoPlayback.isPlaying,
-          pendingFeedbackId,
-          timeSeconds,
-        })
+        // log.info('useFeedbackCoordinator', 'Progress gating active — skipping bubble check', {
+        //   isPlaying: videoPlayback.isPlaying,
+        //   pendingFeedbackId,
+        //   timeSeconds,
+        // })
         return
       }
 
@@ -192,24 +192,24 @@ export function useFeedbackCoordinator({
         return
       }
 
-      log.info('useFeedbackCoordinator', 'Progress triggered bubble check', {
-        feedbackId: item.id,
-        timestamp: item.timestamp,
-        timeSeconds,
-      })
+      // log.info('useFeedbackCoordinator', 'Progress triggered bubble check', {
+      //   feedbackId: item.id,
+      //   timestamp: item.timestamp,
+      //   timeSeconds,
+      // })
     },
     [bubbleFeedbackItems, checkAndShowBubbleAtTime, pendingFeedbackId, videoPlayback]
   )
 
   const handleUserTapFeedback = useCallback(
     (item: FeedbackPanelItem) => {
-      log.info('useFeedbackCoordinator', 'User tapped feedback', {
-        feedbackId: item.id,
-        timestamp: item.timestamp,
-        isPlaying: videoPlayback.isPlaying,
-        videoEnded: videoPlayback.videoEnded,
-        currentTime: videoPlayback.currentTime,
-      })
+      // log.info('useFeedbackCoordinator', 'User tapped feedback', {
+      //   feedbackId: item.id,
+      //   timestamp: item.timestamp,
+      //   isPlaying: videoPlayback.isPlaying,
+      //   videoEnded: videoPlayback.videoEnded,
+      //   currentTime: videoPlayback.currentTime,
+      // })
 
       hideBubble('manual')
 
@@ -255,16 +255,16 @@ export function useFeedbackCoordinator({
 
   const handlePlay = useCallback(() => {
     if (!pendingFeedbackId || !pendingItemRef.current) {
-      log.info('useFeedbackCoordinator', 'Play pressed — no pending feedback, just play')
+      // log.info('useFeedbackCoordinator', 'Play pressed — no pending feedback, just play')
       videoPlayback.play()
       return
     }
 
     const item = pendingItemRef.current
-    log.info('useFeedbackCoordinator', 'Handling pending feedback on play', {
-      feedbackId: item.id,
-      timestamp: item.timestamp,
-    })
+    // log.info('useFeedbackCoordinator', 'Handling pending feedback on play', {
+    //   feedbackId: item.id,
+    //   timestamp: item.timestamp,
+    // })
 
     selection.selectFeedback(item, { seek: true, playAudio: true })
 
@@ -281,9 +281,9 @@ export function useFeedbackCoordinator({
   // Rule: After audio ends and video resumes playing, remove highlight
   useEffect(() => {
     if (!audioController.isPlaying && selection.highlightedFeedbackId && videoPlayback.isPlaying) {
-      log.info('useFeedbackCoordinator', 'Clearing highlight on audio end + video resume', {
-        highlightedId: selection.highlightedFeedbackId,
-      })
+      // log.info('useFeedbackCoordinator', 'Clearing highlight on audio end + video resume', {
+      //   highlightedId: selection.highlightedFeedbackId,
+      // })
       selection.clearHighlight({ reason: 'audio-ended-video-resumed' })
     }
   }, [
@@ -393,15 +393,15 @@ export function useFeedbackCoordinator({
     onPlay: handlePlay,
     onPanelCollapse: handlePanelCollapse,
     onAudioOverlayClose: () => {
-      log.info('useFeedbackCoordinator', 'Audio overlay closed by user')
+      // log.info('useFeedbackCoordinator', 'Audio overlay closed by user')
       handleAudioStop('audio-overlay-close')
     },
     onAudioOverlayInactivity: () => {
-      log.info('useFeedbackCoordinator', 'Audio overlay inactivity detected')
+      // log.info('useFeedbackCoordinator', 'Audio overlay inactivity detected')
       handleAudioStop('audio-overlay-inactivity')
     },
     onAudioOverlayInteraction: () => {
-      log.debug('useFeedbackCoordinator', 'Audio overlay interaction detected')
+      // log.debug('useFeedbackCoordinator', 'Audio overlay interaction detected')
     },
     onPlayPendingFeedback: handlePlayPendingFeedback,
   }

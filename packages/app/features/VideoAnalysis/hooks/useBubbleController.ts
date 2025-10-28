@@ -132,7 +132,7 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   const hideBubble = useCallback(
     (reason: BubbleHideReason = 'manual') => {
-      log.info('useBubbleController', 'hideBubble invoked', { reason })
+      // log.info('useBubbleController', 'hideBubble invoked', { reason })
 
       setBubbleVisible(false)
       clearBubbleTimer()
@@ -162,12 +162,12 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       clearBubbleTimer()
 
       if (remainingDurationMs <= 0) {
-        log.info('useBubbleController', 'Timer expired immediately after reschedule', {
-          itemId: item.id,
-          totalDurationMs,
-          elapsed,
-          reason,
-        })
+        // log.info('useBubbleController', 'Timer expired immediately after reschedule', {
+        //   itemId: item.id,
+        //   totalDurationMs,
+        //   elapsed,
+        //   reason,
+        // })
         hideBubble('timer-elapsed')
         return
       }
@@ -182,19 +182,19 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       }
 
       if (totalDurationMs <= 0) {
-        log.debug('useBubbleController', 'Timer scheduling skipped (unknown duration)', {
-          reason,
-        })
+        // log.debug('useBubbleController', 'Timer scheduling skipped (unknown duration)', {
+        //   reason,
+        // })
         return
       }
 
       bubbleTimerRef.current = setTimeout(() => {
-        log.info('useBubbleController', 'Bubble hide timer triggered', {
-          itemId: item.id,
-          totalDurationMs,
-          reason,
-          actualElapsed: Date.now() - (timerStateRef.current.startedAtMs ?? startedAt),
-        })
+        // log.info('useBubbleController', 'Bubble hide timer triggered', {
+        //   itemId: item.id,
+        //   totalDurationMs,
+        //   reason,
+        //   actualElapsed: Date.now() - (timerStateRef.current.startedAtMs ?? startedAt),
+        // })
 
         const handled = options.onBubbleTimerElapsed?.({
           index,
@@ -230,11 +230,11 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         return
       }
 
-      log.info('useBubbleController', 'showBubble invoked', {
-        index,
-        itemId: item.id,
-        timestamp: item.timestamp,
-      })
+      // log.info('useBubbleController', 'showBubble invoked', {
+      //   index,
+      //   itemId: item.id,
+      //   timestamp: item.timestamp,
+      // })
 
       clearBubbleTimer()
 
@@ -276,31 +276,31 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
     if (isPlaying) {
       if (currentState.waitingForPlayback && currentState.startedAtMs === null) {
         if (currentState.totalDurationMs > 0) {
-          log.info('useBubbleController', 'Starting bubble timer on playback start', {
-            itemId: currentState.item.id,
-          })
+          // log.info('useBubbleController', 'Starting bubble timer on playback start', {
+          //   itemId: currentState.item.id,
+          // })
           scheduleBubbleHide({
             index: currentState.index,
             item: currentState.item,
             reason: 'playback-start',
           })
         } else {
-          log.debug(
-            'useBubbleController',
-            'Playback started but audio duration unknown; waiting for coordinator to hide',
-            {
-              itemId: currentState.item.id,
-            }
-          )
+          // log.debug(
+          //   'useBubbleController',
+          //   'Playback started but audio duration unknown; waiting for coordinator to hide',
+          //   {
+          //     itemId: currentState.item.id,
+          //   }
+          // )
         }
       }
       return
     }
 
     if (currentState.startedAtMs !== null) {
-      log.info('useBubbleController', 'Playback paused or ended — hiding bubble immediately', {
-        itemId: currentState.item.id,
-      })
+      // log.info('useBubbleController', 'Playback paused or ended — hiding bubble immediately', {
+      //   itemId: currentState.item.id,
+      // })
       hideBubble('playback-paused')
     }
   }, [bubbleVisible, hideBubble, isPlaying, options, scheduleBubbleHide])
@@ -333,11 +333,11 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       totalDurationMs: nextDurationMs,
     }
 
-    log.info('useBubbleController', 'Resolved bubble duration', {
-      itemId: item.id,
-      previousDurationMs: currentState.totalDurationMs,
-      nextDurationMs,
-    })
+    // log.info('useBubbleController', 'Resolved bubble duration', {
+    //   itemId: item.id,
+    //   previousDurationMs: currentState.totalDurationMs,
+    //   nextDurationMs,
+    // })
 
     if (currentState.startedAtMs !== null || isPlaying) {
       scheduleBubbleHide({
@@ -375,16 +375,16 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
           // Update lastCheck to be at least the matched timestamp to prevent re-triggering
           lastCheckTimestampRef.current = Math.max(currentTimeMs, item.timestamp)
 
-          log.info('useBubbleController', 'Triggering bubble show', {
-            index,
-            itemId: item.id,
-            itemTimestamp: item.timestamp,
-            currentTimeMs,
-            rangeEnd,
-            lastCheck,
-            newLastCheck: lastCheckTimestampRef.current,
-            matchType: lastCheck === null || currentTimeMs < lastCheck ? 'point' : 'range',
-          })
+          // log.info('useBubbleController', 'Triggering bubble show', {
+          //   index,
+          //   itemId: item.id,
+          //   itemTimestamp: item.timestamp,
+          //   currentTimeMs,
+          //   rangeEnd,
+          //   lastCheck,
+          //   newLastCheck: lastCheckTimestampRef.current,
+          //   matchType: lastCheck === null || currentTimeMs < lastCheck ? 'point' : 'range',
+          // })
           showBubble(index)
           return index
         }

@@ -1,4 +1,4 @@
-import { log } from '@my/logging'
+//import { log } from '@my/logging'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { FeedbackPanelItem } from '../types'
@@ -69,7 +69,8 @@ export function useFeedbackSelection(
 
   const clearHighlight = useCallback(
     (options?: { matchId?: string; sources?: Array<'user' | 'auto'>; reason?: string }) => {
-      const { matchId, sources, reason } = options ?? {}
+      //const { matchId, sources, reason } = options ?? {}
+      const { matchId, sources } = options ?? {}
 
       setHighlightedFeedback((previous) => {
         if (!previous) {
@@ -84,11 +85,11 @@ export function useFeedbackSelection(
           return previous
         }
 
-        log.info('useFeedbackSelection', 'Clearing feedback highlight', {
-          id: previous.id,
-          source: previous.source,
-          reason: reason ?? null,
-        })
+        // log.info('useFeedbackSelection', 'Clearing feedback highlight', {
+        //   id: previous.id,
+        //   source: previous.source,
+        //   reason: reason ?? null,
+        // })
 
         clearHighlightTimer()
         return null
@@ -119,10 +120,10 @@ export function useFeedbackSelection(
           return previous
         }
 
-        log.info('useFeedbackSelection', 'Feedback highlight updated', {
-          id: item.id,
-          source,
-        })
+        // log.info('useFeedbackSelection', 'Feedback highlight updated', {
+        //   id: item.id,
+        //   source,
+        // })
 
         return { id: item.id, source }
       })
@@ -165,7 +166,7 @@ export function useFeedbackSelection(
     (item: FeedbackPanelItem, options?: { seek?: boolean; playAudio?: boolean }) => {
       const { seek = true, playAudio = true } = options ?? {}
 
-      log.info('useFeedbackSelection', 'Feedback item selected', { id: item.id })
+      // log.info('useFeedbackSelection', 'Feedback item selected', { id: item.id })
       applyHighlight(item, {
         source: 'user',
         seek,
@@ -194,7 +195,7 @@ export function useFeedbackSelection(
 
   const clearSelection = useCallback(() => {
     if (selectedFeedbackId) {
-      log.info('useFeedbackSelection', 'Clearing feedback selection', { id: selectedFeedbackId })
+      // log.info('useFeedbackSelection', 'Clearing feedback selection', { id: selectedFeedbackId })
     }
 
     clearHighlight({ reason: 'manual-clear' })
@@ -217,6 +218,10 @@ export function useFeedbackSelection(
   // Avoid re-triggering on unrelated state updates.
   const selectedAudioUrl = selectedFeedbackId ? feedbackAudio.audioUrls[selectedFeedbackId] : null
 
+  // Store seekTo in ref to avoid recreating effect when audioController object changes
+  const seekToRef = useRef(audioController.seekTo)
+  seekToRef.current = audioController.seekTo
+
   useEffect(() => {
     if (!selectedFeedbackId) {
       return
@@ -227,8 +232,9 @@ export function useFeedbackSelection(
     }
 
     // Feedback audio clips always start from the beginning (0s)
-    audioController.seekTo(0)
-  }, [audioController, selectedFeedbackId, selectedAudioUrl])
+    // Use ref to avoid depending on the entire audioController object
+    seekToRef.current(0)
+  }, [selectedFeedbackId, selectedAudioUrl])
 
   return {
     selectedFeedbackId,

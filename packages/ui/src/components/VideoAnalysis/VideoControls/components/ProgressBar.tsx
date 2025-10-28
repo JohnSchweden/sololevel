@@ -1,7 +1,7 @@
 import React from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated, { type AnimatedStyleProp } from 'react-native-reanimated'
+import Animated, { type AnimatedStyle } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
 /**
@@ -31,7 +31,7 @@ export interface ProgressBarProps {
   /** Width of the progress bar in pixels (from onLayout) */
   progressBarWidth: number
   /** Reanimated style for fade in/out animations */
-  animatedStyle: AnimatedStyleProp<ViewStyle>
+  animatedStyle: AnimatedStyle<ViewStyle>
   /** Combined gesture handler for track (tap + pan) */
   combinedGesture: GestureType
   /** Main gesture handler for scrubber handle (pan) */
@@ -87,7 +87,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     const trackHeight = isNormal ? 4 : 2
     const handleSize = isNormal ? 14 : 10
     const handleTouchArea = 44 // Consistent 44px touch area for both variants
-    const handleTopOffset = isNormal ? -20 : -22 // Center within touch area
+    const handleTopOffset = isNormal ? -20 : -23 // Center within touch area
     const handleMarginLeft = isNormal ? -22 : -17 // Center the touch area
 
     // Variant-specific colors

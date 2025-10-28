@@ -109,18 +109,18 @@ export function useHistoryQuery(limit = 10) {
         const jobs = await getUserAnalysisJobs(limit)
 
         // Debug: Log raw jobs data
-        log.debug('useHistoryQuery', 'Raw jobs from API', {
-          totalJobs: jobs.length,
-          limit,
-          sampleJob: jobs[0]
-            ? {
-                id: jobs[0].id,
-                status: jobs[0].status,
-                hasVideoRecordings: !!jobs[0].video_recordings,
-                videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
-              }
-            : 'no jobs',
-        })
+        // log.debug('useHistoryQuery', 'Raw jobs from API', {
+        //   totalJobs: jobs.length,
+        //   limit,
+        //   sampleJob: jobs[0]
+        //     ? {
+        //         id: jobs[0].id,
+        //         status: jobs[0].status,
+        //         hasVideoRecordings: !!jobs[0].video_recordings,
+        //         videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+        //       }
+        //     : 'no jobs',
+        // })
 
         // Filter completed jobs only
         const completedJobs = jobs.filter((job: any) => job.status === 'completed')
@@ -158,14 +158,14 @@ export function useHistoryQuery(limit = 10) {
                 lastAccessed: Date.now(),
               })
 
-          // Debug: Log transformation
-          log.debug('useHistoryQuery', 'Transformed video item', {
-            jobId: job.id,
-            hasThumbnail: !!videoItem.thumbnailUri,
-            thumbnailPreview: videoItem.thumbnailUri
-              ? videoItem.thumbnailUri.substring(0, 80)
-              : 'none',
-          })
+          // // Debug: Log transformation
+          // log.debug('useHistoryQuery', 'Transformed video item', {
+          //   jobId: job.id,
+          //   hasThumbnail: !!videoItem.thumbnailUri,
+          //   thumbnailPreview: videoItem.thumbnailUri
+          //     ? videoItem.thumbnailUri.substring(0, 80)
+          //     : 'none',
+          // })
 
           return videoItem
         })

@@ -1,4 +1,7 @@
+import { useCallback, useState } from 'react'
 import { YStack } from 'tamagui'
+
+import { type PersistentProgressBarProps, ProgressBar } from '@ui/components/VideoAnalysis'
 
 import { VideoAnalysisProvider } from '../contexts/VideoAnalysisContext'
 import { FeedbackSection } from './FeedbackSection'
@@ -38,6 +41,19 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     gesture,
   } = props
 
+  // Store persistent progress bar props for rendering at layout level
+  // This ensures React properly tracks and re-renders when props change
+  const [persistentProgressBarProps, setPersistentProgressBarProps] =
+    useState<PersistentProgressBarProps | null>(null)
+
+  // Callback to receive persistent progress bar props from VideoControls
+  const handlePersistentProgressBarPropsChange = useCallback(
+    (props: PersistentProgressBarProps | null) => {
+      setPersistentProgressBarProps(props)
+    },
+    []
+  )
+
   return (
     <VideoAnalysisProvider value={contextValue}>
       <YStack
@@ -51,7 +67,10 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           onBack={error.onBack}
         />
         {!error.visible && (
-          <YStack flex={1}>
+          <YStack
+            flex={1}
+            position="relative"
+          >
             {/* Video player section */}
             <VideoPlayerSection
               videoControlsRef={videoControlsRef}
@@ -85,6 +104,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                 onComment: handlers.onComment,
                 onBookmark: handlers.onBookmark,
               }}
+              onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
             />
 
             {/* Feedback section */}
@@ -112,6 +132,33 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
               }
               rootPanRef={gesture.rootPanRef}
             />
+
+            {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}
+            {persistentProgressBarProps && (
+              <YStack
+                position="absolute"
+                bottom={0}
+                left={0}
+                right={0}
+                zIndex={10}
+                pointerEvents="box-none"
+                testID="persistent-progress-bar-container"
+              >
+                <ProgressBar
+                  variant="persistent"
+                  progress={persistentProgressBarProps.progress}
+                  isScrubbing={persistentProgressBarProps.isScrubbing}
+                  controlsVisible={persistentProgressBarProps.controlsVisible}
+                  progressBarWidth={persistentProgressBarProps.progressBarWidth}
+                  animatedStyle={persistentProgressBarProps.animatedStyle}
+                  combinedGesture={persistentProgressBarProps.combinedGesture}
+                  mainGesture={persistentProgressBarProps.mainGesture}
+                  onLayout={persistentProgressBarProps.onLayout}
+                  onFallbackPress={persistentProgressBarProps.onFallbackPress}
+                  testID="persistent-progress-bar"
+                />
+              </YStack>
+            )}
           </YStack>
         )}
       </YStack>

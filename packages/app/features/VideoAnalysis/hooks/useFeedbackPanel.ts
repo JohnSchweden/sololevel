@@ -1,6 +1,6 @@
 import { LayoutAnimation, Platform } from 'react-native'
 
-import { log } from '@my/logging'
+// import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type FeedbackPanelTab = 'feedback' | 'insights' | 'comments'
@@ -56,50 +56,50 @@ export function useFeedbackPanel(options: UseFeedbackPanelOptions = {}): Feedbac
 
   // Stub functions to maintain interface compatibility
   const expand = useCallback(() => {
-    log.info('useFeedbackPanel', 'expand invoked (stub for static layout)')
+    // log.info('useFeedbackPanel', 'expand invoked (stub for static layout)')
   }, [])
 
   const collapse = useCallback(() => {
-    log.info('useFeedbackPanel', 'collapse invoked (stub for static layout)')
+    // log.info('useFeedbackPanel', 'collapse invoked (stub for static layout)')
   }, [])
 
   const toggle = useCallback(() => {
-    log.info('useFeedbackPanel', 'toggle invoked (stub for static layout)')
+    // log.info('useFeedbackPanel', 'toggle invoked (stub for static layout)')
   }, [])
 
   const setActiveTab = useCallback((tab: FeedbackPanelTab) => {
-    log.info('useFeedbackPanel', 'active tab changed', { tab })
+    // log.info('useFeedbackPanel', 'active tab changed', { tab })
     setActiveTabState(tab)
   }, [])
 
   const selectFeedback = useCallback((feedbackId: string | null) => {
-    log.info('useFeedbackPanel', 'selectFeedback invoked', { feedbackId })
+    // log.info('useFeedbackPanel', 'selectFeedback invoked', { feedbackId })
     setSelectedFeedbackId(feedbackId)
   }, [])
 
   const clearSelection = useCallback(() => {
     if (selectedFeedbackId) {
-      log.info('useFeedbackPanel', 'clearSelection invoked', { feedbackId: selectedFeedbackId })
+      // log.info('useFeedbackPanel', 'clearSelection invoked', { feedbackId: selectedFeedbackId })
     }
     setSelectedFeedbackId(null)
   }, [selectedFeedbackId])
 
   useEffect(() => {
-    log.debug('useFeedbackPanel', 'highlightedFeedbackId prop changed', {
-      highlightedFeedbackId,
-      currentSelectedFeedbackId: selectedFeedbackId,
-    })
+    // log.debug('useFeedbackPanel', 'highlightedFeedbackId prop changed', {
+    //   highlightedFeedbackId,
+    //   currentSelectedFeedbackId: selectedFeedbackId,
+    // })
     setSelectedFeedbackId((previous) => {
       if (previous === highlightedFeedbackId) {
-        log.debug('useFeedbackPanel', 'selectedFeedbackId unchanged (same as highlighted)', {
-          id: previous,
-        })
+        // log.debug('useFeedbackPanel', 'selectedFeedbackId unchanged (same as highlighted)', {
+        //   id: previous,
+        // })
         return previous
       }
-      log.debug('useFeedbackPanel', 'selectedFeedbackId updated from highlighted', {
-        previous,
-        next: highlightedFeedbackId,
-      })
+      // log.debug('useFeedbackPanel', 'selectedFeedbackId updated from highlighted', {
+      //   previous,
+      //   next: highlightedFeedbackId,
+      // })
       return highlightedFeedbackId
     })
   }, [highlightedFeedbackId])

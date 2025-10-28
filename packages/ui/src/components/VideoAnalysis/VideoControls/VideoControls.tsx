@@ -16,6 +16,18 @@ export interface VideoControlsRef {
   triggerMenu: () => void
 }
 
+export interface PersistentProgressBarProps {
+  progress: number
+  isScrubbing: boolean
+  controlsVisible: boolean
+  progressBarWidth: number
+  animatedStyle: any
+  combinedGesture: any
+  mainGesture: any
+  onLayout: (event: any) => void
+  onFallbackPress: (locationX: number) => void
+}
+
 export interface VideoControlsProps {
   isPlaying: boolean
   currentTime: number
@@ -34,6 +46,8 @@ export interface VideoControlsProps {
   videoMode?: 'max' | 'normal' | 'min'
   // NEW: Collapse progress for early fade-out animation (0 = max, 0.5 = normal, 1 = min)
   collapseProgress?: number
+  // NEW: Callback to provide persistent progress bar props to parent for rendering at layout level
+  onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
 }
 
 export const VideoControls = React.memo(
@@ -55,6 +69,7 @@ export const VideoControls = React.memo(
         headerComponent,
         videoMode: _videoMode = 'max', // Reserved for future pointer events control
         collapseProgress = 0,
+        onPersistentProgressBarPropsChange,
       },
       ref
     ) => {
@@ -166,7 +181,12 @@ export const VideoControls = React.memo(
       const mainProgressGesture = normalProgressBar.mainGesture
       const persistentProgressGesture = persistentProgressBar.mainGesture
 
-      // Expose handleMenuPress function to parent component via ref
+      // Animated styles for progress bars based on collapse progress
+      // Pass shared value to prevent JS→worklet race conditions
+      const { persistentBarAnimatedStyle, normalBarAnimatedStyle } =
+        useProgressBarAnimation(collapseProgressShared)
+
+      // Expose handleMenuPress to parent component via ref
       useImperativeHandle(
         ref,
         () => ({
@@ -175,10 +195,58 @@ export const VideoControls = React.memo(
         [handleMenuPress]
       )
 
-      // Animated styles for progress bars based on collapse progress
-      // Pass shared value to prevent JS→worklet race conditions
-      const { persistentBarAnimatedStyle, normalBarAnimatedStyle } =
-        useProgressBarAnimation(collapseProgressShared)
+      // Provide persistent progress bar props to parent via callback for rendering at layout level
+      // This ensures React properly tracks and re-renders the progress bar when props change
+      useEffect(() => {
+        if (!onPersistentProgressBarPropsChange) {
+          return
+        }
+
+        onPersistentProgressBarPropsChange({
+          progress: persistentProgress,
+          isScrubbing: persistentProgressBar.isScrubbing,
+          controlsVisible,
+          progressBarWidth: persistentProgressBarWidth,
+          animatedStyle: persistentBarAnimatedStyle,
+          combinedGesture: persistentProgressBarCombinedGesture,
+          mainGesture: persistentProgressGesture,
+          onLayout: (event) => {
+            const { width } = event.nativeEvent.layout
+            setPersistentProgressBarWidth(width)
+          },
+          onFallbackPress: (locationX) => {
+            if (persistentProgressBarWidth > 0 && duration > 0) {
+              const seekPercentage = Math.max(
+                0,
+                Math.min(100, (locationX / persistentProgressBarWidth) * 100)
+              )
+              const seekTime = (seekPercentage / 100) * duration
+              log.debug('VideoControls', 'Persistent fallback press handler', {
+                locationX,
+                persistentProgressBarWidth,
+                seekPercentage,
+                seekTime,
+                duration,
+              })
+              onSeek(seekTime)
+              showControlsAndResetTimer()
+            }
+          },
+        })
+      }, [
+        persistentProgress,
+        persistentProgressBar.isScrubbing,
+        controlsVisible,
+        persistentProgressBarWidth,
+        persistentBarAnimatedStyle,
+        persistentProgressBarCombinedGesture,
+        persistentProgressGesture,
+        setPersistentProgressBarWidth,
+        duration,
+        onSeek,
+        showControlsAndResetTimer,
+        onPersistentProgressBarPropsChange,
+      ])
 
       return (
         <Pressable
@@ -195,12 +263,14 @@ export const VideoControls = React.memo(
           <YStack
             position="absolute"
             inset={0}
-            backgroundColor="rgba(0,0,0,0.6)"
+            backgroundColor="rgba(0,0,0,0.5)"
             justifyContent="flex-end"
             padding="$4"
             opacity={controlsVisible ? 1 : 0}
             pointerEvents={controlsVisible ? 'auto' : 'none'}
-            animation="quick"
+            animation={controlsVisible ? 'medium' : 'lazy'}
+            enterStyle={{ opacity: 0 }}
+            exitStyle={{ opacity: 0 }}
             testID="video-controls-overlay"
             accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
             accessibilityRole="toolbar"
@@ -399,40 +469,41 @@ export const VideoControls = React.memo(
             )}
           </YStack>
 
-          {/* Enhanced Persistent Progress Bar - Fades out in max mode */}
-          <ProgressBar
-            variant="persistent"
-            progress={persistentProgress}
-            isScrubbing={persistentProgressBar.isScrubbing}
-            controlsVisible={controlsVisible}
-            progressBarWidth={persistentProgressBarWidth}
-            animatedStyle={persistentBarAnimatedStyle}
-            combinedGesture={persistentProgressBarCombinedGesture}
-            mainGesture={persistentProgressGesture}
-            onLayout={(event) => {
-              const { width } = event.nativeEvent.layout
-              setPersistentProgressBarWidth(width)
-            }}
-            onFallbackPress={(locationX) => {
-              if (persistentProgressBarWidth > 0 && duration > 0) {
-                const seekPercentage = Math.max(
-                  0,
-                  Math.min(100, (locationX / persistentProgressBarWidth) * 100)
-                )
-                const seekTime = (seekPercentage / 100) * duration
-                log.debug('VideoControls', 'Persistent fallback press handler', {
-                  locationX,
-                  persistentProgressBarWidth,
-                  seekPercentage,
-                  seekTime,
-                  duration,
-                })
-                onSeek(seekTime)
-                showControlsAndResetTimer()
-              }
-            }}
-            testID="persistent-progress-bar"
-          />
+          {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
+          {/* {!onPersistentProgressBarPropsChange && (
+            <ProgressBar
+              variant="persistent"
+              progress={persistentProgress}
+              isScrubbing={persistentProgressBar.isScrubbing}
+              controlsVisible={controlsVisible}
+              progressBarWidth={persistentProgressBarWidth}
+              animatedStyle={persistentBarAnimatedStyle}
+              combinedGesture={persistentProgressBarCombinedGesture}
+              mainGesture={persistentProgressGesture}
+              onLayout={(event) => {
+                const { width } = event.nativeEvent.layout
+                setPersistentProgressBarWidth(width)
+              }}
+              onFallbackPress={(locationX) => {
+                if (persistentProgressBarWidth > 0 && duration > 0) {
+                  const seekPercentage = Math.max(
+                    0,
+                    Math.min(100, (locationX / persistentProgressBarWidth) * 100)
+                  )
+                  const seekTime = (seekPercentage / 100) * duration
+                  log.debug('VideoControls', 'Persistent fallback press handler', {
+                    locationX,
+                    persistentProgressBarWidth,
+                    seekPercentage,
+                    seekTime,
+                    duration,
+                  })
+                  onSeek(seekTime)
+                  showControlsAndResetTimer()
+                }
+              }}
+            />
+          )} */}
         </Pressable>
       )
     }

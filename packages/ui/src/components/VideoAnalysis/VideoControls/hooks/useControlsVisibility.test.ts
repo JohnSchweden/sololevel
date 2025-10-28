@@ -47,6 +47,8 @@ describe('useControlsVisibility', () => {
           config: {
             ...defaultConfig,
             showControls: true, // Start with controls visible
+            isPlaying: true,
+            autoHideDelayMs: 1000, // Use 1000ms for faster test
             onControlsVisibilityChange: mockOnControlsVisibilityChange,
           },
         },
@@ -55,20 +57,10 @@ describe('useControlsVisibility', () => {
       // Assert: Controls should be visible initially
       expect(result.current.controlsVisible).toBe(true)
 
-      // Act: Start playing
-      rerender({
-        config: {
-          ...defaultConfig,
-          showControls: false, // Allow timer to start
-          isPlaying: true,
-          onControlsVisibilityChange: mockOnControlsVisibilityChange,
-        },
-      })
-
       // Clear initial callback calls
       mockOnControlsVisibilityChange.mockClear()
 
-      // Act: Advance timer by 1 second (default auto-hide delay)
+      // Act: Advance timer by 1 second (auto-hide delay)
       act(() => {
         jest.advanceTimersByTime(1000)
       })
@@ -180,6 +172,7 @@ describe('useControlsVisibility', () => {
             ...defaultConfig,
             showControls: false,
             isPlaying: true,
+            autoHideDelayMs: 1000, // Use 1000ms for faster test
             onControlsVisibilityChange: mockOnControlsVisibilityChange,
           },
         },
@@ -224,6 +217,7 @@ describe('useControlsVisibility', () => {
             ...defaultConfig,
             showControls: false,
             isPlaying: true,
+            autoHideDelayMs: 1000, // Use 1000ms for faster test
             onControlsVisibilityChange: mockOnControlsVisibilityChange,
           },
         },
@@ -460,6 +454,7 @@ describe('useControlsVisibility', () => {
             ...defaultConfig,
             showControls: false,
             isPlaying: true,
+            autoHideDelayMs: 1000, // Use 1000ms for faster test
             onControlsVisibilityChange: mockOnControlsVisibilityChange,
           },
         },

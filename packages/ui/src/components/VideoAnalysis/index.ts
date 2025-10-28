@@ -7,7 +7,14 @@ export type {
 
 // Video Analysis UI Components - Explicit exports for better treeshaking
 export { VideoControls } from './VideoControls/VideoControls'
-export type { VideoControlsProps, VideoControlsRef } from './VideoControls/VideoControls'
+export type {
+  VideoControlsProps,
+  VideoControlsRef,
+  PersistentProgressBarProps,
+} from './VideoControls/VideoControls'
+
+export { ProgressBar } from './VideoControls/components/ProgressBar'
+export type { ProgressBarProps } from './VideoControls/components/ProgressBar'
 
 export { MotionCaptureOverlay } from './MotionCaptureOverlay/MotionCaptureOverlay'
 export type { MotionCaptureOverlayProps } from './MotionCaptureOverlay/MotionCaptureOverlay'

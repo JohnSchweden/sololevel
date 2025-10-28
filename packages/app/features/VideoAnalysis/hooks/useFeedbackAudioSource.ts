@@ -50,10 +50,10 @@ export function useFeedbackAudioSource(
 
     feedbackItems.forEach((item) => {
       if (!item || item.audioStatus !== 'completed') {
-        log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
-          feedbackId: item.id,
-          audioStatus: item.audioStatus,
-        })
+        // log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
+        //   feedbackId: item.id,
+        //   audioStatus: item.audioStatus,
+        // })
         return
       }
 
@@ -102,9 +102,9 @@ export function useFeedbackAudioSource(
 
             setActiveAudio((prev) => prev ?? { id: feedbackId, url: result.url })
 
-            log.info(CONTEXT, 'Audio url resolved for feedback', {
-              feedbackId,
-            })
+            // log.info(CONTEXT, 'Audio url resolved for feedback', {
+            //   feedbackId,
+            // })
           } else {
             setErrors((prev) => ({ ...prev, [feedbackId]: result.error }))
             log.error(CONTEXT, 'Audio url fetch failed', {
@@ -141,25 +141,25 @@ export function useFeedbackAudioSource(
       // If selecting the same audio id again, append a cache-busting fragment to force controller reset
       const urlToUse = activeAudio?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
 
-      log.info(CONTEXT, 'Selecting audio for feedback', {
-        feedbackId,
-        url: urlToUse.substring(0, 50) + '...',
-        previousActiveId: activeAudio?.id,
-      })
+      // log.info(CONTEXT, 'Selecting audio for feedback', {
+      //   feedbackId,
+      //   url: urlToUse.substring(0, 50) + '...',
+      //   previousActiveId: activeAudio?.id,
+      // })
       setActiveAudio({ id: feedbackId, url: urlToUse })
     },
     [audioUrls, activeAudio?.id]
   )
 
   const clearActiveAudio = useCallback(() => {
-    log.info(CONTEXT, 'Clearing active audio', {
-      previousActiveId: activeAudio?.id,
-    })
+    // log.info(CONTEXT, 'Clearing active audio', {
+    //   previousActiveId: activeAudio?.id,
+    // })
     setActiveAudio(null)
   }, [activeAudio?.id])
 
   const clearError = useCallback((feedbackId: string) => {
-    log.info(CONTEXT, 'Clearing error for feedback', { feedbackId })
+    // log.info(CONTEXT, 'Clearing error for feedback', { feedbackId })
     setErrors((prev) => {
       if (!prev[feedbackId]) {
         return prev

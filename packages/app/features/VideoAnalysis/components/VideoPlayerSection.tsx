@@ -18,6 +18,7 @@ import {
   CoachAvatar,
   FeedbackBubbles,
   MotionCaptureOverlay,
+  type PersistentProgressBarProps,
   SocialIcons,
   VideoContainer,
   VideoControls,
@@ -99,6 +100,8 @@ interface VideoPlayerSectionProps {
   }
   // NEW: Animation props
   collapseProgress?: SharedValue<number> // 0 expanded → 1 collapsed
+  // NEW: Callback to provide persistent progress bar props to parent for rendering at layout level
+  onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
 }
 
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
@@ -130,6 +133,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   socialCounts,
   onSocialAction,
   collapseProgress,
+  onPersistentProgressBarPropsChange,
 }: VideoPlayerSectionProps) {
   // Get rarely-changing data from context
   const { videoUri } = useVideoAnalysisContext()
@@ -361,6 +365,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onReplay={onReplay}
             onSeek={onSeek}
             onControlsVisibilityChange={onControlsVisibilityChange}
+            onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
           />
         </YStack>
       </VideoPlayerArea>

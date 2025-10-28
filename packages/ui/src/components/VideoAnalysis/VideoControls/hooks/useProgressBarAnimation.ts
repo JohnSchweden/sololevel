@@ -1,6 +1,6 @@
 import type { ViewStyle } from 'react-native'
 import {
-  type AnimatedStyleProp,
+  type AnimatedStyle,
   Easing,
   Extrapolation,
   type SharedValue,
@@ -67,9 +67,9 @@ import {
  */
 export interface UseProgressBarAnimationReturn {
   /** Animated opacity style for persistent progress bar (visible in normal/min modes) */
-  persistentBarAnimatedStyle: AnimatedStyleProp<ViewStyle>
+  persistentBarAnimatedStyle: AnimatedStyle<ViewStyle>
   /** Animated opacity style for normal progress bar (visible in max mode) */
-  normalBarAnimatedStyle: AnimatedStyleProp<ViewStyle>
+  normalBarAnimatedStyle: AnimatedStyle<ViewStyle>
 }
 
 /**

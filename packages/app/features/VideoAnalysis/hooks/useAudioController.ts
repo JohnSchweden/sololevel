@@ -40,11 +40,11 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   // Reset state when audio URL changes
   useEffect(() => {
     if (audioUrl !== previousAudioUrlRef.current) {
-      log.debug('useAudioController', 'Audio URL changed, updating state', {
-        previousUrl: previousAudioUrlRef.current,
-        newUrl: audioUrl,
-        preserveIsPlaying: audioUrl !== null,
-      })
+      // log.debug('useAudioController', 'Audio URL changed, updating state', {
+      //   previousUrl: previousAudioUrlRef.current,
+      //   newUrl: audioUrl,
+      //   preserveIsPlaying: audioUrl !== null,
+      // })
 
       // Batch non-urgent state updates to minimize re-renders
       if (audioUrl === null) {
@@ -81,21 +81,21 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   }, [audioUrl])
 
   const setIsPlayingCallback = useCallback((playing: boolean) => {
-    log.debug('useAudioController', 'Setting playback state', { playing })
+    // log.debug('useAudioController', 'Setting playback state', { playing })
     setIsPlaying(playing)
   }, [])
 
   const togglePlayback = useCallback(() => {
     const newPlayingState = !isPlaying
-    log.debug('useAudioController', 'Toggling playback', { newPlayingState })
+    // log.debug('useAudioController', 'Toggling playback', { newPlayingState })
     setIsPlaying(newPlayingState)
   }, [isPlaying])
 
   const handleLoad = useCallback((data: { duration: number }) => {
     const { duration: newDuration } = data
-    log.debug('useAudioController', 'Audio loaded', {
-      duration: newDuration,
-    })
+    // log.debug('useAudioController', 'Audio loaded', {
+    //   duration: newDuration,
+    // })
 
     if (typeof newDuration === 'number' && !Number.isNaN(newDuration)) {
       setDuration(newDuration)
@@ -157,7 +157,7 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
       return
     }
 
-    log.debug('useAudioController', 'Audio playback ended', logContext)
+    // log.debug('useAudioController', 'Audio playback ended', logContext)
 
     hasPlaybackStartedRef.current = false
     setIsPlaying(false)
@@ -174,7 +174,7 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   }, [])
 
   const handleSeekComplete = useCallback(() => {
-    log.debug('useAudioController', 'Seek completed')
+    // log.debug('useAudioController', 'Seek completed')
     setSeekTime(null)
     seekTimeRef.current = null
     hasPlaybackStartedRef.current = true
@@ -185,10 +185,10 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
       if (typeof time === 'number' && !Number.isNaN(time)) {
         // Gate seek calls to prevent redundant state updates
         if (seekTime === time) {
-          log.debug('useAudioController', 'Seek already at target time, skipping', { time })
+          // log.debug('useAudioController', 'Seek already at target time, skipping', { time })
           return
         }
-        log.debug('useAudioController', 'Seeking to time', { time, previousSeekTime: seekTime })
+        // log.debug('useAudioController', 'Seeking to time', { time, previousSeekTime: seekTime })
         setSeekTime(time)
         seekTimeRef.current = time
       } else {
@@ -199,7 +199,7 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
   )
 
   const reset = useCallback(() => {
-    log.debug('useAudioController', 'Resetting audio controller state')
+    // log.debug('useAudioController', 'Resetting audio controller state')
     setIsPlaying(false)
     setCurrentTime(0)
     setDuration(0)

@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import { useCallback, useState } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -7,7 +8,11 @@ import Animated from 'react-native-reanimated'
 import type { AnimatedRef, AnimatedStyle, DerivedValue, SharedValue } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
-import type { VideoControlsRef } from '@ui/components/VideoAnalysis'
+import {
+  type PersistentProgressBarProps,
+  ProgressBar,
+  type VideoControlsRef,
+} from '@ui/components/VideoAnalysis'
 
 import { VideoAnalysisProvider } from '../contexts/VideoAnalysisContext'
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
@@ -207,6 +212,19 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     contextValue,
   } = props
 
+  // Store persistent progress bar props for rendering at layout level
+  // This ensures React properly tracks and re-renders when props change
+  const [persistentProgressBarProps, setPersistentProgressBarProps] =
+    useState<PersistentProgressBarProps | null>(null)
+
+  // Callback to receive persistent progress bar props from VideoControls
+  const handlePersistentProgressBarPropsChange = useCallback(
+    (props: PersistentProgressBarProps | null) => {
+      setPersistentProgressBarProps(props)
+    },
+    []
+  )
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <VideoAnalysisProvider value={contextValue}>
@@ -272,6 +290,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                       onBookmark: handlers.onBookmark,
                     }}
                     collapseProgress={animation.collapseProgress}
+                    onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
                   />
                 </Animated.View>
 
@@ -293,6 +312,40 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                 >
                   {/* Indicator content commented out in original - keeping same */}
                 </Animated.View>
+
+                {/* Persistent Progress Bar - Positioned at bottom of video header using same transform pattern */}
+                {persistentProgressBarProps && (
+                  <Animated.View
+                    style={[
+                      {
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        pointerEvents: 'box-none',
+                      },
+                      {
+                        transform: [{ translateY: animation.headerHeight }],
+                      },
+                    ]}
+                    testID="persistent-progress-bar-container"
+                  >
+                    <ProgressBar
+                      variant="persistent"
+                      progress={persistentProgressBarProps.progress}
+                      isScrubbing={persistentProgressBarProps.isScrubbing}
+                      controlsVisible={persistentProgressBarProps.controlsVisible}
+                      progressBarWidth={persistentProgressBarProps.progressBarWidth}
+                      animatedStyle={persistentProgressBarProps.animatedStyle}
+                      combinedGesture={persistentProgressBarProps.combinedGesture}
+                      mainGesture={persistentProgressBarProps.mainGesture}
+                      onLayout={persistentProgressBarProps.onLayout}
+                      onFallbackPress={persistentProgressBarProps.onFallbackPress}
+                      testID="persistent-progress-bar"
+                    />
+                  </Animated.View>
+                )}
 
                 {/* Single scroll source with content starting below header */}
                 <Animated.ScrollView

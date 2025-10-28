@@ -212,27 +212,26 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     }))
 
     if (__DEV__) {
-      const breakdown = items.reduce(
-        (acc, item) => {
-          acc.ssmlStatus = acc.ssmlStatus || {}
-          acc.audioStatus = acc.audioStatus || {}
-          acc.ssmlStatus[item.ssmlStatus] = (acc.ssmlStatus[item.ssmlStatus] || 0) + 1
-          acc.audioStatus[item.audioStatus] = (acc.audioStatus[item.audioStatus] || 0) + 1
-          return acc
-        },
-        {} as { ssmlStatus: Record<string, number>; audioStatus: Record<string, number> }
-      )
-
-      log.debug('FeedbackIntegration', 'transformed feedback items', {
-        totalFeedbacks: feedbacks.length,
-        transformedItems: items.length,
-        statusBreakdown: breakdown,
-        sampleItems: items.slice(0, 3).map((item) => ({
-          id: item.id,
-          audioStatus: item.audioStatus,
-          ssmlStatus: item.ssmlStatus,
-        })),
-      })
+      // const breakdown = items.reduce(
+      //   (acc, item) => {
+      //     acc.ssmlStatus = acc.ssmlStatus || {}
+      //     acc.audioStatus = acc.audioStatus || {}
+      //     acc.ssmlStatus[item.ssmlStatus] = (acc.ssmlStatus[item.ssmlStatus] || 0) + 1
+      //     acc.audioStatus[item.audioStatus] = (acc.audioStatus[item.audioStatus] || 0) + 1
+      //     return acc
+      //   },
+      //   {} as { ssmlStatus: Record<string, number>; audioStatus: Record<string, number> }
+      // )
+      // log.debug('FeedbackIntegration', 'transformed feedback items', {
+      //   totalFeedbacks: feedbacks.length,
+      //   transformedItems: items.length,
+      //   statusBreakdown: breakdown,
+      //   sampleItems: items.slice(0, 3).map((item) => ({
+      //     id: item.id,
+      //     audioStatus: item.audioStatus,
+      //     ssmlStatus: item.ssmlStatus,
+      //   })),
+      // })
     }
 
     return items

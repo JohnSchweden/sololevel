@@ -167,9 +167,9 @@ export const FeedbackPanel = memo(
 
     // Trigger layout animation when flex changes
     useEffect(() => {
-      if (__DEV__) {
-        log.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
-      }
+      // if (__DEV__) {
+      //   log.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
+      // }
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         LayoutAnimation.configureNext({
           duration: 300,
@@ -183,19 +183,19 @@ export const FeedbackPanel = memo(
             initialVelocity: 0,
           },
         })
-        if (__DEV__) {
-          log.debug('FeedbackPanel', 'layout animation configured')
-        }
+        // if (__DEV__) {
+        //   log.debug('FeedbackPanel', 'layout animation configured')
+        // }
       }
     }, [flex])
 
     // Log selected feedback changes (moved from render-time logging)
     useEffect(() => {
-      if (__DEV__ && selectedFeedbackId) {
-        log.debug('FeedbackPanel', 'Selected feedback changed', {
-          selectedFeedbackId,
-        })
-      }
+      // if (__DEV__ && selectedFeedbackId) {
+      //   log.debug('FeedbackPanel', 'Selected feedback changed', {
+      //     selectedFeedbackId,
+      //   })
+      // }
     }, [selectedFeedbackId])
 
     const formatTime = (milliseconds: number) => {
@@ -218,11 +218,11 @@ export const FeedbackPanel = memo(
 
     // Debug: log selectedFeedbackId changes
     useEffect(() => {
-      if (__DEV__) {
-        log.debug('FeedbackPanel', 'selectedFeedbackId prop changed', {
-          selectedFeedbackId,
-        })
-      }
+      // if (__DEV__) {
+      //   log.debug('FeedbackPanel', 'selectedFeedbackId prop changed', {
+      //     selectedFeedbackId,
+      //   })
+      // }
     }, [selectedFeedbackId])
 
     // TEMP_DISABLED: Sheet toggle functionality for static layout
