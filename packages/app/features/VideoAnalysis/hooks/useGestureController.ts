@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
@@ -10,6 +10,7 @@ import Animated, {
   useAnimatedReaction,
   useSharedValue,
   withTiming,
+  cancelAnimation,
   type AnimatedRef,
   type SharedValue,
 } from 'react-native-reanimated'
@@ -357,6 +358,31 @@ export function useGestureController(
     },
     []
   )
+
+  // Cleanup internal shared values on unmount to prevent memory leaks
+  // Note: scrollY and feedbackContentOffsetY are owned by animation controller
+  useEffect(() => {
+    return () => {
+      'worklet'
+      cancelAnimation(gestureIsActive)
+      cancelAnimation(gestureDirection)
+      cancelAnimation(gestureVelocity)
+      cancelAnimation(gestureStartTime)
+      cancelAnimation(initialTouchY)
+      cancelAnimation(isPullingToReveal)
+      cancelAnimation(initialIsInVideoArea)
+      cancelAnimation(isFastSwipeVideoModeChange)
+    }
+  }, [
+    gestureIsActive,
+    gestureDirection,
+    gestureVelocity,
+    gestureStartTime,
+    initialTouchY,
+    isPullingToReveal,
+    initialIsInVideoArea,
+    isFastSwipeVideoModeChange,
+  ])
 
   // Ref for gesture handler
   const rootPanRef = useRef<GestureType | undefined>(undefined)

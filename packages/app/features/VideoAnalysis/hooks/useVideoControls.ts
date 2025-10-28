@@ -16,17 +16,13 @@ export function useVideoControls(
   const hasUserInteractedRef = useRef(false)
 
   const forcedVisible = useMemo(() => {
-    // Always show controls when processing or video ended (critical states)
-    if (isProcessing || videoEnded) {
-      return true
-    }
     // Keep controls hidden until user has actually tapped/interacted when playing
     // (not just internal visibility changes)
-    if (!hasUserInteractedRef.current && isPlaying) {
+    if (!hasUserInteractedRef.current) {
       return false
     }
     // After user interacts, use normal rules
-    return !isPlaying || videoEnded
+    return isProcessing || !isPlaying || videoEnded
   }, [isProcessing, isPlaying, videoEnded])
 
   const showControls = forcedVisible || manualVisible

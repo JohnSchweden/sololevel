@@ -3,64 +3,121 @@ import { act, renderHook } from '@testing-library/react'
 import { useVideoControls } from './useVideoControls'
 
 describe('useVideoControls', () => {
-  it('forces controls visible when processing', () => {
-    const { result, rerender } = renderHook(
-      ({ processing }) => useVideoControls(processing, true, false),
-      {
-        initialProps: { processing: false },
-      }
-    )
+  describe('before user interaction', () => {
+    it('keeps controls hidden during normal playback until user interacts', () => {
+      const { result } = renderHook(() => useVideoControls(false, true, false))
 
-    expect(result.current.showControls).toBe(false)
-
-    // User must interact first before controls show during normal playback
-    act(() => {
-      result.current.setControlsVisible(true)
+      // Controls hidden until user has interacted
+      expect(result.current.showControls).toBe(false)
+      expect(result.current.showReplayButton).toBe(false)
     })
-    expect(result.current.showControls).toBe(true)
 
-    // When processing starts, controls stay visible (forced)
-    rerender({ processing: true })
+    it('keeps controls hidden even when processing, if user hasnt interacted yet', () => {
+      const { result } = renderHook(() => useVideoControls(true, true, false))
 
-    expect(result.current.showControls).toBe(true)
-    expect(result.current.showReplayButton).toBe(false)
+      // Still hidden because user hasn't interacted
+      expect(result.current.showControls).toBe(false)
+    })
+
+    it('keeps controls hidden even when video ends, if user hasnt interacted yet', () => {
+      const { result } = renderHook(() => useVideoControls(false, false, true))
+
+      // Still hidden because user hasn't interacted
+      expect(result.current.showControls).toBe(false)
+      expect(result.current.showReplayButton).toBe(true)
+    })
   })
 
-  it('shows replay button when video ended', () => {
-    const { result } = renderHook(() => useVideoControls(false, false, true))
+  describe('after user interaction', () => {
+    it('shows controls after user interacts, then forces them visible when processing', () => {
+      const { result, rerender } = renderHook(
+        ({ processing }) => useVideoControls(processing, true, false),
+        {
+          initialProps: { processing: false },
+        }
+      )
 
-    // When video ends, controls are forced visible (to show replay button)
-    expect(result.current.showControls).toBe(true)
-    expect(result.current.showReplayButton).toBe(true)
-  })
+      // Initially hidden (no interaction yet)
+      expect(result.current.showControls).toBe(false)
 
-  it('manual toggle only applies when not forced visible', () => {
-    const { result, rerender } = renderHook(
-      ({ processing, ended }: { processing: boolean; ended: boolean }) =>
-        useVideoControls(processing, true, ended),
-      {
-        initialProps: { processing: false, ended: false },
-      }
-    )
+      // User taps to show controls
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
+      expect(result.current.showControls).toBe(true)
 
-    expect(result.current.showControls).toBe(false)
-
-    act(() => {
-      result.current.setControlsVisible(true)
+      // When processing starts, controls stay visible (forced)
+      rerender({ processing: true })
+      expect(result.current.showControls).toBe(true)
+      expect(result.current.showReplayButton).toBe(false)
     })
 
-    expect(result.current.showControls).toBe(true)
+    it('shows controls when paused after user has interacted', () => {
+      const { result, rerender } = renderHook(
+        ({ playing }) => useVideoControls(false, playing, false),
+        {
+          initialProps: { playing: true },
+        }
+      )
 
-    rerender({ processing: true, ended: false })
+      // User must interact first
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
 
-    act(() => {
-      result.current.setControlsVisible(false)
+      // Pause video (isPlaying = false)
+      rerender({ playing: false })
+
+      // Controls forced visible because video is paused
+      expect(result.current.showControls).toBe(true)
     })
 
-    expect(result.current.showControls).toBe(true)
+    it('shows replay button and controls when video ends after interaction', () => {
+      const { result, rerender } = renderHook(({ ended }) => useVideoControls(false, true, ended), {
+        initialProps: { ended: false },
+      })
 
-    rerender({ processing: false, ended: false })
+      // User interacts
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
 
-    expect(result.current.showControls).toBe(false)
+      // Video ends
+      rerender({ ended: true })
+
+      // Controls and replay button are visible
+      expect(result.current.showControls).toBe(true)
+      expect(result.current.showReplayButton).toBe(true)
+    })
+
+    it('manual toggle only applies when not forced visible', () => {
+      const { result, rerender } = renderHook(
+        ({ processing, ended }: { processing: boolean; ended: boolean }) =>
+          useVideoControls(processing, true, ended),
+        {
+          initialProps: { processing: false, ended: false },
+        }
+      )
+
+      // User interacts to show controls
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
+      expect(result.current.showControls).toBe(true)
+
+      // When processing starts (forced visible)
+      rerender({ processing: true, ended: false })
+      expect(result.current.showControls).toBe(true)
+
+      // User tries to hide controls, but they stay visible (forced)
+      act(() => {
+        result.current.setControlsVisible(false)
+      })
+      expect(result.current.showControls).toBe(true)
+
+      // When processing stops, controls hide (not forced anymore)
+      rerender({ processing: false, ended: false })
+      expect(result.current.showControls).toBe(false)
+    })
   })
 })

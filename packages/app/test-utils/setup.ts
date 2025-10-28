@@ -852,6 +852,7 @@ jest.mock('react-native-reanimated', () => {
     runOnJS: (fn: any) => fn,
     runOnUI: (fn: any) => fn,
     createAnimatedStyle: () => ({}),
+    cancelAnimation: jest.fn(),
     Animated: {
       View: ({ children, style, testID, ...props }: any) =>
         React.createElement('div', { style, 'data-testid': testID, ...props }, children),

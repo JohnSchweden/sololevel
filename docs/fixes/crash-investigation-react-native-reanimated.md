@@ -817,6 +817,12 @@ After implementing mitigations:
   - Target: 85% reduction (421 → <200 lines)
   - See: `docs/refactoring/video-controls-refactoring-plan.md`
 
+- **VideoAnalysisScreen Analysis:** Comprehensive review of parent screen
+  - Status: MEDIUM risk (vs VideoControls CRITICAL)
+  - Missing cleanup for 10 shared values
+  - Component depth: 26 levels (above crash threshold)
+  - See: `docs/fixes/videoanalysisscreen-reanimated-analysis.md`
+
 - **Git Status:** Recent changes to VideoControls
   ```
   modified:   packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx

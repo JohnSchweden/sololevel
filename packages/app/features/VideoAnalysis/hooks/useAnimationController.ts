@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import Animated, {
+  cancelAnimation,
   Extrapolation,
   interpolate,
   useAnimatedRef,
@@ -232,6 +234,15 @@ export function useAnimationController(): UseAnimationControllerReturn {
   // Feedback panel scroll tracking
   const feedbackContentOffsetY = useSharedValue(0)
 
+  // Cleanup shared values on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      'worklet'
+      cancelAnimation(scrollY)
+      cancelAnimation(feedbackContentOffsetY)
+    }
+  }, [scrollY, feedbackContentOffsetY])
+
   // Header height: Mode-based transitions with smooth interpolation
   const headerHeight = useDerivedValue(() => {
     const scrollValue = scrollY.value
@@ -271,7 +282,6 @@ export function useAnimationController(): UseAnimationControllerReturn {
   // Collapse progress: 0 → max, 0.5 → normal, 1 → min
   const collapseProgress = useDerivedValue(() => {
     const headerHeightValue = headerHeight.value
-    const scrollValue = scrollY.value
 
     // Use two separate interpolations for smooth transitions
     let progress: number
@@ -292,13 +302,6 @@ export function useAnimationController(): UseAnimationControllerReturn {
         Extrapolation.CLAMP
       )
     }
-
-    console.log('AnimationController Debug:', {
-      scrollY: scrollValue,
-      headerHeight: headerHeightValue,
-      collapseProgress: progress,
-      timestamp: new Date().toISOString(),
-    })
 
     return progress
   })
