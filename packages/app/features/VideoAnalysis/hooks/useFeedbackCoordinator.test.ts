@@ -430,7 +430,7 @@ describe('useFeedbackCoordinator', () => {
     expect(result.current.overlayVisible).toBe(true)
   })
 
-  it('hides bubble when overlay becomes invisible while bubble is visible', async () => {
+  it('keeps bubble visible when overlay becomes invisible due to pause (not stop)', async () => {
     const hideBubble = jest.fn()
 
     mockUseBubbleController.mockReturnValue({
@@ -445,6 +445,39 @@ describe('useFeedbackCoordinator', () => {
       audioController: { isPlaying: false },
       feedbackAudio: {
         activeAudio: { id: 'feedback-1', url: 'https://cdn.example.com/1.mp3' },
+      },
+    })
+
+    renderHook(() =>
+      useFeedbackCoordinator({
+        feedbackItems: deps.feedbackItems,
+        feedbackAudio: deps.feedbackAudio,
+        audioController: deps.audioController,
+        videoPlayback: deps.videoPlayback,
+      })
+    )
+
+    // Bubble should stay visible when paused (activeAudio still exists)
+    await waitFor(() => {
+      expect(hideBubble).not.toHaveBeenCalled()
+    })
+  })
+
+  it('hides bubble when audio actually stops (activeAudio cleared)', async () => {
+    const hideBubble = jest.fn()
+
+    mockUseBubbleController.mockReturnValue({
+      currentBubbleIndex: 0,
+      bubbleVisible: true,
+      checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+      showBubble: jest.fn(),
+      hideBubble,
+    })
+
+    const deps = createDependencies({
+      audioController: { isPlaying: false },
+      feedbackAudio: {
+        activeAudio: null, // Audio actually stopped
       },
     })
 

@@ -126,8 +126,16 @@ export function useVideoPlayback(
       setCurrentTime(resolvedTime)
       setPendingSeek(null)
       lastReportedProgressRef.current = resolvedTime
+
+      // Check if we've sought to the end of the video
+      // This handles cases where skip forward goes to the end
+      if (duration > 0 && resolvedTime >= duration - 0.05) {
+        // 50ms tolerance (matches handleProgress logic)
+        setIsPlaying(false)
+        setVideoEnded(true)
+      }
     },
-    [currentTime]
+    [currentTime, duration]
   )
 
   const reset = useCallback(() => {

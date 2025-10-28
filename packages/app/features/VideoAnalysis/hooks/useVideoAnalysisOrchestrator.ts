@@ -567,7 +567,7 @@ export function useVideoAnalysisOrchestrator(
     // Aggregated handlers
     handlers: {
       onPlay: handlePlay,
-      onPause: pauseVideo,
+      onPause: coordinateFeedback.onPause,
       onReplay: replayVideo,
       onEnd: handleVideoEnd,
       onSeek: handleSeek,

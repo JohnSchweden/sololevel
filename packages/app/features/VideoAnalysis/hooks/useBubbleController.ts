@@ -56,6 +56,8 @@ type BubbleTimerState<TItem extends BubbleFeedbackItem> = {
   index: number | null
   totalDurationMs: number
   startedAtMs: number | null
+  pausedAtMs: number | null
+  totalPausedDurationMs: number
   waitingForPlayback: boolean
   expiryReason: BubbleTimerReason | null
 }
@@ -65,6 +67,8 @@ const defaultTimerState: BubbleTimerState<BubbleFeedbackItem> = {
   index: null,
   totalDurationMs: MIN_DISPLAY_DURATION_MS,
   startedAtMs: null,
+  pausedAtMs: null,
+  totalPausedDurationMs: 0,
   waitingForPlayback: false,
   expiryReason: null,
 }
@@ -154,7 +158,10 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       const currentState = timerStateRef.current
       const startedAt = currentState.startedAtMs ?? now
       const totalDurationMs = currentState.totalDurationMs
-      const elapsed = currentState.startedAtMs ? Math.max(0, now - currentState.startedAtMs) : 0
+      // Calculate elapsed time accounting for pause duration
+      const elapsed = currentState.startedAtMs
+        ? Math.max(0, now - currentState.startedAtMs - currentState.totalPausedDurationMs)
+        : 0
       const remainingDurationMs = currentState.startedAtMs
         ? Math.max(0, totalDurationMs - elapsed)
         : totalDurationMs
@@ -177,6 +184,8 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         index,
         totalDurationMs,
         startedAtMs: startedAt,
+        pausedAtMs: null,
+        totalPausedDurationMs: currentState.totalPausedDurationMs,
         waitingForPlayback: false,
         expiryReason: reason,
       }
@@ -250,6 +259,8 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         index,
         totalDurationMs: hasAudioUrl ? 0 : displayDurationMs,
         startedAtMs: null,
+        pausedAtMs: null,
+        totalPausedDurationMs: 0,
         waitingForPlayback: hasAudioUrl,
         expiryReason: null,
       }
@@ -274,7 +285,24 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
     }
 
     if (isPlaying) {
-      if (currentState.waitingForPlayback && currentState.startedAtMs === null) {
+      // Resume: if we were paused, record the pause duration and reschedule
+      if (currentState.pausedAtMs !== null) {
+        const pauseDuration = Date.now() - currentState.pausedAtMs
+        timerStateRef.current = {
+          ...currentState,
+          pausedAtMs: null,
+          totalPausedDurationMs: currentState.totalPausedDurationMs + pauseDuration,
+        }
+        // Reschedule the timer with updated pause duration
+        if (currentState.startedAtMs !== null && currentState.totalDurationMs > 0) {
+          scheduleBubbleHide({
+            index: currentState.index,
+            item: currentState.item,
+            reason: 'playback-start',
+          })
+        }
+      } else if (currentState.waitingForPlayback && currentState.startedAtMs === null) {
+        // Starting timer for the first time
         if (currentState.totalDurationMs > 0) {
           // log.info('useBubbleController', 'Starting bubble timer on playback start', {
           //   itemId: currentState.item.id,
@@ -297,13 +325,18 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       return
     }
 
-    if (currentState.startedAtMs !== null) {
-      // log.info('useBubbleController', 'Playback paused or ended — hiding bubble immediately', {
+    // Pause: clear timer but keep bubble visible, track pause start time
+    if (currentState.startedAtMs !== null && currentState.pausedAtMs === null) {
+      // log.info('useBubbleController', 'Playback paused — pausing bubble timer', {
       //   itemId: currentState.item.id,
       // })
-      hideBubble('playback-paused')
+      clearBubbleTimer()
+      timerStateRef.current = {
+        ...currentState,
+        pausedAtMs: Date.now(),
+      }
     }
-  }, [bubbleVisible, hideBubble, isPlaying, options, scheduleBubbleHide])
+  }, [bubbleVisible, clearBubbleTimer, hideBubble, isPlaying, options, scheduleBubbleHide])
 
   useEffect(() => {
     const currentState = timerStateRef.current

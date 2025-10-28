@@ -23,6 +23,7 @@ export interface FeedbackCoordinatorState {
   onProgressTrigger: (timeSeconds: number) => void
   onUserTapFeedback: (item: FeedbackPanelItem) => void
   onPlay: () => void
+  onPause: () => void
 
   onPanelCollapse: () => void
   onAudioOverlayClose: () => void
@@ -254,6 +255,11 @@ export function useFeedbackCoordinator({
   )
 
   const handlePlay = useCallback(() => {
+    // Resume audio if it was paused (has active audio but not playing)
+    if (feedbackAudio.activeAudio && !audioController.isPlaying) {
+      audioController.setIsPlaying(true)
+    }
+
     if (!pendingFeedbackId || !pendingItemRef.current) {
       // log.info('useFeedbackCoordinator', 'Play pressed — no pending feedback, just play')
       videoPlayback.play()
@@ -276,7 +282,15 @@ export function useFeedbackCoordinator({
     setPendingFeedbackId(null)
     pendingItemRef.current = null
     videoPlayback.play()
-  }, [bubbleIndexById, pendingFeedbackId, selection, showBubble, videoPlayback])
+  }, [
+    audioController,
+    bubbleIndexById,
+    feedbackAudio.activeAudio,
+    pendingFeedbackId,
+    selection,
+    showBubble,
+    videoPlayback,
+  ])
 
   // Rule: After audio ends and video resumes playing, remove highlight
   useEffect(() => {
@@ -345,8 +359,10 @@ export function useFeedbackCoordinator({
   const activeAudio = feedbackAudio.activeAudio
   const activeAudioId = activeAudio?.id ?? null
 
-  // Synchronous hide: when overlay becomes invisible, hide bubble immediately
-  if (!overlayVisible && bubbleVisible) {
+  // Synchronous hide: when overlay becomes invisible due to audio stopping (not pausing)
+  // Only hide if audio is actually stopped (no active audio), not just paused
+  // When paused, activeAudio still exists, so we keep the bubble visible
+  if (!feedbackAudio.activeAudio && bubbleVisible) {
     hideBubble('audio-stop')
   }
 
@@ -391,6 +407,14 @@ export function useFeedbackCoordinator({
     onProgressTrigger: handleProgressTrigger,
     onUserTapFeedback: handleUserTapFeedback,
     onPlay: handlePlay,
+    onPause: () => {
+      // When pause is pressed, pause audio feedback if playing (but don't stop/hide)
+      // The bubble timer will be paused automatically when isPlaying becomes false
+      if (audioController.isPlaying) {
+        audioController.setIsPlaying(false)
+      }
+      videoPlayback.pause()
+    },
     onPanelCollapse: handlePanelCollapse,
     onAudioOverlayClose: () => {
       // log.info('useFeedbackCoordinator', 'Audio overlay closed by user')

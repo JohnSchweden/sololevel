@@ -142,19 +142,121 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const lastNotifiedTimeRef = useRef(0)
+  // Track the target seek time to ignore stale progress events after seeking
+  const pendingSeekTimeRef = useRef<number | null>(null)
+  // Track the time before seek to detect backward seeks and filter stale events
+  const timeBeforeSeekRef = useRef<number | null>(null)
 
   // Only notify parent on significant progress changes (> 1 second)
   const handleProgress = useCallback(
     (data: { currentTime: number }) => {
-      setCurrentTime(data.currentTime)
+      const { currentTime: reportedTime } = data
+
+      // If we have a pending seek, filter progress events intelligently
+      // This prevents stale progress events from overwriting the seek position
+      if (pendingSeekTimeRef.current !== null) {
+        const targetTime = pendingSeekTimeRef.current
+        const timeBeforeSeek = timeBeforeSeekRef.current
+        const timeDifference = Math.abs(reportedTime - targetTime)
+
+        // Detect if this is a stale event from before a backward seek
+        // If we seek backward and reported time is still ahead of where we were, it's stale
+        if (
+          timeBeforeSeek !== null &&
+          targetTime < timeBeforeSeek &&
+          reportedTime > timeBeforeSeek
+        ) {
+          return
+        }
+
+        // If the reported time is very close to target (within 0.2s), accept it and clear pending seek
+        if (timeDifference < 0.2) {
+          const previousNotifiedTime = lastNotifiedTimeRef.current
+          pendingSeekTimeRef.current = null
+          timeBeforeSeekRef.current = null
+          setCurrentTime(reportedTime)
+          lastNotifiedTimeRef.current = reportedTime
+
+          // Notify parent on significant progress
+          if (Math.abs(reportedTime - previousNotifiedTime) > 1.0) {
+            onSignificantProgress(reportedTime)
+          }
+          return
+        }
+
+        // If reported time is moving forward from target (video is playing past seek point)
+        // Accept it and clear pending seek - we've successfully moved past the seek
+        // But only if we're not dealing with a stale backward-seek event
+        if (reportedTime > targetTime + 0.2) {
+          // Additional check: if we seeked backward, ignore events that are still ahead of pre-seek time
+          if (
+            timeBeforeSeek !== null &&
+            targetTime < timeBeforeSeek &&
+            reportedTime > timeBeforeSeek
+          ) {
+            return
+          }
+
+          const previousNotifiedTime = lastNotifiedTimeRef.current
+          pendingSeekTimeRef.current = null
+          timeBeforeSeekRef.current = null
+          setCurrentTime(reportedTime)
+          lastNotifiedTimeRef.current = reportedTime
+
+          // Notify parent on significant progress
+          if (Math.abs(reportedTime - previousNotifiedTime) > 1.0) {
+            onSignificantProgress(reportedTime)
+          }
+          return
+        }
+
+        // If reported time is approaching target from before (within 1s window), accept it
+        // This handles the case where we seek forward and video catches up
+        if (reportedTime >= targetTime - 1.0 && reportedTime < targetTime + 0.2) {
+          setCurrentTime(reportedTime)
+          lastNotifiedTimeRef.current = reportedTime
+          return
+        }
+
+        // Ignore stale progress events that are too far behind the target
+        // This filters out old progress events from before the seek
+        if (reportedTime < targetTime - 1.0) {
+          return
+        }
+      }
+
+      // Normal progress update (no pending seek)
+      setCurrentTime(reportedTime)
 
       // Notify parent only if time changed significantly
-      if (Math.abs(data.currentTime - lastNotifiedTimeRef.current) > 1.0) {
-        lastNotifiedTimeRef.current = data.currentTime
-        onSignificantProgress(data.currentTime)
+      if (Math.abs(reportedTime - lastNotifiedTimeRef.current) > 1.0) {
+        lastNotifiedTimeRef.current = reportedTime
+        onSignificantProgress(reportedTime)
       }
     },
     [onSignificantProgress]
+  )
+
+  // Handle seek completion - update local currentTime immediately
+  // This ensures VideoControls shows the correct time after seeking
+  const handleSeekComplete = useCallback(
+    (seekTime?: number) => {
+      const resolvedTime = seekTime ?? pendingSeek ?? currentTime
+      if (typeof resolvedTime === 'number' && Number.isFinite(resolvedTime)) {
+        // Track time before seek if this is a backward seek (to filter stale events)
+        if (resolvedTime < currentTime) {
+          timeBeforeSeekRef.current = currentTime
+        } else {
+          timeBeforeSeekRef.current = null
+        }
+        setCurrentTime(resolvedTime)
+        lastNotifiedTimeRef.current = resolvedTime
+        // Track the target seek time so we can filter stale progress events
+        pendingSeekTimeRef.current = resolvedTime
+      }
+      onSeekComplete(seekTime ?? pendingSeek ?? null)
+    },
+    [currentTime, pendingSeek, onSeekComplete]
   )
 
   const handleLoad = useCallback(
@@ -280,7 +382,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               onLoad={handleLoad}
               onProgress={handleProgress}
               seekToTime={pendingSeek}
-              onSeekComplete={(seekTime) => onSeekComplete(seekTime ?? pendingSeek ?? null)}
+              onSeekComplete={handleSeekComplete}
             />
           )}
 

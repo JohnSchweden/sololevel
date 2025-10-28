@@ -111,7 +111,7 @@ describe('useBubbleController', () => {
     expect(result.current.bubbleVisible).toBe(false)
   })
 
-  it('hides bubble immediately when playback pauses after timer start', () => {
+  it('keeps bubble visible and pauses timer when playback pauses after timer start', () => {
     const audioUrls = { '1': 'https://example.com/audio.mp3' }
     const { result, rerender } = renderHook(
       ({ isPlaying }) => useBubbleController(createFeedbackItems(), 0, isPlaying, audioUrls, 4),
@@ -126,12 +126,26 @@ describe('useBubbleController', () => {
 
     expect(result.current.bubbleVisible).toBe(true)
 
+    // Advance time to start the timer
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
+
     act(() => {
       rerender({ isPlaying: false })
     })
 
-    expect(result.current.bubbleVisible).toBe(false)
-    expect(result.current.currentBubbleIndex).toBeNull()
+    // Bubble should stay visible when paused (timer pauses, bubble doesn't hide)
+    expect(result.current.bubbleVisible).toBe(true)
+    expect(result.current.currentBubbleIndex).toBe(0)
+
+    // Resume playback - timer should resume
+    act(() => {
+      rerender({ isPlaying: true })
+    })
+
+    expect(result.current.bubbleVisible).toBe(true)
+    expect(result.current.currentBubbleIndex).toBe(0)
   })
 
   it('respects minimum display duration when no audio URL', () => {
