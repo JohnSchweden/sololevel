@@ -3,6 +3,7 @@ import {
   type AnimatedStyleProp,
   Easing,
   Extrapolation,
+  type SharedValue,
   interpolate,
   useAnimatedStyle,
 } from 'react-native-reanimated'
@@ -74,10 +75,12 @@ export interface UseProgressBarAnimationReturn {
 /**
  * Custom hook that provides animated styles for video progress bars.
  *
- * @param collapseProgress - Video mode collapse progress (0 = max, 0.5 = normal, 1 = min)
+ * @param collapseProgressShared - Shared value for video mode collapse progress (0 = max, 0.5 = normal, 1 = min)
  * @returns Object containing animated styles for both progress bars
  */
-export function useProgressBarAnimation(collapseProgress: number): UseProgressBarAnimationReturn {
+export function useProgressBarAnimation(
+  collapseProgressShared: SharedValue<number>
+): UseProgressBarAnimationReturn {
   // Persistent progress bar animation:
   // - Hidden in max mode (collapseProgress = 0)
   // - Visible in normal/min modes (collapseProgress ≥ 0.48)
@@ -86,14 +89,14 @@ export function useProgressBarAnimation(collapseProgress: number): UseProgressBa
     'worklet'
     // Apply cubic easing for smooth transitions
     const easeFunction = Easing.inOut(Easing.cubic)
-    const easedProgress = easeFunction(collapseProgress)
+    const easedProgress = easeFunction(collapseProgressShared.value)
 
     // Fade out when transitioning TO max mode (collapseProgress < 0.48)
     // This provides early fade-out before the mode actually changes
     return {
       opacity: interpolate(easedProgress, [0, 0.48], [0, 1], Extrapolation.CLAMP),
     }
-  })
+  }, [collapseProgressShared])
 
   // Normal progress bar animation:
   // - Visible in max mode (collapseProgress = 0)
@@ -104,9 +107,9 @@ export function useProgressBarAnimation(collapseProgress: number): UseProgressBa
     // Fade out ultra-early when transitioning AWAY from max mode (collapseProgress > 0.027)
     // Normal bar should be visible in max mode, hidden in normal/min modes
     return {
-      opacity: interpolate(collapseProgress, [0, 0.027], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(collapseProgressShared.value, [0, 0.027], [1, 0], Extrapolation.CLAMP),
     }
-  })
+  }, [collapseProgressShared])
 
   return {
     persistentBarAnimatedStyle,

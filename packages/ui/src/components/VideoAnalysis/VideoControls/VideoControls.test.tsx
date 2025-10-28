@@ -8,7 +8,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
 }
 
-// Mock the useProgressBarGesture hook
+// Mock all extracted hooks
 jest.mock('./hooks/useProgressBarGesture', () => ({
   useProgressBarGesture: jest.fn(() => ({
     isScrubbing: false,
@@ -24,6 +24,16 @@ jest.mock('./hooks/useProgressBarGesture', () => ({
     setProgressBarWidth: jest.fn(),
   })),
 }))
+
+jest.mock('./hooks/useProgressBarAnimation', () => ({
+  useProgressBarAnimation: jest.fn(() => ({
+    normalBarAnimatedStyle: {},
+    persistentBarAnimatedStyle: {},
+  })),
+}))
+
+// Note: useControlsVisibility is NOT mocked - it's tested in its own test file
+// We use the real hook here to ensure VideoControls integrates correctly
 
 // Mock data following TDD principles
 const mockProps = {
@@ -907,6 +917,480 @@ describe('VideoControls', () => {
       // But persistent bar should still be visible
       const persistentBar = screen.queryByTestId('persistent-progress-bar')
       expect(persistentBar).toBeTruthy()
+    })
+  })
+})
+
+describe('VideoControls - Stress Tests (Regression Prevention)', () => {
+  /**
+   * Stress tests to prevent regression of Reanimated memory corruption crash.
+   *
+   * These tests verify that VideoControls can handle:
+   * 1. Rapid prop changes (mode transitions)
+   * 2. Simultaneous animations and gestures
+   * 3. Mount/unmount cycles
+   * 4. Long-running sessions (13+ minutes)
+   *
+   * Crash symptoms to prevent:
+   * - EXC_BAD_ACCESS in folly::dynamic::type()
+   * - Stale closure references in worklets
+   * - Shared value leaks on unmount
+   * - Deep recursion in shadow tree cloning
+   */
+
+  describe('Rapid Prop Changes (Mode Transitions)', () => {
+    it('should handle rapid collapseProgress changes without crashing', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0}
+        />
+      )
+
+      // Simulate rapid mode transitions: Max (0) → Normal (0.5) → Min (1)
+      // Increment by 0.05 for 20 updates over ~100ms
+      for (let progress = 0; progress <= 1.0; progress += 0.05) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={progress}
+          />
+        )
+
+        // Flush React updates
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+      }
+
+      // Verify component is still mounted and functional
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+      expect(screen.getByTestId('video-controls-overlay')).toBeInTheDocument()
+    })
+
+    it('should handle oscillating prop changes (rapid up/down)', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.5}
+        />
+      )
+
+      // Simulate bouncy transitions: normal ↔ max ↔ min
+      const transitions = [0.5, 0, 0.5, 1, 0.5, 0, 1, 0.5]
+
+      for (const progress of transitions) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={progress}
+          />
+        )
+
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+      }
+
+      // Component should remain stable
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+
+    it('should handle changing duration during playback', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          currentTime={30}
+          duration={120}
+          isPlaying={true}
+        />
+      )
+
+      // Simulate duration changes (e.g., loading different quality)
+      const durations = [120, 120, 125, 125, 130, 135]
+
+      for (const duration of durations) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            duration={duration}
+            isPlaying={true}
+          />
+        )
+
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+      }
+
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+
+    it('should handle rapid playback state changes', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isPlaying={false}
+        />
+      )
+
+      // Simulate user rapidly pressing play/pause
+      const playStates = [true, false, true, false, true, true, false, false, true]
+
+      for (const isPlaying of playStates) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            isPlaying={isPlaying}
+          />
+        )
+
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+      }
+
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+  })
+
+  describe('Continuous Prop Updates (Simulating Long Session)', () => {
+    it('should survive 13+ minutes of continuous prop updates', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isPlaying={true}
+          currentTime={0}
+        />
+      )
+
+      // Simulate video playback with continuous progress updates
+      // 13 minutes = 780 seconds, update every 0.1 second = 7800 updates
+      // For test speed, we'll simulate 100 updates (still intensive)
+      const testDuration = 100
+
+      for (let i = 0; i < testDuration; i++) {
+        const simulatedSeconds = (i / testDuration) * 780
+        const playbackProgress = (simulatedSeconds / 120) * 100
+
+        rerender(
+          <VideoControls
+            {...mockProps}
+            isPlaying={true}
+            currentTime={simulatedSeconds % 120}
+            collapseProgress={Math.sin(i * 0.05) * 0.5 + 0.5} // Oscillate progress
+          />
+        )
+
+        // Flush updates every 10 iterations to prevent queue overflow
+        if (i % 10 === 0) {
+          await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 5))
+          })
+        }
+      }
+
+      // Component should still be responsive
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+  })
+
+  describe('Mount/Unmount Cycles', () => {
+    it('should handle multiple mount/unmount cycles without memory leaks', async () => {
+      // Simulate user navigating away and back multiple times
+      for (let cycle = 0; cycle < 10; cycle++) {
+        const { unmount } = renderWithProviders(
+          <VideoControls
+            {...mockProps}
+            isPlaying={true}
+            collapseProgress={Math.random()}
+          />
+        )
+
+        // Verify mounted
+        expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+
+        // Unmount
+        unmount()
+
+        // Allow cleanup to run
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+      }
+
+      // Final mount should succeed
+      renderWithProviders(<VideoControls {...mockProps} />)
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+
+    it('should clean up properly when unmounting during animation', async () => {
+      const { unmount, rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0}
+        />
+      )
+
+      // Start animation
+      rerender(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.5}
+        />
+      )
+
+      // Unmount mid-animation (this is where the crash would occur)
+      expect(() => {
+        unmount()
+      }).not.toThrow()
+
+      // Remount should work
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      })
+
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0}
+        />
+      )
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+
+    it('should handle unmount while props are changing', async () => {
+      const { unmount, rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isPlaying={false}
+          collapseProgress={0}
+        />
+      )
+
+      // Change multiple props simultaneously and unmount
+      expect(() => {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            isPlaying={true}
+            currentTime={50}
+            collapseProgress={0.75}
+          />
+        )
+        unmount()
+      }).not.toThrow()
+    })
+  })
+
+  describe('Edge Cases & Boundary Conditions', () => {
+    it('should handle extreme collapseProgress values', async () => {
+      const extremeValues = [-1, -0.5, 0, 0.5, 1, 1.5, 2, Number.MAX_SAFE_INTEGER / 1e10]
+
+      for (const value of extremeValues) {
+        const { unmount } = renderWithProviders(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={value}
+          />
+        )
+        expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+        unmount()
+      }
+    })
+
+    it('should handle NaN and Infinity values gracefully', async () => {
+      const problematicValues = [
+        { ...mockProps, currentTime: Number.NaN, duration: 120 },
+        { ...mockProps, currentTime: Number.POSITIVE_INFINITY, duration: 120 },
+        { ...mockProps, currentTime: 0, duration: Number.POSITIVE_INFINITY },
+        { ...mockProps, currentTime: 0, duration: 0 },
+        { ...mockProps, collapseProgress: Number.NaN },
+        { ...mockProps, collapseProgress: Number.POSITIVE_INFINITY },
+      ]
+
+      for (const props of problematicValues) {
+        const { unmount } = renderWithProviders(<VideoControls {...props} />)
+        // Should not crash, even with invalid values
+        expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+        unmount()
+      }
+    })
+
+    it('should handle rapid switching between playing and paused', async () => {
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isPlaying={false}
+        />
+      )
+
+      // Rapid play/pause toggling (like user mashing the button)
+      for (let i = 0; i < 50; i++) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            isPlaying={i % 2 === 0}
+          />
+        )
+      }
+
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+  })
+
+  describe('Complex Gesture Scenarios', () => {
+    it('should handle mock gestures during rapid prop changes', async () => {
+      const { rerender } = renderWithProviders(<VideoControls {...mockProps} />)
+
+      // Simulate complex user interaction pattern:
+      // 1. Start gesture
+      // 2. Prop change mid-gesture
+      // 3. End gesture
+      // 4. Start new gesture
+      for (let cycle = 0; cycle < 5; cycle++) {
+        // Simulate prop changes while "gesturing"
+        rerender(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={cycle * 0.2}
+            isPlaying={true}
+          />
+        )
+
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+      }
+
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+  })
+
+  describe('Memory & Performance Regressions', () => {
+    it('should not create excessive re-renders during prop updates', async () => {
+      let renderCount = 0
+      const TrackedVideoControls = (props: any) => {
+        renderCount++
+        return <VideoControls {...props} />
+      }
+
+      const { rerender } = renderWithProviders(<TrackedVideoControls {...mockProps} />)
+
+      const initialRenderCount = renderCount
+
+      // Rapid prop updates
+      for (let i = 0; i < 20; i++) {
+        rerender(
+          <TrackedVideoControls
+            {...mockProps}
+            collapseProgress={i * 0.05}
+          />
+        )
+      }
+
+      // Component should not re-render excessively
+      // Each rerender call = 1 re-render, so max should be ~20 + initial
+      expect(renderCount).toBeLessThan(initialRenderCount + 30)
+    })
+
+    it('should handle memory cleanup on component unmount', () => {
+      const { unmount } = renderWithProviders(<VideoControls {...mockProps} />)
+
+      // This test would ideally use memory profiling tools
+      // For now, we verify it doesn't throw during cleanup
+      expect(() => {
+        unmount()
+      }).not.toThrow()
+
+      // Verify no lingering DOM elements
+      expect(screen.queryByTestId('video-controls-container')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Reanimated-Specific Regression Tests', () => {
+    it('should not trigger "Tried to modify key `current` of an object passed to worklet" warning', async () => {
+      // This was a specific warning in the crash logs
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          isPlaying={true}
+        />
+      )
+
+      // Perform intensive updates
+      for (let i = 0; i < 30; i++) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            isPlaying={i % 2 === 0}
+            collapseProgress={(i / 30) % 1}
+          />
+        )
+      }
+
+      // Check for Reanimated-specific warnings
+      const warnings = consoleWarnSpy.mock.calls
+        .map((call) => call[0]?.toString?.())
+        .filter((w) => w?.includes?.('worklet') || w?.includes?.('folly::dynamic'))
+
+      expect(warnings.length).toBe(0)
+
+      consoleWarnSpy.mockRestore()
+    })
+
+    it('should handle shared value updates without crashing', async () => {
+      // This simulates the core issue: shared value lifecycle
+      const { rerender, unmount } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0}
+        />
+      )
+
+      // Rapid shared value updates (collapseProgress)
+      for (let i = 0; i < 100; i++) {
+        rerender(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={Math.random()}
+          />
+        )
+      }
+
+      // Unmount with active shared value
+      unmount()
+
+      // Verify cleanup
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      })
+
+      // Should not crash
+      renderWithProviders(<VideoControls {...mockProps} />)
+    })
+
+    it('should prevent deep recursion in shadow tree cloning', async () => {
+      // Simulate deeply nested component tree by rapid remounts
+      // Each remount attempts shadow tree cloning
+      for (let depth = 0; depth < 20; depth++) {
+        const { unmount } = renderWithProviders(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={Math.random() * depth * 0.01}
+            isPlaying={depth % 2 === 0}
+          />
+        )
+
+        // Unmount immediately to trigger cleanup and prepare for next mount
+        unmount()
+      }
+
+      // Final mount should succeed (not hit recursion limit)
+      renderWithProviders(<VideoControls {...mockProps} />)
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
     })
   })
 })

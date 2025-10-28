@@ -459,11 +459,17 @@ jest.mock('react-native-reanimated', () => {
     runOnJS: (fn: any) => fn,
     runOnUI: (fn: any) => fn,
     createAnimatedStyle: () => ({}),
+    cancelAnimation: jest.fn(), // Add mock for cancelAnimation to prevent memory leaks
     Easing: {
       linear: (t: number) => t,
       easeIn: (t: number) => t * t,
       easeOut: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
       bezier: (_x1: number, _y1: number, _x2: number, _y2: number) => (t: number) => t,
+      inOut: (_easingFunction: (t: number) => number) => (t: number) => {
+        // Simplified cubic easing for tests
+        return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+      },
+      cubic: (t: number) => t * t * t,
     },
     Worklets: {
       createRunInJsFn: jest.fn(),

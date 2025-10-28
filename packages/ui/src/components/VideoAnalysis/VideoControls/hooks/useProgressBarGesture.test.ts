@@ -5,6 +5,7 @@ import { useProgressBarGesture } from './useProgressBarGesture'
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => ({
   useSharedValue: jest.fn(),
+  cancelAnimation: jest.fn(), // Add mock for cancelAnimation
   Gesture: {
     Pan: jest.fn(() => ({
       minDistance: jest.fn().mockReturnThis(),

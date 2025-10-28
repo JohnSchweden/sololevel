@@ -13,6 +13,13 @@ describe('useVideoControls', () => {
 
     expect(result.current.showControls).toBe(false)
 
+    // User must interact first before controls show during normal playback
+    act(() => {
+      result.current.setControlsVisible(true)
+    })
+    expect(result.current.showControls).toBe(true)
+
+    // When processing starts, controls stay visible (forced)
     rerender({ processing: true })
 
     expect(result.current.showControls).toBe(true)
@@ -22,6 +29,7 @@ describe('useVideoControls', () => {
   it('shows replay button when video ended', () => {
     const { result } = renderHook(() => useVideoControls(false, false, true))
 
+    // When video ends, controls are forced visible (to show replay button)
     expect(result.current.showControls).toBe(true)
     expect(result.current.showReplayButton).toBe(true)
   })

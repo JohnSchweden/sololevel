@@ -1,7 +1,7 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Gesture } from 'react-native-gesture-handler'
-import { SharedValue, runOnJS, useSharedValue } from 'react-native-reanimated'
+import { SharedValue, cancelAnimation, runOnJS, useSharedValue } from 'react-native-reanimated'
 
 /**
  * Hook managing progress bar gesture interactions (tap & drag) for both normal and persistent bars.
@@ -154,8 +154,27 @@ export function useProgressBarGesture(
   const [lastScrubbedPosition, setLastScrubbedPosition] = useState<number | null>(null)
   const [progressBarWidth, setProgressBarWidth] = useState(300) // default width
 
-  // Shared value for worklet access
+  // Shared values for worklet access
+  // Use shared values instead of refs to avoid Reanimated warnings about modifying
+  // objects that have been passed to worklets
   const lastScrubbedPositionShared = useSharedValue<number>(0)
+  const isScrubbingShared = useSharedValue<boolean>(isScrubbing)
+
+  // Keep shared value in sync with state
+  // This ensures gesture handlers always have access to current scrubbing state
+  // without needing to recreate the entire gesture handler
+  useEffect(() => {
+    isScrubbingShared.value = isScrubbing
+  }, [isScrubbing, isScrubbingShared])
+
+  // Cleanup shared values on unmount to prevent memory corruption
+  useEffect(() => {
+    return () => {
+      // Cancel any pending animations on the shared value
+      // This prevents worklets from accessing freed memory if component unmounts
+      cancelAnimation(lastScrubbedPositionShared)
+    }
+  }, [lastScrubbedPositionShared])
 
   // Snapback prevention: Clear lastScrubbedPosition when video catches up to the scrubbed position
   useEffect(() => {
@@ -256,7 +275,8 @@ export function useProgressBarGesture(
         })
         .onEnd(() => {
           // Only seek again if we were in scrubbing mode (dragging)
-          const wasScrubbing = isScrubbing
+          // Use shared value instead of state to avoid capturing stale closure
+          const wasScrubbing = isScrubbingShared.value
           runOnJS(setIsScrubbing)(false)
 
           if (wasScrubbing) {
@@ -281,7 +301,9 @@ export function useProgressBarGesture(
           runOnJS(setScrubbingPosition)(null)
         })
         .simultaneousWithExternalGesture(),
-    [barType, duration, onSeek, showControlsAndResetTimer, isScrubbing, progressBarWidthShared]
+    [barType, duration, onSeek, showControlsAndResetTimer, progressBarWidthShared]
+    // Note: isScrubbing removed from deps - we use isScrubbingShared instead
+    // This prevents gesture handler recreation on every scrubbing state toggle
   )
 
   // Main gesture handler (drag only) - minimal implementation for GREEN phase

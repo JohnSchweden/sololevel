@@ -200,10 +200,6 @@ export function useControlsVisibility(
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [resetTrigger, setResetTrigger] = useState(0)
 
-  // Store callback in ref to avoid recreating resetAutoHideTimer when callback changes
-  const onControlsVisibilityChangeRef = useRef(onControlsVisibilityChange)
-  onControlsVisibilityChangeRef.current = onControlsVisibilityChange
-
   // Auto-hide timer reset logic
   // Memoized with all dependencies to ensure it updates when conditions change
   const resetAutoHideTimer = useCallback(() => {
@@ -235,22 +231,63 @@ export function useControlsVisibility(
       hideTimeoutRef.current = setTimeout(() => {
         log.debug('useControlsVisibility', 'Auto-hide timer fired - hiding controls')
         setControlsVisible(false)
-        onControlsVisibilityChangeRef.current?.(false)
+        onControlsVisibilityChange?.(false)
       }, autoHideDelayMs)
     }
-  }, [isPlaying, isScrubbing, controlsVisible, autoHideDelayMs])
+  }, [isPlaying, isScrubbing, controlsVisible, autoHideDelayMs, onControlsVisibilityChange])
 
   // Show controls and reset timer
   const showControlsAndResetTimer = useCallback(() => {
     log.debug('useControlsVisibility', 'showControlsAndResetTimer called')
     setControlsVisible(true)
-    onControlsVisibilityChangeRef.current?.(true)
+    onControlsVisibilityChange?.(true)
     // Trigger the reset effect by incrementing the trigger counter
     setResetTrigger((prev) => prev + 1)
-  }, [])
+  }, [onControlsVisibilityChange])
+
+  // Track if this is the initial mount
+  const isInitialMount = useRef(true)
+  // Track if user has manually interacted via handlePress (tap-to-toggle)
+  const userHasManuallyInteractedRef = useRef(false)
+
+  // Sync with external showControls prop
+  useEffect(() => {
+    // Check if this is initial mount BEFORE updating the ref
+    const isInitial = isInitialMount.current
+
+    // On initial mount, notify parent of initial state (controls start hidden)
+    if (isInitial) {
+      isInitialMount.current = false // Mark that we've completed initial mount
+      if (showControls) {
+        // Only if forced visible by prop
+        setControlsVisible(true)
+        onControlsVisibilityChange?.(true)
+      } else {
+        // Notify parent that controls start hidden
+        onControlsVisibilityChange?.(false)
+      }
+      return // Skip the rest of the logic on initial mount
+    }
+
+    // After initial mount, only sync showControls if:
+    // 1. User hasn't manually interacted yet, OR
+    // 2. showControls is being forced to false (external reset)
+    if (!userHasManuallyInteractedRef.current || !showControls) {
+      if (showControls) {
+        // Force controls visible when showControls is true
+        setControlsVisible(true)
+        onControlsVisibilityChange?.(true)
+      }
+    }
+    // When showControls is false and user has interacted, keep current visibility
+    // and let the timer effect or handlePress manage hide
+  }, [showControls, onControlsVisibilityChange])
 
   // Tap-to-toggle handler
   const handlePress = useCallback(() => {
+    // Mark that user has manually interacted
+    userHasManuallyInteractedRef.current = true
+
     setControlsVisible((prev) => {
       const newValue = !prev
       log.debug('useControlsVisibility', 'handlePress - toggling controls', {
@@ -258,7 +295,7 @@ export function useControlsVisibility(
         newValue,
         isPlaying,
       })
-      onControlsVisibilityChangeRef.current?.(newValue)
+      onControlsVisibilityChange?.(newValue)
 
       // If showing controls while video is playing, trigger timer reset
       // If hiding controls, clear the timer
@@ -274,38 +311,7 @@ export function useControlsVisibility(
 
       return newValue
     })
-  }, [isPlaying])
-
-  // Track if this is the initial mount
-  const isInitialMount = useRef(true)
-
-  // Sync with external showControls prop
-  useEffect(() => {
-    // Check if this is initial mount BEFORE updating the ref
-    const isInitial = isInitialMount.current
-
-    // On initial mount, notify parent of initial state (controls start hidden)
-    if (isInitial) {
-      isInitialMount.current = false // Mark that we've completed initial mount
-      if (showControls) {
-        // Only if forced visible by prop
-        setControlsVisible(true)
-        onControlsVisibilityChangeRef.current?.(true)
-      } else {
-        // Notify parent that controls start hidden
-        onControlsVisibilityChangeRef.current?.(false)
-      }
-      return // Skip the rest of the logic on initial mount
-    }
-
-    if (showControls) {
-      // Force controls visible when showControls is true
-      setControlsVisible(true)
-      onControlsVisibilityChangeRef.current?.(true)
-    }
-    // When showControls is false, keep current visibility
-    // and let the timer effect or handlePress manage hide
-  }, [showControls])
+  }, [isPlaying, onControlsVisibilityChange])
 
   // Reset timer when dependencies change or when explicitly triggered
   useEffect(() => {
