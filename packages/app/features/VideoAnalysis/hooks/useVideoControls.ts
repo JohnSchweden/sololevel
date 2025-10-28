@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export interface VideoControlsState {
   showControls: boolean
@@ -11,12 +11,23 @@ export function useVideoControls(
   isPlaying: boolean,
   videoEnded: boolean
 ): VideoControlsState {
+  // Controls start hidden; only shown when video paused, processing, or user taps
   const [manualVisible, setManualVisible] = useState(false)
+  const hasUserInteractedRef = useRef(false)
 
-  const forcedVisible = useMemo(
-    () => isProcessing || !isPlaying || videoEnded,
-    [isProcessing, isPlaying, videoEnded]
-  )
+  const forcedVisible = useMemo(() => {
+    // Always show controls when processing or video ended (critical states)
+    if (isProcessing || videoEnded) {
+      return true
+    }
+    // Keep controls hidden until user has actually tapped/interacted when playing
+    // (not just internal visibility changes)
+    if (!hasUserInteractedRef.current && isPlaying) {
+      return false
+    }
+    // After user interacts, use normal rules
+    return !isPlaying || videoEnded
+  }, [isProcessing, isPlaying, videoEnded])
 
   const showControls = forcedVisible || manualVisible
 
@@ -45,6 +56,14 @@ export function useVideoControls(
       setManualVisible(false)
     }
   }, [forcedVisible])
+
+  // When user manually sets controls visible (not from internal callback),
+  // mark that they've interacted
+  useEffect(() => {
+    if (manualVisible) {
+      hasUserInteractedRef.current = true
+    }
+  }, [manualVisible])
 
   const showReplayButton = videoEnded
 

@@ -40,13 +40,170 @@ const INITIAL_SCROLL_Y = MODE_SCROLL_POSITIONS.normal
 /**
  * Animation controller for VideoAnalysisScreen
  *
- * Manages mode-based video height transitions and animated styles:
- * - Header height interpolation (max → normal → min modes)
- * - Pull-to-reveal expansion (negative scroll)
- * - Collapse progress calculation (0 = max, 0.5 = normal, 1 = min)
- * - Animated styles for header, feedback section, and pull indicator
+ * Manages mode-based video height transitions and animated styles using Reanimated
+ * derived values and animated styles. All calculations run on the UI thread.
  *
- * @returns Animation controller interface with scroll state and animated styles
+ * **Core Responsibility:** Provide interpolated animations based on scroll position
+ * (which is driven by useGestureController).
+ *
+ * ## Data Flow & Coordination
+ *
+ * ```
+ * useGestureController          useAnimationController
+ * ════════════════════════════════════════════════════════════════
+ *
+ * scrollY (shared value)  ──┐
+ *                            ├─→ Drives all derived values
+ * feedbackContentOffsetY  ──┘   and animated styles
+ *
+ * (user gesture)
+ *     ↓
+ * Modifies scrollY.value
+ *     ↓
+ * Triggers useDerivedValue
+ * recomputation on UI thread
+ *     ↓
+ * Recalculates:
+ * - headerHeight
+ * - collapseProgress
+ * - Animated styles
+ *     ↓
+ * UI reflects changes
+ * (no JS bridge round-trip)
+ * ```
+ *
+ * ## Animation Calculation Pipeline
+ *
+ * ```
+ * Input: scrollY (from gesture)
+ *    ↓
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │ 1. Calculate headerHeight via interpolation                  │
+ * │                                                              │
+ * │ Three phases based on scrollY position:                      │
+ * │                                                              │
+ * │ Phase 1: Pull-to-Reveal (scrollY < 0)                       │
+ * │ ┌────────────────────────────────────────────────┐          │
+ * │ │ scrollY: -170 ─→ -200 (user overscrolls up)    │          │
+ * │ │ expansion = interpolate(pullDistance,          │          │
+ * │ │              [0, 200], [0, 280])               │          │
+ * │ │ headerHeight = 852 + expansion                 │          │
+ * │ │ Result: 852 ─→ 920px+ (visual pull feedback)   │          │
+ * │ └────────────────────────────────────────────────┘          │
+ * │                                                              │
+ * │ Phase 2: Max → Normal (0 ≤ scrollY ≤ 237)                  │
+ * │ ┌────────────────────────────────────────────────┐          │
+ * │ │ scrollY: 0 ─→ 237                              │          │
+ * │ │ progress = scrollY / 237                       │          │
+ * │ │ headerHeight = interpolate(scrollY,            │          │
+ * │ │              [0, 237], [852, 511],             │          │
+ * │ │              Extrapolation.CLAMP)              │          │
+ * │ │ Result: 852 ─→ 511px (smooth collapse)        │          │
+ * │ └────────────────────────────────────────────────┘          │
+ * │                                                              │
+ * │ Phase 3: Normal → Min (237 < scrollY ≤ 401)                │
+ * │ ┌────────────────────────────────────────────────┐          │
+ * │ │ scrollY: 237 ─→ 401                            │          │
+ * │ │ progress = (scrollY - 237) / 164               │          │
+ * │ │ headerHeight = interpolate(scrollY,            │          │
+ * │ │              [237, 401], [511, 281],           │          │
+ * │ │              Extrapolation.CLAMP)              │          │
+ * │ │ Result: 511 ─→ 281px (further collapse)       │          │
+ * │ └────────────────────────────────────────────────┘          │
+ * │                                                              │
+ * └──────────────────────────────────────────────────────────────┘
+ *    ↓ (useDerivedValue)
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │ 2. Calculate collapseProgress (0 → 1 mapping)               │
+ * │                                                              │
+ * │ Progress represents animation completion:                    │
+ * │ - 0.0 = Max mode (full screen video)                        │
+ * │ - 0.5 = Normal mode (60% video, 40% feedback)               │
+ * │ - 1.0 = Min mode (33% video, 67% feedback)                  │
+ * │                                                              │
+ * │ Used for controlling secondary animations:                   │
+ * │ - Header fade/opacity                                       │
+ * │ - Text size adjustments                                     │
+ * │ - Button positioning                                        │
+ * │                                                              │
+ * │ Calculation:                                                │
+ * │ if (headerHeight ≥ 511)                                     │
+ * │   progress = interpolate(headerHeight, [852, 511], [0, 0.5])│
+ * │ else                                                         │
+ * │   progress = interpolate(headerHeight, [511, 281], [0.5, 1])│
+ * │                                                              │
+ * └──────────────────────────────────────────────────────────────┘
+ *    ↓ (useDerivedValue)
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │ 3. Create animated styles (useAnimatedStyle)                │
+ * │                                                              │
+ * │ A) headerStyle                                              │
+ * │    ├─ height: headerHeight.value                            │
+ * │    └─ Directly controls video container height              │
+ * │                                                              │
+ * │ B) feedbackSectionStyle                                     │
+ * │    ├─ height: SCREEN_H - headerHeight.value                │
+ * │    └─ Dynamically fills remaining space                     │
+ * │                                                              │
+ * │ C) pullIndicatorStyle                                       │
+ * │    ├─ opacity: interpolate(scrollY, [-170, -200], [0, 1])  │
+ * │    ├─ transform.translateY: based on pull distance          │
+ * │    └─ Subtle visual feedback when overscrolling             │
+ * │                                                              │
+ * └──────────────────────────────────────────────────────────────┘
+ *    ↓
+ * Output: Animated UI
+ * - Video resizes smoothly
+ * - Feedback panel repositions
+ * - Pull indicator fades in/out
+ * - All on UI thread (60fps capable)
+ * ```
+ *
+ * ## Pixel Value Reference
+ *
+ * Device: iPhone with ~852px screen height
+ * - **Max Mode** (scroll=0): 852px video (100% of screen)
+ * - **Normal Mode** (scroll≈237): 511px video (60% of screen)
+ * - **Min Mode** (scroll≈401): 281px video (33% of screen)
+ * - **Pull-to-Reveal** (scroll < 0): >852px (expandable)
+ *
+ * ## Integration with useGestureController
+ *
+ * **Gesture → Animation Flow:**
+ * 1. User performs pan gesture
+ * 2. useGestureController updates scrollY.value
+ * 3. Reanimated detects change on UI thread
+ * 4. useDerivedValue recomputes automatically
+ * 5. useAnimatedStyle generates new animated styles
+ * 6. UI updates reflect new heights and positions
+ *
+ * **No coupling:** useAnimationController doesn't know about gestures—
+ * it only reacts to changes in scrollY. This separation enables:
+ * - Reusability (gesture-independent animations)
+ * - Testability (mock scrollY for animation testing)
+ * - Flexibility (alternative input sources)
+ *
+ * ## Performance Notes
+ *
+ * - **useDerivedValue:** Recomputes only when scrollY changes (efficient)
+ * - **useAnimatedStyle:** Runs on UI thread; minimal JS bridge traffic
+ * - **interpolate:** Optimized Reanimated function (native performance)
+ * - **Extrapolation.CLAMP:** Prevents out-of-range values
+ *
+ * ## Testing Strategy
+ *
+ * Unit tests validate interpolation at key points:
+ * - scrollY = 0 → headerHeight = max
+ * - scrollY = MODE_SCROLL_POSITIONS.normal → headerHeight transitions
+ * - scrollY < 0 → pull-to-reveal expansion
+ * - collapseProgress: 0 → 0.5 → 1 across full range
+ *
+ * Behavior testing (integration):
+ * - Gesture → animation chain
+ * - Smooth transitions between modes
+ * - Visual feedback on physical device
+ *
+ * @returns Animation controller interface with shared values, derived values, and animated styles
  */
 export interface UseAnimationControllerReturn {
   /** Shared value tracking video scroll position (0 = max, positive = collapsed) */

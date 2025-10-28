@@ -233,5 +233,3 @@ Consider creating platform-specific implementations:
 - `hooks/useProgressBarAnimation.web.ts` - CSS/React Spring implementation
 
 This would achieve **100% web compatibility** while maintaining native performance.
-
-

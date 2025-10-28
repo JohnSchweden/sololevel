@@ -8,12 +8,29 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
 }
 
+// Mock the useProgressBarGesture hook
+jest.mock('./hooks/useProgressBarGesture', () => ({
+  useProgressBarGesture: jest.fn(() => ({
+    isScrubbing: false,
+    scrubbingPosition: null,
+    lastScrubbedPosition: null,
+    combinedGesture: {},
+    mainGesture: {},
+    calculateProgress: (currentTime: number, duration: number) => {
+      if (duration <= 0) return 0
+      return Math.min(100, Math.max(0, (currentTime / duration) * 100))
+    },
+    progressBarWidth: 300,
+    setProgressBarWidth: jest.fn(),
+  })),
+}))
+
 // Mock data following TDD principles
 const mockProps = {
   isPlaying: false,
   currentTime: 30,
   duration: 120,
-  showControls: true,
+  showControls: false,
   isProcessing: false,
   onPlay: jest.fn(),
   onPause: jest.fn(),
@@ -777,7 +794,12 @@ describe('VideoControls', () => {
 
   describe('Basic Functionality', () => {
     it('renders with required props', () => {
-      renderWithProviders(<VideoControls {...mockProps} />)
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          showControls={true}
+        />
+      )
       expect(screen.getByLabelText('Video controls overlay visible')).toBeTruthy()
     })
 

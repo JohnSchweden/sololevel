@@ -42,13 +42,37 @@ const MODE_SCROLL_POSITIONS = {
 const SNAP_DURATION_MS = 600
 const SNAP_EASING = Easing.bezier(0.15, 0.0, 0.15, 1)
 
-// Worklet clamp for UI thread
+/**
+ * Clamps a value between min and max boundaries (worklet-compatible)
+ * Runs on UI thread - no JS bridge overhead
+ * @param v - Value to clamp
+ * @param min - Minimum boundary
+ * @param max - Maximum boundary
+ * @returns Clamped value: Math.max(min, Math.min(v, max))
+ * @worklet
+ */
 const clampWorklet = (v: number, min: number, max: number) => {
   'worklet'
   return Math.max(min, Math.min(v, max))
 }
 
-// Worklet: Convert scroll position to nearest mode
+/**
+ * Determines the nearest video mode based on current scroll position
+ * Uses distance calculation to find closest mode snap point
+ *
+ * Special case: If scrollY < -PULL_THRESHOLD (overscroll), always returns 'normal'
+ * to snap back to default mode when gesture ends
+ *
+ * @param scrollValue - Current scroll position (0 = max, >0 = collapsed)
+ * @returns Nearest mode: 'max' | 'normal' | 'min'
+ *
+ * Snap boundaries:
+ * - max: 0 (full screen)
+ * - normal: ~237px (60% layout)
+ * - min: ~401px (33% layout)
+ *
+ * @worklet
+ */
 const scrollToMode = (scrollValue: number): VideoMode => {
   'worklet'
   // Pull-to-reveal gesture - snap back to normal
@@ -72,13 +96,46 @@ const scrollToMode = (scrollValue: number): VideoMode => {
   return nearestMode
 }
 
-// Worklet: Get scroll position for a given mode
+/**
+ * Gets the scroll position for a given video mode
+ * Direct lookup: mode → scroll position
+ *
+ * @param mode - Target mode: 'max' | 'normal' | 'min'
+ * @returns Scroll position to animate to
+ * @worklet
+ */
 const modeToScroll = (mode: VideoMode): number => {
   'worklet'
   return MODE_SCROLL_POSITIONS[mode]
 }
 
-// Worklet: Calculate current video height from scroll position
+/**
+ * Calculates the current video height from scroll position
+ * Handles three phases:
+ *
+ * 1. **Pull-to-reveal** (scrollY < 0):
+ *    Video expands beyond max height with easing (1.4x multiplier)
+ *    Used for visual feedback when user overscrolls upward
+ *
+ * 2. **Phase 1: max → normal** (0 ≤ scrollY ≤ ~237px):
+ *    Linearly interpolates from VIDEO_HEIGHTS.max → VIDEO_HEIGHTS.normal
+ *    Progress: scrollY / MODE_SCROLL_POSITIONS.normal
+ *
+ * 3. **Phase 2: normal → min** (scrollY > ~237px):
+ *    Linearly interpolates from VIDEO_HEIGHTS.normal → VIDEO_HEIGHTS.min
+ *    Progress: (scrollY - normal) / (min - normal)
+ *
+ * @param scrollValue - Current scroll position
+ * @returns Interpolated video height in pixels
+ *
+ * Examples:
+ * - scrollValue = 0    → ~640px (max, full screen)
+ * - scrollValue = 237  → ~385px (normal, 60%)
+ * - scrollValue = 401  → ~211px (min, 33%)
+ * - scrollValue = -170 → ~896px+ (pull-to-reveal, beyond max)
+ *
+ * @worklet
+ */
 const calculateVideoHeight = (scrollValue: number): number => {
   'worklet'
   if (scrollValue < 0) {
@@ -102,17 +159,151 @@ const calculateVideoHeight = (scrollValue: number): number => {
 /**
  * YouTube-style gesture delegation controller for VideoAnalysisScreen
  *
- * Manages touch delegation between video pan gestures and feedback ScrollView:
- * - Video area touches → immediate gesture control
- * - Feedback area touches → direction + velocity-based delegation
- * - Fast swipes → video mode changes
- * - Slow swipes → feedback scrolling
- * - Pull-to-reveal → expand video beyond max height
+ * Manages touch delegation between video pan gestures and feedback ScrollView using a
+ * sophisticated decision tree based on touch location, velocity, and direction:
+ *
+ * - Video area touches → immediate gesture control (pan video up/down)
+ * - Feedback area touches (at top) → direction + velocity-based delegation:
+ *   - Fast swipe UP (>0.3 px/ms) → video mode change (normal → min)
+ *   - Slow swipe UP → feedback ScrollView scrolling
+ *   - Any swipe DOWN → gesture control (expand video)
+ * - Pull-to-reveal (scroll < -PULL_THRESHOLD) → visual indicator for expand-beyond-max
+ * - Scroll blocking prevents concurrent scroll conflicts during fast gestures
+ *
+ * ## Gesture Flow Diagram
+ *
+ * ```
+ * Touch Down
+ *     ↓
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onTouchesDown: Capture initial touch location & log state │
+ * └──────────────────────────────────────────────────────────┘
+ *     ↓
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onBegin: Determine initial gesture activation            │
+ * │                                                            │
+ * │ Is touch in video area?                                  │
+ * │ ├─ YES → gestureIsActive = true, disable ScrollView      │
+ * │ ├─ NO but feedback at top → gestureIsActive = true (wait)│
+ * │ └─ NO and feedback scrolled → gestureIsActive = false    │
+ * └──────────────────────────────────────────────────────────┘
+ *     ↓
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onStart: Initialize tracking if gesture is active        │
+ * │ - Reset gesture state (direction, velocity, time)        │
+ * │ - Clear pull-to-reveal flag                              │
+ * └──────────────────────────────────────────────────────────┘
+ *     ↓
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onChange (continuous): Main gesture logic                │
+ * │                                                            │
+ * │ 1. Detect direction & velocity on first significant move │
+ * │    (>8px threshold)                                       │
+ * │                                                            │
+ * │ 2. Decision tree for feedback area touches (initial):     │
+ * │    ┌─ NOT in video area AND at top AND UP               │
+ * │    │  ├─ Fast swipe (>0.3 px/ms)?                       │
+ * │    │  │  └─ YES: Block scroll, change video mode        │
+ * │    │  └─ Slow swipe (<0.3 px/ms)?                       │
+ * │    │     └─ YES: Hand off to ScrollView                 │
+ * │    └─ All other cases: Commit to gesture control        │
+ * │                                                            │
+ * │ 3. Update scroll position: scrollY -= changeY            │
+ * │                                                            │
+ * │ 4. Detect pull-to-reveal: scrollY < -PULL_THRESHOLD?    │
+ * │    └─ YES: Set isPullingToReveal = true (UI indicator)   │
+ * │                                                            │
+ * │ 5. Sync scroll ref: scrollTo(scrollRef, 0, scrollY)      │
+ * └──────────────────────────────────────────────────────────┘
+ *     ↓ (user lifts finger)
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onEnd: Snap to nearest mode with animation               │
+ * │ - Calculate target mode from current scroll position     │
+ * │ - Animate to target: withTiming(targetScroll, 600ms)    │
+ * │ - Re-enable feedback ScrollView                          │
+ * └──────────────────────────────────────────────────────────┘
+ *     ↓
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ onFinalize: Clean up gesture state                       │
+ * │ - Reset all tracking values                              │
+ * │ - Set gestureIsActive = false                            │
+ * └──────────────────────────────────────────────────────────┘
+ * ```
+ *
+ * ## Video Mode System
+ *
+ * Three discrete video heights define the layout:
+ * - **max** (scroll=0): Full screen video (100% of screen height)
+ * - **normal** (scroll≈40% of screen): Default viewing with feedback panel visible
+ * - **min** (scroll≈67% of screen): Collapsed dock with video at bottom
+ *
+ * ## Pull-to-Reveal System
+ *
+ * When user overscrolls video upward beyond max:
+ * - Scroll position becomes negative
+ * - `isPullingToReveal` flag set when scrollY < -PULL_THRESHOLD (-170px)
+ * - Provides visual feedback (e.g., subtle pull indicator animation)
+ * - On gesture end, always snaps back to normal mode
+ *
+ * ## Scroll Blocking Strategy
+ *
+ * Two-stage scroll blocking prevents concurrent scroll during fast gestures:
+ * 1. `feedbackScrollEnabled`: Standard blocking during any gesture
+ * 2. `blockFeedbackScrollCompletely`: Additional blocking for fast swipe mode changes
+ *
+ * Re-enabled immediately when gesture ends to allow normal feedback scrolling.
+ *
+ * ## Performance Considerations
+ *
+ * - All calculations run on UI thread via worklets (no JS bridge overhead)
+ * - Shared values track state without JS-thread round-trips
+ * - Logging only in development; production logs are no-ops
+ * - Pull-to-reveal state bridges to JS via useAnimatedReaction for UI consumers
+ *
+ * ## Integration with useAnimationController
+ *
+ * This hook coordinates with animation controller for smooth transitions:
+ * - Receives scrollY and feedbackContentOffsetY from animation controller
+ * - Modifies scrollY via direct assignment and scrollTo
+ * - Animation controller interpolates header/content based on scrollY changes
+ * - No direct knowledge of animation constants; gesture is animation-agnostic
+ *
+ * ## Testing Notes
+ *
+ * Unit tests validate:
+ * - Hook initialization and interface
+ * - Callback availability
+ * - Gesture lifecycle handler registration
+ *
+ * Behavior testing requires integration test with:
+ * - React Native gesture handler environment
+ * - Reanimated worklet execution
+ * - Touch event simulation
+ * - Physical device or simulator verification
  *
  * @param scrollY - Shared value tracking video scroll position (0 = max, positive = collapsed)
  * @param feedbackContentOffsetY - Shared value tracking feedback panel scroll position
  * @param scrollRef - Animated ref to the main scroll container
- * @returns Gesture controller interface with pan gesture and scroll state
+ * @returns Gesture controller interface with pan gesture, scroll state, and callbacks
+ *
+ * @example
+ * ```typescript
+ * // In useVideoAnalysisOrchestrator:
+ * const animation = useAnimationController()
+ * const gesture = useGestureController(
+ *   animation.scrollY,
+ *   animation.feedbackContentOffsetY,
+ *   animation.scrollRef
+ * )
+ *
+ * // Pass to layout:
+ * <GestureDetector gesture={gesture.rootPan}>
+ *   <VideoAnalysisLayout
+ *     gesture={gesture}
+ *     animation={animation}
+ *   />
+ * </GestureDetector>
+ * ```
  */
 export interface UseGestureControllerReturn {
   /** Pan gesture handler for root view */
