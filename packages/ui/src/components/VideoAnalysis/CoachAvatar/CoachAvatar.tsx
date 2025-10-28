@@ -19,7 +19,7 @@ export function CoachAvatar({
   isSpeaking = false,
   testID = 'coach-avatar',
   position = 'absolute',
-  bottom = 50,
+  bottom = 70,
   right = 20,
   zIndex = 0,
   animation,

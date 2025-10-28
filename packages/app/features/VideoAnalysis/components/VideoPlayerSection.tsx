@@ -13,7 +13,7 @@ import Animated, {
 import { YStack } from 'tamagui'
 
 import {
-  AudioFeedback,
+  // AudioFeedback,
   AudioPlayer,
   CoachAvatar,
   FeedbackBubbles,
@@ -182,8 +182,9 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     return mode
   })
 
-  // Convert shared value to state for use in render
+  // Convert shared values to state for use in render
   const [currentVideoMode, setCurrentVideoMode] = useState<'max' | 'normal' | 'min'>('max')
+  const [currentCollapseProgress, setCurrentCollapseProgress] = useState<number>(0)
 
   useAnimatedReaction(
     () => videoMode.value,
@@ -193,16 +194,24 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     [videoMode]
   )
 
+  useAnimatedReaction(
+    () => collapseProgress?.value ?? 0,
+    (progress) => {
+      runOnJS(setCurrentCollapseProgress)(progress)
+    },
+    [collapseProgress]
+  )
+
   // Animation styles for avatar and social icons
   const avatarAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
     // Apply cubic easing for smooth slow-start fast-end effect
-    const easeFunction = Easing.inOut(Easing.cubic)
-    const easedProgress = easeFunction(collapseProgress.value)
+    //const easeFunction = Easing.inOut(Easing.cubic)
+    //const easedProgress = easeFunction(collapseProgress.value)
 
     // Fade in when transitioning to max mode (collapseProgress 0-0.15), fade out otherwise
     return {
-      opacity: interpolate(easedProgress, [0, 0.25], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(collapseProgress.value, [0, 0.02], [1, 0], Extrapolation.CLAMP),
       transform: [
         { translateY: interpolate(collapseProgress.value, [0, 1], [0, -12], Extrapolation.CLAMP) },
         { scale: interpolate(collapseProgress.value, [0, 1], [1, 0.9], Extrapolation.CLAMP) },
@@ -286,7 +295,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
           <FeedbackBubbles messages={activeBubbleMessages} />
 
-          {audioOverlay.shouldShow && audioOverlay.activeAudio && (
+          {/* Audio Feedback Controls - Commented out, is for P1 */}
+          {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
             <AudioFeedback
               audioUrl={audioOverlay.activeAudio.url}
               controller={audioPlayerController}
@@ -296,13 +306,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               isVisible
               testID="audio-feedback-controls"
             />
-          )}
+          )} */}
 
           {/* Avatar - Always render with animated style */}
           <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
             <CoachAvatar
               isSpeaking={coachSpeaking}
-              size={90}
+              size={80}
               testID="video-analysis-coach-avatar"
               animation="quick"
               enterStyle={{
@@ -332,7 +342,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               onBookmark={onSocialAction.onBookmark}
               isVisible={true}
               placement="rightBottom"
-              offsetBottom={64}
+              offsetBottom={30}
             />
           </Animated.View>
 
@@ -345,6 +355,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             isProcessing={isProcessing}
             videoEnded={videoEnded}
             videoMode={currentVideoMode}
+            collapseProgress={currentCollapseProgress}
             onPlay={onPlay}
             onPause={onPause}
             onReplay={onReplay}

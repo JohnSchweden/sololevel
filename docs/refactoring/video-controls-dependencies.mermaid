@@ -1,0 +1,186 @@
+```mermaid
+graph TD
+    %% Props (External Inputs)
+    Props[Props] --> |isPlaying| AutoHideTimer[Auto-hide Timer Logic]
+    Props --> |showControls| ControlsVisibility[Controls Visibility State]
+    Props --> |currentTime, duration| ProgressCalc[Progress Calculations]
+    Props --> |collapseProgress| AnimationStyles[Animation Styles]
+    Props --> |onSeek| GestureHandlers[Gesture Handlers]
+    Props --> |onControlsVisibilityChange| VisibilityCallbacks[Visibility Callbacks]
+
+    %% Local State Variables (9 total)
+    subgraph LocalState["Local State Variables"]
+        ControlsVisible["controlsVisible: boolean"]
+        IsScrubbing["isScrubbing: boolean"]
+        ScrubbingPos["scrubbingPosition: number | null"]
+        LastScrubbed["lastScrubbedPosition: number | null"]
+        IsPersistentScrubbing["isPersistentScrubbing: boolean"]
+        PersistentScrubbingPos["persistentScrubbingPosition: number | null"]
+        LastPersistentScrubbed["lastPersistentScrubbedPosition: number | null"]
+        ShowMenu["showMenu: boolean"]
+        ProgressBarWidth["progressBarWidth: number"]
+        PersistentProgressBarWidth["persistentProgressBarWidth: number"]
+    end
+
+    %% Shared Values (Reanimated)
+    subgraph SharedValues["Shared Values (Reanimated)"]
+        LastScrubbedShared["lastScrubbedPositionShared: SharedValue<number>"]
+        ProgressBarWidthShared["progressBarWidthShared: SharedValue<number>"]
+        PersistentProgressBarWidthShared["persistentProgressBarWidthShared: SharedValue<number>"]
+    end
+
+    %% Refs
+    subgraph Refs["Refs"]
+        HideTimeoutRef["hideTimeoutRef: RefObject<Timeout>"]
+    end
+
+    %% useEffect Dependencies (7 total)
+    subgraph UseEffects["useEffect Hooks"]
+        DebugLogging["Debug Logging Effect<br/>Deps: [12 state variables]"]
+        ClearLastScrubbed["Clear Last Scrubbed Effect<br/>Deps: [currentTime, duration, lastScrubbedPosition]"]
+        ClearLastPersistentScrubbed["Clear Last Persistent Scrubbed Effect<br/>Deps: [currentTime, duration, lastPersistentScrubbedPosition]"]
+        UpdateControlsVisibility["Update Controls Visibility Effect<br/>Deps: [showControls, resetAutoHideTimer, onControlsVisibilityChange]"]
+        ResetTimer["Reset Timer Effect<br/>Deps: [resetAutoHideTimer, controlsVisible]"]
+        CleanupTimer["Cleanup Timer Effect<br/>Deps: []"]
+        UpdateProgressBarWidth["Update Progress Bar Width Effect<br/>Deps: [progressBarWidth, progressBarWidthShared]"]
+        UpdatePersistentProgressBarWidth["Update Persistent Progress Bar Width Effect<br/>Deps: [persistentProgressBarWidth, persistentProgressBarWidthShared]"]
+    end
+
+    %% Callbacks (memoized)
+    subgraph Callbacks["Memoized Callbacks"]
+        ResetAutoHideTimer["resetAutoHideTimer<br/>Deps: [isPlaying, isScrubbing, showControls, controlsVisible, onControlsVisibilityChange]"]
+        ShowControlsAndResetTimer["showControlsAndResetTimer<br/>Deps: [resetAutoHideTimer, onControlsVisibilityChange]"]
+        HandlePress["handlePress<br/>Deps: [controlsVisible, showControlsAndResetTimer, onControlsVisibilityChange]"]
+        HandleMenuPress["handleMenuPress<br/>Deps: [showControlsAndResetTimer, onMenuPress]"]
+        HandleMenuItemPress["handleMenuItemPress<br/>Deps: []"]
+    end
+
+    %% Gesture Handlers (4 total - MASSIVE DUPLICATION)
+    subgraph GestureHandlers["Gesture Handlers (4 total)"]
+        ProgressBarCombinedGesture["progressBarCombinedGesture<br/>Deps: [duration, onSeek, showControlsAndResetTimer, isScrubbing]"]
+        PersistentProgressBarCombinedGesture["persistentProgressBarCombinedGesture<br/>Deps: [duration, onSeek, showControlsAndResetTimer, isPersistentScrubbing]"]
+        MainProgressGesture["mainProgressGesture<br/>Deps: [duration, onSeek, showControlsAndResetTimer]"]
+        PersistentProgressGesture["persistentProgressGesture<br/>Deps: [duration, onSeek, showControlsAndResetTimer]"]
+    end
+
+    %% Animation Styles
+    subgraph AnimationStyles["Animation Styles"]
+        PersistentBarAnimatedStyle["persistentBarAnimatedStyle<br/>Deps: [collapseProgress]"]
+        NormalBarAnimatedStyle["normalBarAnimatedStyle<br/>Deps: [collapseProgress]"]
+    end
+
+    %% Progress Calculations
+    subgraph ProgressCalculations["Progress Calculations"]
+        NormalProgress["progress (normal bar)<br/>Deps: [isScrubbing, scrubbingPosition, lastScrubbedPosition, currentTime, duration]"]
+        PersistentProgress["persistentProgress (persistent bar)<br/>Deps: [isPersistentScrubbing, persistentScrubbingPosition, lastPersistentScrubbedPosition, currentTime, duration]"]
+    end
+
+    %% State Flow Dependencies
+    ControlsVisible --> AutoHideTimer
+    AutoHideTimer --> HideTimeoutRef
+    IsScrubbing --> NormalProgress
+    IsPersistentScrubbing --> PersistentProgress
+    ProgressBarWidth --> ProgressBarWidthShared
+    PersistentProgressBarWidth --> PersistentProgressBarWidthShared
+    
+    %% Gesture Handler Dependencies
+    LastScrubbedShared --> ProgressBarCombinedGesture
+    LastScrubbedShared --> MainProgressGesture
+    LastScrubbedShared --> PersistentProgressBarCombinedGesture
+    LastScrubbedShared --> PersistentProgressGesture
+    
+    %% useEffect Dependencies
+    ProgressBarWidth --> UpdateProgressBarWidth
+    PersistentProgressBarWidth --> UpdatePersistentProgressBarWidth
+    LastScrubbed --> ClearLastScrubbed
+    LastPersistentScrubbed --> ClearLastPersistentScrubbed
+    ControlsVisible --> ResetTimer
+    
+    %% Callback Dependencies
+    ResetAutoHideTimer --> ShowControlsAndResetTimer
+    ShowControlsAndResetTimer --> HandlePress
+    ShowControlsAndResetTimer --> HandleMenuPress
+
+    %% DUPLICATION INDICATORS
+    classDef duplication fill:#ffcccc,stroke:#ff0000,stroke-width:2px
+    class ProgressBarCombinedGesture,PersistentProgressBarCombinedGesture,MainProgressGesture,PersistentProgressGesture duplication
+    class IsScrubbing,IsPersistentScrubbing,ScrubbingPos,PersistentScrubbingPos,LastScrubbed,LastPersistentScrubbed duplication
+    class ProgressBarWidth,PersistentProgressBarWidth,ProgressBarWidthShared,PersistentProgressBarWidthShared duplication
+    class NormalProgress,PersistentProgress duplication
+```
+
+## State Variable Analysis
+
+### Local State (10 variables)
+1. **controlsVisible**: Controls overlay visibility
+2. **isScrubbing**: Normal progress bar scrubbing state
+3. **scrubbingPosition**: Current scrubbing position (normal bar)
+4. **lastScrubbedPosition**: Last scrubbed position for snapback prevention (normal bar)
+5. **isPersistentScrubbing**: Persistent progress bar scrubbing state
+6. **persistentScrubbingPosition**: Current scrubbing position (persistent bar)
+7. **lastPersistentScrubbedPosition**: Last scrubbed position for snapback prevention (persistent bar)
+8. **showMenu**: Menu overlay visibility
+9. **progressBarWidth**: Normal progress bar layout width
+10. **persistentProgressBarWidth**: Persistent progress bar layout width
+
+### Shared Values (3 variables)
+1. **lastScrubbedPositionShared**: Worklet-accessible scrubbing position
+2. **progressBarWidthShared**: Worklet-accessible normal bar width
+3. **persistentProgressBarWidthShared**: Worklet-accessible persistent bar width
+
+### Refs (1 variable)
+1. **hideTimeoutRef**: Auto-hide timer reference
+
+## useEffect Dependencies (7 hooks)
+
+### 1. Debug Logging Effect
+**Dependencies**: [isScrubbing, scrubbingPosition, isPersistentScrubbing, persistentScrubbingPosition, progress, persistentProgress, currentTime, duration, progressBarWidth, persistentProgressBarWidth]
+**Purpose**: Log state changes for debugging
+
+### 2. Clear Last Scrubbed Effect
+**Dependencies**: [currentTime, duration, lastScrubbedPosition]
+**Purpose**: Clear snapback position when video catches up (normal bar)
+
+### 3. Clear Last Persistent Scrubbed Effect
+**Dependencies**: [currentTime, duration, lastPersistentScrubbedPosition]
+**Purpose**: Clear snapback position when video catches up (persistent bar)
+
+### 4. Update Controls Visibility Effect
+**Dependencies**: [showControls, resetAutoHideTimer, onControlsVisibilityChange]
+**Purpose**: Sync controls visibility with prop changes
+
+### 5. Reset Timer Effect
+**Dependencies**: [resetAutoHideTimer, controlsVisible]
+**Purpose**: Reset auto-hide timer when visibility changes
+
+### 6. Cleanup Timer Effect
+**Dependencies**: []
+**Purpose**: Cleanup timer on unmount
+
+### 7. Update Progress Bar Width Effect (Normal)
+**Dependencies**: [progressBarWidth, progressBarWidthShared]
+**Purpose**: Sync layout width to shared value
+
+### 8. Update Persistent Progress Bar Width Effect
+**Dependencies**: [persistentProgressBarWidth, persistentProgressBarWidthShared]
+**Purpose**: Sync layout width to shared value (persistent bar)
+
+## Major Duplication Patterns
+
+### 1. Scrubbing State (100% duplication)
+- Normal: isScrubbing, scrubbingPosition, lastScrubbedPosition
+- Persistent: isPersistentScrubbing, persistentScrubbingPosition, lastPersistentScrubbedPosition
+
+### 2. Progress Bar Width Management (100% duplication)
+- Normal: progressBarWidth, progressBarWidthShared
+- Persistent: persistentProgressBarWidth, persistentProgressBarWidthShared
+
+### 3. Gesture Handlers (95% duplication)
+- 4 gesture handlers with nearly identical logic
+- Only difference: which state variables they update
+
+### 4. Progress Calculations (90% duplication)
+- Normal and persistent progress calculations use identical formulas
+- Only difference: which state variables they read from
+
+

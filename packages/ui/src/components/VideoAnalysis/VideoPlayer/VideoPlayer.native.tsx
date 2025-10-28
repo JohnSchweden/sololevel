@@ -122,14 +122,14 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
         <Video
           ref={videoRef}
           source={{ uri: videoUri }}
-          {...(posterUri ? { poster: posterUri, posterResizeMode: 'contain' } : {})}
+          {...(posterUri ? { poster: posterUri, posterResizeMode: 'cover' } : {})}
           style={{ flex: 1 }}
           paused={!isPlaying}
           onLoad={handleLoad}
           onError={handleError}
           onProgress={handleProgress}
           onEnd={handleEnd}
-          resizeMode="contain"
+          resizeMode="cover"
           controls={false}
           playInBackground={false}
           playWhenInactive={false}

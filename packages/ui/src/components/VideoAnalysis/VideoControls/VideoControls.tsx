@@ -20,7 +20,14 @@ import React, {
 } from 'react'
 import { Pressable, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { runOnJS, useSharedValue } from 'react-native-reanimated'
+import Animated, {
+  runOnJS,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  Easing,
+} from 'react-native-reanimated'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -44,6 +51,8 @@ export interface VideoControlsProps {
   headerComponent?: React.ReactNode
   // NEW: Video mode for persistent progress bar
   videoMode?: 'max' | 'normal' | 'min'
+  // NEW: Collapse progress for early fade-out animation (0 = max, 0.5 = normal, 1 = min)
+  collapseProgress?: number
 }
 
 export const VideoControls = React.memo(
@@ -64,6 +73,7 @@ export const VideoControls = React.memo(
         onMenuPress,
         headerComponent,
         videoMode = 'max',
+        collapseProgress = 0,
       },
       ref
     ) => {
@@ -84,22 +94,24 @@ export const VideoControls = React.memo(
       const [persistentProgressBarWidth, setPersistentProgressBarWidth] = useState(300) // default width for persistent bar
       const progressBarWidthShared = useSharedValue(300)
       const persistentProgressBarWidthShared = useSharedValue(300)
+      // Remove shared values - we'll use interpolation directly in animated styles
       const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-      // Auto-hide controls after 3 seconds when playing (only if showControls allows it)
+      // Auto-hide controls after 2 seconds when playing (only if showControls allows it)
       const resetAutoHideTimer = useCallback(() => {
         if (hideTimeoutRef.current) {
           clearTimeout(hideTimeoutRef.current)
         }
 
         // Only start timer if playing and not scrubbing, and showControls doesn't force visibility
-        if (isPlaying && !isScrubbing && !showControls) {
+        // Also only start timer if controls are currently visible
+        if (isPlaying && !isScrubbing && !showControls && controlsVisible) {
           hideTimeoutRef.current = setTimeout(() => {
             setControlsVisible(false)
             onControlsVisibilityChange?.(false)
           }, 2000)
         }
-      }, [isPlaying, isScrubbing, showControls, onControlsVisibilityChange])
+      }, [isPlaying, isScrubbing, showControls, controlsVisible, onControlsVisibilityChange])
 
       // Show controls and reset timer
       const showControlsAndResetTimer = useCallback(() => {
@@ -108,12 +120,22 @@ export const VideoControls = React.memo(
         resetAutoHideTimer()
       }, [resetAutoHideTimer, onControlsVisibilityChange])
 
-      // Handle touch/press to show controls
+      // Handle touch/press to toggle controls visibility
       const handlePress = useCallback(() => {
-        if (!controlsVisible) {
+        if (controlsVisible) {
+          // Hide controls immediately
+          setControlsVisible(false)
+          onControlsVisibilityChange?.(false)
+          // Clear any existing timer
+          if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current)
+            hideTimeoutRef.current = null
+          }
+        } else {
+          // Show controls and reset timer
           showControlsAndResetTimer()
         }
-      }, [controlsVisible, showControlsAndResetTimer])
+      }, [controlsVisible, showControlsAndResetTimer, onControlsVisibilityChange])
 
       // Update controls visibility when prop changes
       useEffect(() => {
@@ -132,10 +154,10 @@ export const VideoControls = React.memo(
         }
       }, [showControls, resetAutoHideTimer, onControlsVisibilityChange])
 
-      // Reset timer when playing state changes
+      // Reset timer when playing state or controls visibility changes
       useEffect(() => {
         resetAutoHideTimer()
-      }, [resetAutoHideTimer])
+      }, [resetAutoHideTimer, controlsVisible])
 
       // Cleanup timer on unmount
       useEffect(() => {
@@ -145,6 +167,8 @@ export const VideoControls = React.memo(
           }
         }
       }, [])
+
+      // Remove useEffect animations - replaced with interpolation-based animated styles
 
       const formatTime = (seconds: number) => {
         // Handle negative values by treating them as 0
@@ -696,6 +720,27 @@ export const VideoControls = React.memo(
         [handleMenuPress]
       )
 
+      // Interpolation-based animated styles for progress bars - ultra-fast fade-out
+      const persistentBarAnimatedStyle = useAnimatedStyle(() => {
+        // Apply cubic easing for smooth transitions
+        const easeFunction = Easing.inOut(Easing.cubic)
+        const easedProgress = easeFunction(collapseProgress)
+
+        // Fade out when transitioning TO max mode (collapseProgress < 0.48)
+        // This provides early fade-out before the mode actually changes
+        return {
+          opacity: interpolate(easedProgress, [0, 0.48], [0, 1], Extrapolation.CLAMP),
+        }
+      })
+
+      const normalBarAnimatedStyle = useAnimatedStyle(() => {
+        // Fade out ultra-early when transitioning AWAY from max mode (collapseProgress > 0.45)
+        // Normal bar should be visible in max mode, hidden in normal/min modes
+        return {
+          opacity: interpolate(collapseProgress, [0, 0.027], [1, 0], Extrapolation.CLAMP),
+        }
+      })
+
       return (
         <Pressable
           onPress={handlePress}
@@ -730,8 +775,8 @@ export const VideoControls = React.memo(
               position="absolute"
               left={0}
               right={0}
-              top="50%"
-              y="-50%"
+              top={0}
+              bottom={0}
               justifyContent="center"
               alignItems="center"
               gap="$8"
@@ -829,167 +874,237 @@ export const VideoControls = React.memo(
               />
             </XStack>
 
-            {/* Bottom Controls */}
-            <YStack accessibilityLabel="Video timeline and controls">
-              {/* Time and Fullscreen Button Row */}
-              <XStack
-                justifyContent="space-between"
-                alignItems="center"
-                paddingBottom="$2"
-                accessibilityLabel="Video time and controls"
-              >
-                {/* Time Display - Left side */}
+            {/* Bottom Controls - Normal Bar */}
+            <Animated.View style={normalBarAnimatedStyle}>
+              <YStack accessibilityLabel="Video timeline and controls">
+                {/* Time and Fullscreen Button Row */}
                 <XStack
+                  justifyContent="space-between"
                   alignItems="center"
-                  testID="time-display"
-                  accessibilityLabel={`Current time: ${formatTime(currentTime)}, Total duration: ${formatTime(duration)}`}
+                  bottom={-24}
+                  paddingBottom="$2"
+                  accessibilityLabel="Video time and controls"
                 >
-                  <Text
-                    fontSize="$3"
-                    color="$color"
-                    testID="current-time"
+                  {/* Time Display - Left side */}
+                  <XStack
+                    alignItems="center"
+                    testID="time-display"
+                    accessibilityLabel={`Current time: ${formatTime(currentTime)}, Total duration: ${formatTime(duration)}`}
                   >
-                    {formatTime(currentTime)}
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    color="$color11"
-                    marginHorizontal="$1"
-                  >
-                    /
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    color="$color11"
-                    testID="total-time"
-                  >
-                    {formatTime(duration)}
-                  </Text>
-                </XStack>
+                    <Text
+                      fontSize="$3"
+                      color="$color"
+                      testID="current-time"
+                    >
+                      {formatTime(currentTime)}
+                    </Text>
+                    <Text
+                      fontSize="$3"
+                      color="$color11"
+                      marginHorizontal="$1"
+                    >
+                      /
+                    </Text>
+                    <Text
+                      fontSize="$3"
+                      color="$color11"
+                      testID="total-time"
+                    >
+                      {formatTime(duration)}
+                    </Text>
+                  </XStack>
 
-                {/* Fullscreen Button - Right side */}
-                {/* <Button
-                  chromeless
-                  // icon={<Maximize2 />}
-                  size={44}
-                  color="white"
-                  onPress={() => {
-                    showControlsAndResetTimer()
-                    onToggleFullscreen?.()
-                  }}
-                  testID="fullscreen-button"
-                  accessibilityLabel="Toggle fullscreen mode"
-                  accessibilityRole="button"
-                  accessibilityHint="Tap to enter or exit fullscreen mode"
-                /> */}
-              </XStack>
-            </YStack>
+                  {/* Fullscreen Button - Right side */}
+                  {/* <Button
+                    chromeless
+                    // icon={<Maximize2 />}
+                    size={44}
+                    color="white"
+                    onPress={() => {
+                      showControlsAndResetTimer()
+                      onToggleFullscreen?.()
+                    }}
+                    testID="fullscreen-button"
+                    accessibilityLabel="Toggle fullscreen mode"
+                    accessibilityRole="button"
+                    accessibilityHint="Tap to enter or exit fullscreen mode"
+                  /> */}
+                </XStack>
+              </YStack>
+            </Animated.View>
+
+            {/* Bottom Controls - Persistent Bar */}
+            <Animated.View style={persistentBarAnimatedStyle}>
+              <YStack accessibilityLabel="Video timeline and controls">
+                {/* Time and Fullscreen Button Row */}
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  bottom={-48}
+                  paddingBottom="$2"
+                  accessibilityLabel="Video time and controls"
+                >
+                  {/* Time Display - Left side */}
+                  <XStack
+                    alignItems="center"
+                    testID="time-display-persistent"
+                    accessibilityLabel={`Current time: ${formatTime(currentTime)}, Total duration: ${formatTime(duration)}`}
+                  >
+                    <Text
+                      fontSize="$3"
+                      color="$color"
+                      testID="current-time-persistent"
+                    >
+                      {formatTime(currentTime)}
+                    </Text>
+                    <Text
+                      fontSize="$3"
+                      color="$color11"
+                      marginHorizontal="$1"
+                    >
+                      /
+                    </Text>
+                    <Text
+                      fontSize="$3"
+                      color="$color11"
+                      testID="total-time-persistent"
+                    >
+                      {formatTime(duration)}
+                    </Text>
+                  </XStack>
+
+                  {/* Fullscreen Button - Right side */}
+                  {/* <Button
+                    chromeless
+                    // icon={<Maximize2 />}
+                    size={44}
+                    color="white"
+                    onPress={() => {
+                      showControlsAndResetTimer()
+                      onToggleFullscreen?.()
+                    }}
+                    testID="fullscreen-button"
+                    accessibilityLabel="Toggle fullscreen mode"
+                    accessibilityRole="button"
+                    accessibilityHint="Tap to enter or exit fullscreen mode"
+                  /> */}
+                </XStack>
+              </YStack>
+            </Animated.View>
 
             {/* Progress Bar - Absolutely positioned at bottom, aligned with feedback panel */}
-            <YStack
-              position="relative"
-              bottom={0}
-              //bottom={-10} // Extend slightly below video area to align with feedback panel
-              left={0}
-              right={0}
-              height={44} // Increased from 30 to 44 for better touch target
-              justifyContent="center"
-              testID="progress-bar-container"
-              zIndex={30}
-              // Allow touch events for gesture handling
-              pointerEvents="auto"
+            <Animated.View
+              style={[
+                {
+                  position: 'relative',
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  height: 44, // Increased from 30 to 44 for better touch target
+                  justifyContent: 'center',
+                  zIndex: 30,
+                  pointerEvents: 'auto',
+                },
+                normalBarAnimatedStyle,
+              ]}
             >
-              {/* Enhanced touch-friendly background track */}
-              <GestureDetector gesture={progressBarCombinedGesture}>
-                <Pressable
-                  onPress={(event) => {
-                    // Fallback handler for cases where gesture fails
-                    const { locationX } = event.nativeEvent
-                    if (progressBarWidth > 0 && duration > 0) {
-                      const seekPercentage = Math.max(
-                        0,
-                        Math.min(100, (locationX / progressBarWidth) * 100)
-                      )
-                      const seekTime = (seekPercentage / 100) * duration
-                      log.debug('VideoControls', 'Fallback press handler', {
-                        locationX,
-                        progressBarWidth,
-                        seekPercentage,
-                        seekTime,
-                        duration,
-                      })
-                      onSeek(seekTime)
-                      showControlsAndResetTimer()
-                    }
-                  }}
-                  style={{ flex: 1 }}
-                >
-                  <YStack
-                    height={44} // Match container height for full touch area
-                    backgroundColor="transparent" // Transparent for larger touch area
-                    borderRadius={2}
-                    position="relative"
-                    testID="progress-track"
-                    justifyContent="center" // Center the visual track
-                    onLayout={(event) => {
-                      const { width } = event.nativeEvent.layout
-                      setProgressBarWidth(width)
+              <YStack
+                height={44}
+                justifyContent="center"
+                testID="progress-bar-container"
+              >
+                {/* Enhanced touch-friendly background track */}
+                <GestureDetector gesture={progressBarCombinedGesture}>
+                  <Pressable
+                    onPress={(event) => {
+                      // Fallback handler for cases where gesture fails
+                      const { locationX } = event.nativeEvent
+                      if (progressBarWidth > 0 && duration > 0) {
+                        const seekPercentage = Math.max(
+                          0,
+                          Math.min(100, (locationX / progressBarWidth) * 100)
+                        )
+                        const seekTime = (seekPercentage / 100) * duration
+                        log.debug('VideoControls', 'Fallback press handler', {
+                          locationX,
+                          progressBarWidth,
+                          seekPercentage,
+                          seekTime,
+                          duration,
+                        })
+                        onSeek(seekTime)
+                        showControlsAndResetTimer()
+                      }
                     }}
+                    style={{ flex: 1 }}
                   >
-                    {/* Visual progress track - smaller but touch area is larger */}
                     <YStack
-                      height={4}
-                      backgroundColor="$color3"
+                      height={44} // Match container height for full touch area
+                      backgroundColor="transparent" // Transparent for larger touch area
                       borderRadius={2}
                       position="relative"
+                      testID="progress-track"
+                      justifyContent="center" // Center the visual track
+                      onLayout={(event) => {
+                        const { width } = event.nativeEvent.layout
+                        setProgressBarWidth(width)
+                      }}
                     >
-                      {/* Completed progress fill */}
+                      {/* Visual progress track - smaller but touch area is larger */}
                       <YStack
-                        height="100%"
-                        width={`${progress}%`}
-                        backgroundColor="$teal9"
+                        height={4}
+                        backgroundColor="$color3"
                         borderRadius={2}
-                        testID="progress-fill"
-                        position="absolute"
-                        left={0}
-                        top={0}
-                      />
+                        position="relative"
+                      >
+                        {/* Completed progress fill */}
+                        <YStack
+                          height="100%"
+                          width={`${progress}%`}
+                          backgroundColor="$teal9"
+                          borderRadius={2}
+                          testID="progress-fill"
+                          position="absolute"
+                          left={0}
+                          top={0}
+                        />
 
-                      {/* Enhanced scrubber handle with larger touch area */}
-                      <GestureDetector gesture={mainProgressGesture}>
-                        <View
-                          style={{
-                            position: 'absolute',
-                            left: `${progress}%`,
-                            top: -20, // Centered within the 44px touch area
-                            width: 44, // Larger touch area
-                            height: 44, // Larger touch area
-                            marginLeft: -22, // Center the touch area
-                            zIndex: 10,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {/* Visual handle - smaller but touch area is larger */}
-                          <YStack
-                            width={14}
-                            height={14}
-                            backgroundColor={isScrubbing ? '$teal10' : '$teal9'}
-                            borderRadius={12}
-                            borderWidth={0}
-                            borderColor="$color12"
-                            opacity={controlsVisible || isScrubbing ? 1 : 0.7}
-                            animation="quick"
-                            testID="scrubber-handle"
-                            elevation={isScrubbing ? 2 : 0}
-                          />
-                        </View>
-                      </GestureDetector>
+                        {/* Enhanced scrubber handle with larger touch area */}
+                        <GestureDetector gesture={mainProgressGesture}>
+                          <View
+                            style={{
+                              position: 'absolute',
+                              left: `${progress}%`,
+                              top: -20, // Centered within the 44px touch area
+                              width: 44, // Larger touch area
+                              height: 44, // Larger touch area
+                              marginLeft: -22, // Center the touch area
+                              zIndex: 10,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            {/* Visual handle - smaller but touch area is larger */}
+                            <YStack
+                              width={14}
+                              height={14}
+                              backgroundColor={isScrubbing ? '$teal10' : '$teal9'}
+                              borderRadius={12}
+                              borderWidth={0}
+                              borderColor="$color12"
+                              opacity={controlsVisible || isScrubbing ? 1 : 0.7}
+                              animation="quick"
+                              testID="scrubber-handle"
+                              elevation={isScrubbing ? 2 : 0}
+                            />
+                          </View>
+                        </GestureDetector>
+                      </YStack>
                     </YStack>
-                  </YStack>
-                </Pressable>
-              </GestureDetector>
-            </YStack>
+                  </Pressable>
+                </GestureDetector>
+              </YStack>
+            </Animated.View>
 
             {/* Fly-out Menu - Temporarily disabled for testing */}
             {/* TODO: Re-enable Sheet component after fixing mock */}
@@ -1077,9 +1192,22 @@ export const VideoControls = React.memo(
             )}
           </YStack>
 
-          {/* Enhanced Persistent Progress Bar - Hidden in max mode */}
-          {videoMode !== 'max' && (
-            <GestureDetector gesture={persistentProgressBarCombinedGesture}>
+          {/* Enhanced Persistent Progress Bar - Fades out in max mode, but always visible track */}
+          <GestureDetector gesture={persistentProgressBarCombinedGesture}>
+            <Animated.View
+              style={[
+                {
+                  position: 'absolute',
+                  bottom: -21,
+                  left: 0,
+                  right: 0,
+                  height: 44, // Increased from 2 to 44 for better touch target
+                  justifyContent: 'center',
+                },
+                persistentBarAnimatedStyle,
+              ]}
+              pointerEvents={videoMode === 'max' ? 'none' : 'auto'}
+            >
               <Pressable
                 onPress={(event) => {
                   // Fallback handler for cases where gesture fails
@@ -1102,12 +1230,7 @@ export const VideoControls = React.memo(
                   }
                 }}
                 style={{
-                  position: 'absolute',
-                  bottom: -21,
-                  left: 0,
-                  right: 0,
-                  height: 44, // Increased from 2 to 44 for better touch target
-                  justifyContent: 'center',
+                  flex: 1,
                 }}
               >
                 <YStack
@@ -1130,7 +1253,7 @@ export const VideoControls = React.memo(
                     backgroundColor="$color8"
                     position="relative"
                   >
-                    {/* Progress fill */}
+                    {/* Progress fill - changes color but always visible */}
                     <YStack
                       height="100%"
                       width={`${persistentProgress}%`}
@@ -1139,7 +1262,7 @@ export const VideoControls = React.memo(
                     />
 
                     <YStack paddingLeft={10}>
-                      {/* Enhanced scrubber handle with larger touch area */}
+                      {/* Enhanced scrubber handle with larger touch area - only visible when controls visible or scrubbing */}
                       <GestureDetector gesture={persistentProgressGesture}>
                         <View
                           style={{
@@ -1179,8 +1302,8 @@ export const VideoControls = React.memo(
                   </YStack>
                 </YStack>
               </Pressable>
-            </GestureDetector>
-          )}
+            </Animated.View>
+          </GestureDetector>
         </Pressable>
       )
     }
