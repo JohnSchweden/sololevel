@@ -1,7 +1,10 @@
-import { useAnimationCompletion, useFrameDropDetection, useSmoothnessTracking } from '@my/app/hooks'
 import { log } from '@my/logging'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
+import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
+import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
+import { useRenderProfile } from '@ui/hooks/useRenderProfile'
+import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -227,6 +230,21 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       initialVisibility: standardVisibility,
     })
     return standardVisibility
+  })
+
+  // Render profiling - enable in dev only
+  useRenderProfile({
+    componentName: 'NavigationAppHeader',
+    enabled: __DEV__,
+    logInterval: 5,
+    trackProps: {
+      isVisible,
+      animationSpeed,
+      isUserInteraction: isUserInteractionValue,
+      headerShown: options.headerShown,
+      headerVisible: navOptions.headerVisible,
+      isVideoAnalysisMode,
+    },
   })
 
   // Track previous visibility for ARIA announcements

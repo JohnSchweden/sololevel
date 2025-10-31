@@ -1,9 +1,11 @@
-import { useAnimationCompletion, useFrameDropDetection, useSmoothnessTracking } from '@my/app/hooks'
 import React from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, { type AnimatedStyle } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
+import { useAnimationCompletion } from '../../../../hooks/useAnimationCompletion'
+import { useFrameDropDetection } from '../../../../hooks/useFrameDropDetection'
+import { useSmoothnessTracking } from '../../../../hooks/useSmoothnessTracking'
 
 // Animation duration estimate for 'quick' animation
 // 'quick': damping: 20, stiffness: 250, mass: 1.2 → ~200ms effective duration

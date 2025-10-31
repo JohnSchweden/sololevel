@@ -39,6 +39,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     socialCounts,
     contextValue,
     gesture,
+    animation,
   } = props
 
   // Store persistent progress bar props for rendering at layout level
@@ -104,6 +105,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                 onComment: handlers.onComment,
                 onBookmark: handlers.onBookmark,
               }}
+              collapseProgress={animation.collapseProgress}
               onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
             />
 

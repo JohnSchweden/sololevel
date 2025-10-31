@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Platform } from 'react-native'
 
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
@@ -177,6 +177,9 @@ export function useVideoAnalysisOrchestrator(
     onControlsVisibilityChange,
     onProcessingChange,
   } = props
+
+  // useTransition for deferring non-critical updates during animations
+  const [, startTransition] = useTransition()
 
   // Hide status bar when this screen is focused
   useStatusBar(true, 'fade')
@@ -448,10 +451,13 @@ export function useVideoAnalysisOrchestrator(
 
   const handleControlsVisibilityChange = useCallback(
     (visible: boolean, isUserInteraction = false) => {
-      videoControls.setControlsVisible(visible)
-      onControlsVisibilityChange?.(visible, isUserInteraction)
+      // Defer non-critical state updates during animations to reduce jank
+      startTransition(() => {
+        videoControls.setControlsVisible(visible)
+        onControlsVisibilityChange?.(visible, isUserInteraction)
+      })
     },
-    [onControlsVisibilityChange, videoControls]
+    [onControlsVisibilityChange, startTransition, videoControls]
   )
 
   const handlePlay = useCallback(() => {
@@ -505,9 +511,11 @@ export function useVideoAnalysisOrchestrator(
     [coordinateFeedback]
   )
 
-  // Use gesture controller callbacks for feedback scroll
-  const handleFeedbackScrollY = gesture.onFeedbackScrollY
-  const handleFeedbackMomentumScrollEnd = gesture.onFeedbackMomentumScrollEnd
+  // Use gesture controller callbacks for feedback scroll - memoize to prevent re-renders
+  const handleFeedbackScrollY = useCallback(gesture.onFeedbackScrollY, [gesture.onFeedbackScrollY])
+  const handleFeedbackMomentumScrollEnd = useCallback(gesture.onFeedbackMomentumScrollEnd, [
+    gesture.onFeedbackMomentumScrollEnd,
+  ])
 
   const handleRetry = useCallback(() => {
     log.info('VideoAnalysisScreen', 'Retry button pressed')

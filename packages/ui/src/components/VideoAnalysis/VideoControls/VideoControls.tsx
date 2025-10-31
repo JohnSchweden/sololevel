@@ -1,4 +1,3 @@
-import { useAnimationCompletion, useFrameDropDetection, useSmoothnessTracking } from '@my/app/hooks'
 import { log } from '@my/logging'
 import { Download, Share } from '@tamagui/lucide-icons'
 import React, {
@@ -8,11 +7,16 @@ import React, {
   useState,
   forwardRef,
   useImperativeHandle,
+  useMemo,
 } from 'react'
 import { Pressable } from 'react-native'
 import Animated, { useSharedValue, cancelAnimation } from 'react-native-reanimated'
 import { Text, XStack, YStack } from 'tamagui'
 
+import { useAnimationCompletion } from '../../../hooks/useAnimationCompletion'
+import { useFrameDropDetection } from '../../../hooks/useFrameDropDetection'
+import { useRenderProfile } from '../../../hooks/useRenderProfile'
+import { useSmoothnessTracking } from '../../../hooks/useSmoothnessTracking'
 import { GlassButton } from '../../GlassButton'
 import { CenterControls } from './components/CenterControls'
 import { ProgressBar } from './components/ProgressBar'
@@ -91,19 +95,37 @@ export const VideoControls = React.memo(
       const progressBarWidthShared = useSharedValue(300)
       const persistentProgressBarWidthShared = useSharedValue(300)
 
+      // Render profiling - enable in dev only
+      useRenderProfile({
+        componentName: 'VideoControls',
+        enabled: __DEV__,
+        logInterval: 5, // Log every 5th render to reduce noise
+        trackProps: {
+          isPlaying,
+          showControls,
+          currentTime: Math.floor(currentTime), // Round to reduce re-render noise
+          controlsVisible: showControls,
+          videoMode: _videoMode,
+          collapseProgress,
+        },
+      })
+
       // Conditional animation timing hook
       const { getAnimationName, getAnimationDuration } = useConditionalAnimationTiming()
 
-      // Track current interaction type for conditional animation timing
-      const [currentInteractionType, setCurrentInteractionType] =
-        useState<AnimationInteractionType>('user-tap')
+      // Consolidated animation state - derive interaction type from props to reduce state updates
+      const currentInteractionTypeRef = useRef<AnimationInteractionType>('user-tap')
 
-      // Convert collapseProgress to SharedValue to prevent JS→worklet race conditions
-      // This eliminates memory corruption when worklets access JS values during animations
+      // Derive interaction type from current props (no state updates needed)
+      const currentInteractionType = useMemo(() => {
+        if (videoEnded) return 'playback-end'
+        return currentInteractionTypeRef.current
+      }, [videoEnded])
+
+      // Convert collapseProgress to SharedValue for worklet access
       const collapseProgressShared = useSharedValue(collapseProgress)
 
-      // Sync collapseProgress prop to shared value
-      // This ensures worklets always read the latest value without accessing JS memory
+      // Sync prop changes to shared value (critical for max/normal/min mode transitions)
       useEffect(() => {
         collapseProgressShared.value = collapseProgress
       }, [collapseProgress, collapseProgressShared])
@@ -120,26 +142,14 @@ export const VideoControls = React.memo(
         }
       }, [progressBarWidthShared, persistentProgressBarWidthShared, collapseProgressShared])
 
-      // Determine interaction type based on videoEnded status
-      // This allows us to use different animation timing for playback-end vs other interactions
-      useEffect(() => {
-        if (videoEnded) {
-          setCurrentInteractionType('playback-end')
-        }
-      }, [videoEnded])
-
       // Wrapped callback to track interaction type for conditional animation timing
       const handleControlsVisibilityChange = useCallback(
         (visible: boolean, isUserInteraction?: boolean) => {
-          // Determine interaction type:
-          // - If user interaction → 'user-tap'
-          // - If automatic hide (not user interaction) → 'auto-hide'
-          // - If video ended → 'playback-end' (already set by videoEnded effect)
+          // Update interaction type ref (no state update = no re-render)
           if (isUserInteraction) {
-            setCurrentInteractionType('user-tap')
+            currentInteractionTypeRef.current = 'user-tap'
           } else if (!visible) {
-            // Automatic hide
-            setCurrentInteractionType('auto-hide')
+            currentInteractionTypeRef.current = 'auto-hide'
           }
 
           // Forward to parent callback
