@@ -14,3 +14,11 @@
 ## Navigation
 - Route files implement navigation callbacks for screens
 - See `packages/app/AGENTS.md` and `.cursor/rules/features/navigation-expo-router.mdc`
+
+## Performance
+- Use dynamic imports for non-critical features
+- Tree-shake unused Tamagui components
+- Both apps use Metro bundler → monitor bundle size
+
+**See:** `.cursor/rules/quality/performance.mdc`
+

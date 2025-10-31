@@ -59,3 +59,11 @@
 - Import conventions (lines 52-62)
 - Shared types location (line 18)
 - Zod integration (lines 31-35)
+
+## Performance
+- TanStack Query: Use `staleTime` for stable data, implement optimistic updates
+- React: Use `useMemo` for expensive computations, `React.memo` only for expensive components
+- Avoid premature optimization in MVP phase
+
+**See:** `.cursor/rules/quality/performance.mdc`
+

@@ -1,5 +1,7 @@
+import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
+import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import type { RefObject } from 'react'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -225,6 +227,57 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     []
   )
 
+  // Stable empty callback for onTap (prevents VideoPlayerSection memo from breaking)
+  const handleTap = useCallback(() => {}, [])
+
+  // Memoize social action handlers to prevent VideoPlayerSection re-renders
+  const socialActionHandlers = useMemo(
+    () => ({
+      onShare: handlers.onShare,
+      onLike: handlers.onLike,
+      onComment: handlers.onComment,
+      onBookmark: handlers.onBookmark,
+    }),
+    [handlers.onShare, handlers.onLike, handlers.onComment, handlers.onBookmark]
+  )
+
+  // Memoize inline calculations to prevent VideoPlayerSection re-renders
+  const computedShowControls = useMemo(
+    () => video.isReady && controls.showControls,
+    [video.isReady, controls.showControls]
+  )
+
+  const computedVideoAreaScale = useMemo(() => 1 - feedback.panelFraction, [feedback.panelFraction])
+
+  // Performance tracking: Track header collapse animations
+  // Reanimated animations are harder to track directly, so we track:
+  // - Frame drops during animations (only when gesture is blocking scroll)
+  // - Render performance
+  // Note: Can't read SharedValue.value during render, so we use gesture state instead
+  // When feedbackScrollEnabled is false, that indicates a gesture is active and animations are happening
+
+  // Track frame drops only during actual gesture animations (not when panel is just visible)
+  // Use feedbackScrollEnabled as proxy: false = gesture active, animations happening
+  const isAnimating = !gesture.feedbackScrollEnabled || gesture.blockFeedbackScrollCompletely
+  useFrameDropDetection({
+    isActive: isAnimating,
+    componentName: 'VideoAnalysisLayout',
+    animationName: 'header-collapse',
+  })
+
+  // Render profiling
+  useRenderProfile({
+    componentName: 'VideoAnalysisLayout',
+    enabled: __DEV__,
+    logInterval: 30,
+    trackProps: {
+      panelFraction: Math.round(feedback.panelFraction * 100) / 100,
+      videoReady: video.isReady,
+      isPlaying: playback.isPlaying,
+      feedbackItemsCount: feedback.items.length,
+    },
+  })
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <VideoAnalysisProvider value={contextValue}>
@@ -263,9 +316,9 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     userIsPlaying={playback.isPlaying}
                     videoShouldPlay={playback.shouldPlayVideo}
                     videoEnded={playback.videoEnded}
-                    showControls={video.isReady && controls.showControls}
+                    showControls={computedShowControls}
                     isProcessing={video.isProcessing}
-                    videoAreaScale={1 - feedback.panelFraction}
+                    videoAreaScale={computedVideoAreaScale}
                     posterUri={video.posterUri}
                     onPlay={handlers.onPlay}
                     onPause={handlers.onPause}
@@ -275,7 +328,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     onSignificantProgress={handlers.onSignificantProgress}
                     onLoad={handlers.onVideoLoad}
                     onEnd={handlers.onEnd}
-                    onTap={() => {}}
+                    onTap={handleTap}
                     onControlsVisibilityChange={controls.onControlsVisibilityChange}
                     audioPlayerController={audioController}
                     bubbleState={bubbleState}
@@ -283,12 +336,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     coachSpeaking={coachSpeaking}
                     panelFraction={feedback.panelFraction}
                     socialCounts={socialCounts}
-                    onSocialAction={{
-                      onShare: handlers.onShare,
-                      onLike: handlers.onLike,
-                      onComment: handlers.onComment,
-                      onBookmark: handlers.onBookmark,
-                    }}
+                    onSocialAction={socialActionHandlers}
                     collapseProgress={animation.collapseProgress}
                     onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
                   />

@@ -1,5 +1,9 @@
 import { log } from '@my/logging'
-import { memo, useEffect, useMemo } from 'react'
+import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
+import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
+import { useRenderProfile } from '@ui/hooks/useRenderProfile'
+import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { LayoutAnimation, Platform, ScrollView } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { runOnJS, useAnimatedScrollHandler } from 'react-native-reanimated'
@@ -168,8 +172,54 @@ export const FeedbackPanel = memo(
       },
     })
 
+    // Performance tracking: Track flex changes as animation triggers
+    const [previousFlex, setPreviousFlex] = useState<number | undefined>(flex)
+    const flexChanged = previousFlex !== flex
+
+    // Track animation completion for LayoutAnimation
+    const layoutAnimationCompletion = useAnimationCompletion({
+      currentValue: flexChanged ? 1 : 0,
+      targetValue: 1,
+      estimatedDuration: 300,
+      componentName: 'FeedbackPanel',
+      animationName: 'layout-flex',
+      direction: flexChanged ? 'expand' : 'none',
+    })
+
+    // Track smoothness from duration measurements (intentionally unused return values)
+    void useSmoothnessTracking({
+      duration: layoutAnimationCompletion.actualDuration,
+      componentName: 'FeedbackPanel',
+      animationName: 'layout-flex',
+    })
+
+    // Track frame drops during layout animations
+    void useFrameDropDetection({
+      isActive: flexChanged,
+      componentName: 'FeedbackPanel',
+      animationName: 'layout-flex',
+    })
+
+    // Render profiling
+    useRenderProfile({
+      componentName: 'FeedbackPanel',
+      enabled: __DEV__,
+      logInterval: 20,
+      trackProps: {
+        flex,
+        isExpanded,
+        activeTab,
+        feedbackItemsCount: feedbackItems.length,
+        selectedFeedbackId,
+      },
+    })
+
     // Trigger layout animation when flex changes
     useEffect(() => {
+      if (flexChanged) {
+        setPreviousFlex(flex)
+      }
+
       // if (__DEV__) {
       //   log.debug('FeedbackPanel', 'flex changed', { flex, platform: Platform.OS })
       // }
@@ -190,7 +240,7 @@ export const FeedbackPanel = memo(
         //   log.debug('FeedbackPanel', 'layout animation configured')
         // }
       }
-    }, [flex])
+    }, [flex, flexChanged])
 
     // Log selected feedback changes (moved from render-time logging)
     useEffect(() => {

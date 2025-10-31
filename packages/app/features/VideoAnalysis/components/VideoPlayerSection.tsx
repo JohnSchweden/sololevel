@@ -282,6 +282,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   )
 
   // Determine video mode from collapseProgress using useDerivedValue for SharedValue reactivity
+  // Only needed for JS-level mode tracking (e.g., for render profiling)
   const videoMode = useDerivedValue(() => {
     if (!collapseProgress) {
       return 'max' as const
@@ -301,9 +302,10 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     return mode
   })
 
-  // Convert shared values to state for use in render
+  // Convert videoMode SharedValue to state only (for JS use, e.g., render profiling)
+  // REMOVED: collapseProgress state conversion - pass SharedValue directly to VideoControls
+  // This eliminates re-renders during gestures (~60fps updates → 0 JS re-renders)
   const [currentVideoMode, setCurrentVideoMode] = useState<'max' | 'normal' | 'min'>('max')
-  const [currentCollapseProgress, setCurrentCollapseProgress] = useState<number>(0)
 
   useAnimatedReaction(
     () => videoMode.value,
@@ -313,13 +315,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     [videoMode]
   )
 
-  useAnimatedReaction(
-    () => collapseProgress?.value ?? 0,
-    (progress) => {
-      runOnJS(setCurrentCollapseProgress)(progress)
-    },
-    [collapseProgress]
-  )
+  // Note: collapseProgress is passed directly as SharedValue to VideoControls
+  // No state conversion needed - VideoControls handles SharedValue directly
 
   // Animation styles for avatar and social icons
   const avatarAnimatedStyle = useAnimatedStyle(() => {
@@ -474,7 +471,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             isProcessing={isProcessing}
             videoEnded={videoEnded}
             videoMode={currentVideoMode}
-            collapseProgress={currentCollapseProgress}
+            collapseProgress={collapseProgress}
             onPlay={onPlay}
             onPause={onPause}
             onReplay={onReplay}

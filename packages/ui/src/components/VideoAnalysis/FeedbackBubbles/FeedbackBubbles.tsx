@@ -1,3 +1,7 @@
+import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
+import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
+import { useRenderProfile } from '@ui/hooks/useRenderProfile'
+import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { BlurView } from 'expo-blur'
 import { AnimatePresence, Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
@@ -7,6 +11,51 @@ export interface FeedbackBubblesProps {
 }
 
 function SpeechBubble({ message }: { message: FeedbackMessage }) {
+  // Performance tracking: Track opacity and scale animations
+  // Tamagui animations are declarative, so we track state transitions
+  const targetOpacity = message.isActive ? 1 : 0.7
+  const targetScale = message.isHighlighted ? 1.05 : 1
+
+  // Track opacity animation completion (Tamagui "quick" animation = ~200ms)
+  const opacityCompletion = useAnimationCompletion({
+    currentValue: targetOpacity,
+    targetValue: targetOpacity,
+    estimatedDuration: 200,
+    componentName: 'FeedbackBubbles',
+    animationName: `bubble-opacity-${message.id}`,
+    direction: message.isActive ? 'fade-in' : 'fade-out',
+  })
+
+  // Track scale animation completion
+  const scaleCompletion = useAnimationCompletion({
+    currentValue: targetScale,
+    targetValue: targetScale,
+    estimatedDuration: 200,
+    componentName: 'FeedbackBubbles',
+    animationName: `bubble-scale-${message.id}`,
+    direction: message.isHighlighted ? 'scale-up' : 'scale-down',
+  })
+
+  // Track smoothness from duration measurements (intentionally unused return values)
+  void useSmoothnessTracking({
+    duration: opacityCompletion.actualDuration,
+    componentName: 'FeedbackBubbles',
+    animationName: `bubble-opacity-${message.id}`,
+  })
+
+  void useSmoothnessTracking({
+    duration: scaleCompletion.actualDuration,
+    componentName: 'FeedbackBubbles',
+    animationName: `bubble-scale-${message.id}`,
+  })
+
+  // Track frame drops during animations
+  void useFrameDropDetection({
+    isActive: message.isActive || message.isHighlighted,
+    componentName: 'FeedbackBubbles',
+    animationName: `bubble-${message.id}`,
+  })
+
   // const getBlurTint = () => {
   //   // Use different blur tints for different message types
   //   switch (message.type) {
@@ -89,6 +138,26 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
 }
 
 export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
+  // Performance tracking: Render profile
+  const hasActiveMessages = messages.some((msg) => msg.isActive || msg.isHighlighted)
+  useRenderProfile({
+    componentName: 'FeedbackBubbles',
+    enabled: __DEV__,
+    logInterval: 20,
+    trackProps: {
+      messageCount: messages.length,
+      activeCount: messages.filter((m) => m.isActive).length,
+      highlightedCount: messages.filter((m) => m.isHighlighted).length,
+    },
+  })
+
+  // Track frame drops for container animations
+  void useFrameDropDetection({
+    isActive: hasActiveMessages,
+    componentName: 'FeedbackBubbles',
+    animationName: 'container',
+  })
+
   // Filter messages to show (limit to prevent overcrowding)
   // Prioritize highlighted and active messages, then show most recent
   const sortedMessages = messages

@@ -175,28 +175,58 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
   const [hasInitialized, setHasInitialized] = useState(false)
   const prevIsUserInteractionRef = useRef<boolean | undefined>(undefined)
 
+  // Memoize navOptions-derived values to prevent unnecessary effect triggers
+  // when options object reference changes but values haven't
+  const isUserInteractionValue = useMemo(
+    () => navOptions.isUserInteraction ?? false,
+    [navOptions.isUserInteraction]
+  )
+  const headerVisibleValue = useMemo(() => navOptions.headerVisible, [navOptions.headerVisible])
+  const isHistoryModeValue = useMemo(() => navOptions.isHistoryMode, [navOptions.isHistoryMode])
+
   // Determine animation speed: quick for user interaction, lazy for automatic
-  const animationSpeed = navOptions.isUserInteraction ? 'quick' : 'lazy'
-  const isUserInteractionValue = navOptions.isUserInteraction ?? false
+  // Memoize to prevent unnecessary re-renders when value hasn't changed
+  const animationSpeed = useMemo(
+    () => (isUserInteractionValue ? 'quick' : 'lazy'),
+    [isUserInteractionValue]
+  )
 
   // Detect VideoAnalysis mode early from route params BEFORE first setOptions
   // - History mode: has `analysisJobId` param
   // - Analysis mode: has `videoRecordingId` param
+  // Memoize route param extraction to prevent re-computation when route.params object reference changes
   const routeParams = route.params as Record<string, unknown> | undefined
-  const analysisJobIdFromParams = routeParams?.analysisJobId
-  const videoRecordingIdFromParams = routeParams?.videoRecordingId
-  const isVideoAnalysisRoute = !!analysisJobIdFromParams || !!videoRecordingIdFromParams
+  const analysisJobIdFromParams = useMemo(
+    () => routeParams?.analysisJobId,
+    [routeParams?.analysisJobId]
+  )
+  const videoRecordingIdFromParams = useMemo(
+    () => routeParams?.videoRecordingId,
+    [routeParams?.videoRecordingId]
+  )
+  const isVideoAnalysisRoute = useMemo(
+    () => !!analysisJobIdFromParams || !!videoRecordingIdFromParams,
+    [analysisJobIdFromParams, videoRecordingIdFromParams]
+  )
 
   // Detect history mode: prefer explicit flag, fallback to route params
   // History mode: data is prefetched/cached, isProcessing should be false quickly → start hidden
   // Analysis mode: isProcessing starts as true → start visible
-  const isHistoryMode = navOptions.isHistoryMode ?? Boolean(analysisJobIdFromParams)
+  // Memoize to prevent re-computation when values haven't changed
+  const isHistoryMode = useMemo(
+    () => isHistoryModeValue ?? Boolean(analysisJobIdFromParams),
+    [isHistoryModeValue, analysisJobIdFromParams]
+  )
 
   // VideoAnalysis mode: Control visibility via opacity (when headerVisible is explicitly set)
   // Applies to both live analysis and history mode (both use /video-analysis route)
   // Other screens: Normal React Navigation mount/unmount behavior via headerShown
   // Check route params to detect VideoAnalysis mode BEFORE first setOptions
-  const isVideoAnalysisMode = navOptions.headerVisible !== undefined || isVideoAnalysisRoute
+  // Memoize to prevent re-computation when values haven't changed
+  const isVideoAnalysisMode = useMemo(
+    () => headerVisibleValue !== undefined || isVideoAnalysisRoute,
+    [headerVisibleValue, isVideoAnalysisRoute]
+  )
 
   const [isVisible, setIsVisible] = useState(() => {
     if (isVideoAnalysisMode || isVideoAnalysisRoute) {
@@ -235,7 +265,17 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     return standardVisibility
   })
 
+  // Keep a stable top inset on iOS to avoid header jumping when status bar toggles
+  // On Android we continue relying on SafeAreaView's top edge behavior
+  // Memoize to prevent re-computation when insets object reference changes
+  // Calculate early so it can be used in render profiling
+  const topInset = useMemo(
+    () => (Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top),
+    [insets.top]
+  )
+
   // Render profiling - enable in dev only
+  // Track props that might change to identify re-render causes
   useRenderProfile({
     componentName: 'NavigationAppHeader',
     enabled: __DEV__,
@@ -245,8 +285,15 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       animationSpeed,
       isUserInteraction: isUserInteractionValue,
       headerShown: options.headerShown,
-      headerVisible: navOptions.headerVisible,
+      headerVisible: headerVisibleValue,
       isVideoAnalysisMode,
+      isHistoryMode,
+      // Track route params to detect React Navigation updates
+      routeName: route.name,
+      hasBack: Boolean(back),
+      // Track hooks that might cause re-renders
+      colorScheme,
+      topInset,
     },
   })
 
@@ -268,10 +315,12 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
   // Track previous headerVisible prop for animation detection (prop updates synchronously)
   // Use prop instead of state because state updates are async and might lag behind prop changes
+  const currentHeaderVisibleForRef = useMemo(
+    () => headerVisibleValue ?? !isHistoryMode,
+    [headerVisibleValue, isHistoryMode]
+  )
   const prevHeaderVisibleForAnimationRef = useRef(
-    isVideoAnalysisMode
-      ? (navOptions.headerVisible ?? !isHistoryMode)
-      : (options.headerShown ?? true)
+    isVideoAnalysisMode ? currentHeaderVisibleForRef : (options.headerShown ?? true)
   )
   // Track previous animation speed to detect changes
   const prevAnimationSpeedRef = useRef<'quick' | 'lazy'>(animationSpeed)
@@ -280,8 +329,16 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
   // Track the target opacity value for completion detection
   // Use headerVisible prop (synchronous) instead of isVisible state (async) to match change detection
-  const currentHeaderVisible = navOptions.headerVisible ?? !isHistoryMode
-  const targetOpacity = isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0
+  // Use memoized value to prevent unnecessary re-computations
+  const currentHeaderVisible = useMemo(
+    () => headerVisibleValue ?? !isHistoryMode,
+    [headerVisibleValue, isHistoryMode]
+  )
+  // Memoize targetOpacity to prevent unnecessary re-computations and effect triggers
+  const targetOpacity = useMemo(
+    () => (isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0),
+    [isVideoAnalysisMode, currentHeaderVisible, isVisible]
+  )
 
   // Update opacity animation when visibility changes
   useEffect(() => {
@@ -293,7 +350,7 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
     // Use headerVisible prop (synchronous) instead of isVisible state (async) for change detection
     // This ensures we detect visibility changes immediately when setOptions is called
-    const currentHeaderVisible = navOptions.headerVisible ?? !isHistoryMode
+    // Use memoized value to prevent unnecessary re-computations
     const headerVisibleChanged = prevHeaderVisibleForAnimationRef.current !== currentHeaderVisible
     const animationSpeedChanged = prevAnimationSpeedRef.current !== animationSpeed
 
@@ -335,10 +392,11 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     hasInitialized,
     isVideoAnalysisMode,
     targetOpacity,
-    navOptions.headerVisible,
+    headerVisibleValue,
     isHistoryMode,
     opacityValue,
     animationSpeed,
+    currentHeaderVisible,
   ])
 
   // Update direction ref when isVisible state changes (for logging/completion tracking)
@@ -438,7 +496,8 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     const isTransitioningIntoVideoAnalysis =
       !prevVideoAnalysisModeRef.current && isVideoAnalysisMode
     // Use isHistoryMode to determine visibility when headerVisible isn't set yet during transition
-    const shouldBeVisible = navOptions.headerVisible ?? !isHistoryMode
+    // Use memoized value to prevent unnecessary re-computations
+    const shouldBeVisible = headerVisibleValue ?? !isHistoryMode
     prevVideoAnalysisModeRef.current = true
 
     // Handle transition into VideoAnalysis mode: set visibility and initialize immediately
@@ -517,27 +576,32 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     prevVisibilityRef.current = shouldBeVisible
   }, [
     options.headerShown,
-    navOptions.headerVisible,
-    navOptions.isUserInteraction,
+    headerVisibleValue,
+    isUserInteractionValue,
     isVideoAnalysisMode,
     isVisible,
     hasInitialized,
+    isHistoryMode,
   ])
 
-  // Keep a stable top inset on iOS to avoid header jumping when status bar toggles
-  // On Android we continue relying on SafeAreaView's top edge behavior
-  const topInset = Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top
-
-  const tintColor = options.headerTintColor ?? undefined
-  const isTransparent = options.headerTransparent ?? false
+  // Memoize options-derived values to prevent re-computation when options object reference changes
+  const tintColor = useMemo(() => options.headerTintColor ?? undefined, [options.headerTintColor])
+  const isTransparent = useMemo(
+    () => options.headerTransparent ?? false,
+    [options.headerTransparent]
+  )
   const headerStyle = options.headerStyle
-  const backgroundColor =
-    typeof headerStyle === 'object' && headerStyle && 'backgroundColor' in headerStyle
+  const backgroundColor = useMemo(() => {
+    return typeof headerStyle === 'object' && headerStyle && 'backgroundColor' in headerStyle
       ? (headerStyle.backgroundColor ?? 'transparent')
       : 'transparent'
-  const titleAlignment = options.headerTitleAlign === 'left' ? 'left' : 'center'
+  }, [headerStyle])
+  const titleAlignment = useMemo(
+    () => (options.headerTitleAlign === 'left' ? 'left' : 'center'),
+    [options.headerTitleAlign]
+  )
 
-  const computedLeftAction = back ? 'back' : 'sidesheet'
+  const computedLeftAction = useMemo(() => (back ? 'back' : 'sidesheet'), [back])
 
   const appHeaderProps: AppHeaderProps = useMemo(() => {
     const override = navOptions.appHeaderProps ?? {}

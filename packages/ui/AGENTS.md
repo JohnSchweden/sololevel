@@ -146,6 +146,13 @@ Always use tokens for consistency across platforms:
 
 **Key Rule:** If your component only imports from `tamagui` and has no React Native imports, use web testing tools. The `jsdom environment` in Jest means Tamagui components render to DOM, not React Native.
 
+## Performance
+- Use `React.memo` for expensive components only (avoid premature optimization)
+- Use `expo-image` with explicit `width`/`height` props
+- Use `FlatList` for long lists with `keyExtractor` and `getItemLayout`
+
+**See:** `.cursor/rules/quality/performance.mdc` for details
+
 ## References
 
 For detailed patterns and code examples:

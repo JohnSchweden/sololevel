@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { VideoAnalysisLayout } from './components/VideoAnalysisLayout.native'
 import { useVideoAnalysisOrchestrator } from './hooks/useVideoAnalysisOrchestrator'
 import type { VideoAnalysisScreenProps } from './hooks/useVideoAnalysisOrchestrator'
@@ -28,6 +28,47 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 
   // Memoize default onBack to prevent closure recreation on every render
   const defaultOnBack = useCallback(() => {}, [])
+
+  // Memoize composed objects to prevent VideoAnalysisLayout re-renders
+  const bubbleState = useMemo(
+    () => ({
+      visible: orchestrated.feedback.coordinator.bubbleState.bubbleVisible,
+      currentIndex: orchestrated.feedback.coordinator.bubbleState.currentBubbleIndex,
+      items: orchestrated.feedback.items,
+    }),
+    [
+      orchestrated.feedback.coordinator.bubbleState.bubbleVisible,
+      orchestrated.feedback.coordinator.bubbleState.currentBubbleIndex,
+      orchestrated.feedback.items,
+    ]
+  )
+
+  const audioOverlay = useMemo(
+    () => ({
+      shouldShow: orchestrated.feedback.coordinator.overlayVisible,
+      activeAudio: orchestrated.feedback.coordinator.activeAudio,
+      onClose: orchestrated.feedback.coordinator.onAudioOverlayClose,
+      onInactivity: orchestrated.feedback.coordinator.onAudioOverlayInactivity,
+      onInteraction: orchestrated.feedback.coordinator.onAudioOverlayInteraction,
+      audioDuration: orchestrated.audio.controller.duration,
+    }),
+    [
+      orchestrated.feedback.coordinator.overlayVisible,
+      orchestrated.feedback.coordinator.activeAudio,
+      orchestrated.feedback.coordinator.onAudioOverlayClose,
+      orchestrated.feedback.coordinator.onAudioOverlayInactivity,
+      orchestrated.feedback.coordinator.onAudioOverlayInteraction,
+      orchestrated.audio.controller.duration,
+    ]
+  )
+
+  const socialCounts = useMemo(
+    () =>
+      Platform.OS !== 'web'
+        ? { likes: 1200, comments: 89, bookmarks: 234, shares: 1500 }
+        : { likes: 0, comments: 0, bookmarks: 0, shares: 0 },
+    [] // Static values, no dependencies
+  )
 
   // Aggregate all props for layout component
   // Note: gesture and animation are always present (hooks called unconditionally to avoid Rules of Hooks violations)
@@ -81,27 +122,13 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       onBack: orchestrated.handlers.onBack ?? defaultOnBack,
     },
     audioController: orchestrated.audio.controller,
-    bubbleState: {
-      visible: orchestrated.feedback.coordinator.bubbleState.bubbleVisible,
-      currentIndex: orchestrated.feedback.coordinator.bubbleState.currentBubbleIndex,
-      items: orchestrated.feedback.items,
-    },
-    audioOverlay: {
-      shouldShow: orchestrated.feedback.coordinator.overlayVisible,
-      activeAudio: orchestrated.feedback.coordinator.activeAudio,
-      onClose: orchestrated.feedback.coordinator.onAudioOverlayClose,
-      onInactivity: orchestrated.feedback.coordinator.onAudioOverlayInactivity,
-      onInteraction: orchestrated.feedback.coordinator.onAudioOverlayInteraction,
-      audioDuration: orchestrated.audio.controller.duration,
-    },
+    bubbleState,
+    audioOverlay,
     coachSpeaking:
       Platform.OS !== 'web'
         ? orchestrated.feedback.coordinator.isCoachSpeaking
         : orchestrated.audio.controller.isPlaying,
-    socialCounts:
-      Platform.OS !== 'web'
-        ? { likes: 1200, comments: 89, bookmarks: 234, shares: 1500 }
-        : { likes: 0, comments: 0, bookmarks: 0, shares: 0 },
+    socialCounts,
     contextValue: orchestrated.contextValue,
   }
 
