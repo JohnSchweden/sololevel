@@ -207,12 +207,21 @@ export function useControlsVisibility(
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [resetTrigger, setResetTrigger] = useState(0)
 
+  // Track controlsVisible in ref for stable access in callback
+  const controlsVisibleRef = useRef(controlsVisible)
+
+  // Sync ref with state
+  useEffect(() => {
+    controlsVisibleRef.current = controlsVisible
+  }, [controlsVisible])
+
   // Performance tracking refs for auto-hide timer
   const timerStartTimeRef = useRef<number | null>(null)
   const timerMarkRef = useRef<string | null>(null)
 
   // Auto-hide timer reset logic
-  // Memoized with all dependencies to ensure it updates when conditions change
+  // Memoized without controlsVisible dependency to prevent recreation on every visibility change
+  // The effect that calls this already has controlsVisible in its deps, so it will re-run when needed
   const resetAutoHideTimer = useCallback(() => {
     // Clear existing timer
     if (hideTimeoutRef.current) {
@@ -226,16 +235,16 @@ export function useControlsVisibility(
     // Only start timer if:
     // 1. Video is playing
     // 2. User is not scrubbing
-    // 3. Controls are currently visible
+    // 3. Controls are currently visible (read from ref to avoid dependency cycle)
     // Note: Timer should start when controls are visible and playing, regardless of showControls
     // showControls only affects forced visibility, timer manages auto-hide
-    const shouldStartTimer = isPlaying && !isScrubbing && controlsVisible
+    const shouldStartTimer = isPlaying && !isScrubbing && controlsVisibleRef.current
 
     log.debug('useControlsVisibility', 'resetAutoHideTimer called', {
       isPlaying,
       isScrubbing,
       showControls,
-      controlsVisible,
+      controlsVisible: controlsVisibleRef.current,
       shouldStartTimer,
       autoHideDelayMs,
     })
@@ -332,10 +341,22 @@ export function useControlsVisibility(
       timerStartTimeRef.current = null
       timerMarkRef.current = null
     }
-  }, [isPlaying, isScrubbing, controlsVisible, autoHideDelayMs, onControlsVisibilityChange])
+  }, [isPlaying, isScrubbing, showControls, autoHideDelayMs, onControlsVisibilityChange])
 
   // Show controls and reset timer
   const showControlsAndResetTimer = useCallback(() => {
+    // Dedupe rapid calls (within 50ms) - prevents duplicate calls when both normal and persistent
+    // progress bar gesture handlers fire simultaneously (e.g., when bars overlap or simultaneousGesture triggers both)
+    const now = Date.now()
+    const lastCall = lastShowControlsCallRef.current ?? 0
+    if (now - lastCall < 50) {
+      log.debug('useControlsVisibility', 'showControlsAndResetTimer - deduped rapid call', {
+        timeSinceLastCall: now - lastCall,
+      })
+      return
+    }
+    lastShowControlsCallRef.current = now
+
     log.debug('useControlsVisibility', 'showControlsAndResetTimer called')
     setControlsVisible(true)
     // Wrap callback in try-catch to prevent errors from breaking visibility state
@@ -355,6 +376,10 @@ export function useControlsVisibility(
   const isInitialMount = useRef(true)
   // Track if user has manually interacted via handlePress (tap-to-toggle)
   const userHasManuallyInteractedRef = useRef(false)
+  // Track pending callback to avoid calling it synchronously during render
+  const pendingCallbackRef = useRef<{ visible: boolean; isUserInteraction: boolean } | null>(null)
+  // Track last call timestamp to dedupe rapid calls from multiple gesture handlers
+  const lastShowControlsCallRef = useRef<number>(0)
 
   // Sync with external showControls prop
   useEffect(() => {
@@ -422,15 +447,9 @@ export function useControlsVisibility(
         newValue,
         isPlaying,
       })
-      // Wrap callback in try-catch to prevent errors from breaking toggle
-      try {
-        onControlsVisibilityChange?.(newValue, true) // true = user interaction
-      } catch (error) {
-        log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
-          error,
-          context: 'handlePress-toggle',
-        })
-      }
+
+      // Queue callback to be fired in effect (avoids setState during render)
+      pendingCallbackRef.current = { visible: newValue, isUserInteraction: true }
 
       // If showing controls while video is playing, trigger timer reset
       // If hiding controls, clear the timer
@@ -446,7 +465,7 @@ export function useControlsVisibility(
 
       return newValue
     })
-  }, [isPlaying, onControlsVisibilityChange])
+  }, [isPlaying])
 
   // Reset timer when dependencies change or when explicitly triggered
   // Include showControls to reset timer when visibility control changes
@@ -454,6 +473,23 @@ export function useControlsVisibility(
     resetAutoHideTimer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, isScrubbing, controlsVisible, showControls, autoHideDelayMs, resetTrigger])
+
+  // Process pending callback after state updates complete (avoid setState during render)
+  useEffect(() => {
+    if (pendingCallbackRef.current) {
+      const { visible, isUserInteraction } = pendingCallbackRef.current
+      pendingCallbackRef.current = null
+
+      try {
+        onControlsVisibilityChange?.(visible, isUserInteraction)
+      } catch (error) {
+        log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+          error,
+          context: 'pending-callback',
+        })
+      }
+    }
+  }, [controlsVisible, onControlsVisibilityChange])
 
   // Cleanup timer on unmount
   useEffect(() => {

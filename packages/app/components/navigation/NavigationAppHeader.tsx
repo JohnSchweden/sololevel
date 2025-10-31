@@ -1,18 +1,21 @@
 import { log } from '@my/logging'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
-import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
-import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
-import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
+import { Platform, StyleSheet, Text, View, type ViewStyle, useColorScheme } from 'react-native'
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack } from 'tamagui'
 
-// Animation duration estimates based on Tamagui spring configs
-// 'quick': damping: 20, stiffness: 250, mass: 1.2 → ~200ms effective duration
-// 'lazy': damping: 18, stiffness: 50 → ~400ms effective duration
+// Animation durations for Reanimated withTiming animations
+// 'quick': 200ms for user-initiated interactions (tap, swipe)
+// 'lazy': 400ms for automatic changes (processing complete, auto-hide)
 const ANIMATION_DURATIONS = {
   quick: 200,
   lazy: 400,
@@ -252,50 +255,110 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
   const [announcementText, setAnnouncementText] = useState<string>('')
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Track previous isVisible for direction detection
-  const prevIsVisibleForAnimationRef = useRef(isVisible)
+  // Reanimated shared value for opacity (runs on UI thread)
+  // Initial value: 0 if history mode, 1 if visible, 0 if hidden, or 1 if not in video analysis mode
+  const initialOpacity = isVideoAnalysisMode
+    ? isHistoryMode
+      ? 0
+      : (navOptions.headerVisible ?? !isHistoryMode)
+        ? 1
+        : 0
+    : 1
+  const opacityValue = useSharedValue(initialOpacity)
 
-  // Determine animation direction
-  const animationDirection =
-    prevIsVisibleForAnimationRef.current !== isVisible
-      ? isVisible
-        ? 'fade-in'
-        : 'fade-out'
-      : 'stable'
+  // Track previous headerVisible prop for animation detection (prop updates synchronously)
+  // Use prop instead of state because state updates are async and might lag behind prop changes
+  const prevHeaderVisibleForAnimationRef = useRef(
+    isVideoAnalysisMode
+      ? (navOptions.headerVisible ?? !isHistoryMode)
+      : (options.headerShown ?? true)
+  )
+  // Track previous animation speed to detect changes
+  const prevAnimationSpeedRef = useRef<'quick' | 'lazy'>(animationSpeed)
+  // Track previous isVisible state for direction detection (used for logging)
+  const prevIsVisibleForDirectionRef = useRef(isVisible)
 
-  // Update previous value
+  // Track the target opacity value for completion detection
+  // Use headerVisible prop (synchronous) instead of isVisible state (async) to match change detection
+  const currentHeaderVisible = navOptions.headerVisible ?? !isHistoryMode
+  const targetOpacity = isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0
+
+  // Update opacity animation when visibility changes
   useEffect(() => {
-    prevIsVisibleForAnimationRef.current = isVisible
+    if (!isVideoAnalysisMode || !hasInitialized) {
+      // Non-video-analysis mode or not initialized: set immediately
+      opacityValue.value = targetOpacity
+      return
+    }
+
+    // Use headerVisible prop (synchronous) instead of isVisible state (async) for change detection
+    // This ensures we detect visibility changes immediately when setOptions is called
+    const currentHeaderVisible = navOptions.headerVisible ?? !isHistoryMode
+    const headerVisibleChanged = prevHeaderVisibleForAnimationRef.current !== currentHeaderVisible
+    const animationSpeedChanged = prevAnimationSpeedRef.current !== animationSpeed
+
+    if (!headerVisibleChanged && animationSpeedChanged) {
+      // Only animation speed changed but visibility didn't - don't restart animation
+      // The current animation should continue with its original speed
+      // Update the ref so we don't keep checking this
+      log.debug('NavigationAppHeader', 'Skipping animation restart - only speed changed', {
+        headerVisible: currentHeaderVisible,
+        prevHeaderVisible: prevHeaderVisibleForAnimationRef.current,
+        animationSpeed,
+        prevAnimationSpeed: prevAnimationSpeedRef.current,
+        headerVisibleChanged,
+        animationSpeedChanged,
+      })
+      prevAnimationSpeedRef.current = animationSpeed
+      return
+    }
+
+    // If visibility changed, always restart animation (even if animation speed also changed)
+    // Cancel any in-progress animation only if visibility changed
+    if (headerVisibleChanged) {
+      cancelAnimation(opacityValue)
+    }
+
+    // Animate to target with appropriate timing
+    const duration =
+      animationSpeed === 'quick' ? ANIMATION_DURATIONS.quick : ANIMATION_DURATIONS.lazy
+    opacityValue.value = withTiming(targetOpacity, {
+      duration,
+      easing: Easing.out(Easing.ease),
+    })
+
+    // Update refs after starting animation
+    prevHeaderVisibleForAnimationRef.current = currentHeaderVisible
+    prevAnimationSpeedRef.current = animationSpeed
+  }, [
+    isVisible,
+    hasInitialized,
+    isVideoAnalysisMode,
+    targetOpacity,
+    navOptions.headerVisible,
+    isHistoryMode,
+    opacityValue,
+    animationSpeed,
+  ])
+
+  // Update direction ref when isVisible state changes (for logging/completion tracking)
+  useEffect(() => {
+    prevIsVisibleForDirectionRef.current = isVisible
   }, [isVisible])
 
-  // 1. True animation completion detection
-  const completion = useAnimationCompletion({
-    currentValue: isVisible ? 1 : 0,
-    targetValue: isVisible ? 1 : 0,
-    estimatedDuration: ANIMATION_DURATIONS[animationSpeed],
-    componentName: 'NavigationAppHeader',
-    animationName: `header-opacity-${animationSpeed}`,
-    direction: animationDirection !== 'stable' ? animationDirection : undefined,
-    tolerance: 0.01,
-    requiredStableFrames: 2,
+  // Animated style (runs on UI thread)
+  const animatedStyle = useAnimatedStyle<ViewStyle>(() => {
+    return {
+      opacity: opacityValue.value,
+    }
   })
 
-  // 2. Smoothness tracking
-  const smoothness = useSmoothnessTracking({
-    duration: completion.actualDuration,
-    componentName: 'NavigationAppHeader',
-    animationName: `header-opacity-${animationSpeed}`,
-    windowSize: 10,
-  })
-  void smoothness
+  // Disable animation completion tracking for Reanimated-based animations
+  // as shared values can't be read during render
 
-  // 3. Frame drop detection
-  const frameDrops = useFrameDropDetection({
-    isActive: completion.isComplete === false && hasInitialized,
-    componentName: 'NavigationAppHeader',
-    animationName: `header-opacity-${animationSpeed}`,
-  })
-  void frameDrops
+  // Disable smoothness and frame drop tracking for Reanimated animations
+  // These hooks are designed for declarative Tamagui animations, not imperative Reanimated
+  // Reanimated runs on UI thread, so JS-side metrics would be misleading anyway
 
   // Clear announcement text after it's been read by screen readers
   useEffect(() => {
@@ -392,11 +455,13 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       })
       // Only update state if visibility actually needs to change
       if (isVisible !== shouldBeVisible) {
-        setIsVisible(shouldBeVisible)
-        // Announce visibility change for screen readers
-        if (hasInitialized) {
-          setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
-        }
+        startTransition(() => {
+          setIsVisible(shouldBeVisible)
+          // Announce visibility change for screen readers
+          if (hasInitialized) {
+            setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
+          }
+        })
       }
       // Mark as initialized immediately - no grace period needed
       isInitialMountRef.current = false
@@ -440,9 +505,13 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
     // Only update if visibility actually changed and we're initialized (to avoid announcements on mount)
     if (hasInitialized && prevVisibilityRef.current !== shouldBeVisible) {
-      setIsVisible(shouldBeVisible)
-      // Announce visibility change for screen readers
-      setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
+      // Batch state updates using startTransition to prevent rapid re-renders
+      // This ensures setIsVisible and setAnnouncementText happen in a single render cycle
+      startTransition(() => {
+        setIsVisible(shouldBeVisible)
+        // Announce visibility change for screen readers
+        setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
+      })
     }
 
     prevVisibilityRef.current = shouldBeVisible
@@ -546,18 +615,9 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       {Platform.OS === 'ios' ? <View style={{ height: topInset, backgroundColor }} /> : null}
       <View style={styles.wrapper}>
         {isVideoAnalysisMode ? (
-          <Stack
-            animation={hasInitialized ? animationSpeed : undefined}
-            opacity={isVisible ? 1 : 0}
-            enterStyle={{
-              opacity: isVisible ? 1 : 0,
-            }}
-            exitStyle={{
-              opacity: 0,
-            }}
-          >
+          <Animated.View style={animatedStyle}>
             <AppHeader {...appHeaderProps} />
-          </Stack>
+          </Animated.View>
         ) : (
           <AppHeader {...appHeaderProps} />
         )}

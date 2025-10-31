@@ -472,10 +472,15 @@ jest.mock('react-native-reanimated', () => {
       linear: (t: number) => t,
       easeIn: (t: number) => t * t,
       easeOut: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
+      ease: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
       bezier: (_x1: number, _y1: number, _x2: number, _y2: number) => (t: number) => t,
       inOut: (_easingFunction: (t: number) => number) => (t: number) => {
         // Simplified cubic easing for tests
         return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+      },
+      out: (easingFunction: (t: number) => number) => (t: number) => {
+        // Reverse the easing function: out(ease) means ease reversed
+        return 1 - easingFunction(1 - t)
       },
       cubic: (t: number) => t * t * t,
     },

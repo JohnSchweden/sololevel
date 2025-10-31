@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { ViewStyle } from 'react-native'
 import {
   type AnimatedStyle,
@@ -111,8 +112,13 @@ export function useProgressBarAnimation(
     }
   }, [collapseProgressShared])
 
-  return {
-    persistentBarAnimatedStyle,
-    normalBarAnimatedStyle,
-  }
+  // Memoize return object to stabilize identity and prevent unnecessary re-renders
+  // SharedValue reference is stable, so this memoization is safe
+  return useMemo(
+    () => ({
+      persistentBarAnimatedStyle,
+      normalBarAnimatedStyle,
+    }),
+    [persistentBarAnimatedStyle, normalBarAnimatedStyle]
+  )
 }

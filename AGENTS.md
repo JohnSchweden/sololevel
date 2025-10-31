@@ -9,6 +9,17 @@
 - **Package Manager**: Yarn 4 workspaces + Turbo
 - **Web Bundler**: Metro (via Expo Router)
 
+## Code Style and Patterns
+### TYPESCRIPT_GUIDELINES (see `core/typescript-standards.mdc`)
+- Use strict typing, avoid `any` 
+- Follow SOLID principles
+- Document with JSDoc + ASCII Flow Diagrams where necessary
+- All exported functions need explicit return types
+- Use `type` for unions/intersections; `interface` for object shapes
+- Prefer `as const` over enums
+- Use Tamagui for cross-platform styling
+- Prefer named exports over default exports
+
 ## Expo Router Notes
 - Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
 - **Static headers**: Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`
@@ -83,12 +94,14 @@ See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
 
 See `.cursor/rules/core/development-operations.mdc` for complete workspace commands reference table.
 
-## TypeScript Quick Reference
-- Always enable strict mode
-- Avoid `any` unless justified with comment
-- All exported functions need explicit return types
-- Use `type` for unions/intersections; `interface` for object shapes
-- Prefer `as const` over enums
+## Error Prevention
+### VALIDATION_RULES
+1. Verify type consistency (TypeScript strict mode)
+2. Check for potential null/undefined
+3. Validate against business rules
+4. Ensure error handling with discriminated unions
+5. Check RLS policies for database access
+6. Validate cross-platform compatibility
 
 ## Testing
 - **Test Runner by Package**: `@my/ui`, `@my/app` & `@my/logging` use Jest; `@my/api` uses Vitest

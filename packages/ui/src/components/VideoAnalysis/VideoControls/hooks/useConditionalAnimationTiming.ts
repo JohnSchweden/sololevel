@@ -12,10 +12,10 @@ export type AnimationInteractionType = 'user-tap' | 'auto-hide' | 'playback-end'
 export type TamaguiAnimationName = 'quick' | 'lazy'
 
 /**
- * Animation duration constants aligned with Tamagui animation configurations
+ * Animation duration constants for Reanimated withTiming animations
  *
- * @property quick - Fast animation for user interactions (damping: 20, stiffness: 250, mass: 1.2) → ~200ms
- * @property lazy - Slower animation for auto-hide (damping: 18, stiffness: 50) → ~400ms
+ * @property quick - Fast animation for user interactions (200ms)
+ * @property lazy - Slower animation for auto-hide (400ms)
  */
 export const CONDITIONAL_ANIMATION_DURATIONS = {
   quick: 200,

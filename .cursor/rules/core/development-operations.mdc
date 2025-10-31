@@ -1,6 +1,21 @@
 ---
-globs: - "**/package.json"   - "yarn.lock"   - "turbo.json"   - ".github/workflows/**"   - "biome*.json"   - "tsconfig*.json"   - "scripts/**"   - "apps/**/app.json"   - "apps/**/metro.config.js"   - "apps/**/babel.config.js"   - "apps/**/next.config.js"   - "apps/**/next-i18next.config.js"   - "apps/**/eas.json"   - "supabase/**"
-alwaysApply: true
+description: Operational standards for daily development - command usage, Yarn 4 workspace management, dependency handling, testing, and CI requirements. 
+alwaysApply: false
+globs: 
+  - "**/package.json"
+  - "yarn.lock"
+  - "turbo.json"
+  - ".github/workflows/**"
+  - "biome*.json"
+  - "tsconfig*.json"
+  - "scripts/**"
+  - "apps/**/app.json"
+  - "apps/**/metro.config.js"
+  - "apps/**/babel.config.js"
+  - "apps/**/next.config.js"
+  - "apps/**/next-i18next.config.js"
+  - "apps/**/eas.json"
+  - "supabase/**"
 ---
 
 description: Development operations & package management

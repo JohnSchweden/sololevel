@@ -10,13 +10,17 @@ import React, {
   useMemo,
 } from 'react'
 import { Pressable } from 'react-native'
-import Animated, { useSharedValue, cancelAnimation } from 'react-native-reanimated'
+import Animated, {
+  useSharedValue,
+  cancelAnimation,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  runOnJS,
+} from 'react-native-reanimated'
 import { Text, XStack, YStack } from 'tamagui'
 
-import { useAnimationCompletion } from '../../../hooks/useAnimationCompletion'
-import { useFrameDropDetection } from '../../../hooks/useFrameDropDetection'
 import { useRenderProfile } from '../../../hooks/useRenderProfile'
-import { useSmoothnessTracking } from '../../../hooks/useSmoothnessTracking'
 import { GlassButton } from '../../GlassButton'
 import { CenterControls } from './components/CenterControls'
 import { ProgressBar } from './components/ProgressBar'
@@ -94,21 +98,8 @@ export const VideoControls = React.memo(
       const [showMenu, setShowMenu] = useState(false)
       const progressBarWidthShared = useSharedValue(300)
       const persistentProgressBarWidthShared = useSharedValue(300)
-
-      // Render profiling - enable in dev only
-      useRenderProfile({
-        componentName: 'VideoControls',
-        enabled: __DEV__,
-        logInterval: 5, // Log every 5th render to reduce noise
-        trackProps: {
-          isPlaying,
-          showControls,
-          currentTime: Math.floor(currentTime), // Round to reduce re-render noise
-          controlsVisible: showControls,
-          videoMode: _videoMode,
-          collapseProgress,
-        },
-      })
+      // Shared scrubbing state across both progress bars to prevent simultaneous activation
+      const globalScrubbingShared = useSharedValue(false)
 
       // Conditional animation timing hook
       const { getAnimationName, getAnimationDuration } = useConditionalAnimationTiming()
@@ -139,8 +130,14 @@ export const VideoControls = React.memo(
           cancelAnimation(progressBarWidthShared)
           cancelAnimation(persistentProgressBarWidthShared)
           cancelAnimation(collapseProgressShared)
+          cancelAnimation(globalScrubbingShared)
         }
-      }, [progressBarWidthShared, persistentProgressBarWidthShared, collapseProgressShared])
+      }, [
+        progressBarWidthShared,
+        persistentProgressBarWidthShared,
+        collapseProgressShared,
+        globalScrubbingShared,
+      ])
 
       // Wrapped callback to track interaction type for conditional animation timing
       const handleControlsVisibilityChange = useCallback(
@@ -169,53 +166,65 @@ export const VideoControls = React.memo(
       // Destructure for easier access
       const { controlsVisible, handlePress, showControlsAndResetTimer } = visibility
 
-      // Track previous controlsVisible for direction detection
-      const prevControlsVisibleForAnimationRef = useRef(controlsVisible)
+      // Reanimated shared value for overlay opacity (runs on UI thread)
+      const overlayOpacity = useSharedValue(controlsVisible ? 1 : 0)
 
-      // Determine animation direction
-      const animationDirection =
-        prevControlsVisibleForAnimationRef.current !== controlsVisible
-          ? controlsVisible
-            ? 'fade-in'
-            : 'fade-out'
-          : 'stable'
+      // Stable callback for animation completion (called from UI thread)
+      const handleAnimationComplete = useCallback(
+        (configuredDuration: number, targetValue: number) => {
+          const interactionType = currentInteractionTypeRef.current
 
-      // Update previous value
+          log.debug('VideoControls', '📊 [PERFORMANCE] Animation completed', {
+            animationName: `controls-overlay-${interactionType}`,
+            targetValue,
+            configuredDuration,
+          })
+        },
+        [] // Stable - use refs for dynamic values
+      )
+
+      // Update overlay opacity animation when visibility changes
       useEffect(() => {
-        prevControlsVisibleForAnimationRef.current = controlsVisible
-      }, [controlsVisible])
+        cancelAnimation(overlayOpacity)
+        const duration = getAnimationDuration(currentInteractionTypeRef.current)
+        const targetValue = controlsVisible ? 1 : 0
 
-      // Use conditional animation timing based on interaction type
-      const estimatedDuration = getAnimationDuration(currentInteractionType)
+        overlayOpacity.value = withTiming(
+          targetValue,
+          {
+            duration,
+            easing: Easing.out(Easing.ease),
+          },
+          (finished) => {
+            'worklet'
+            if (finished) {
+              runOnJS(handleAnimationComplete)(duration, targetValue)
+            }
+          }
+        )
+      }, [controlsVisible, handleAnimationComplete])
 
-      // 1. True animation completion detection
-      const completion = useAnimationCompletion({
-        currentValue: controlsVisible ? 1 : 0,
-        targetValue: controlsVisible ? 1 : 0,
-        estimatedDuration,
-        componentName: 'VideoControls',
-        animationName: `controls-overlay-${currentInteractionType}`,
-        direction: animationDirection !== 'stable' ? animationDirection : undefined,
-        tolerance: 0.01,
-        requiredStableFrames: 2,
+      // Animated style for overlay (runs on UI thread)
+      const overlayAnimatedStyle = useAnimatedStyle(() => {
+        return {
+          opacity: overlayOpacity.value,
+        }
       })
 
-      // 2. Smoothness tracking
-      const smoothness = useSmoothnessTracking({
-        duration: completion.actualDuration,
+      // Render profiling - enable in dev only
+      useRenderProfile({
         componentName: 'VideoControls',
-        animationName: `controls-overlay-${currentInteractionType}`,
-        windowSize: 10,
+        enabled: __DEV__,
+        logInterval: 10,
+        trackProps: {
+          isPlaying,
+          showControls,
+          currentTime: Math.floor(currentTime), // Round to reduce re-render noise
+          controlsVisible: showControls,
+          videoMode: _videoMode,
+          collapseProgress,
+        },
       })
-      void smoothness
-
-      // 3. Frame drop detection
-      const frameDrops = useFrameDropDetection({
-        isActive: completion.isComplete === false,
-        componentName: 'VideoControls',
-        animationName: `controls-overlay-${currentInteractionType}`,
-      })
-      void frameDrops
 
       // Progress bar gesture hooks for normal and persistent bars
       const normalProgressBar = useProgressBarGesture({
@@ -225,6 +234,7 @@ export const VideoControls = React.memo(
         progressBarWidthShared,
         onSeek,
         showControlsAndResetTimer,
+        globalScrubbingShared,
       })
 
       const persistentProgressBar = useProgressBarGesture({
@@ -234,6 +244,7 @@ export const VideoControls = React.memo(
         progressBarWidthShared: persistentProgressBarWidthShared,
         onSeek,
         showControlsAndResetTimer,
+        globalScrubbingShared,
       })
 
       // Extract values from hooks for easier reference
@@ -337,7 +348,8 @@ export const VideoControls = React.memo(
                 duration,
               })
               onSeek(seekTime)
-              showControlsAndResetTimer()
+              // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+              // Fallback should only seek, not show controls (gesture handles that)
             }
           },
         })
@@ -370,215 +382,225 @@ export const VideoControls = React.memo(
           }}
           testID="video-controls-container"
         >
-          <YStack
-            position="absolute"
-            inset={0}
-            backgroundColor="rgba(0,0,0,0.5)"
-            justifyContent="flex-end"
-            padding="$4"
-            opacity={controlsVisible ? 1 : 0}
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                justifyContent: 'flex-end',
+                padding: 16,
+              },
+              overlayAnimatedStyle,
+            ]}
             pointerEvents={controlsVisible ? 'auto' : 'none'}
-            animation={getAnimationName(currentInteractionType)}
-            enterStyle={{ opacity: 0 }}
-            exitStyle={{ opacity: 0 }}
-            testID="video-controls-overlay"
-            accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
-            accessibilityRole="toolbar"
-            accessibilityState={{ expanded: controlsVisible }}
           >
-            {/* Header - deprecated, use NavigationAppHeader instead */}
-            {headerComponent && headerComponent}
+            <YStack
+              flex={1}
+              justifyContent="flex-end"
+              testID="video-controls-overlay"
+              accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
+              accessibilityRole="toolbar"
+              accessibilityState={{ expanded: controlsVisible }}
+            >
+              {/* Header - deprecated, use NavigationAppHeader instead */}
+              {headerComponent && headerComponent}
 
-            {/* Center Controls - Absolutely positioned in vertical center of full screen */}
-            <CenterControls
-              isPlaying={isPlaying}
-              videoEnded={videoEnded}
-              isProcessing={isProcessing}
-              currentTime={currentTime}
-              onPlay={() => {
-                showControlsAndResetTimer()
-                onPlay()
-              }}
-              onPause={() => {
-                showControlsAndResetTimer()
-                onPause()
-              }}
-              onReplay={
-                onReplay
-                  ? () => {
-                      showControlsAndResetTimer()
-                      onReplay()
-                    }
-                  : undefined
-              }
-              onSkipBackward={() => {
-                showControlsAndResetTimer()
-                onSeek(Math.max(0, currentTime - 10))
-              }}
-              onSkipForward={() => {
-                showControlsAndResetTimer()
-                onSeek(Math.min(duration, currentTime + 10))
-              }}
-            />
-
-            {/* Bottom Controls - Normal Bar */}
-            <Animated.View style={normalBarAnimatedStyle}>
-              <YStack accessibilityLabel="Video timeline and controls">
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-24}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={currentTime}
-                    duration={duration}
-                    testID="time-display"
-                  />
-                </XStack>
-              </YStack>
-            </Animated.View>
-
-            {/* Bottom Controls - Persistent Bar */}
-            <Animated.View style={persistentBarAnimatedStyle}>
-              <YStack accessibilityLabel="Video timeline and controls">
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-48}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={currentTime}
-                    duration={duration}
-                    testID="time-display-persistent"
-                  />
-                </XStack>
-              </YStack>
-            </Animated.View>
-
-            {/* Progress Bar - Normal variant (visible with controls) */}
-            <ProgressBar
-              variant="normal"
-              progress={progress}
-              isScrubbing={normalProgressBar.isScrubbing}
-              controlsVisible={controlsVisible}
-              progressBarWidth={progressBarWidth}
-              animatedStyle={normalBarAnimatedStyle}
-              combinedGesture={progressBarCombinedGesture}
-              mainGesture={mainProgressGesture}
-              animationName={getAnimationName(currentInteractionType)}
-              onLayout={(event) => {
-                const { width } = event.nativeEvent.layout
-                setProgressBarWidth(width)
-              }}
-              onFallbackPress={(locationX) => {
-                if (progressBarWidth > 0 && duration > 0) {
-                  const seekPercentage = Math.max(
-                    0,
-                    Math.min(100, (locationX / progressBarWidth) * 100)
-                  )
-                  const seekTime = (seekPercentage / 100) * duration
-                  log.debug('VideoControls', 'Fallback press handler', {
-                    locationX,
-                    progressBarWidth,
-                    seekPercentage,
-                    seekTime,
-                    duration,
-                  })
-                  onSeek(seekTime)
+              {/* Center Controls - Absolutely positioned in vertical center of full screen */}
+              <CenterControls
+                isPlaying={isPlaying}
+                videoEnded={videoEnded}
+                isProcessing={isProcessing}
+                currentTime={currentTime}
+                onPlay={() => {
                   showControlsAndResetTimer()
+                  onPlay()
+                }}
+                onPause={() => {
+                  showControlsAndResetTimer()
+                  onPause()
+                }}
+                onReplay={
+                  onReplay
+                    ? () => {
+                        showControlsAndResetTimer()
+                        onReplay()
+                      }
+                    : undefined
                 }
-              }}
-            />
+                onSkipBackward={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.max(0, currentTime - 10))
+                }}
+                onSkipForward={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.min(duration, currentTime + 10))
+                }}
+              />
 
-            {/* Fly-out Menu - Temporarily disabled for testing */}
-            {/* TODO: Re-enable Sheet component after fixing mock */}
-            {showMenu && (
-              <YStack
-                position="absolute"
-                bottom={0}
-                left={0}
-                right={0}
-                backgroundColor="$background"
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                padding="$4"
-                gap="$3"
-                zIndex={20}
-                testID="menu-overlay"
-              >
-                <Text
-                  fontSize="$6"
-                  fontWeight="600"
-                  textAlign="center"
-                >
-                  Video Options
-                </Text>
-
-                <YStack gap="$2">
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('share')}
-                      icon={
-                        <Share
-                          size="$1"
-                          color="white"
-                        />
-                      }
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Share Video
-                      </Text>
-                    </GlassButton>
-                  </XStack>
-
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('download')}
-                      icon={
-                        <Download
-                          size="$1"
-                          color="white"
-                        />
-                      }
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Download Video
-                      </Text>
-                    </GlassButton>
-                  </XStack>
-
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('export')}
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Export Analysis
-                      </Text>
-                    </GlassButton>
+              {/* Bottom Controls - Normal Bar */}
+              <Animated.View style={normalBarAnimatedStyle}>
+                <YStack accessibilityLabel="Video timeline and controls">
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bottom={-24}
+                    paddingBottom="$2"
+                    accessibilityLabel="Video time and controls"
+                  >
+                    <TimeDisplay
+                      currentTime={currentTime}
+                      duration={duration}
+                      testID="time-display"
+                    />
                   </XStack>
                 </YStack>
-              </YStack>
-            )}
-          </YStack>
+              </Animated.View>
+
+              {/* Bottom Controls - Persistent Bar */}
+              <Animated.View style={persistentBarAnimatedStyle}>
+                <YStack accessibilityLabel="Video timeline and controls">
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bottom={-48}
+                    paddingBottom="$2"
+                    accessibilityLabel="Video time and controls"
+                  >
+                    <TimeDisplay
+                      currentTime={currentTime}
+                      duration={duration}
+                      testID="time-display-persistent"
+                    />
+                  </XStack>
+                </YStack>
+              </Animated.View>
+
+              {/* Progress Bar - Normal variant (visible with controls) */}
+              <ProgressBar
+                variant="normal"
+                progress={progress}
+                isScrubbing={normalProgressBar.isScrubbing}
+                controlsVisible={controlsVisible}
+                progressBarWidth={progressBarWidth}
+                animatedStyle={normalBarAnimatedStyle}
+                combinedGesture={progressBarCombinedGesture}
+                mainGesture={mainProgressGesture}
+                animationName={getAnimationName(currentInteractionType)}
+                onLayout={(event) => {
+                  const { width } = event.nativeEvent.layout
+                  setProgressBarWidth(width)
+                }}
+                onFallbackPress={(locationX) => {
+                  if (progressBarWidth > 0 && duration > 0) {
+                    const seekPercentage = Math.max(
+                      0,
+                      Math.min(100, (locationX / progressBarWidth) * 100)
+                    )
+                    const seekTime = (seekPercentage / 100) * duration
+                    log.debug('VideoControls', 'Fallback press handler', {
+                      locationX,
+                      progressBarWidth,
+                      seekPercentage,
+                      seekTime,
+                      duration,
+                    })
+                    onSeek(seekTime)
+                    // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                    // Fallback should only seek, not show controls (gesture handles that)
+                  }
+                }}
+              />
+
+              {/* Fly-out Menu - Temporarily disabled for testing */}
+              {/* TODO: Re-enable Sheet component after fixing mock */}
+              {showMenu && (
+                <YStack
+                  position="absolute"
+                  bottom={0}
+                  left={0}
+                  right={0}
+                  backgroundColor="$background"
+                  borderTopLeftRadius="$4"
+                  borderTopRightRadius="$4"
+                  padding="$4"
+                  gap="$3"
+                  zIndex={20}
+                  testID="menu-overlay"
+                >
+                  <Text
+                    fontSize="$6"
+                    fontWeight="600"
+                    textAlign="center"
+                  >
+                    Video Options
+                  </Text>
+
+                  <YStack gap="$2">
+                    <XStack>
+                      <GlassButton
+                        onPress={() => handleMenuItemPress('share')}
+                        icon={
+                          <Share
+                            size="$1"
+                            color="white"
+                          />
+                        }
+                        minHeight={44}
+                        backgroundColor="transparent"
+                      >
+                        <Text
+                          color="white"
+                          fontSize="$4"
+                        >
+                          Share Video
+                        </Text>
+                      </GlassButton>
+                    </XStack>
+
+                    <XStack>
+                      <GlassButton
+                        onPress={() => handleMenuItemPress('download')}
+                        icon={
+                          <Download
+                            size="$1"
+                            color="white"
+                          />
+                        }
+                        minHeight={44}
+                        backgroundColor="transparent"
+                      >
+                        <Text
+                          color="white"
+                          fontSize="$4"
+                        >
+                          Download Video
+                        </Text>
+                      </GlassButton>
+                    </XStack>
+
+                    <XStack>
+                      <GlassButton
+                        onPress={() => handleMenuItemPress('export')}
+                        minHeight={44}
+                        backgroundColor="transparent"
+                      >
+                        <Text
+                          color="white"
+                          fontSize="$4"
+                        >
+                          Export Analysis
+                        </Text>
+                      </GlassButton>
+                    </XStack>
+                  </YStack>
+                </YStack>
+              )}
+            </YStack>
+          </Animated.View>
 
           {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
           {/* {!onPersistentProgressBarPropsChange && (
@@ -611,7 +633,8 @@ export const VideoControls = React.memo(
                     duration,
                   })
                   onSeek(seekTime)
-                  showControlsAndResetTimer()
+                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                  // Fallback should only seek, not show controls (gesture handles that)
                 }
               }}
             />

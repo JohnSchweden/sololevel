@@ -1,14 +1,20 @@
-import React from 'react'
+import { log } from '@my/logging'
+import React, { useCallback, useEffect } from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated, { type AnimatedStyle } from 'react-native-reanimated'
-import { YStack } from 'tamagui'
-import { useAnimationCompletion } from '../../../../hooks/useAnimationCompletion'
-import { useFrameDropDetection } from '../../../../hooks/useFrameDropDetection'
-import { useSmoothnessTracking } from '../../../../hooks/useSmoothnessTracking'
+import Animated, {
+  type AnimatedStyle,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  cancelAnimation,
+  runOnJS,
+} from 'react-native-reanimated'
+import { YStack, useTheme } from 'tamagui'
 
-// Animation duration estimate for 'quick' animation
-// 'quick': damping: 20, stiffness: 250, mass: 1.2 → ~200ms effective duration
+// Animation duration for Reanimated withTiming animation
+// 'quick': 200ms for user-initiated interactions
 const QUICK_ANIMATION_DURATION = 200
 
 /**
@@ -93,18 +99,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     testID,
     animationName = 'quick', // Default to 'quick' for backwards compatibility
   }) => {
+    // Get theme to resolve Tamagui color tokens for React Native Animated.View
+    const theme = useTheme()
+
     // Variant-specific dimensions
     const isNormal = variant === 'normal'
     const trackHeight = isNormal ? 4 : 2
     const handleSize = 12 // Same size for both normal and persistent variants
     const handleTouchArea = 44 // Consistent 44px touch area for both variants
     const handleTopOffset = isNormal ? -20 : -23 // Center within touch area
-    const handleMarginLeft = isNormal ? -22 : -17 // Center the touch area
+    const handleMarginLeft = isNormal ? -22 : -16 // Center the touch area
 
-    // Variant-specific colors
+    // Variant-specific colors (Tamagui tokens)
     const trackBackgroundColor = isNormal ? '$color3' : '$color8'
     const fillColor = isNormal ? '$teal9' : controlsVisible ? '$teal9' : '$color11'
-    const handleColor = isNormal
+    const handleColorToken = isNormal
       ? isScrubbing
         ? '$teal10'
         : '$teal9'
@@ -114,8 +123,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
           : '$teal9'
         : '$color8'
 
-    // Variant-specific opacity and styling
-    const handleOpacity = isNormal
+    // Resolve color token to actual color value for React Native Animated.View
+    // Remove '$' prefix and access theme property
+    const handleColor = theme[handleColorToken.slice(1) as keyof typeof theme]?.val as string
+
+    // Calculate target opacity and scale based on state
+    const targetOpacity = isNormal
       ? controlsVisible || isScrubbing
         ? 1
         : 0.7
@@ -123,8 +136,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         ? 1
         : 0
 
-    // Scale animation: scale up when visible, scale down when hidden
-    const handleScale = isNormal
+    const targetScale = isNormal
       ? controlsVisible || isScrubbing
         ? 1
         : 0.3
@@ -132,64 +144,63 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         ? 1
         : 0.3
 
+    // Reanimated shared values for handle animation (runs on UI thread)
+    const handleOpacity = useSharedValue(targetOpacity)
+    const handleScale = useSharedValue(targetScale)
+
+    // Animation duration
+    const duration = animationName === 'quick' ? QUICK_ANIMATION_DURATION : 400
+
+    // Stable callback for animation completion logging
+    const handleAnimationComplete = useCallback(
+      (configuredDuration: number) => {
+        log.debug('ProgressBar', '📊 [PERFORMANCE] Animation completed', {
+          animationName: `handle-opacity-${variant}`,
+          targetValue: targetOpacity,
+          configuredDuration,
+        })
+      },
+      [variant, targetOpacity]
+    )
+
+    // Update animations when state changes
+    useEffect(() => {
+      cancelAnimation(handleOpacity)
+      cancelAnimation(handleScale)
+
+      handleOpacity.value = withTiming(
+        targetOpacity,
+        {
+          duration,
+          easing: Easing.out(Easing.ease),
+        },
+        (finished) => {
+          'worklet'
+          if (finished) {
+            runOnJS(handleAnimationComplete)(duration)
+          }
+        }
+      )
+
+      handleScale.value = withTiming(targetScale, {
+        duration,
+        easing: Easing.out(Easing.ease),
+      })
+    }, [targetOpacity, targetScale, duration, handleAnimationComplete])
+
+    // Animated styles for handle (runs on UI thread)
+    const handleAnimatedStyle = useAnimatedStyle(() => {
+      const currentOpacity = handleOpacity.value
+      const currentScale = handleScale.value
+
+      return {
+        opacity: currentOpacity,
+        transform: [{ scale: currentScale }],
+      }
+    })
+
     // Round progress percentage for accessibility
     const progressPercentage = Math.round(progress)
-
-    // Calculate target opacity based on state
-    const targetOpacity = controlsVisible || isScrubbing ? 1 : variant === 'persistent' ? 0 : 0.7
-
-    // Track previous handleOpacity to detect changes
-    const prevHandleOpacityRef = React.useRef<number | null>(null)
-
-    // Determine animation direction for logging
-    const direction =
-      prevHandleOpacityRef.current !== null && handleOpacity > prevHandleOpacityRef.current
-        ? 'fade-in'
-        : prevHandleOpacityRef.current !== null && handleOpacity < prevHandleOpacityRef.current
-          ? 'fade-out'
-          : 'stable'
-
-    // Update previous value after determining direction
-    React.useEffect(() => {
-      prevHandleOpacityRef.current = handleOpacity
-    }, [handleOpacity])
-
-    // 1. True animation completion detection (replaces setTimeout)
-    // NOTE: For Tamagui animations, we track when handleOpacity changes (animation target changes)
-    // and measure time until completion. Since handleOpacity is the target value Tamagui animates to,
-    // we track it as the "current" value and detect when it changes as animation start.
-    const completion = useAnimationCompletion({
-      currentValue: handleOpacity, // The target value Tamagui animates to (changes instantly on state change)
-      targetValue: handleOpacity, // Same as currentValue - Tamagui animates visual opacity to this value
-      estimatedDuration: QUICK_ANIMATION_DURATION,
-      componentName: 'ProgressBar',
-      animationName: `handle-opacity-${variant}`,
-      direction: direction !== 'stable' ? direction : undefined,
-      tolerance: 0.01, // Opacity range 0-1, 0.01 tolerance is appropriate
-      requiredStableFrames: 2, // Reduce from 3 to 2 for faster detection
-    })
-
-    // 2. Smoothness tracking (tracks variance between animations)
-    // Note: Hook logs automatically when smoothness drops below threshold
-    const smoothness = useSmoothnessTracking({
-      duration: completion.actualDuration,
-      componentName: 'ProgressBar',
-      animationName: `handle-opacity-${variant}`,
-      windowSize: 10, // Track last 10 animations
-    })
-    // Mark as intentionally unused - hook logs automatically
-    void smoothness
-
-    // 3. Frame drop detection (monitors FPS during active animation)
-    // Note: Hook logs automatically when frame drops exceed threshold
-    const isAnimating = Math.abs(handleOpacity - targetOpacity) > 0.01
-    const frameDrops = useFrameDropDetection({
-      isActive: isAnimating,
-      componentName: 'ProgressBar',
-      animationName: `handle-opacity-${variant}`,
-    })
-    // Mark as intentionally unused - hook logs automatically
-    void frameDrops
 
     // Variant-specific container positioning
     const containerBottom = isNormal ? 8 : -21
@@ -281,19 +292,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           alignItems: 'center',
                         }}
                       >
-                        <YStack
-                          width={handleSize}
-                          height={handleSize}
-                          backgroundColor={handleColor}
-                          borderRadius={handleSize / 2}
-                          borderWidth={0}
-                          borderColor="$color12"
-                          opacity={handleOpacity}
-                          scale={handleScale}
-                          animation={animationName}
-                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
+                        <Animated.View
+                          style={[
+                            {
+                              width: handleSize,
+                              height: handleSize,
+                              backgroundColor: handleColor,
+                              borderRadius: handleSize / 2,
+                              borderWidth: 0,
+                              borderColor: '$color12',
+                              elevation: isScrubbing ? 2 : 0,
+                            },
+                            handleAnimatedStyle,
+                          ]}
                           testID={handleTestID}
-                          elevation={isScrubbing ? 2 : 0}
+                          pointerEvents={targetOpacity > 0.01 ? 'auto' : 'none'}
                         />
                       </View>
                     </GestureDetector>
@@ -338,7 +351,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                     animation={animationName}
                   />
 
-                  <YStack paddingLeft={10}>
+                  <YStack paddingLeft={12}>
                     {/* Scrubber handle */}
                     <GestureDetector gesture={mainGesture}>
                       <View
@@ -354,19 +367,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           alignItems: 'center',
                         }}
                       >
-                        <YStack
-                          width={handleSize}
-                          height={handleSize}
-                          backgroundColor={handleColor}
-                          borderRadius={handleSize / 2}
-                          borderWidth={0}
-                          borderColor="$color12"
-                          opacity={handleOpacity}
-                          scale={handleScale}
-                          animation={animationName}
-                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
+                        <Animated.View
+                          style={[
+                            {
+                              width: handleSize,
+                              height: handleSize,
+                              backgroundColor: handleColor,
+                              borderRadius: handleSize / 2,
+                              borderWidth: 0,
+                              borderColor: '$color12',
+                              elevation: isScrubbing ? 2 : 0,
+                            },
+                            handleAnimatedStyle,
+                          ]}
                           testID={handleTestID}
-                          elevation={isScrubbing ? 2 : 0}
+                          pointerEvents={targetOpacity > 0.01 ? 'auto' : 'none'}
                         />
                       </View>
                     </GestureDetector>
