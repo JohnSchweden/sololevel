@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router'
 import React from 'react'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
+import { usePrefetchVideoAnalysis } from './hooks/usePrefetchVideoAnalysis'
 
 export interface HistoryProgressScreenProps {
   /**
@@ -70,6 +71,11 @@ export function HistoryProgressScreen({
 
   // Data fetching with TanStack Query + Zustand cache
   const { data: videos = [], isLoading, error, refetch } = useHistoryQuery()
+
+  // Prefetch video analysis data for all visible videos (10 shown in gallery)
+  // Strategy: Immediate prefetch for top 3, deferred for remaining 7
+  const videoIds = React.useMemo(() => videos.slice(0, 10).map((v) => v.id), [videos])
+  usePrefetchVideoAnalysis(videoIds)
 
   // Refetch data when screen comes into focus (e.g., after recording a video)
   useFocusEffect(

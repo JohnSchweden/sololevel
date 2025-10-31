@@ -29,7 +29,8 @@ export interface VideoAnalysisScreenProps {
   videoUri?: string
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
   onBack?: () => void
-  onControlsVisibilityChange?: (visible: boolean) => void
+  onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
+  onProcessingChange?: (isProcessing: boolean) => void
 }
 
 /**
@@ -107,7 +108,7 @@ export interface UseVideoAnalysisOrchestratorReturn {
   controls: {
     showControls: boolean
     videoControlsRef: React.RefObject<VideoControlsRef | null>
-    onControlsVisibilityChange: (visible: boolean) => void
+    onControlsVisibilityChange: (visible: boolean, isUserInteraction?: boolean) => void
   }
   error: {
     visible: boolean
@@ -174,6 +175,7 @@ export function useVideoAnalysisOrchestrator(
     initialStatus = 'processing',
     onBack,
     onControlsVisibilityChange,
+    onProcessingChange,
   } = props
 
   // Hide status bar when this screen is focused
@@ -196,7 +198,14 @@ export function useVideoAnalysisOrchestrator(
     }
   }, [isHistoryMode, analysisJobId, historicalAnalysis.isLoading, historicalAnalysis.data])
 
-  const normalizedInitialStatus = initialStatus === 'ready' ? 'ready' : 'processing'
+  // In history mode, use 'ready' as initial status since data is prefetched
+  // This prevents isProcessing from being true initially
+  const normalizedInitialStatus = useMemo(() => {
+    if (isHistoryMode) {
+      return 'ready' as const
+    }
+    return initialStatus === 'ready' ? 'ready' : 'processing'
+  }, [isHistoryMode, initialStatus])
   // In history mode, still pass analysisJobId to load feedback from database
   // but the hook will skip creating new analysis jobs
   const analysisState = useAnalysisState(
@@ -222,6 +231,11 @@ export function useVideoAnalysisOrchestrator(
 
   // Determine effective processing state: wait for either historical load or analysis processing
   const isProcessing = historicalAnalysis.isLoading || analysisState.isProcessing
+
+  // Notify parent when processing state changes
+  useEffect(() => {
+    onProcessingChange?.(isProcessing)
+  }, [isProcessing, onProcessingChange])
 
   const videoControls = useVideoControls(isProcessing, isPlaying, videoEnded)
 
@@ -433,9 +447,9 @@ export function useVideoAnalysisOrchestrator(
   )
 
   const handleControlsVisibilityChange = useCallback(
-    (visible: boolean) => {
+    (visible: boolean, isUserInteraction = false) => {
       videoControls.setControlsVisible(visible)
-      onControlsVisibilityChange?.(visible)
+      onControlsVisibilityChange?.(visible, isUserInteraction)
     },
     [onControlsVisibilityChange, videoControls]
   )

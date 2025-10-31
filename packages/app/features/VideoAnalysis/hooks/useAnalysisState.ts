@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
@@ -213,6 +214,11 @@ const determinePhase = (params: {
   }
 
   if (isHistoryMode) {
+    // In history mode, if we have feedback items, we're ready (data is prefetched)
+    // Only return 'generating-feedback' if we truly don't have feedback yet
+    if (feedback.feedbackItems.length > 0) {
+      return { phase: 'ready', error: null }
+    }
     return { phase: 'generating-feedback', error: null }
   }
 
@@ -308,8 +314,23 @@ export function useAnalysisState(
   }, [analysisJobId, derivedRecordingId, subscribe, unsubscribe, subscriptionKey])
 
   const analysisJob = subscriptionSnapshot?.job ?? null
+  const queryClient = useQueryClient()
 
-  const [analysisUuid, setAnalysisUuid] = useState<string | null>(null)
+  const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
+    // Try to get UUID from cache synchronously (prefetched)
+    const effectiveJobId = analysisJobId ?? null
+    if (effectiveJobId) {
+      const cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+      if (cachedUuid) {
+        log.debug('useAnalysisState', 'Using cached UUID', {
+          analysisJobId: effectiveJobId,
+          uuid: cachedUuid,
+        })
+        return cachedUuid
+      }
+    }
+    return null
+  })
   const [channelExhausted, setChannelExhausted] = useState(false)
 
   useEffect(() => {
@@ -320,6 +341,17 @@ export function useAnalysisState(
       return
     }
 
+    // Check cache first (might be prefetched)
+    const cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+    if (cachedUuid) {
+      log.debug('useAnalysisState', 'Using cached UUID from effect', {
+        analysisJobId: effectiveJobId,
+        uuid: cachedUuid,
+      })
+      setAnalysisUuid(cachedUuid)
+      return
+    }
+
     let cancelled = false
 
     const resolveUuid = async () => {
@@ -327,8 +359,12 @@ export function useAnalysisState(
         const uuidPromise = getAnalysisIdForJobId(effectiveJobId)
         const uuid = uuidPromise instanceof Promise ? await uuidPromise : uuidPromise
 
-        if (!cancelled) {
-          setAnalysisUuid(uuid ?? null)
+        if (!cancelled && uuid) {
+          // Cache UUID for future use
+          queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], uuid)
+          setAnalysisUuid(uuid)
+        } else if (!cancelled) {
+          setAnalysisUuid(null)
         }
       } catch (error) {
         if (__DEV__ && !cancelled) {
@@ -338,6 +374,9 @@ export function useAnalysisState(
             error: message,
           })
         }
+        if (!cancelled) {
+          setAnalysisUuid(null)
+        }
       }
     }
 
@@ -346,7 +385,7 @@ export function useAnalysisState(
     return () => {
       cancelled = true
     }
-  }, [analysisJobId, analysisJob?.id])
+  }, [analysisJobId, analysisJob?.id, queryClient])
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined)
 
@@ -354,12 +393,23 @@ export function useAnalysisState(
   const useMockData = useFeatureFlagsStore((state) => state.flags.useMockData)
 
   // Apply mock fallback strategy based on feature flag
+  // BUT: Skip mock data if we're in history mode and analysisJobId exists (might have prefetched data)
   const feedbackWithFallback = useMemo(() => {
     // Use real feedback items if available
     if (feedbackStatus.feedbackItems.length > 0) {
       return {
         ...feedbackStatus,
         feedbackItems: feedbackStatus.feedbackItems,
+      }
+    }
+
+    // In history mode with analysisJobId, skip mock data while UUID is being resolved
+    // This prevents flash of mock data when prefetched feedbacks are loading
+    if (isHistoryMode && analysisJobId && analysisUuid === null) {
+      // UUID is being resolved - don't show mock data yet (might have prefetched feedbacks)
+      return {
+        ...feedbackStatus,
+        feedbackItems: [],
       }
     }
 
@@ -370,7 +420,7 @@ export function useAnalysisState(
       ...feedbackStatus,
       feedbackItems: items,
     }
-  }, [feedbackStatus, useMockData])
+  }, [feedbackStatus, useMockData, isHistoryMode, analysisJobId, analysisUuid])
 
   useEffect(() => {
     if (!subscriptionKey) {
@@ -434,6 +484,22 @@ export function useAnalysisState(
     uploadError: uploadErrorMessage,
     isHistoryMode,
   })
+
+  // Debug: Log phase changes
+  const lastPhaseDebugRef = useRef<AnalysisPhase | null>(null)
+  if (lastPhaseDebugRef.current !== phase) {
+    log.debug('useAnalysisState', '🔍 Phase changed', {
+      from: lastPhaseDebugRef.current,
+      to: phase,
+      isHistoryMode,
+      feedbackCount: feedbackStatus.feedbackItems.length,
+      feedbackIsFullyCompleted: feedbackStatus.isFullyCompleted,
+      analysisStatus: analysisStatus.status,
+      uploadStatus: uploadStatus.status,
+      firstPlayableReady,
+    })
+    lastPhaseDebugRef.current = phase
+  }
 
   const progress = useMemo(
     () => ({

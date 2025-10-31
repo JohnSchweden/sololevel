@@ -106,23 +106,34 @@ export function useHistoryQuery(limit = 10) {
       })
 
       try {
-        const jobs = await getUserAnalysisJobs(limit)
+        // Fetch only completed jobs from database (more efficient than filtering in JS)
+        const jobs = await getUserAnalysisJobs(limit, 'completed')
 
-        // Debug: Log raw jobs data
-        // log.debug('useHistoryQuery', 'Raw jobs from API', {
-        //   totalJobs: jobs.length,
-        //   limit,
-        //   sampleJob: jobs[0]
-        //     ? {
-        //         id: jobs[0].id,
-        //         status: jobs[0].status,
-        //         hasVideoRecordings: !!jobs[0].video_recordings,
-        //         videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
-        //       }
-        //     : 'no jobs',
-        // })
+        // Debug: Log raw jobs data and status distribution
+        const statusDistribution = jobs.reduce(
+          (acc, job: any) => {
+            const status = job.status || 'unknown'
+            acc[status] = (acc[status] || 0) + 1
+            return acc
+          },
+          {} as Record<string, number>
+        )
 
-        // Filter completed jobs only
+        log.debug('useHistoryQuery', 'Raw jobs from API', {
+          totalJobs: jobs.length,
+          limit,
+          statusDistribution,
+          sampleJob: jobs[0]
+            ? {
+                id: jobs[0].id,
+                status: jobs[0].status,
+                hasVideoRecordings: !!jobs[0].video_recordings,
+                videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+              }
+            : 'no jobs',
+        })
+
+        // All jobs should be completed (filtered at DB level), but keep as safety check
         const completedJobs = jobs.filter((job: any) => job.status === 'completed')
 
         // Work with newest-first order for cache + UI consistency
@@ -185,6 +196,7 @@ export function useHistoryQuery(limit = 10) {
           cacheUpdated: true,
           duration,
           limit,
+          statusFilter: 'completed',
         })
 
         return sortedVideoItems

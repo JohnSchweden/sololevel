@@ -57,11 +57,18 @@ describe('useAutoPlayOnReady', () => {
     const { rerender } = renderHook(
       ({ isProcessing, isPlaying }) => useAutoPlayOnReady(isProcessing, isPlaying, playVideo),
       {
-        initialProps: { isProcessing: false, isPlaying: false },
+        initialProps: { isProcessing: true, isPlaying: false },
       }
     )
 
-    // Transition from ready to processing (should not play)
+    // First transition: processing → ready (should play)
+    rerender({ isProcessing: false, isPlaying: false })
+    expect(playVideo).toHaveBeenCalledTimes(1)
+
+    // Clear mock for next assertion
+    playVideo.mockClear()
+
+    // Transition back: ready → processing (should not play)
     rerender({ isProcessing: true, isPlaying: false })
 
     expect(playVideo).not.toHaveBeenCalled()

@@ -66,7 +66,7 @@ describe('useControlsVisibility', () => {
       })
 
       // Assert: Controls should be hidden
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false)
       expect(result.current.controlsVisible).toBe(false)
     })
 
@@ -259,7 +259,7 @@ describe('useControlsVisibility', () => {
       })
 
       // Assert: Controls should now be hidden (timer expired)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false)
       expect(result.current.controlsVisible).toBe(false)
     })
 
@@ -341,7 +341,7 @@ describe('useControlsVisibility', () => {
       })
 
       // Assert: Controls should now be hidden
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false)
       expect(result.current.controlsVisible).toBe(false)
     })
   })
@@ -368,8 +368,8 @@ describe('useControlsVisibility', () => {
         result.current.handlePress()
       })
 
-      // Assert: Controls should now be visible
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      // Assert: Controls should now be visible (called twice: initial mount + handlePress)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true)
       expect(result.current.controlsVisible).toBe(true)
     })
 
@@ -398,7 +398,7 @@ describe('useControlsVisibility', () => {
       })
 
       // Assert: Controls should now be hidden
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, true)
       expect(result.current.controlsVisible).toBe(false)
     })
 
@@ -477,7 +477,7 @@ describe('useControlsVisibility', () => {
       })
 
       // Assert: Controls should be hidden (timer was started)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false)
       expect(result.current.controlsVisible).toBe(false)
 
       jest.useRealTimers()
@@ -563,8 +563,8 @@ describe('useControlsVisibility', () => {
         },
       })
 
-      // Assert: Callback should be called with true
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      // Assert: Callback should be called with true (and false for isUserInteraction)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, false)
 
       // Clear callback calls
       mockOnControlsVisibilityChange.mockClear()
@@ -607,6 +607,129 @@ describe('useControlsVisibility', () => {
           result.current.showControlsAndResetTimer()
         })
       }).not.toThrow()
+    })
+  })
+
+  describe('Error Handling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers()
+      jest.useRealTimers()
+    })
+
+    it('should handle callback errors gracefully and log them', () => {
+      // Arrange
+      const mockLogError = jest.fn()
+      const mockLog = require('@my/logging').log
+      mockLog.error = mockLogError
+
+      const errorCallback = jest.fn(() => {
+        throw new Error('Callback error')
+      })
+
+      const { result } = renderHook(({ config }) => useControlsVisibility(config), {
+        initialProps: {
+          config: {
+            ...defaultConfig,
+            showControls: false,
+            onControlsVisibilityChange: errorCallback,
+          },
+        },
+      })
+
+      // Act: Trigger callback via handlePress
+      act(() => {
+        result.current.handlePress()
+      })
+
+      // Assert: Error should be logged but not thrown
+      expect(mockLogError).toHaveBeenCalledWith(
+        'useControlsVisibility',
+        'Error in onControlsVisibilityChange callback',
+        expect.objectContaining({
+          error: expect.any(Error),
+        })
+      )
+      expect(result.current.controlsVisible).toBe(true) // State should still update
+    })
+
+    it('should handle callback errors in auto-hide timer gracefully', () => {
+      // Arrange
+      const mockLogError = jest.fn()
+      const mockLog = require('@my/logging').log
+      mockLog.error = mockLogError
+
+      const errorCallback = jest.fn(() => {
+        throw new Error('Timer callback error')
+      })
+
+      const { result } = renderHook(({ config }) => useControlsVisibility(config), {
+        initialProps: {
+          config: {
+            ...defaultConfig,
+            showControls: false,
+            isPlaying: true,
+            autoHideDelayMs: 1000,
+            onControlsVisibilityChange: errorCallback,
+          },
+        },
+      })
+
+      // Act: Show controls to start timer
+      act(() => {
+        result.current.showControlsAndResetTimer()
+      })
+
+      mockLogError.mockClear()
+
+      // Act: Advance timer to trigger callback
+      act(() => {
+        jest.advanceTimersByTime(1000)
+      })
+
+      // Assert: Error should be logged but controls should still hide
+      expect(mockLogError).toHaveBeenCalledWith(
+        'useControlsVisibility',
+        'Error in onControlsVisibilityChange callback',
+        expect.objectContaining({
+          error: expect.any(Error),
+        })
+      )
+      expect(result.current.controlsVisible).toBe(false) // State should still update
+    })
+
+    it('should handle callback errors in initial mount gracefully', () => {
+      // Arrange
+      const mockLogError = jest.fn()
+      const mockLog = require('@my/logging').log
+      mockLog.error = mockLogError
+
+      const errorCallback = jest.fn(() => {
+        throw new Error('Mount callback error')
+      })
+
+      // Act: Mount with error callback
+      renderHook(({ config }) => useControlsVisibility(config), {
+        initialProps: {
+          config: {
+            ...defaultConfig,
+            showControls: true,
+            onControlsVisibilityChange: errorCallback,
+          },
+        },
+      })
+
+      // Assert: Error should be logged on mount
+      expect(mockLogError).toHaveBeenCalledWith(
+        'useControlsVisibility',
+        'Error in onControlsVisibilityChange callback',
+        expect.objectContaining({
+          error: expect.any(Error),
+        })
+      )
     })
   })
 

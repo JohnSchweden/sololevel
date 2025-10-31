@@ -1,6 +1,13 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+// Performance API availability check
+const performanceAvailable =
+  typeof global !== 'undefined' &&
+  typeof (global as any).performance !== 'undefined' &&
+  typeof (global as any).performance.mark === 'function' &&
+  typeof (global as any).performance.now === 'function'
+
 /**
  * Configuration for controls visibility management
  *
@@ -20,7 +27,7 @@ export interface UseControlsVisibilityConfig {
   /** Delay in milliseconds before auto-hiding controls (default: 1000ms) */
   autoHideDelayMs?: number
   /** Callback when controls visibility changes */
-  onControlsVisibilityChange?: (visible: boolean) => void
+  onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
 }
 
 /**
@@ -191,7 +198,7 @@ export function useControlsVisibility(
     showControls,
     isPlaying,
     isScrubbing,
-    autoHideDelayMs = 1500,
+    autoHideDelayMs = 2000,
     onControlsVisibilityChange,
   } = config
 
@@ -200,6 +207,10 @@ export function useControlsVisibility(
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [resetTrigger, setResetTrigger] = useState(0)
 
+  // Performance tracking refs for auto-hide timer
+  const timerStartTimeRef = useRef<number | null>(null)
+  const timerMarkRef = useRef<string | null>(null)
+
   // Auto-hide timer reset logic
   // Memoized with all dependencies to ensure it updates when conditions change
   const resetAutoHideTimer = useCallback(() => {
@@ -207,6 +218,9 @@ export function useControlsVisibility(
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current)
       hideTimeoutRef.current = null
+      // Clear performance tracking when timer is cleared
+      timerStartTimeRef.current = null
+      timerMarkRef.current = null
     }
 
     // Only start timer if:
@@ -227,11 +241,96 @@ export function useControlsVisibility(
     })
 
     if (shouldStartTimer) {
+      // Clear existing timer if present
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+        hideTimeoutRef.current = null
+      }
+
+      // Start performance tracking for auto-hide timer
+      const markName = `auto-hide-timer-start-${Date.now()}`
+
+      if (performanceAvailable) {
+        try {
+          const perf = (global as any).performance
+          perf.mark(markName)
+          timerMarkRef.current = markName
+          timerStartTimeRef.current = perf.now()
+        } catch (error) {
+          log.warn('useControlsVisibility', 'Failed to create performance mark for timer', {
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+      } else {
+        // Fallback to Date.now() if Performance API is not available
+        timerStartTimeRef.current = Date.now()
+      }
+
       hideTimeoutRef.current = setTimeout(() => {
+        // Measure timer accuracy
+        if (timerStartTimeRef.current !== null) {
+          if (performanceAvailable && timerMarkRef.current) {
+            try {
+              const perf = (global as any).performance
+              const endTime = perf.now()
+              const actualDuration = endTime - timerStartTimeRef.current
+              log.debug('useControlsVisibility', '📊 [PERFORMANCE] Auto-hide timer completed', {
+                expectedDelay: autoHideDelayMs,
+                actualDuration: Math.round(actualDuration),
+                difference: Math.round(actualDuration - autoHideDelayMs),
+                accuracy: Math.round(
+                  (1 - Math.abs(actualDuration - autoHideDelayMs) / autoHideDelayMs) * 100
+                ),
+              })
+            } catch (error) {
+              log.warn('useControlsVisibility', 'Failed to measure timer performance', {
+                error: error instanceof Error ? error.message : String(error),
+              })
+              // Fall through to fallback timing
+              const actualDuration = Date.now() - timerStartTimeRef.current
+              log.debug(
+                'useControlsVisibility',
+                '📊 [PERFORMANCE] Auto-hide timer completed (fallback timing)',
+                {
+                  expectedDelay: autoHideDelayMs,
+                  actualDuration,
+                  difference: actualDuration - autoHideDelayMs,
+                }
+              )
+            }
+          } else {
+            // Fallback timing measurement
+            const actualDuration = Date.now() - timerStartTimeRef.current
+            log.debug(
+              'useControlsVisibility',
+              '📊 [PERFORMANCE] Auto-hide timer completed (fallback timing)',
+              {
+                expectedDelay: autoHideDelayMs,
+                actualDuration,
+                difference: actualDuration - autoHideDelayMs,
+              }
+            )
+          }
+        }
+        timerStartTimeRef.current = null
+        timerMarkRef.current = null
+
         log.debug('useControlsVisibility', 'Auto-hide timer fired - hiding controls')
         setControlsVisible(false)
-        onControlsVisibilityChange?.(false)
+        // Wrap callback in try-catch to prevent errors from breaking timer
+        try {
+          onControlsVisibilityChange?.(false, false) // false = automatic, not user interaction
+        } catch (error) {
+          log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+            error,
+            context: 'auto-hide-timer',
+          })
+        }
       }, autoHideDelayMs)
+    } else {
+      // Timer not starting - clear performance tracking if it exists
+      timerStartTimeRef.current = null
+      timerMarkRef.current = null
     }
   }, [isPlaying, isScrubbing, controlsVisible, autoHideDelayMs, onControlsVisibilityChange])
 
@@ -239,7 +338,15 @@ export function useControlsVisibility(
   const showControlsAndResetTimer = useCallback(() => {
     log.debug('useControlsVisibility', 'showControlsAndResetTimer called')
     setControlsVisible(true)
-    onControlsVisibilityChange?.(true)
+    // Wrap callback in try-catch to prevent errors from breaking visibility state
+    try {
+      onControlsVisibilityChange?.(true, true) // true = user interaction
+    } catch (error) {
+      log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+        error,
+        context: 'showControlsAndResetTimer',
+      })
+    }
     // Trigger the reset effect by incrementing the trigger counter
     setResetTrigger((prev) => prev + 1)
   }, [onControlsVisibilityChange])
@@ -260,10 +367,24 @@ export function useControlsVisibility(
       if (showControls) {
         // Only if forced visible by prop
         setControlsVisible(true)
-        onControlsVisibilityChange?.(true)
+        try {
+          onControlsVisibilityChange?.(true)
+        } catch (error) {
+          log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+            error,
+            context: 'initial-mount-showControls-true',
+          })
+        }
       } else {
         // Notify parent that controls start hidden
-        onControlsVisibilityChange?.(false)
+        try {
+          onControlsVisibilityChange?.(false, false) // Initial state, not user interaction
+        } catch (error) {
+          log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+            error,
+            context: 'initial-mount-showControls-false',
+          })
+        }
       }
       return // Skip the rest of the logic on initial mount
     }
@@ -275,7 +396,14 @@ export function useControlsVisibility(
       if (showControls) {
         // Force controls visible when showControls is true
         setControlsVisible(true)
-        onControlsVisibilityChange?.(true)
+        try {
+          onControlsVisibilityChange?.(true, false) // false = automatic, not user interaction
+        } catch (error) {
+          log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+            error,
+            context: 'sync-showControls-prop',
+          })
+        }
       }
     }
     // When showControls is false and user has interacted, keep current visibility
@@ -294,7 +422,15 @@ export function useControlsVisibility(
         newValue,
         isPlaying,
       })
-      onControlsVisibilityChange?.(newValue)
+      // Wrap callback in try-catch to prevent errors from breaking toggle
+      try {
+        onControlsVisibilityChange?.(newValue, true) // true = user interaction
+      } catch (error) {
+        log.error('useControlsVisibility', 'Error in onControlsVisibilityChange callback', {
+          error,
+          context: 'handlePress-toggle',
+        })
+      }
 
       // If showing controls while video is playing, trigger timer reset
       // If hiding controls, clear the timer
@@ -326,6 +462,9 @@ export function useControlsVisibility(
         clearTimeout(hideTimeoutRef.current)
         hideTimeoutRef.current = null
       }
+      // Clear performance tracking on unmount
+      timerStartTimeRef.current = null
+      timerMarkRef.current = null
     }
   }, [])
 

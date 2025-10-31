@@ -20,6 +20,7 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const lastProgressUpdateRef = useRef<number>(0)
+  const lastReportedTimeRef = useRef<number>(0)
 
   // Handle video loading
   const handleLoad = (data: any) => {
@@ -54,17 +55,28 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   const handleProgress = (data: any) => {
     if (onProgress && data?.currentTime !== undefined) {
       const now = Date.now()
+      const currentTime = data.currentTime
+      // Always track the latest time, even if we don't notify (for accurate end time)
+      lastReportedTimeRef.current = currentTime
       // Only update progress every 250ms to prevent excessive re-renders
       if (now - lastProgressUpdateRef.current >= 250) {
         lastProgressUpdateRef.current = now
-        onProgress({ currentTime: data.currentTime })
+        onProgress({ currentTime })
       }
     }
   }
 
   // Handle video end
   const handleEnd = () => {
-    onEnd?.()
+    // Try to get current time from video ref if available
+    const currentTimeFromRef = videoRef.current?.getCurrentTime?.() ?? null
+    // Use the last reported progress time as fallback (most accurate we have)
+    const lastReportedTime = lastReportedTimeRef.current
+    const actualEndTime = currentTimeFromRef ?? lastReportedTime
+
+    // Always pass the endTime parameter since the callback signature supports it
+    // The parameter is optional, so callbacks that don't use it will ignore it
+    onEnd?.(actualEndTime)
   }
 
   // Perform user-initiated seek only when seekToTime is provided

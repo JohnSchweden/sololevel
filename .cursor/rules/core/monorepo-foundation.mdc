@@ -1,9 +1,7 @@
 ---
 description: Monorepo foundation & architecture
 alwaysApply: true
-globs: ["**/*"]
 ---
-
 ## Purpose
 Establishes a unified foundation for architectural principles, repository structure, and data/security model. Major technical decisions documented in `docs/spec/` (PRD/TRD) and project overview in root `AGENTS.md`. Complements `core/development-operations.mdc` for operational workflows.
 

@@ -708,7 +708,7 @@ function createDialogMock() {
 /**
  * Creates a comprehensive Tamagui mock object
  */
-export function createTamaguiMock() {
+export function createTamaguiMock(): Record<string, any> {
   const mockComponent = createMockComponent('Component')
   const mockStyled = createMockStyled()
 

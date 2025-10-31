@@ -7,6 +7,8 @@ const mockPanGesture = {
   minDistance: jest.fn().mockReturnThis(),
   activeOffsetY: jest.fn().mockReturnThis(),
   activeOffsetX: jest.fn().mockReturnThis(),
+  failOffsetX: jest.fn().mockReturnThis(),
+  failOffsetY: jest.fn().mockReturnThis(),
   onTouchesDown: jest.fn().mockReturnThis(),
   onBegin: jest.fn().mockReturnThis(),
   onStart: jest.fn().mockReturnThis(),
@@ -64,7 +66,8 @@ describe('useGestureController', () => {
       // Assert
       expect(mockPanGesture.minDistance).toHaveBeenCalledWith(5)
       expect(mockPanGesture.activeOffsetY).toHaveBeenCalledWith([-20, 20])
-      expect(mockPanGesture.activeOffsetX).toHaveBeenCalledWith([-40, 40])
+      // Hook uses failOffsetX for back navigation area protection (not activeOffsetX)
+      expect(mockPanGesture.failOffsetX).toHaveBeenCalledWith([Number.NEGATIVE_INFINITY, 10])
     })
   })
 

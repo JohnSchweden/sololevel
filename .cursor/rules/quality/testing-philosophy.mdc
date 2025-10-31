@@ -1,0 +1,48 @@
+---
+description: Testing philosophy and guidelines for consistent, effective test writing
+alwaysApply: false
+globs: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**"]
+---
+
+# Testing Philosophy & Guidelines
+
+## Core Principle
+Start with the simplest possible tests that verify component behavior. Focus on user interactions and props, not DOM structure.
+
+## Mandatory Pre-Test Checklist
+- Read existing test patterns in the codebase first
+- Review user's testing rules (1:2 ratio, behavior-focused)
+- Check what the mock system is designed for
+- Start with the SIMPLEST possible test that verifies component works
+- Focus on USER BEHAVIOR, not DOM structure
+- Write maximum 2-3 tests initially, not 6+
+
+## Red Flags to Stop and Reassess
+- Using getByText with complex regex patterns
+- Using querySelector or getAllByRole
+- Testing DOM structure instead of behavior
+- Writing more than 3 tests initially
+- Fighting with mock system instead of working with it
+- Testing implementation details
+
+## Escalation Rule
+If struggling with tests for more than 2 attempts:
+1. STOP writing complex tests
+2. GO BACK to the template above
+3. ASK user for guidance on the specific issue
+4. DO NOT keep trying different approaches
+
+## Ratio & Scope Rules
+- **1:2 test-to-code ratio** (1 line of test per 2 lines of code)
+- Never exceed 1:1 ratio
+- Focus on user-visible behavior and interactions
+- Test critical user flows only
+- Mock only external dependencies
+- Avoid testing every state combination or edge case
+- If test code exceeds component code, you're testing the wrong things
+
+## Enforcement
+- This rule applies to ALL test files and testing activities
+- Follow the pre-test checklist before writing any tests
+- Escalate immediately if hitting red flags or struggling
+- Maintain the 1:2 ratio strictly - it's non-negotiable

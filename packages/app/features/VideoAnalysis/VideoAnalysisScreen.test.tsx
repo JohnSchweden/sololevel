@@ -133,11 +133,11 @@ describe('VideoAnalysisScreen', () => {
     },
     animation: {
       scrollY: { value: 0 } as any,
-      headerHeight: { value: 100 } as any,
-      collapseProgress: { value: 0 } as any,
+      collapseProgress: { value: 0.5 } as any,
       headerStyle: {} as any,
       feedbackSectionStyle: {} as any,
       pullIndicatorStyle: {} as any,
+      headerTransformStyle: {} as any,
       scrollRef: { current: null } as any,
       feedbackContentOffsetY: { value: 0 } as any,
     },

@@ -23,13 +23,13 @@ describe('useAnimationController', () => {
       expect(result.current.scrollRef.current).toBe(null)
     })
 
-    it('should initialize derived animation values', () => {
+    it('should initialize collapse progress shared value', () => {
       // Act
       const { result } = renderHook(() => useAnimationController())
 
       // Assert
-      expect(result.current.headerHeight).toBeDefined()
       expect(result.current.collapseProgress).toBeDefined()
+      expect(result.current.collapseProgress.value).toBeDefined()
     })
 
     it('should initialize animated styles', () => {
@@ -40,28 +40,6 @@ describe('useAnimationController', () => {
       expect(result.current.headerStyle).toBeDefined()
       expect(result.current.feedbackSectionStyle).toBeDefined()
       expect(result.current.pullIndicatorStyle).toBeDefined()
-    })
-  })
-
-  describe('Header Height Calculation', () => {
-    it('should calculate header height for max mode (scroll = 0)', () => {
-      // Act
-      const { result } = renderHook(() => useAnimationController())
-
-      // Assert - headerHeight should be max when scrollY = 0
-      expect(result.current.headerHeight.value).toBeGreaterThan(0)
-    })
-
-    it('should calculate header height for pull-to-reveal (negative scroll)', () => {
-      // Act
-      const { result } = renderHook(() => useAnimationController())
-
-      // Simulate negative scroll (pull-to-reveal)
-      result.current.scrollY.value = -100
-
-      // Assert - headerHeight should expand beyond max
-      const maxHeight = result.current.headerHeight.value
-      expect(maxHeight).toBeGreaterThan(0)
     })
   })
 

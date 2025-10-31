@@ -43,11 +43,11 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     },
     animation: {
       scrollY: orchestrated.animation?.scrollY ?? ({ value: 0 } as any),
-      headerHeight: orchestrated.animation?.headerHeight ?? ({ value: 0 } as any),
-      collapseProgress: orchestrated.animation?.collapseProgress ?? ({ value: 0 } as any),
+      collapseProgress: orchestrated.animation?.collapseProgress ?? ({ value: 0.5 } as any),
       headerStyle: orchestrated.animation?.headerStyle ?? {},
       feedbackSectionStyle: orchestrated.animation?.feedbackSectionStyle ?? {},
       pullIndicatorStyle: orchestrated.animation?.pullIndicatorStyle ?? {},
+      headerTransformStyle: orchestrated.animation?.headerTransformStyle ?? {},
       scrollRef: (orchestrated.animation?.scrollRef ?? { current: null }) as any,
       feedbackContentOffsetY:
         orchestrated.animation?.feedbackContentOffsetY ?? ({ value: 0 } as any),

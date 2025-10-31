@@ -5,13 +5,13 @@ import Animated, {
   cancelAnimation,
   Extrapolation,
   interpolate,
+  useAnimatedReaction,
   useAnimatedRef,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   type AnimatedRef,
   type AnimatedStyle,
-  type DerivedValue,
   type SharedValue,
 } from 'react-native-reanimated'
 
@@ -210,16 +210,16 @@ const INITIAL_SCROLL_Y = MODE_SCROLL_POSITIONS.normal
 export interface UseAnimationControllerReturn {
   /** Shared value tracking video scroll position (0 = max, positive = collapsed) */
   scrollY: SharedValue<number>
-  /** Derived value for current header/video height based on scroll position */
-  headerHeight: DerivedValue<number>
-  /** Derived value for collapse progress (0 → 0.5 → 1 for max → normal → min) */
-  collapseProgress: DerivedValue<number>
+  /** Shared value for collapse progress (0 → 0.5 → 1 for max → normal → min) - synced from DerivedValue */
+  collapseProgress: SharedValue<number>
   /** Animated style for header/video container */
   headerStyle: AnimatedStyle<ViewStyle>
   /** Animated style for feedback section (fills remaining space) */
   feedbackSectionStyle: AnimatedStyle<ViewStyle>
   /** Animated style for pull-to-reveal indicator */
   pullIndicatorStyle: AnimatedStyle<ViewStyle>
+  /** Animated style for header transform (translateY based on headerHeight) */
+  headerTransformStyle: AnimatedStyle<ViewStyle>
   /** Animated ref to the main scroll container */
   scrollRef: AnimatedRef<Animated.ScrollView>
   /** Shared value tracking feedback panel scroll position */
@@ -280,7 +280,8 @@ export function useAnimationController(): UseAnimationControllerReturn {
   })
 
   // Collapse progress: 0 → max, 0.5 → normal, 1 → min
-  const collapseProgress = useDerivedValue(() => {
+  // Internal DerivedValue for calculation (not exposed to prevent serialization issues)
+  const collapseProgressDerived = useDerivedValue(() => {
     const headerHeightValue = headerHeight.value
 
     // Use two separate interpolations for smooth transitions
@@ -306,6 +307,18 @@ export function useAnimationController(): UseAnimationControllerReturn {
     return progress
   })
 
+  // SharedValue version synced from DerivedValue to avoid serialization issues in props
+  // This prevents crashes when React Native tries to clone shadow nodes
+  const collapseProgress = useSharedValue(0.5) // Initialize to normal mode (0.5)
+
+  // Sync DerivedValue to SharedValue on UI thread
+  useAnimatedReaction(
+    () => collapseProgressDerived.value,
+    (progress) => {
+      collapseProgress.value = progress
+    }
+  )
+
   const headerStyle = useAnimatedStyle(() => ({
     height: headerHeight.value,
   }))
@@ -325,18 +338,42 @@ export function useAnimationController(): UseAnimationControllerReturn {
     ],
   }))
 
-  // Feedback section height: dynamically adjusts to fill remaining space below video
-  const feedbackSectionStyle = useAnimatedStyle(() => ({
-    height: SCREEN_H - headerHeight.value,
+  // Feedback section height: smoothly interpolates between normal and min mode heights
+  // - Max/Normal modes (scrollY ≤ 341px): SCREEN_H - VIDEO_HEIGHTS.normal (consistent height)
+  // - Transitions (341px < scrollY < 571px): Smoothly interpolates between normal and min heights
+  // - Min mode (scrollY ≥ 571px): SCREEN_H - VIDEO_HEIGHTS.min (expanded to fill space)
+  const feedbackSectionStyle = useAnimatedStyle(() => {
+    const normalModeHeight = SCREEN_H - VIDEO_HEIGHTS.normal
+    const minModeHeight = SCREEN_H - VIDEO_HEIGHTS.min
+
+    // Interpolate between normal and min mode heights
+    // Values below normal position clamp to normal height
+    // Values above min position clamp to min height
+    const interpolatedHeight = interpolate(
+      scrollY.value,
+      [MODE_SCROLL_POSITIONS.normal, MODE_SCROLL_POSITIONS.min],
+      [normalModeHeight, minModeHeight],
+      Extrapolation.CLAMP
+    )
+
+    return {
+      height: interpolatedHeight,
+    }
+  })
+
+  // Header transform style: wraps DerivedValue in useAnimatedStyle for proper serialization
+  // This prevents crashes when React Native tries to clone shadow nodes with DerivedValue
+  const headerTransformStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: headerHeight.value }],
   }))
 
   return {
     scrollY,
-    headerHeight,
     collapseProgress,
     headerStyle,
     feedbackSectionStyle,
     pullIndicatorStyle,
+    headerTransformStyle,
     scrollRef,
     feedbackContentOffsetY,
   }

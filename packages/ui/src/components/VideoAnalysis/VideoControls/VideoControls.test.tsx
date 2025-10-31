@@ -82,7 +82,7 @@ describe('VideoControls', () => {
       })
 
       // Should call callback to hide controls
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false) // false, false = automatic hide
     })
 
     it.skip('resets timer when user interacts with controls', () => {
@@ -124,7 +124,7 @@ describe('VideoControls', () => {
       act(() => {
         jest.advanceTimersByTime(1000)
       })
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false) // automatic hide
     })
 
     it('stops timer when video is paused', () => {
@@ -208,7 +208,7 @@ describe('VideoControls', () => {
       })
 
       // Timer should try to hide controls
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, false) // automatic hide
 
       // But showControls prop should override and show controls again
       rerender(
@@ -221,7 +221,7 @@ describe('VideoControls', () => {
       )
 
       // showControls=true should show controls (call with true)
-      expect(mockOnControlsVisibilityChange).toHaveBeenLastCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenLastCalledWith(true, false) // prop override, not user interaction
 
       // The component should show controls due to showControls prop override
       // Check that pause button is visible (indicating controls are shown, since isPlaying=true)
@@ -499,7 +499,7 @@ describe('VideoControls', () => {
       })
 
       // Verify controls are shown
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true) // user interaction
     })
 
     it('triggerMenu method resets auto-hide timer', () => {
@@ -655,7 +655,7 @@ describe('VideoControls', () => {
       fireEvent.click(container)
 
       // Controls should now be visible
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true) // user tap
     })
 
     it('hides controls when tapping video area while controls are visible', () => {
@@ -679,7 +679,7 @@ describe('VideoControls', () => {
       fireEvent.click(container)
 
       // Controls should now be hidden
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, true) // user tap
     })
 
     it('toggles controls visibility on multiple taps', () => {
@@ -696,7 +696,7 @@ describe('VideoControls', () => {
 
       // First tap - show controls
       fireEvent.click(container)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true) // user tap
 
       // Update props to reflect the new state (simulating parent component behavior)
       rerender(
@@ -712,7 +712,7 @@ describe('VideoControls', () => {
 
       // Second tap - hide controls
       fireEvent.click(container)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, true) // user tap
 
       // Update props again
       rerender(
@@ -728,7 +728,7 @@ describe('VideoControls', () => {
 
       // Third tap - show controls again
       fireEvent.click(container)
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true) // user tap
     })
 
     it('shows controls when tapping and starts auto-hide timer', () => {
@@ -752,7 +752,7 @@ describe('VideoControls', () => {
       })
 
       // Controls should be shown
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true, true) // user tap
 
       // This test verifies that the tap-to-toggle functionality works
       // The auto-hide timer behavior is already tested in the "Auto-hide Timer Functionality" section
@@ -785,7 +785,7 @@ describe('VideoControls', () => {
       })
 
       // Controls should be hidden
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(false, true) // user tap
 
       // Clear the mock
       mockOnControlsVisibilityChange.mockClear()

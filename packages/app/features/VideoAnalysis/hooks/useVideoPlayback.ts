@@ -14,7 +14,7 @@ export interface VideoPlaybackState {
   seek: (time: number) => void
   handleProgress: (data: { currentTime: number }) => void
   handleLoad: (data: { duration: number }) => void
-  handleEnd: () => void
+  handleEnd: (endTime?: number) => void
   handleSeekComplete: (time: number | null) => void
   reset: () => void
 }
@@ -79,11 +79,21 @@ export function useVideoPlayback(
     setVideoEnded(false)
   }, [])
 
-  const handleEnd = useCallback(() => {
-    log.info('useVideoPlayback', 'Video end event received')
-    setIsPlaying(false)
-    setVideoEnded(true)
-  }, [])
+  const handleEnd = useCallback(
+    (endTime?: number) => {
+      // Use provided endTime, fall back to last reported progress, then state currentTime
+      const actualEndTime = endTime ?? lastReportedProgressRef.current ?? currentTime
+
+      log.info('useVideoPlayback', 'Video end event received')
+
+      // Update state to the actual end time
+      setCurrentTime(actualEndTime)
+      lastReportedProgressRef.current = actualEndTime
+      setIsPlaying(false)
+      setVideoEnded(true)
+    },
+    [currentTime, duration]
+  )
 
   // Add progress-based end detection to handle fractional durations
   const handleProgress = useCallback(

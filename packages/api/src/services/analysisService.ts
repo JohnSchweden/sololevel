@@ -331,13 +331,16 @@ export async function getAnalysisJobByVideoId(
  * Get user's analysis jobs with video_recordings join
  * @param limit - Maximum number of jobs to fetch (default: 10)
  */
-export async function getUserAnalysisJobs(limit = 10): Promise<AnalysisJobWithVideo[]> {
+export async function getUserAnalysisJobs(
+  limit = 10,
+  status?: AnalysisStatus
+): Promise<AnalysisJobWithVideo[]> {
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
     throw new Error('User not authenticated')
   }
 
-  const { data: jobs, error } = await supabase
+  let query = supabase
     .from('analysis_jobs')
     .select(`
       *,
@@ -352,8 +355,13 @@ export async function getUserAnalysisJobs(limit = 10): Promise<AnalysisJobWithVi
       )
     `)
     .eq('user_id', user.data.user.id)
-    .order('created_at', { ascending: false })
-    .limit(limit)
+
+  // Filter by status if provided (more efficient than filtering in JS)
+  if (status) {
+    query = query.eq('status', status)
+  }
+
+  const { data: jobs, error } = await query.order('created_at', { ascending: false }).limit(limit)
 
   if (error) {
     throw new Error(`Failed to fetch analysis jobs: ${error.message}`)

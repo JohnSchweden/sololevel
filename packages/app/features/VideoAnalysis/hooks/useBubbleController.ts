@@ -136,8 +136,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   const hideBubble = useCallback(
     (reason: BubbleHideReason = 'manual') => {
-      // log.info('useBubbleController', 'hideBubble invoked', { reason })
-
       setBubbleVisible(false)
       clearBubbleTimer()
       resetTimerState()
@@ -408,16 +406,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
           // Update lastCheck to be at least the matched timestamp to prevent re-triggering
           lastCheckTimestampRef.current = Math.max(currentTimeMs, item.timestamp)
 
-          // log.info('useBubbleController', 'Triggering bubble show', {
-          //   index,
-          //   itemId: item.id,
-          //   itemTimestamp: item.timestamp,
-          //   currentTimeMs,
-          //   rangeEnd,
-          //   lastCheck,
-          //   newLastCheck: lastCheckTimestampRef.current,
-          //   matchType: lastCheck === null || currentTimeMs < lastCheck ? 'point' : 'range',
-          // })
           showBubble(index)
           return index
         }

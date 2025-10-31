@@ -131,11 +131,11 @@ describe('useVideoAnalysisOrchestrator', () => {
 
     useAnimationController.mockReturnValue({
       scrollY: { value: 0 },
-      headerHeight: { value: 100 },
-      collapseProgress: { value: 0 },
+      collapseProgress: { value: 0.5 },
       headerStyle: {},
       feedbackSectionStyle: {},
       pullIndicatorStyle: {},
+      headerTransformStyle: {},
       scrollRef: { current: null },
       feedbackContentOffsetY: { value: 0 },
     })
@@ -155,7 +155,7 @@ describe('useVideoAnalysisOrchestrator', () => {
 
     // Assert
     expect(useHistoricalAnalysis).toHaveBeenCalledWith(123)
-    expect(useAnalysisState).toHaveBeenCalledWith(123, 456, 'processing', true)
+    expect(useAnalysisState).toHaveBeenCalledWith(123, 456, 'ready', true)
     expect(useVideoPlayback).toHaveBeenCalledWith('processing')
   })
 

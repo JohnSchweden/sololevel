@@ -21,12 +21,12 @@ const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView)
  */
 const FeedbackItemContainer = styled(YStack, {
   name: 'FeedbackItemContainer',
-  gap: '$2',
+  gap: '$1',
   padding: 0,
-  borderRadius: '$4',
+  borderRadius: '$5',
   paddingVertical: '$3',
   paddingHorizontal: '$3',
-  backgroundColor: 'transparent',
+  backgroundColor: '$color2',
   cursor: 'pointer',
   accessibilityRole: 'button',
 
@@ -151,17 +151,20 @@ export const FeedbackPanel = memo(
         if (onScrollYChange) {
           runOnJS(onScrollYChange)(event.contentOffset.y)
         }
-        if (Math.abs(event.contentOffset.y) < 5) {
-          runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'ScrollView onScroll fired', {
-            contentOffsetY: Math.round(event.contentOffset.y * 100) / 100,
-          })
-        }
+        runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'ScrollView onScroll fired', {
+          contentOffsetY: Math.round(event.contentOffset.y * 100) / 100,
+          contentSizeHeight: Math.round(event.contentSize.height * 100) / 100,
+          layoutMeasurementHeight: Math.round(event.layoutMeasurement.height * 100) / 100,
+          scrollEnabled,
+        })
       },
       onEndDrag: () => {
         if (onScrollEndDrag) {
           runOnJS(onScrollEndDrag)()
         }
-        runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'ScrollView onEndDrag fired', {})
+        runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'ScrollView onEndDrag fired', {
+          scrollEnabled,
+        })
       },
     })
 
@@ -197,6 +200,14 @@ export const FeedbackPanel = memo(
       //   })
       // }
     }, [selectedFeedbackId])
+
+    // Log scrollEnabled prop changes
+    useEffect(() => {
+      log.debug('FeedbackPanel', 'scrollEnabled prop changed', {
+        scrollEnabled,
+        timestamp: Date.now(),
+      })
+    }, [scrollEnabled])
 
     const formatTime = (milliseconds: number) => {
       // Convert milliseconds to seconds for duration formatting
@@ -268,7 +279,12 @@ export const FeedbackPanel = memo(
             <GestureDetector gesture={nativeGesture}>
               <AnimatedScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 30 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  // Add bottom padding to ensure scrollable content (prevents bounce-back)
+                  // Only add enough to create minimal scrollable overflow
+                  paddingBottom: 30,
+                }}
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={true}
@@ -281,7 +297,8 @@ export const FeedbackPanel = memo(
                 <YStack
                   alignItems="center"
                   backgroundColor="transparent"
-                  paddingVertical="$4"
+                  paddingTop="$5"
+                  paddingBottom="$4"
                   paddingHorizontal="$0"
                   testID="analysis-title"
                   accessibilityLabel="Video Analysis title"
@@ -299,12 +316,14 @@ export const FeedbackPanel = memo(
                 {/* Header with Tabs - always visible in static layout */}
                 <YStack
                   paddingHorizontal="$0"
-                  //paddingBottom="$2"
+                  paddingBottom="$1"
                   testID="sheet-header"
                   accessibilityLabel="Sheet header with navigation tabs"
                 >
                   <XStack
-                    borderBottomWidth={1}
+                    width="100%"
+                    gap="$2"
+                    borderBottomWidth={0}
                     borderBottomColor="$borderColor"
                     testID="tab-navigation"
                     accessibilityLabel="Tab navigation"
@@ -317,7 +336,19 @@ export const FeedbackPanel = memo(
                         key={tab}
                         chromeless
                         flex={1}
-                        //paddingVertical="$3"
+                        height={36}
+                        backgroundColor={activeTab === tab ? '$color12' : '$color3'}
+                        borderRadius="$5"
+                        marginVertical="$-1"
+                        paddingVertical="$1"
+                        paddingHorizontal="$1"
+                        hoverStyle={{
+                          backgroundColor: '$color2',
+                        }}
+                        pressStyle={{
+                          backgroundColor: '$color6',
+                          scale: 0.98,
+                        }}
                         onPress={() => onTabChange(tab)}
                         testID={`tab-${tab}`}
                         accessibilityLabel={`${tab} tab`}
@@ -328,8 +359,8 @@ export const FeedbackPanel = memo(
                       >
                         <Text
                           fontSize="$4"
-                          fontWeight={activeTab === tab ? '600' : '400'}
-                          color={activeTab === tab ? '$color' : '$color11'}
+                          fontWeight={activeTab === tab ? '400' : '400'}
+                          color={activeTab === tab ? '$color1' : '$color'}
                           textTransform="capitalize"
                         >
                           {tab}
@@ -348,7 +379,7 @@ export const FeedbackPanel = memo(
                       accessibilityRole="list"
                     >
                       <YStack
-                        gap="$0"
+                        gap="$2"
                         paddingTop="$4"
                       >
                         {sortedFeedbackItems.map((item, index) => {

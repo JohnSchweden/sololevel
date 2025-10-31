@@ -50,6 +50,7 @@ export function useFeedbackCoordinator({
 }: UseFeedbackCoordinatorParams): FeedbackCoordinatorState {
   const [pendingFeedbackId, setPendingFeedbackId] = useState<string | null>(null)
   const [currentVideoTime, setCurrentVideoTime] = useState(0)
+  const skipSuppressionRef = useRef(false)
 
   const selection = useFeedbackSelection(feedbackAudio, audioController, videoPlayback)
 
@@ -175,11 +176,14 @@ export function useFeedbackCoordinator({
 
       // Do not trigger bubbles/highlights while paused or when a pending tap exists
       if (!videoPlayback.isPlaying || pendingFeedbackId) {
-        // log.info('useFeedbackCoordinator', 'Progress gating active — skipping bubble check', {
-        //   isPlaying: videoPlayback.isPlaying,
-        //   pendingFeedbackId,
-        //   timeSeconds,
-        // })
+        return
+      }
+
+      // Suppress bubble triggers immediately after a skip/seek operation
+      // This prevents bubbles from popping up when user manually skips forward
+      if (skipSuppressionRef.current) {
+        // Clear suppression after this check - allow bubbles on subsequent progress events
+        skipSuppressionRef.current = false
         return
       }
 
@@ -192,14 +196,15 @@ export function useFeedbackCoordinator({
       if (!item) {
         return
       }
-
-      // log.info('useFeedbackCoordinator', 'Progress triggered bubble check', {
-      //   feedbackId: item.id,
-      //   timestamp: item.timestamp,
-      //   timeSeconds,
-      // })
     },
-    [bubbleFeedbackItems, checkAndShowBubbleAtTime, pendingFeedbackId, videoPlayback]
+    [
+      bubbleFeedbackItems,
+      bubbleController,
+      checkAndShowBubbleAtTime,
+      currentVideoTime,
+      pendingFeedbackId,
+      videoPlayback,
+    ]
   )
 
   const handleUserTapFeedback = useCallback(
@@ -314,6 +319,9 @@ export function useFeedbackCoordinator({
     selection.clearSelection()
     pendingItemRef.current = null
     setPendingFeedbackId(null)
+
+    // Enable skip suppression to prevent immediate bubble popup after seek
+    skipSuppressionRef.current = true
   }, [hideBubble, selection])
 
   const handleAudioStop = useCallback(

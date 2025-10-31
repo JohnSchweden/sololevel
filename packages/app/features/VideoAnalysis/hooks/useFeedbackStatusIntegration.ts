@@ -18,11 +18,38 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
   const getFeedbackByIdFromStore = useFeedbackStatusStore((state) => state.getFeedbackById)
   const setSSMLStatus = useFeedbackStatusStore((state) => state.setSSMLStatus)
   const setAudioStatus = useFeedbackStatusStore((state) => state.setAudioStatus)
-  const [feedbacks, setFeedbacks] = useState<FeedbackState>([])
-  const [isSubscribed, setIsSubscribed] = useState(false)
+
+  // Initialize with store data immediately (might have prefetched data)
+  const [feedbacks, setFeedbacks] = useState<FeedbackState>(() => {
+    if (!analysisId) {
+      return []
+    }
+    const state = useFeedbackStatusStore.getState()
+    return state.getFeedbacksByAnalysisId(analysisId)
+  })
+
+  const [isSubscribed, setIsSubscribed] = useState(() => {
+    if (!analysisId) {
+      return false
+    }
+    const state = useFeedbackStatusStore.getState()
+    return state.subscriptions.has(analysisId)
+  })
+
   const [subscriptionStatus, setSubscriptionStatus] = useState<
     'idle' | 'pending' | 'active' | 'failed'
-  >('idle')
+  >(() => {
+    if (!analysisId) {
+      return 'idle'
+    }
+    const state = useFeedbackStatusStore.getState()
+    const status = state.subscriptionStatus.get(analysisId) as
+      | 'pending'
+      | 'active'
+      | 'failed'
+      | undefined
+    return status ?? 'idle'
+  })
 
   // Track active analysis to avoid duplicate subscribe/unsubscribe loops when the
   // same analysisId is provided repeatedly in quick succession (StrictMode rerenders).
@@ -56,7 +83,10 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
 
     const sync = () => {
       const state = useFeedbackStatusStore.getState()
-      setFeedbacks(state.getFeedbacksByAnalysisId(analysisId))
+      const storeFeedbacks = state.getFeedbacksByAnalysisId(analysisId)
+
+      // Immediately sync feedbacks from store (might be prefetched)
+      setFeedbacks(storeFeedbacks)
       setIsSubscribed(state.subscriptions.has(analysisId))
       const status = state.subscriptionStatus.get(analysisId) as
         | 'pending'
@@ -64,8 +94,16 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
         | 'failed'
         | undefined
       setSubscriptionStatus(status ?? 'idle')
+
+      log.debug('useFeedbackStatusIntegration', 'Synced feedbacks from store', {
+        analysisId,
+        count: storeFeedbacks.length,
+        isSubscribed: state.subscriptions.has(analysisId),
+        status: status ?? 'idle',
+      })
     }
 
+    // Sync immediately (might have prefetched data)
     sync()
 
     const unsubscribeStore = useFeedbackStatusStore.subscribe(

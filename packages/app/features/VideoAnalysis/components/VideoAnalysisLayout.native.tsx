@@ -5,7 +5,7 @@ import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
 import Animated from 'react-native-reanimated'
-import type { AnimatedRef, AnimatedStyle, DerivedValue, SharedValue } from 'react-native-reanimated'
+import type { AnimatedRef, AnimatedStyle, SharedValue } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
 import {
@@ -53,11 +53,11 @@ export interface VideoAnalysisLayoutProps {
   }
   animation: {
     scrollY: SharedValue<number>
-    headerHeight: DerivedValue<number>
-    collapseProgress: DerivedValue<number>
+    collapseProgress: SharedValue<number>
     headerStyle: AnimatedStyle<ViewStyle>
     feedbackSectionStyle: AnimatedStyle<ViewStyle>
     pullIndicatorStyle: AnimatedStyle<ViewStyle>
+    headerTransformStyle: AnimatedStyle<ViewStyle>
     scrollRef: AnimatedRef<Animated.ScrollView>
     feedbackContentOffsetY: SharedValue<number>
   }
@@ -128,7 +128,7 @@ export interface VideoAnalysisLayoutProps {
   // Display state
   controls: {
     showControls: boolean
-    onControlsVisibilityChange: (visible: boolean) => void
+    onControlsVisibilityChange: (visible: boolean, isUserInteraction?: boolean) => void
   }
 
   // Error state
@@ -241,7 +241,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
 
           {!error.visible && (
             <GestureDetector gesture={gesture.rootPan}>
-              <Animated.View style={{ flex: 1 }}>
+              <YStack flex={1}>
                 {/* Collapsible header (video) */}
                 <Animated.View
                   style={[
@@ -325,9 +325,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                         zIndex: 10,
                         pointerEvents: 'box-none',
                       },
-                      {
-                        transform: [{ translateY: animation.headerHeight }],
-                      },
+                      animation.headerTransformStyle,
                     ]}
                     testID="persistent-progress-bar-container"
                   >
@@ -358,19 +356,20 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     paddingBottom: 0,
                   }}
                   testID="video-analysis-scroll-container"
-                >
-                  <ProcessingIndicator
-                    phase={
-                      video.isReady && feedback.phase === 'generating-feedback'
-                        ? ('ready' as AnalysisPhase)
-                        : video.isReady
-                          ? feedback.phase
-                          : 'analyzing'
-                    }
-                    progress={feedback.progress}
-                    channelExhausted={feedback.channelExhausted}
-                  />
-                </Animated.ScrollView>
+                />
+
+                {/* Processing Indicator - positioned absolutely to overlay above video section */}
+                <ProcessingIndicator
+                  phase={
+                    video.isReady && feedback.phase === 'generating-feedback'
+                      ? ('ready' as AnalysisPhase)
+                      : video.isReady
+                        ? feedback.phase
+                        : 'analyzing'
+                  }
+                  progress={feedback.progress}
+                  channelExhausted={feedback.channelExhausted}
+                />
 
                 {/* Feedback positioned absolutely below video header - tracks exact height */}
                 <Animated.View
@@ -382,9 +381,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                       right: 0,
                       zIndex: 1,
                     },
-                    {
-                      transform: [{ translateY: animation.headerHeight }],
-                    },
+                    animation.headerTransformStyle,
                     animation.feedbackSectionStyle,
                   ]}
                   testID="feedback-section-container"
@@ -414,7 +411,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                     rootPanRef={gesture.rootPanRef}
                   />
                 </Animated.View>
-              </Animated.View>
+              </YStack>
             </GestureDetector>
           )}
         </YStack>

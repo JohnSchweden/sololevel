@@ -48,7 +48,7 @@ export interface VideoPlayerProps {
   /** Optional poster/thumbnail image URL to display before video loads */
   posterUri?: string
   onPause?: () => void
-  onEnd?: () => void
+  onEnd?: (endTime?: number) => void
   onLoad?: (data: { duration: number }) => void
   onProgress?: (data: { currentTime: number }) => void
   /** Time to seek to when user scrubs; set to null to do nothing */

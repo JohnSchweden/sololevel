@@ -79,7 +79,13 @@ async function tryResolveLocalUri(storagePath: string | null | undefined): Promi
   return null
 }
 
-async function resolveHistoricalVideoUri(
+/**
+ * Resolve historical video URI from storage path
+ *
+ * Checks local cache, signed URL cache, and generates new signed URLs as needed
+ * Exported for use in prefetch hooks
+ */
+export async function resolveHistoricalVideoUri(
   storagePath: string | null | undefined,
   context: { analysisId: number; localUriHint?: string }
 ): Promise<string> {

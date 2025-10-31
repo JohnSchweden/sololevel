@@ -1,13 +1,26 @@
+import { useAnimationCompletion, useFrameDropDetection, useSmoothnessTracking } from '@my/app/hooks'
 import { log } from '@my/logging'
 import { Download, Share } from '@tamagui/lucide-icons'
-import React, { useCallback, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react'
 import { Pressable } from 'react-native'
 import Animated, { useSharedValue, cancelAnimation } from 'react-native-reanimated'
 import { Text, XStack, YStack } from 'tamagui'
+
 import { GlassButton } from '../../GlassButton'
 import { CenterControls } from './components/CenterControls'
 import { ProgressBar } from './components/ProgressBar'
 import { TimeDisplay } from './components/TimeDisplay'
+import {
+  type AnimationInteractionType,
+  useConditionalAnimationTiming,
+} from './hooks/useConditionalAnimationTiming'
 import { useControlsVisibility } from './hooks/useControlsVisibility'
 import { useProgressBarAnimation } from './hooks/useProgressBarAnimation'
 import { useProgressBarGesture } from './hooks/useProgressBarGesture'
@@ -26,6 +39,7 @@ export interface PersistentProgressBarProps {
   mainGesture: any
   onLayout: (event: any) => void
   onFallbackPress: (locationX: number) => void
+  animationName?: 'quick' | 'lazy'
 }
 
 export interface VideoControlsProps {
@@ -39,7 +53,7 @@ export interface VideoControlsProps {
   onPause: () => void
   onReplay?: () => void
   onSeek: (time: number) => void
-  onControlsVisibilityChange?: (visible: boolean) => void
+  onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
   onMenuPress?: () => void
   headerComponent?: React.ReactNode
   // NEW: Video mode for persistent progress bar
@@ -77,6 +91,13 @@ export const VideoControls = React.memo(
       const progressBarWidthShared = useSharedValue(300)
       const persistentProgressBarWidthShared = useSharedValue(300)
 
+      // Conditional animation timing hook
+      const { getAnimationName, getAnimationDuration } = useConditionalAnimationTiming()
+
+      // Track current interaction type for conditional animation timing
+      const [currentInteractionType, setCurrentInteractionType] =
+        useState<AnimationInteractionType>('user-tap')
+
       // Convert collapseProgress to SharedValue to prevent JS→worklet race conditions
       // This eliminates memory corruption when worklets access JS values during animations
       const collapseProgressShared = useSharedValue(collapseProgress)
@@ -99,16 +120,92 @@ export const VideoControls = React.memo(
         }
       }, [progressBarWidthShared, persistentProgressBarWidthShared, collapseProgressShared])
 
+      // Determine interaction type based on videoEnded status
+      // This allows us to use different animation timing for playback-end vs other interactions
+      useEffect(() => {
+        if (videoEnded) {
+          setCurrentInteractionType('playback-end')
+        }
+      }, [videoEnded])
+
+      // Wrapped callback to track interaction type for conditional animation timing
+      const handleControlsVisibilityChange = useCallback(
+        (visible: boolean, isUserInteraction?: boolean) => {
+          // Determine interaction type:
+          // - If user interaction → 'user-tap'
+          // - If automatic hide (not user interaction) → 'auto-hide'
+          // - If video ended → 'playback-end' (already set by videoEnded effect)
+          if (isUserInteraction) {
+            setCurrentInteractionType('user-tap')
+          } else if (!visible) {
+            // Automatic hide
+            setCurrentInteractionType('auto-hide')
+          }
+
+          // Forward to parent callback
+          onControlsVisibilityChange?.(visible, isUserInteraction)
+        },
+        [onControlsVisibilityChange]
+      )
+
       // Controls visibility management hook
       const visibility = useControlsVisibility({
         showControls,
         isPlaying,
         isScrubbing: false, // Initial value, will be updated below
-        onControlsVisibilityChange,
+        onControlsVisibilityChange: handleControlsVisibilityChange,
       })
 
       // Destructure for easier access
       const { controlsVisible, handlePress, showControlsAndResetTimer } = visibility
+
+      // Track previous controlsVisible for direction detection
+      const prevControlsVisibleForAnimationRef = useRef(controlsVisible)
+
+      // Determine animation direction
+      const animationDirection =
+        prevControlsVisibleForAnimationRef.current !== controlsVisible
+          ? controlsVisible
+            ? 'fade-in'
+            : 'fade-out'
+          : 'stable'
+
+      // Update previous value
+      useEffect(() => {
+        prevControlsVisibleForAnimationRef.current = controlsVisible
+      }, [controlsVisible])
+
+      // Use conditional animation timing based on interaction type
+      const estimatedDuration = getAnimationDuration(currentInteractionType)
+
+      // 1. True animation completion detection
+      const completion = useAnimationCompletion({
+        currentValue: controlsVisible ? 1 : 0,
+        targetValue: controlsVisible ? 1 : 0,
+        estimatedDuration,
+        componentName: 'VideoControls',
+        animationName: `controls-overlay-${currentInteractionType}`,
+        direction: animationDirection !== 'stable' ? animationDirection : undefined,
+        tolerance: 0.01,
+        requiredStableFrames: 2,
+      })
+
+      // 2. Smoothness tracking
+      const smoothness = useSmoothnessTracking({
+        duration: completion.actualDuration,
+        componentName: 'VideoControls',
+        animationName: `controls-overlay-${currentInteractionType}`,
+        windowSize: 10,
+      })
+      void smoothness
+
+      // 3. Frame drop detection
+      const frameDrops = useFrameDropDetection({
+        isActive: completion.isComplete === false,
+        componentName: 'VideoControls',
+        animationName: `controls-overlay-${currentInteractionType}`,
+      })
+      void frameDrops
 
       // Progress bar gesture hooks for normal and persistent bars
       const normalProgressBar = useProgressBarGesture({
@@ -210,6 +307,7 @@ export const VideoControls = React.memo(
           animatedStyle: persistentBarAnimatedStyle,
           combinedGesture: persistentProgressBarCombinedGesture,
           mainGesture: persistentProgressGesture,
+          animationName: getAnimationName(currentInteractionType),
           onLayout: (event) => {
             const { width } = event.nativeEvent.layout
             setPersistentProgressBarWidth(width)
@@ -246,6 +344,8 @@ export const VideoControls = React.memo(
         onSeek,
         showControlsAndResetTimer,
         onPersistentProgressBarPropsChange,
+        currentInteractionType,
+        getAnimationName,
       ])
 
       return (
@@ -268,7 +368,7 @@ export const VideoControls = React.memo(
             padding="$4"
             opacity={controlsVisible ? 1 : 0}
             pointerEvents={controlsVisible ? 'auto' : 'none'}
-            animation={controlsVisible ? 'medium' : 'lazy'}
+            animation={getAnimationName(currentInteractionType)}
             enterStyle={{ opacity: 0 }}
             exitStyle={{ opacity: 0 }}
             testID="video-controls-overlay"
@@ -359,6 +459,7 @@ export const VideoControls = React.memo(
               animatedStyle={normalBarAnimatedStyle}
               combinedGesture={progressBarCombinedGesture}
               mainGesture={mainProgressGesture}
+              animationName={getAnimationName(currentInteractionType)}
               onLayout={(event) => {
                 const { width } = event.nativeEvent.layout
                 setProgressBarWidth(width)
@@ -480,6 +581,7 @@ export const VideoControls = React.memo(
               animatedStyle={persistentBarAnimatedStyle}
               combinedGesture={persistentProgressBarCombinedGesture}
               mainGesture={persistentProgressGesture}
+              animationName={getAnimationName(currentInteractionType)}
               onLayout={(event) => {
                 const { width } = event.nativeEvent.layout
                 setPersistentProgressBarWidth(width)

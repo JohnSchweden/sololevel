@@ -62,7 +62,7 @@ interface VideoPlayerSectionProps {
   onSeekComplete: (seekedTime: number | null) => void
   onSignificantProgress: (time: number) => void
   onLoad: (data: { duration: number }) => void
-  onEnd: () => void
+  onEnd: (endTime?: number) => void
   onTap: () => void
   onControlsVisibilityChange?: (visible: boolean) => void
   audioPlayerController: {
@@ -234,7 +234,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         onSignificantProgress(reportedTime)
       }
     },
-    [onSignificantProgress]
+    [onSignificantProgress, duration]
   )
 
   // Handle seek completion - update local currentTime immediately
@@ -266,6 +266,19 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
       onLoad(data)
     },
     [onLoad]
+  )
+
+  const handleEnd = useCallback(
+    (endTime?: number) => {
+      // Update local currentTime state to the actual end time if provided
+      // This ensures the UI shows the correct end time even if progress was throttled
+      if (typeof endTime === 'number' && Number.isFinite(endTime)) {
+        setCurrentTime(endTime)
+        lastNotifiedTimeRef.current = endTime
+      }
+      onEnd(endTime)
+    },
+    [onEnd]
   )
 
   // Determine video mode from collapseProgress using useDerivedValue for SharedValue reactivity
@@ -378,7 +391,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               isPlaying={videoShouldPlay}
               posterUri={posterUri}
               onPause={onPause}
-              onEnd={onEnd}
+              onEnd={handleEnd}
               onLoad={handleLoad}
               onProgress={handleProgress}
               seekToTime={pendingSeek}

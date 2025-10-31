@@ -3,6 +3,7 @@
   "include": ["**/*.ts", "**/*.tsx", "locales/**/*.json", "../ui/src/utils/PoseOverlayUtils.ts", "../../scripts/smoke-handleVideoRecorded.integration.smoke.tsx"],
   "exclude": [
     "**/videoThumbnailService.native.ts",
+    "**/*.example.tsx",
     // 🚀 EXCLUDE PRODUCTION FILES FROM MVP DEVELOPMENT
     "**/usePoseMetrics.ts",
     "**/usePoseState.ts",

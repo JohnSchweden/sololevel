@@ -383,23 +383,61 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             })
           })
 
-          // First, fetch existing feedbacks
-          // Note: Using any type for now since analysis_feedback table may not be in current type definitions
-          const { data: existingFeedbacks, error: fetchError } = await (supabase as any)
-            .from('analysis_feedback')
-            .select(
-              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
-            )
-            .eq('analysis_id', analysisId)
-            .order('created_at', { ascending: true })
+          // Check if feedbacks already exist in store (from prefetch or previous subscription)
+          const existingFeedbacksInStore = get().getFeedbacksByAnalysisId(analysisId)
+          const hasPrefetchedFeedbacks = existingFeedbacksInStore.length > 0
 
-          if (fetchError) {
-            log.error('FeedbackStatusStore', 'Failed to fetch existing feedbacks', fetchError)
-            throw fetchError
+          let existingFeedbacks: any[] | null = null
+
+          if (hasPrefetchedFeedbacks) {
+            // Use prefetched feedbacks - skip database fetch for instant display
+            log.debug(
+              'FeedbackStatusStore',
+              'Using prefetched feedbacks, skipping database fetch',
+              {
+                analysisId,
+                count: existingFeedbacksInStore.length,
+              }
+            )
+            existingFeedbacks = existingFeedbacksInStore.map((fb) => ({
+              id: fb.id,
+              analysis_id: fb.analysisId,
+              message: fb.message,
+              category: fb.category,
+              timestamp_seconds: fb.timestampSeconds,
+              confidence: fb.confidence,
+              ssml_status: fb.ssmlStatus,
+              audio_status: fb.audioStatus,
+              ssml_attempts: fb.ssmlAttempts,
+              audio_attempts: fb.audioAttempts,
+              ssml_last_error: fb.ssmlLastError,
+              audio_last_error: fb.audioLastError,
+              ssml_updated_at: fb.ssmlUpdatedAt,
+              audio_updated_at: fb.audioUpdatedAt,
+              created_at: fb.createdAt,
+              updated_at: fb.updatedAt,
+            })) as any[]
+          } else {
+            // Fetch existing feedbacks from database
+            // Note: Using any type for now since analysis_feedback table may not be in current type definitions
+            const { data: fetchedFeedbacks, error: fetchError } = await (supabase as any)
+              .from('analysis_feedback')
+              .select(
+                'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+              )
+              .eq('analysis_id', analysisId)
+              .order('created_at', { ascending: true })
+
+            if (fetchError) {
+              log.error('FeedbackStatusStore', 'Failed to fetch existing feedbacks', fetchError)
+              throw fetchError
+            }
+
+            existingFeedbacks = fetchedFeedbacks
           }
 
-          // Add existing feedbacks to store
-          if (existingFeedbacks) {
+          // Add existing feedbacks to store (idempotent - deduplicates if already present)
+          if (existingFeedbacks && existingFeedbacks.length > 0) {
             existingFeedbacks.forEach((feedback: any) => {
               get().addFeedback(feedback as FeedbackStatusData)
             })

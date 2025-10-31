@@ -436,7 +436,15 @@ jest.mock('react-native-reanimated', () => {
     __esModule: true,
     default: Animated,
     useAnimatedStyle: () => ({}),
-    useAnimatedReaction: () => {},
+    useAnimatedReaction: (predicate: any, effect: any) => {
+      // Mock implementation: call effect immediately with predicate result
+      try {
+        const result = predicate?.()
+        effect?.(result)
+      } catch {
+        // Silently catch any errors in test mocks
+      }
+    },
     useSharedValue: (initialValue: any) => ({
       value: initialValue,
     }),

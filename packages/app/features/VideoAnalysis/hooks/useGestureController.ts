@@ -341,6 +341,7 @@ export function useGestureController(
   const gestureVelocity = useSharedValue(0)
   const gestureStartTime = useSharedValue(0)
   const initialTouchY = useSharedValue(0)
+  const initialTouchX = useSharedValue(0)
   const isPullingToReveal = useSharedValue(false)
   const initialIsInVideoArea = useSharedValue(false)
   const isFastSwipeVideoModeChange = useSharedValue(false)
@@ -348,6 +349,8 @@ export function useGestureController(
   const committedToVideoControl = useSharedValue(false)
   // Track initial scrollY when gesture started
   const initialScrollY = useSharedValue(0)
+  // Track if this is a left-edge swipe (for back navigation detection)
+  const isLeftEdgeSwipe = useSharedValue(false)
 
   // Pull-to-reveal state (JavaScript-accessible for UI indicators)
   const [isPullingToRevealJS, setIsPullingToRevealJS] = useState(false)
@@ -373,11 +376,13 @@ export function useGestureController(
       cancelAnimation(gestureVelocity)
       cancelAnimation(gestureStartTime)
       cancelAnimation(initialTouchY)
+      cancelAnimation(initialTouchX)
       cancelAnimation(isPullingToReveal)
       cancelAnimation(initialIsInVideoArea)
       cancelAnimation(isFastSwipeVideoModeChange)
       cancelAnimation(committedToVideoControl)
       cancelAnimation(initialScrollY)
+      cancelAnimation(isLeftEdgeSwipe)
     }
   }, [
     gestureIsActive,
@@ -385,11 +390,13 @@ export function useGestureController(
     gestureVelocity,
     gestureStartTime,
     initialTouchY,
+    initialTouchX,
     isPullingToReveal,
     initialIsInVideoArea,
     isFastSwipeVideoModeChange,
     committedToVideoControl,
     initialScrollY,
+    isLeftEdgeSwipe,
   ])
 
   // Ref for gesture handler
@@ -426,40 +433,30 @@ export function useGestureController(
   }, [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl])
 
   // Pan gesture with YouTube-style delegation
+  // CRITICAL: Only activate on vertical movement to avoid claiming back navigation gestures
+  // Use failOffsetX to fail immediately on any rightward horizontal swipe
   const rootPan = Gesture.Pan()
     .withRef(rootPanRef)
     .minDistance(5)
+    // Only activate on vertical movement (up/down) - NOT horizontal
+    // This prevents claiming rightward swipes used for back navigation
     .activeOffsetY([-20, 20])
-    .activeOffsetX([-40, 40])
+    // Don't use activeOffsetX - we only want vertical gestures
+    // Fail immediately on rightward horizontal swipes (back navigation area)
+    // This fails BEFORE activation can occur, allowing system back gesture
+    .failOffsetX([Number.NEGATIVE_INFINITY, 10])
     .onTouchesDown((event) => {
       'worklet'
-      const touchY = event.allTouches[0]?.y ?? 0
-      const scrollValue = scrollY.value
-      const currentVideoHeight = calculateVideoHeight(scrollValue)
-      const isInVideoArea = touchY < currentVideoHeight
-
       // Track gesture event for AI analysis
       runOnJS(gestureDetector.trackGestureEvent)({
         gestureType: 'rootPan',
         phase: 'begin',
         location: {
           x: event.allTouches[0]?.x ?? 0,
-          y: touchY,
+          y: event.allTouches[0]?.y ?? 0,
         },
         translation: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
-      })
-
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Touch down', {
-        scrollY: scrollValue,
-        feedbackOffset: feedbackContentOffsetY.value,
-        touchLocation: {
-          x: event.allTouches[0]?.x ?? 0,
-          y: touchY,
-        },
-        isInVideoArea,
-        currentVideoHeight,
-        staticVideoNormalHeight: VIDEO_HEIGHTS.normal,
       })
     })
     .onBegin((event) => {
@@ -469,10 +466,13 @@ export function useGestureController(
       gestureVelocity.value = 0
       gestureStartTime.value = Date.now()
       initialTouchY.value = event.y
+      initialTouchX.value = event.x
       isFastSwipeVideoModeChange.value = false
       committedToVideoControl.value = false
+      isLeftEdgeSwipe.value = false
 
       // Check if touch started in video area or if feedback panel is at top
+      const touchX = event.x
       const touchY = event.y
       const scrollValue = scrollY.value
       initialScrollY.value = scrollValue
@@ -480,86 +480,31 @@ export function useGestureController(
       const isInVideoArea = touchY < currentVideoHeight
       const isAtTop = feedbackContentOffsetY.value <= 0
 
+      // Detect if touch started from left edge (back navigation region)
+      const LEFT_EDGE_THRESHOLD = 20
+      const touchStartsFromLeftEdge = touchX < LEFT_EDGE_THRESHOLD
+      isLeftEdgeSwipe.value = touchStartsFromLeftEdge
+
       // Store initial touch area for consistent decision making
       initialIsInVideoArea.value = isInVideoArea
 
       // Initial activation logic:
-      // - Video area touches: Always activate immediately
+      // - Video area touches: Activate immediately (but left-edge waits for direction before committing)
       // - Feedback area touches: Only activate if at top (will refine based on direction later)
-      const wasActive = gestureIsActive.value
+      // - Left-edge touches: Activate BUT don't commit yet - wait for direction in onChange
+      // Always activate if in video area or at top - but left-edge won't commit immediately
       gestureIsActive.value = isInVideoArea || isAtTop
 
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture begin - state change', {
-        wasActive,
-        nowActive: gestureIsActive.value,
-        feedbackOffset: feedbackContentOffsetY.value,
-        touchY,
-        isInVideoArea,
-        isAtTop,
-        currentVideoHeight,
-        staticVideoNormalHeight: VIDEO_HEIGHTS.normal,
-        scrollValue,
-        initialScrollY: initialScrollY.value,
-      })
-
-      if (!gestureIsActive.value) {
-        runOnJS(log.debug)(
-          'VideoAnalysisScreen.rootPan',
-          'Gesture begin - IGNORED (not in video area and not at feedback top)',
-          {
-            feedbackOffset: feedbackContentOffsetY.value,
-            touchY,
-            isInVideoArea,
-            isAtTop,
-            currentVideoHeight,
-            staticVideoNormalHeight: VIDEO_HEIGHTS.normal,
-            scrollValue,
-          }
-        )
-      } else if (isInVideoArea) {
-        // Video area touches: Immediately commit to gesture control
+      if (isInVideoArea && !touchStartsFromLeftEdge) {
+        // Video area touches (NOT left-edge): Immediately commit to gesture control
         committedToVideoControl.value = true
         runOnJS(setFeedbackScrollEnabled)(false)
-        runOnJS(log.debug)(
-          'VideoAnalysisScreen.rootPan',
-          'Gesture begin - ACTIVE (video area, ScrollView disabled, COMMITTED)',
-          {
-            feedbackOffset: feedbackContentOffsetY.value,
-            scrollY: scrollValue,
-            touchY,
-            isInVideoArea,
-            isAtTop,
-            currentVideoHeight,
-            initialScrollY: initialScrollY.value,
-          }
-        )
-      } else {
-        // Feedback area touches: Wait for direction and velocity before committing
-        runOnJS(log.debug)(
-          'VideoAnalysisScreen.rootPan',
-          'Gesture begin - TENTATIVE (feedback area, waiting for direction/velocity)',
-          {
-            feedbackOffset: feedbackContentOffsetY.value,
-            scrollY: scrollValue,
-            touchY,
-            isInVideoArea,
-            isAtTop,
-            currentVideoHeight,
-            initialScrollY: initialScrollY.value,
-          }
-        )
       }
+      // Left-edge touches and feedback area touches wait for direction in onChange
     })
     .onStart((event) => {
       'worklet'
-      if (!gestureIsActive.value) {
-        runOnJS(log.debug)(
-          'VideoAnalysisScreen.rootPan',
-          'Gesture start - SKIPPED (not active)',
-          {}
-        )
-        return
-      }
+      if (!gestureIsActive.value) return
 
       // Track gesture start for AI analysis
       runOnJS(gestureDetector.trackGestureEvent)({
@@ -571,17 +516,49 @@ export function useGestureController(
       })
 
       isPullingToReveal.value = false
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture start - ACTIVE', {
-        scrollY: scrollY.value,
-        gestureActive: gestureIsActive.value,
-      })
     })
     .onChange((e) => {
       'worklet'
       if (!gestureIsActive.value) return
 
+      // CRITICAL: Check if this is a horizontal swipe from left edge (back navigation)
+      // If so, deactivate gesture to allow system back gesture to handle it
+      if (isLeftEdgeSwipe.value) {
+        const isPrimarilyHorizontal = Math.abs(e.changeX) > Math.abs(e.changeY)
+        const isSwipingRight = e.changeX > 0
+
+        if (isPrimarilyHorizontal && isSwipingRight) {
+          // This is a left-edge swipe-right gesture - allow back navigation
+          gestureIsActive.value = false
+          committedToVideoControl.value = false
+          runOnJS(setFeedbackScrollEnabled)(true)
+          return
+        }
+
+        // Left-edge touch that's NOT horizontal-right: commit to gesture control for vertical gestures
+        if (!committedToVideoControl.value) {
+          const isPrimarilyVertical = Math.abs(e.changeY) > Math.abs(e.changeX)
+          if (isPrimarilyVertical && Math.abs(e.changeY) > 5) {
+            // Left-edge vertical gesture - commit to video control
+            committedToVideoControl.value = true
+            runOnJS(setFeedbackScrollEnabled)(false)
+          } else if (Math.abs(e.changeX) > Math.abs(e.changeY)) {
+            // Left-edge but swiping left (not right) - might still want back nav, but don't commit
+            return
+          }
+        }
+      }
+
+      // Only process vertical gestures (existing logic)
       const isPrimarilyVertical = Math.abs(e.changeY) > Math.abs(e.changeX)
-      if (!isPrimarilyVertical) return
+      if (!isPrimarilyVertical && !isLeftEdgeSwipe.value) {
+        return
+      }
+
+      // If we haven't committed yet and it's not a vertical gesture, don't process
+      if (!committedToVideoControl.value && !isPrimarilyVertical) {
+        return
+      }
 
       // Detect gesture direction and velocity on first significant movement
       if (gestureDirection.value === 'unknown' && Math.abs(e.changeY) > 8) {
@@ -655,6 +632,30 @@ export function useGestureController(
             )
             return
           }
+        } else if (!isInVideoArea && !isAtTop) {
+          // CRITICAL FIX: Feedback area is already scrolled (not at top)
+          // Do NOT commit to video control - this would steal the scroll gesture
+          // and reset the feedback scroll position
+          const wasActive = gestureIsActive.value
+          gestureIsActive.value = false
+          runOnJS(setFeedbackScrollEnabled)(true)
+          runOnJS(log.debug)(
+            'VideoAnalysisScreen.rootPan',
+            'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
+            {
+              wasActive,
+              nowActive: false,
+              direction: gestureDirection.value,
+              velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+              isInVideoArea,
+              isAtTop,
+              feedbackOffset: feedbackContentOffsetY.value,
+              scrollValue,
+              initialScrollY: initialScrollY.value,
+              reason: 'feedback-already-scrolled',
+            }
+          )
+          return
         } else {
           // All other cases: Commit to gesture control
           committedToVideoControl.value = true
@@ -758,6 +759,14 @@ export function useGestureController(
       // ← CRITICAL: Re-enable ScrollView when gesture ends
       runOnJS(setFeedbackScrollEnabled)(true)
       runOnJS(setBlockFeedbackScrollCompletely)(false)
+      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - re-enabled scroll', {
+        feedbackScrollEnabled: true,
+        blockFeedbackScrollCompletely: false,
+        feedbackOffset: feedbackContentOffsetY.value,
+        scrollY: scrollY.value,
+        gestureWasActive: gestureIsActive.value,
+        committedToVideoControl: committedToVideoControl.value,
+      })
 
       const targetMode = scrollToMode(currentScrollY)
       const targetScrollPos = modeToScroll(targetMode)
@@ -771,6 +780,7 @@ export function useGestureController(
         isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
         isPullingToReveal: isPullingToReveal.value,
         scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+        feedbackOffset: feedbackContentOffsetY.value,
         reason: committedToVideoControl.value
           ? 'committed to video control'
           : isFastSwipeVideoModeChange.value
@@ -785,6 +795,20 @@ export function useGestureController(
         easing: SNAP_EASING,
       })
       scrollTo(scrollRef, 0, targetScrollPos, true)
+
+      // Log if feedback offset is non-zero when snapping - this might indicate an issue
+      if (feedbackContentOffsetY.value > 0) {
+        runOnJS(log.warn)(
+          'VideoAnalysisScreen.rootPan',
+          'Feedback panel has non-zero offset during mode snap - may cause scroll issues',
+          {
+            feedbackOffset: feedbackContentOffsetY.value,
+            targetMode,
+            fromScrollY: currentScrollY,
+            targetScrollPos,
+          }
+        )
+      }
     })
     .onFinalize((event) => {
       'worklet'
@@ -811,10 +835,12 @@ export function useGestureController(
       gestureVelocity.value = 0
       gestureStartTime.value = 0
       initialTouchY.value = 0
+      initialTouchX.value = 0
       initialIsInVideoArea.value = false
       isFastSwipeVideoModeChange.value = false
       committedToVideoControl.value = false
       initialScrollY.value = 0
+      isLeftEdgeSwipe.value = false
     })
 
   return {

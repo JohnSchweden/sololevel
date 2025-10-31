@@ -1,7 +1,13 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Gesture } from 'react-native-gesture-handler'
-import { SharedValue, cancelAnimation, runOnJS, useSharedValue } from 'react-native-reanimated'
+import {
+  SharedValue,
+  cancelAnimation,
+  runOnJS,
+  useAnimatedReaction,
+  useSharedValue,
+} from 'react-native-reanimated'
 
 /**
  * Hook managing progress bar gesture interactions (tap & drag) for both normal and persistent bars.
@@ -167,14 +173,32 @@ export function useProgressBarGesture(
     isScrubbingShared.value = isScrubbing
   }, [isScrubbing, isScrubbingShared])
 
+  // Create listeners for shared values to prevent "no listeners" warnings
+  // These shared values are updated in gesture handlers but need observers
+  useAnimatedReaction(
+    () => isScrubbingShared.value,
+    () => {
+      // Dummy listener - just observes the value to register it
+      // This prevents the "onAnimatedValueUpdate with no listeners" warning
+    }
+  )
+  useAnimatedReaction(
+    () => lastScrubbedPositionShared.value,
+    () => {
+      // Dummy listener - just observes the value to register it
+      // This prevents the "onAnimatedValueUpdate with no listeners" warning
+    }
+  )
+
   // Cleanup shared values on unmount to prevent memory corruption
   useEffect(() => {
     return () => {
       // Cancel any pending animations on the shared value
       // This prevents worklets from accessing freed memory if component unmounts
       cancelAnimation(lastScrubbedPositionShared)
+      cancelAnimation(isScrubbingShared)
     }
-  }, [lastScrubbedPositionShared])
+  }, [lastScrubbedPositionShared, isScrubbingShared])
 
   // Snapback prevention: Clear lastScrubbedPosition when video catches up to the scrubbed position
   useEffect(() => {

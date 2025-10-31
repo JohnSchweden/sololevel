@@ -5,6 +5,15 @@ import { useProgressBarGesture } from './useProgressBarGesture'
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => ({
   useSharedValue: jest.fn(),
+  useAnimatedReaction: jest.fn((predicate: any, effect: any) => {
+    // Call effect immediately with predicate result
+    try {
+      const result = predicate?.()
+      effect?.(result)
+    } catch {
+      // Silently catch errors in mock
+    }
+  }),
   cancelAnimation: jest.fn(), // Add mock for cancelAnimation
   Gesture: {
     Pan: jest.fn(() => ({
