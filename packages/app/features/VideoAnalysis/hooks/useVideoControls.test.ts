@@ -19,11 +19,11 @@ describe('useVideoControls', () => {
       expect(result.current.showControls).toBe(false)
     })
 
-    it('keeps controls hidden even when video ends, if user hasnt interacted yet', () => {
+    it('shows controls when video ends, even if user hasnt interacted yet', () => {
       const { result } = renderHook(() => useVideoControls(false, false, true))
 
-      // Still hidden because user hasn't interacted
-      expect(result.current.showControls).toBe(false)
+      // Controls should always be visible when video ends (regardless of interaction)
+      expect(result.current.showControls).toBe(true)
       expect(result.current.showReplayButton).toBe(true)
     })
   })

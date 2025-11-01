@@ -1,5 +1,7 @@
 //import { log } from '@my/logging'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { log } from '@my/logging'
 
 import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
@@ -41,6 +43,20 @@ export function useFeedbackSelection(
   const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
   const coachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Extract setIsPlaying to avoid depending on entire audioController object
+  // audioController changes when isPlaying changes, but setIsPlaying is stable
+  const setIsPlaying = audioController.setIsPlaying
+
+  // Store feedbackAudio callbacks in refs to prevent callback recreation
+  // feedbackAudio object recreates when audioUrls changes, but callbacks are stable
+  const feedbackAudioRef = useRef(feedbackAudio)
+  feedbackAudioRef.current = feedbackAudio
+
+  // Store videoPlayback.seek in ref to prevent callback recreation
+  // videoPlayback object recreates when currentTime/duration change, but seek() is stable
+  const videoPlaybackSeekRef = useRef(videoPlayback.seek)
+  videoPlaybackSeekRef.current = videoPlayback.seek
 
   const triggerCoachSpeaking = useCallback((durationMs = 3000) => {
     if (coachTimerRef.current) {
@@ -132,12 +148,12 @@ export function useFeedbackSelection(
 
       if (seek && item.timestamp) {
         const seekTime = item.timestamp / 1000
-        videoPlayback.seek(seekTime)
+        videoPlaybackSeekRef.current(seekTime)
       }
 
-      if (playAudio && feedbackAudio.audioUrls[item.id]) {
-        feedbackAudio.selectAudio(item.id)
-        audioController.setIsPlaying(true)
+      if (playAudio && feedbackAudioRef.current.audioUrls[item.id]) {
+        feedbackAudioRef.current.selectAudio(item.id)
+        setIsPlaying(true)
       }
 
       triggerCoachSpeaking()
@@ -153,12 +169,12 @@ export function useFeedbackSelection(
       }
     },
     [
-      audioController,
+      setIsPlaying,
       clearHighlight,
       clearHighlightTimer,
-      feedbackAudio,
+      // Omit feedbackAudio.audioUrls and feedbackAudio.selectAudio - use refs instead
+      // Omit videoPlayback.seek - use ref instead
       triggerCoachSpeaking,
-      videoPlayback,
     ]
   )
 
@@ -200,10 +216,10 @@ export function useFeedbackSelection(
 
     clearHighlight({ reason: 'manual-clear' })
     setSelectedFeedbackId(null)
-    feedbackAudio.clearActiveAudio()
-    audioController.setIsPlaying(false)
+    feedbackAudioRef.current.clearActiveAudio()
+    setIsPlaying(false)
     triggerCoachSpeaking(0)
-  }, [audioController, clearHighlight, feedbackAudio, selectedFeedbackId, triggerCoachSpeaking])
+  }, [setIsPlaying, clearHighlight, selectedFeedbackId, triggerCoachSpeaking])
 
   useEffect(() => {
     return () => {
@@ -211,12 +227,32 @@ export function useFeedbackSelection(
         clearTimeout(coachTimerRef.current)
         coachTimerRef.current = null
       }
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current)
+        highlightTimerRef.current = null
+      }
     }
   }, [])
 
+  // Pause highlight timer when video playback is paused
+  // Similar to how useBubbleController pauses bubble timers when isPlaying becomes false
+  const prevIsPlayingRef = useRef(videoPlayback.isPlaying)
+  useEffect(() => {
+    const wasPlaying = prevIsPlayingRef.current
+    const nowPlaying = videoPlayback.isPlaying
+    prevIsPlayingRef.current = nowPlaying
+
+    // Clear highlight timer when transitioning from playing to paused
+    if (wasPlaying && !nowPlaying && highlightTimerRef.current) {
+      clearHighlightTimer()
+    }
+  }, [videoPlayback.isPlaying, clearHighlightTimer])
+
   // Seek to start only when the active audio URL for the selected feedback changes.
   // Avoid re-triggering on unrelated state updates.
-  const selectedAudioUrl = selectedFeedbackId ? feedbackAudio.audioUrls[selectedFeedbackId] : null
+  const selectedAudioUrl = selectedFeedbackId
+    ? feedbackAudioRef.current.audioUrls[selectedFeedbackId]
+    : null
 
   // Store seekTo in ref to avoid recreating effect when audioController object changes
   const seekToRef = useRef(audioController.seekTo)
@@ -236,15 +272,82 @@ export function useFeedbackSelection(
     seekToRef.current(0)
   }, [selectedFeedbackId, selectedAudioUrl])
 
-  return {
+  // Memoize return value to prevent recreation on every render
+  // This is critical for preventing cascading re-renders in VideoAnalysisScreen
+  const prevDepsRef = useRef<{
+    selectedFeedbackId: string | null
+    isCoachSpeaking: boolean
+    highlightedFeedbackId: string | null
+    highlightSource: string | null
+  }>({
+    selectedFeedbackId: null,
+    isCoachSpeaking: false,
+    highlightedFeedbackId: null,
+    highlightSource: null,
+  })
+
+  const lastRecalcTimeRef = useRef<number>(Date.now())
+
+  return useMemo(() => {
+    const now = Date.now()
+    const timeSinceLastRecalc = now - lastRecalcTimeRef.current
+    lastRecalcTimeRef.current = now
+
+    // Debug: track what's changing
+    const prev = prevDepsRef.current
+    if (prev) {
+      const changed: string[] = []
+      if (prev.selectedFeedbackId !== selectedFeedbackId) changed.push('selectedFeedbackId')
+      if (prev.isCoachSpeaking !== isCoachSpeaking) changed.push('isCoachSpeaking')
+      if (prev.highlightedFeedbackId !== (highlightedFeedback?.id ?? null))
+        changed.push('highlightedFeedbackId')
+      if (prev.highlightSource !== (highlightedFeedback?.source ?? null))
+        changed.push('highlightSource')
+
+      if (changed.length > 0) {
+        log.debug('useFeedbackSelection', '🔥 Selection recalculating', {
+          changed,
+          timeSinceLastRecalc,
+          isRapid: timeSinceLastRecalc < 16,
+          selectedFeedbackId,
+          highlightedFeedbackId: highlightedFeedback?.id,
+          isCoachSpeaking,
+          highlightSource: highlightedFeedback?.source,
+          stackTrace:
+            timeSinceLastRecalc < 16
+              ? new Error().stack?.split('\n').slice(1, 8).join('\n')
+              : undefined,
+        })
+      }
+    }
+
+    prevDepsRef.current = {
+      selectedFeedbackId,
+      isCoachSpeaking,
+      highlightedFeedbackId: highlightedFeedback?.id ?? null,
+      highlightSource: highlightedFeedback?.source ?? null,
+    }
+
+    return {
+      selectedFeedbackId,
+      isCoachSpeaking,
+      highlightedFeedbackId: highlightedFeedback?.id ?? null,
+      highlightSource: highlightedFeedback?.source ?? null,
+      selectFeedback,
+      highlightAutoFeedback,
+      clearHighlight,
+      clearSelection,
+      triggerCoachSpeaking,
+    }
+  }, [
     selectedFeedbackId,
     isCoachSpeaking,
-    highlightedFeedbackId: highlightedFeedback?.id ?? null,
-    highlightSource: highlightedFeedback?.source ?? null,
+    highlightedFeedback?.id,
+    highlightedFeedback?.source,
     selectFeedback,
     highlightAutoFeedback,
     clearHighlight,
     clearSelection,
     triggerCoachSpeaking,
-  }
+  ])
 }

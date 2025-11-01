@@ -3,14 +3,29 @@ import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { BlurView } from 'expo-blur'
-import { AnimatePresence, Text, YStack } from 'tamagui'
+import { memo, useMemo } from 'react'
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated'
+import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
 export interface FeedbackBubblesProps {
   messages: FeedbackMessage[]
 }
 
-function SpeechBubble({ message }: { message: FeedbackMessage }) {
+/**
+ * SpeechBubble - Memoized bubble with Reanimated animations
+ *
+ * PERFORMANCE: Replaced Tamagui animations with Reanimated to eliminate
+ * JS bridge saturation during gesture-driven layout animations.
+ * All animations now run on UI thread.
+ */
+const SpeechBubble = memo(function SpeechBubble({ message }: { message: FeedbackMessage }) {
   // Performance tracking: Track opacity and scale animations
   // Tamagui animations are declarative, so we track state transitions
   const targetOpacity = message.isActive ? 1 : 0.7
@@ -54,90 +69,86 @@ function SpeechBubble({ message }: { message: FeedbackMessage }) {
     isActive: message.isActive || message.isHighlighted,
     componentName: 'FeedbackBubbles',
     animationName: `bubble-${message.id}`,
+    logOnly: true,
   })
 
-  // const getBlurTint = () => {
-  //   // Use different blur tints for different message types
-  //   switch (message.type) {
-  //     case 'positive':
-  //       return 'light' as const
-  //     case 'suggestion':
-  //       return 'light' as const
-  //     case 'correction':
-  //       return 'light' as const
-  //     default:
-  //       return 'light' as const
-  //   }
-  // }
+  // Reanimated style for opacity and scale (replaces Tamagui animation)
+  const animatedStyle = useAnimatedStyle(() => {
+    const targetOpacity = message.isActive ? 1 : 0.7
+    const targetScale = message.isHighlighted ? 1.05 : 1
 
-  // const getBubbleBackgroundColor = () => {
-  //   // Subtle tinted overlay on top of blur
-  //   switch (message.type) {
-  //     case 'positive':
-  //       return 'rgba(34, 197, 94, 0)' // transparent green
-  //     case 'suggestion':
-  //       return 'rgba(59, 130, 246, 0)' // transparent blue
-  //     case 'correction':
-  //       return 'rgba(239, 68, 68, 0)' // transparent red
-  //     default:
-  //       return 'rgba(107, 114, 128, 0)' // transparent gray
-  //   }
-  // }
+    return {
+      opacity: withTiming(targetOpacity, {
+        duration: 200,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      transform: [
+        {
+          scale: withTiming(targetScale, {
+            duration: 200,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        },
+      ],
+    }
+  }, [message.isActive, message.isHighlighted])
 
   return (
-    <YStack
+    <Animated.View
+      style={[
+        {
+          position: 'relative',
+          borderRadius: 24,
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+          borderWidth: 1,
+          maxWidth: 280,
+          overflow: 'hidden',
+        },
+        animatedStyle,
+      ]}
       testID={`feedback-bubble-${message.id}`}
-      accessibilityLabel={`Feedback: ${message.type} feedback bubble`}
     >
-      {/* Feedback Bubble */}
+      {/* Blur background layer */}
+      <BlurView
+        intensity={15}
+        tint="light"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      />
+      {/* Text content */}
       <YStack
-        position="relative"
-        borderColor="rgba(255, 255, 255, 0.3)"
-        borderWidth={1}
-        borderRadius="$6"
-        maxWidth={280}
-        opacity={message.isActive ? 1 : 0.7}
-        scale={message.isHighlighted ? 1.05 : 1}
-        overflow="hidden"
-        elevation={3}
-        animation="quick"
-        testID={`bubble-text-container-${message.id}`}
+        padding="$3"
+        zIndex={1}
       >
-        {/* Blur background layer */}
-        <BlurView
-          intensity={15}
-          tint="light"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        />
-        {/* Text content */}
-        <YStack
-          padding="$3"
-          zIndex={1}
+        <Text
+          fontSize="$4"
+          color="white"
+          fontWeight={message.isHighlighted ? '600' : '400'}
+          lineHeight="$5"
+          textAlign="center"
+          testID={`bubble-text-${message.id}`}
+          accessibilityLabel={message.text}
         >
-          <Text
-            fontSize="$4"
-            color="white"
-            fontWeight={message.isHighlighted ? '600' : '400'}
-            lineHeight="$5"
-            textAlign="center"
-            testID={`bubble-text-${message.id}`}
-            accessibilityLabel={message.text}
-          >
-            {message.text}
-          </Text>
-        </YStack>
+          {message.text}
+        </Text>
       </YStack>
-    </YStack>
+    </Animated.View>
   )
-}
+})
 
-export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
+/**
+ * FeedbackBubbles - Memoized container with Reanimated animations
+ *
+ * PERFORMANCE: Replaced Tamagui AnimatePresence + animation with Reanimated
+ * entering/exiting animations. All animations now run on UI thread with no
+ * JS bridge saturation.
+ */
+export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
   // Performance tracking: Render profile
   const hasActiveMessages = messages.some((msg) => msg.isActive || msg.isHighlighted)
   useRenderProfile({
@@ -156,69 +167,64 @@ export function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
     isActive: hasActiveMessages,
     componentName: 'FeedbackBubbles',
     animationName: 'container',
+    logOnly: true,
   })
 
   // Filter messages to show (limit to prevent overcrowding)
   // Prioritize highlighted and active messages, then show most recent
-  const sortedMessages = messages
-    .filter((msg) => msg.isActive)
-    .sort((a, b) => {
-      // Prioritize highlighted messages
-      if (a.isHighlighted && !b.isHighlighted) return -1
-      if (!a.isHighlighted && b.isHighlighted) return 1
-      // Then sort by timestamp (most recent first)
-      return b.timestamp - a.timestamp
-    })
+  // Memoize to prevent recalculation during parent re-renders
+  const visibleMessages = useMemo(() => {
+    const sorted = messages
+      .filter((msg) => msg.isActive)
+      .sort((a, b) => {
+        // Prioritize highlighted messages
+        if (a.isHighlighted && !b.isHighlighted) return -1
+        if (!a.isHighlighted && b.isHighlighted) return 1
+        // Then sort by timestamp (most recent first)
+        return b.timestamp - a.timestamp
+      })
+    return sorted.slice(0, 3) // Show up to 3 messages
+  }, [messages])
 
-  const visibleMessages = sortedMessages.slice(0, 3) // Show up to 3 messages
+  if (visibleMessages.length === 0) {
+    return null
+  }
 
   return (
-    <AnimatePresence>
-      {visibleMessages.length > 0 && (
-        <YStack
-          key="feedback-bubbles-container"
-          position="absolute"
-          bottom={120} // Position below video controls (controls are at bottom={80})
-          left={20}
-          right={20}
-          zIndex={0}
-          pointerEvents="box-none"
-          testID="feedback-bubbles"
-          accessibilityLabel="Feedback bubbles container"
-          animation="quick"
-          exitStyle={{
-            opacity: 0,
-            y: 20,
-          }}
-        >
-          <YStack
-            flexDirection="row"
-            flexWrap="wrap"
-            justifyContent="center"
-            gap="$2"
-            pointerEvents="auto"
+    <Animated.View
+      entering={FadeIn.duration(200)}
+      exiting={FadeOut.duration(200)}
+      style={{
+        position: 'absolute',
+        bottom: 120,
+        left: 20,
+        right: 20,
+        zIndex: 0,
+        pointerEvents: 'box-none',
+      }}
+      testID="feedback-bubbles"
+    >
+      <YStack
+        flexDirection="row"
+        flexWrap="wrap"
+        justifyContent="center"
+        gap="$2"
+        pointerEvents="auto"
+      >
+        {visibleMessages.map((message) => (
+          <Animated.View
+            key={message.id}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            style={{
+              zIndex: message.isHighlighted ? 10 : 5,
+            }}
+            testID={`bubble-position-${message.id}`}
           >
-            <AnimatePresence>
-              {visibleMessages.map((message) => (
-                <YStack
-                  key={message.id}
-                  zIndex={message.isHighlighted ? 10 : 5}
-                  scale={message.isHighlighted ? 1.05 : 1}
-                  animation="quick"
-                  enterStyle={{
-                    opacity: 0,
-                    scale: 0.8,
-                    y: 20,
-                  }}
-                  testID={`bubble-position-${message.id}`}
-                >
-                  <SpeechBubble message={message} />
-                </YStack>
-              ))}
-            </AnimatePresence>
-          </YStack>
-        </YStack>
-      )}
-    </AnimatePresence>
+            <SpeechBubble message={message} />
+          </Animated.View>
+        ))}
+      </YStack>
+    </Animated.View>
   )
-}
+})

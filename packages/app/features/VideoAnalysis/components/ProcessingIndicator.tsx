@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { BlurView } from 'expo-blur'
 import {
@@ -25,10 +25,7 @@ interface ProcessingIndicatorProps {
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
-export const ProcessingIndicator = memo(function ProcessingIndicator({
-  phase,
-  channelExhausted,
-}: ProcessingIndicatorProps) {
+export function ProcessingIndicator({ phase, channelExhausted }: ProcessingIndicatorProps) {
   const isProcessing = phase !== 'ready' && phase !== 'error'
   const blurIntensity = useSharedValue(isProcessing ? 40 : 0)
   const contentOpacity = useSharedValue(isProcessing ? 1 : 0)
@@ -166,6 +163,4 @@ export const ProcessingIndicator = memo(function ProcessingIndicator({
       )}
     </YStack>
   )
-})
-
-ProcessingIndicator.displayName = 'ProcessingIndicator'
+}

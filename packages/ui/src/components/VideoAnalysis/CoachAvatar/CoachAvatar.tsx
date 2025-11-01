@@ -9,11 +9,14 @@ export interface CoachAvatarProps {
   bottom?: number
   right?: number
   zIndex?: number
-  animation?: any
-  enterStyle?: any
-  exitStyle?: any
 }
 
+/**
+ * CoachAvatar - Avatar component
+ *
+ * Simple static component. Parent handles animation via Reanimated.View
+ * (no conflicting animation systems).
+ */
 export function CoachAvatar({
   size = 90,
   isSpeaking = false,
@@ -22,9 +25,6 @@ export function CoachAvatar({
   bottom = 70,
   right = 20,
   zIndex = 0,
-  animation,
-  enterStyle,
-  exitStyle,
 }: CoachAvatarProps) {
   return (
     <View
@@ -32,9 +32,6 @@ export function CoachAvatar({
       bottom={bottom}
       right={right}
       zIndex={zIndex}
-      animation={animation}
-      enterStyle={enterStyle}
-      exitStyle={exitStyle}
     >
       <BlurView
         intensity={15}

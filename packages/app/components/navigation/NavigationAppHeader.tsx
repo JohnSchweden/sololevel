@@ -358,14 +358,6 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       // Only animation speed changed but visibility didn't - don't restart animation
       // The current animation should continue with its original speed
       // Update the ref so we don't keep checking this
-      log.debug('NavigationAppHeader', 'Skipping animation restart - only speed changed', {
-        headerVisible: currentHeaderVisible,
-        prevHeaderVisible: prevHeaderVisibleForAnimationRef.current,
-        animationSpeed,
-        prevAnimationSpeed: prevAnimationSpeedRef.current,
-        headerVisibleChanged,
-        animationSpeedChanged,
-      })
       prevAnimationSpeedRef.current = animationSpeed
       return
     }
@@ -468,17 +460,6 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
       return
     }
     prevIsUserInteractionRef.current = isUserInteractionValue
-
-    log.debug('NavigationAppHeader', '⚡ [ANIMATION] Animation speed updated', {
-      isUserInteraction: navOptions.isUserInteraction,
-      animationSpeed,
-      headerShown: options.headerShown,
-      headerVisible: navOptions.headerVisible,
-      isVideoAnalysisMode,
-      isHistoryMode,
-      isVisible,
-      routeParams: route.params,
-    })
   }, [isUserInteractionValue])
 
   // Track previous VideoAnalysis mode to detect transitions
@@ -549,21 +530,10 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     }
 
     // Subsequent updates: animate normally
-    log.debug('NavigationAppHeader', '👁️ [VISIBILITY] Header visibility changing', {
-      headerShown: options.headerShown,
-      headerVisible: navOptions.headerVisible,
-      isVideoAnalysisMode,
-      isHistoryMode,
-      shouldBeVisible,
-      isUserInteraction: navOptions.isUserInteraction,
-      animationSpeed,
-      currentIsVisible: isVisible,
-      willChange: shouldBeVisible !== isVisible,
-      hasInitialized,
-    })
-
     // Only update if visibility actually changed and we're initialized (to avoid announcements on mount)
-    if (hasInitialized && prevVisibilityRef.current !== shouldBeVisible) {
+    // CRITICAL: Compare with current state (isVisible) to prevent redundant updates
+    // If state already matches desired value, skip update to prevent re-render cascade
+    if (hasInitialized && isVisible !== shouldBeVisible) {
       // Batch state updates using startTransition to prevent rapid re-renders
       // This ensures setIsVisible and setAnnouncementText happen in a single render cycle
       startTransition(() => {

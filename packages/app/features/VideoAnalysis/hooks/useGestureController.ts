@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
@@ -331,7 +331,7 @@ export function useGestureController(
   // AI-powered gesture conflict detection
   const gestureDetector = useGestureConflictDetector()
 
-  // Scroll blocking state - controls whether feedback ScrollView can scroll
+  // Scroll blocking state - track flags without forcing React to rerender every frame
   const [feedbackScrollEnabled, setFeedbackScrollEnabled] = useState(true)
   const [blockFeedbackScrollCompletely, setBlockFeedbackScrollCompletely] = useState(false)
 
@@ -355,15 +355,51 @@ export function useGestureController(
   // Pull-to-reveal state (JavaScript-accessible for UI indicators)
   const [isPullingToRevealJS, setIsPullingToRevealJS] = useState(false)
 
+  const setFeedbackScrollEnabledTransition = useCallback((value: boolean) => {
+    setFeedbackScrollEnabled((prev) => {
+      if (prev === value) {
+        return prev
+      }
+
+      log.debug('useGestureController', '🔍 setFeedbackScrollEnabledTransition', {
+        prev,
+        next: value,
+      })
+
+      return value
+    })
+  }, [])
+
+  const setBlockFeedbackScrollCompletelyTransition = useCallback((value: boolean) => {
+    setBlockFeedbackScrollCompletely((prev) => {
+      if (prev === value) {
+        return prev
+      }
+
+      log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
+        prev,
+        next: value,
+      })
+
+      return value
+    })
+  }, [])
+
+  const updatePullingToRevealJS = useCallback((value: boolean) => {
+    startTransition(() => {
+      setIsPullingToRevealJS((prev) => (prev === value ? prev : value))
+    })
+  }, [])
+
   // Bridge UI-thread pull state to JS for context consumers
   useAnimatedReaction(
     () => isPullingToReveal.value,
     (value, prev) => {
       if (value !== prev) {
-        runOnJS(setIsPullingToRevealJS)(value)
+        runOnJS(updatePullingToRevealJS)(value)
       }
     },
-    []
+    [updatePullingToRevealJS]
   )
 
   // Cleanup internal shared values on unmount to prevent memory leaks
@@ -402,9 +438,14 @@ export function useGestureController(
   // Ref for gesture handler
   const rootPanRef = useRef<GestureType | undefined>(undefined)
 
-  // Feedback scroll callbacks
-  const onFeedbackScrollY = useCallback(
-    (scrollYValue: number) => {
+  // Feedback scroll callbacks - use refs for stable references
+  // These callbacks don't need to recreate when state changes - they use refs internally
+  const feedbackScrollYRef = useRef<((scrollYValue: number) => void) | undefined>(undefined)
+  const feedbackMomentumScrollEndRef = useRef<(() => void) | undefined>(undefined)
+
+  // Update refs when dependencies change (but keep callback references stable)
+  useEffect(() => {
+    feedbackScrollYRef.current = (scrollYValue: number) => {
       const prevOffset = feedbackContentOffsetY.value
       feedbackContentOffsetY.value = scrollYValue
 
@@ -419,18 +460,26 @@ export function useGestureController(
           committedToVideoControl: committedToVideoControl.value,
         })
       }
-    },
-    [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl]
-  )
+    }
+
+    feedbackMomentumScrollEndRef.current = () => {
+      log.debug('VideoAnalysisScreen.onFeedbackMomentumScrollEnd', 'Momentum scroll ended', {
+        feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+        scrollY: Math.round(scrollY.value * 100) / 100,
+        gestureIsActive: gestureIsActive.value,
+        committedToVideoControl: committedToVideoControl.value,
+      })
+    }
+  }, [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl])
+
+  // Stable callback wrappers that use refs
+  const onFeedbackScrollY = useCallback((scrollYValue: number) => {
+    feedbackScrollYRef.current?.(scrollYValue)
+  }, [])
 
   const onFeedbackMomentumScrollEnd = useCallback(() => {
-    log.debug('VideoAnalysisScreen.onFeedbackMomentumScrollEnd', 'Momentum scroll ended', {
-      feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-      scrollY: Math.round(scrollY.value * 100) / 100,
-      gestureIsActive: gestureIsActive.value,
-      committedToVideoControl: committedToVideoControl.value,
-    })
-  }, [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl])
+    feedbackMomentumScrollEndRef.current?.()
+  }, [])
 
   // Pan gesture with YouTube-style delegation
   // CRITICAL: Only activate on vertical movement to avoid claiming back navigation gestures
@@ -498,7 +547,7 @@ export function useGestureController(
       if (isInVideoArea && !touchStartsFromLeftEdge) {
         // Video area touches (NOT left-edge): Immediately commit to gesture control
         committedToVideoControl.value = true
-        runOnJS(setFeedbackScrollEnabled)(false)
+        runOnJS(setFeedbackScrollEnabledTransition)(false)
       }
       // Left-edge touches and feedback area touches wait for direction in onChange
     })
@@ -531,7 +580,7 @@ export function useGestureController(
           // This is a left-edge swipe-right gesture - allow back navigation
           gestureIsActive.value = false
           committedToVideoControl.value = false
-          runOnJS(setFeedbackScrollEnabled)(true)
+          runOnJS(setFeedbackScrollEnabledTransition)(true)
           return
         }
 
@@ -541,7 +590,7 @@ export function useGestureController(
           if (isPrimarilyVertical && Math.abs(e.changeY) > 5) {
             // Left-edge vertical gesture - commit to video control
             committedToVideoControl.value = true
-            runOnJS(setFeedbackScrollEnabled)(false)
+            runOnJS(setFeedbackScrollEnabledTransition)(false)
           } else if (Math.abs(e.changeX) > Math.abs(e.changeY)) {
             // Left-edge but swiping left (not right) - might still want back nav, but don't commit
             return
@@ -586,8 +635,8 @@ export function useGestureController(
             // Fast swipe UP in normal mode → Change to min mode (don't scroll feedback)
             isFastSwipeVideoModeChange.value = true
             committedToVideoControl.value = true
-            runOnJS(setFeedbackScrollEnabled)(false)
-            runOnJS(setBlockFeedbackScrollCompletely)(true)
+            runOnJS(setFeedbackScrollEnabledTransition)(false)
+            runOnJS(setBlockFeedbackScrollCompletelyTransition)(true)
             runOnJS(log.debug)(
               'VideoAnalysisScreen.rootPan',
               'Fast swipe detected - video mode change (COMMITTED)',
@@ -609,7 +658,7 @@ export function useGestureController(
             // Slow swipe UP → Hand off to ScrollView for feedback scrolling
             const wasActive = gestureIsActive.value
             gestureIsActive.value = false
-            runOnJS(setFeedbackScrollEnabled)(true)
+            runOnJS(setFeedbackScrollEnabledTransition)(true)
             runOnJS(log.debug)(
               'VideoAnalysisScreen.rootPan',
               'Slow swipe - handed off to ScrollView (NOT COMMITTED)',
@@ -638,7 +687,7 @@ export function useGestureController(
           // and reset the feedback scroll position
           const wasActive = gestureIsActive.value
           gestureIsActive.value = false
-          runOnJS(setFeedbackScrollEnabled)(true)
+          runOnJS(setFeedbackScrollEnabledTransition)(true)
           runOnJS(log.debug)(
             'VideoAnalysisScreen.rootPan',
             'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
@@ -659,7 +708,7 @@ export function useGestureController(
         } else {
           // All other cases: Commit to gesture control
           committedToVideoControl.value = true
-          runOnJS(setFeedbackScrollEnabled)(false)
+          runOnJS(setFeedbackScrollEnabledTransition)(false)
           runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture committed to video control', {
             direction: gestureDirection.value,
             velocity: Math.round(gestureVelocity.value * 1000) / 1000,
@@ -757,8 +806,8 @@ export function useGestureController(
       })
 
       // ← CRITICAL: Re-enable ScrollView when gesture ends
-      runOnJS(setFeedbackScrollEnabled)(true)
-      runOnJS(setBlockFeedbackScrollCompletely)(false)
+      runOnJS(setFeedbackScrollEnabledTransition)(true)
+      runOnJS(setBlockFeedbackScrollCompletelyTransition)(false)
       runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - re-enabled scroll', {
         feedbackScrollEnabled: true,
         blockFeedbackScrollCompletely: false,
@@ -843,13 +892,28 @@ export function useGestureController(
       isLeftEdgeSwipe.value = false
     })
 
-  return {
-    rootPan,
-    rootPanRef,
-    feedbackScrollEnabled,
-    blockFeedbackScrollCompletely,
-    isPullingToRevealJS,
-    onFeedbackScrollY,
-    onFeedbackMomentumScrollEnd,
-  }
+  // Memoize return value with PRIMITIVE deps (not rootPan which changes every render)
+  // rootPan MUST be new every render (Reanimated), but we accept that and only memoize
+  // based on the primitive state values and stable callbacks
+  return useMemo(
+    () => ({
+      rootPan,
+      rootPanRef,
+      feedbackScrollEnabled,
+      blockFeedbackScrollCompletely,
+      isPullingToRevealJS,
+      onFeedbackScrollY,
+      onFeedbackMomentumScrollEnd,
+    }),
+    [
+      // Omit rootPan from deps - it changes every render by design
+      rootPanRef,
+      feedbackScrollEnabled,
+      blockFeedbackScrollCompletely,
+      isPullingToRevealJS,
+      // Callbacks are stable (useCallback with empty deps + refs)
+      onFeedbackScrollY,
+      onFeedbackMomentumScrollEnd,
+    ]
+  )
 }

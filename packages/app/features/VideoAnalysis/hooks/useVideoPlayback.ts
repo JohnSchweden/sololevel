@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export interface VideoPlaybackState {
   isPlaying: boolean
@@ -79,10 +79,19 @@ export function useVideoPlayback(
     setVideoEnded(false)
   }, [])
 
+  // Use refs for currentTime/duration that are only accessed for logging/fallback
+  // This prevents handleEnd from recreating on every playback state change
+  const currentTimeRef = useRef(currentTime)
+  const durationRef = useRef(duration)
+  useEffect(() => {
+    currentTimeRef.current = currentTime
+    durationRef.current = duration
+  }, [currentTime, duration])
+
   const handleEnd = useCallback(
     (endTime?: number) => {
       // Use provided endTime, fall back to last reported progress, then state currentTime
-      const actualEndTime = endTime ?? lastReportedProgressRef.current ?? currentTime
+      const actualEndTime = endTime ?? lastReportedProgressRef.current ?? currentTimeRef.current
 
       log.info('useVideoPlayback', 'Video end event received')
 
@@ -92,7 +101,7 @@ export function useVideoPlayback(
       setIsPlaying(false)
       setVideoEnded(true)
     },
-    [currentTime, duration]
+    [] // No deps - uses refs for state values
   )
 
   // Add progress-based end detection to handle fractional durations
@@ -132,20 +141,21 @@ export function useVideoPlayback(
 
   const handleSeekComplete = useCallback(
     (time: number | null) => {
-      const resolvedTime = typeof time === 'number' && Number.isFinite(time) ? time : currentTime
+      const resolvedTime =
+        typeof time === 'number' && Number.isFinite(time) ? time : currentTimeRef.current
       setCurrentTime(resolvedTime)
       setPendingSeek(null)
       lastReportedProgressRef.current = resolvedTime
 
       // Check if we've sought to the end of the video
       // This handles cases where skip forward goes to the end
-      if (duration > 0 && resolvedTime >= duration - 0.05) {
+      if (durationRef.current > 0 && resolvedTime >= durationRef.current - 0.05) {
         // 50ms tolerance (matches handleProgress logic)
         setIsPlaying(false)
         setVideoEnded(true)
       }
     },
-    [currentTime, duration]
+    [] // No deps - uses refs for state values
   )
 
   const reset = useCallback(() => {
@@ -157,20 +167,40 @@ export function useVideoPlayback(
     setVideoEnded(false)
   }, [])
 
-  return {
-    isPlaying,
-    currentTime,
-    duration,
-    pendingSeek,
-    videoEnded,
-    play,
-    pause,
-    replay,
-    seek,
-    handleProgress,
-    handleLoad,
-    handleEnd,
-    handleSeekComplete,
-    reset,
-  }
+  // Memoize return value to prevent recreation on every render
+  // This is critical for preventing cascading re-renders in VideoAnalysisScreen
+  return useMemo(
+    () => ({
+      isPlaying,
+      currentTime,
+      duration,
+      pendingSeek,
+      videoEnded,
+      play,
+      pause,
+      replay,
+      seek,
+      handleProgress,
+      handleLoad,
+      handleEnd,
+      handleSeekComplete,
+      reset,
+    }),
+    [
+      isPlaying,
+      currentTime,
+      duration,
+      pendingSeek,
+      videoEnded,
+      play,
+      pause,
+      replay,
+      seek,
+      handleProgress,
+      handleLoad,
+      handleEnd,
+      handleSeekComplete,
+      reset,
+    ]
+  )
 }

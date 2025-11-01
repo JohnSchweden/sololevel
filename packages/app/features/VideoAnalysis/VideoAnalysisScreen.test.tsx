@@ -22,16 +22,20 @@ jest.mock('react-native', () => ({
   Dimensions: {
     get: jest.fn(() => ({ width: 375, height: 667 })),
   },
+  View: ({ children }: any) => children ?? null,
 }))
 
 // Mock the orchestrator hook
 jest.mock('./hooks/useVideoAnalysisOrchestrator')
 
+const layoutRenderHistory: any[] = []
+
 // Mock the layout component
 jest.mock('./components/VideoAnalysisLayout.native', () => ({
-  VideoAnalysisLayout: ({ testID, ...props }: any) => {
-    const React = require('react')
-    return React.createElement('View', { 'data-testid': testID || 'VideoAnalysisLayout', ...props })
+  __esModule: true,
+  VideoAnalysisLayout: (props: any) => {
+    layoutRenderHistory.push(props)
+    return null
   },
 }))
 
@@ -121,6 +125,22 @@ describe('VideoAnalysisScreen', () => {
       channelExhausted: false,
       errors: {},
       audioUrls: {},
+      itemsState: {
+        items: [],
+        selectedFeedbackId: null,
+      },
+      panelState: {
+        panelFraction: 0.5,
+      },
+      analysisState: {
+        phase: 'ready' as const,
+        progress: { upload: 0, analysis: 0, feedback: 0 },
+        channelExhausted: false,
+      },
+      errorsState: {
+        errors: {},
+        audioUrls: {},
+      },
     } as any,
     gesture: {
       rootPan: {} as any,
@@ -137,7 +157,6 @@ describe('VideoAnalysisScreen', () => {
       headerStyle: {} as any,
       feedbackSectionStyle: {} as any,
       pullIndicatorStyle: {} as any,
-      headerTransformStyle: {} as any,
       scrollRef: { current: null } as any,
       feedbackContentOffsetY: { value: 0 } as any,
     },
@@ -183,6 +202,7 @@ describe('VideoAnalysisScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    layoutRenderHistory.length = 0
     const { useVideoAnalysisOrchestrator } = require('./hooks/useVideoAnalysisOrchestrator')
     useVideoAnalysisOrchestrator.mockReturnValue(mockOrchestratorReturn)
   })
@@ -198,7 +218,8 @@ describe('VideoAnalysisScreen', () => {
     const result = render(<VideoAnalysisScreen {...props} />)
 
     // Assert
-    expect(result.root).toBeTruthy()
+    expect(result).toBeTruthy()
+    expect(layoutRenderHistory).toHaveLength(1)
   })
 
   // Arrange-Act-Assert
@@ -232,6 +253,96 @@ describe('VideoAnalysisScreen', () => {
 
     // Assert
     // Component should render successfully (delegating to layout)
-    expect(result.root).toBeTruthy()
+    expect(result).toBeTruthy()
+    expect(layoutRenderHistory.at(-1)).toBeDefined()
+  })
+
+  // Arrange-Act-Assert
+  test('updates audio overlay callbacks when orchestrator handlers change', () => {
+    // Arrange
+    const activeAudio = { id: 'clip-1', url: 'https://example.com/audio.mp3' }
+    const initialCallbacks = {
+      onClose: jest.fn(),
+      onInactivity: jest.fn(),
+      onInteraction: jest.fn(),
+    }
+    const updatedCallbacks = {
+      onClose: jest.fn(),
+      onInactivity: jest.fn(),
+      onInteraction: jest.fn(),
+    }
+
+    const orchestratorState: { current: UseVideoAnalysisOrchestratorReturn } = {
+      current: {
+        ...mockOrchestratorReturn,
+        audio: {
+          ...mockOrchestratorReturn.audio,
+        },
+        feedback: {
+          ...mockOrchestratorReturn.feedback,
+          coordinator: {
+            ...mockOrchestratorReturn.feedback.coordinator,
+            overlayVisible: true,
+            activeAudio,
+            onAudioOverlayClose: initialCallbacks.onClose,
+            onAudioOverlayInactivity: initialCallbacks.onInactivity,
+            onAudioOverlayInteraction: initialCallbacks.onInteraction,
+          },
+        },
+      },
+    }
+
+    const { useVideoAnalysisOrchestrator } = require('./hooks/useVideoAnalysisOrchestrator')
+    useVideoAnalysisOrchestrator.mockImplementation(() => orchestratorState.current)
+
+    const props = {
+      videoUri: 'https://example.com/video.mp4',
+    }
+
+    // Act
+    const { rerender } = render(<VideoAnalysisScreen {...props} />)
+
+    expect(layoutRenderHistory).toHaveLength(1)
+
+    const initialCall = layoutRenderHistory.at(-1)
+    expect(initialCall?.audioOverlay.onClose).toBe(initialCallbacks.onClose)
+    expect(initialCall?.audioOverlay.onInactivity).toBe(initialCallbacks.onInactivity)
+    expect(initialCall?.audioOverlay.onInteraction).toBe(initialCallbacks.onInteraction)
+
+    orchestratorState.current = {
+      ...orchestratorState.current,
+      feedback: {
+        ...orchestratorState.current.feedback,
+        coordinator: {
+          ...orchestratorState.current.feedback.coordinator,
+          onAudioOverlayClose: updatedCallbacks.onClose,
+          onAudioOverlayInactivity: updatedCallbacks.onInactivity,
+          onAudioOverlayInteraction: updatedCallbacks.onInteraction,
+        },
+      },
+    }
+
+    expect(orchestratorState.current.feedback.coordinator.onAudioOverlayClose).toBe(
+      updatedCallbacks.onClose
+    )
+    expect(orchestratorState.current.feedback.coordinator.onAudioOverlayInactivity).toBe(
+      updatedCallbacks.onInactivity
+    )
+    expect(orchestratorState.current.feedback.coordinator.onAudioOverlayInteraction).toBe(
+      updatedCallbacks.onInteraction
+    )
+
+    rerender(<VideoAnalysisScreen {...props} />)
+
+    expect(layoutRenderHistory).toHaveLength(2)
+
+    const updatedCall = layoutRenderHistory.at(-1)
+    expect(updatedCall?.audioOverlay).not.toBe(initialCall?.audioOverlay)
+    expect(updatedCall?.audioOverlay.onClose).not.toBe(initialCallbacks.onClose)
+    expect(updatedCall?.audioOverlay.onInactivity).not.toBe(initialCallbacks.onInactivity)
+    expect(updatedCall?.audioOverlay.onInteraction).not.toBe(initialCallbacks.onInteraction)
+    expect(updatedCall?.audioOverlay.onClose).toBe(updatedCallbacks.onClose)
+    expect(updatedCall?.audioOverlay.onInactivity).toBe(updatedCallbacks.onInactivity)
+    expect(updatedCall?.audioOverlay.onInteraction).toBe(updatedCallbacks.onInteraction)
   })
 })

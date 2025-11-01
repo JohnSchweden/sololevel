@@ -100,11 +100,22 @@ describe('useVideoAnalysisOrchestrator', () => {
 
     useFeedbackCoordinator.mockReturnValue({
       highlightedFeedbackId: null,
+      isCoachSpeaking: false,
+      bubbleState: {
+        currentBubbleIndex: 0,
+        bubbleVisible: false,
+        items: [],
+      },
+      overlayVisible: false,
+      activeAudio: null,
       onProgressTrigger: jest.fn(),
       onUserTapFeedback: jest.fn(),
       onPlay: jest.fn(),
       onPanelCollapse: jest.fn(),
       onPlayPendingFeedback: jest.fn(),
+      onAudioOverlayClose: jest.fn(),
+      onAudioOverlayInactivity: jest.fn(),
+      onAudioOverlayInteraction: jest.fn(),
     })
 
     useFeedbackPanel.mockReturnValue({
@@ -135,7 +146,6 @@ describe('useVideoAnalysisOrchestrator', () => {
       headerStyle: {},
       feedbackSectionStyle: {},
       pullIndicatorStyle: {},
-      headerTransformStyle: {},
       scrollRef: { current: null },
       feedbackContentOffsetY: { value: 0 },
     })

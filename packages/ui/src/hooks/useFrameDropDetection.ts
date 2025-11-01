@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useEffect, useRef, useState } from 'react'
+import { type MutableRefObject, useEffect, useRef, useState } from 'react'
 
 /**
  * Configuration for frame drop detection
@@ -19,6 +19,8 @@ export interface UseFrameDropDetectionConfig {
   componentName?: string
   /** Animation name/identifier for logging */
   animationName?: string
+  /** When true, suppress React state updates and only log metrics */
+  logOnly?: boolean
 }
 
 /**
@@ -47,6 +49,28 @@ export interface UseFrameDropDetectionReturn {
   hasFrameDrops: boolean
   /** Reset metrics */
   reset: () => void
+}
+
+interface ApplyPendingMetricsParams {
+  logOnly: boolean
+  metricsRef: MutableRefObject<FrameDropMetrics>
+  pendingMetricsRef: MutableRefObject<FrameDropMetrics | null>
+  setMetrics: (metrics: FrameDropMetrics) => void
+}
+
+export function applyPendingMetricsForTest(params: ApplyPendingMetricsParams): void {
+  const { logOnly, metricsRef, pendingMetricsRef, setMetrics } = params
+  const pending = pendingMetricsRef.current
+  if (!pending) {
+    return
+  }
+
+  metricsRef.current = pending
+  pendingMetricsRef.current = null
+
+  if (!logOnly) {
+    setMetrics(pending)
+  }
 }
 
 /**
@@ -98,6 +122,7 @@ export function useFrameDropDetection(
     warningThreshold = 5,
     componentName = 'Animation',
     animationName = 'animation',
+    logOnly = false,
   } = config
 
   const frameCountRef = useRef(0)
@@ -106,14 +131,20 @@ export function useFrameDropDetection(
   const droppedFramesRef = useRef(0)
   const rafIdRef = useRef<number | null>(null)
   const pendingMetricsRef = useRef<FrameDropMetrics | null>(null)
+  const lastWarningTimeRef = useRef<number>(0)
+  const hasWarnedRef = useRef(false)
 
-  const [metrics, setMetrics] = useState<FrameDropMetrics>({
+  const initialMetrics: FrameDropMetrics = {
     currentFPS: 60,
     averageFPS: 60,
     droppedFrames: 0,
     frameTimes: [],
     frameCount: 0,
-  })
+  }
+
+  const metricsRef = useRef<FrameDropMetrics>(initialMetrics)
+
+  const [metrics, setMetrics] = useState<FrameDropMetrics>(initialMetrics)
 
   // Frame monitoring loop
   useEffect(() => {
@@ -122,6 +153,9 @@ export function useFrameDropDetection(
         cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
+      // Reset warning flags when animation stops
+      hasWarnedRef.current = false
+      lastWarningTimeRef.current = 0
       return
     }
 
@@ -150,13 +184,37 @@ export function useFrameDropDetection(
           frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length
         const averageFPS = average > 0 ? Math.round(1000 / average) : 60
 
-        // Store in ref instead of calling setState during RAF
-        pendingMetricsRef.current = {
+        const nextMetrics: FrameDropMetrics = {
           currentFPS,
           averageFPS,
           droppedFrames: droppedFramesRef.current,
           frameTimes: [...frameTimesRef.current],
           frameCount: frameCountRef.current,
+        }
+
+        if (logOnly) {
+          metricsRef.current = nextMetrics
+          // Throttle warnings: only log once per second when threshold exceeded
+          if (nextMetrics.droppedFrames >= warningThreshold && nextMetrics.frameCount > 10) {
+            const now = Date.now()
+            const timeSinceLastWarning = now - lastWarningTimeRef.current
+
+            // Only warn once per second, or on first detection
+            if (!hasWarnedRef.current || timeSinceLastWarning >= 1000) {
+              log.warn(componentName, '⚠️ Frame drops detected', {
+                animationName,
+                droppedFrames: nextMetrics.droppedFrames,
+                currentFPS: nextMetrics.currentFPS,
+                averageFPS: nextMetrics.averageFPS,
+                frameCount: nextMetrics.frameCount,
+              })
+              lastWarningTimeRef.current = now
+              hasWarnedRef.current = true
+            }
+          }
+        } else {
+          // Store in ref instead of calling setState during RAF
+          pendingMetricsRef.current = nextMetrics
         }
       }
 
@@ -170,6 +228,8 @@ export function useFrameDropDetection(
     frameCountRef.current = 0
     droppedFramesRef.current = 0
     frameTimesRef.current = []
+    lastWarningTimeRef.current = 0
+    hasWarnedRef.current = false
 
     // Start monitoring
     rafIdRef.current = requestAnimationFrame(measureFrame)
@@ -184,14 +244,24 @@ export function useFrameDropDetection(
 
   // Sync pending metrics to state in a separate effect (after RAF has run)
   useEffect(() => {
+    if (logOnly) {
+      return
+    }
     if (pendingMetricsRef.current) {
-      setMetrics(pendingMetricsRef.current)
-      pendingMetricsRef.current = null
+      applyPendingMetricsForTest({
+        logOnly,
+        metricsRef,
+        pendingMetricsRef,
+        setMetrics,
+      })
     }
   })
 
   // Warn on frame drops
   useEffect(() => {
+    if (logOnly) {
+      return
+    }
     if (metrics.droppedFrames >= warningThreshold && metrics.frameCount > 10) {
       // Only warn after tracking for a bit
       log.warn(componentName, '⚠️ Frame drops detected', {
@@ -202,26 +272,31 @@ export function useFrameDropDetection(
         frameCount: metrics.frameCount,
       })
     }
-  }, [metrics, warningThreshold, componentName, animationName])
+  }, [logOnly, metrics, warningThreshold, componentName, animationName])
 
-  const hasFrameDrops = metrics.droppedFrames >= warningThreshold
+  const metricsSnapshot = logOnly ? metricsRef.current : metrics
+  const hasFrameDrops = metricsSnapshot.droppedFrames >= warningThreshold
 
   const reset = (): void => {
     frameCountRef.current = 0
     droppedFramesRef.current = 0
     frameTimesRef.current = []
     lastFrameTimeRef.current = null
-    setMetrics({
+    const resetMetrics: FrameDropMetrics = {
       currentFPS: 60,
       averageFPS: 60,
       droppedFrames: 0,
       frameTimes: [],
       frameCount: 0,
-    })
+    }
+    metricsRef.current = resetMetrics
+    if (!logOnly) {
+      setMetrics(resetMetrics)
+    }
   }
 
   return {
-    metrics,
+    metrics: metricsSnapshot,
     hasFrameDrops,
     reset,
   }

@@ -264,7 +264,7 @@ describe('useFeedbackCoordinator', () => {
       triggerCoachSpeaking: jest.fn(),
     })
 
-    const { result } = renderHook(() =>
+    const { result, rerender } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
         feedbackAudio: deps.feedbackAudio,
@@ -277,11 +277,28 @@ describe('useFeedbackCoordinator', () => {
       result.current.onUserTapFeedback(deps.feedbackItems[0])
     })
 
-    act(() => {
-      result.current.onPlay()
+    // Verify first call (from onUserTapFeedback) - should have playAudio: false
+    expect(selectFeedback).toHaveBeenCalledTimes(1)
+    expect(selectFeedback).toHaveBeenNthCalledWith(1, deps.feedbackItems[0], {
+      seek: true,
+      playAudio: false,
     })
 
-    expect(selectFeedback).toHaveBeenCalledWith(deps.feedbackItems[0], {
+    // Wait for state update to complete - rerender will trigger hook recalculation
+    act(() => {
+      rerender()
+    })
+
+    // Get fresh reference to onPlay after state update
+    const onPlayAfterUpdate = result.current.onPlay
+
+    act(() => {
+      onPlayAfterUpdate()
+    })
+
+    // Verify second call (from onPlay) - should have playAudio: true
+    expect(selectFeedback).toHaveBeenCalledTimes(2)
+    expect(selectFeedback).toHaveBeenNthCalledWith(2, deps.feedbackItems[0], {
       seek: true,
       playAudio: true,
     })

@@ -221,6 +221,7 @@ export function VideosSection({
           <XStack
             gap="$2"
             paddingLeft="$10"
+            paddingRight="$4"
           >
             {videos.map((video) => (
               <VideoThumbnailCard

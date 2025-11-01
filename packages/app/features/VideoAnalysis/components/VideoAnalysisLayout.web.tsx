@@ -8,6 +8,7 @@ import { FeedbackSection } from './FeedbackSection'
 import { UploadErrorState } from './UploadErrorState'
 import type { VideoAnalysisLayoutProps } from './VideoAnalysisLayout.native'
 import { VideoPlayerSection } from './VideoPlayerSection'
+import { toggleControlsVisibilityOnTap } from './toggleControlsVisibility'
 
 /**
  * VideoAnalysisLayout - Web Implementation
@@ -28,6 +29,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     video,
     playback,
     feedback,
+    feedbackAudioUrls,
+    feedbackErrors,
     handlers,
     videoControlsRef,
     controls,
@@ -54,6 +57,10 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     },
     []
   )
+
+  const handleTap = useCallback(() => {
+    toggleControlsVisibilityOnTap(controls.showControls, controls.onControlsVisibilityChange)
+  }, [controls])
 
   return (
     <VideoAnalysisProvider value={contextValue}>
@@ -91,7 +98,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
               onSignificantProgress={handlers.onSignificantProgress}
               onLoad={handlers.onVideoLoad}
               onEnd={handlers.onPause}
-              onTap={() => {}}
+              onTap={handleTap}
               onControlsVisibilityChange={controls.onControlsVisibilityChange}
               audioPlayerController={audioController}
               bubbleState={bubbleState}
@@ -117,8 +124,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
               selectedFeedbackId={feedback.selectedFeedbackId}
               currentVideoTime={feedback.currentTime}
               videoDuration={0}
-              errors={feedback.errors}
-              audioUrls={feedback.audioUrls}
+              errors={feedbackErrors}
+              audioUrls={feedbackAudioUrls}
               onTabChange={handlers.onTabChange}
               onExpand={handlers.onExpand}
               onCollapse={handlers.onCollapsePanel}

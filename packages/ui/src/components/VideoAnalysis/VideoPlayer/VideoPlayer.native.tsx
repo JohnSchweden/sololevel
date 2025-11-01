@@ -1,11 +1,11 @@
 import { log } from '@my/logging'
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import Video from 'react-native-video'
 import { Text, YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
-export const VideoPlayerNative = React.memo(function VideoPlayerNative({
+export function VideoPlayerNative({
   videoUri,
   isPlaying,
   currentTime: _currentTime, // Deprecated: kept for backward compatibility
@@ -21,6 +21,12 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
   const [error, setError] = useState<string | null>(null)
   const lastProgressUpdateRef = useRef<number>(0)
   const lastReportedTimeRef = useRef<number>(0)
+  const isPlayingRef = useRef(isPlaying)
+
+  // Keep ref in sync with prop value
+  useEffect(() => {
+    isPlayingRef.current = isPlaying
+  }, [isPlaying])
 
   // Handle video loading
   const handleLoad = (data: any) => {
@@ -58,6 +64,14 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
       const currentTime = data.currentTime
       // Always track the latest time, even if we don't notify (for accurate end time)
       lastReportedTimeRef.current = currentTime
+
+      // Stop processing progress updates when video is paused/ended
+      // This prevents unnecessary re-renders after video ends
+      // Use ref to get latest value even if component hasn't re-rendered yet
+      if (!isPlayingRef.current) {
+        return
+      }
+
       // Only update progress every 250ms to prevent excessive re-renders
       if (now - lastProgressUpdateRef.current >= 250) {
         lastProgressUpdateRef.current = now
@@ -68,6 +82,9 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
 
   // Handle video end
   const handleEnd = () => {
+    // Immediately stop processing progress updates to prevent re-renders after video ends
+    isPlayingRef.current = false
+
     // Try to get current time from video ref if available
     const currentTimeFromRef = videoRef.current?.getCurrentTime?.() ?? null
     // Use the last reported progress time as fallback (most accurate we have)
@@ -151,6 +168,6 @@ export const VideoPlayerNative = React.memo(function VideoPlayerNative({
       )}
     </YStack>
   )
-})
+}
 
 export const VideoPlayer = VideoPlayerNative

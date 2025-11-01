@@ -1,7 +1,5 @@
 import { log } from '@my/logging'
-import { Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
-import { useState } from 'react'
-import { Pressable } from 'react-native'
+import { Pause, Play, Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -37,11 +35,11 @@ export interface RecordingControlsProps {
  */
 export function RecordingControls({
   recordingState,
-  duration,
+  //duration,
   zoomLevel,
   canSwapCamera,
   canStop = false,
-  formattedDuration,
+  //formattedDuration,
   onPause,
   onResume,
   onStop,
@@ -50,16 +48,14 @@ export function RecordingControls({
   onSettingsOpen,
   disabled = false,
 }: RecordingControlsProps) {
-  const [isPausePressed, setIsPausePressed] = useState(false)
+  // const formatTime = (milliseconds: number): string => {
+  //   if (formattedDuration) return formattedDuration
 
-  const formatTime = (milliseconds: number): string => {
-    if (formattedDuration) return formattedDuration
-
-    const totalSeconds = Math.floor(milliseconds / 1000)
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-  }
+  //   const totalSeconds = Math.floor(milliseconds / 1000)
+  //   const minutes = Math.floor(totalSeconds / 60)
+  //   const seconds = totalSeconds % 60
+  //   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  // }
 
   const handlePauseResume = () => {
     if (recordingState === RecordingState.RECORDING) {
@@ -70,7 +66,7 @@ export function RecordingControls({
   }
 
   const isPaused = recordingState === RecordingState.PAUSED
-  const isRecording = recordingState === RecordingState.RECORDING
+  //const isRecording = recordingState === RecordingState.RECORDING
 
   return (
     <YStack
@@ -78,7 +74,7 @@ export function RecordingControls({
       gap="$4"
     >
       {/* Recording Timer */}
-      <YStack
+      {/* <YStack
         backgroundColor="rgba(0,0,0,0.6)"
         paddingHorizontal="$4"
         paddingVertical="$2"
@@ -95,7 +91,7 @@ export function RecordingControls({
         >
           {formatTime(duration)}
         </Text>
-      </YStack>
+      </YStack> */}
 
       {/* Primary Control Row - Pause/Resume and Stop */}
       <XStack
@@ -104,64 +100,33 @@ export function RecordingControls({
         gap="$6"
         paddingHorizontal="$4"
       >
-        {/* Pause/Resume Button */}
-        <Pressable
+        {/* Pause/Resume Button - Left side */}
+        <GlassButton
           onPress={handlePauseResume}
-          onPressIn={() => setIsPausePressed(true)}
-          onPressOut={() => setIsPausePressed(false)}
           disabled={disabled}
-          accessibilityRole="button"
+          backgroundColor="transparent"
+          minHeight={60}
+          minWidth={60}
+          icon={
+            isPaused ? (
+              <Play
+                size="$2"
+                color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+              />
+            ) : (
+              <Pause
+                size="$2"
+                color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+              />
+            )
+          }
           accessibilityLabel={isPaused ? 'Resume recording' : 'Pause recording'}
           accessibilityHint={
             isPaused ? 'Resume the current recording' : 'Pause the current recording'
           }
-        >
-          <XStack
-            alignItems="center"
-            justifyContent="center"
-            backgroundColor={disabled ? '$color8' : 'rgba(255,255,255,0.9)'}
-            borderRadius="$4"
-            paddingHorizontal="$4"
-            paddingVertical="$3"
-            minHeight={60}
-            minWidth={120}
-            gap="$2"
-            // Touch feedback
-            scale={isPausePressed ? 0.95 : 1.0}
-            hoverStyle={{
-              backgroundColor: disabled ? '$color8' : 'rgba(255,255,255,1.0)',
-            }}
-          >
-            {isPaused ? (
-              <YStack
-                width={0}
-                height={0}
-                borderLeftWidth={12}
-                borderLeftColor={disabled ? '$color10' : '$color10'}
-                borderTopWidth={8}
-                borderTopColor="transparent"
-                borderBottomWidth={8}
-                borderBottomColor="transparent"
-                marginLeft="$1"
-              />
-            ) : (
-              <>
-                <YStack
-                  width={4}
-                  height={16}
-                  backgroundColor={disabled ? '$color10' : '$color10'}
-                  borderRadius="$1"
-                />
-                <YStack
-                  width={4}
-                  height={16}
-                  backgroundColor={disabled ? '$color10' : '$color10'}
-                  borderRadius="$1"
-                />
-              </>
-            )}
-          </XStack>
-        </Pressable>
+        />
 
         {/* Stop Button */}
         <GlassButton

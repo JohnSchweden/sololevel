@@ -1,5 +1,6 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { log } from '@my/logging'
 import Animated, {
   Extrapolation,
   type SharedValue,
@@ -7,8 +8,6 @@ import Animated, {
   useAnimatedStyle,
   Easing,
   useDerivedValue,
-  useAnimatedReaction,
-  runOnJS,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -142,10 +141,29 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const lastNotifiedTimeRef = useRef(0)
+  const stateUpdateCountRef = useRef(0)
+  const lastStateUpdateTimeRef = useRef(0)
   // Track the target seek time to ignore stale progress events after seeking
   const pendingSeekTimeRef = useRef<number | null>(null)
   // Track the time before seek to detect backward seeks and filter stale events
   const timeBeforeSeekRef = useRef<number | null>(null)
+
+  // Debug: Track state updates
+  useEffect(() => {
+    stateUpdateCountRef.current++
+    const now = Date.now()
+    const timeSinceLastUpdate = now - lastStateUpdateTimeRef.current
+    lastStateUpdateTimeRef.current = now
+
+    if (stateUpdateCountRef.current > 1 && timeSinceLastUpdate < 100) {
+      log.debug('VideoPlayerSection', '⚡ Rapid state updates', {
+        count: stateUpdateCountRef.current,
+        currentTime,
+        duration,
+        timeSinceLastUpdate,
+      })
+    }
+  }, [currentTime, duration])
 
   // Only notify parent on significant progress changes (> 1 second)
   const handleProgress = useCallback(
@@ -302,21 +320,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     return mode
   })
 
-  // Convert videoMode SharedValue to state only (for JS use, e.g., render profiling)
-  // REMOVED: collapseProgress state conversion - pass SharedValue directly to VideoControls
-  // This eliminates re-renders during gestures (~60fps updates → 0 JS re-renders)
-  const [currentVideoMode, setCurrentVideoMode] = useState<'max' | 'normal' | 'min'>('max')
-
-  useAnimatedReaction(
-    () => videoMode.value,
-    (currentMode) => {
-      runOnJS(setCurrentVideoMode)(currentMode)
-    },
-    [videoMode]
-  )
-
-  // Note: collapseProgress is passed directly as SharedValue to VideoControls
-  // No state conversion needed - VideoControls handles SharedValue directly
+  // Pass videoMode SharedValue directly to VideoControls (like collapseProgress)
+  // Eliminated state conversion to prevent 60fps re-renders during gestures/animations
 
   // Animation styles for avatar and social icons
   const avatarAnimatedStyle = useAnimatedStyle(() => {
@@ -425,20 +430,12 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           )} */}
 
           {/* Avatar - Always render with animated style */}
+          {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
           <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
             <CoachAvatar
               isSpeaking={coachSpeaking}
               size={80}
               testID="video-analysis-coach-avatar"
-              animation="quick"
-              enterStyle={{
-                opacity: 0,
-                scale: 0.8,
-              }}
-              exitStyle={{
-                opacity: 0,
-                scale: 0.8,
-              }}
             />
           </Animated.View>
 
@@ -470,7 +467,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             showControls={showControls}
             isProcessing={isProcessing}
             videoEnded={videoEnded}
-            videoMode={currentVideoMode}
+            videoMode={videoMode}
             collapseProgress={collapseProgress}
             onPlay={onPlay}
             onPause={onPause}

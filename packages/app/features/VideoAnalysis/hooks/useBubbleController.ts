@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type BubbleTimerReason = 'initial' | 'playback-start' | 'duration-update'
 export type BubbleHideReason =
@@ -418,11 +418,16 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
     [bubbleVisible, currentBubbleIndex, showBubble]
   )
 
-  return {
-    currentBubbleIndex,
-    bubbleVisible,
-    showBubble,
-    hideBubble,
-    checkAndShowBubbleAtTime,
-  }
+  // Memoize return value to prevent recreation on every render
+  // This is critical for preventing cascading re-renders in VideoAnalysisScreen
+  return useMemo(
+    () => ({
+      currentBubbleIndex,
+      bubbleVisible,
+      showBubble,
+      hideBubble,
+      checkAndShowBubbleAtTime,
+    }),
+    [currentBubbleIndex, bubbleVisible, showBubble, hideBubble, checkAndShowBubbleAtTime]
+  )
 }

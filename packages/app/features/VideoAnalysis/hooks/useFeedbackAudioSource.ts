@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getFirstAudioUrlForFeedback } from '@my/api'
 import { log } from '@my/logging'
@@ -127,36 +127,47 @@ export function useFeedbackAudioSource(
     })
   }, [audioUrls, errors, feedbackItems])
 
+  // Use ref to access activeAudio without including it in callback deps
+  // This prevents selectAudio/clearActiveAudio from changing when activeAudio changes
+  const activeAudioRef = useRef(activeAudio)
+  activeAudioRef.current = activeAudio
+
+  // Store audioUrls in ref to prevent selectAudio from recreating when object reference changes
+  // Only the actual URL values matter, not the object identity
+  const audioUrlsRef = useRef(audioUrls)
+  audioUrlsRef.current = audioUrls
+
   const selectAudio = useCallback(
     (feedbackId: string) => {
-      const url = audioUrls[feedbackId]
+      const url = audioUrlsRef.current[feedbackId]
       if (!url) {
         log.warn(CONTEXT, 'Attempted to select feedback audio without cached url', {
           feedbackId,
-          availableUrls: Object.keys(audioUrls),
+          availableUrls: Object.keys(audioUrlsRef.current),
         })
         return
       }
 
       // If selecting the same audio id again, append a cache-busting fragment to force controller reset
-      const urlToUse = activeAudio?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
+      const urlToUse =
+        activeAudioRef.current?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
 
       // log.info(CONTEXT, 'Selecting audio for feedback', {
       //   feedbackId,
       //   url: urlToUse.substring(0, 50) + '...',
-      //   previousActiveId: activeAudio?.id,
+      //   previousActiveId: activeAudioRef.current?.id,
       // })
       setActiveAudio({ id: feedbackId, url: urlToUse })
     },
-    [audioUrls, activeAudio?.id]
+    [] // Empty deps - uses refs for all dynamic values
   )
 
   const clearActiveAudio = useCallback(() => {
     // log.info(CONTEXT, 'Clearing active audio', {
-    //   previousActiveId: activeAudio?.id,
+    //   previousActiveId: activeAudioRef.current?.id,
     // })
     setActiveAudio(null)
-  }, [activeAudio?.id])
+  }, [])
 
   const clearError = useCallback((feedbackId: string) => {
     // log.info(CONTEXT, 'Clearing error for feedback', { feedbackId })
@@ -171,12 +182,17 @@ export function useFeedbackAudioSource(
     })
   }, [])
 
-  return {
-    audioUrls,
-    activeAudio,
-    errors,
-    selectAudio,
-    clearActiveAudio,
-    clearError,
-  }
+  // Memoize return value to prevent recreation on every render
+  // This is critical for preventing cascading re-renders in VideoAnalysisScreen
+  return useMemo(
+    () => ({
+      audioUrls,
+      activeAudio,
+      errors,
+      selectAudio,
+      clearActiveAudio,
+      clearError,
+    }),
+    [audioUrls, activeAudio, errors, selectAudio, clearActiveAudio, clearError]
+  )
 }

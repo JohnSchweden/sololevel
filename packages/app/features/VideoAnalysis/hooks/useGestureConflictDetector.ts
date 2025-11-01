@@ -1,5 +1,5 @@
 //import { log } from '@my/logging'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 //import { runOnJS } from 'react-native-reanimated'
 
 export interface GestureEvent {
@@ -35,7 +35,7 @@ export interface UseGestureConflictDetectorReturn {
   /** Start tracking a gesture event */
   trackGestureEvent: (event: Partial<GestureEvent>) => void
   /** Detect conflicts between active gestures */
-  detectConflicts: (activeGestures: string[]) => GestureConflict[]
+  detectConflicts: (activeGestures?: string[]) => GestureConflict[]
   /** Get current gesture hierarchy */
   getGestureHierarchy: () => GestureHierarchy[]
   /** Get gesture performance metrics */
@@ -104,71 +104,24 @@ const GESTURE_HIERARCHY: GestureHierarchy[] = [
 ]
 
 export function useGestureConflictDetector(): UseGestureConflictDetectorReturn {
-  const [gestureHistory, setGestureHistory] = useState<GestureEvent[]>([])
-  const [activeGestures, setActiveGestures] = useState<Set<string>>(new Set())
+  const gestureHistoryRef = useRef<GestureEvent[]>([])
+  const activeGesturesRef = useRef<Set<string>>(new Set())
   const gestureStartTimes = useRef<Map<string, number>>(new Map())
   const gestureConflicts = useRef<GestureConflict[]>([])
 
-  const trackGestureEvent = useCallback(
-    (event: Partial<GestureEvent>) => {
-      const fullEvent: GestureEvent = {
-        id: `${event.gestureType}-${Date.now()}-${Math.random()}`,
-        timestamp: Date.now(),
-        gestureType: event.gestureType || 'unknown',
-        phase: event.phase || 'begin',
-        location: event.location || { x: 0, y: 0 },
-        translation: event.translation || { x: 0, y: 0 },
-        velocity: event.velocity || { x: 0, y: 0 },
-        activeGestures: Array.from(activeGestures),
-        conflicts: [],
-        ...event,
-      }
-
-      // Track gesture lifecycle
-      if (event.phase === 'begin') {
-        gestureStartTimes.current.set(fullEvent.gestureType, fullEvent.timestamp)
-        setActiveGestures((prev) => {
-          const newSet = new Set(prev)
-          newSet.add(fullEvent.gestureType)
-          return newSet
-        })
-      } else if (event.phase === 'finalize') {
-        gestureStartTimes.current.delete(fullEvent.gestureType)
-        setActiveGestures((prev) => {
-          const newSet = new Set(prev)
-          newSet.delete(fullEvent.gestureType)
-          return newSet
-        })
-      }
-
-      // Detect conflicts
-      const conflicts = detectConflicts(Array.from(activeGestures))
-      fullEvent.conflicts = conflicts
-
-      setGestureHistory((prev) => [...prev.slice(-99), fullEvent]) // Keep last 100 events
-      gestureConflicts.current = [...gestureConflicts.current, ...conflicts]
-
-      // AI-powered conflict analysis
-      // runOnJS(log.debug)('GestureConflictDetector', 'Event tracked', {
-      //   event: fullEvent,
-      //   activeGestures: Array.from(activeGestures),
-      //   conflicts: conflicts.length,
-      // })
-    },
-    [activeGestures]
-  )
-
-  const detectConflicts = useCallback((currentActiveGestures: string[]): GestureConflict[] => {
+  const detectConflicts = useCallback((currentActiveGestures?: string[]): GestureConflict[] => {
+    const activeList = currentActiveGestures ?? Array.from(activeGesturesRef.current)
+    const activeSet = new Set(activeList)
     const conflicts: GestureConflict[] = []
     const timestamp = Date.now()
 
-    for (const gesture of currentActiveGestures) {
+    for (const gesture of activeList) {
       const hierarchy = GESTURE_HIERARCHY.find((h) => h.gestureName === gesture)
       if (!hierarchy) continue
 
       // Check for blocking conflicts
       for (const blockingGesture of hierarchy.blockingGestures) {
-        if (currentActiveGestures.includes(blockingGesture)) {
+        if (activeSet.has(blockingGesture)) {
           conflicts.push({
             conflictingGesture: blockingGesture,
             conflictType: 'blocking',
@@ -179,7 +132,7 @@ export function useGestureConflictDetector(): UseGestureConflictDetectorReturn {
       }
 
       // Check for simultaneous conflicts that shouldn't be simultaneous
-      for (const otherGesture of currentActiveGestures) {
+      for (const otherGesture of activeList) {
         if (otherGesture === gesture) continue
 
         const otherHierarchy = GESTURE_HIERARCHY.find((h) => h.gestureName === otherGesture)
@@ -203,18 +156,67 @@ export function useGestureConflictDetector(): UseGestureConflictDetectorReturn {
     return conflicts
   }, [])
 
+  const trackGestureEvent = useCallback(
+    (event: Partial<GestureEvent>) => {
+      const now = event.timestamp ?? Date.now()
+      const gestureType = event.gestureType ?? 'unknown'
+      const activeGestures = activeGesturesRef.current
+
+      if (event.phase === 'begin') {
+        gestureStartTimes.current.set(gestureType, now)
+        activeGestures.add(gestureType)
+      } else if (event.phase === 'finalize') {
+        gestureStartTimes.current.delete(gestureType)
+        activeGestures.delete(gestureType)
+      }
+
+      const activeGesturesSnapshot = Array.from(activeGestures)
+
+      const fullEvent: GestureEvent = {
+        id: `${gestureType}-${now}-${Math.random()}`,
+        timestamp: now,
+        gestureType,
+        phase: event.phase ?? 'begin',
+        location: event.location ?? { x: 0, y: 0 },
+        translation: event.translation ?? { x: 0, y: 0 },
+        velocity: event.velocity ?? { x: 0, y: 0 },
+        activeGestures: activeGesturesSnapshot,
+        conflicts: [],
+        ...event,
+      }
+
+      fullEvent.activeGestures = activeGesturesSnapshot
+
+      const conflicts = detectConflicts()
+      fullEvent.conflicts = conflicts
+
+      const prevHistory = gestureHistoryRef.current
+      const nextHistory =
+        prevHistory.length >= 100
+          ? [...prevHistory.slice(-99), fullEvent]
+          : [...prevHistory, fullEvent]
+
+      gestureHistoryRef.current = nextHistory
+
+      if (conflicts.length > 0) {
+        gestureConflicts.current = [...gestureConflicts.current, ...conflicts]
+      }
+    },
+    [detectConflicts]
+  )
+
   const getGestureHierarchy = useCallback((): GestureHierarchy[] => {
+    const history = gestureHistoryRef.current
+    const seenGestures = new Set(history.map((event) => event.gestureType))
+
     return GESTURE_HIERARCHY.map((hierarchy) => ({
       ...hierarchy,
-      // Add runtime information
-      children: hierarchy.children.filter((child) =>
-        gestureHistory.some((event) => event.gestureType === child)
-      ),
+      children: hierarchy.children.filter((child) => seenGestures.has(child)),
     }))
-  }, [gestureHistory])
+  }, [])
 
   const getPerformanceMetrics = useCallback(() => {
-    const recentEvents = gestureHistory.slice(-50) // Last 50 events
+    const recentEvents = gestureHistoryRef.current.slice(-50) // Last 50 events
     const responseTimes: number[] = []
     let conflictCount = 0
     let successCount = 0
@@ -245,11 +247,11 @@ export function useGestureConflictDetector(): UseGestureConflictDetectorReturn {
       conflictRate: recentEvents.length > 0 ? conflictCount / recentEvents.length : 0,
       gestureSuccessRate: recentEvents.length > 0 ? successCount / recentEvents.length : 0,
     }
-  }, [gestureHistory])
+  }, [])
 
   const clearHistory = useCallback(() => {
-    setGestureHistory([])
-    setActiveGestures(new Set())
+    gestureHistoryRef.current = []
+    activeGesturesRef.current = new Set()
     gestureStartTimes.current.clear()
     gestureConflicts.current = []
   }, [])

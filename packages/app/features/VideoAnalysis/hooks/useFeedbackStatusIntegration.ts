@@ -237,7 +237,30 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
   useEffect(() => {}, [analysisId, isSubscribed, subscriptionStatus])
 
   // Transform feedback data for UI components
+  // Stabilize by comparing content signatures instead of array reference - prevents unnecessary recreations
+  // Create signature from properties that affect the transformed items
+  const feedbacksSignature = feedbacks
+    .map(
+      (f) =>
+        `${f.id}:${f.ssmlStatus}:${f.audioStatus}:${f.timestampSeconds}:${f.message?.substring(0, 20)}:${f.confidence}:${f.category}`
+    )
+    .join('|')
+  const prevFeedbackItemsRef = useRef<any[]>([])
+  const prevFeedbacksSignatureRef = useRef<string>('')
+
   const feedbackItems = useMemo(() => {
+    // Only recreate if signature actually changed (content changed), not just reference
+    const prevSignature = prevFeedbacksSignatureRef.current
+
+    if (
+      prevSignature === feedbacksSignature &&
+      prevFeedbackItemsRef.current.length === feedbacks.length
+    ) {
+      // Content is the same, return previous array to maintain stable reference
+      return prevFeedbackItemsRef.current
+    }
+
+    // Content changed, create new array
     const items = feedbacks.map((feedback) => ({
       id: feedback.id.toString(),
       timestamp: feedback.timestampSeconds * 1000, // Convert to milliseconds for UI
@@ -272,8 +295,11 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       // })
     }
 
+    prevFeedbacksSignatureRef.current = feedbacksSignature
+    prevFeedbackItemsRef.current = items
+
     return items
-  }, [feedbacks])
+  }, [feedbacksSignature, feedbacks.length])
 
   // Statistics for UI display
   const stats = useMemo(() => {

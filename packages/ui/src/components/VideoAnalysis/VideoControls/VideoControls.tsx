@@ -66,7 +66,8 @@ export interface VideoControlsProps {
   onMenuPress?: () => void
   headerComponent?: React.ReactNode
   // NEW: Video mode for persistent progress bar
-  videoMode?: 'max' | 'normal' | 'min'
+  // Accept SharedValue/DerivedValue directly to avoid JS re-renders during gestures
+  videoMode?: 'max' | 'normal' | 'min' | SharedValue<'max' | 'normal' | 'min'>
   // NEW: Collapse progress for early fade-out animation (0 = max, 0.5 = normal, 1 = min)
   // Accept SharedValue directly to avoid JS re-renders during gestures
   collapseProgress?: SharedValue<number> | number
@@ -97,6 +98,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     ref
   ) => {
     const [showMenu, setShowMenu] = useState(false)
+    const [isAnyScrubbing, setIsAnyScrubbing] = useState(false)
     const progressBarWidthShared = useSharedValue(300)
     const persistentProgressBarWidthShared = useSharedValue(300)
     // Shared scrubbing state across both progress bars to prevent simultaneous activation
@@ -188,7 +190,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const visibility = useControlsVisibility({
       showControls,
       isPlaying,
-      isScrubbing: false, // Initial value, will be updated below
+      isScrubbing: isAnyScrubbing,
       onControlsVisibilityChange: handleControlsVisibilityChange,
     })
 
@@ -241,6 +243,46 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     })
 
     // Render profiling - enable in dev only
+    const isVideoModeSharedValue = typeof _videoMode === 'object' && 'value' in _videoMode
+
+    const prevPropsRef = useRef<{
+      isPlaying: boolean
+      showControls: boolean
+      currentTime: number
+      controlsVisible: boolean
+    } | null>(null)
+    const lastRenderTimeRef = useRef<number>(Date.now())
+
+    useEffect(() => {
+      const now = Date.now()
+      const timeSinceLastRender = now - lastRenderTimeRef.current
+      lastRenderTimeRef.current = now
+
+      const prev = prevPropsRef.current
+      if (prev) {
+        const changed: string[] = []
+        if (prev.isPlaying !== isPlaying) changed.push('isPlaying')
+        if (prev.showControls !== showControls) changed.push('showControls')
+        if (Math.abs(prev.currentTime - currentTime) > 0.1) changed.push('currentTime')
+        if (prev.controlsVisible !== controlsVisible) changed.push('controlsVisible')
+
+        if (changed.length === 0 && timeSinceLastRender < 16) {
+          log.debug('VideoControls', '⚠️ Rapid re-render without prop changes', {
+            timeSinceLastRender,
+            isRapid: true,
+            stackTrace: new Error().stack?.split('\n').slice(1, 8).join('\n'),
+          })
+        }
+      }
+
+      prevPropsRef.current = {
+        isPlaying,
+        showControls,
+        currentTime,
+        controlsVisible,
+      }
+    })
+
     useRenderProfile({
       componentName: 'VideoControls',
       enabled: __DEV__,
@@ -250,8 +292,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         showControls,
         currentTime: Math.floor(currentTime), // Round to reduce re-render noise
         controlsVisible: showControls,
-        videoMode: _videoMode,
         // Don't read SharedValue.value during render - just indicate type
+        videoMode: isVideoModeSharedValue ? '[SharedValue]' : _videoMode,
         collapseProgress: isSharedValueProp ? '[SharedValue]' : collapseProgress,
       },
     })
@@ -279,6 +321,12 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     // Extract values from hooks for easier reference
     const isScrubbing = normalProgressBar.isScrubbing || persistentProgressBar.isScrubbing
+
+    useEffect(() => {
+      if (isScrubbing !== isAnyScrubbing) {
+        setIsAnyScrubbing(isScrubbing)
+      }
+    }, [isScrubbing, isAnyScrubbing])
     const scrubbingPosition = normalProgressBar.scrubbingPosition
     const lastScrubbedPosition = normalProgressBar.lastScrubbedPosition
     const isPersistentScrubbing = persistentProgressBar.isScrubbing
@@ -354,61 +402,114 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       [handleMenuPress]
     )
 
+    // Stable callbacks for persistent progress bar to prevent recreation on every render
+    const stableOnLayout = useCallback(
+      (event: any) => {
+        const { width } = event.nativeEvent.layout
+        setPersistentProgressBarWidth(width)
+      },
+      [setPersistentProgressBarWidth]
+    )
+
+    const stableOnFallbackPress = useCallback(
+      (locationX: number) => {
+        if (persistentProgressBarWidth > 0 && duration > 0) {
+          const seekPercentage = Math.max(
+            0,
+            Math.min(100, (locationX / persistentProgressBarWidth) * 100)
+          )
+          const seekTime = (seekPercentage / 100) * duration
+          log.debug('VideoControls', 'Persistent fallback press handler', {
+            locationX,
+            persistentProgressBarWidth,
+            seekPercentage,
+            seekTime,
+            duration,
+          })
+          onSeek(seekTime)
+          // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+          // Fallback should only seek, not show controls (gesture handles that)
+        }
+      },
+      [persistentProgressBarWidth, duration, onSeek]
+    )
+
+    // Track previous values to prevent unnecessary callback invocations
+    const prevPersistentProgressRef = useRef<number | null>(null)
+    const prevIsScrubbingRef = useRef<boolean | null>(null)
+    const prevControlsVisibleRef = useRef<boolean | null>(null)
+    const prevProgressBarWidthRef = useRef<number | null>(null)
+
     // Provide persistent progress bar props to parent via callback for rendering at layout level
     // This ensures React properly tracks and re-renders the progress bar when props change
+    // Store unstable objects in refs to prevent effect from running unnecessarily
+    // Note: currentInteractionTypeRef is already defined earlier in component
+    const persistentBarAnimatedStyleRef = useRef(persistentBarAnimatedStyle)
+    persistentBarAnimatedStyleRef.current = persistentBarAnimatedStyle
+    const persistentProgressBarCombinedGestureRef = useRef(persistentProgressBarCombinedGesture)
+    persistentProgressBarCombinedGestureRef.current = persistentProgressBarCombinedGesture
+    const persistentProgressGestureRef = useRef(persistentProgressGesture)
+    persistentProgressGestureRef.current = persistentProgressGesture
+
     useEffect(() => {
       if (!onPersistentProgressBarPropsChange) {
         return
       }
 
-      onPersistentProgressBarPropsChange({
-        progress: persistentProgress,
-        isScrubbing: persistentProgressBar.isScrubbing,
-        controlsVisible,
-        progressBarWidth: persistentProgressBarWidth,
-        animatedStyle: persistentBarAnimatedStyle,
-        combinedGesture: persistentProgressBarCombinedGesture,
-        mainGesture: persistentProgressGesture,
-        animationName: getAnimationName(currentInteractionType),
-        onLayout: (event) => {
-          const { width } = event.nativeEvent.layout
-          setPersistentProgressBarWidth(width)
-        },
-        onFallbackPress: (locationX) => {
-          if (persistentProgressBarWidth > 0 && duration > 0) {
-            const seekPercentage = Math.max(
-              0,
-              Math.min(100, (locationX / persistentProgressBarWidth) * 100)
-            )
-            const seekTime = (seekPercentage / 100) * duration
-            log.debug('VideoControls', 'Persistent fallback press handler', {
-              locationX,
-              persistentProgressBarWidth,
-              seekPercentage,
-              seekTime,
-              duration,
-            })
-            onSeek(seekTime)
-            // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-            // Fallback should only seek, not show controls (gesture handles that)
-          }
-        },
-      })
+      // Check if actual values changed (primitive check to avoid object comparison)
+      const progressChanged = prevPersistentProgressRef.current !== persistentProgress
+      const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
+      const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
+      const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
+
+      // Only call if actual values changed (ignore new object identity)
+      // First render always calls (all refs are null)
+      if (
+        prevPersistentProgressRef.current === null ||
+        prevIsScrubbingRef.current === null ||
+        prevControlsVisibleRef.current === null ||
+        prevProgressBarWidthRef.current === null ||
+        progressChanged ||
+        scrubbingChanged ||
+        controlsChanged ||
+        widthChanged
+      ) {
+        log.debug('VideoControls', '🎯 Calling onPersistentProgressBarPropsChange')
+
+        onPersistentProgressBarPropsChange({
+          progress: persistentProgress,
+          isScrubbing: persistentProgressBar.isScrubbing,
+          controlsVisible,
+          progressBarWidth: persistentProgressBarWidth,
+          animatedStyle: persistentBarAnimatedStyleRef.current,
+          combinedGesture: persistentProgressBarCombinedGestureRef.current,
+          mainGesture: persistentProgressGestureRef.current,
+          animationName: getAnimationName(currentInteractionTypeRef.current),
+          onLayout: stableOnLayout,
+          onFallbackPress: stableOnFallbackPress,
+        })
+
+        // Update refs
+        prevPersistentProgressRef.current = persistentProgress
+        prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
+        prevControlsVisibleRef.current = controlsVisible
+        prevProgressBarWidthRef.current = persistentProgressBarWidth
+      }
+
+      return () => {
+        onPersistentProgressBarPropsChange(null)
+      }
     }, [
+      // Only include PRIMITIVE dependencies - unstable objects accessed via refs
       persistentProgress,
       persistentProgressBar.isScrubbing,
       controlsVisible,
       persistentProgressBarWidth,
-      persistentBarAnimatedStyle,
-      persistentProgressBarCombinedGesture,
-      persistentProgressGesture,
-      setPersistentProgressBarWidth,
-      duration,
-      onSeek,
-      showControlsAndResetTimer,
+      // Omit unstable objects: persistentBarAnimatedStyle, persistentProgressBarCombinedGesture,
+      // persistentProgressGesture, currentInteractionType - accessed via refs
+      // Omit stable callbacks: stableOnLayout, stableOnFallbackPress, getAnimationName - stable references
+      // Omit other stable values: duration, onSeek, showControlsAndResetTimer - stable references
       onPersistentProgressBarPropsChange,
-      currentInteractionType,
-      getAnimationName,
     ])
 
     return (

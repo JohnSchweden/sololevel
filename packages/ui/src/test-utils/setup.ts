@@ -489,6 +489,13 @@ jest.mock('react-native-reanimated', () => {
       createSharedValue: jest.fn(),
       runOnUI: jest.fn(),
     },
+    // Transition animations
+    FadeIn: {
+      duration: (ms: number) => ({ type: 'fadeIn', duration: ms }),
+    },
+    FadeOut: {
+      duration: (ms: number) => ({ type: 'fadeOut', duration: ms }),
+    },
   }
 })
 

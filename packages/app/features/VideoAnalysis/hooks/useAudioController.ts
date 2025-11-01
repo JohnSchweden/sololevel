@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export interface AudioControllerState {
   isPlaying: boolean
@@ -80,8 +80,12 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     }
   }, [audioUrl])
 
+  const isPlayingRef = useRef(isPlaying)
+  useEffect(() => {
+    isPlayingRef.current = isPlaying
+  }, [isPlaying])
+
   const setIsPlayingCallback = useCallback((playing: boolean) => {
-    // log.debug('useAudioController', 'Setting playback state', { playing })
     setIsPlaying(playing)
   }, [])
 
@@ -112,8 +116,20 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
       const { currentTime: newCurrentTime } = data
 
       if (typeof newCurrentTime === 'number' && !Number.isNaN(newCurrentTime)) {
+        const prevCurrentTime = currentTimeRef.current
         currentTimeRef.current = newCurrentTime
-        setCurrentTime(newCurrentTime)
+
+        // Only update state when currentTime crosses 0 or changes significantly (> 0.5s)
+        // This prevents re-renders every 250ms while still allowing effects to detect important changes
+        const crossedZero =
+          (prevCurrentTime > 0 && newCurrentTime === 0) ||
+          (prevCurrentTime === 0 && newCurrentTime > 0)
+        const significantChange = Math.abs(newCurrentTime - prevCurrentTime) > 0.5
+
+        if (crossedZero || significantChange) {
+          setCurrentTime(newCurrentTime)
+        }
+
         if (!hasPlaybackStartedRef.current && newCurrentTime >= 0.01) {
           hasPlaybackStartedRef.current = true
         }
@@ -212,20 +228,41 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     hasPlaybackStartedRef.current = false
   }, [])
 
-  return {
-    isPlaying,
-    currentTime,
-    duration,
-    isLoaded,
-    seekTime,
-    setIsPlaying: setIsPlayingCallback,
-    togglePlayback,
-    handleLoad,
-    handleProgress,
-    handleEnd,
-    handleError,
-    handleSeekComplete,
-    seekTo,
-    reset,
-  }
+  // Memoize return value to prevent recreation on every render
+  // currentTime is throttled to only update state on zero-crossing or significant changes
+  // This prevents object recreation every 250ms while still allowing effects to detect important changes
+  return useMemo(
+    () => ({
+      isPlaying,
+      currentTime: currentTimeRef.current, // Use ref value for always-current time
+      duration,
+      isLoaded,
+      seekTime,
+      setIsPlaying: setIsPlayingCallback,
+      togglePlayback,
+      handleLoad,
+      handleProgress,
+      handleEnd,
+      handleError,
+      handleSeekComplete,
+      seekTo,
+      reset,
+    }),
+    [
+      isPlaying,
+      currentTime, // Include state value - only updates on zero-crossing or significant changes
+      duration,
+      isLoaded,
+      seekTime,
+      setIsPlayingCallback,
+      togglePlayback,
+      handleLoad,
+      handleProgress,
+      handleEnd,
+      handleError,
+      handleSeekComplete,
+      seekTo,
+      reset,
+    ]
+  )
 }

@@ -2,6 +2,7 @@ import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-i
 import type { ComponentProps } from 'react'
 import { Circle, Image, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
+import { GlassButton } from '../GlassButton'
 import type { AppHeaderProps } from './types'
 
 /**
@@ -294,17 +295,29 @@ export function AppHeader({
 
     if (showTimer) {
       return (
-        <Text
-          fontSize="$5"
-          fontFamily="$body"
-          fontWeight="600"
-          color={foreground}
-          textAlign="center"
-          accessibilityRole="text"
+        <GlassButton
+          disabled
+          blurIntensity={10}
+          blurTint="dark"
+          minWidth={80}
+          minHeight={32}
+          borderRadius="$6"
+          borderWidth={1}
+          borderColor="rgba(255, 255, 255, 0.15)"
+          overlayOpacity={0.6}
+          edgeGlowIntensity={0.1}
           accessibilityLabel={`Recording time: ${timerValue}`}
         >
-          {timerValue}
-        </Text>
+          <Text
+            fontSize="$5"
+            fontFamily="$body"
+            fontWeight="600"
+            color="$color12"
+            textAlign="center"
+          >
+            {timerValue}
+          </Text>
+        </GlassButton>
       )
     }
 

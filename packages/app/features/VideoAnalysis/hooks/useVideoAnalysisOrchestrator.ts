@@ -102,6 +102,24 @@ export interface UseVideoAnalysisOrchestratorReturn {
     channelExhausted: boolean
     errors: Record<string, string>
     audioUrls: Record<string, string>
+    // Granular state objects for components (prevents unnecessary re-renders)
+    itemsState: {
+      items: FeedbackPanelItem[]
+      selectedFeedbackId: string | null
+    }
+    panelState: {
+      panelFraction: number
+      activeTab: 'feedback' | 'insights' | 'comments'
+    }
+    analysisState: {
+      phase: AnalysisPhase
+      progress: { upload: number; analysis: number; feedback: number }
+      channelExhausted: boolean
+    }
+    errorsState: {
+      errors: Record<string, string>
+      audioUrls: Record<string, string>
+    }
   }
   gesture?: UseGestureControllerReturn
   animation?: UseAnimationControllerReturn
@@ -245,8 +263,63 @@ export function useVideoAnalysisOrchestrator(
   // Use unified feedback source for both modes
   const realFeedbackItems = analysisState.feedback.feedbackItems
 
+  // Track realFeedbackItems reference changes
+  const prevRealFeedbackItemsRef = useRef<{
+    realFeedbackItems: any
+    length: number
+    itemsIds: string
+  }>({
+    realFeedbackItems: [],
+    length: 0,
+    itemsIds: '',
+  })
+  useEffect(() => {
+    const prev = prevRealFeedbackItemsRef.current
+    const prevIds = prev.itemsIds
+    const currentIds = realFeedbackItems?.map((item: any) => item.id).join(',') ?? ''
+    const idsChanged = prevIds !== currentIds
+
+    if (prev.realFeedbackItems !== realFeedbackItems) {
+      const sameContentButNewRef = !idsChanged && prev.length === (realFeedbackItems?.length ?? 0)
+
+      log.debug('useVideoAnalysisOrchestrator', '🔍 realFeedbackItems reference changed', {
+        length: prev.length,
+        newLength: realFeedbackItems?.length ?? 0,
+        sameLength: prev.length === (realFeedbackItems?.length ?? 0),
+        prevIds: prevIds || '(none)',
+        currentIds: currentIds || '(none)',
+        idsChanged,
+        sameContentButNewRef,
+        // If same content, feedbackItems useMemo won't recalculate (correct behavior)
+        feedbackItemsWillRecalculate:
+          idsChanged || prev.length !== (realFeedbackItems?.length ?? 0),
+        stackTrace: sameContentButNewRef
+          ? new Error().stack?.split('\n').slice(1, 8).join('\n')
+          : undefined,
+      })
+
+      if (sameContentButNewRef) {
+        log.debug(
+          'useVideoAnalysisOrchestrator',
+          '✅ Stabilization: realFeedbackItems ref changed but content same - feedbackItems useMemo will NOT recalculate (using cached array)',
+          {
+            itemsIds: currentIds || '(none)',
+            length: realFeedbackItems?.length ?? 0,
+          }
+        )
+      }
+
+      prevRealFeedbackItemsRef.current = {
+        realFeedbackItems,
+        length: realFeedbackItems?.length ?? 0,
+        itemsIds: currentIds,
+      }
+    }
+  }, [realFeedbackItems])
+
   // TEMP: Add 5 dummy feedback items for testing
-  const dummyFeedback: FeedbackPanelItem[] = [
+  // Move outside component to prevent recreation on every render
+  const DUMMY_FEEDBACK: FeedbackPanelItem[] = [
     {
       id: 'dummy-1',
       timestamp: 5000,
@@ -299,24 +372,133 @@ export function useVideoAnalysisOrchestrator(
     },
   ]
 
-  const feedbackItems = [...realFeedbackItems, ...dummyFeedback]
+  // Memoize feedbackItems to prevent recreation on every render
+  // This is critical because it's used in contextValue, which breaks memoization downstream
+  // Stabilize by comparing content (IDs) instead of reference - prevents unnecessary recreations
+  const feedbackItemsIds = realFeedbackItems.map((item) => item.id).join(',')
+  const prevFeedbackItemsIdsRef = useRef<string>('')
+  const prevFeedbackItemsRef = useRef<FeedbackPanelItem[]>([])
+  const prevRealFeedbackItemsLengthRef = useRef<number>(0)
+
+  const feedbackItems = useMemo(
+    () => {
+      // Only recreate if IDs actually changed (content changed), not just reference
+      const prevIds = prevFeedbackItemsIdsRef.current
+      const prevLength = prevRealFeedbackItemsLengthRef.current
+      const prevRef = prevFeedbackItemsRef.current
+      const realRefChanged =
+        prevRealFeedbackItemsRef.current?.realFeedbackItems !== realFeedbackItems
+
+      if (prevIds === feedbackItemsIds && prevLength === realFeedbackItems.length) {
+        // Content is the same, return previous array to maintain stable reference
+        if (realRefChanged) {
+          log.debug(
+            'useVideoAnalysisOrchestrator',
+            '✅ feedbackItems: same content, returning cached array (realFeedbackItems ref changed but IDs unchanged)',
+            {
+              itemsIds: feedbackItemsIds || '(none)',
+              length: realFeedbackItems.length,
+              prevRealRef: prevRealFeedbackItemsRef.current?.realFeedbackItems ? 'exists' : 'null',
+              currentRealRef: realFeedbackItems ? 'exists' : 'null',
+              usingCachedArray: true,
+            }
+          )
+        }
+        return prevRef
+      }
+
+      // Content changed, create new array
+      const newFeedbackItems = [...realFeedbackItems, ...DUMMY_FEEDBACK]
+
+      log.debug(
+        'useVideoAnalysisOrchestrator',
+        '🔄 feedbackItems: content changed, creating new array',
+        {
+          prevItemsIds: prevIds || '(none)',
+          newItemsIds: feedbackItemsIds || '(none)',
+          prevLength,
+          newLength: realFeedbackItems.length,
+          totalLength: newFeedbackItems.length,
+          idsChanged: prevIds !== feedbackItemsIds,
+          lengthChanged: prevLength !== realFeedbackItems.length,
+          realRefChanged,
+        }
+      )
+
+      prevFeedbackItemsIdsRef.current = feedbackItemsIds
+      prevRealFeedbackItemsLengthRef.current = realFeedbackItems.length
+      prevFeedbackItemsRef.current = newFeedbackItems
+
+      return newFeedbackItems
+    },
+    [feedbackItemsIds, realFeedbackItems.length] // Only depend on IDs string and length, not array reference
+  )
 
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
+
+  // Stabilize audioController immediately to prevent useFeedbackCoordinator from re-running
+  // when audioController reference changes but signature is unchanged
+  const audioControllerSignature = `${audioController.isPlaying}:${audioController.seekTime ?? 'null'}`
+  const prevAudioControllerForCoordinatorRef = useRef(audioController)
+  const prevAudioControllerSignatureForCoordinatorRef = useRef(audioControllerSignature)
+
+  const stableAudioControllerForCoordinator = useMemo(() => {
+    const currentSignature = audioControllerSignature
+    const prevSignature = prevAudioControllerSignatureForCoordinatorRef.current
+
+    if (prevSignature !== currentSignature) {
+      prevAudioControllerSignatureForCoordinatorRef.current = currentSignature
+      prevAudioControllerForCoordinatorRef.current = audioController
+      return audioController
+    }
+
+    // Signature unchanged - return cached object
+    if (prevAudioControllerForCoordinatorRef.current !== audioController) {
+      return prevAudioControllerForCoordinatorRef.current
+    }
+
+    return audioController
+  }, [audioControllerSignature, audioController])
+
   const coordinateFeedback = useFeedbackCoordinator({
     feedbackItems,
     feedbackAudio,
-    audioController,
+    audioController: stableAudioControllerForCoordinator,
     videoPlayback,
   })
   const feedbackPanel = useFeedbackPanel({
     highlightedFeedbackId: coordinateFeedback.highlightedFeedbackId,
   })
 
-  const videoAudioSync = useVideoAudioSync({
+  // Extract isAudioActive as primitive before stabilizing audioController
+  const isAudioActiveValue = audioController.isPlaying
+
+  // Call hook with primitive values
+  const videoAudioSyncRaw = useVideoAudioSync({
     isVideoPlaying: isPlaying,
-    isAudioActive: audioController.isPlaying,
+    isAudioActive: isAudioActiveValue,
   })
+
+  // Stabilize videoAudioSync - only recreate when primitive values actually change
+  const prevVideoAudioSyncRef = useRef(videoAudioSyncRaw)
+  const prevIsPlayingRef = useRef(isPlaying)
+  const prevIsAudioActiveRef = useRef(isAudioActiveValue)
+
+  const videoAudioSync = useMemo(() => {
+    const valuesChanged =
+      prevIsPlayingRef.current !== isPlaying || prevIsAudioActiveRef.current !== isAudioActiveValue
+
+    if (valuesChanged) {
+      prevIsPlayingRef.current = isPlaying
+      prevIsAudioActiveRef.current = isAudioActiveValue
+      prevVideoAudioSyncRef.current = videoAudioSyncRaw
+      return videoAudioSyncRaw
+    }
+
+    // Values unchanged - return cached object to prevent unnecessary recreations
+    return prevVideoAudioSyncRef.current
+  }, [isPlaying, isAudioActiveValue]) // Only depend on primitives, not videoAudioSyncRaw
 
   const videoControlsRef = useRef<VideoControlsRef>(null)
 
@@ -327,7 +509,7 @@ export function useVideoAnalysisOrchestrator(
     edgeWarmingDuration: 0,
   })
 
-  const [currentTime, setCurrentTime] = useState(0)
+  const currentTimeRef = useRef(0)
   const [videoReady, setVideoReady] = useState(() => {
     if (isHistoryMode && historicalAnalysis.data?.videoUri?.startsWith('file://')) {
       return true
@@ -407,13 +589,64 @@ export function useVideoAnalysisOrchestrator(
 
   useAutoPlayOnReady(isProcessing || !videoReady, isPlaying, playVideo)
 
+  // Store coordinator callbacks in refs to prevent handler recreation when coordinator object changes
+  // coordinator object may recreate, but callbacks are stable function references
+  const coordinatorOnPauseRef = useRef(coordinateFeedback.onPause)
+  const coordinatorOnProgressTriggerRef = useRef(coordinateFeedback.onProgressTrigger)
+  const coordinatorOnPanelCollapseRef = useRef(coordinateFeedback.onPanelCollapse)
+  const coordinatorOnPlayRef = useRef(coordinateFeedback.onPlay)
+  const coordinatorOnUserTapFeedbackRef = useRef(coordinateFeedback.onUserTapFeedback)
+  const coordinatorOnPlayPendingFeedbackRef = useRef(coordinateFeedback.onPlayPendingFeedback)
+
+  useEffect(() => {
+    coordinatorOnPauseRef.current = coordinateFeedback.onPause
+    coordinatorOnProgressTriggerRef.current = coordinateFeedback.onProgressTrigger
+    coordinatorOnPanelCollapseRef.current = coordinateFeedback.onPanelCollapse
+    coordinatorOnPlayRef.current = coordinateFeedback.onPlay
+    coordinatorOnUserTapFeedbackRef.current = coordinateFeedback.onUserTapFeedback
+    coordinatorOnPlayPendingFeedbackRef.current = coordinateFeedback.onPlayPendingFeedback
+  }, [
+    coordinateFeedback.onPause,
+    coordinateFeedback.onProgressTrigger,
+    coordinateFeedback.onPanelCollapse,
+    coordinateFeedback.onPlay,
+    coordinateFeedback.onUserTapFeedback,
+    coordinateFeedback.onPlayPendingFeedback,
+  ])
+
   const handleSignificantProgress = useCallback(
     (time: number) => {
-      setCurrentTime(time)
-      coordinateFeedback.onProgressTrigger(time)
+      currentTimeRef.current = time
+      coordinatorOnProgressTriggerRef.current(time)
     },
-    [coordinateFeedback]
+    [] // No dependencies - uses refs
   )
+
+  // Store posterUri and videoReady in refs for logging-only handlers
+  // These values don't affect functionality, only logging, so we can use refs
+  const posterUriRef = useRef(posterUri)
+  const videoReadyRef = useRef(videoReady)
+
+  useEffect(() => {
+    posterUriRef.current = posterUri
+    videoReadyRef.current = videoReady
+  }, [posterUri, videoReady])
+
+  // Store videoPlayback callbacks in refs to prevent handler recreation when they change
+  // handleEnd and handleSeekComplete depend on currentTime/duration which change frequently
+  const handleVideoEndRef = useRef(handleVideoEnd)
+  const resolveSeekRef = useRef(resolveSeek)
+  const registerDurationRef = useRef(registerDuration)
+  const seekVideoRef = useRef(seekVideo)
+  const replayVideoRef = useRef(replayVideo)
+
+  useEffect(() => {
+    handleVideoEndRef.current = handleVideoEnd
+    resolveSeekRef.current = resolveSeek
+    registerDurationRef.current = registerDuration
+    seekVideoRef.current = seekVideo
+    replayVideoRef.current = replayVideo
+  }, [handleVideoEnd, resolveSeek, registerDuration, seekVideo, replayVideo])
 
   const handleVideoLoad = useCallback(
     (data: { duration: number }) => {
@@ -422,75 +655,96 @@ export function useVideoAnalysisOrchestrator(
         videoReadyTime,
         edgeWarmingSuccess: performanceMetrics.current.edgeWarmingSuccess,
         warmingDuration: performanceMetrics.current.edgeWarmingDuration,
-        posterDisplayed: !!posterUri,
+        posterDisplayed: !!posterUriRef.current,
       })
-      registerDuration(data)
+      registerDurationRef.current(data)
       setVideoReady(true)
     },
-    [registerDuration, posterUri]
+    [] // No dependencies - uses refs
   )
 
   const handleSeek = useCallback(
     (time: number) => {
-      seekVideo(time)
-      coordinateFeedback.onPanelCollapse()
+      seekVideoRef.current(time)
+      coordinatorOnPanelCollapseRef.current()
     },
-    [coordinateFeedback, seekVideo]
+    [] // No dependencies - uses refs
   )
 
   const handleSeekComplete = useCallback(
     (time: number | null) => {
-      resolveSeek(time)
+      resolveSeekRef.current(time)
       if (time !== null) {
-        setCurrentTime(time)
-        coordinateFeedback.onProgressTrigger(time)
+        currentTimeRef.current = time
+        coordinatorOnProgressTriggerRef.current(time)
       }
     },
-    [coordinateFeedback, resolveSeek]
+    [] // No dependencies - uses refs
   )
+
+  // Store setControlsVisible in ref to prevent handleControlsVisibilityChange from recreating
+  // when videoControls object changes (which happens when showControls changes)
+  const setControlsVisibleRef = useRef(videoControls.setControlsVisible)
+  useEffect(() => {
+    setControlsVisibleRef.current = videoControls.setControlsVisible
+  }, [videoControls.setControlsVisible])
 
   const handleControlsVisibilityChange = useCallback(
     (visible: boolean, isUserInteraction = false) => {
       // Defer non-critical state updates during animations to reduce jank
       startTransition(() => {
-        videoControls.setControlsVisible(visible)
+        setControlsVisibleRef.current(visible)
         onControlsVisibilityChange?.(visible, isUserInteraction)
       })
     },
-    [onControlsVisibilityChange, startTransition, videoControls]
+    [onControlsVisibilityChange, startTransition]
   )
 
   const handlePlay = useCallback(() => {
     const playbackStartTime = Date.now() - performanceMetrics.current.mountTime
     log.info('VideoAnalysisScreen.playbackStart', 'Playback initiated by user', {
       playbackStartTime,
-      videoReadyTime: videoReady ? 'ready' : 'not ready',
+      videoReadyTime: videoReadyRef.current ? 'ready' : 'not ready',
       edgeWarmingSuccess: performanceMetrics.current.edgeWarmingSuccess,
     })
-    coordinateFeedback.onPlay()
-  }, [coordinateFeedback, videoReady])
+    coordinatorOnPlayRef.current()
+  }, []) // No dependencies - uses refs for coordinator and videoReady
 
   const handleFeedbackItemPress = useCallback(
     (item: FeedbackPanelItem) => {
-      coordinateFeedback.onUserTapFeedback(item)
+      coordinatorOnUserTapFeedbackRef.current(item)
     },
-    [coordinateFeedback]
+    [] // No dependencies - uses refs
   )
 
+  // Store feedbackPanel.collapse in ref to prevent handleCollapsePanel from recreating
+  // when feedbackPanel object changes
+  const feedbackPanelCollapseRef = useRef(feedbackPanel.collapse)
+  useEffect(() => {
+    feedbackPanelCollapseRef.current = feedbackPanel.collapse
+  }, [feedbackPanel.collapse])
+
   const handleCollapsePanel = useCallback(() => {
-    feedbackPanel.collapse()
-    coordinateFeedback.onPanelCollapse()
-  }, [coordinateFeedback, feedbackPanel])
+    feedbackPanelCollapseRef.current()
+    coordinatorOnPanelCollapseRef.current()
+  }, []) // No dependencies - uses refs
 
   const shouldShowUploadError = Boolean(uploadError)
+
+  // Store isPullingToReveal in ref to prevent reads from triggering re-renders
+  // Updates happen in gesture hook, we just provide stable reference for consumers
+  const isPullingToRevealRef = useRef(false)
+  isPullingToRevealRef.current = gesture?.isPullingToRevealJS ?? false
 
   const contextValue: VideoAnalysisContextValue = useMemo(
     () => ({
       videoUri: resolvedVideoUri,
       feedbackItems,
-      isPullingToReveal: gesture?.isPullingToRevealJS ?? false,
+      get isPullingToReveal() {
+        return isPullingToRevealRef.current
+      },
     }),
-    [resolvedVideoUri, feedbackItems, gesture?.isPullingToRevealJS]
+    [resolvedVideoUri, feedbackItems]
   )
 
   const handleShare = useCallback(() => log.info('VideoAnalysisScreen', 'Share button pressed'), [])
@@ -506,117 +760,699 @@ export function useVideoAnalysisOrchestrator(
 
   const handleSelectAudio = useCallback(
     (feedbackId: string) => {
-      coordinateFeedback.onPlayPendingFeedback(feedbackId)
+      coordinatorOnPlayPendingFeedbackRef.current(feedbackId)
     },
-    [coordinateFeedback]
+    [] // No dependencies - uses refs
   )
 
-  // Use gesture controller callbacks for feedback scroll - memoize to prevent re-renders
-  const handleFeedbackScrollY = useCallback(gesture.onFeedbackScrollY, [gesture.onFeedbackScrollY])
-  const handleFeedbackMomentumScrollEnd = useCallback(gesture.onFeedbackMomentumScrollEnd, [
-    gesture.onFeedbackMomentumScrollEnd,
-  ])
+  // Use refs for gesture scroll callbacks to prevent handler recreation when gesture object changes
+  // gesture object recreates when feedbackScrollEnabled changes, but the callbacks themselves are stable
+  const feedbackScrollYRef = useRef(gesture.onFeedbackScrollY)
+  const feedbackMomentumScrollEndRef = useRef(gesture.onFeedbackMomentumScrollEnd)
+  useEffect(() => {
+    feedbackScrollYRef.current = gesture.onFeedbackScrollY
+    feedbackMomentumScrollEndRef.current = gesture.onFeedbackMomentumScrollEnd
+  }, [gesture.onFeedbackScrollY, gesture.onFeedbackMomentumScrollEnd])
+
+  const handleFeedbackScrollY = useCallback((scrollY: number) => {
+    feedbackScrollYRef.current(scrollY)
+  }, [])
+
+  const handleFeedbackMomentumScrollEnd = useCallback(() => {
+    feedbackMomentumScrollEndRef.current()
+  }, [])
+
+  const handlePause = useCallback(() => {
+    coordinatorOnPauseRef.current()
+  }, [])
+
+  const handleReplay = useCallback(() => {
+    replayVideoRef.current()
+  }, [])
+
+  const handleEnd = useCallback(() => {
+    handleVideoEndRef.current()
+  }, [])
 
   const handleRetry = useCallback(() => {
     log.info('VideoAnalysisScreen', 'Retry button pressed')
   }, [])
 
-  // Organize return value into logical groups
-  return {
-    // Video state
-    video: {
-      uri: resolvedVideoUri,
-      posterUri,
-      isReady: videoReady,
-      isProcessing,
-      currentTime,
-      duration: 0, // TODO: Extract from videoPlayback
-      ended: videoEnded,
-    },
+  // Store onBack from props in ref to prevent handler recreation when it changes
+  // onBack comes from parent (route) and may change identity, but it's just a navigation callback
+  const onBackRef = useRef(onBack)
+  useEffect(() => {
+    onBackRef.current = onBack
+  }, [onBack])
 
-    // Playback control
-    playback: {
+  const handleBack = useCallback(() => {
+    onBackRef.current?.()
+  }, [])
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Memoize nested sub-objects to stabilize return value and prevent re-renders
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // Video state - memoize to prevent re-renders when only currentTime changes
+  // currentTime updates every frame but VideoAnalysisLayout doesn't use it from video object
+  // So we exclude it from dependencies to prevent unnecessary object recreation
+  const videoStateRef = useRef<{
+    uri: string
+    posterUri?: string
+    isReady: boolean
+    isProcessing: boolean
+    currentTime: number
+    duration: number
+    ended: boolean
+  }>({
+    uri: '',
+    posterUri: undefined,
+    isReady: false,
+    isProcessing: false,
+    currentTime: 0,
+    duration: 0,
+    ended: false,
+  })
+
+  const videoState = useMemo(
+    () => {
+      const prev = videoStateRef.current
+      const needsUpdate =
+        prev.uri !== resolvedVideoUri ||
+        prev.posterUri !== posterUri ||
+        prev.isReady !== videoReady ||
+        prev.isProcessing !== isProcessing ||
+        prev.duration !== 0 ||
+        prev.ended !== videoEnded
+
+      if (needsUpdate) {
+        // Create new object only when non-currentTime values change
+        videoStateRef.current = {
+          uri: resolvedVideoUri,
+          posterUri,
+          isReady: videoReady,
+          isProcessing,
+          currentTime: currentTimeRef.current, // Use latest from ref
+          duration: 0,
+          ended: videoEnded,
+        }
+        return { ...videoStateRef.current }
+      }
+
+      // Non-currentTime values unchanged - return same object reference
+      // Update currentTime in returned object to latest value from ref
+      videoStateRef.current.currentTime = currentTimeRef.current
+      return videoStateRef.current
+    },
+    // Exclude currentTime from dependencies - only recreate when other values change
+    [resolvedVideoUri, posterUri, videoReady, isProcessing, videoEnded]
+  )
+
+  // Playback control - stabilize callbacks via refs to prevent object recreation
+  // Callbacks from useVideoPlayback are stable (useCallback with empty deps), so store in refs
+  const playbackCallbacksRef = useRef({
+    play: playVideo,
+    pause: pauseVideo,
+    replay: replayVideo,
+    seek: seekVideo,
+  })
+
+  useEffect(() => {
+    playbackCallbacksRef.current.play = playVideo
+    playbackCallbacksRef.current.pause = handlePause
+    playbackCallbacksRef.current.replay = replayVideo
+    playbackCallbacksRef.current.seek = seekVideo
+  }, [playVideo, handlePause, replayVideo, seekVideo])
+
+  const playbackState = useMemo(
+    () => ({
       isPlaying,
       videoEnded,
       pendingSeek,
       shouldPlayVideo: videoAudioSync.shouldPlayVideo,
-      play: playVideo,
-      pause: pauseVideo,
-      replay: replayVideo,
-      seek: seekVideo,
-    },
+      play: playbackCallbacksRef.current.play,
+      pause: playbackCallbacksRef.current.pause,
+      replay: playbackCallbacksRef.current.replay,
+      seek: playbackCallbacksRef.current.seek,
+    }),
+    [
+      // Only depend on state values, not callbacks (callbacks are stable via refs)
+      isPlaying,
+      videoEnded,
+      pendingSeek,
+      videoAudioSync.shouldPlayVideo,
+    ]
+  )
 
-    // Audio control
-    audio: {
-      controller: audioController,
+  // Stabilize audioController - only recreate when isPlaying or seekTime changes
+  // currentTime and duration change frequently but don't need to trigger recreations
+  // Reuse audioControllerSignature from earlier stabilization
+  const prevAudioControllerRef = useRef(audioController)
+  const prevAudioControllerSignatureRef = useRef<string>('')
+
+  const stableAudioController = useMemo(() => {
+    const currentSignature = audioControllerSignature
+    const prevSignature = prevAudioControllerSignatureRef.current
+    const signatureChanged = prevSignature !== currentSignature
+
+    // Signature changed or first render - return current value and update refs
+    if (signatureChanged) {
+      if (prevSignature) {
+        log.debug(
+          'useVideoAnalysisOrchestrator',
+          '🔄 audioController: signature changed, creating new object',
+          {
+            prevSignature: prevSignature || '(none)',
+            newSignature: currentSignature,
+            isPlaying: audioController.isPlaying,
+            seekTime: audioController.seekTime,
+          }
+        )
+      }
+      // Update refs BEFORE returning so next render sees the updated values
+      prevAudioControllerSignatureRef.current = currentSignature
+      prevAudioControllerRef.current = audioController
+      return audioController
+    }
+
+    // Signature unchanged but reference changed - return previous object for stability
+    if (prevAudioControllerRef.current !== audioController) {
+      log.debug(
+        'useVideoAnalysisOrchestrator',
+        '✅ Stabilizing audioController: signature unchanged, returning cached object',
+        {
+          signature: currentSignature,
+          isPlaying: audioController.isPlaying,
+          seekTime: audioController.seekTime,
+          prevRef: prevAudioControllerRef.current ? 'exists' : 'null',
+          currentRef: audioController ? 'exists' : 'null',
+        }
+      )
+      return prevAudioControllerRef.current
+    }
+
+    return audioController
+  }, [audioControllerSignature]) // Only depend on signature - audioController is accessed via closure
+
+  // Audio control - memoize to prevent re-renders from hook object references
+  const prevAudioStateDepsRef = useRef({
+    stableAudioController,
+    feedbackAudio,
+    videoAudioSync,
+  })
+
+  const audioState = useMemo(() => {
+    prevAudioStateDepsRef.current = {
+      stableAudioController,
+      feedbackAudio,
+      videoAudioSync,
+    }
+
+    return {
+      controller: stableAudioController,
       source: feedbackAudio,
       sync: videoAudioSync,
-    },
+    }
+  }, [stableAudioController, feedbackAudio, videoAudioSync])
 
-    // Feedback state
-    feedback: {
+  // Extract primitive values from coordinator to prevent unnecessary recalculations
+  // Coordinator object reference changes even when values are the same
+  const coordinatorHighlightedId = coordinateFeedback.highlightedFeedbackId
+  const coordinatorCoachSpeaking = coordinateFeedback.isCoachSpeaking
+  const coordinatorBubbleIndex = coordinateFeedback.bubbleState.currentBubbleIndex
+  const coordinatorBubbleVisible = coordinateFeedback.bubbleState.bubbleVisible
+  const coordinatorOverlayVisible = coordinateFeedback.overlayVisible
+  const coordinatorActiveAudioId = coordinateFeedback.activeAudio?.id ?? null
+  const coordinatorActiveAudioUrl = coordinateFeedback.activeAudio?.url ?? null
+
+  // Store coordinator callbacks in ref to maintain stable object identity
+  // These callbacks are already stable via refs in coordinator hook
+  const coordinatorCallbacksRef = useRef({
+    onProgressTrigger: coordinateFeedback.onProgressTrigger,
+    onUserTapFeedback: coordinateFeedback.onUserTapFeedback,
+    onPlay: coordinateFeedback.onPlay,
+    onPause: coordinateFeedback.onPause,
+    onPanelCollapse: coordinateFeedback.onPanelCollapse,
+    onAudioOverlayClose: coordinateFeedback.onAudioOverlayClose,
+    onAudioOverlayInactivity: coordinateFeedback.onAudioOverlayInactivity,
+    onAudioOverlayInteraction: coordinateFeedback.onAudioOverlayInteraction,
+    onPlayPendingFeedback: coordinateFeedback.onPlayPendingFeedback,
+  })
+
+  // Update ref properties (not the ref itself) to maintain stable object identity
+  coordinatorCallbacksRef.current.onProgressTrigger = coordinateFeedback.onProgressTrigger
+  coordinatorCallbacksRef.current.onUserTapFeedback = coordinateFeedback.onUserTapFeedback
+  coordinatorCallbacksRef.current.onPlay = coordinateFeedback.onPlay
+  coordinatorCallbacksRef.current.onPause = coordinateFeedback.onPause
+  coordinatorCallbacksRef.current.onPanelCollapse = coordinateFeedback.onPanelCollapse
+  coordinatorCallbacksRef.current.onAudioOverlayClose = coordinateFeedback.onAudioOverlayClose
+  coordinatorCallbacksRef.current.onAudioOverlayInactivity =
+    coordinateFeedback.onAudioOverlayInactivity
+  coordinatorCallbacksRef.current.onAudioOverlayInteraction =
+    coordinateFeedback.onAudioOverlayInteraction
+  coordinatorCallbacksRef.current.onPlayPendingFeedback = coordinateFeedback.onPlayPendingFeedback
+
+  // Track previous primitive values to detect when stableCoordinator should recalculate
+  const prevStableCoordinatorDepsRef = useRef<{
+    highlightedId: string | null
+    coachSpeaking: boolean
+    bubbleIndex: number | null
+    bubbleVisible: boolean
+    overlayVisible: boolean
+    activeAudioId: string | null
+    activeAudioUrl: string | null
+  }>({
+    highlightedId: null,
+    coachSpeaking: false,
+    bubbleIndex: null,
+    bubbleVisible: false,
+    overlayVisible: false,
+    activeAudioId: null,
+    activeAudioUrl: null,
+  })
+
+  // Reconstruct coordinator object with stable callbacks
+  const stableCoordinator = useMemo(() => {
+    const prev = prevStableCoordinatorDepsRef.current
+    const stableCoordinatorDepsChanged: string[] = []
+
+    if (prev.highlightedId !== coordinatorHighlightedId) {
+      stableCoordinatorDepsChanged.push(
+        `highlightedId: ${prev.highlightedId} → ${coordinatorHighlightedId}`
+      )
+    }
+    if (prev.coachSpeaking !== coordinatorCoachSpeaking) {
+      stableCoordinatorDepsChanged.push(
+        `coachSpeaking: ${prev.coachSpeaking} → ${coordinatorCoachSpeaking}`
+      )
+    }
+    if (prev.bubbleIndex !== coordinatorBubbleIndex) {
+      stableCoordinatorDepsChanged.push(
+        `bubbleIndex: ${prev.bubbleIndex} → ${coordinatorBubbleIndex}`
+      )
+    }
+    if (prev.bubbleVisible !== coordinatorBubbleVisible) {
+      stableCoordinatorDepsChanged.push(
+        `bubbleVisible: ${prev.bubbleVisible} → ${coordinatorBubbleVisible}`
+      )
+    }
+    if (prev.overlayVisible !== coordinatorOverlayVisible) {
+      stableCoordinatorDepsChanged.push(
+        `overlayVisible: ${prev.overlayVisible} → ${coordinatorOverlayVisible}`
+      )
+    }
+    if (prev.activeAudioId !== coordinatorActiveAudioId) {
+      stableCoordinatorDepsChanged.push(
+        `activeAudioId: ${prev.activeAudioId} → ${coordinatorActiveAudioId}`
+      )
+    }
+    if (prev.activeAudioUrl !== coordinatorActiveAudioUrl) {
+      stableCoordinatorDepsChanged.push(
+        `activeAudioUrl: ${prev.activeAudioUrl !== null ? '...' : null} → ${coordinatorActiveAudioUrl !== null ? '...' : null}`
+      )
+    }
+
+    if (stableCoordinatorDepsChanged.length > 0) {
+      log.debug('useVideoAnalysisOrchestrator', '🔄 stableCoordinator recalculating', {
+        dependencyChanges: stableCoordinatorDepsChanged,
+      })
+    }
+
+    prevStableCoordinatorDepsRef.current = {
+      highlightedId: coordinatorHighlightedId,
+      coachSpeaking: coordinatorCoachSpeaking,
+      bubbleIndex: coordinatorBubbleIndex,
+      bubbleVisible: coordinatorBubbleVisible,
+      overlayVisible: coordinatorOverlayVisible,
+      activeAudioId: coordinatorActiveAudioId,
+      activeAudioUrl: coordinatorActiveAudioUrl,
+    }
+
+    return {
+      highlightedFeedbackId: coordinatorHighlightedId,
+      isCoachSpeaking: coordinatorCoachSpeaking,
+      bubbleState: {
+        currentBubbleIndex: coordinatorBubbleIndex,
+        bubbleVisible: coordinatorBubbleVisible,
+      },
+      overlayVisible: coordinatorOverlayVisible,
+      activeAudio:
+        coordinatorActiveAudioId && coordinatorActiveAudioUrl
+          ? { id: coordinatorActiveAudioId, url: coordinatorActiveAudioUrl }
+          : null,
+      // Use callbacks from ref to maintain stable object identity
+      onProgressTrigger: coordinatorCallbacksRef.current.onProgressTrigger,
+      onUserTapFeedback: coordinatorCallbacksRef.current.onUserTapFeedback,
+      onPlay: coordinatorCallbacksRef.current.onPlay,
+      onPause: coordinatorCallbacksRef.current.onPause,
+      onPanelCollapse: coordinatorCallbacksRef.current.onPanelCollapse,
+      onAudioOverlayClose: coordinatorCallbacksRef.current.onAudioOverlayClose,
+      onAudioOverlayInactivity: coordinatorCallbacksRef.current.onAudioOverlayInactivity,
+      onAudioOverlayInteraction: coordinatorCallbacksRef.current.onAudioOverlayInteraction,
+      onPlayPendingFeedback: coordinatorCallbacksRef.current.onPlayPendingFeedback,
+    }
+  }, [
+    coordinatorHighlightedId,
+    coordinatorCoachSpeaking,
+    coordinatorBubbleIndex,
+    coordinatorBubbleVisible,
+    coordinatorOverlayVisible,
+    coordinatorActiveAudioId,
+    coordinatorActiveAudioUrl,
+    // Omit callbacks from deps - they're stable via refs
+  ])
+
+  // GRANULAR FEEDBACK STATE - Split into separate memoized objects to prevent unnecessary re-renders
+  // Each object only recalculates when its specific dependencies change
+
+  // Feedback items state - only recalculates when items or selection changes
+  // Use coordinatorHighlightedId (primitive) instead of stableCoordinator.highlightedFeedbackId (object property)
+  // This prevents recalculation when stableCoordinator recreates but highlightedFeedbackId value hasn't changed
+  const prevFeedbackItemsStateDepsRef = useRef<{
+    feedbackItems: any
+    coordinatorHighlightedId: string | null
+  }>({
+    feedbackItems: [],
+    coordinatorHighlightedId: null,
+  })
+  const feedbackItemsState = useMemo(() => {
+    const prev = prevFeedbackItemsStateDepsRef.current
+    const changed: string[] = []
+
+    if (prev.feedbackItems !== feedbackItems) {
+      changed.push(
+        `feedbackItems: ${prev.feedbackItems?.length ?? 0} → ${feedbackItems?.length ?? 0} (ref changed)`
+      )
+    }
+    if (prev.coordinatorHighlightedId !== coordinatorHighlightedId) {
+      changed.push(
+        `coordinatorHighlightedId: ${prev.coordinatorHighlightedId} → ${coordinatorHighlightedId}`
+      )
+    }
+
+    if (changed.length > 0) {
+      log.debug('useVideoAnalysisOrchestrator', '🔄 feedbackItemsState recalculating', {
+        dependencyChanges: changed,
+        feedbackItemsLength: feedbackItems?.length ?? 0,
+        coordinatorHighlightedId,
+      })
+    }
+
+    prevFeedbackItemsStateDepsRef.current = {
+      feedbackItems,
+      coordinatorHighlightedId,
+    }
+
+    return {
       items: feedbackItems,
-      coordinator: coordinateFeedback,
+      selectedFeedbackId: coordinatorHighlightedId,
+    }
+  }, [feedbackItems, coordinatorHighlightedId])
+
+  // Feedback panel state - only recalculates when panel fraction or tab changes
+  const feedbackPanelState = useMemo(
+    () => ({
+      panelFraction: feedbackPanel.panelFraction,
+      activeTab: feedbackPanel.activeTab,
+    }),
+    [feedbackPanel.panelFraction, feedbackPanel.activeTab]
+  )
+
+  // Feedback analysis state - only recalculates when phase, progress, or channel status changes
+  const feedbackAnalysisState = useMemo(
+    () => ({
+      phase: analysisState.phase,
+      progress: analysisState.progress,
+      channelExhausted: analysisState.channelExhausted,
+    }),
+    [analysisState.phase, analysisState.progress, analysisState.channelExhausted]
+  )
+
+  // Feedback errors state - only recalculates when errors or audio URLs change
+  // Track audioUrls keys to detect actual changes (not just reference changes)
+  const prevFeedbackErrorsStateDepsRef = useRef<{
+    errors: any
+    audioUrls: any
+    audioUrlsKeys: string[]
+  }>({
+    errors: {},
+    audioUrls: {},
+    audioUrlsKeys: [],
+  })
+  const feedbackErrorsState = useMemo(() => {
+    const prev = prevFeedbackErrorsStateDepsRef.current
+    const changed: string[] = []
+    const currentAudioUrlsKeys = Object.keys(feedbackAudio.audioUrls)
+
+    // Compare object references
+    if (prev.errors !== feedbackAudio.errors) {
+      changed.push(`errors: ref changed`)
+    }
+    if (prev.audioUrls !== feedbackAudio.audioUrls) {
+      // Check if keys actually changed
+      const keysChanged =
+        currentAudioUrlsKeys.length !== prev.audioUrlsKeys.length ||
+        !currentAudioUrlsKeys.every((key) => prev.audioUrlsKeys.includes(key))
+      if (keysChanged) {
+        const newKeys = currentAudioUrlsKeys.filter((k) => !prev.audioUrlsKeys.includes(k))
+        const removedKeys = prev.audioUrlsKeys.filter((k) => !currentAudioUrlsKeys.includes(k))
+        changed.push(
+          `audioUrls: keys changed (added: ${newKeys.join(', ') || 'none'}, removed: ${removedKeys.join(', ') || 'none'})`
+        )
+      } else {
+        changed.push(
+          `audioUrls: ref changed (same keys: ${currentAudioUrlsKeys.join(', ') || 'none'})`
+        )
+      }
+    }
+
+    if (changed.length > 0) {
+      log.debug('useVideoAnalysisOrchestrator', '🔄 feedbackErrorsState recalculating', {
+        dependencyChanges: changed,
+        audioUrlsKeys: currentAudioUrlsKeys,
+        audioUrlsCount: currentAudioUrlsKeys.length,
+      })
+    }
+
+    prevFeedbackErrorsStateDepsRef.current = {
+      errors: feedbackAudio.errors,
+      audioUrls: feedbackAudio.audioUrls,
+      audioUrlsKeys: currentAudioUrlsKeys,
+    }
+
+    return {
+      errors: feedbackAudio.errors,
+      audioUrls: feedbackAudio.audioUrls,
+    }
+  }, [feedbackAudio.errors, feedbackAudio.audioUrls])
+
+  // Legacy feedbackState for backward compatibility (includes coordinator and panel objects)
+  // This is only used internally - components receive granular props
+  const feedbackState = useMemo(
+    () => ({
+      items: feedbackItems,
+      coordinator: stableCoordinator,
       panel: feedbackPanel,
       state: analysisState,
       panelFraction: feedbackPanel.panelFraction,
       activeTab: feedbackPanel.activeTab,
-      selectedFeedbackId: coordinateFeedback.highlightedFeedbackId,
+      selectedFeedbackId: stableCoordinator.highlightedFeedbackId,
       phase: analysisState.phase,
       progress: analysisState.progress,
       channelExhausted: analysisState.channelExhausted,
       errors: feedbackAudio.errors,
       audioUrls: feedbackAudio.audioUrls,
-    },
+      // Granular state objects for components (prevents unnecessary re-renders)
+      itemsState: feedbackItemsState,
+      panelState: feedbackPanelState,
+      analysisState: feedbackAnalysisState,
+      errorsState: feedbackErrorsState,
+    }),
+    [
+      feedbackItems,
+      stableCoordinator,
+      feedbackPanel,
+      analysisState,
+      feedbackAudio.errors,
+      feedbackAudio.audioUrls,
+      feedbackItemsState,
+      feedbackPanelState,
+      feedbackAnalysisState,
+      feedbackErrorsState,
+    ]
+  )
 
-    // Gesture & Animation (native only)
-    gesture: Platform.OS !== 'web' ? gesture : undefined,
-    animation: Platform.OS !== 'web' ? animation : undefined,
-
-    // Display state
-    controls: {
+  // Controls state - memoize to prevent re-renders
+  // Only depend on showControls value, not the entire videoControls object
+  const controlsState = useMemo(
+    () => ({
       showControls: videoControls.showControls,
       videoControlsRef,
       onControlsVisibilityChange: handleControlsVisibilityChange,
-    },
+    }),
+    [videoControls.showControls, videoControlsRef, handleControlsVisibilityChange]
+  )
 
-    // Error state
-    error: {
+  // Error state - memoize to prevent re-renders
+  const errorState = useMemo(
+    () => ({
       visible: shouldShowUploadError,
       message: uploadError,
-    },
+    }),
+    [shouldShowUploadError, uploadError]
+  )
 
-    // Aggregated handlers
-    handlers: {
-      onPlay: handlePlay,
-      onPause: coordinateFeedback.onPause,
-      onReplay: replayVideo,
-      onEnd: handleVideoEnd,
-      onSeek: handleSeek,
-      onSeekComplete: handleSeekComplete,
-      onVideoLoad: handleVideoLoad,
-      onSignificantProgress: handleSignificantProgress,
-      onFeedbackItemPress: handleFeedbackItemPress,
-      onCollapsePanel: handleCollapsePanel,
-      onBack,
-      onRetry: handleRetry,
-      // Social actions
-      onShare: handleShare,
-      onLike: handleLike,
-      onComment: handleComment,
-      onBookmark: handleBookmark,
-      onSelectAudio: handleSelectAudio,
-      onFeedbackScrollY: handleFeedbackScrollY,
-      onFeedbackMomentumScrollEnd: handleFeedbackMomentumScrollEnd,
-    },
+  // Aggregated handlers - use ref to hold object and prevent recreation
+  // CRITICAL: Use stable wrapper callbacks (handlePause, handleReplay, handleEnd, handleBack) instead of direct hook callbacks or props
+  // This prevents handler object recreation when hook callbacks or props recreate
+  // useMemo() recreates the object on every orchestrator re-render even when deps are stable
+  // This is because React re-evaluates useMemo when the component renders, creating new object identity
+  const handlersRef = useRef({
+    onPlay: handlePlay,
+    onPause: handlePause,
+    onReplay: handleReplay,
+    onEnd: handleEnd,
+    onSeek: handleSeek,
+    onSeekComplete: handleSeekComplete,
+    onVideoLoad: handleVideoLoad,
+    onSignificantProgress: handleSignificantProgress,
+    onFeedbackItemPress: handleFeedbackItemPress,
+    onCollapsePanel: handleCollapsePanel,
+    onBack: handleBack,
+    onRetry: handleRetry,
+    onShare: handleShare,
+    onLike: handleLike,
+    onComment: handleComment,
+    onBookmark: handleBookmark,
+    onSelectAudio: handleSelectAudio,
+    onFeedbackScrollY: handleFeedbackScrollY,
+    onFeedbackMomentumScrollEnd: handleFeedbackMomentumScrollEnd,
+  })
 
-    // Context value
-    contextValue,
+  // Update the ref's properties (not the ref itself) to keep same object identity
+  handlersRef.current.onPlay = handlePlay
+  handlersRef.current.onPause = handlePause
+  handlersRef.current.onReplay = handleReplay
+  handlersRef.current.onEnd = handleEnd
+  handlersRef.current.onSeek = handleSeek
+  handlersRef.current.onSeekComplete = handleSeekComplete
+  handlersRef.current.onVideoLoad = handleVideoLoad
+  handlersRef.current.onSignificantProgress = handleSignificantProgress
+  handlersRef.current.onFeedbackItemPress = handleFeedbackItemPress
+  handlersRef.current.onCollapsePanel = handleCollapsePanel
+  handlersRef.current.onBack = handleBack
+  handlersRef.current.onRetry = handleRetry
+  handlersRef.current.onShare = handleShare
+  handlersRef.current.onLike = handleLike
+  handlersRef.current.onComment = handleComment
+  handlersRef.current.onBookmark = handleBookmark
+  handlersRef.current.onSelectAudio = handleSelectAudio
+  handlersRef.current.onFeedbackScrollY = handleFeedbackScrollY
+  handlersRef.current.onFeedbackMomentumScrollEnd = handleFeedbackMomentumScrollEnd
 
-    // Refs
-    refs: {
+  const handlers = handlersRef.current
+
+  // Refs - memoize to prevent re-renders
+  const refs = useMemo(
+    () => ({
       videoControlsRef,
       rootPanRef: gesture.rootPanRef,
-    },
-  }
+    }),
+    [videoControlsRef, gesture.rootPanRef]
+  )
+
+  // Gesture state - memoize to prevent recreation when only rootPan changes
+  // rootPan changes every render by design, but primitive values (feedbackScrollEnabled, etc.) are stable
+  const gestureCallbacksRef = useRef({
+    onFeedbackScrollY: gesture.onFeedbackScrollY,
+    onFeedbackMomentumScrollEnd: gesture.onFeedbackMomentumScrollEnd,
+  })
+
+  useEffect(() => {
+    gestureCallbacksRef.current.onFeedbackScrollY = gesture.onFeedbackScrollY
+    gestureCallbacksRef.current.onFeedbackMomentumScrollEnd = gesture.onFeedbackMomentumScrollEnd
+  }, [gesture.onFeedbackScrollY, gesture.onFeedbackMomentumScrollEnd])
+
+  const gestureState = useMemo(
+    () =>
+      Platform.OS !== 'web'
+        ? {
+            rootPan: gesture.rootPan, // Always include latest (changes every render)
+            rootPanRef: gesture.rootPanRef, // Ref is stable
+            feedbackScrollEnabled: gesture.feedbackScrollEnabled,
+            blockFeedbackScrollCompletely: gesture.blockFeedbackScrollCompletely,
+            isPullingToRevealJS: gesture.isPullingToRevealJS,
+            onFeedbackScrollY: gestureCallbacksRef.current.onFeedbackScrollY,
+            onFeedbackMomentumScrollEnd: gestureCallbacksRef.current.onFeedbackMomentumScrollEnd,
+          }
+        : undefined,
+    [
+      // Only depend on primitive values that actually change
+      // rootPan changes every render but we include it in the object
+      gesture.rootPanRef,
+      gesture.feedbackScrollEnabled,
+      gesture.blockFeedbackScrollCompletely,
+      gesture.isPullingToRevealJS,
+      // Callbacks are stable via refs
+    ]
+  )
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Memoize the entire return value to prevent re-renders in consuming components
+  // This is critical for performance-sensitive screens with animations
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const prevDepsRef = useRef({
+    videoState,
+    playbackState,
+    audioState,
+    feedbackState,
+    gestureState,
+    controlsState,
+    errorState,
+    handlers,
+    contextValue,
+    refs,
+  })
+
+  return useMemo(() => {
+    prevDepsRef.current = {
+      videoState,
+      playbackState,
+      audioState,
+      feedbackState,
+      gestureState,
+      controlsState,
+      errorState,
+      handlers,
+      contextValue,
+      refs,
+    }
+
+    return {
+      video: videoState,
+      playback: playbackState,
+      audio: audioState,
+      feedback: feedbackState,
+      // Gesture & Animation (native only) - memoized to prevent unnecessary recreations
+      gesture: gestureState,
+      animation: Platform.OS !== 'web' ? animation : undefined,
+      controls: controlsState,
+      error: errorState,
+      handlers,
+      contextValue,
+      refs,
+    }
+  }, [
+    videoState,
+    playbackState,
+    audioState,
+    feedbackState,
+    gestureState, // Now memoized separately
+    // Omit animation - SharedValues change every render by design
+    controlsState,
+    errorState,
+    handlers,
+    contextValue,
+    refs,
+  ])
 }

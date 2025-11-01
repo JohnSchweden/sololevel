@@ -173,7 +173,8 @@ export function HistoryProgressScreen({
       <YStack
         flex={1}
         paddingTop={insets.top + APP_HEADER_HEIGHT}
-        marginVertical="$4"
+        marginTop="$4"
+        //marginBottom="$4"
         borderRadius="$10"
         overflow="hidden"
         elevation={8}

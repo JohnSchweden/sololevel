@@ -394,6 +394,8 @@ export function useAnalysisState(
 
   // Apply mock fallback strategy based on feature flag
   // BUT: Skip mock data if we're in history mode and analysisJobId exists (might have prefetched data)
+  // CRITICAL: Only depend on feedbackStatus.feedbackItems (the array), NOT feedbackStatus (the object)
+  // to avoid recalculating when feedbackStatus object reference changes due to store updates
   const feedbackWithFallback = useMemo(() => {
     // Use real feedback items if available
     if (feedbackStatus.feedbackItems.length > 0) {
@@ -420,7 +422,7 @@ export function useAnalysisState(
       ...feedbackStatus,
       feedbackItems: items,
     }
-  }, [feedbackStatus, useMockData, isHistoryMode, analysisJobId, analysisUuid])
+  }, [feedbackStatus.feedbackItems, useMockData, isHistoryMode, analysisJobId, analysisUuid])
 
   useEffect(() => {
     if (!subscriptionKey) {
@@ -538,18 +540,39 @@ export function useAnalysisState(
     return cached?.thumbnail
   })
 
-  return {
-    phase,
-    isProcessing: phase !== 'ready' && phase !== 'error',
-    progress,
-    videoRecordingId: derivedRecordingId ?? null,
-    analysisJobId: analysisJobId ?? analysisJob?.id ?? null,
-    analysisUuid,
-    thumbnailUrl,
-    error,
-    retry,
-    feedback: feedbackWithFallback, // Return feedback with mock fallback applied
-    firstPlayableReady,
-    channelExhausted,
-  }
+  // Memoize return value to prevent cascading re-renders
+  // This hook is called in performance-critical render paths
+  const isProcessing = phase !== 'ready' && phase !== 'error'
+  const derivedAnalysisJobId = analysisJobId ?? analysisJob?.id ?? null
+
+  return useMemo(
+    () => ({
+      phase,
+      isProcessing,
+      progress,
+      videoRecordingId: derivedRecordingId ?? null,
+      analysisJobId: derivedAnalysisJobId,
+      analysisUuid,
+      thumbnailUrl,
+      error,
+      retry,
+      feedback: feedbackWithFallback, // Return feedback with mock fallback applied
+      firstPlayableReady,
+      channelExhausted,
+    }),
+    [
+      phase,
+      isProcessing,
+      progress,
+      derivedRecordingId,
+      derivedAnalysisJobId,
+      analysisUuid,
+      thumbnailUrl,
+      error,
+      retry,
+      feedbackWithFallback,
+      firstPlayableReady,
+      channelExhausted,
+    ]
+  )
 }

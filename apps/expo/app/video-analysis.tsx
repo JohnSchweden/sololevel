@@ -2,7 +2,7 @@ import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysi
 import { log } from '@my/logging'
 //import { useHeaderHeight } from '@react-navigation/elements'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 
 /**
@@ -46,11 +46,9 @@ export default function VideoAnalysis() {
   const isAnimatingRef = useRef(false)
   const pendingOptionsRef = useRef<any>(null)
   const pendingOptionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Track when we just applied queued options to prevent redundant effect execution
-  const justAppliedQueuedOptionsRef = useRef(false)
   //const headerHeight = useHeaderHeight()
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (analysisJobId) {
       // History mode: use proper back navigation to return to previous screen
       router.back()
@@ -61,12 +59,12 @@ export default function VideoAnalysis() {
         params: { resetToIdle: 'true' },
       })
     }
-  }
+  }, [analysisJobId, router])
 
-  const handleMenuPress = () => {
+  const handleMenuPress = useCallback(() => {
     // Handle menu press - could open a menu or settings
     log.info('VideoAnalysis', '🎛️ Menu pressed')
-  }
+  }, [])
 
   // Animation durations for header visibility transitions
   // Based on NavigationAppHeader animation configs:
@@ -78,130 +76,147 @@ export default function VideoAnalysis() {
     lazy: 500, // Lazy animation (400ms) + 100ms margin
   } as const
 
+  // Use refs for state values that are only used for logging to prevent callback recreation
+  const controlsVisibleRef = useRef(controlsVisible)
+  const isUserInteractionRef = useRef(isUserInteraction)
+
+  // Update refs in effect to avoid blocking re-renders (video progress updates every 250ms)
+  useEffect(() => {
+    controlsVisibleRef.current = controlsVisible
+    isUserInteractionRef.current = isUserInteraction
+  }, [controlsVisible, isUserInteraction])
+
   // Track when controls visibility changes are user-initiated vs automatic
-  const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-    log.debug('VideoAnalysis', 'Controls visibility changed', {
-      visible,
-      isProcessing,
-      previousControlsVisible: controlsVisible,
-      isUserInteraction,
-    })
+  // Memoize to prevent VideoAnalysisScreen re-renders when route component re-renders
+  const handleControlsVisibilityChange = useCallback(
+    (visible: boolean, isUserInteraction = false) => {
+      const prevVisible = controlsVisibleRef.current
+      const prevIsUserInteraction = isUserInteractionRef.current
 
-    // Mark animation start for user interactions
-    if (isUserInteraction) {
-      isAnimatingRef.current = true
-
-      // Clear any pending options timeout
-      if (pendingOptionsTimeoutRef.current) {
-        clearTimeout(pendingOptionsTimeoutRef.current)
-        pendingOptionsTimeoutRef.current = null
+      if (prevVisible === visible && prevIsUserInteraction === isUserInteraction) {
+        log.debug('VideoAnalysis', 'Controls visibility change skipped - no state change', {
+          visible,
+          isUserInteraction,
+        })
+        return
       }
 
-      // Apply header options immediately for user interactions to avoid React state/effect delay
-      // This ensures header animation starts at the same time as video controls
-      const headerShown = isProcessing || visible
-      const options = {
-        // @ts-ignore: custom appHeaderProps not in base type
-        appHeaderProps: {
-          mode: 'videoSettings',
-          onBackPress: handleBack,
-          onMenuPress: handleMenuPress,
-        },
-        headerShown: true, // Always keep header mounted, control visibility via opacity
-        // @ts-ignore: custom isUserInteraction not in base type
-        isUserInteraction: true,
-        // @ts-ignore: custom headerVisible not in base type
-        headerVisible: headerShown,
-        // @ts-ignore: custom isHistoryMode not in base type
-        isHistoryMode: !!analysisJobId,
-      }
-
-      log.debug('VideoAnalysis', 'Applying header options immediately (user interaction)', {
-        controlsVisible: visible,
+      log.debug('VideoAnalysis', 'Controls visibility changed', {
+        visible,
         isProcessing,
-        headerShown,
-        headerIsUserInteraction: true,
+        previousControlsVisible: controlsVisibleRef.current,
+        isUserInteraction,
       })
 
-      navigation.setOptions(options)
-      pendingOptionsRef.current = options
+      // Mark animation start for user interactions
+      if (isUserInteraction) {
+        isAnimatingRef.current = true
 
-      // Failsafe: reset animation flag after max animation duration if callback doesn't fire
-      pendingOptionsTimeoutRef.current = setTimeout(() => {
-        if (pendingOptionsRef.current) {
-          log.debug('VideoAnalysis', 'Resetting animation flag (failsafe timeout)')
-          // Reset flag and apply options with isUserInteraction=false for future updates
-          isAnimatingRef.current = false
-          navigation.setOptions({
-            ...pendingOptionsRef.current,
-            isUserInteraction: false,
-          })
-          pendingOptionsRef.current = null
+        // Clear any pending options timeout
+        if (pendingOptionsTimeoutRef.current) {
+          clearTimeout(pendingOptionsTimeoutRef.current)
+          pendingOptionsTimeoutRef.current = null
         }
-        pendingOptionsTimeoutRef.current = null
-      }, ANIMATION_TIMEOUTS.quick + 100) // Add 100ms buffer
-    }
 
-    // Update state immediately (but setOptions will be deferred during animations)
-    setIsUserInteraction(isUserInteraction)
-    setControlsVisible(visible)
+        // Apply header options immediately for user interactions to avoid React state/effect delay
+        // This ensures header animation starts at the same time as video controls
+        const headerShown = isProcessing || visible
+        const headerOptions = {
+          // @ts-ignore: custom appHeaderProps not in base type
+          appHeaderProps: {
+            mode: 'videoSettings',
+            onBackPress: handleBack,
+            onMenuPress: handleMenuPress,
+          },
+          headerShown: true, // Always keep header mounted, control visibility via opacity
+          // @ts-ignore: custom isUserInteraction not in base type
+          isUserInteraction: true,
+          // @ts-ignore: custom headerVisible not in base type
+          headerVisible: headerShown,
+          // @ts-ignore: custom isHistoryMode not in base type
+          isHistoryMode: !!analysisJobId,
+        }
 
-    // Reset user interaction flag after animation completes
-    // Use quick timeout for user interactions, lazy for automatic changes
-    if (isUserInteraction) {
-      // Clear existing timeout to prevent duplicate resets during rapid interactions
-      if (userInteractionTimeoutRef.current) {
-        clearTimeout(userInteractionTimeoutRef.current)
-        userInteractionTimeoutRef.current = null
+        const previousOptions = pendingOptionsRef.current
+        const headerOptionsChanged =
+          !previousOptions ||
+          previousOptions.headerVisible !== headerOptions.headerVisible ||
+          previousOptions.isUserInteraction !== headerOptions.isUserInteraction
+
+        if (headerOptionsChanged) {
+          log.debug('VideoAnalysis', 'Applying header options immediately (user interaction)', {
+            controlsVisible: visible,
+            isProcessing,
+            headerShown,
+            headerIsUserInteraction: true,
+          })
+
+          navigation.setOptions(headerOptions)
+          pendingOptionsRef.current = headerOptions
+        } else {
+          log.debug('VideoAnalysis', 'Skipping header options update - values unchanged', {
+            controlsVisible: visible,
+            headerShown,
+          })
+        }
+
+        // Failsafe: reset animation flag after max animation duration if callback doesn't fire
+        pendingOptionsTimeoutRef.current = setTimeout(() => {
+          if (pendingOptionsRef.current) {
+            log.debug('VideoAnalysis', 'Resetting animation flag (failsafe timeout)')
+            // Reset flag only - header manages isUserInteraction internally
+            isAnimatingRef.current = false
+            pendingOptionsRef.current = null
+          }
+          pendingOptionsTimeoutRef.current = null
+        }, ANIMATION_TIMEOUTS.quick + 100) // Add 100ms buffer
       }
 
-      userInteractionTimeoutRef.current = setTimeout(() => {
-        log.debug('VideoAnalysis', 'Resetting user interaction flag after quick animation')
+      // Update state immediately (but setOptions will be deferred during animations)
+      controlsVisibleRef.current = visible
+      isUserInteractionRef.current = isUserInteraction
 
-        // Mark animation complete BEFORE applying pending options
-        isAnimatingRef.current = false
+      if (prevVisible !== visible) {
+        setControlsVisible(visible)
+      }
 
-        // Apply any pending header options with isUserInteraction=false for future updates
-        // The header already received isUserInteraction=true to start the quick animation
-        if (pendingOptionsRef.current) {
-          log.debug('VideoAnalysis', 'Applying pending header options with isUserInteraction reset')
+      if (prevIsUserInteraction !== isUserInteraction) {
+        setIsUserInteraction(isUserInteraction)
+      }
 
-          // Mark that we're applying queued options to skip redundant effect execution
-          justAppliedQueuedOptionsRef.current = true
-
-          navigation.setOptions({
-            ...pendingOptionsRef.current,
-            // Reset isUserInteraction to false for future updates (header animation already started)
-            isUserInteraction: false,
-          })
-          pendingOptionsRef.current = null
-
-          // Reset flag after microtask to allow effect to run normally for future updates
-          setTimeout(() => {
-            justAppliedQueuedOptionsRef.current = false
-          }, 0)
+      // Reset user interaction flag after animation completes
+      // Let header component manage isUserInteraction internally instead of sending second setOptions
+      if (isUserInteraction) {
+        // Clear existing timeout to prevent duplicate resets during rapid interactions
+        if (userInteractionTimeoutRef.current) {
+          clearTimeout(userInteractionTimeoutRef.current)
+          userInteractionTimeoutRef.current = null
         }
 
-        // Update state after applying options
-        // Effect will see this but skip execution due to justAppliedQueuedOptionsRef
-        setIsUserInteraction(false)
-        userInteractionTimeoutRef.current = null
-      }, ANIMATION_TIMEOUTS.quick)
-    }
-  }
+        userInteractionTimeoutRef.current = setTimeout(() => {
+          log.debug(
+            'VideoAnalysis',
+            'Resetting user interaction flag after quick animation (state only)'
+          )
+
+          // Mark animation complete
+          isAnimatingRef.current = false
+
+          // Clear pending options - no second setOptions call needed
+          pendingOptionsRef.current = null
+
+          // Update local state only - header manages its own isUserInteraction reset
+          isUserInteractionRef.current = false
+          setIsUserInteraction(false)
+          userInteractionTimeoutRef.current = null
+        }, ANIMATION_TIMEOUTS.quick)
+      }
+    },
+    [isProcessing, analysisJobId, navigation, handleBack, handleMenuPress, ANIMATION_TIMEOUTS.quick]
+  )
 
   // Set header props for Video Analysis mode
   useLayoutEffect(() => {
-    // Skip if we just applied queued options with this exact state
-    // This prevents redundant setOptions calls after animation completes
-    if (justAppliedQueuedOptionsRef.current) {
-      log.debug(
-        'VideoAnalysis',
-        'Skipping redundant setOptions - just applied queued options with updated state'
-      )
-      return
-    }
-
     // Skip if animation is in progress - we already applied options immediately in handleControlsVisibilityChange
     // This prevents duplicate setOptions calls during the same interaction
     if (isAnimatingRef.current) {
@@ -248,20 +263,31 @@ export default function VideoAnalysis() {
     // Apply options immediately - no animation tracking needed in effect
     // Animation tracking is handled in handleControlsVisibilityChange callback
     navigation.setOptions(options)
-  }, [navigation, controlsVisible, isProcessing, isUserInteraction, analysisJobId])
+  }, [
+    navigation,
+    controlsVisible,
+    isProcessing,
+    isUserInteraction,
+    analysisJobId,
+    handleBack,
+    handleMenuPress,
+  ])
 
-  const handleProcessingChange = (processing: boolean) => {
-    const headerShown = processing || controlsVisible
-    log.debug('VideoAnalysis', 'Processing state changed', {
-      isProcessing: processing,
-      controlsVisible,
-      isUserInteraction,
-      headerShown,
-      willShowHeader: headerShown,
-      willHideHeader: !headerShown,
-    })
-    setIsProcessing(processing)
-  }
+  const handleProcessingChange = useCallback(
+    (processing: boolean) => {
+      const headerShown = processing || controlsVisibleRef.current
+      log.debug('VideoAnalysis', 'Processing state changed', {
+        isProcessing: processing,
+        controlsVisible: controlsVisibleRef.current,
+        isUserInteraction: isUserInteractionRef.current,
+        headerShown,
+        willShowHeader: headerShown,
+        willHideHeader: !headerShown,
+      })
+      setIsProcessing(processing)
+    },
+    [] // No deps - uses refs for logging-only values
+  )
 
   // Cleanup timeout on unmount
   useEffect(() => {

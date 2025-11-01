@@ -1,5 +1,3 @@
-import { memo } from 'react'
-
 import { Button, Circle, Text, YStack } from 'tamagui'
 
 interface UploadErrorStateProps {
@@ -9,7 +7,7 @@ interface UploadErrorStateProps {
   onBack: () => void
 }
 
-export const UploadErrorState = memo(function UploadErrorState({
+export function UploadErrorState({
   visible,
   errorMessage,
   onRetry,
@@ -94,4 +92,4 @@ export const UploadErrorState = memo(function UploadErrorState({
       </YStack>
     </YStack>
   )
-})
+}

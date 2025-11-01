@@ -8,39 +8,49 @@
 - **Benefits**: Fabric renderer + TurboModules for improved performance
 - **Impact**: Future-proofing for React Native 0.80+, better bridge performance
 
-### Navigation Pattern (Battle-Tested)
-**Screen/Route Separation:**
-- **Screens** (`packages/app/features/`): Accept callback props, NO navigation imports
-  - Props: `onBack?: () => void`, `onNavigate?: (route: string) => void`, `onHeaderStateChange?: (state: HeaderState) => void`, `onBackPress?: React.MutableRefObject<(() => Promise<void>) | null>`
-  - Example: AccountScreen, SettingsScreen, CameraRecordingScreen, CoachScreen, InsightsScreen
-- **Routes** (`apps/{expo,web}/app/`): Own ALL navigation logic
-  - Implement callbacks: `onBack={() => router.back()}`, `onHeaderStateChange` → `navigation.setOptions()`
-  - Use ONLY Expo Router APIs: `useRouter()`, `useNavigation()`, `useLocalSearchParams()`
-  - Wrap with `<AuthGate>` for protected routes
-- **Benefits**: Framework-agnostic screens, easier testing (mock callbacks not hooks), single source of truth for navigation
+### Navigation Pattern
+**Summary:** Screens accept callbacks as props, routes handle all navigation. Keeps screens framework-agnostic, testable.
+**Screens** (`packages/app/features/`): Accept callbacks only (`onBack`, `onNavigate`, `onHeaderStateChange`, `onBackPress`) — no navigation hooks
+**Routes** (`apps/{expo,web}/app/`): Handle all navigation, use only Expo Router APIs (`useRouter()`, `useNavigation()`, `useLocalSearchParams()`), wrap with `<AuthGate>` for protected routes
 
-## Testing
-- All icons used in components must be mocked in tests
-- Navigation: Mock callback props in screen tests (not router/navigation hooks)
-- Tests should focus on component behavior, not implementation details
-- Use `testID` prop (capital ID) for Tamagui components - they handle conversion internally
-- Don't assert inline styles for Tamagui components - they apply at runtime via token system
-- Test component presence and behavior, not Tamagui's internal style/ARIA handling
+## Testing Guidelines
+- Mock all icons in tests
+- Screen tests: mock callback props (not router/navigation hooks)
+- Test behavior, not implementation details
+- Tamagui: Use `testID` (capital ID), don't assert inline styles, test presence/user-observable behavior
 
-## TDD Implementation Pattern
-- Follow strict Red-Green-Refactor cycle
-- Write failing tests first (RED)
-- Implement minimal code to pass (GREEN)
-- Refactor while keeping tests green (REFACTOR)
-- Use TODO tracking to manage progress through complex implementations
-- Run quality gates after each phase: tests, type-check, lint
-- Target: All tests pass, zero TS errors, zero lint errors before moving to next phase
+## TDD Workflow
+**Red-Green-Refactor:** Write failing test → implement minimum → refactor while green. Run quality checks after each phase. Track TODOs.
 
 ## Component Structure (Insights Pattern)
-- Create component directory with subdirectories per component
-- Each component has: `Component.tsx`, `Component.test.tsx`, `index.ts`
-- Parent directory has `index.ts` that exports all components
-- Test files use AAA pattern (Arrange-Act-Assert) with comments
-- All components accept `testID` prop with sensible defaults
-- Forward additional props using spread operator: `{...props}`
+Directory per component: `Component.tsx`, `Component.test.tsx`, `index.ts` (parent consolidates exports). Tests use AAA with comments. Components accept `testID` with defaults, forward props with `{...props}`
 
+## Debug Logging
+Remove troubleshooting logs once resolved. Keep only errors/warnings. Clean before commit. Use structured logging for long-term, remove temporary diagnostics.
+
+## Performance Rules
+
+### React Optimization
+- Use React.memo for expensive components ONLY
+- Prefer useMemo for expensive computations
+- AVOID premature optimization in MVP phase
+
+### TanStack Query Optimization
+- Use staleTime for stable data
+- Enable background refetch for user data
+- Implement optimistic updates for mutations
+
+### Images and Assets
+- Use optimized Image components with proper sizing
+- Lazy load images below fold
+- Use optimized formats (WebP/AVIF for web)
+
+### List Performance
+- Use FlatList for long lists on native
+- Implement proper keyExtractor
+- Use getItemLayout when possible
+
+### Bundle Size (MVP Focus)
+- Use dynamic imports for non-critical features
+- Tree-shake unused Tamagui components
+- AVOID heavy libraries during MVP phase

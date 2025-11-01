@@ -61,7 +61,7 @@ const SectionContainer = styled(YStack, {
   marginTop: '$2',
   paddingLeft: '$6',
   marginLeft: '$-1.5',
-  paddingBottom: '$3',
+  paddingBottom: '$0',
 })
 
 /**
@@ -84,6 +84,7 @@ const SessionsList = styled(YStack, {
   name: 'SessionsList',
   width: '100%',
   paddingHorizontal: '$4',
+  paddingBottom: '$8',
 })
 
 /**

@@ -116,16 +116,32 @@ export function useFeedbackPanel(options: UseFeedbackPanelOptions = {}): Feedbac
     }
   }, [panelFraction])
 
-  return {
-    panelFraction,
-    isExpanded,
-    activeTab,
-    selectedFeedbackId,
-    expand,
-    collapse,
-    toggle,
-    setActiveTab,
-    selectFeedback,
-    clearSelection,
-  }
+  // Memoize return value to prevent cascading re-renders
+  // This hook is called in performance-critical render paths
+  return useMemo(
+    () => ({
+      panelFraction,
+      isExpanded,
+      activeTab,
+      selectedFeedbackId,
+      expand,
+      collapse,
+      toggle,
+      setActiveTab,
+      selectFeedback,
+      clearSelection,
+    }),
+    [
+      panelFraction,
+      isExpanded,
+      activeTab,
+      selectedFeedbackId,
+      expand,
+      collapse,
+      toggle,
+      setActiveTab,
+      selectFeedback,
+      clearSelection,
+    ]
+  )
 }

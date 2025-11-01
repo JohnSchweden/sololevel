@@ -53,19 +53,6 @@ describe('Recording Controls Component', () => {
   })
 
   describe('Rendering', () => {
-    it('renders recording timer', () => {
-      render(
-        <TestProvider>
-          <RecordingControls {...mockProps} />
-        </TestProvider>
-      )
-
-      const timer = screen.getByLabelText('Recording time: 00:15')
-      expect(timer).toBeTruthy()
-      expect(timer.textContent).toBe('00:15')
-      expect(timer.getAttribute('aria-label')).toBe('Recording time: 00:15')
-    })
-
     it('shows pause button during recording', () => {
       render(
         <TestProvider>
@@ -254,20 +241,6 @@ describe('Recording Controls Component', () => {
       const cameraButton = screen.getByLabelText('Switch camera')
       expect(cameraButton.getAttribute('aria-disabled')).toBe('true')
     })
-
-    it('updates timer display based on duration', () => {
-      const longDurationProps = { ...mockProps, duration: 3661000 } // 1h 1m 1s
-
-      render(
-        <TestProvider>
-          <RecordingControls {...longDurationProps} />
-        </TestProvider>
-      )
-
-      const timer = screen.getByLabelText('Recording time: 61:01')
-      expect(timer).toBeTruthy()
-      expect(timer.textContent).toBe('61:01')
-    })
   })
 
   describe('Accessibility', () => {
@@ -286,19 +259,6 @@ describe('Recording Controls Component', () => {
       expect(stopButton).toBeTruthy()
       expect(settingsButton).toBeTruthy()
       expect(swapButton).toBeTruthy()
-    })
-
-    it('provides proper screen reader feedback', () => {
-      render(
-        <TestProvider>
-          <RecordingControls {...mockProps} />
-        </TestProvider>
-      )
-
-      // Screen readers should be able to identify recording state
-      const timer = screen.getByLabelText('Recording time: 00:15')
-      expect(timer.getAttribute('aria-label')).toBeTruthy()
-      expect(timer.getAttribute('aria-label')).toBe('Recording time: 00:15')
     })
 
     it('supports keyboard navigation', () => {

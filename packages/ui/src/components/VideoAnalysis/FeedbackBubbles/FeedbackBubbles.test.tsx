@@ -45,14 +45,14 @@ describe('FeedbackBubbles', () => {
   it('renders feedback bubbles without crashing', () => {
     render(<FeedbackBubbles messages={mockMessages} />)
 
-    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
+    expect(screen.getByLabelText('Great posture!')).toBeInTheDocument()
   })
 
   it('renders with empty messages array', () => {
     render(<FeedbackBubbles messages={[]} />)
 
     // Component returns null for empty messages
-    expect(screen.queryByLabelText('Feedback: positive feedback bubble')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Great posture!')).not.toBeInTheDocument()
   })
 
   it('limits display to last 3 messages', () => {
@@ -82,20 +82,26 @@ describe('FeedbackBubbles', () => {
 
     render(<FeedbackBubbles messages={manyMessages} />)
 
-    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
+    // Component shows most recent 3 by timestamp (sorted descending, most recent first)
+    expect(screen.getByLabelText('Fifth message')).toBeInTheDocument() // timestamp 5000
+    expect(screen.getByLabelText('Fourth message')).toBeInTheDocument() // timestamp 4000
+    expect(screen.getByLabelText('Keep your back straight!')).toBeInTheDocument() // timestamp 3000
+    // Should not show older messages (timestamp 1000, 2000)
+    expect(screen.queryByLabelText('Great posture!')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Bend your knees a little bit')).not.toBeInTheDocument()
   })
 
   it('renders bubbles with proper structure', () => {
     render(<FeedbackBubbles messages={mockMessages} />)
 
     // Test that the component renders properly
-    expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
+    expect(screen.getByLabelText('Great posture!')).toBeInTheDocument()
   })
 
   it('renders highlighted messages with different styling', () => {
     render(<FeedbackBubbles messages={mockMessages} />)
 
-    expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeInTheDocument()
+    expect(screen.getByLabelText('Keep your back straight!')).toBeInTheDocument()
   })
 
   it('renders inactive messages with reduced opacity', () => {
@@ -109,7 +115,7 @@ describe('FeedbackBubbles', () => {
     render(<FeedbackBubbles messages={inactiveMessages} />)
 
     // Component returns null for inactive messages
-    expect(screen.queryByLabelText('Feedback: positive feedback bubble')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Great posture!')).not.toBeInTheDocument()
   })
 
   describe('Phase 2: Interactive Elements Tests', () => {
@@ -118,7 +124,7 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the first bubble by its accessibility label
-        const firstBubble = screen.getByLabelText('Feedback: positive feedback bubble')
+        const firstBubble = screen.getByLabelText('Great posture!')
         expect(firstBubble).toBeTruthy()
       })
 
@@ -126,7 +132,7 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the second bubble by its accessibility label
-        const secondBubble = screen.getByLabelText('Feedback: suggestion feedback bubble')
+        const secondBubble = screen.getByLabelText('Bend your knees a little bit')
         expect(secondBubble).toBeTruthy()
       })
 
@@ -134,7 +140,7 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
         // Find the third bubble (which is highlighted) by its accessibility label
-        const highlightedBubble = screen.getByLabelText('Feedback: correction feedback bubble')
+        const highlightedBubble = screen.getByLabelText('Keep your back straight!')
         expect(highlightedBubble).toBeTruthy()
       })
 
@@ -149,7 +155,7 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={activeMessages} />)
 
         // Find the active bubble by its accessibility label
-        const activeBubble = screen.getByLabelText('Feedback: positive feedback bubble')
+        const activeBubble = screen.getByLabelText('Great posture!')
         expect(activeBubble).toBeTruthy()
       })
     })
@@ -182,38 +188,32 @@ describe('FeedbackBubbles', () => {
 
         render(<FeedbackBubbles messages={manyMessages} />)
 
-        // Should show exactly 3 bubbles (last 3 messages)
-        // Check for the last 3 messages by their accessibility labels
-        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy() // correction (timestamp 3000)
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // positive (timestamp 4000)
-        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // suggestion (timestamp 5000)
-
-        // Verify we have exactly 3 bubbles total
-        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(3)
+        // Should show exactly 3 bubbles (last 3 messages by timestamp, most recent first)
+        expect(screen.getByLabelText('Fifth message')).toBeTruthy() // timestamp 5000
+        expect(screen.getByLabelText('Fourth message')).toBeTruthy() // timestamp 4000
+        expect(screen.getByLabelText('Keep your back straight!')).toBeTruthy() // timestamp 3000
       })
 
       it('handles empty messages array gracefully', () => {
         render(<FeedbackBubbles messages={[]} />)
 
         // Component returns null for empty messages
-        expect(
-          screen.queryByLabelText('Feedback: positive feedback bubble')
-        ).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('Great posture!')).not.toBeInTheDocument()
       })
 
       it('updates displayed messages when messages prop changes', () => {
         const { rerender } = render(<FeedbackBubbles messages={[mockMessages[0]]} />)
 
         // Initially should show 1 bubble
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
-        expect(screen.queryByLabelText('Feedback: suggestion feedback bubble')).toBeNull()
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy()
+        expect(screen.queryByLabelText('Bend your knees a little bit')).toBeNull()
 
         rerender(<FeedbackBubbles messages={mockMessages} />)
 
         // After rerender should show 3 bubbles
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy()
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy()
+        expect(screen.getByLabelText('Keep your back straight!')).toBeTruthy()
       })
     })
 
@@ -227,11 +227,8 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders only active bubbles (inactive are filtered out)
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Active
-        expect(screen.queryByLabelText('Feedback: suggestion feedback bubble')).toBeNull() // Inactive (filtered out)
-
-        // Only active bubbles should be rendered
-        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(1)
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy() // Active
+        expect(screen.queryByLabelText('Bend your knees a little bit')).toBeNull() // Inactive (filtered out)
       })
 
       it('applies correct scale for highlighted vs normal messages', () => {
@@ -243,11 +240,12 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders both highlighted and normal bubbles
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Normal
-        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // Highlighted
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy() // Normal
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy() // Highlighted
 
         // Both bubbles should be rendered, regardless of highlight state
-        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(2)
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy()
       })
 
       it('applies correct font weight for highlighted vs normal messages', () => {
@@ -259,11 +257,12 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mixedMessages} />)
 
         // Test that component renders both font weight variants
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy() // Normal weight
-        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy() // Highlighted weight
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy() // Normal weight
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy() // Highlighted weight
 
         // Both bubbles should be rendered, regardless of font weight
-        expect(screen.getAllByLabelText(/^Feedback:/)).toHaveLength(2)
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy()
       })
     })
 
@@ -271,7 +270,7 @@ describe('FeedbackBubbles', () => {
       it('provides proper accessibility for feedback bubbles', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
-        const firstBubble = screen.getByLabelText('Feedback: positive feedback bubble')
+        const firstBubble = screen.getByLabelText('Great posture!')
         expect(firstBubble).toBeTruthy()
       })
 
@@ -279,20 +278,16 @@ describe('FeedbackBubbles', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
         // Check that the container exists and renders properly
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeInTheDocument()
+        expect(screen.getByLabelText('Great posture!')).toBeInTheDocument()
       })
 
       it('maintains proper component hierarchy for screen readers', () => {
         render(<FeedbackBubbles messages={mockMessages} />)
 
         // Check that all 3 bubbles are rendered with proper accessibility
-        expect(screen.getByLabelText('Feedback: positive feedback bubble')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: suggestion feedback bubble')).toBeTruthy()
-        expect(screen.getByLabelText('Feedback: correction feedback bubble')).toBeTruthy()
-
-        // Verify all bubbles are present
-        const allBubbles = screen.getAllByLabelText(/^Feedback:/)
-        expect(allBubbles).toHaveLength(3)
+        expect(screen.getByLabelText('Great posture!')).toBeTruthy()
+        expect(screen.getByLabelText('Bend your knees a little bit')).toBeTruthy()
+        expect(screen.getByLabelText('Keep your back straight!')).toBeTruthy()
       })
     })
   })
