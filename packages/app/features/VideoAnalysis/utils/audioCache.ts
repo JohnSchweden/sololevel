@@ -148,8 +148,8 @@ export async function deleteCachedAudio(feedbackId: string, extension?: string):
 }
 
 export async function getAudioStorageUsage(): Promise<{
-  totalSizeMB: number
-  fileCount: number
+  count: number
+  sizeMB: number
 }> {
   try {
     await ensureAudioDirectory()
@@ -172,8 +172,8 @@ export async function getAudioStorageUsage(): Promise<{
     }
 
     return {
-      totalSizeMB: totalSize / (1024 * 1024),
-      fileCount: audioFiles.length,
+      count: audioFiles.length,
+      sizeMB: totalSize / (1024 * 1024),
     }
   } catch (error) {
     log.error('audioCache', 'Failed to get audio storage usage', {

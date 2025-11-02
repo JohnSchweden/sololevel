@@ -580,3 +580,27 @@ export function useVideoStorage() {
     initialize: VideoStorageService.initialize,
   }
 }
+
+/**
+ * Get video storage usage statistics
+ * @returns Storage stats with file count and size in MB
+ */
+export async function getVideoStorageUsage(): Promise<{
+  count: number
+  sizeMB: number
+}> {
+  try {
+    const videos = await VideoStorageService.listVideos()
+    const totalSize = videos.reduce((sum, video) => sum + video.size, 0)
+
+    return {
+      count: videos.length,
+      sizeMB: totalSize / (1024 * 1024),
+    }
+  } catch (error) {
+    log.error('VideoStorageService', 'Failed to get video storage usage', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
+}

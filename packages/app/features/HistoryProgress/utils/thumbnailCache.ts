@@ -4,6 +4,7 @@ import {
   downloadAsync,
   getInfoAsync,
   makeDirectoryAsync,
+  readDirectoryAsync,
 } from 'expo-file-system'
 
 const THUMBNAIL_DIR = `${documentDirectory}thumbnails/`
@@ -91,6 +92,44 @@ export async function persistThumbnailFile(videoId: number, remoteUrl: string): 
     log.error('thumbnailCache', 'Failed to persist thumbnail', {
       videoId,
       remoteUrl,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
+}
+
+/**
+ * Get thumbnail storage usage statistics
+ * @returns Storage stats with file count and size in MB
+ */
+export async function getThumbnailStorageUsage(): Promise<{
+  count: number
+  sizeMB: number
+}> {
+  try {
+    await ensureThumbnailDirectory()
+    const files = await readDirectoryAsync(THUMBNAIL_DIR)
+
+    // Filter to jpg files (thumbnails)
+    const thumbnailFiles = files.filter((file) => file.endsWith('.jpg'))
+
+    let totalSize = 0
+    const fileInfos = await Promise.all(
+      thumbnailFiles.map((file) => getInfoAsync(`${THUMBNAIL_DIR}${file}`))
+    )
+
+    for (const info of fileInfos) {
+      if (info.exists && 'size' in info) {
+        totalSize += info.size || 0
+      }
+    }
+
+    return {
+      count: thumbnailFiles.length,
+      sizeMB: totalSize / (1024 * 1024),
+    }
+  } catch (error) {
+    log.error('thumbnailCache', 'Failed to get thumbnail storage usage', {
       error: error instanceof Error ? error.message : String(error),
     })
     throw error

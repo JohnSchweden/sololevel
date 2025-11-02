@@ -589,8 +589,8 @@ describe('audioCache', () => {
 
       // Assert
       // 500KB + 300KB + 200KB = 1000KB = ~0.953MB (1000000 / 1048576)
-      expect(result.totalSizeMB).toBeCloseTo(0.953, 2)
-      expect(result.fileCount).toBe(3)
+      expect(result.sizeMB).toBeCloseTo(0.953, 2)
+      expect(result.count).toBe(3)
     })
 
     // ARRANGE: Test empty directory
@@ -602,8 +602,8 @@ describe('audioCache', () => {
       const result = await getAudioStorageUsage()
 
       // Assert
-      expect(result.totalSizeMB).toBe(0)
-      expect(result.fileCount).toBe(0)
+      expect(result.sizeMB).toBe(0)
+      expect(result.count).toBe(0)
     })
 
     // ARRANGE: Test error handling
