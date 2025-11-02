@@ -6,10 +6,25 @@ const path = require('node:path')
 require('dotenv').config({ path: path.resolve(__dirname, '.env.local') })
 require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 
-const config = getDefaultConfig(__dirname)
+const projectRoot = __dirname
+const workspaceRoot = path.resolve(projectRoot, '../..')
+
+const config = getDefaultConfig(projectRoot)
+
+// 1. Watch all files within the monorepo (critical for resolving assets from apps/expo/assets/)
+config.watchFolders = [workspaceRoot]
 
 // Add web support
 config.resolver.platforms = ['ios', 'android', 'native', 'web']
+
+// 2. Let Metro know where to resolve packages and in what order
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+]
+
+// 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
+config.resolver.disableHierarchicalLookup = true
 
 // Add path aliases
 config.resolver.alias = {
@@ -26,11 +41,5 @@ config.transformer = {
   ...config.transformer,
   unstable_allowRequireContext: true,
 }
-
-// Configure transformerPath to use Babel for node_modules/zustand
-config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, 'node_modules'),
-  path.resolve(__dirname, '../../node_modules'),
-]
 
 module.exports = config

@@ -2,7 +2,7 @@ import { getAnalysisIdForJobId, supabase } from '@my/api'
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { resolveHistoricalVideoUri } from '../../VideoAnalysis/hooks/useHistoricalAnalysis'
+import { fetchHistoricalAnalysisData } from '../../VideoAnalysis/hooks/useHistoricalAnalysis'
 import { useFeedbackStatusStore } from '../../VideoAnalysis/stores/feedbackStatus'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 
@@ -12,20 +12,25 @@ import { useVideoHistoryStore } from '../stores/videoHistory'
  * Strategy:
  * - Immediately prefetch top 3 videos (visible without scrolling)
  * - Deferred prefetch of remaining videos (after 2s delay)
- * - Pre-resolve video URIs (signed URLs) to eliminate loading delay on tap
+ * - Uses EXACT same queryFn as useHistoricalAnalysis (fetchHistoricalAnalysisData)
  * - Prefetch feedback metadata (lightweight, no audio URLs)
- * - Uses same queryFn logic as useHistoricalAnalysis, so Zustand cache is leveraged
+ *
+ * Critical: This executes the FULL useHistoricalAnalysis logic during prefetch:
+ * - Database fetch (if Zustand cache missing)
+ * - Video URI resolution (local file checks, signed URL generation)
+ * - File existence validation
+ * - All expensive operations complete BEFORE user navigates
  *
  * Benefits:
- * - Instant navigation when user taps thumbnail (no loading state)
- * - Instant feedback display (no loading spinner)
- * - Signed URLs cached for 1 hour (low risk of waste)
- * - Analysis data already in Zustand cache (cheap operation)
+ * - Instant navigation when user taps thumbnail (0ms, no loading state)
+ * - All data ready in TanStack Query cache
+ * - useHistoricalAnalysis returns prefetched data instantly
  *
  * Prefetch includes:
- * 1. Video URIs (signed URLs) - expensive operation
- * 2. Feedback metadata - lightweight database query
- * 3. Skips audio URLs - resolved on-demand when user taps feedback
+ * 1. Full analysis data fetch (database if cache miss)
+ * 2. Video URI resolution (local file checks, signed URLs)
+ * 3. Feedback metadata (lightweight database query)
+ * 4. Skips audio URLs (resolved on-demand when user taps feedback)
  *
  * @param analysisIds - Array of analysis IDs to prefetch (typically up to 10)
  */
@@ -147,49 +152,13 @@ export function usePrefetchVideoAnalysis(analysisIds: number[]): void {
         return
       }
 
-      // Prefetch using the same queryKey and queryFn logic as useHistoricalAnalysis
-      // This will resolve video URIs (signed URLs) which is the expensive operation
+      // Prefetch using the same queryKey and queryFn as useHistoricalAnalysis
+      // This executes ALL expensive operations (database fetch, URI resolution, file checks)
+      // during prefetch, so when user navigates, data is already cached and ready
       queryClient
         .prefetchQuery({
           queryKey: ['analysis', 'historical', analysisId],
-          queryFn: async () => {
-            // Reuse the same queryFn logic from useHistoricalAnalysis
-            // Access Zustand store directly (works outside React components)
-            const cached = useVideoHistoryStore.getState().getCached(analysisId)
-
-            if (!cached) {
-              return { analysis: null }
-            }
-
-            // If video URI is already a local file, return immediately
-            if (cached.videoUri?.startsWith('file://')) {
-              return { analysis: cached }
-            }
-
-            // Resolve video URI (this is the expensive operation we're prefetching)
-            // This will generate signed URLs and cache them
-            const resolvedVideoUri = await resolveHistoricalVideoUri(
-              cached.storagePath ?? cached.videoUri ?? null,
-              {
-                analysisId,
-              }
-            )
-
-            const updatedCached = { ...cached, videoUri: resolvedVideoUri }
-
-            log.debug('usePrefetchVideoAnalysis', 'Prefetched video URI resolution', {
-              analysisId,
-              hasVideoUri: !!updatedCached.videoUri,
-              urlReused: resolvedVideoUri !== cached.videoUri,
-            })
-
-            // Return data matching useHistoricalAnalysis format
-            return {
-              analysis: updatedCached,
-              pendingCacheUpdates:
-                resolvedVideoUri !== cached.videoUri ? { videoUri: resolvedVideoUri } : undefined,
-            }
-          },
+          queryFn: () => fetchHistoricalAnalysisData(analysisId), // ✅ Same function as useHistoricalAnalysis
           staleTime: Number.POSITIVE_INFINITY,
           gcTime: 30 * 60 * 1000,
         })

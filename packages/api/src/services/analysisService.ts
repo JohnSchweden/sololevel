@@ -351,6 +351,7 @@ export async function getUserAnalysisJobs(
         original_filename,
         duration_seconds,
         created_at,
+        thumbnail_url,
         metadata
       )
     `)

@@ -5,9 +5,8 @@ jest.mock('react-native', () => ({
   },
 }))
 
-jest.mock('expo-file-system', () => ({
-  getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
-}))
+// Use manual mock from __mocks__ to get proper default behaviors
+jest.mock('expo-file-system')
 
 // Use real TanStack Query implementation
 jest.unmock('@tanstack/react-query')
@@ -40,12 +39,16 @@ import { createSignedDownloadUrl, getAnalysisJob, supabase } from '@my/api'
 
 import { useHistoricalAnalysis } from './useHistoricalAnalysis'
 
+// Import FileSystem to get typed mock reference
+import * as FileSystem from 'expo-file-system'
+
 // Get typed mock references
 const mockGetAnalysisJob = getAnalysisJob as jest.MockedFunction<typeof getAnalysisJob>
 const mockCreateSignedDownloadUrl = createSignedDownloadUrl as jest.MockedFunction<
   typeof createSignedDownloadUrl
 >
 const mockSupabase = supabase as jest.Mocked<typeof supabase>
+const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
 
 // Verify mocks are initialized
 if (!mockGetAnalysisJob || typeof mockGetAnalysisJob !== 'function') {
@@ -73,8 +76,12 @@ describe('useHistoricalAnalysis', () => {
     jest.clearAllMocks()
     mockGetAnalysisJob.mockReset()
     mockCreateSignedDownloadUrl.mockReset()
+    mockFileSystem.getInfoAsync.mockReset()
     const { clearCache } = useVideoHistoryStore.getState()
     clearCache()
+
+    // Default: Files don't exist (will be overridden in specific tests)
+    mockFileSystem.getInfoAsync.mockResolvedValue({ exists: false } as any)
 
     // Setup default supabase mock response
     const mockSingle = jest.fn().mockResolvedValue({
@@ -131,6 +138,9 @@ describe('useHistoricalAnalysis', () => {
       const { addToCache, setLocalUri } = useVideoHistoryStore.getState()
       addToCache(mockCachedData)
       setLocalUri('user-123/video.mp4', 'file:///cached/video.mp4')
+
+      // File exists for the cached local URI
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true } as any)
 
       // Act
       const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
@@ -193,6 +203,9 @@ describe('useHistoricalAnalysis', () => {
       ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
 
       mockGetAnalysisJob.mockResolvedValue(mockDbData)
+
+      // File exists for the metadata local URI
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true } as any)
 
       // Act
       const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })

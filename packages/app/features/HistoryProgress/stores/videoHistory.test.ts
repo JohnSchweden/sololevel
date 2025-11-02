@@ -332,6 +332,35 @@ describe('VideoHistoryStore', () => {
   })
 
   describe('clearCache', () => {
+    it('should clear all entries but preserve lastSync', () => {
+      // Arrange
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const analysis1 = createMockAnalysis(1)
+      const analysis2 = createMockAnalysis(2)
+
+      act(() => {
+        result.current.addToCache(analysis1)
+        result.current.addToCache(analysis2)
+        result.current.updateLastSync()
+      })
+
+      expect(result.current.cache.size).toBe(2)
+      const lastSyncBeforeClear = result.current.lastSync
+      expect(lastSyncBeforeClear).toBeGreaterThan(0)
+
+      // Act
+      act(() => {
+        result.current.clearCache()
+      })
+
+      // Assert
+      expect(result.current.cache.size).toBe(0)
+      // lastSync should be preserved (not reset to 0)
+      expect(result.current.lastSync).toBe(lastSyncBeforeClear)
+    })
+  })
+
+  describe('resetAll', () => {
     it('should clear all entries and reset lastSync', () => {
       // Arrange
       const { result } = renderHook(() => useVideoHistoryStore())
@@ -349,7 +378,7 @@ describe('VideoHistoryStore', () => {
 
       // Act
       act(() => {
-        result.current.clearCache()
+        result.current.resetAll()
       })
 
       // Assert

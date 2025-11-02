@@ -99,6 +99,7 @@ jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
   writeAsStringAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
+  downloadAsync: jest.fn(),
 }))
 
 // Mock expo-crypto for all tests

@@ -3,8 +3,11 @@ import * as FileSystem from 'expo-file-system'
 import React from 'react'
 import { Platform } from 'react-native'
 
+import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import type { CachedAnalysis } from '@app/features/HistoryProgress/stores/videoHistory'
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
+import { recordCacheHit, recordCacheMiss } from '@app/features/HistoryProgress/utils/cacheMetrics'
+import { getNetworkErrorMessage } from '@app/features/HistoryProgress/utils/networkDetection'
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
 import { createSignedDownloadUrl, getAnalysisJob, supabase } from '@my/api'
 import { log } from '@my/logging'
@@ -50,30 +53,59 @@ function cacheSignedUrl(storagePath: string, signedUrl: string, ttlSeconds: numb
   signedUrlCache.set(storagePath, { signedUrl, expiresAt })
 }
 
-async function tryResolveLocalUri(storagePath: string | null | undefined): Promise<string | null> {
+async function tryResolveLocalUri(
+  storagePath: string | null | undefined,
+  analysisId?: number
+): Promise<string | null> {
   if (!storagePath || Platform.OS === 'web') {
     return null
   }
 
+  // Fast path: Check persisted index
   const localUri = useVideoHistoryStore.getState().getLocalUri(storagePath)
-  if (!localUri) {
-    return null
+  if (localUri) {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(localUri)
+      if (fileInfo.exists) {
+        recordCacheHit('video')
+        return localUri
+      }
+
+      // Local file missing, clear stale mapping
+      useVideoHistoryStore.getState().clearLocalUri(storagePath)
+    } catch (error) {
+      log.warn('useHistoricalAnalysis', 'Failed to stat cached local video', {
+        storagePath,
+        localUri,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
-  try {
-    const fileInfo = await FileSystem.getInfoAsync(localUri)
-    if (fileInfo.exists) {
-      return localUri
+  // Fallback: Direct file check (rebuilds index on cache miss)
+  if (analysisId) {
+    const directPath = `${FileSystem.documentDirectory}recordings/analysis_${analysisId}.mp4`
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(directPath)
+      if (fileInfo.exists) {
+        recordCacheHit('video')
+        log.info('useHistoricalAnalysis', 'Rebuilt cache from direct file check', {
+          storagePath,
+          analysisId,
+          directPath,
+        })
+        // Rebuild index
+        useVideoHistoryStore.getState().setLocalUri(storagePath, directPath)
+        return directPath
+      }
+    } catch (error) {
+      log.warn('useHistoricalAnalysis', 'Failed to check direct file path', {
+        storagePath,
+        analysisId,
+        directPath,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
-
-    // Local file missing, clear stale mapping
-    useVideoHistoryStore.getState().clearLocalUri(storagePath)
-  } catch (error) {
-    log.warn('useHistoricalAnalysis', 'Failed to stat cached local video', {
-      storagePath,
-      localUri,
-      error: error instanceof Error ? error.message : String(error),
-    })
   }
 
   return null
@@ -82,7 +114,12 @@ async function tryResolveLocalUri(storagePath: string | null | undefined): Promi
 /**
  * Resolve historical video URI from storage path
  *
- * Checks local cache, signed URL cache, and generates new signed URLs as needed
+ * 4-tier cache resolution order:
+ * 1. metadata.localUri (recording flow) - check existence
+ * 2. videoHistory.localUriIndex (persistent disk cache) - check existence
+ * 3. Signed URL session cache (1-hour TTL)
+ * 4. Generate new signed URL + background download
+ *
  * Exported for use in prefetch hooks
  */
 export async function resolveHistoricalVideoUri(
@@ -114,9 +151,10 @@ export async function resolveHistoricalVideoUri(
     }
   }
 
-  // Fallback to store cached URI
-  const localUri = await tryResolveLocalUri(storagePath)
+  // Fallback to store cached URI (with direct file check fallback)
+  const localUri = await tryResolveLocalUri(storagePath, context.analysisId)
   if (localUri) {
+    // Cache hit already recorded in tryResolveLocalUri
     log.info('useHistoricalAnalysis', 'Resolved video to local cache', {
       analysisId: context.analysisId,
       storagePath,
@@ -124,6 +162,9 @@ export async function resolveHistoricalVideoUri(
     })
     return localUri
   }
+
+  // Cache miss - no local file found
+  recordCacheMiss('video')
 
   if (storagePath === FALLBACK_VIDEO_URI || isAbsoluteUri(storagePath)) {
     return storagePath
@@ -167,6 +208,29 @@ export async function resolveHistoricalVideoUri(
     urlReused: false,
   })
 
+  // Trigger background download for future sessions (non-blocking)
+  if (signedResult.signedUrl && Platform.OS !== 'web') {
+    VideoStorageService.downloadVideo(signedResult.signedUrl, context.analysisId)
+      .then((persistentPath) => {
+        useVideoHistoryStore.getState().setLocalUri(storagePath, persistentPath)
+        log.info('useHistoricalAnalysis', 'Video persisted to disk', {
+          analysisId: context.analysisId,
+          storagePath,
+          persistentPath,
+        })
+      })
+      .catch(async (error) => {
+        const errorMessage = await getNetworkErrorMessage('video', error)
+        log.warn('useHistoricalAnalysis', 'Background video download failed', {
+          analysisId: context.analysisId,
+          storagePath,
+          error: errorMessage,
+          originalError: error instanceof Error ? error.message : String(error),
+        })
+        // Non-blocking: Continue with signed URL playback
+      })
+  }
+
   return signedResult.signedUrl
 }
 
@@ -182,7 +246,145 @@ interface HistoricalAnalysisData {
 }
 
 /**
+ * Shared queryFn for historical analysis data
+ * Used by both useHistoricalAnalysis hook and usePrefetchVideoAnalysis prefetch
+ *
+ * This function executes during prefetch (on history screen) so all expensive operations
+ * (database fetch, URI resolution, file checks) complete BEFORE user navigates.
+ * When useHistoricalAnalysis runs, TanStack Query returns cached data instantly.
+ *
+ * Flow:
+ * 1. Check Zustand cache (fast, in-memory)
+ * 2. If cached: Re-resolve video URI (file existence check)
+ * 3. If not cached: Fetch from database + resolve video URI
+ * 4. Return data ready for use
+ */
+export async function fetchHistoricalAnalysisData(
+  analysisId: number
+): Promise<HistoricalAnalysisData> {
+  const getCached = useVideoHistoryStore.getState().getCached
+
+  // Check cache first
+  const cached = getCached(analysisId)
+  if (cached) {
+    // CRITICAL: Always re-resolve video URI to check file existence, even for cached file:// URIs
+    // Temporary files in /tmp/ can be deleted, causing AVFoundation errors if we skip validation
+    // Unlike thumbnails which always check existence in transformToCache, videos need explicit re-validation
+    const localUriHint =
+      cached.videoUri?.startsWith('file://') && Platform.OS !== 'web' ? cached.videoUri : undefined
+    const resolvedVideoUri = await resolveHistoricalVideoUri(cached.storagePath ?? null, {
+      analysisId,
+      localUriHint,
+    })
+
+    const updatedCached = { ...cached, videoUri: resolvedVideoUri }
+
+    log.info('useHistoricalAnalysis', 'Returning cached analysis', {
+      analysisId,
+      hasVideoUri: !!updatedCached.videoUri,
+      videoUri: updatedCached.videoUri,
+      cachedAt: new Date(updatedCached.cachedAt).toISOString(),
+    })
+
+    // Return data with pending cache update (to be applied in useEffect)
+    return {
+      analysis: updatedCached,
+      pendingCacheUpdates:
+        resolvedVideoUri !== cached.videoUri ? { videoUri: resolvedVideoUri } : undefined,
+    }
+  }
+
+  // Fallback to database - fetch job with video recording details
+  const job = await getAnalysisJob(analysisId)
+
+  if (!job) {
+    return { analysis: null }
+  }
+
+  // Also fetch the video recording to get the video URI
+  const { data: videoRecording, error: videoError } = await supabase
+    .from('video_recordings')
+    .select('id, filename, storage_path, duration_seconds, metadata')
+    .eq('id', job.video_recording_id)
+    .single()
+
+  if (videoError) {
+    log.error('useHistoricalAnalysis', 'Failed to fetch video recording', {
+      videoRecordingId: job.video_recording_id,
+      error: videoError.message,
+    })
+  }
+
+  log.info('useHistoricalAnalysis', 'Fetched historical analysis data', {
+    analysisId: job.id,
+    videoRecordingId: job.video_recording_id,
+    hasVideoRecording: !!videoRecording,
+    videoFilename: videoRecording?.filename,
+    videoStoragePath: videoRecording?.storage_path,
+  })
+
+  // Transform database job to cached analysis format
+  // Cast Json types to proper structures (validated by database constraints)
+  // Extract local URI from metadata to use as hint for resolution
+  const localMetadata = (videoRecording?.metadata as Record<string, unknown> | undefined) ?? {}
+  const localUriHint =
+    typeof localMetadata.localUri === 'string' ? localMetadata.localUri : undefined
+
+  // Resolve video URI (prefers local URI hint from metadata)
+  const resolvedVideoUri = await resolveHistoricalVideoUri(videoRecording?.storage_path ?? null, {
+    analysisId,
+    localUriHint,
+  })
+
+  const localUriMappings: Array<{ storagePath: string; localUri: string }> = []
+
+  // Collect local URI mappings to apply later in useEffect
+  if (videoRecording?.storage_path && resolvedVideoUri.startsWith('file://')) {
+    localUriMappings.push({
+      storagePath: videoRecording.storage_path,
+      localUri: resolvedVideoUri,
+    })
+  }
+
+  const cachedAnalysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> = {
+    id: job.id,
+    videoId: job.video_recording_id,
+    userId: job.user_id,
+    title: `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
+    createdAt: job.created_at,
+    results: job.results as CachedAnalysis['results'],
+    poseData: job.pose_data ? (job.pose_data as unknown as CachedAnalysis['poseData']) : undefined,
+    videoUri: resolvedVideoUri,
+    storagePath: videoRecording?.storage_path ?? undefined,
+  }
+
+  // Return data with cache updates to apply in useEffect
+  // Note: We return a temporary analysis object that will be added to cache in useEffect
+  return {
+    analysis: {
+      ...cachedAnalysis,
+      cachedAt: Date.now(),
+      lastAccessed: Date.now(),
+    },
+    pendingCacheUpdates: {
+      localUriMappings: localUriMappings.length > 0 ? localUriMappings : undefined,
+    },
+  }
+}
+
+/**
  * Hook for loading historical analysis data with cache-first strategy
+ *
+ * Strategy:
+ * 1. TanStack Query checks cache first (automatically) - if prefetched data exists, returns instantly
+ * 2. If cache miss, runs fetchHistoricalAnalysisData (shared with prefetch)
+ * 3. Apply cache updates after query completes
+ *
+ * Prefetch Integration:
+ * - usePrefetchVideoAnalysis runs fetchHistoricalAnalysisData during prefetch (on history screen)
+ * - This hook uses same queryFn, so TanStack Query returns prefetched data instantly
+ * - If prefetch completed before navigation, data loads instantly (0ms, no loading state)
+ * - If prefetch missed, queryFn runs normally (database fetch + URI resolution)
  *
  * @param analysisId - The analysis job ID to load
  * @returns TanStack Query result with cached or fetched analysis data
@@ -204,119 +406,9 @@ export function useHistoricalAnalysis(analysisId: number | null) {
       if (!analysisId) {
         return { analysis: null }
       }
-
-      // Check cache first
-      const cached = getCached(analysisId)
-      if (cached) {
-        if (cached.videoUri?.startsWith('file://')) {
-          return { analysis: cached }
-        }
-
-        const resolvedVideoUri = await resolveHistoricalVideoUri(
-          cached.storagePath ?? cached.videoUri ?? null,
-          {
-            analysisId,
-          }
-        )
-
-        const updatedCached = { ...cached, videoUri: resolvedVideoUri }
-
-        log.info('useHistoricalAnalysis', 'Returning cached analysis', {
-          analysisId,
-          hasVideoUri: !!updatedCached.videoUri,
-          videoUri: updatedCached.videoUri,
-          cachedAt: new Date(updatedCached.cachedAt).toISOString(),
-        })
-
-        // Return data with pending cache update (to be applied in useEffect)
-        return {
-          analysis: updatedCached,
-          pendingCacheUpdates:
-            resolvedVideoUri !== cached.videoUri ? { videoUri: resolvedVideoUri } : undefined,
-        }
-      }
-
-      // Fallback to database - fetch job with video recording details
-      const job = await getAnalysisJob(analysisId)
-
-      if (!job) {
-        return { analysis: null }
-      }
-
-      // Also fetch the video recording to get the video URI
-      const { data: videoRecording, error: videoError } = await supabase
-        .from('video_recordings')
-        .select('id, filename, storage_path, duration_seconds, metadata')
-        .eq('id', job.video_recording_id)
-        .single()
-
-      if (videoError) {
-        log.error('useHistoricalAnalysis', 'Failed to fetch video recording', {
-          videoRecordingId: job.video_recording_id,
-          error: videoError.message,
-        })
-      }
-
-      log.info('useHistoricalAnalysis', 'Fetched historical analysis data', {
-        analysisId: job.id,
-        videoRecordingId: job.video_recording_id,
-        hasVideoRecording: !!videoRecording,
-        videoFilename: videoRecording?.filename,
-        videoStoragePath: videoRecording?.storage_path,
-      })
-
-      // Transform database job to cached analysis format
-      // Cast Json types to proper structures (validated by database constraints)
-      // Extract local URI from metadata to use as hint for resolution
-      const localMetadata = (videoRecording?.metadata as Record<string, unknown> | undefined) ?? {}
-      const localUriHint =
-        typeof localMetadata.localUri === 'string' ? localMetadata.localUri : undefined
-
-      // Resolve video URI (prefers local URI hint from metadata)
-      const resolvedVideoUri = await resolveHistoricalVideoUri(
-        videoRecording?.storage_path ?? null,
-        {
-          analysisId,
-          localUriHint,
-        }
-      )
-
-      const localUriMappings: Array<{ storagePath: string; localUri: string }> = []
-
-      // Collect local URI mappings to apply later in useEffect
-      if (videoRecording?.storage_path && resolvedVideoUri.startsWith('file://')) {
-        localUriMappings.push({
-          storagePath: videoRecording.storage_path,
-          localUri: resolvedVideoUri,
-        })
-      }
-
-      const cachedAnalysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> = {
-        id: job.id,
-        videoId: job.video_recording_id,
-        userId: job.user_id,
-        title: `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
-        createdAt: job.created_at,
-        results: job.results as CachedAnalysis['results'],
-        poseData: job.pose_data
-          ? (job.pose_data as unknown as CachedAnalysis['poseData'])
-          : undefined,
-        videoUri: resolvedVideoUri,
-        storagePath: videoRecording?.storage_path ?? undefined,
-      }
-
-      // Return data with cache updates to apply in useEffect
-      // Note: We return a temporary analysis object that will be added to cache in useEffect
-      return {
-        analysis: {
-          ...cachedAnalysis,
-          cachedAt: Date.now(),
-          lastAccessed: Date.now(),
-        },
-        pendingCacheUpdates: {
-          localUriMappings: localUriMappings.length > 0 ? localUriMappings : undefined,
-        },
-      }
+      // Use shared queryFn - same logic as prefetch
+      // TanStack Query automatically returns prefetched data if available
+      return fetchHistoricalAnalysisData(analysisId)
     },
     enabled: !!analysisId,
     staleTime: Number.POSITIVE_INFINITY, // Historical data doesn't change

@@ -2,7 +2,9 @@
 jest.unmock('@tanstack/react-query')
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
+import * as FileSystem from 'expo-file-system'
 import type { ReactNode } from 'react'
+import { Platform } from 'react-native'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 
 // Use the global mock provided in test-utils/setup.ts and get the handle
@@ -11,7 +13,25 @@ const mockGetUserAnalysisJobs = getUserAnalysisJobs as jest.MockedFunction<
   typeof getUserAnalysisJobs
 >
 
+import * as thumbnailCache from '../utils/thumbnailCache'
 import { useHistoryQuery } from './useHistoryQuery'
+
+// Mock thumbnailCache module
+jest.mock('../utils/thumbnailCache', () => ({
+  ensureThumbnailDirectory: jest.fn().mockResolvedValue(undefined),
+  getCachedThumbnailPath: jest.fn(
+    (videoId: number) => `file:///documents/thumbnails/${videoId}.jpg`
+  ),
+  persistThumbnailFile: jest.fn().mockResolvedValue('file:///documents/thumbnails/10.jpg'),
+}))
+
+const mockPersistThumbnailFile = thumbnailCache.persistThumbnailFile as jest.MockedFunction<
+  typeof thumbnailCache.persistThumbnailFile
+>
+
+const mockGetInfoAsync = FileSystem.getInfoAsync as jest.MockedFunction<
+  typeof FileSystem.getInfoAsync
+>
 
 // Sanity: ensure mock is defined for all tests below
 if (!mockGetUserAnalysisJobs || typeof mockGetUserAnalysisJobs !== 'function') {
@@ -21,6 +41,9 @@ if (!mockGetUserAnalysisJobs || typeof mockGetUserAnalysisJobs !== 'function') {
 beforeEach(() => {
   mockGetUserAnalysisJobs.mockReset()
   mockGetUserAnalysisJobs.mockResolvedValue([])
+  mockGetInfoAsync.mockReset()
+  mockPersistThumbnailFile.mockReset()
+  mockPersistThumbnailFile.mockResolvedValue('file:///documents/thumbnails/10.jpg')
   const { clearCache } = useVideoHistoryStore.getState()
   clearCache()
 })
@@ -167,28 +190,53 @@ describe('useHistoryQuery', () => {
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
   })
 
-  it('should return cached data when cache is fresh (< 60s)', async () => {
-    // ARRANGE: Populate cache with fresh data
-    const cache = useVideoHistoryStore.getState()
-    cache.addToCache({
-      id: 1,
-      videoId: 10,
-      userId: 'user-123',
-      title: 'Cached Analysis',
-      createdAt: '2025-10-11T10:00:00Z',
-      thumbnail: 'https://example.com/cached-thumb.jpg',
-      results: {
-        pose_analysis: {
-          keypoints: [],
-          confidence_score: 0.85,
-          frame_count: 30,
-        },
-      },
-    })
-    cache.updateLastSync()
+  it('should use TanStack Query cache within staleTime (5 minutes)', async () => {
+    // ARRANGE: First query populates TanStack Query cache
+    const queryClient = createTestQueryClient()
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([mockJob])
 
-    // Mock API (should not be called)
-    mockGetUserAnalysisJobs.mockResolvedValueOnce([])
+    // ACT: First render - fetches from API
+    const { result, rerender } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
+
+    // Reset mock call count
+    mockGetUserAnalysisJobs.mockClear()
+
+    // ACT: Second render within staleTime - should use TanStack Query cache
+    rerender()
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+      expect(result.current.data).toBeDefined()
+    })
+
+    // ASSERT: TanStack Query returns cached data without API call
+    expect(mockGetUserAnalysisJobs).not.toHaveBeenCalled()
+    expect(result.current.data).toEqual([
+      {
+        id: 1,
+        videoId: 10,
+        title: 'Analysis 10/11/2025',
+        createdAt: '2025-10-11T10:00:00Z',
+        thumbnailUri: 'https://example.com/thumb.jpg',
+      },
+    ])
+  })
+
+  it('should fetch from database on first load', async () => {
+    // Note: TanStack Query always fetches on mount for data freshness
+    // Zustand cache is used for AsyncStorage persistence, not query caching
+    // ARRANGE: Ensure cache is empty and mock API response
+    const cache = useVideoHistoryStore.getState()
+    expect(cache.getAllCached()).toEqual([]) // Verify cache is empty
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([mockJob])
 
     // ACT: Render hook
     const queryClient = createTestQueryClient()
@@ -201,55 +249,8 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Returns cached data without API call
-    expect(result.current.data).toEqual([
-      {
-        id: 1,
-        videoId: 10,
-        title: 'Cached Analysis',
-        createdAt: '2025-10-11T10:00:00Z',
-        thumbnailUri: 'https://example.com/cached-thumb.jpg',
-      },
-    ])
-    expect(mockGetUserAnalysisJobs).not.toHaveBeenCalled()
-  })
-
-  it('should fetch from database when cache is stale (> 60s)', async () => {
-    // ARRANGE: Populate cache with stale data
-    const cache = useVideoHistoryStore.getState()
-    cache.addToCache({
-      id: 1,
-      videoId: 10,
-      userId: 'user-123',
-      title: 'Stale Analysis',
-      createdAt: '2025-10-11T09:00:00Z',
-      results: {
-        pose_analysis: {
-          keypoints: [],
-          confidence_score: 0.7,
-          frame_count: 30,
-        },
-      },
-    })
-
-    // Manually set lastSync to > 60s ago
-    const staleTimestamp = Date.now() - 61000 // 61 seconds ago
-    cache.updateLastSync()
-    useVideoHistoryStore.setState({ lastSync: staleTimestamp })
-
-    // Mock fresh API response
-    mockGetUserAnalysisJobs.mockResolvedValueOnce([mockJob])
-
-    // ACT: Render hook
-    const queryClient = createTestQueryClient()
-    const { result } = renderHook(() => useHistoryQuery(), {
-      wrapper: createWrapper(queryClient),
-    })
-
-    // ASSERT: Wait for query
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
+    // Verify mock was called
+    expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
 
     // ASSERT: Fetched from database (title from date)
     expect(mockGetUserAnalysisJobs).toHaveBeenCalledTimes(1)
@@ -395,6 +396,13 @@ describe('useHistoryQuery', () => {
   })
 
   it('should extract thumbnailUri from metadata (local device URI)', async () => {
+    // ARRANGE: Mock Platform.OS as ios and file exists
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: true,
+      uri: 'file:///local/path/to/thumbnail.jpg',
+    } as any)
+
     // ARRANGE: Job with metadata containing local thumbnail URI
     const jobWithMetadata = {
       ...mockJob,
@@ -440,7 +448,14 @@ describe('useHistoryQuery', () => {
     expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
   })
 
-  it('should prioritize metadata thumbnailUri over thumbnail_url', async () => {
+  it('should prioritize metadata thumbnailUri over thumbnail_url when local file exists', async () => {
+    // ARRANGE: Mock Platform.OS as ios and file exists
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: true,
+      uri: 'file:///local/path/to/thumbnail.jpg',
+    } as any)
+
     // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
     const jobWithBoth = {
       ...mockJob,
@@ -471,10 +486,239 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: metadata thumbnailUri takes precedence
+    // ASSERT: metadata thumbnailUri takes precedence when file exists
     expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
     const { getLocalUri, getCached } = useVideoHistoryStore.getState()
     expect(getLocalUri('user-id/video.mp4')).toBe('file:///local/path/to/video.mp4')
     expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
+  })
+
+  it('should fallback to thumbnail_url when local file does not exist', async () => {
+    // ARRANGE: Mock Platform.OS as ios and file does NOT exist
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: false,
+      uri: 'file:///local/path/to/thumbnail.jpg',
+    } as any)
+
+    // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
+    const jobWithBoth = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {
+          localUri: 'file:///local/path/to/video.mp4',
+          thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
+        },
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithBoth])
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Cloud thumbnail_url used when local file missing
+    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+  })
+
+  it('should persist cloud thumbnail to disk when falling back to thumbnail_url', async () => {
+    // ARRANGE: Mock Platform.OS as ios and file does NOT exist (fallback to cloud)
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: false,
+      uri: 'file:///local/path/to/thumbnail.jpg',
+    } as any)
+
+    // ARRANGE: Job with thumbnail_url but no existing local file
+    const jobWithCloudThumbnail = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {
+          localUri: 'file:///local/path/to/video.mp4',
+          thumbnailUri: 'file:///local/path/to/thumbnail.jpg', // Temp file missing
+        },
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithCloudThumbnail])
+    mockPersistThumbnailFile.mockResolvedValueOnce('file:///documents/thumbnails/10.jpg')
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Thumbnail persisted to disk (non-blocking, cloud URL still returned immediately)
+    expect(mockPersistThumbnailFile).toHaveBeenCalledTimes(1)
+    expect(mockPersistThumbnailFile).toHaveBeenCalledWith(10, 'https://example.com/cloud-thumb.jpg')
+
+    // ASSERT: Cloud URL returned immediately (non-blocking download)
+    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+  })
+
+  it('should handle thumbnail persistence failure gracefully', async () => {
+    // ARRANGE: Mock Platform.OS as ios and file does NOT exist
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: false,
+      uri: 'file:///local/path/to/thumbnail.jpg',
+    } as any)
+
+    // ARRANGE: Job with thumbnail_url
+    const jobWithCloudThumbnail = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {
+          localUri: 'file:///local/path/to/video.mp4',
+          thumbnailUri: undefined,
+        },
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithCloudThumbnail])
+
+    // ARRANGE: Persistence fails (non-blocking)
+    mockPersistThumbnailFile.mockRejectedValueOnce(new Error('Network error'))
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data (should not fail)
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Cloud URL still returned despite persistence failure
+    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+    expect(mockPersistThumbnailFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('should use persistent disk cache thumbnail before falling back to cloud', async () => {
+    // ARRANGE: Mock Platform.OS as ios
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+
+    // ARRANGE: Persistent disk cache exists (no metadata thumbnailUri, no temp file)
+    const cachedThumbnailPath = 'file:///documents/thumbnails/10.jpg'
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: true,
+      uri: cachedThumbnailPath,
+      size: 50000,
+      isDirectory: false,
+      modificationTime: Date.now(),
+    } as any)
+
+    // ARRANGE: Job with only thumbnail_url (no metadata thumbnailUri)
+    const jobWithOnlyCloudThumbnail = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {}, // No thumbnailUri in metadata
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithOnlyCloudThumbnail])
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Persistent disk cache used (checked before cloud fallback)
+    expect(mockGetInfoAsync).toHaveBeenCalledWith(cachedThumbnailPath)
+    expect(result.current.data?.[0].thumbnailUri).toBe(cachedThumbnailPath)
+    // ASSERT: Should NOT persist again (already cached)
+    expect(mockPersistThumbnailFile).not.toHaveBeenCalled()
+  })
+
+  it('should fallback to cloud when persistent disk cache does not exist', async () => {
+    // ARRANGE: Mock Platform.OS as ios
+    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
+
+    // ARRANGE: Persistent disk cache does NOT exist
+    const cachedThumbnailPath = 'file:///documents/thumbnails/10.jpg'
+    mockGetInfoAsync.mockResolvedValueOnce({
+      exists: false,
+      uri: cachedThumbnailPath,
+    } as any)
+
+    // ARRANGE: Job with only thumbnail_url (no metadata thumbnailUri)
+    const jobWithOnlyCloudThumbnail = {
+      ...mockJob,
+      video_recordings: {
+        id: 10,
+        filename: 'video.mp4',
+        original_filename: 'video.mp4',
+        storage_path: 'user-id/video.mp4',
+        duration_seconds: 30,
+        created_at: '2025-10-11T09:55:00Z',
+        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
+        metadata: {}, // No thumbnailUri in metadata
+      },
+    }
+    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithOnlyCloudThumbnail])
+    mockPersistThumbnailFile.mockResolvedValueOnce('file:///documents/thumbnails/10.jpg')
+
+    // ACT: Render hook
+    const queryClient = createTestQueryClient()
+    const { result } = renderHook(() => useHistoryQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    // ASSERT: Wait for data
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // ASSERT: Cloud URL used (disk cache missing)
+    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+    // ASSERT: Should persist to disk
+    expect(mockPersistThumbnailFile).toHaveBeenCalledTimes(1)
+    expect(mockPersistThumbnailFile).toHaveBeenCalledWith(10, 'https://example.com/cloud-thumb.jpg')
   })
 })

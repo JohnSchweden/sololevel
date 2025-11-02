@@ -429,4 +429,508 @@ describe('VideoStorageService', () => {
       await expect(VideoStorageService.cleanupTempFiles()).resolves.not.toThrow()
     })
   })
+
+  describe('downloadVideo', () => {
+    it('should download video from signed URL and save to persistent directory', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 12345
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri.includes(`analysis_${analysisId}.mp4`)) {
+          return Promise.resolve({
+            exists: true,
+            size: 10240000,
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockResolvedValue({} as any)
+
+      // Act
+      const result = await VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Assert
+      expect(result).toMatch(/^file:\/\/\/documents\/recordings\/analysis_12345\.mp4$/)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(1)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledWith(
+        signedUrl,
+        expect.stringMatching(/^file:\/\/\/documents\/recordings\/analysis_12345\.mp4$/)
+      )
+    })
+
+    it('should handle download errors gracefully', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 99999
+      const downloadError = new Error('Network timeout')
+
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockRejectedValue(downloadError)
+
+      // Act & Assert
+      await expect(VideoStorageService.downloadVideo(signedUrl, analysisId)).rejects.toThrow(
+        'Failed to download video: Network timeout'
+      )
+    })
+
+    it('should validate downloaded file exists and has content', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 11111
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri.includes(`analysis_${analysisId}.mp4`)) {
+          return Promise.resolve({
+            exists: true,
+            size: 0, // Zero size - should warn
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockResolvedValue({} as any)
+
+      // Act
+      const result = await VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Assert
+      expect(result).toBeDefined()
+      // Verify file info was checked after download
+      expect(mockFileSystem.getInfoAsync).toHaveBeenCalledWith(
+        expect.stringMatching(/^file:\/\/\/documents\/recordings\/analysis_11111\.mp4$/)
+      )
+    })
+
+    it('should throw error if downloaded file does not exist', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 22222
+      const persistentPath = `file:///documents/recordings/analysis_${analysisId}.mp4`
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings') && !uri.includes('analysis')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri === persistentPath) {
+          return Promise.resolve({ exists: false } as any) // File doesn't exist after download
+        }
+        return Promise.resolve({ exists: true } as any)
+      })
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockResolvedValue({} as any)
+
+      // Act & Assert
+      await expect(VideoStorageService.downloadVideo(signedUrl, analysisId)).rejects.toThrow(
+        'Downloaded file does not exist'
+      )
+    })
+
+    it('should deduplicate concurrent downloads for same analysisId', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 55555
+      const persistentPath = `file:///documents/recordings/analysis_${analysisId}.mp4`
+
+      // First call: file doesn't exist, download starts
+      // Second call: should return same Promise (deduplication)
+      let callCount = 0
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings') && !uri.includes('analysis')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri === persistentPath) {
+          callCount++
+          if (callCount === 1) {
+            // First check: file doesn't exist yet
+            return Promise.resolve({ exists: false } as any)
+          }
+          // After download: file exists
+          return Promise.resolve({
+            exists: true,
+            size: 10240000,
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      // Mock download to be slow (simulate network delay)
+      let downloadResolve: () => void
+      const downloadPromise = new Promise<FileSystem.FileSystemDownloadResult>((resolve) => {
+        downloadResolve = () => {
+          resolve({} as FileSystem.FileSystemDownloadResult)
+        }
+      })
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockImplementation(() => downloadPromise)
+
+      // Act: Start two concurrent downloads for same analysisId
+      const download1 = VideoStorageService.downloadVideo(signedUrl, analysisId)
+      const download2 = VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Complete download
+      downloadResolve!()
+
+      // Wait for both to complete
+      const [result1, result2] = await Promise.all([download1, download2])
+
+      // Assert: Both should return same path
+      expect(result1).toBe(persistentPath)
+      expect(result2).toBe(persistentPath)
+      // Download should only be called ONCE (deduplication)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return immediately if file already exists with content', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 66666
+      const persistentPath = `file:///documents/recordings/analysis_${analysisId}.mp4`
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings') && !uri.includes('analysis')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri === persistentPath) {
+          // File already exists with content
+          return Promise.resolve({
+            exists: true,
+            size: 10240000, // Non-zero size
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      // Act
+      const result = await VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Assert: Should return immediately without downloading
+      expect(result).toBe(persistentPath)
+      expect(mockFileSystem.downloadAsync).not.toHaveBeenCalled()
+    })
+
+    it('should delete and retry if file exists but has zero size (partial download)', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 77777
+      const persistentPath = `file:///documents/recordings/analysis_${analysisId}.mp4`
+
+      let checkCount = 0
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings') && !uri.includes('analysis')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri === persistentPath) {
+          checkCount++
+          if (checkCount === 1) {
+            // First check: partial file exists (zero size)
+            return Promise.resolve({
+              exists: true,
+              size: 0, // Partial/corrupted file
+              modificationTime: Date.now(),
+            } as any)
+          }
+          // After retry: file has content
+          return Promise.resolve({
+            exists: true,
+            size: 10240000,
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockResolvedValue({} as any)
+
+      // Act
+      const result = await VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Assert: Should delete partial file and retry download
+      expect(result).toBe(persistentPath)
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalledWith(persistentPath)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(1)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledWith(signedUrl, persistentPath)
+    })
+
+    it('should cleanup in-flight tracker on download failure', async () => {
+      // Arrange
+      const signedUrl = 'https://storage.supabase.co/raw/video.mp4?token=abc123'
+      const analysisId = 88888
+      const persistentPath = `file:///documents/recordings/analysis_${analysisId}.mp4`
+      const downloadError = new Error('Network timeout')
+
+      let fileCheckCount = 0
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('recordings') && !uri.includes('analysis')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        if (uri === persistentPath) {
+          fileCheckCount++
+          if (fileCheckCount === 1) {
+            // First call - first check: file doesn't exist initially
+            return Promise.resolve({ exists: false } as any)
+          }
+          if (fileCheckCount === 2) {
+            // Second call - first check: file doesn't exist (cleanup worked, fresh start)
+            return Promise.resolve({ exists: false } as any)
+          }
+          // After second download: file exists
+          return Promise.resolve({
+            exists: true,
+            size: 10240000,
+            modificationTime: Date.now(),
+          } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      // First download fails
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockRejectedValueOnce(downloadError)
+
+      // Act & Assert: First call should fail
+      await expect(VideoStorageService.downloadVideo(signedUrl, analysisId)).rejects.toThrow(
+        'Failed to download video: Network timeout'
+      )
+
+      // Second download succeeds (tracker was cleaned up, so new download starts)
+      ;(
+        mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
+      ).mockResolvedValueOnce({} as any)
+
+      // Act: Second call should start fresh (tracker cleaned up)
+      const result = await VideoStorageService.downloadVideo(signedUrl, analysisId)
+
+      // Assert: Retry should work (tracker was cleaned up)
+      expect(result).toBe(persistentPath)
+      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(2) // Initial failure + retry
+    })
+  })
+
+  describe('getStorageUsage', () => {
+    it('should calculate total storage usage for all videos', async () => {
+      // Arrange
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        if (uri.includes('video_1.mp4')) {
+          return Promise.resolve({ exists: true, size: 10485760, modificationTime: 1000 } as any) // 10 MB
+        }
+        if (uri.includes('video_2.mov')) {
+          return Promise.resolve({ exists: true, size: 20971520, modificationTime: 2000 } as any) // 20 MB
+        }
+        if (uri.includes('analysis_123.mp4')) {
+          return Promise.resolve({ exists: true, size: 15728640, modificationTime: 3000 } as any) // 15 MB
+        }
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+      mockFileSystem.readDirectoryAsync.mockResolvedValue([
+        'video_1.mp4',
+        'video_2.mov',
+        'analysis_123.mp4',
+      ])
+
+      // Act
+      const result = await VideoStorageService.getStorageUsage()
+
+      // Assert
+      expect(result.totalVideos).toBe(3)
+      expect(result.totalSizeMB).toBeCloseTo(45.0, 1) // (10 + 20 + 15) MB
+    })
+
+    it('should return zero for empty storage', async () => {
+      // Arrange
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      mockFileSystem.readDirectoryAsync.mockResolvedValue([])
+
+      // Act
+      const result = await VideoStorageService.getStorageUsage()
+
+      // Assert
+      expect(result.totalVideos).toBe(0)
+      expect(result.totalSizeMB).toBe(0)
+    })
+
+    it('should handle storage errors gracefully', async () => {
+      // Arrange
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      mockFileSystem.readDirectoryAsync.mockRejectedValue(new Error('Permission denied'))
+
+      // Act & Assert
+      await expect(VideoStorageService.getStorageUsage()).rejects.toThrow(
+        'Failed to get storage usage: Failed to list videos: Permission denied'
+      )
+    })
+  })
+
+  describe('evictOldestVideos', () => {
+    it('should evict oldest videos when target size is exceeded', async () => {
+      // Arrange
+      const videos = [
+        { filename: 'video_old.mp4', size: 5000000, modificationTime: 1000 },
+        { filename: 'video_mid.mp4', size: 6000000, modificationTime: 2000 },
+        { filename: 'video_new.mp4', size: 7000000, modificationTime: 3000 },
+      ]
+
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      mockFileSystem.readDirectoryAsync.mockResolvedValue(videos.map((v) => v.filename))
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        const video = videos.find((v) => uri.includes(v.filename))
+        if (video) {
+          return Promise.resolve({
+            exists: true,
+            size: video.size,
+            modificationTime: video.modificationTime,
+          } as any)
+        }
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      mockFileSystem.deleteAsync.mockResolvedValue(undefined)
+
+      // Act - Evict to get under 10MB (total is 18MB)
+      const result = await VideoStorageService.evictOldestVideos(10)
+
+      // Assert - Should delete oldest videos to get under 10MB
+      expect(result).toBeGreaterThan(0)
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalled()
+      // Oldest video should be deleted first
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalledWith(
+        expect.stringContaining('video_old.mp4')
+      )
+    })
+
+    it('should not evict videos if quota is not exceeded', async () => {
+      // Arrange
+      const videos = [
+        { filename: 'video_1.mp4', size: 2000000, modificationTime: 1000 },
+        { filename: 'video_2.mp4', size: 3000000, modificationTime: 2000 },
+      ]
+
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      mockFileSystem.readDirectoryAsync.mockResolvedValue(videos.map((v) => v.filename))
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        const video = videos.find((v) => uri.includes(v.filename))
+        if (video) {
+          return Promise.resolve({
+            exists: true,
+            size: video.size,
+            modificationTime: video.modificationTime,
+          } as any)
+        }
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      // Act - Evict to get under 10MB (total is 5MB, well under)
+      const result = await VideoStorageService.evictOldestVideos(10)
+
+      // Assert - Should not delete anything
+      expect(result).toBe(0)
+      expect(mockFileSystem.deleteAsync).not.toHaveBeenCalled()
+    })
+
+    it('should protect videos less than 7 days old', async () => {
+      // Arrange
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000 - 1000 // Just over 7 days
+      const sixDaysAgo = Date.now() - 6 * 24 * 60 * 60 * 1000 // Less than 7 days
+
+      const videos = [
+        { filename: 'video_old.mp4', size: 10000000, modificationTime: sevenDaysAgo },
+        { filename: 'video_new.mp4', size: 10000000, modificationTime: sixDaysAgo },
+      ]
+
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: true } as any)
+      mockFileSystem.readDirectoryAsync.mockResolvedValue(videos.map((v) => v.filename))
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        const video = videos.find((v) => uri.includes(v.filename))
+        if (video) {
+          return Promise.resolve({
+            exists: true,
+            size: video.size,
+            modificationTime: video.modificationTime,
+          } as any)
+        }
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+
+      mockFileSystem.deleteAsync.mockResolvedValue(undefined)
+
+      // Act - Evict to get under 15MB (total is 20MB)
+      const result = await VideoStorageService.evictOldestVideos(15)
+
+      // Assert - Should only delete old video, not protected new video
+      expect(result).toBeGreaterThan(0)
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalledTimes(1)
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalledWith(
+        expect.stringContaining('video_old.mp4')
+      )
+      // New video should NOT be deleted
+      expect(mockFileSystem.deleteAsync).not.toHaveBeenCalledWith(
+        expect.stringContaining('video_new.mp4')
+      )
+    })
+
+    it('should handle eviction errors gracefully', async () => {
+      // Arrange - Old video (>7 days) that exceeds quota
+      const oldDate = Date.now() - 8 * 24 * 60 * 60 * 1000 // 8 days ago
+      const videos = [{ filename: 'video_old.mp4', size: 50000000, modificationTime: oldDate }]
+
+      mockFileSystem.getInfoAsync.mockImplementation((uri) => {
+        const video = videos.find((v) => uri.includes(v.filename))
+        if (video) {
+          return Promise.resolve({
+            exists: true,
+            size: video.size,
+            modificationTime: video.modificationTime,
+          } as any)
+        }
+        if (uri.includes('recordings')) {
+          return Promise.resolve({ exists: true, isDirectory: true } as any)
+        }
+        return Promise.resolve({ exists: false } as any)
+      })
+      mockFileSystem.readDirectoryAsync.mockResolvedValue(videos.map((v) => v.filename))
+
+      mockFileSystem.deleteAsync.mockRejectedValue(new Error('Permission denied'))
+
+      // Act - Should continue despite deletion errors (error handling logs warning, continues)
+      const result = await VideoStorageService.evictOldestVideos(10)
+
+      // Assert - Should attempt eviction despite errors, logs warning but continues
+      expect(mockFileSystem.deleteAsync).toHaveBeenCalled()
+      expect(result).toBeGreaterThanOrEqual(0) // May return 0 if error prevents tracking evictions
+    })
+  })
 })

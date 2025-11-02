@@ -1,13 +1,20 @@
 import { log } from '@my/logging'
 import * as FileSystem from 'expo-file-system'
+import { recordEviction } from '../../HistoryProgress/utils/cacheMetrics'
 
 /**
  * Video Storage Service using expo-file-system
  * Handles local video file storage, retrieval, and management
  */
+
 export class VideoStorageService {
   private static readonly VIDEOS_DIR = `${FileSystem.documentDirectory}recordings/`
   private static readonly TEMP_DIR = `${FileSystem.cacheDirectory}temp/`
+  static readonly MAX_VIDEO_STORAGE_MB = 500
+  private static readonly PROTECTION_DAYS = 7 // Don't evict videos less than 7 days old
+
+  // Track in-flight downloads by analysisId for deduplication
+  private static inFlightDownloads = new Map<number, Promise<string>>()
 
   /**
    * Initialize storage directories
@@ -321,6 +328,221 @@ export class VideoStorageService {
       log.error('videoStorageService', 'Failed to cleanup temp files', {
         error: error instanceof Error ? error.message : String(error),
       })
+    }
+  }
+
+  /**
+   * Download video from signed URL and save to persistent directory
+   *
+   * Features:
+   * - Deduplication: Multiple concurrent calls for same analysisId share one download
+   * - File existence check: Returns immediately if file already downloaded
+   * - Partial file cleanup: Deletes and retries if file exists but has zero size
+   * - Error cleanup: Removes from in-flight tracker on failure
+   *
+   * @param signedUrl - Cloud storage signed URL
+   * @param analysisId - Analysis ID for filename generation
+   * @returns Local file URI of downloaded video
+   */
+  static async downloadVideo(signedUrl: string, analysisId: number): Promise<string> {
+    const persistentPath = `${VideoStorageService.VIDEOS_DIR}analysis_${analysisId}.mp4`
+
+    // 1. Check if download already in progress (deduplication)
+    const existingDownload = VideoStorageService.inFlightDownloads.get(analysisId)
+    if (existingDownload) {
+      log.debug('VideoStorageService', 'Download already in progress, reusing promise', {
+        analysisId,
+      })
+      return existingDownload // Return same Promise for all concurrent callers
+    }
+
+    // 2. Check if file already exists with content (fast path)
+    try {
+      const existingFile = await FileSystem.getInfoAsync(persistentPath)
+      if (existingFile.exists && 'size' in existingFile && existingFile.size > 0) {
+        log.debug('VideoStorageService', 'File already downloaded', {
+          analysisId,
+          persistentPath,
+          size: existingFile.size,
+        })
+        return persistentPath
+      }
+
+      // 3. Check if file exists but has zero size (partial download)
+      if (existingFile.exists && 'size' in existingFile && existingFile.size === 0) {
+        log.warn('VideoStorageService', 'Partial file detected, deleting before retry', {
+          analysisId,
+          persistentPath,
+        })
+        await FileSystem.deleteAsync(persistentPath)
+      }
+    } catch (error) {
+      log.warn('VideoStorageService', 'Failed to check existing file, proceeding with download', {
+        analysisId,
+        persistentPath,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      // Continue with download if file check fails
+    }
+
+    // 4. Create new download Promise and track it
+    const downloadPromise = (async () => {
+      try {
+        await VideoStorageService.initialize()
+
+        log.info('VideoStorageService', 'Downloading video from cloud', {
+          signedUrl,
+          analysisId,
+          persistentPath,
+        })
+
+        // Download from signed URL to persistent path
+        await FileSystem.downloadAsync(signedUrl, persistentPath)
+
+        // Validate downloaded file exists and has content
+        const fileInfo = await FileSystem.getInfoAsync(persistentPath)
+        if (!fileInfo.exists) {
+          throw new Error(`Downloaded file does not exist: ${persistentPath}`)
+        }
+
+        if (fileInfo.exists && 'size' in fileInfo && fileInfo.size === 0) {
+          log.warn('VideoStorageService', 'Downloaded file has zero size', {
+            persistentPath,
+            fileInfo,
+          })
+        }
+
+        log.info('VideoStorageService', 'Video downloaded successfully', {
+          analysisId,
+          persistentPath,
+          size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
+        })
+
+        return persistentPath
+      } catch (error) {
+        log.error('VideoStorageService', 'Failed to download video', {
+          signedUrl,
+          analysisId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        throw new Error(
+          `Failed to download video: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      } finally {
+        // Always remove from in-flight tracker when done (success or failure)
+        VideoStorageService.inFlightDownloads.delete(analysisId)
+      }
+    })()
+
+    // Store Promise for deduplication
+    VideoStorageService.inFlightDownloads.set(analysisId, downloadPromise)
+
+    return downloadPromise
+  }
+
+  /**
+   * Get storage usage statistics in MB
+   * @returns Storage usage with video count and total size in MB
+   */
+  static async getStorageUsage(): Promise<{
+    totalVideos: number
+    totalSizeMB: number
+  }> {
+    try {
+      const videos = await VideoStorageService.listVideos()
+      const totalSize = videos.reduce((sum, video) => sum + video.size, 0)
+      const totalSizeMB = totalSize / (1024 * 1024)
+
+      return {
+        totalVideos: videos.length,
+        totalSizeMB,
+      }
+    } catch (error) {
+      log.error('VideoStorageService', 'Failed to get storage usage', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw new Error(
+        `Failed to get storage usage: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+  }
+
+  /**
+   * Evict oldest videos to get under target size (MB)
+   * Protects videos less than 7 days old
+   * @param targetSizeMB - Target storage size in MB
+   * @returns Number of videos evicted
+   */
+  static async evictOldestVideos(targetSizeMB: number): Promise<number> {
+    try {
+      const videos = await VideoStorageService.listVideos()
+
+      // Calculate total size in MB
+      const totalSizeMB = videos.reduce((sum, video) => sum + video.size, 0) / (1024 * 1024)
+
+      // If already under target, no eviction needed
+      if (totalSizeMB <= targetSizeMB) {
+        log.debug('VideoStorageService', 'Storage under quota, no eviction needed', {
+          totalSizeMB,
+          targetSizeMB,
+        })
+        return 0
+      }
+
+      // Filter videos older than protection period
+      const now = Date.now()
+      const protectedThreshold = now - VideoStorageService.PROTECTION_DAYS * 24 * 60 * 60 * 1000
+
+      const evictableVideos = videos.filter(
+        (video) => (video.modificationTime || 0) < protectedThreshold
+      )
+
+      // Sort by modification time (oldest first)
+      evictableVideos.sort((a, b) => (a.modificationTime || 0) - (b.modificationTime || 0))
+
+      // Evict oldest videos until under target
+      let evictedCount = 0
+      let currentSizeMB = totalSizeMB
+
+      for (const video of evictableVideos) {
+        if (currentSizeMB <= targetSizeMB) {
+          break
+        }
+
+        try {
+          await VideoStorageService.deleteVideo(video.uri)
+          currentSizeMB -= video.size / (1024 * 1024)
+          evictedCount++
+          recordEviction('video')
+
+          log.info('VideoStorageService', 'Evicted old video', {
+            filename: video.filename,
+            sizeMB: video.size / (1024 * 1024),
+            remainingSizeMB: currentSizeMB,
+          })
+        } catch (error) {
+          log.warn('VideoStorageService', 'Failed to evict video', {
+            filename: video.filename,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          // Continue evicting other videos despite failure
+        }
+      }
+
+      log.info('VideoStorageService', 'Eviction complete', {
+        evictedCount,
+        finalSizeMB: currentSizeMB,
+        targetSizeMB,
+      })
+
+      return evictedCount
+    } catch (error) {
+      log.error('VideoStorageService', 'Failed to evict videos', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw new Error(
+        `Failed to evict videos: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 

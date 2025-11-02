@@ -91,6 +91,8 @@ async function resolveVideoToUpload(params: {
   // Attempt compression first, with graceful fallback
   let videoToUploadUri = sourceUri
   let thumbnailUri: string | undefined
+  // Store original sourceUri as localUri - this is the persistent saved video from camera
+  const persistentLocalUri = sourceUri
   try {
     log.info('videoUploadAndAnalysis', 'Starting video compression')
     const compressionResult = await compressVideo(sourceUri)
@@ -109,7 +111,8 @@ async function resolveVideoToUpload(params: {
       metadata = {
         duration: durationSeconds || 30,
         format: format || 'mp4',
-        localUri: sourceUri,
+        // Keep original persistent localUri, not compressed temp path
+        localUri: persistentLocalUri,
       }
 
       if (thumbnailUri) {
@@ -132,7 +135,8 @@ async function resolveVideoToUpload(params: {
     metadata = {
       duration: durationSeconds || 30,
       format: compressedFormat,
-      localUri: compressionResult.compressedUri,
+      // Keep original persistent localUri, not compressed temp path
+      localUri: persistentLocalUri,
     }
   } catch (compressionError) {
     log.warn('videoUploadAndAnalysis', 'Video compression failed, using original video', {
