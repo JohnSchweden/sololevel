@@ -9,6 +9,7 @@ import {
   useFeedbackStatusStore,
 } from '../../VideoAnalysis/stores/feedbackStatus'
 import { useVideoHistoryStore } from '../stores/videoHistory'
+import { useNetworkQuality } from './useNetworkQuality'
 
 /**
  * Prefetch video analysis data for videos when history screen loads
@@ -51,6 +52,9 @@ export function usePrefetchVideoAnalysis(analysisIds: number[]): void {
   const setUuid = useVideoHistoryStore((state) => state.setUuid)
   const addFeedback = useFeedbackStatusStore((state) => state.addFeedback)
   const getFeedbacksByAnalysisId = useFeedbackStatusStore((state) => state.getFeedbacksByAnalysisId)
+
+  // Adaptive prefetch based on network quality
+  const networkQuality = useNetworkQuality()
 
   /**
    * Prefetch feedback metadata for a single analysis
@@ -200,17 +204,50 @@ export function usePrefetchVideoAnalysis(analysisIds: number[]): void {
       return undefined
     }
 
-    // Priority-based prefetch:
-    // - Top 3 videos: Immediate prefetch (visible without scrolling)
-    // - Remaining videos: Immediate prefetch with slight stagger (10ms per item) to avoid overwhelming system
-    // All prefetches start immediately - no 2s delay that blocks user navigation
-    const immediatePrefetch = analysisIds.slice(0, 3)
-    const deferredPrefetch = analysisIds.slice(3)
+    // Adaptive prefetch based on network quality:
+    // - Fast network: Prefetch all videos with minimal stagger (10ms)
+    // - Medium network: Prefetch top 5 videos with moderate stagger (50ms)
+    // - Slow network: Only prefetch top 3 videos with longer stagger (200ms)
+    // - Unknown: Conservative approach (top 3, 100ms stagger)
+    const getPrefetchConfig = () => {
+      switch (networkQuality) {
+        case 'fast':
+          return {
+            immediateCount: 3,
+            deferredCount: analysisIds.length - 3,
+            staggerMs: 10,
+          }
+        case 'medium':
+          return {
+            immediateCount: 3,
+            deferredCount: Math.min(2, analysisIds.length - 3), // Top 5 total
+            staggerMs: 50,
+          }
+        case 'slow':
+          return {
+            immediateCount: 3,
+            deferredCount: 0, // Only top 3
+            staggerMs: 200,
+          }
+        default: // 'unknown'
+          return {
+            immediateCount: 3,
+            deferredCount: Math.min(2, analysisIds.length - 3), // Conservative: top 5
+            staggerMs: 100,
+          }
+      }
+    }
+
+    const { immediateCount, deferredCount, staggerMs } = getPrefetchConfig()
+    const immediatePrefetch = analysisIds.slice(0, immediateCount)
+    const deferredPrefetch = analysisIds.slice(immediateCount, immediateCount + deferredCount)
 
     log.debug('usePrefetchVideoAnalysis', 'Prefetching video analysis data', {
+      networkQuality,
       immediate: immediatePrefetch.length,
       deferred: deferredPrefetch.length,
       total: analysisIds.length,
+      staggerMs,
     })
 
     // Helper function to prefetch a single video
@@ -259,15 +296,15 @@ export function usePrefetchVideoAnalysis(analysisIds: number[]): void {
     // Prefetch top 3 immediately (visible videos)
     immediatePrefetch.forEach(prefetchVideo)
 
-    // Prefetch remaining videos immediately with slight stagger (10ms per item)
-    // This prevents overwhelming the system while ensuring all prefetches start right away
+    // Prefetch remaining videos with adaptive stagger based on network quality
+    // This prevents overwhelming the system on slow connections while maximizing throughput on fast connections
     // If user navigates before stagger completes, TanStack Query deduplication handles it
     deferredPrefetch.forEach((analysisId, index) => {
       setTimeout(() => {
         prefetchVideo(analysisId)
-      }, index * 10)
+      }, index * staggerMs)
     })
 
     return undefined
-  }, [analysisIds, queryClient, getCached, addFeedback, getFeedbacksByAnalysisId])
+  }, [analysisIds, queryClient, getCached, addFeedback, getFeedbacksByAnalysisId, networkQuality])
 }

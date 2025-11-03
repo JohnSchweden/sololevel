@@ -95,6 +95,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
           gap="$6"
           paddingHorizontal="$6"
           paddingVertical="$8"
+          overflow="visible"
         >
           {/* Header Section */}
           <YStack
@@ -121,8 +122,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
 
           <YStack
             gap="$3"
-            width="100%"
-            maxWidth={400}
+            paddingHorizontal="$4"
           >
             <Input
               placeholder="Email"

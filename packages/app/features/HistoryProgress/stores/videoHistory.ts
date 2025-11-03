@@ -32,7 +32,16 @@ export interface CachedAnalysis {
 }
 
 export type LocalUriMap = Map<string, string>
-export type UuidMapping = Map<number, string> // jobId -> analysis UUID
+
+/**
+ * UUID mapping entry with timestamp for TTL management
+ */
+export interface UuidMappingEntry {
+  uuid: string
+  cachedAt: number
+}
+
+export type UuidMapping = Map<number, UuidMappingEntry> // jobId -> { uuid, cachedAt }
 
 /**
  * Video history store state
@@ -42,7 +51,7 @@ export interface VideoHistoryState {
   lastSync: number
   version: number
   localUriIndex: LocalUriMap
-  uuidMapping: UuidMapping // Persisted mapping of jobId -> analysis UUID for fast lookups
+  uuidMapping: UuidMapping // Persisted mapping of jobId -> { uuid, cachedAt } for fast lookups with TTL
 }
 
 /**
@@ -51,7 +60,7 @@ export interface VideoHistoryState {
 export interface PersistedVideoHistoryState {
   cache: [number, CachedAnalysis][]
   localUriIndex: [string, string][]
-  uuidMapping: [number, string][]
+  uuidMapping: [number, UuidMappingEntry][] // New format with timestamps
   lastSync: number
   version: number
 }
@@ -113,6 +122,16 @@ function isTooOld(entry: CachedAnalysis): boolean {
 }
 
 /**
+ * Check if UUID mapping is stale based on TTL
+ */
+function isUuidStale(entry: UuidMappingEntry): boolean {
+  const now = Date.now()
+  const age = now - entry.cachedAt
+  const ttl = TTL_DAYS * 24 * 60 * 60 * 1000
+  return age > ttl
+}
+
+/**
  * Video history store with persistence and cache management
  */
 export const useVideoHistoryStore = create<VideoHistoryStore>()(
@@ -131,7 +150,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           lastSync: 0,
           version: CACHE_VERSION,
           localUriIndex: new Map<string, string>(),
-          uuidMapping: new Map<number, string>(),
+          uuidMapping: new Map<number, UuidMappingEntry>(),
 
           // Add to cache
           addToCache: (analysis) => {
@@ -290,13 +309,16 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             })
           },
 
-          // UUID mapping management
+          // UUID mapping management with TTL
           setUuid: (jobId, uuid) => {
             if (!jobId || !uuid) {
               return
             }
             set((draft) => {
-              draft.uuidMapping.set(jobId, uuid)
+              draft.uuidMapping.set(jobId, {
+                uuid,
+                cachedAt: Date.now(),
+              })
             })
           },
 
@@ -304,7 +326,19 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             if (!jobId) {
               return null
             }
-            return get().uuidMapping.get(jobId) ?? null
+            const entry = get().uuidMapping.get(jobId)
+            if (!entry) {
+              return null
+            }
+            // Check TTL: return null if stale
+            if (isUuidStale(entry)) {
+              // Auto-cleanup stale entry
+              set((draft) => {
+                draft.uuidMapping.delete(jobId)
+              })
+              return null
+            }
+            return entry.uuid
           },
 
           clearUuid: (jobId) => {
@@ -374,6 +408,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           // Evict stale entries (TTL expired or too old)
           evictStale: () => {
             let evictedCount = 0
+            let evictedUuidCount = 0
             set((draft) => {
               const entries = Array.from(draft.cache.entries())
 
@@ -386,6 +421,15 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
                   draft.uuidMapping.delete(id)
                   draft.cache.delete(id)
                   evictedCount++
+                }
+              }
+
+              // Also evict stale UUID mappings that aren't tied to cache entries
+              const uuidEntries = Array.from(draft.uuidMapping.entries())
+              for (const [jobId, entry] of uuidEntries) {
+                if (isUuidStale(entry)) {
+                  draft.uuidMapping.delete(jobId)
+                  evictedUuidCount++
                 }
               }
             })
@@ -454,10 +498,11 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
         // Convert arrays back to Maps on rehydration
         merge: (persistedState: unknown, currentState: VideoHistoryStore): VideoHistoryStore => {
           // Type guard for persisted state structure
+          // uuidMapping can be old format [number, string] or new format [number, UuidMappingEntry]
           type PersistedState = {
             cache?: [number, CachedAnalysis][]
             localUriIndex?: [string, string][]
-            uuidMapping?: [number, string][]
+            uuidMapping?: [number, string | UuidMappingEntry][]
             lastSync?: number
             version?: number
           }
@@ -491,11 +536,25 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             CACHE_VERSION,
           })
 
+          // Handle UUID mapping migration: convert old format [number, string] to new format [number, UuidMappingEntry]
+          const uuidMappingEntries: [number, UuidMappingEntry][] = []
+          if (persisted.uuidMapping) {
+            for (const [jobId, value] of persisted.uuidMapping) {
+              // Old format: value is string
+              if (typeof value === 'string') {
+                uuidMappingEntries.push([jobId, { uuid: value, cachedAt: Date.now() }])
+              } else {
+                // New format: value is UuidMappingEntry
+                uuidMappingEntries.push([jobId, value])
+              }
+            }
+          }
+
           const merged: VideoHistoryStore = {
             ...currentState,
             cache: new Map(persisted.cache ?? []),
             localUriIndex: new Map(persisted.localUriIndex ?? []),
-            uuidMapping: new Map(persisted.uuidMapping ?? []),
+            uuidMapping: new Map(uuidMappingEntries),
             lastSync: persisted.lastSync ?? currentState.lastSync,
             version: persisted.version ?? currentState.version,
           }

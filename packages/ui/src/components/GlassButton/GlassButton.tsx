@@ -133,7 +133,7 @@ export const GlassButton = ({
     <XStack
       position="relative"
       borderRadius={borderRadius}
-      overflow="hidden"
+      overflow="visible"
       opacity={disabled ? 1 : opacity}
       minWidth={typeof minWidth === 'number' ? minWidth : undefined}
       minHeight={minHeight}
@@ -148,7 +148,7 @@ export const GlassButton = ({
           right={-1}
           bottom={-1}
           borderRadius={borderRadius}
-          borderWidth={1}
+          borderWidth={0}
           borderColor={edgeGlowColor}
           opacity={edgeGlowIntensity}
           pointerEvents="none"

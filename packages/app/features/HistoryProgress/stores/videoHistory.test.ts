@@ -619,4 +619,156 @@ describe('VideoHistoryStore', () => {
       expect(result.current.getLocalUri('user-123/video.mp4')).toBeNull()
     })
   })
+
+  describe('UUID mapping management with TTL', () => {
+    it('should store and retrieve UUID mappings', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      // ACT
+      act(() => {
+        result.current.setUuid(123, 'test-uuid-123')
+      })
+
+      // ASSERT
+      expect(result.current.getUuid(123)).toBe('test-uuid-123')
+    })
+
+    it('should return null for non-existent UUID mapping', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      // ACT & ASSERT
+      expect(result.current.getUuid(999)).toBeNull()
+    })
+
+    it('should return null for stale UUID mappings (older than TTL)', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      // Mock Date.now to control timestamps
+      const now = Date.now()
+      const ttlDays = 7
+      const ttlMs = ttlDays * 24 * 60 * 60 * 1000
+
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(now) // When setUuid is called
+        .mockReturnValueOnce(now + ttlMs + 1000) // When getUuid is called (1 second after TTL expires)
+
+      // ACT: Set UUID
+      act(() => {
+        result.current.setUuid(123, 'test-uuid-123')
+      })
+
+      // ACT: Try to get UUID after TTL expired
+      const uuid = result.current.getUuid(123)
+
+      // ASSERT: Should return null because TTL expired
+      expect(uuid).toBeNull()
+
+      // Cleanup
+      jest.restoreAllMocks()
+    })
+
+    it('should return UUID for mappings within TTL', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      const now = Date.now()
+      const ttlDays = 7
+      const ttlMs = ttlDays * 24 * 60 * 60 * 1000
+
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(now) // When setUuid is called
+        .mockReturnValueOnce(now + ttlMs - 1000) // When getUuid is called (1 second before TTL expires)
+
+      // ACT
+      act(() => {
+        result.current.setUuid(123, 'test-uuid-123')
+      })
+
+      const uuid = result.current.getUuid(123)
+
+      // ASSERT: Should return UUID because still within TTL
+      expect(uuid).toBe('test-uuid-123')
+
+      // Cleanup
+      jest.restoreAllMocks()
+    })
+
+    it('should clear stale UUIDs during eviction', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      const now = Date.now()
+      const ttlDays = 7
+      const ttlMs = ttlDays * 24 * 60 * 60 * 1000
+
+      // Set up: Create stale UUID mapping
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(now) // When setUuid is called (old)
+        .mockReturnValueOnce(now) // When second setUuid is called (recent)
+        .mockReturnValueOnce(now + ttlMs + 1000) // When evictStale is called
+
+      act(() => {
+        result.current.setUuid(123, 'old-uuid-123') // Stale
+        result.current.setUuid(456, 'recent-uuid-456') // Recent (but will be marked stale too in this test)
+      })
+
+      // ACT: Evict stale entries
+      act(() => {
+        result.current.evictStale()
+      })
+
+      // ASSERT: Stale UUID should be cleared
+      expect(result.current.getUuid(123)).toBeNull()
+
+      // Cleanup
+      jest.restoreAllMocks()
+    })
+
+    it('should clear UUID when explicitly calling clearUuid', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      act(() => {
+        result.current.setUuid(123, 'test-uuid-123')
+      })
+
+      expect(result.current.getUuid(123)).toBe('test-uuid-123')
+
+      // ACT
+      act(() => {
+        result.current.clearUuid(123)
+      })
+
+      // ASSERT
+      expect(result.current.getUuid(123)).toBeNull()
+    })
+
+    it('should clear UUID mappings when cache is cleared', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useVideoHistoryStore())
+
+      act(() => {
+        result.current.setUuid(123, 'test-uuid-123')
+        result.current.setUuid(456, 'test-uuid-456')
+      })
+
+      expect(result.current.getUuid(123)).toBe('test-uuid-123')
+      expect(result.current.getUuid(456)).toBe('test-uuid-456')
+
+      // ACT
+      act(() => {
+        result.current.clearCache()
+      })
+
+      // ASSERT
+      expect(result.current.getUuid(123)).toBeNull()
+      expect(result.current.getUuid(456)).toBeNull()
+    })
+  })
 })
