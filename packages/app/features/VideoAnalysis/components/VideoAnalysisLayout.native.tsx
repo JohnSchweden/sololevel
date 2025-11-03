@@ -1,4 +1,5 @@
 import { log } from '@my/logging'
+import { GlassBackground } from '@my/ui'
 import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import type { RefObject } from 'react'
@@ -341,30 +342,30 @@ export const VideoAnalysisLayout = memo(function VideoAnalysisLayout(
           gestureBlockFeedbackScrollCompletely: props.gesture?.blockFeedbackScrollCompletely,
         })
       } else {
-        log.debug('VideoAnalysisLayout', '🔍 Re-rendered without tracked prop changes', {
-          renderCount: renderCountRef.current,
-          renderCountDiff: renderCountRef.current - prevRenderCountRef.current,
-          timeSinceLastRender,
-          isRapid: timeSinceLastRender < 16,
-          // Log all prop references for debugging
-          propRefs: {
-            gesture: prev.gesture === props.gesture ? 'same' : 'changed',
-            animation: prev.animation === props.animation ? 'same' : 'changed',
-            video: prev.video === props.video ? 'same' : 'changed',
-            playback: prev.playback === props.playback ? 'same' : 'changed',
-            feedback: prev.feedback === props.feedback ? 'same' : 'changed',
-            handlers: prev.handlers === props.handlers ? 'same' : 'changed',
-            controls: prev.controls === props.controls ? 'same' : 'changed',
-            audioOverlay: prev.audioOverlay === props.audioOverlay ? 'same' : 'changed',
-            bubbleState: prev.bubbleState === props.bubbleState ? 'same' : 'changed',
-            audioController: prev.audioController === props.audioController ? 'same' : 'changed',
-            contextValue: prev.contextValue === props.contextValue ? 'same' : 'changed',
-          },
-          stackTrace:
-            timeSinceLastRender < 16
-              ? new Error().stack?.split('\n').slice(1, 8).join('\n')
-              : undefined,
-        })
+        // log.debug('VideoAnalysisLayout', '🔍 Re-rendered without tracked prop changes', {
+        //   renderCount: renderCountRef.current,
+        //   renderCountDiff: renderCountRef.current - prevRenderCountRef.current,
+        //   timeSinceLastRender,
+        //   isRapid: timeSinceLastRender < 16,
+        //   // Log all prop references for debugging
+        //   propRefs: {
+        //     gesture: prev.gesture === props.gesture ? 'same' : 'changed',
+        //     animation: prev.animation === props.animation ? 'same' : 'changed',
+        //     video: prev.video === props.video ? 'same' : 'changed',
+        //     playback: prev.playback === props.playback ? 'same' : 'changed',
+        //     feedback: prev.feedback === props.feedback ? 'same' : 'changed',
+        //     handlers: prev.handlers === props.handlers ? 'same' : 'changed',
+        //     controls: prev.controls === props.controls ? 'same' : 'changed',
+        //     audioOverlay: prev.audioOverlay === props.audioOverlay ? 'same' : 'changed',
+        //     bubbleState: prev.bubbleState === props.bubbleState ? 'same' : 'changed',
+        //     audioController: prev.audioController === props.audioController ? 'same' : 'changed',
+        //     contextValue: prev.contextValue === props.contextValue ? 'same' : 'changed',
+        //   },
+        //   stackTrace:
+        //     timeSinceLastRender < 16
+        //       ? new Error().stack?.split('\n').slice(1, 8).join('\n')
+        //       : undefined,
+        // })
       }
       prevPropsRef.current = props
       prevRenderCountRef.current = renderCountRef.current
@@ -532,8 +533,9 @@ export const VideoAnalysisLayout = memo(function VideoAnalysisLayout(
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <VideoAnalysisProvider value={contextValue}>
-        <YStack
+        <GlassBackground
           flex={1}
+          backgroundColor="$color3"
           testID="video-analysis-screen"
         >
           <UploadErrorState
@@ -712,7 +714,7 @@ export const VideoAnalysisLayout = memo(function VideoAnalysisLayout(
               </YStack>
             </GestureDetector>
           )}
-        </YStack>
+        </GlassBackground>
       </VideoAnalysisProvider>
     </GestureHandlerRootView>
   )

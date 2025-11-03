@@ -32,6 +32,7 @@ export interface CachedAnalysis {
 }
 
 export type LocalUriMap = Map<string, string>
+export type UuidMapping = Map<number, string> // jobId -> analysis UUID
 
 /**
  * Video history store state
@@ -41,6 +42,18 @@ export interface VideoHistoryState {
   lastSync: number
   version: number
   localUriIndex: LocalUriMap
+  uuidMapping: UuidMapping // Persisted mapping of jobId -> analysis UUID for fast lookups
+}
+
+/**
+ * Serialized state for persistence (Maps converted to arrays for JSON)
+ */
+export interface PersistedVideoHistoryState {
+  cache: [number, CachedAnalysis][]
+  localUriIndex: [string, string][]
+  uuidMapping: [number, string][]
+  lastSync: number
+  version: number
 }
 
 /**
@@ -58,6 +71,11 @@ export interface VideoHistoryActions {
   setLocalUri: (storagePath: string, localUri: string) => void
   getLocalUri: (storagePath: string) => string | null
   clearLocalUri: (storagePath: string) => void
+
+  // UUID mapping management
+  setUuid: (jobId: number, uuid: string) => void
+  getUuid: (jobId: number) => string | null
+  clearUuid: (jobId: number) => void
 
   // Cache management
   clearCache: () => void
@@ -99,8 +117,8 @@ function isTooOld(entry: CachedAnalysis): boolean {
  */
 export const useVideoHistoryStore = create<VideoHistoryStore>()(
   subscribeWithSelector(
-    persist(
-      immer<VideoHistoryStore>((set, get) => {
+    persist<VideoHistoryStore, [], [['zustand/immer', never]], PersistedVideoHistoryState>(
+      immer((set, get) => {
         log.debug('VideoHistoryStore', 'Initializing store', {
           CACHE_VERSION,
           initialLastSync: 0,
@@ -113,6 +131,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           lastSync: 0,
           version: CACHE_VERSION,
           localUriIndex: new Map<string, string>(),
+          uuidMapping: new Map<number, string>(),
 
           // Add to cache
           addToCache: (analysis) => {
@@ -125,7 +144,15 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
 
             set((draft) => {
               draft.cache.set(analysis.id, entry)
-              if (analysis.storagePath && analysis.videoUri?.startsWith('file://')) {
+              // Only index persisted paths (recordings/), not temporary cache paths
+              if (
+                analysis.storagePath &&
+                analysis.videoUri?.startsWith('file://') &&
+                analysis.videoUri.includes('recordings/') &&
+                !analysis.videoUri.includes('Caches/') &&
+                !analysis.videoUri.includes('temp/') &&
+                !analysis.videoUri.includes('ExponentAsset-')
+              ) {
                 draft.localUriIndex.set(analysis.storagePath, analysis.videoUri)
               }
             })
@@ -143,10 +170,21 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               if (entry) {
                 Object.assign(entry, updates)
                 entry.lastAccessed = Date.now()
-                if (updates.storagePath && updates.videoUri?.startsWith('file://')) {
-                  draft.localUriIndex.set(updates.storagePath, updates.videoUri)
-                } else if (entry.storagePath && updates.videoUri?.startsWith('file://')) {
-                  draft.localUriIndex.set(entry.storagePath, updates.videoUri)
+                // Only index persisted paths (recordings/), not temporary cache paths
+                const videoUri = updates.videoUri
+                const storagePath = updates.storagePath || entry.storagePath
+                const isPersistedPath =
+                  videoUri?.startsWith('file://') &&
+                  videoUri.includes('recordings/') &&
+                  !videoUri.includes('Caches/') &&
+                  !videoUri.includes('temp/') &&
+                  !videoUri.includes('ExponentAsset-')
+
+                if (storagePath && videoUri && isPersistedPath) {
+                  draft.localUriIndex.set(storagePath, videoUri)
+                } else if (storagePath && videoUri && !isPersistedPath) {
+                  // Remove index entry if we're updating to a temporary path (shouldn't happen, but defensive)
+                  draft.localUriIndex.delete(storagePath)
                 }
               }
             })
@@ -220,8 +258,19 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               return
             }
 
+            const isPersistedPath = localUri.includes('recordings/')
+            const previousUri = get().localUriIndex.get(storagePath)
+
             set((draft) => {
               draft.localUriIndex.set(storagePath, localUri)
+            })
+
+            log.debug('VideoHistoryStore', 'setLocalUri called', {
+              storagePath,
+              localUri: localUri.substring(0, 150) + '...',
+              isPersistedPath,
+              previousUri: previousUri ? previousUri.substring(0, 150) + '...' : null,
+              indexSize: get().localUriIndex.size,
             })
           },
 
@@ -238,6 +287,32 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             }
             set((draft) => {
               draft.localUriIndex.delete(storagePath)
+            })
+          },
+
+          // UUID mapping management
+          setUuid: (jobId, uuid) => {
+            if (!jobId || !uuid) {
+              return
+            }
+            set((draft) => {
+              draft.uuidMapping.set(jobId, uuid)
+            })
+          },
+
+          getUuid: (jobId) => {
+            if (!jobId) {
+              return null
+            }
+            return get().uuidMapping.get(jobId) ?? null
+          },
+
+          clearUuid: (jobId) => {
+            if (!jobId) {
+              return
+            }
+            set((draft) => {
+              draft.uuidMapping.delete(jobId)
             })
           },
 
@@ -260,6 +335,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               // Don't reset lastSync - it's a sync timestamp, not cached data
               // lastSync preserved to maintain cache freshness tracking
               draft.localUriIndex.clear()
+              draft.uuidMapping.clear()
             })
 
             log.debug('VideoHistoryStore', 'clearCache() completed', {
@@ -286,6 +362,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               draft.cache.clear()
               draft.lastSync = 0
               draft.localUriIndex.clear()
+              draft.uuidMapping.clear()
             })
 
             log.debug('VideoHistoryStore', 'resetAll() completed', {
@@ -305,6 +382,8 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
                   if (entry.storagePath) {
                     draft.localUriIndex.delete(entry.storagePath)
                   }
+                  // Also clear UUID mapping when evicting entry
+                  draft.uuidMapping.delete(id)
                   draft.cache.delete(id)
                   evictedCount++
                 }
@@ -332,6 +411,8 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               if (oldestEntry?.storagePath) {
                 draft.localUriIndex.delete(oldestEntry.storagePath)
               }
+              // Also clear UUID mapping when evicting entry
+              draft.uuidMapping.delete(oldestId)
               draft.cache.delete(oldestId)
               // Record eviction (for both thumbnail and video cache entries)
               recordEviction('thumbnail')
@@ -362,36 +443,103 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       {
         name: 'video-history-store',
         storage: createJSONStorage(() => AsyncStorage),
-        partialize: (state) => ({
+        partialize: (state: VideoHistoryStore) => ({
           // Convert Maps to arrays for JSON serialization
           cache: Array.from(state.cache.entries()),
           localUriIndex: Array.from(state.localUriIndex.entries()),
+          uuidMapping: Array.from(state.uuidMapping.entries()),
           lastSync: state.lastSync,
           version: state.version,
         }),
         // Convert arrays back to Maps on rehydration
-        merge: (persistedState: any, currentState: any) => {
+        merge: (persistedState: unknown, currentState: VideoHistoryStore): VideoHistoryStore => {
+          // Type guard for persisted state structure
+          type PersistedState = {
+            cache?: [number, CachedAnalysis][]
+            localUriIndex?: [string, string][]
+            uuidMapping?: [number, string][]
+            lastSync?: number
+            version?: number
+          }
+
+          function isPersistedState(state: unknown): state is PersistedState {
+            return (
+              typeof state === 'object' &&
+              state !== null &&
+              ('cache' in state ||
+                'localUriIndex' in state ||
+                'uuidMapping' in state ||
+                'lastSync' in state ||
+                'version' in state)
+            )
+          }
+
+          const persisted = isPersistedState(persistedState) ? persistedState : {}
+
           log.debug('VideoHistoryStore', 'Rehydrating from AsyncStorage', {
             hasPersistedState: !!persistedState,
-            persistedVersion: persistedState?.version,
-            persistedLastSync: persistedState?.lastSync,
+            persistedVersion: persisted.version,
+            persistedLastSync: persisted.lastSync,
             persistedLastSyncDate:
-              persistedState?.lastSync > 0
-                ? new Date(persistedState.lastSync).toISOString()
+              persisted.lastSync && persisted.lastSync > 0
+                ? new Date(persisted.lastSync).toISOString()
                 : 'never',
-            persistedCacheSize: persistedState?.cache?.length || 0,
+            persistedCacheSize: persisted.cache?.length ?? 0,
+            persistedLocalUriIndexSize: persisted.localUriIndex?.length ?? 0,
             currentVersion: currentState.version,
             currentLastSync: currentState.lastSync,
             CACHE_VERSION,
           })
 
-          const merged = {
+          const merged: VideoHistoryStore = {
             ...currentState,
-            cache: new Map(persistedState.cache || []),
-            localUriIndex: new Map(persistedState.localUriIndex || []),
-            lastSync: persistedState.lastSync || currentState.lastSync,
-            version: persistedState.version || currentState.version,
+            cache: new Map(persisted.cache ?? []),
+            localUriIndex: new Map(persisted.localUriIndex ?? []),
+            uuidMapping: new Map(persisted.uuidMapping ?? []),
+            lastSync: persisted.lastSync ?? currentState.lastSync,
+            version: persisted.version ?? currentState.version,
           }
+
+          // Clean up stale localUriIndex entries on rehydration
+          // Stale entries point to temporary cache paths (Library/Caches/) that get cleared
+          // Valid entries point to documentDirectory/recordings/ which persist
+          const cleanedIndex = new Map<string, string>()
+          let staleIndexCount = 0
+          for (const [storagePath, localUri] of Array.from(merged.localUriIndex.entries())) {
+            // Keep entries that point to persisted documentDirectory paths
+            // Check for both 'recordings/' (our persisted directory) and ensure it's NOT in Caches/
+            const hasRecordingsDir = localUri.includes('recordings/')
+            const isTemporaryPath =
+              localUri.includes('Caches/') ||
+              localUri.includes('temp/') ||
+              localUri.includes('ExponentAsset-')
+
+            if (hasRecordingsDir && !isTemporaryPath) {
+              cleanedIndex.set(storagePath, localUri)
+              // log.debug('VideoHistoryStore', 'Kept valid localUriIndex entry on rehydration', {
+              //   storagePath,
+              //   localUri: localUri.substring(0, 150) + '...',
+              // })
+            } else {
+              // Remove entries pointing to temporary cache paths
+              staleIndexCount++
+              log.debug('VideoHistoryStore', 'Removed stale localUriIndex entry on rehydration', {
+                storagePath,
+                staleLocalUri: localUri.substring(0, 150) + '...',
+                reason: isTemporaryPath
+                  ? 'points to temporary cache path that gets cleared'
+                  : 'does not point to persisted recordings/ directory',
+                hasRecordingsDir,
+                isTemporaryPath,
+              })
+            }
+          }
+          merged.localUriIndex = cleanedIndex
+
+          // Note: We don't clean stale videoUri in cache entries here because:
+          // 1. The resolution logic (resolveHistoricalVideoUri) will skip stale paths automatically
+          // 2. Cache entries will be rebuilt via direct file check when accessed
+          // 3. Cleaning localUriIndex ensures tryResolveLocalUri falls back to direct check correctly
 
           log.debug('VideoHistoryStore', 'Rehydration complete', {
             finalVersion: merged.version,
@@ -399,6 +547,13 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             finalLastSyncDate:
               merged.lastSync > 0 ? new Date(merged.lastSync).toISOString() : 'never',
             finalCacheSize: merged.cache.size,
+            finalLocalUriIndexSize: merged.localUriIndex.size,
+            finalUuidMappingSize: merged.uuidMapping.size,
+            staleIndexEntriesRemoved: staleIndexCount,
+            note:
+              staleIndexCount > 0
+                ? 'Stale index entries removed - will be rebuilt via direct file check'
+                : 'All index entries valid',
           })
 
           return merged

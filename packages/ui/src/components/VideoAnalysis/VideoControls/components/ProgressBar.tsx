@@ -1,4 +1,4 @@
-import { log } from '@my/logging'
+// import { log } from '@my/logging'
 import React, { useCallback, useEffect } from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
@@ -152,16 +152,13 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     const duration = animationName === 'quick' ? QUICK_ANIMATION_DURATION : 400
 
     // Stable callback for animation completion logging
-    const handleAnimationComplete = useCallback(
-      (configuredDuration: number) => {
-        log.debug('ProgressBar', '📊 [PERFORMANCE] Animation completed', {
-          animationName: `handle-opacity-${variant}`,
-          targetValue: targetOpacity,
-          configuredDuration,
-        })
-      },
-      [variant, targetOpacity]
-    )
+    const handleAnimationComplete = useCallback(() => {
+      // log.debug('ProgressBar', '📊 [PERFORMANCE] Animation completed', {
+      //   animationName: `handle-opacity-${variant}`,
+      //   targetValue: targetOpacity,
+      //   configuredDuration,
+      // })
+    }, [])
 
     // Update animations when state changes
     useEffect(() => {
@@ -177,7 +174,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         (finished) => {
           'worklet'
           if (finished) {
-            runOnJS(handleAnimationComplete)(duration)
+            runOnJS(handleAnimationComplete)()
           }
         }
       )

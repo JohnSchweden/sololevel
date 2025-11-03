@@ -25,14 +25,15 @@ import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStat
  */
 const FeedbackItemContainer = styled(YStack, {
   name: 'FeedbackItemContainer',
-  gap: '$1',
+  gap: '$2',
   padding: 0,
   borderRadius: '$5',
   paddingVertical: '$3',
   paddingHorizontal: '$3',
-  backgroundColor: '$color2',
+  //backgroundColor: '$color2',
   cursor: 'pointer',
   accessibilityRole: 'button',
+  animation: 'quick',
 
   pressStyle: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

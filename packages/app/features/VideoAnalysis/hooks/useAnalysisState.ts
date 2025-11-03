@@ -316,15 +316,30 @@ export function useAnalysisState(
   const analysisJob = subscriptionSnapshot?.job ?? null
   const queryClient = useQueryClient()
 
+  const getUuid = useVideoHistoryStore((state) => state.getUuid)
+  const setUuid = useVideoHistoryStore((state) => state.setUuid)
+
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
-    // Try to get UUID from cache synchronously (prefetched)
+    // Try to get UUID from cache synchronously (check multiple cache layers)
     const effectiveJobId = analysisJobId ?? null
     if (effectiveJobId) {
-      const cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+      // Check TanStack Query cache first (in-memory, fastest)
+      let cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+      // Fallback to persisted store (survives app restarts)
+      if (!cachedUuid) {
+        cachedUuid = getUuid(effectiveJobId) ?? undefined
+        if (cachedUuid) {
+          // Restore to TanStack Query cache for faster subsequent lookups
+          queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], cachedUuid)
+        }
+      }
       if (cachedUuid) {
         log.debug('useAnalysisState', 'Using cached UUID', {
           analysisJobId: effectiveJobId,
           uuid: cachedUuid,
+          source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
+            ? 'tanstack'
+            : 'persisted',
         })
         return cachedUuid
       }
@@ -341,12 +356,22 @@ export function useAnalysisState(
       return
     }
 
-    // Check cache first (might be prefetched)
-    const cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+    // Check multiple cache layers (fastest first)
+    let cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+    if (!cachedUuid) {
+      cachedUuid = getUuid(effectiveJobId) ?? undefined
+      if (cachedUuid) {
+        // Restore to TanStack Query cache for faster subsequent lookups
+        queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], cachedUuid)
+      }
+    }
     if (cachedUuid) {
       log.debug('useAnalysisState', 'Using cached UUID from effect', {
         analysisJobId: effectiveJobId,
         uuid: cachedUuid,
+        source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
+          ? 'tanstack'
+          : 'persisted',
       })
       setAnalysisUuid(cachedUuid)
       return
@@ -360,8 +385,9 @@ export function useAnalysisState(
         const uuid = uuidPromise instanceof Promise ? await uuidPromise : uuidPromise
 
         if (!cancelled && uuid) {
-          // Cache UUID for future use
+          // Cache UUID in both TanStack Query (fast) and persisted store (survives restarts)
           queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], uuid)
+          setUuid(effectiveJobId, uuid)
           setAnalysisUuid(uuid)
         } else if (!cancelled) {
           setAnalysisUuid(null)

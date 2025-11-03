@@ -6,6 +6,8 @@
 import { supabase, uploadVideo, uploadVideoThumbnail } from '@my/api'
 import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
+import * as FileSystem from 'expo-file-system'
+import { Platform } from 'react-native'
 import { uriToBlob } from '../utils/files'
 import { compressVideo } from './videoCompression'
 
@@ -303,6 +305,55 @@ export async function startUploadAndAnalysis(
       onProgress,
       onError,
       onUploadInitialized: async (details) => {
+        // Persist video to recordings/ if it's in temporary location (non-blocking)
+        if (metadata.localUri && Platform.OS !== 'web') {
+          const localUri = metadata.localUri
+          const isTemporaryPath =
+            localUri.includes('Caches/') ||
+            localUri.includes('temp/') ||
+            localUri.includes('ExponentAsset-')
+
+          if (isTemporaryPath) {
+            const recordingsDir = `${FileSystem.documentDirectory}recordings/`
+            const persistedPath = `${recordingsDir}analysis_${details.recordingId}.mp4`
+
+            // Persist video asynchronously (non-blocking)
+            FileSystem.getInfoAsync(recordingsDir)
+              .then((dirInfo) => {
+                if (!dirInfo.exists) {
+                  return FileSystem.makeDirectoryAsync(recordingsDir, {
+                    intermediates: true,
+                  })
+                }
+                return Promise.resolve()
+              })
+              .then(() => FileSystem.copyAsync({ from: localUri, to: persistedPath }))
+              .then(async () => {
+                // Update history store index with persisted path
+                const { useVideoHistoryStore } = await import(
+                  '../features/HistoryProgress/stores/videoHistory'
+                )
+                const historyStore = useVideoHistoryStore.getState()
+                historyStore.setLocalUri(details.storagePath, persistedPath)
+
+                log.info('startUploadAndAnalysis', 'Persisted temporary video to recordings', {
+                  recordingId: details.recordingId,
+                  from: localUri,
+                  to: persistedPath,
+                  storagePath: details.storagePath,
+                })
+              })
+              .catch((error) => {
+                log.warn('startUploadAndAnalysis', 'Failed to persist temporary video', {
+                  recordingId: details.recordingId,
+                  from: localUri,
+                  to: persistedPath,
+                  error: error instanceof Error ? error.message : String(error),
+                })
+              })
+          }
+        }
+
         // Upload thumbnail to cloud storage after getting recording ID
         if (thumbnailUri) {
           try {

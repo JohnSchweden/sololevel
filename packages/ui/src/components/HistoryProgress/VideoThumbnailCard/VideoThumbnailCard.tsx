@@ -59,12 +59,23 @@ export function VideoThumbnailCard({
   accessibilityLabel,
   testID = 'video-thumbnail-card',
 }: VideoThumbnailCardProps): React.ReactElement {
-  const [isLoading, setIsLoading] = useState(true)
+  // For file:// URIs (cached thumbnails), skip loading state - they load instantly
+  // Only show loading for remote HTTP/HTTPS URIs
+  const isLocalFile = thumbnailUri?.startsWith('file://') ?? false
+  const [isLoading, setIsLoading] = useState(!isLocalFile)
   const [hasError, setHasError] = useState(false)
+
+  // Reset loading state when thumbnail URI changes
+  React.useEffect(() => {
+    const isLocal = thumbnailUri?.startsWith('file://') ?? false
+    setIsLoading(!isLocal)
+    setHasError(false)
+  }, [thumbnailUri])
 
   return (
     <YStack
       onPress={onPress}
+      animation="quick"
       pressStyle={{ scale: 0.97, opacity: 0.9 }}
       hoverStyle={{ opacity: 0.95 }}
       cursor="pointer"
@@ -153,7 +164,7 @@ export function VideoThumbnailCard({
           accessibilityHint="Tap to play this video"
         >
           <Play
-            size={10}
+            size="$1"
             color="$color"
             fill="currentColor"
           />

@@ -2,7 +2,7 @@ import { CoachScreen } from '@app/features/Coach'
 import { MOCK_COACHING_SESSIONS } from '@app/features/Coach/mocks/coachingSessions'
 import { log } from '@my/logging'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 
 /**
  * Coach Tab - AI coaching chat interface
@@ -20,21 +20,25 @@ export default function CoachTab() {
   const navigation = useNavigation()
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>()
 
+  // Stable router ref to avoid recreating callbacks
+  const routerRef = useRef(router)
+  routerRef.current = router
+
   // Load session data if sessionId is provided
   const sessionData = sessionId
     ? MOCK_COACHING_SESSIONS.find((session) => session.id === Number.parseInt(sessionId, 10))
     : null
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     log.info('CoachTab', 'Back button pressed - returning to history-progress')
     // Use dismissTo to go back to history-progress, which is in the navigation stack
-    router.dismissTo('/history-progress')
-  }
+    routerRef.current.dismissTo('/history-progress')
+  }, [])
 
-  const handleMenuPress = () => {
+  const handleMenuPress = useCallback(() => {
     log.info('CoachTab', 'Menu button pressed - navigating to history-progress')
-    router.push('/history-progress')
-  }
+    routerRef.current.push('/history-progress')
+  }, [])
 
   // Set header props based on navigation context
   useLayoutEffect(() => {
@@ -57,7 +61,7 @@ export default function CoachTab() {
         },
       })
     }
-  }, [navigation, sessionId])
+  }, [navigation, sessionId, handleBack, handleMenuPress])
 
   return (
     <CoachScreen

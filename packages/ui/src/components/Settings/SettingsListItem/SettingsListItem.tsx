@@ -53,6 +53,7 @@ export function SettingsListItem({
       minHeight={40}
       disabled={disabled}
       onPress={onPress}
+      animation="quick"
       pressStyle={{
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         scale: 0.98,

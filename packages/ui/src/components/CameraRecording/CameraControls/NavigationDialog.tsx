@@ -140,6 +140,7 @@ export function NavigationDialog({
                 color="white"
                 onPress={onDiscard}
                 minHeight={44}
+                animation="quick"
                 hoverStyle={{ backgroundColor: '$red10' }}
                 pressStyle={{ backgroundColor: '$red10', scale: 0.98 }}
                 accessibilityRole="button"
@@ -320,6 +321,7 @@ export function ConfirmationDialog({
                 color="white"
                 onPress={onConfirm}
                 minHeight={44}
+                animation="quick"
                 hoverStyle={{ backgroundColor: '$color10' }}
                 pressStyle={{ backgroundColor: '$color10', scale: 0.98 }}
                 accessibilityRole="button"

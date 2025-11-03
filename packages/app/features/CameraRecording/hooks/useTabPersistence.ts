@@ -1,6 +1,6 @@
 import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'
 
@@ -25,11 +25,6 @@ export function useTabPersistence() {
   const [activeTab, setActiveTabState] = useState<TabType>(DEFAULT_TAB)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load saved tab state on mount
-  useEffect(() => {
-    loadSavedTab()
-  }, [])
-
   const loadSavedTab = useCallback(async () => {
     try {
       const savedTab = await AsyncStorage.getItem(TAB_STORAGE_KEY)
@@ -52,6 +47,11 @@ export function useTabPersistence() {
       setIsLoading(false)
     }
   }, [])
+
+  // Load saved tab state on mount
+  useEffect(() => {
+    loadSavedTab()
+  }, [loadSavedTab])
 
   const saveTab = useCallback(async (tab: TabType) => {
     try {
@@ -77,11 +77,17 @@ export function useTabPersistence() {
     [saveTab]
   )
 
-  return {
-    activeTab,
-    setActiveTab,
-    isLoading,
-  }
+  // Memoize return object to prevent unnecessary re-renders in consumers
+  // This is critical - without memoization, every render creates a new object identity
+  // which breaks memoization in TabsLayout (useTabPersistence result is in dependency arrays)
+  return useMemo(
+    () => ({
+      activeTab,
+      setActiveTab,
+      isLoading,
+    }),
+    [activeTab, setActiveTab, isLoading]
+  )
 }
 
 /**

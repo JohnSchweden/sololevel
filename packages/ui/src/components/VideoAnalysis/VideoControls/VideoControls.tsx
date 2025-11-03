@@ -201,18 +201,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const overlayOpacity = useSharedValue(controlsVisible ? 1 : 0)
 
     // Stable callback for animation completion (called from UI thread)
-    const handleAnimationComplete = useCallback(
-      (configuredDuration: number, targetValue: number) => {
-        const interactionType = currentInteractionTypeRef.current
-
-        log.debug('VideoControls', '📊 [PERFORMANCE] Animation completed', {
-          animationName: `controls-overlay-${interactionType}`,
-          targetValue,
-          configuredDuration,
-        })
-      },
-      [] // Stable - use refs for dynamic values
-    )
+    const handleAnimationComplete = useCallback(() => {
+      // log.debug('VideoControls', '📊 [PERFORMANCE] Animation completed', {
+      //   animationName: `controls-overlay-${interactionType}`,
+      //   targetValue,
+      //   configuredDuration,
+      // })
+    }, [])
 
     // Update overlay opacity animation when visibility changes
     useEffect(() => {
@@ -229,7 +224,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         (finished) => {
           'worklet'
           if (finished) {
-            runOnJS(handleAnimationComplete)(duration, targetValue)
+            runOnJS(handleAnimationComplete)()
           }
         }
       )
@@ -474,7 +469,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         controlsChanged ||
         widthChanged
       ) {
-        log.debug('VideoControls', '🎯 Calling onPersistentProgressBarPropsChange')
+        // log.debug('VideoControls', '🎯 Calling onPersistentProgressBarPropsChange')
 
         onPersistentProgressBarPropsChange({
           progress: persistentProgress,

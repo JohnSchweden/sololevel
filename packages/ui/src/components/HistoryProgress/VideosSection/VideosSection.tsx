@@ -40,6 +40,11 @@ export interface VideosSectionProps {
   onRetry?: () => void
 
   /**
+   * Callback when visible items change (for prefetching)
+   */
+  onVisibleItemsChange?: (items: VideosSectionProps['videos']) => void
+
+  /**
    * Test ID for testing
    */
   testID?: string
@@ -70,8 +75,62 @@ export function VideosSection({
   isLoading = false,
   error = null,
   onRetry,
+  onVisibleItemsChange,
   testID = 'videos-section',
 }: VideosSectionProps): React.ReactElement {
+  // Track scroll position for prefetch
+  // Initialize with first 3 items visible on mount (for immediate prefetch)
+  const [visibleIndices, setVisibleIndices] = React.useState<number[]>(() => {
+    // On mount, assume first 3 items are visible (horizontal scroll starts at 0)
+    const initialVisible = Math.min(3, videos.length)
+    return Array.from({ length: initialVisible }, (_, i) => i)
+  })
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasInitializedRef = React.useRef(false)
+
+  // Debounced handler to prevent excessive updates
+  const handleVisibleItemsChange = React.useCallback(
+    (indices: number[]) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        if (indices.length > 0) {
+          const visibleItems = indices.map((idx) => videos[idx]).filter(Boolean)
+          onVisibleItemsChange?.(visibleItems)
+        }
+      }, 150) // Debounce by 150ms
+    },
+    [videos, onVisibleItemsChange]
+  )
+
+  // Notify parent of visible items on mount and when they change
+  React.useEffect(() => {
+    // On mount, immediately notify with initial visible items (no debounce)
+    if (!hasInitializedRef.current && visibleIndices.length > 0) {
+      hasInitializedRef.current = true
+      const visibleItems = visibleIndices.map((idx) => videos[idx]).filter(Boolean)
+      onVisibleItemsChange?.(visibleItems)
+    } else if (hasInitializedRef.current && visibleIndices.length > 0) {
+      // After mount, use debounced handler for scroll updates
+      handleVisibleItemsChange(visibleIndices)
+    }
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [visibleIndices, handleVisibleItemsChange, videos, onVisibleItemsChange])
+
+  // Update initial visible indices when videos change (e.g., after data loads)
+  React.useEffect(() => {
+    if (!hasInitializedRef.current && videos.length > 0) {
+      const initialVisible = Math.min(3, videos.length)
+      const newIndices = Array.from({ length: initialVisible }, (_, i) => i)
+      setVisibleIndices(newIndices)
+    }
+  }, [videos])
+
   return (
     <YStack
       gap="$1"
@@ -99,6 +158,7 @@ export function VideosSection({
           chromeless
           size="$3"
           onPress={onSeeAllPress}
+          animation="quick"
           pressStyle={{ opacity: 0.7 }}
           accessibilityRole="button"
           accessibilityLabel="See all videos"
@@ -120,7 +180,7 @@ export function VideosSection({
       {/* Loading State */}
       {isLoading && (
         <YStack
-          height={280}
+          height={180}
           justifyContent="center"
           alignItems="center"
           testID={`${testID}-loading`}
@@ -143,7 +203,7 @@ export function VideosSection({
       {/* Error State */}
       {!isLoading && error && (
         <YStack
-          height={280}
+          height={180}
           justifyContent="center"
           alignItems="center"
           gap="$3"
@@ -172,6 +232,7 @@ export function VideosSection({
               onPress={onRetry}
               backgroundColor="$color5"
               color="$color12"
+              animation="quick"
               pressStyle={{ opacity: 0.7, scale: 0.95 }}
               testID={`${testID}-retry-button`}
             >
@@ -184,7 +245,7 @@ export function VideosSection({
       {/* Empty State */}
       {!isLoading && !error && videos.length === 0 && (
         <YStack
-          height={280}
+          height={180}
           justifyContent="center"
           alignItems="center"
           gap="$3"
@@ -216,6 +277,25 @@ export function VideosSection({
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingRight: 0 }}
+          onScroll={(event) => {
+            // Calculate visible item indices based on scroll position
+            // For horizontal scroll, approximate visible items
+            const contentOffsetX = event.nativeEvent.contentOffset.x
+            const itemWidth = 150 // Approximate thumbnail width + gap
+            const startIdx = Math.floor(contentOffsetX / itemWidth)
+            const visibleCount = 3 // Approximate visible items
+            const indices = Array.from({ length: visibleCount }, (_, i) => startIdx + i).filter(
+              (idx) => idx >= 0 && idx < videos.length
+            )
+            // Only update if indices actually changed (prevent unnecessary re-renders)
+            setVisibleIndices((prev) => {
+              if (prev.length === indices.length && prev.every((val, i) => val === indices[i])) {
+                return prev
+              }
+              return indices
+            })
+          }}
+          scrollEventThrottle={100}
           testID={`${testID}-scroll`}
         >
           <XStack

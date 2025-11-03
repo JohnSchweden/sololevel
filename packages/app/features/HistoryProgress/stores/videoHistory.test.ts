@@ -599,15 +599,18 @@ describe('VideoHistoryStore', () => {
       const { result } = renderHook(() => useVideoHistoryStore())
       const analysis = createMockAnalysis(1)
 
+      // Use persisted path (recordings/) to match indexing logic
+      const persistedVideoUri = 'file:///documents/recordings/analysis_1.mp4'
+
       act(() => {
         result.current.addToCache({
           ...analysis,
           storagePath: 'user-123/video.mp4',
-          videoUri: 'file:///local/video.mp4',
+          videoUri: persistedVideoUri,
         })
       })
 
-      expect(result.current.getLocalUri('user-123/video.mp4')).toBe('file:///local/video.mp4')
+      expect(result.current.getLocalUri('user-123/video.mp4')).toBe(persistedVideoUri)
 
       act(() => {
         result.current.removeFromCache(analysis.id)

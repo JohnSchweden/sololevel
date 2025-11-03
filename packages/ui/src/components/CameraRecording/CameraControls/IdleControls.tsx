@@ -290,6 +290,7 @@ export function ControlButton({
       borderRadius="$12"
       minHeight={config.minHeight}
       minWidth={config.minWidth}
+      animation="quick"
       pressStyle={{
         scale: 0.95,
         backgroundColor: variant === 'chromeless' ? 'rgba(255,255,255,0.3)' : undefined,

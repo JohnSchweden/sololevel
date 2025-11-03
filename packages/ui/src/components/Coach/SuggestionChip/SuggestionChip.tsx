@@ -45,6 +45,7 @@ export const SuggestionChip = ({
       borderWidth={0}
       borderColor="rgba(255,255,255,0.2)"
       borderRadius="$5"
+      animation="quick"
       hoverStyle={{
         backgroundColor: 'rgba(255,255,255,0.2)',
         scale: 1.05,

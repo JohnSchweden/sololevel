@@ -1,5 +1,5 @@
 import { shadows } from '@my/config'
-import React from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Platform } from 'react-native'
 import { AnimatePresence, Button, Text, XStack, YStack } from 'tamagui'
 import { BottomNavigationContainer } from './BottomNavigationContainer'
@@ -21,6 +21,21 @@ export function BottomNavigation({
   const tabs = ['coach', 'record', 'insights'] as const
   const activeIndex = tabs.indexOf(activeTab)
 
+  // Memoize tab press handlers to prevent NavigationTab re-renders
+  const handleCoachPress = useCallback(() => onTabChange('coach'), [onTabChange])
+  const handleRecordPress = useCallback(() => onTabChange('record'), [onTabChange])
+  const handleInsightsPress = useCallback(() => onTabChange('insights'), [onTabChange])
+
+  // Memoize tab handlers map to prevent recreation
+  const tabHandlers = useMemo(
+    () => ({
+      coach: handleCoachPress,
+      record: handleRecordPress,
+      insights: handleInsightsPress,
+    }),
+    [handleCoachPress, handleRecordPress, handleInsightsPress]
+  )
+
   return (
     <XStack
       flex={1}
@@ -34,7 +49,7 @@ export function BottomNavigation({
           key={tab}
           label={tab.charAt(0).toUpperCase() + tab.slice(1)}
           isActive={activeTab === tab}
-          onPress={() => onTabChange(tab)}
+          onPress={tabHandlers[tab]}
           disabled={disabled}
         />
       ))}
@@ -49,19 +64,27 @@ export function BottomNavigation({
           width="$4"
           backgroundColor="$color12"
           borderRadius="$2"
-          animation="bouncy"
+          animation={disabled ? undefined : 'bouncy'}
           left={`${activeIndex * 33.33 + 16.67}%`}
           transform={[{ translateX: -8 }]} // Center the border (half of width="$4")
-          enterStyle={{
-            opacity: 0,
-            scaleX: 0,
-            x: 0,
-          }}
-          exitStyle={{
-            opacity: 0,
-            scaleX: 0,
-            x: 0,
-          }}
+          enterStyle={
+            disabled
+              ? undefined
+              : {
+                  opacity: 0,
+                  scaleX: 0,
+                  x: 0,
+                }
+          }
+          exitStyle={
+            disabled
+              ? undefined
+              : {
+                  opacity: 0,
+                  scaleX: 0,
+                  x: 0,
+                }
+          }
         />
       </AnimatePresence>
     </XStack>
@@ -72,7 +95,12 @@ export function BottomNavigation({
  * Individual Navigation Tab
  * Mobile-optimized with minimum 44px touch target and visual feedback
  */
-function NavigationTab({ label, isActive, onPress, disabled = false }: NavigationTabProps) {
+const NavigationTab = React.memo(function NavigationTab({
+  label,
+  isActive,
+  onPress,
+  disabled = false,
+}: NavigationTabProps) {
   return (
     <Button
       flex={1}
@@ -124,9 +152,25 @@ function NavigationTab({ label, isActive, onPress, disabled = false }: Navigatio
           {label}
         </Text>
       </YStack>
+      {/* Border line below text - only visible when active */}
+      {/* {isActive && (
+          <AnimatePresence>
+          <YStack
+            height={3}
+            position='absolute'
+            width="$4"
+            backgroundColor="$color"
+            borderRadius="$1"
+            marginTop="$10"
+            alignSelf="center"
+
+          />
+          </AnimatePresence>
+                  )
+                  } */}
     </Button>
   )
-}
+})
 
 export interface TabBarProps {
   children: React.ReactNode

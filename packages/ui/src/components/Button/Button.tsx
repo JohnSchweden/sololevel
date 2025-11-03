@@ -5,6 +5,7 @@ import { Button as TamaguiButton } from 'tamagui'
 // Create a properly typed Button with our custom variants
 export const Button = styled(TamaguiButton, {
   name: 'CustomButton',
+  animation: 'quick',
   variants: {
     variant: {
       primary: {

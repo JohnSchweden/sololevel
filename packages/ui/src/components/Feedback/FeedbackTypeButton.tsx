@@ -35,6 +35,7 @@ const ButtonContainer = styled(YStack, {
   backgroundColor: 'transparent',
   borderColor: '$borderColor',
   cursor: 'pointer',
+  animation: 'quick',
 
   pressStyle: {
     opacity: 0.8,

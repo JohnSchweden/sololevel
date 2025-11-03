@@ -64,11 +64,19 @@ export function SettingsFooter({
               log.info('SettingsFooter', 'Link pressed', { label, type })
               onLinkPress(type)
             }}
+            paddingHorizontal="$2"
+            paddingVertical="$1"
+            borderRadius="$2"
+            animation="quick"
             pressStyle={{
-              opacity: 0.8,
+              opacity: 0.75,
+              scale: 0.93,
+              //backgroundColor: 'rgba(255, 255, 255, 0.1)',
             }}
             hoverStyle={{
-              opacity: 0.9,
+              opacity: 1,
+              scale: 1.06,
+              //backgroundColor: 'rgba(255, 255, 255, 0.08)',
             }}
             testID={`${testID}-link-${type}`}
             accessibilityRole="button"
@@ -78,6 +86,8 @@ export function SettingsFooter({
               fontSize="$3"
               fontWeight="400"
               color="$color11"
+              animation="quick"
+              animateOnly={['color', 'opacity']}
             >
               {label}
             </Text>

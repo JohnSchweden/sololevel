@@ -72,6 +72,11 @@ async function tryResolveLocalUri(
       }
 
       // Local file missing, clear stale mapping
+      log.debug('useHistoricalAnalysis', 'Cached local URI missing, clearing stale mapping', {
+        storagePath,
+        cachedLocalUri: localUri,
+        analysisId,
+      })
       useVideoHistoryStore.getState().clearLocalUri(storagePath)
     } catch (error) {
       log.warn('useHistoricalAnalysis', 'Failed to stat cached local video', {
@@ -80,6 +85,16 @@ async function tryResolveLocalUri(
         error: error instanceof Error ? error.message : String(error),
       })
     }
+  } else {
+    // Log when index lookup fails (helps diagnose persistence issues)
+    // Access internal state for debugging (store structure is Map-based)
+    const storeState = useVideoHistoryStore.getState() as any
+    const indexSize = storeState.localUriIndex?.size ?? 0
+    log.debug('useHistoricalAnalysis', 'No cached local URI in index, will check direct path', {
+      storagePath,
+      analysisId,
+      localUriIndexSize: indexSize,
+    })
   }
 
   // Fallback: Direct file check (rebuilds index on cache miss)
@@ -93,9 +108,40 @@ async function tryResolveLocalUri(
           storagePath,
           analysisId,
           directPath,
+          reason: 'localUriIndex missing or file not at cached path',
         })
-        // Rebuild index
-        useVideoHistoryStore.getState().setLocalUri(storagePath, directPath)
+        // Rebuild both index AND cache entry to prevent future rebuilds
+        const store = useVideoHistoryStore.getState()
+
+        // Update localUriIndex FIRST (this persists to AsyncStorage)
+        store.setLocalUri(storagePath, directPath)
+
+        // Also update the cache entry's videoUri if it exists (fixes stale paths in persisted cache)
+        // This ensures both the index AND the cache entry point to the persisted path
+        const cachedEntry = store.getCached(analysisId)
+        if (cachedEntry) {
+          // Update videoUri if it's different AND it's pointing to a stale temporary path
+          const isStalePath =
+            cachedEntry.videoUri?.includes('Caches/') ||
+            cachedEntry.videoUri?.includes('temp/') ||
+            cachedEntry.videoUri?.includes('ExponentAsset-')
+          if (
+            cachedEntry.videoUri !== directPath &&
+            (isStalePath || !cachedEntry.videoUri?.includes('recordings/'))
+          ) {
+            store.updateCache(analysisId, { videoUri: directPath })
+            log.debug(
+              'useHistoricalAnalysis',
+              'Updated cache entry videoUri to match direct path',
+              {
+                analysisId,
+                oldVideoUri: cachedEntry.videoUri,
+                newVideoUri: directPath,
+                wasStalePath: isStalePath,
+              }
+            )
+          }
+        }
         return directPath
       }
     } catch (error) {
@@ -130,39 +176,64 @@ export async function resolveHistoricalVideoUri(
     return FALLBACK_VIDEO_URI
   }
 
-  // Prefer local URI from metadata hint (from video_recordings.metadata.localUri)
-  if (context.localUriHint && Platform.OS !== 'web') {
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(context.localUriHint)
-      if (fileInfo.exists) {
-        log.info('useHistoricalAnalysis', 'Resolved video to metadata local URI', {
-          analysisId: context.analysisId,
-          storagePath,
-          localUri: context.localUriHint,
-        })
-        return context.localUriHint
-      }
-    } catch (error) {
-      log.warn('useHistoricalAnalysis', 'Local URI from metadata not accessible', {
-        storagePath,
-        localUri: context.localUriHint,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  // Fallback to store cached URI (with direct file check fallback)
+  // PRIORITY 1: Check persisted index (localUriIndex) - most reliable, survives restarts
+  // This checks documentDirectory/recordings/ which persists across app restarts
   const localUri = await tryResolveLocalUri(storagePath, context.analysisId)
   if (localUri) {
-    // Cache hit already recorded in tryResolveLocalUri
-    log.info('useHistoricalAnalysis', 'Resolved video to local cache', {
-      analysisId: context.analysisId,
-      storagePath,
-      localUri,
-    })
     return localUri
   }
 
+  // PRIORITY 2: Check metadata.localUri hint (might be temporary cache path)
+  // Only use if it's in documentDirectory (persisted), skip if it's in Caches (temporary)
+  if (context.localUriHint && Platform.OS !== 'web') {
+    const isPersistedPath = context.localUriHint.includes('recordings/')
+    const isTemporaryPath =
+      context.localUriHint.includes('Caches/') || context.localUriHint.includes('temp/')
+
+    // Skip temporary paths - they get cleared on restart
+    if (isTemporaryPath) {
+      log.debug(
+        'useHistoricalAnalysis',
+        'Skipping temporary cache path, will use direct file check',
+        {
+          analysisId: context.analysisId,
+          storagePath,
+          localUriHint: context.localUriHint,
+        }
+      )
+    } else {
+      // Check if metadata URI exists (might be persisted documentDirectory path)
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(context.localUriHint)
+        if (fileInfo.exists) {
+          // If it's a persisted path, update index for future use
+          if (isPersistedPath) {
+            useVideoHistoryStore.getState().setLocalUri(storagePath, context.localUriHint)
+          }
+          log.info('useHistoricalAnalysis', 'Resolved video to metadata local URI', {
+            analysisId: context.analysisId,
+            storagePath,
+            localUri: context.localUriHint,
+            isPersistedPath,
+          })
+          return context.localUriHint
+        }
+      } catch (error) {
+        log.warn('useHistoricalAnalysis', 'Local URI from metadata not accessible', {
+          storagePath,
+          localUri: context.localUriHint,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+  }
+
+  // If we get here, tryResolveLocalUri already checked and fell back to direct file check
+  // The direct check would have updated localUriIndex and returned the path if found
+  // So we need to check one more time after metadata check failed
+
+  // PRIORITY 3: Final fallback - direct file check (tryResolveLocalUri already tried, but check again in case metadata path blocked it)
+  // Actually, tryResolveLocalUri already did this, so if we get here, no local file exists
   // Cache miss - no local file found
   recordCacheMiss('video')
 

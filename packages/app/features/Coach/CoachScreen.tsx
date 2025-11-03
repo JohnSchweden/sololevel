@@ -11,7 +11,7 @@ import {
 } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import { BlurView } from 'expo-blur'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, Image, ScrollView, Text, XStack, YStack } from 'tamagui'
@@ -180,117 +180,129 @@ export function CoachScreen({
   const scrollViewRef = useRef<any>(null)
   const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
 
-  // Handlers
-  const sendMessage = (message?: string): void => {
-    const messageToSend = message || inputMessage
-    if (!messageToSend.trim() || isTyping) return
+  // Handlers - wrapped in useCallback to prevent child component re-renders
+  const sendMessage = useCallback(
+    (message?: string): void => {
+      const messageToSend = message || inputMessage
+      if (!messageToSend.trim() || isTyping) return
 
-    // Add user message
-    const newUserMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: messageToSend,
-      timestamp: new Date(),
-    }
+      // Add user message
+      const newUserMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: messageToSend,
+        timestamp: new Date(),
+      }
 
-    setMessages((prev) => [...prev, newUserMessage])
-    setInputMessage('')
-    setIsTyping(true)
+      setMessages((prev) => [...prev, newUserMessage])
+      setInputMessage('')
+      setIsTyping(true)
 
-    // Simulate AI response
-    setTimeout(
-      () => {
-        const coachResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'coach',
-          content: AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)],
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, coachResponse])
-        setIsTyping(false)
+      // Simulate AI response
+      setTimeout(
+        () => {
+          const coachResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            type: 'coach',
+            content: AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)],
+            timestamp: new Date(),
+          }
+          setMessages((prev) => [...prev, coachResponse])
+          setIsTyping(false)
 
-        // Scroll to bottom
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true })
-        }, 100)
-      },
-      1500 + Math.random() * 1000
-    )
+          // Scroll to bottom
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true })
+          }, 100)
+        },
+        1500 + Math.random() * 1000
+      )
 
-    // Scroll to bottom after user message
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true })
-    }, 100)
-  }
+      // Scroll to bottom after user message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    },
+    [inputMessage, isTyping]
+  )
 
-  const handleSuggestionPress = (suggestion: string): void => {
-    sendMessage(suggestion)
-  }
+  const handleSuggestionPress = useCallback(
+    (suggestion: string): void => {
+      sendMessage(suggestion)
+    },
+    [sendMessage]
+  )
 
-  const handleVoiceToggle = (): void => {
-    setIsListening(!isListening)
-    log.info('CoachScreen', 'Voice toggle', { isListening: !isListening })
-  }
+  const handleVoiceToggle = useCallback((): void => {
+    setIsListening((prev) => {
+      const newValue = !prev
+      log.info('CoachScreen', 'Voice toggle', { isListening: newValue })
+      return newValue
+    })
+  }, [])
 
-  const handleVoiceMode = (): void => {
+  const handleVoiceMode = useCallback((): void => {
     log.info('CoachScreen', 'Voice mode activated')
-  }
+  }, [])
 
-  const handleAttachment = (): void => {
+  const handleAttachment = useCallback((): void => {
     log.info('CoachScreen', 'Attachment button clicked')
-  }
+  }, [])
 
-  const toggleSuggestions = (): void => {
-    setShowSuggestions(!showSuggestions)
-  }
+  const toggleSuggestions = useCallback((): void => {
+    setShowSuggestions((prev) => !prev)
+  }, [])
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>): void => {
     setScrollOffset(event.nativeEvent.contentOffset.y)
-  }
+  }, [])
 
-  const getMessageOpacity = (messageId: string): number => {
-    // Only fade when scrolled up
-    if (scrollOffset <= 0) return 1
+  const getMessageOpacity = useCallback(
+    (messageId: string): number => {
+      // Only fade when scrolled up
+      if (scrollOffset <= 0) return 1
 
-    const layout = messageLayoutsRef.current.get(messageId)
-    if (!layout) return 1
+      const layout = messageLayoutsRef.current.get(messageId)
+      if (!layout) return 1
 
-    // Calculate message position relative to viewport
-    // Account for padding and header by measuring distance from content top
-    const messageTop = layout.y - scrollOffset + insets.top + APP_HEADER_HEIGHT
+      // Calculate message position relative to viewport
+      // Account for padding and header by measuring distance from content top
+      const messageTop = layout.y - scrollOffset + insets.top + APP_HEADER_HEIGHT
 
-    // Fade zone: start fading at header bottom (0px below header), fully faded when scrolled past
-    const fadeStart = 100 // Start fading 20px below the header
-    const fadeEnd = 0 // Fully faded 30px above header
+      // Fade zone: start fading at header bottom (0px below header), fully faded when scrolled past
+      const fadeStart = 100 // Start fading 20px below the header
+      const fadeEnd = 0 // Fully faded 30px above header
 
-    // Fully visible when below fade start
-    if (messageTop >= fadeStart) {
-      return 1
-    }
+      // Fully visible when below fade start
+      if (messageTop >= fadeStart) {
+        return 1
+      }
 
-    // Minimum opacity when at/above top
-    if (messageTop <= fadeEnd) {
-      return 0.2
-    }
+      // Minimum opacity when at/above top
+      if (messageTop <= fadeEnd) {
+        return 0.2
+      }
 
-    // Smooth cubic fade between fadeStart and fadeEnd
-    const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
-    const eased = progress ** 3
+      // Smooth cubic fade between fadeStart and fadeEnd
+      const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
+      const eased = progress ** 3
 
-    // Ensure opacity stays between 0.2 and 1
-    return Math.max(0.2, Math.min(1, eased))
-  }
+      // Ensure opacity stays between 0.2 and 1
+      return Math.max(0.2, Math.min(1, eased))
+    },
+    [scrollOffset, insets.top]
+  )
 
-  const handleMessageLayout = (messageId: string, y: number, height: number): void => {
+  const handleMessageLayout = useCallback((messageId: string, y: number, height: number): void => {
     messageLayoutsRef.current.set(messageId, { y, height })
-  }
+  }, [])
 
-  const handleContentSizeChange = (): void => {
+  const handleContentSizeChange = useCallback((): void => {
     // Only auto-scroll if we have initial messages (previous session)
     if (initialMessages && initialMessages.length > 0) {
       scrollViewRef.current?.scrollToEnd({ animated: false })
     }
-  }
+  }, [initialMessages])
 
   // State handling
   if (isLoading) {

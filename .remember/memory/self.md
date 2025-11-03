@@ -70,6 +70,13 @@
 **When:** Component has no expensive computations, must respond immediately to prop changes, used in performance-critical paths (audio/video controls)
 **Proof:** AudioPlayer wrapped with `React.memo()` didn't re-render when `controller.isPlaying` changed from `true` to `false` on pause press, causing audio to keep playing
 
+## Mistake: React.memo on Simple Components with Frequent Prop Changes
+**Wrong:** `React.memo(BottomNavigation)` with `activeTab` prop that changes on every tab switch
+**Correct:** Remove `React.memo()` for components with 3 buttons and 1 animated border - overhead exceeds benefit
+**Lesson:** React.memo only helps when props change but component shouldn't re-render. If props change frequently (tab switches) and component MUST re-render (animated border), memo adds overhead without benefit. BottomNavigation has 3 buttons + 1 animated sliding border - not expensive enough to warrant memoization.
+**When:** Component has <10 children, props change frequently, component must re-render for UI updates
+**Impact:** Removed React.memo from BottomNavigation - it was allowing re-renders anyway (correctly), just adding overhead
+
 ## Mistake: Refs Updated in useEffect Read in useMemo - Stale Data Bug
 **Wrong:** 
 ```typescript
@@ -120,3 +127,17 @@ const audioOverlay = useMemo(() => {
 }, [overlayVisible, activeAudioId, activeAudioUrl, stableDuration, callbacksChanged])
 ```
 **Lesson:** When `useMemo` returns a cached ref, include every signal that mutates that ref in the dependency array. Otherwise React returns the previously memoized value and skips the update, even though the ref changed.
+
+## Mistake: Inline Objects in Hook Config Parameters
+**Wrong:** `usePrefetchNextVideos(..., { lookAhead: 3, concurrency: 2 })` - new object every render
+**Correct:** `const config = useMemo(() => ({ lookAhead: 3, concurrency: 2 }), [deps]); usePrefetchNextVideos(..., config)`
+**Lesson:** Inline object literals in function calls create new references every render. If the hook memoizes based on `config`, it recalculates unnecessarily. Always memoize objects passed as hook params when the object contains primitive values.
+**When:** Hook accepts config object, hook internally memoizes based on config reference, config values are primitives
+**Impact:** usePrefetchNextVideos recalculated finalConfig on every render even though values were stable, causing effect thrashing
+
+## Mistake: Over-Memoization of Simple Pure Functions
+**Wrong:** `const value = useMemo(() => pureFunction(input), [input])` - wrapping O(1) operations in useMemo
+**Correct:** `const value = pureFunction(input)` - simple pure functions don't need memoization
+**Lesson:** Only use `useMemo` for expensive computations. Pure functions with single input, boolean checks, primitive unwrapping, and simple O(1) operations add overhead without benefit. Extract tab from pathname: `split('/').pop()` is instant, no need for memo.
+**When:** Pure function with single input, O(1) operation, boolean/null checks, primitive unwrapping
+**Impact:** Removed pointless `currentTab` useMemo in `_layout.tsx` - pathname changes require recomputation anyway, memo was pure overhead

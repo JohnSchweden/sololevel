@@ -3,10 +3,10 @@ import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
-import { useFocusEffect } from 'expo-router'
 import React from 'react'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
+import { usePrefetchNextVideos } from './hooks/usePrefetchNextVideos'
 import { usePrefetchVideoAnalysis } from './hooks/usePrefetchVideoAnalysis'
 
 export interface HistoryProgressScreenProps {
@@ -77,13 +77,61 @@ export function HistoryProgressScreen({
   const videoIds = React.useMemo(() => videos.slice(0, 10).map((v) => v.id), [videos])
   usePrefetchVideoAnalysis(videoIds)
 
-  // Refetch data when screen comes into focus (e.g., after recording a video)
-  useFocusEffect(
-    React.useCallback(() => {
-      log.debug('HistoryProgressScreen', 'Screen focused - refetching history')
-      refetch()
-    }, [refetch])
+  // Track visible videos for smart prefetch (next N items based on scroll position)
+  const [visibleVideoItems, setVisibleVideoItems] = React.useState<typeof videos>([])
+
+  // Memoize visible items callback to prevent recreation on every render
+  const handleVisibleItemsChange = React.useCallback((items: typeof videos) => {
+    setVisibleVideoItems(items)
+  }, [])
+
+  // Smart prefetch: prefetch video/thumbnail files to disk
+  // Note: usePrefetchVideoAnalysis above only prefetches analysis data (not thumbnails)
+  // This hook handles thumbnail/video file downloads to disk
+  const videosToPrefetch = React.useMemo(() => videos.slice(0, 10), [videos])
+  const hasMoreVideos = videos.length > 10
+
+  // Determine visible items for prefetch: use actual visible items if available,
+  // otherwise use first few videos as initial visible (VideosSection initializes with first 3)
+  const visibleItemsForPrefetch = React.useMemo(() => {
+    if (visibleVideoItems.length > 0) {
+      return visibleVideoItems
+    }
+    // On mount before VideosSection reports visible items, assume first 3 are visible
+    // This ensures prefetch starts immediately rather than waiting for scroll
+    return videos.slice(0, Math.min(3, videos.length))
+  }, [visibleVideoItems, videos])
+
+  // Memoize prefetch config to prevent unnecessary recalculations
+  const prefetchConfig = React.useMemo(
+    () => ({
+      lookAhead: hasMoreVideos ? 3 : videosToPrefetch.length, // Prefetch all if ≤10, next 3 if >10
+      concurrency: 2,
+      enabled: true, // Always enabled - thumbnails need to be prefetched
+    }),
+    [hasMoreVideos, videosToPrefetch.length]
   )
+
+  // Prefetch videos based on visible items
+  // Strategy: Prefetch next N items beyond visible items for smooth scrolling
+  const { prefetching, prefetched, failed } = usePrefetchNextVideos(
+    videosToPrefetch,
+    visibleItemsForPrefetch,
+    prefetchConfig
+  )
+
+  // Log prefetch state changes only when values actually change
+  React.useEffect(() => {
+    log.debug('HistoryProgressScreen', 'Prefetch state', {
+      prefetching: prefetching.length,
+      prefetched: prefetched.length,
+      failed: failed.length,
+    })
+  }, [prefetching.length, prefetched.length, failed.length])
+
+  // TanStack Query handles refetch-on-focus automatically via refetchOnFocus: true
+  // It respects staleTime (5min), so fresh data won't trigger unnecessary refetches
+  // No manual useFocusEffect needed - the library manages focus refetching
 
   // Log data state changes
   React.useEffect(() => {
@@ -189,6 +237,7 @@ export function HistoryProgressScreen({
             isLoading={isLoading}
             error={error}
             onRetry={refetch}
+            onVisibleItemsChange={handleVisibleItemsChange}
             testID={`${testID}-videos-section`}
           />
 

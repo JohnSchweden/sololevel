@@ -270,8 +270,8 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
           status: 'completed',
           progress_percentage: 100,
           processing_completed_at: new Date().toISOString(),
-          results: results as any,
-          pose_data: poseData as any,
+          results,
+          pose_data: poseData,
         })
 
         // Write to video history cache (non-blocking)
@@ -350,6 +350,11 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                   // Non-blocking - continue without thumbnail
                 })
 
+              // Look up persisted videoUri from localUriIndex if available
+              const persistedVideoUri = storagePath
+                ? historyStore.getLocalUri(storagePath)
+                : undefined
+
               historyStore.addToCache({
                 id: job.id,
                 videoId: job.video_recording_id,
@@ -357,6 +362,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                 title,
                 createdAt: job.created_at,
                 thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
+                videoUri: persistedVideoUri ?? undefined, // Use persisted path if available, convert null to undefined
                 results,
                 poseData,
                 storagePath,

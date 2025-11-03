@@ -96,8 +96,37 @@ export function AppHeader({
     return (
       <Button
         chromeless
-        size="$3"
+        width="$4"
+        height="$4"
+        borderRadius="$10"
+        backgroundColor="transparent"
+        borderWidth={0}
+        animation="quick"
+        hoverStyle={{
+          backgroundColor: '$backgroundPress',
+          scale: 1.08,
+          opacity: 0.9,
+        }}
+        pressStyle={{
+          scale: 0.92,
+          backgroundColor: '$color10',
+          opacity: 0.75,
+        }}
+        focusStyle={{
+          borderWidth: 1,
+          borderColor: '$color7',
+          opacity: 0.9,
+        }}
         onPress={isBackButton ? onBackPress : onMenuPress}
+        cursor="pointer"
+        accessibilityRole="button"
+        accessibilityLabel={
+          isBackButton
+            ? isRecording
+              ? 'Stop recording and go back'
+              : 'Go back to previous screen'
+            : 'Open side menu'
+        }
         icon={
           isBackButton ? (
             <ChevronLeft
@@ -110,25 +139,6 @@ export function AppHeader({
               color={iconColor}
             />
           )
-        }
-        minWidth={44}
-        minHeight={44}
-        borderRadius="$4"
-        backgroundColor="transparent"
-        hoverStyle={{
-          backgroundColor: '$backgroundHover',
-        }}
-        pressStyle={{
-          scale: 0.95,
-          backgroundColor: '$backgroundPress',
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={
-          isBackButton
-            ? isRecording
-              ? 'Stop recording and go back'
-              : 'Go back to previous screen'
-            : 'Open side menu'
         }
       />
     )
@@ -144,27 +154,37 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            size="$3"
+            width="$4"
+            height="$4"
+            borderRadius="$10"
+            backgroundColor="transparent"
+            borderWidth={0}
+            animation="quick"
+            hoverStyle={{
+              backgroundColor: '$backgroundHover',
+              scale: 1.08,
+              opacity: 0.9,
+            }}
+            pressStyle={{
+              scale: 0.92,
+              backgroundColor: '$color10',
+              opacity: 0.75,
+            }}
+            focusStyle={{
+              borderWidth: 1,
+              borderColor: '$color7',
+              opacity: 0.9,
+            }}
             onPress={onMenuPress}
+            cursor="pointer"
+            accessibilityRole="button"
+            accessibilityLabel="Open side menu"
             icon={
               <Menu
                 size="$1.5"
                 color={iconColor}
               />
             }
-            minWidth={44}
-            minHeight={44}
-            borderRadius="$4"
-            backgroundColor="transparent"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-            }}
-            pressStyle={{
-              scale: 0.95,
-              backgroundColor: '$backgroundPress',
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Open side menu"
           />
         )
 
@@ -172,27 +192,37 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            size="$3"
+            width="$4"
+            height="$4"
+            borderRadius="$10"
+            backgroundColor="transparent"
+            borderWidth={0}
+            animation="quick"
+            hoverStyle={{
+              backgroundColor: '$backgroundHover',
+              scale: 1.08,
+              opacity: 0.9,
+            }}
+            pressStyle={{
+              scale: 0.92,
+              backgroundColor: '$color10',
+              opacity: 0.75,
+            }}
+            focusStyle={{
+              borderWidth: 1,
+              borderColor: '$color7',
+              opacity: 0.9,
+            }}
             onPress={onMenuPress}
+            cursor="pointer"
+            accessibilityRole="button"
+            accessibilityLabel="Open video settings menu"
             icon={
               <MoreHorizontal
                 size="$1.5"
                 color={iconColor}
               />
             }
-            minWidth={44}
-            minHeight={44}
-            borderRadius="$4"
-            backgroundColor="transparent"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-            }}
-            pressStyle={{
-              scale: 0.95,
-              backgroundColor: '$backgroundPress',
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Open video settings menu"
           />
         )
 
@@ -201,30 +231,39 @@ export function AppHeader({
           <YStack position="relative">
             <Button
               chromeless
-              size="$3"
-              onPress={onNotificationPress}
-              icon={
-                <Bell
-                  size="$1.5"
-                  color={iconColor}
-                />
-              }
-              minWidth={44}
-              minHeight={44}
-              borderRadius="$4"
+              width="$4"
+              height="$4"
+              borderRadius="$10"
               backgroundColor="transparent"
+              animation="quick"
               hoverStyle={{
                 backgroundColor: '$backgroundHover',
+                scale: 1.08,
+                opacity: 0.9,
               }}
               pressStyle={{
-                scale: 0.95,
-                backgroundColor: '$backgroundPress',
+                scale: 0.92,
+                backgroundColor: '$color10',
+                opacity: 0.75,
               }}
+              focusStyle={{
+                borderWidth: 1,
+                borderColor: '$color7',
+                opacity: 0.9,
+              }}
+              onPress={onNotificationPress}
+              cursor="pointer"
               accessibilityRole="button"
               accessibilityLabel={
                 notificationBadgeCount > 0
                   ? `Notifications: ${notificationBadgeCount} unread`
                   : 'Notifications'
+              }
+              icon={
+                <Bell
+                  size="$1.5"
+                  color={iconColor}
+                />
               }
             />
 
@@ -251,8 +290,31 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            size="$3"
+            width="$4"
+            height="$4"
+            borderRadius="$10"
+            backgroundColor="transparent"
+            borderWidth={0}
+            animation="quick"
+            hoverStyle={{
+              backgroundColor: '$backgroundHover',
+              scale: 1.08,
+              opacity: 0.9,
+            }}
+            pressStyle={{
+              scale: 0.92,
+              backgroundColor: '$color10',
+              opacity: 0.75,
+            }}
+            focusStyle={{
+              borderWidth: 1,
+              borderColor: '$color7',
+              opacity: 0.9,
+            }}
             onPress={onProfilePress}
+            cursor="pointer"
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
             icon={
               profileImageUri ? (
                 <Image
@@ -267,19 +329,6 @@ export function AppHeader({
                 />
               )
             }
-            minWidth={44}
-            minHeight={44}
-            borderRadius="$4"
-            backgroundColor="transparent"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-            }}
-            pressStyle={{
-              scale: 0.95,
-              backgroundColor: '$backgroundPress',
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
           />
         )
 

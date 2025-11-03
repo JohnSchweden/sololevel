@@ -1,8 +1,8 @@
 import { log } from '@my/logging'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
-import { useRenderProfile } from '@ui/hooks/useRenderProfile'
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
+// import { useRenderProfile } from '@ui/hooks/useRenderProfile'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View, type ViewStyle, useColorScheme } from 'react-native'
 import Animated, {
   cancelAnimation,
@@ -276,26 +276,26 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
   // Render profiling - enable in dev only
   // Track props that might change to identify re-render causes
-  useRenderProfile({
-    componentName: 'NavigationAppHeader',
-    enabled: __DEV__,
-    logInterval: 5,
-    trackProps: {
-      isVisible,
-      animationSpeed,
-      isUserInteraction: isUserInteractionValue,
-      headerShown: options.headerShown,
-      headerVisible: headerVisibleValue,
-      isVideoAnalysisMode,
-      isHistoryMode,
-      // Track route params to detect React Navigation updates
-      routeName: route.name,
-      hasBack: Boolean(back),
-      // Track hooks that might cause re-renders
-      colorScheme,
-      topInset,
-    },
-  })
+  // useRenderProfile({
+  //   componentName: 'NavigationAppHeader',
+  //   enabled: __DEV__,
+  //   logInterval: 5,
+  //   trackProps: {
+  //     isVisible,
+  //     animationSpeed,
+  //     isUserInteraction: isUserInteractionValue,
+  //     headerShown: options.headerShown,
+  //     headerVisible: headerVisibleValue,
+  //     isVideoAnalysisMode,
+  //     isHistoryMode,
+  //     // Track route params to detect React Navigation updates
+  //     routeName: route.name,
+  //     hasBack: Boolean(back),
+  //     // Track hooks that might cause re-renders
+  //     colorScheme,
+  //     topInset,
+  //   },
+  // })
 
   // Track previous visibility for ARIA announcements
   const prevVisibilityRef = useRef(isVisible)
@@ -573,11 +573,48 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
 
   const computedLeftAction = useMemo(() => (back ? 'back' : 'sidesheet'), [back])
 
-  const appHeaderProps: AppHeaderProps = useMemo(() => {
-    const override = navOptions.appHeaderProps ?? {}
+  // Stable navigation ref to avoid dependency on navigation object identity
+  const navigationRef = useRef(navigation)
+  navigationRef.current = navigation
 
+  // Stable default back handler to prevent inline function creation
+  const defaultBackHandler = useCallback(() => {
+    navigationRef.current.goBack()
+  }, [])
+
+  // Memoize default back handler conditional - only create if back is available
+  const memoizedDefaultBackHandler = useMemo(
+    () => (back ? defaultBackHandler : undefined),
+    [back, defaultBackHandler]
+  )
+
+  // Extract primitive values from navOptions.appHeaderProps BEFORE useMemo
+  // This prevents object reference changes from triggering unnecessary re-renders
+  const navHeaderProps = navOptions.appHeaderProps ?? {}
+  const navMode = navHeaderProps.mode
+  const navShowTimer = navHeaderProps.showTimer
+  const navTimerValue = navHeaderProps.timerValue
+  const navTitle = navHeaderProps.title
+  const navTitleAlignment = navHeaderProps.titleAlignment
+  const navLeftAction = navHeaderProps.leftAction
+  const navRightAction = navHeaderProps.rightAction
+  const navThemeName = navHeaderProps.themeName
+  const navProfileImageUri = navHeaderProps.profileImageUri
+  const navNotificationBadgeCount = navHeaderProps.notificationBadgeCount
+  // Callbacks - extracted but compared separately (may be stable or new references)
+  const navOnBackPress = navHeaderProps.onBackPress
+  const navOnMenuPress = navHeaderProps.onMenuPress
+  const navOnNotificationPress = navHeaderProps.onNotificationPress
+  const navOnProfilePress = navHeaderProps.onProfilePress
+  // Complex objects - extracted but compared by reference
+  const navLeftSlot = navHeaderProps.leftSlot
+  const navRightSlot = navHeaderProps.rightSlot
+  const navTitleSlot = navHeaderProps.titleSlot
+  const navCameraProps = navHeaderProps.cameraProps
+
+  const appHeaderProps: AppHeaderProps = useMemo(() => {
     const leftSlot =
-      override.leftSlot ??
+      navLeftSlot ??
       (options.headerLeft
         ? options.headerLeft({
             canGoBack: Boolean(back),
@@ -587,7 +624,7 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
         : undefined)
 
     const rightSlot =
-      override.rightSlot ??
+      navRightSlot ??
       (options.headerRight
         ? options.headerRight({
             tintColor,
@@ -595,7 +632,7 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
         : undefined)
 
     const titleSlot =
-      override.titleSlot ??
+      navTitleSlot ??
       (options.headerTitle && typeof options.headerTitle === 'function'
         ? options.headerTitle({
             children: typeof options.title === 'string' ? options.title : route.name,
@@ -604,28 +641,48 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
         : undefined)
 
     return {
-      title: typeof options.title === 'string' ? options.title : (override.title ?? route.name),
-      mode: override.mode ?? 'default',
-      showTimer: override.showTimer ?? false,
-      timerValue: override.timerValue ?? '00:00:00',
-      onBackPress: override.onBackPress ?? (back ? () => navigation.goBack() : undefined),
-      onMenuPress: override.onMenuPress,
-      onNotificationPress: override.onNotificationPress,
-      onProfilePress: override.onProfilePress,
-      notificationBadgeCount: override.notificationBadgeCount ?? 0,
-      cameraProps: override.cameraProps,
-      titleAlignment: override.titleAlignment ?? titleAlignment,
-      leftAction: override.leftAction ?? (leftSlot ? 'none' : computedLeftAction),
-      rightAction: override.rightAction ?? (rightSlot ? 'none' : 'auto'),
-      themeName:
-        override.themeName ?? (isTransparent && colorScheme === 'dark' ? 'dark' : undefined),
-      profileImageUri: override.profileImageUri,
+      title: typeof options.title === 'string' ? options.title : (navTitle ?? route.name),
+      mode: navMode ?? 'default',
+      showTimer: navShowTimer ?? false,
+      timerValue: navTimerValue ?? '00:00:00',
+      onBackPress: navOnBackPress ?? memoizedDefaultBackHandler,
+      onMenuPress: navOnMenuPress,
+      onNotificationPress: navOnNotificationPress,
+      onProfilePress: navOnProfilePress,
+      notificationBadgeCount: navNotificationBadgeCount ?? 0,
+      cameraProps: navCameraProps,
+      titleAlignment: navTitleAlignment ?? titleAlignment,
+      leftAction: navLeftAction ?? (leftSlot ? 'none' : computedLeftAction),
+      rightAction: navRightAction ?? (rightSlot ? 'none' : 'auto'),
+      themeName: navThemeName ?? (isTransparent && colorScheme === 'dark' ? 'dark' : undefined),
+      profileImageUri: navProfileImageUri,
       leftSlot,
       rightSlot,
       titleSlot,
     }
   }, [
-    navOptions.appHeaderProps,
+    // Primitive values from navOptions.appHeaderProps (stable references)
+    navMode,
+    navShowTimer,
+    navTimerValue,
+    navTitle,
+    navTitleAlignment,
+    navLeftAction,
+    navRightAction,
+    navThemeName,
+    navProfileImageUri,
+    navNotificationBadgeCount,
+    // Callbacks from navOptions.appHeaderProps (may change but compared directly)
+    navOnBackPress,
+    navOnMenuPress,
+    navOnNotificationPress,
+    navOnProfilePress,
+    // Complex objects from navOptions.appHeaderProps (compared by reference)
+    navLeftSlot,
+    navRightSlot,
+    navTitleSlot,
+    navCameraProps,
+    // Options and other dependencies
     options.title,
     options.headerTitle,
     options.headerRight,
@@ -634,19 +691,36 @@ export function NavigationAppHeader(props: NativeStackHeaderProps) {
     isTransparent,
     tintColor,
     titleAlignment,
-    navigation,
     route.name,
     back,
     colorScheme,
+    memoizedDefaultBackHandler,
+    computedLeftAction,
   ])
+
+  // Stable edges array to prevent SafeAreaView re-renders
+  const safeAreaEdges = useMemo(
+    () =>
+      Platform.OS === 'ios' ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const),
+    []
+  )
+
+  // Stable safe area style to prevent re-creation
+  const safeAreaStyle = useMemo(() => [styles.safeArea, { backgroundColor }], [backgroundColor])
+
+  // Stable top inset style for iOS
+  const topInsetStyle = useMemo(
+    () => ({ height: topInset, backgroundColor }),
+    [topInset, backgroundColor]
+  )
 
   return (
     <SafeAreaView
       // Avoid using the top edge on iOS to prevent layout shifts when status bar shows/hides
-      edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'left', 'right']}
-      style={[styles.safeArea, { backgroundColor }]}
+      edges={safeAreaEdges}
+      style={safeAreaStyle}
     >
-      {Platform.OS === 'ios' ? <View style={{ height: topInset, backgroundColor }} /> : null}
+      {Platform.OS === 'ios' ? <View style={topInsetStyle} /> : null}
       <View style={styles.wrapper}>
         {isVideoAnalysisMode ? (
           <Animated.View style={animatedStyle}>

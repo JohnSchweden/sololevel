@@ -32,6 +32,7 @@ export function PoseDetectionToggle({
       size={size}
       backgroundColor={isEnabled ? '$blue2' : '$color2'}
       borderColor={isEnabled ? '$blue7' : '$color7'}
+      animation="quick"
       pressStyle={{
         backgroundColor: isEnabled ? '$blue3' : '$color3',
       }}
@@ -87,6 +88,7 @@ export function PoseDetectionToggleCompact({
       circular
       size="$3"
       backgroundColor={isEnabled ? '$blue7' : '$color5'}
+      animation="quick"
       pressStyle={{
         backgroundColor: isEnabled ? '$blue8' : '$color6',
       }}

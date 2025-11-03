@@ -1,3 +1,5 @@
+import { X } from '@tamagui/lucide-icons'
+import { BlurView } from 'expo-blur'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
 
 export interface ConfirmDialogProps {
@@ -111,10 +113,30 @@ export function ConfirmDialog({
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
           maxWidth={400}
           testID={testID}
+          position="relative"
+          overflow="hidden"
+          backgroundColor="transparent"
+          borderRadius="$8"
+          borderWidth={1}
+          borderColor="rgba(255, 255, 255, 0.3)"
         >
+          <BlurView
+            intensity={20}
+            tint="light"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: 24,
+            }}
+          />
           <YStack
             gap="$4"
             padding="$4"
+            position="relative"
+            zIndex={1}
           >
             {/* Title */}
             <Dialog.Title>
@@ -152,6 +174,7 @@ export function ConfirmDialog({
                 paddingVertical="$3"
                 borderRadius="$4"
                 backgroundColor="$color3"
+                animation="quick"
                 pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
                 testID={`${testID}-cancel-button`}
               >
@@ -172,6 +195,7 @@ export function ConfirmDialog({
                 paddingVertical="$3"
                 borderRadius="$4"
                 backgroundColor="$red8"
+                animation="quick"
                 pressStyle={{ backgroundColor: '$red9', scale: 0.98 }}
                 testID={`${testID}-confirm-button`}
               >
@@ -197,14 +221,25 @@ export function ConfirmDialog({
           <Dialog.Close asChild>
             <Button
               position="absolute"
-              top="$2"
-              right="$2"
-              size="$2"
-              circular
+              top="$1"
+              right="$1"
+              unstyled
+              padding="$2"
+              minWidth={44}
+              minHeight={44}
+              alignItems="center"
+              justifyContent="center"
               onPress={onCancel}
               testID={`${testID}-close-button`}
+              zIndex={2}
+              animation="quick"
+              hoverStyle={{ opacity: 0.7, scale: 1.1 }}
+              pressStyle={{ opacity: 0.5, scale: 0.95 }}
             >
-              ×
+              <X
+                size="$1"
+                color="$color12"
+              />
             </Button>
           </Dialog.Close>
         </Dialog.Content>

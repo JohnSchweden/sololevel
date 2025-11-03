@@ -56,7 +56,7 @@ export function InsightsScreen({
   const { visibleItems: sectionsVisible } = useStaggeredAnimation({
     itemCount: 4,
     staggerDelay: 50,
-    dependencies: [data, isLoading],
+    dependencies: [isLoading], // Only restart animation when loading state changes, not on data updates
   })
 
   if (isLoading) {

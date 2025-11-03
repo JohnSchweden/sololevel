@@ -35,6 +35,7 @@ import type { ReactNode } from 'react'
 
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
+import type { AnalysisJob } from '@my/api'
 import { createSignedDownloadUrl, getAnalysisJob, supabase } from '@my/api'
 
 import { useHistoricalAnalysis } from './useHistoricalAnalysis'
@@ -81,7 +82,11 @@ describe('useHistoricalAnalysis', () => {
     clearCache()
 
     // Default: Files don't exist (will be overridden in specific tests)
-    mockFileSystem.getInfoAsync.mockResolvedValue({ exists: false } as any)
+    mockFileSystem.getInfoAsync.mockResolvedValue({
+      exists: false,
+      uri: '',
+      isDirectory: false,
+    })
 
     // Setup default supabase mock response
     const mockSingle = jest.fn().mockResolvedValue({
@@ -140,7 +145,13 @@ describe('useHistoricalAnalysis', () => {
       setLocalUri('user-123/video.mp4', 'file:///cached/video.mp4')
 
       // File exists for the cached local URI
-      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true } as any)
+      mockFileSystem.getInfoAsync.mockResolvedValue({
+        exists: true,
+        uri: 'file:///cached/video.mp4',
+        size: 1024,
+        isDirectory: false,
+        modificationTime: Date.now(),
+      })
 
       // Act
       const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
@@ -162,11 +173,11 @@ describe('useHistoricalAnalysis', () => {
 
     it('should fallback to database when cache miss', async () => {
       // Arrange
-      const mockDbData = {
+      const mockDbData: AnalysisJob = {
         id: 1,
         user_id: 'user-123',
         video_recording_id: 100,
-        status: 'completed' as const,
+        status: 'completed',
         results: {
           pose_analysis: {
             keypoints: [],
@@ -181,10 +192,12 @@ describe('useHistoricalAnalysis', () => {
         error_message: null,
         processing_started_at: '2025-10-12T00:00:00Z',
         processing_completed_at: '2025-10-12T00:00:01Z',
-        total_frames: 100,
-        processed_frames: 100,
-        summary_text: 'Test summary',
-      } as any // Use any to bypass strict DB type checking in tests
+        processing_time_ms: null,
+        video_source_type: null,
+      }
+
+      const metadataLocalUri = 'file:///local/video.mp4'
+      const directPath = `${FileSystem.documentDirectory}recordings/analysis_1.mp4`
 
       const mockSingle = jest.fn().mockResolvedValue({
         data: {
@@ -193,19 +206,43 @@ describe('useHistoricalAnalysis', () => {
           storage_path: 'user-123/video.mp4',
           duration_seconds: 30,
           metadata: {
-            localUri: 'file:///local/video.mp4',
+            localUri: metadataLocalUri,
           },
         },
         error: null,
       })
       const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
       const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
-      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+      mockSupabase.from = jest
+        .fn()
+        .mockReturnValue({ select: mockSelect }) as typeof mockSupabase.from
 
       mockGetAnalysisJob.mockResolvedValue(mockDbData)
 
-      // File exists for the metadata local URI
-      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true } as any)
+      // Mock file system: metadata URI exists, direct path doesn't (so it uses metadata.localUri)
+      mockFileSystem.getInfoAsync.mockImplementation((path: string) => {
+        if (path === metadataLocalUri) {
+          return Promise.resolve({
+            exists: true,
+            uri: metadataLocalUri,
+            size: 1024,
+            isDirectory: false,
+            modificationTime: Date.now(),
+          })
+        }
+        if (path === directPath) {
+          return Promise.resolve({
+            exists: false,
+            uri: directPath,
+            isDirectory: false,
+          })
+        }
+        return Promise.resolve({
+          exists: false,
+          uri: path,
+          isDirectory: false,
+        })
+      })
 
       // Act
       const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
@@ -244,18 +281,25 @@ describe('useHistoricalAnalysis', () => {
     })
 
     it('falls back to sample video when signed URL resolution fails', async () => {
-      const mockDbData = {
+      const mockDbData: AnalysisJob & { video_recordings?: { storage_path: string } } = {
         id: 2,
         user_id: 'user-abc',
         video_recording_id: 200,
-        status: 'completed' as const,
-        results: {},
+        status: 'completed',
+        results: null,
         pose_data: null,
         created_at: '2025-10-12T00:00:00Z',
+        updated_at: '2025-10-12T00:00:00Z',
+        progress_percentage: null,
+        error_message: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        processing_time_ms: null,
+        video_source_type: null,
         video_recordings: {
           storage_path: 'user-abc/video.mp4',
         },
-      } as any
+      }
 
       const mockSingle = jest.fn().mockResolvedValue({
         data: {
@@ -269,10 +313,12 @@ describe('useHistoricalAnalysis', () => {
       })
       const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
       const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
-      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+      mockSupabase.from = jest
+        .fn()
+        .mockReturnValue({ select: mockSelect }) as typeof mockSupabase.from
 
       mockGetAnalysisJob.mockResolvedValue(mockDbData)
-      mockCreateSignedDownloadUrl.mockResolvedValue({ data: null, error: 'failed' as any })
+      mockCreateSignedDownloadUrl.mockResolvedValue({ data: null, error: 'failed' })
 
       const { result } = renderHook(() => useHistoricalAnalysis(2), { wrapper })
 
@@ -398,16 +444,22 @@ describe('useHistoricalAnalysis', () => {
   describe('Signed URL session caching (Task 35 Module 2)', () => {
     it('should reuse signed URL within session instead of regenerating', async () => {
       // Arrange - DB data with storage path (no local URI)
-      const mockDbData = {
+      const mockDbData: AnalysisJob = {
         id: 1,
         user_id: 'user-123',
         video_recording_id: 100,
-        status: 'completed' as const,
-        results: {},
+        status: 'completed',
+        results: null,
         pose_data: null,
         created_at: '2025-10-12T00:00:00Z',
         updated_at: '2025-10-12T00:00:00Z',
-      } as any
+        progress_percentage: null,
+        error_message: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        processing_time_ms: null,
+        video_source_type: null,
+      }
 
       const mockSingle = jest.fn().mockResolvedValue({
         data: {
@@ -421,7 +473,9 @@ describe('useHistoricalAnalysis', () => {
       })
       const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
       const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
-      ;(mockSupabase.from as jest.Mock).mockReturnValue({ select: mockSelect })
+      mockSupabase.from = jest
+        .fn()
+        .mockReturnValue({ select: mockSelect }) as typeof mockSupabase.from
 
       mockGetAnalysisJob.mockResolvedValue(mockDbData)
       mockCreateSignedDownloadUrl.mockResolvedValue({

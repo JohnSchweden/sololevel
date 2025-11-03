@@ -70,6 +70,7 @@ export const CenterControls = React.memo<CenterControlsProps>(
           blurIntensity={15}
           borderWidth={0}
           edgeGlowIntensity={0.3}
+          animation={undefined}
           onPress={onSkipBackward}
           testID="rewind-button"
           accessibilityLabel="Rewind 10 seconds"
@@ -101,6 +102,7 @@ export const CenterControls = React.memo<CenterControlsProps>(
           overlayOpacity={0.5}
           borderWidth={0}
           edgeGlowIntensity={0.3}
+          animation={undefined}
           onPress={() => {
             if (videoEnded && onReplay) {
               onReplay()
@@ -133,6 +135,7 @@ export const CenterControls = React.memo<CenterControlsProps>(
           blurIntensity={15}
           borderWidth={0}
           edgeGlowIntensity={0.3}
+          animation={undefined}
           onPress={onSkipForward}
           testID="fast-forward-button"
           accessibilityLabel="Fast forward 10 seconds"

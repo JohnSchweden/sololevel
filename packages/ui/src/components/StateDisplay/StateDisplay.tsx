@@ -147,6 +147,7 @@ export function StateDisplay({
           onPress={onRetry}
           backgroundColor="$color5"
           color="$color12"
+          animation="quick"
           pressStyle={{ opacity: 0.7, scale: 0.95 }}
           testID={`${testID}-retry-button`}
           marginTop="$2"

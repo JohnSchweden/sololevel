@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur'
-import type { ComponentProps, ReactNode } from 'react'
+import { type ComponentProps, type ReactNode, useState } from 'react'
 import { Button, Image, XStack, type XStackProps } from 'tamagui'
 
 // Import glass overlay assets
@@ -55,6 +55,8 @@ export type GlassButtonProps = {
   edgeGlowIntensity?: number
   /** Edge glow color (default 'rgba(255, 255, 255, 0.2)') */
   edgeGlowColor?: XStackProps['borderColor']
+  /** Animation preset (always 'quick') */
+  animation?: ComponentProps<typeof Button>['animation']
 }
 
 /**
@@ -115,6 +117,7 @@ export const GlassButton = ({
   overlayOpacity = 0.8,
   edgeGlowIntensity = 0.9,
   edgeGlowColor = 'rgba(255, 255, 255, 0.9)',
+  animation = 'bouncy',
 }: GlassButtonProps) => {
   // Convert borderRadius token to number for BlurView
   const numericRadius = typeof borderRadius === 'string' ? 24 : Number(borderRadius) || 24
@@ -122,6 +125,9 @@ export const GlassButton = ({
   // Select glass overlay based on variant
   const overlaySource =
     glassOverlaySource || (variant === 'variant2' ? glassButtonVariant2 : defaultGlassOverlay)
+
+  // Track press state for BlurView animation sync
+  const [isPressed, setIsPressed] = useState(false)
 
   return (
     <XStack
@@ -149,38 +155,50 @@ export const GlassButton = ({
         />
       )}
 
-      <BlurView
-        intensity={blurIntensity}
-        tint={blurTint}
-        style={{
-          borderRadius: numericRadius,
-          overflow: 'hidden',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      />
-
-      <Image
-        source={overlaySource}
+      <XStack
         position="absolute"
         top={0}
         left={0}
         right={0}
         bottom={0}
-        width="100%"
-        height="100%"
-        opacity={overlayOpacity}
-        resizeMode="cover"
-      />
+        borderRadius={borderRadius}
+        animation={animation}
+        scale={isPressed && !disabled ? 0.93 : 1}
+        pointerEvents="none"
+      >
+        <BlurView
+          intensity={blurIntensity}
+          tint={blurTint}
+          style={{
+            borderRadius: numericRadius,
+            overflow: 'hidden',
+            width: '100%',
+            height: '100%',
+          }}
+        />
+
+        <Image
+          source={overlaySource}
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          width="100%"
+          height="100%"
+          opacity={overlayOpacity}
+          resizeMode="cover"
+        />
+      </XStack>
 
       <Button
         testID={testID}
         onPress={disabled ? undefined : onPress}
+        onPressIn={disabled ? undefined : () => setIsPressed(true)}
+        onPressOut={disabled ? undefined : () => setIsPressed(false)}
         disabled={disabled}
         unstyled
+        animation={animation}
         flexDirection="row"
         alignItems="center"
         justifyContent="center"
@@ -196,7 +214,7 @@ export const GlassButton = ({
           disabled
             ? undefined
             : {
-                scale: 0.96,
+                scale: 0.93,
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
               }
         }

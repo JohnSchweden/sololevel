@@ -39,6 +39,7 @@ const SessionItemContainer = styled(YStack, {
   backgroundColor: 'transparent',
   cursor: 'pointer',
   accessibilityRole: 'button',
+  animation: 'quick',
 
   pressStyle: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

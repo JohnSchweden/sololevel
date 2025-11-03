@@ -1,7 +1,13 @@
-import { type AnalysisJobWithVideo, type AnalysisResults, getUserAnalysisJobs } from '@my/api'
+import {
+  type AnalysisJobWithVideo,
+  type AnalysisResults,
+  type PoseData,
+  getUserAnalysisJobs,
+} from '@my/api'
 import { log } from '@my/logging'
 import { useQuery } from '@tanstack/react-query'
 import * as FileSystem from 'expo-file-system'
+import React from 'react'
 import { Platform } from 'react-native'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 import type { CachedAnalysis } from '../stores/videoHistory'
@@ -67,7 +73,7 @@ async function transformToCache(
   job: AnalysisJobWithVideo
 ): Promise<Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'>> {
   // Check if metadata.thumbnailUri exists, otherwise fall back to thumbnail_url
-  let thumbnail: string | undefined
+  let thumbnail: string | null = null
   const metadataThumbnail = job.video_recordings?.metadata?.thumbnailUri
 
   if (metadataThumbnail && Platform.OS !== 'web') {
@@ -107,10 +113,16 @@ async function transformToCache(
         // Fallback to cloud if persistent cache doesn't exist
         if (!thumbnail) {
           recordCacheMiss('thumbnail')
-          thumbnail = job.video_recordings?.thumbnail_url || undefined
+          const cloudThumbnail = job.video_recordings?.thumbnail_url ?? null
+          thumbnail = cloudThumbnail
 
           // Persist cloud thumbnail to disk (non-blocking)
-          if (thumbnail && thumbnail.startsWith('http') && job.video_recordings) {
+          if (
+            thumbnail &&
+            typeof thumbnail === 'string' &&
+            thumbnail.startsWith('http') &&
+            job.video_recordings
+          ) {
             const videoId = job.video_recordings.id
             const analysisId = job.id // Capture for cache update
             persistThumbnailFile(videoId, thumbnail)
@@ -140,7 +152,8 @@ async function transformToCache(
         metadataThumbnail,
       })
       // Fall back to cloud on error
-      thumbnail = job.video_recordings?.thumbnail_url || undefined
+      const cloudThumbnail = job.video_recordings?.thumbnail_url ?? null
+      thumbnail = cloudThumbnail
     }
   } else {
     // No metadata thumbnailUri - check persistent disk cache first
@@ -167,10 +180,16 @@ async function transformToCache(
     // Fallback to cloud if persistent cache doesn't exist
     if (!thumbnail) {
       recordCacheMiss('thumbnail')
-      thumbnail = metadataThumbnail || job.video_recordings?.thumbnail_url || undefined
+      const cloudThumbnail = metadataThumbnail ?? job.video_recordings?.thumbnail_url ?? null
+      thumbnail = cloudThumbnail
 
       // Persist cloud thumbnail to disk if URL starts with http (non-blocking)
-      if (thumbnail && thumbnail.startsWith('http') && job.video_recordings) {
+      if (
+        thumbnail &&
+        typeof thumbnail === 'string' &&
+        thumbnail.startsWith('http') &&
+        job.video_recordings
+      ) {
         const videoId = job.video_recordings.id
         const analysisId = job.id // Capture for cache update
         persistThumbnailFile(videoId, thumbnail)
@@ -193,9 +212,24 @@ async function transformToCache(
     }
   }
 
-  // Use storage_path to construct Supabase Storage URL, or fall back to filename
-  const videoUri = job.video_recordings?.storage_path || job.video_recordings?.filename
-  const storagePath = job.video_recordings?.storage_path || undefined
+  // Resolve video URI: prioritize metadata.localUri if available, otherwise use storage_path
+  const metadataLocalUri = (job.video_recordings?.metadata as { localUri?: string } | undefined)
+    ?.localUri
+  const storagePath = job.video_recordings?.storage_path
+  let videoUri: string | null = null
+
+  if (metadataLocalUri && Platform.OS !== 'web') {
+    // Use metadata.localUri if available (from recording flow)
+    videoUri = metadataLocalUri
+    // Store in localUriIndex for fast lookup (matches useHistoricalAnalysis behavior)
+    if (storagePath) {
+      const { setLocalUri } = useVideoHistoryStore.getState()
+      setLocalUri(storagePath, metadataLocalUri)
+    }
+  } else {
+    // Fallback to storage_path (will be resolved via signed URL in useHistoricalAnalysis)
+    videoUri = storagePath ?? job.video_recordings?.filename ?? null
+  }
 
   return {
     id: job.id,
@@ -203,11 +237,11 @@ async function transformToCache(
     userId: job.user_id,
     title: `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
     createdAt: job.created_at,
-    thumbnail,
-    videoUri,
-    storagePath,
+    thumbnail: thumbnail ?? undefined,
+    videoUri: videoUri ?? undefined,
+    storagePath: storagePath ?? undefined,
     results: job.results as AnalysisResults,
-    poseData: job.pose_data as any,
+    poseData: (job.pose_data as PoseData | null) || undefined,
   }
 }
 
@@ -228,10 +262,9 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  * Hook for fetching user's analysis history with cache-first strategy
  *
  * Strategy:
- * 1. Check in-memory cache first (< 50ms)
- * 2. If cache is fresh (< 60s since last sync), return cached data
- * 3. Otherwise, fetch from database and update cache
- * 4. Apply stale-while-revalidate (5 min stale time)
+ * 1. Initialize with persisted Zustand cache data (instant display, no loading spinner)
+ * 2. Background refetch from database to update cache
+ * 3. Apply stale-while-revalidate (5 min stale time)
  *
  * Thumbnail Resolution Flow (3-Tier Caching):
  * ```
@@ -245,6 +278,7 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  * - Subsequent app restarts use persistent disk cache (zero network requests)
  * - Persistence is non-blocking (doesn't delay UI rendering)
  * - Error handling: persistence failures don't block thumbnail display
+ * - Cached data from Zustand store is used as initialData for instant display on app restart
  *
  * @param limit - Maximum number of videos to fetch (default: 10)
  * @returns Query result with video items for display
@@ -252,127 +286,131 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
 export function useHistoryQuery(limit = 10) {
   const cache = useVideoHistoryStore()
 
-  return useQuery({
-    queryKey: ['history', 'completed', limit],
-    queryFn: async (): Promise<VideoItem[]> => {
-      const startTime = Date.now()
+  // Get cached data from Zustand store for initial display (persists across restarts)
+  // Only use initialData when cache has data - empty array prevents query from running
+  const initialData = React.useMemo(() => {
+    const allCached = useVideoHistoryStore.getState().getAllCached()
+    if (allCached.length === 0) {
+      return null
+    }
 
-      // TanStack Query handles caching with staleTime (5 minutes)
-      // Zustand store is used for persistence and data transformation only
-      log.debug('useHistoryQuery', 'Fetching history data', {
-        limit,
-        cacheVersion: cache.version,
-      })
+    // Sort by newest first and limit
+    const sorted = [...allCached]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit)
+    return sorted.map(transformToVideoItem)
+  }, [limit])
 
-      try {
-        // Fetch only completed jobs from database (more efficient than filtering in JS)
-        const jobs = await getUserAnalysisJobs(limit, 'completed')
+  // Build query options conditionally - only include initialData if we have cached data
+  const queryOptions = React.useMemo(() => {
+    const baseOptions = {
+      queryKey: ['history', 'completed', limit] as const,
+      refetchOnMount: true, // Still refetch in background even with initialData
+      queryFn: async (): Promise<VideoItem[]> => {
+        const startTime = Date.now()
 
-        // Debug: Log raw jobs data and status distribution
-        const statusDistribution = jobs.reduce(
-          (acc, job: any) => {
-            const status = job.status || 'unknown'
-            acc[status] = (acc[status] || 0) + 1
-            return acc
-          },
-          {} as Record<string, number>
-        )
-
-        log.debug('useHistoryQuery', 'Raw jobs from API', {
-          totalJobs: jobs.length,
+        // TanStack Query handles caching with staleTime (5 minutes)
+        // Zustand store is used for persistence and data transformation only
+        log.debug('useHistoryQuery', 'Fetching history data', {
           limit,
-          statusDistribution,
-          sampleJob: jobs[0]
-            ? {
-                id: jobs[0].id,
-                status: jobs[0].status,
-                hasVideoRecordings: !!jobs[0].video_recordings,
-                videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
-              }
-            : 'no jobs',
+          cacheVersion: cache.version,
         })
 
-        // All jobs should be completed (filtered at DB level), but keep as safety check
-        const completedJobs = jobs.filter((job: any) => job.status === 'completed')
+        try {
+          // Fetch only completed jobs from database (more efficient than filtering in JS)
+          const jobs = await getUserAnalysisJobs(limit, 'completed')
 
-        // Work with newest-first order for cache + UI consistency
-        const sortedCompletedJobs = [...completedJobs].sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
+          // Debug: Log raw jobs data and status distribution
+          const statusDistribution = jobs.reduce(
+            (acc, job: any) => {
+              const status = job.status || 'unknown'
+              acc[status] = (acc[status] || 0) + 1
+              return acc
+            },
+            {} as Record<string, number>
+          )
 
-        // Update cache with completed jobs and transform to VideoItem
-        const videoItems = await Promise.all(
-          sortedCompletedJobs.map(async (job: any) => {
-            const cacheEntry = await transformToCache(job)
-
-            // Register local thumbnail / video URIs from metadata for cache reuse
-            const metadata = job.video_recordings?.metadata as Record<string, unknown> | undefined
-            if (cacheEntry.storagePath) {
-              const localVideoUri =
-                (metadata?.localUri as string | undefined) ||
-                (metadata?.videoUri as string | undefined)
-              if (typeof localVideoUri === 'string' && localVideoUri.startsWith('file://')) {
-                cache.setLocalUri(cacheEntry.storagePath, localVideoUri)
-                cacheEntry.videoUri = localVideoUri
-              }
-            }
-
-            cache.addToCache(cacheEntry)
-
-            // Get from cache to ensure we have cached and lastAccessed
-            const cached = cache.getCached(job.id)
-            const videoItem = cached
-              ? transformToVideoItem(cached)
-              : transformToVideoItem({
-                  ...cacheEntry,
-                  cachedAt: Date.now(),
-                  lastAccessed: Date.now(),
-                })
-
-            // // Debug: Log transformation
-            // log.debug('useHistoryQuery', 'Transformed video item', {
-            //   jobId: job.id,
-            //   hasThumbnail: !!videoItem.thumbnailUri,
-            //   thumbnailPreview: videoItem.thumbnailUri
-            //     ? videoItem.thumbnailUri.substring(0, 80)
-            //     : 'none',
-            // })
-
-            return videoItem
+          log.debug('useHistoryQuery', 'Raw jobs from API', {
+            totalJobs: jobs.length,
+            limit,
+            statusDistribution,
+            sampleJob: jobs[0]
+              ? {
+                  id: jobs[0].id,
+                  status: jobs[0].status,
+                  hasVideoRecordings: !!jobs[0].video_recordings,
+                  videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+                }
+              : 'no jobs',
           })
-        )
 
-        // Update last sync timestamp
-        cache.updateLastSync()
+          // All jobs should be completed (filtered at DB level), but keep as safety check
+          const completedJobs = jobs.filter((job: any) => job.status === 'completed')
 
-        // Ensure consistent ordering (newest first)
-        const sortedVideoItems = [...videoItems].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+          // Work with newest-first order for cache + UI consistency
+          const sortedCompletedJobs = [...completedJobs].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
 
-        const duration = Date.now() - startTime
-        log.info('useHistoryQuery', 'Database fetch completed', {
-          totalJobs: jobs.length,
-          completedJobs: completedJobs.length,
-          cacheUpdated: true,
-          duration,
-          limit,
-          statusFilter: 'completed',
-        })
+          // Update cache with completed jobs and transform to VideoItem
+          const videoItems = await Promise.all(
+            sortedCompletedJobs.map(async (job: any) => {
+              const cacheEntry = await transformToCache(job)
 
-        return sortedVideoItems
-      } catch (error) {
-        const duration = Date.now() - startTime
-        log.error('useHistoryQuery', 'Failed to fetch analysis history', {
-          error: error instanceof Error ? error.message : String(error),
-          duration,
-        })
-        throw error
-      }
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes - TanStack Query owns cache freshness
-    gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
-    // Note: Zustand store is used for AsyncStorage persistence and data transformation
-    // TanStack Query handles all cache timing and refetch strategies
-  })
+              // Register local thumbnail / video URIs from metadata for cache reuse
+              // ONLY index persisted paths (recordings/), skip temporary cache paths
+              const metadata = job.video_recordings?.metadata as Record<string, unknown> | undefined
+              if (cacheEntry.storagePath) {
+                const localUri = metadata?.localUri as string | undefined
+                if (localUri && localUri.includes('recordings/')) {
+                  cache.setLocalUri(cacheEntry.storagePath, localUri)
+                }
+              }
+
+              // Add to cache with transformed data
+              cache.addToCache(cacheEntry)
+
+              // Get cached entry to ensure we have cachedAt and lastAccessed
+              const cached = cache.getCached(job.id)
+              if (!cached) {
+                throw new Error(`Failed to cache entry for job ${job.id}`)
+              }
+
+              // Transform to VideoItem for UI
+              return transformToVideoItem(cached)
+            })
+          )
+
+          const duration = Date.now() - startTime
+          log.info('useHistoryQuery', 'History data fetched and cached', {
+            duration,
+            videoItemsCount: videoItems.length,
+            limit,
+            cacheSize: cache.cache.size,
+          })
+
+          return videoItems
+        } catch (error) {
+          const duration = Date.now() - startTime
+          log.error('useHistoryQuery', 'Failed to fetch history data', {
+            duration,
+            error: error instanceof Error ? error.message : String(error),
+            limit,
+          })
+          throw error
+        }
+      },
+      staleTime: Number.POSITIVE_INFINITY, // Historical data doesn't change, cache indefinitely
+      gcTime: 24 * 60 * 60 * 1000, // Keep in memory for 24 hours
+    }
+
+    // Only include initialData if we have cached data (non-null)
+    if (initialData !== null) {
+      return { ...baseOptions, initialData }
+    }
+
+    return baseOptions
+  }, [limit, cache, initialData])
+
+  return useQuery(queryOptions)
 }
