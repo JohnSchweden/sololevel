@@ -298,37 +298,48 @@ export function InsightsScreen({
   const focusAreasList = useMemo(() => data?.focusAreas ?? [], [data?.focusAreas])
   const achievementsList = useMemo(() => data?.achievements ?? [], [data?.achievements])
 
-  // Render sections - parent will re-render when sectionsVisible changes (unavoidable)
-  // But memoized section components prevent expensive child re-renders - only the section
-  // with changing isVisible prop re-renders (memoized sections skip if props unchanged)
-  // No memoization here to avoid recalculating JSX on every sectionsVisible change
-  const sectionsContent = !data ? null : (
-    <>
-      {/* Weekly Overview Section */}
-      <WeeklyOverviewSection
-        isVisible={sectionsVisible[0]}
-        data={data}
-        dailyActivityData={dailyActivityData}
-      />
+  // Memoize sections content to prevent unnecessary recalculations
+  // All sections render together, but memoization prevents re-renders when props haven't changed
+  const sectionsContent = useMemo(
+    () =>
+      !data ? null : (
+        <>
+          {/* Weekly Overview Section */}
+          <WeeklyOverviewSection
+            isVisible={sectionsVisible[0]}
+            data={data}
+            dailyActivityData={dailyActivityData}
+          />
 
-      {/* Focus Areas Section */}
-      <FocusAreasSection
-        isVisible={sectionsVisible[1]}
-        focusAreasList={focusAreasList}
-      />
+          {/* Focus Areas Section */}
+          <FocusAreasSection
+            isVisible={sectionsVisible[1]}
+            focusAreasList={focusAreasList}
+          />
 
-      {/* Achievements Section */}
-      <AchievementsSection
-        isVisible={sectionsVisible[2]}
-        achievementsList={achievementsList}
-      />
+          {/* Achievements Section */}
+          <AchievementsSection
+            isVisible={sectionsVisible[2]}
+            achievementsList={achievementsList}
+          />
 
-      {/* Quick Stats Section */}
-      <QuickStatsSection
-        isVisible={sectionsVisible[3]}
-        data={data}
-      />
-    </>
+          {/* Quick Stats Section */}
+          <QuickStatsSection
+            isVisible={sectionsVisible[3]}
+            data={data}
+          />
+        </>
+      ),
+    [
+      data,
+      sectionsVisible[0],
+      sectionsVisible[1],
+      sectionsVisible[2],
+      sectionsVisible[3],
+      dailyActivityData,
+      focusAreasList,
+      achievementsList,
+    ]
   )
 
   if (isLoading) {

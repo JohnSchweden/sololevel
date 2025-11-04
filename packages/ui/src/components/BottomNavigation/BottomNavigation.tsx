@@ -1,4 +1,3 @@
-import { useRenderDiagnostics } from '@app/hooks'
 import { shadows } from '@my/config'
 import React, { useCallback, useMemo } from 'react'
 import { Platform } from 'react-native'
@@ -18,16 +17,6 @@ export { BottomNavigationContainer }
  */
 export const BottomNavigation = React.memo(
   function BottomNavigation({ activeTab, onTabChange, disabled = false }: BottomNavigationProps) {
-    // Diagnose prop changes causing re-renders
-    useRenderDiagnostics(
-      'BottomNavigation',
-      { activeTab, onTabChange, disabled },
-      {
-        logToConsole: __DEV__,
-        logOnlyChanges: true,
-      }
-    )
-
     // Note: Expo Router calls tabBarRenderer multiple times during navigation transitions.
     // This is expected behavior. React.memo with custom comparator prevents unnecessary
     // re-renders when props haven't changed.

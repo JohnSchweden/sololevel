@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Text, XStack, type XStackProps, YStack } from 'tamagui'
 
 export interface AchievementCardProps extends Omit<XStackProps, 'children'> {
@@ -52,23 +53,24 @@ export function AchievementCard({
   testID = 'achievement-card',
   ...props
 }: AchievementCardProps): React.ReactElement {
-  // Icon background colors based on achievement type
-  const iconColors = {
-    streak: {
-      backgroundColor: '$orange4' as const,
-      borderColor: '$orange6' as const,
-    },
-    technique: {
-      backgroundColor: '$blue4' as const,
-      borderColor: '$blue6' as const,
-    },
-    record: {
-      backgroundColor: '$green4' as const,
-      borderColor: '$green6' as const,
-    },
-  } as const
-
-  const colors = iconColors[type]
+  // Memoize icon colors based on achievement type to prevent recalculation
+  const colors = useMemo(() => {
+    const iconColors = {
+      streak: {
+        backgroundColor: '$orange4' as const,
+        borderColor: '$orange6' as const,
+      },
+      technique: {
+        backgroundColor: '$blue4' as const,
+        borderColor: '$blue6' as const,
+      },
+      record: {
+        backgroundColor: '$green4' as const,
+        borderColor: '$green6' as const,
+      },
+    } as const
+    return iconColors[type]
+  }, [type])
 
   return (
     <XStack

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Text, XStack, type XStackProps, YStack } from 'tamagui'
 
 export interface ActivityData {
@@ -40,10 +41,11 @@ export function ActivityChart({
   testID = 'activity-chart',
   ...props
 }: ActivityChartProps): React.ReactElement {
-  // Calculate bar heights (base 8px + 12px per session)
-  const getBarHeight = (sessions: number): number => {
-    return Math.max(8, sessions * 12 + 8)
-  }
+  // Memoize bar heights calculation to prevent recalculation on every render
+  const barHeights = useMemo(() => {
+    // Calculate bar heights (base 8px + 12px per session)
+    return data.map((day) => Math.max(8, day.sessions * 12 + 8))
+  }, [data])
 
   return (
     <XStack
@@ -54,7 +56,7 @@ export function ActivityChart({
       data-testid={testID}
       {...props}
     >
-      {data.map((day) => (
+      {data.map((day, index) => (
         <YStack
           key={day.day}
           alignItems="center"
@@ -64,7 +66,7 @@ export function ActivityChart({
           {/* Bar */}
           <YStack
             width={16}
-            height={getBarHeight(day.sessions)}
+            height={barHeights[index]}
             backgroundColor="$color6"
             borderRadius="$2"
             data-testid={`activity-bar-${day.day}`}

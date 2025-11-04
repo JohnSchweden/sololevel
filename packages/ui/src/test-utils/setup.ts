@@ -635,7 +635,7 @@ jest.mock('@my/config', () => ({
 
 // Mock Performance components and hooks
 jest.mock('@ui/components/Performance', () => ({
-  ProfilerWrapper: ({ children }: { children: any }) => children,
+  ProfilerWrapper: ({ children }: { children: React.ReactNode }) => children,
   useRenderCount: jest.fn(() => 0),
   subscribeToMetrics: jest.fn(),
   getMetrics: jest.fn(() => ({})),
@@ -643,33 +643,13 @@ jest.mock('@ui/components/Performance', () => ({
   clearAllMetrics: jest.fn(),
 }))
 
-// Mock BottomSheets components
-jest.mock('@ui/components/BottomSheets', () => {
-  const React = require('react')
-  const MockSheet = ({ children, open, onOpenChange, ...props }: any) =>
-    open ? React.createElement('div', { 'data-testid': 'bottom-sheet', ...props }, children) : null
-  return {
-    NotificationSheet: MockSheet,
-    RecordingSettingsSheet: MockSheet,
-    ShareSheet: MockSheet,
-    VideoSettingsSheet: MockSheet,
-  }
-})
-
 jest.mock('@ui/hooks/useAnimationCompletion', () => ({
   useAnimationCompletion: jest.fn(() => ({ isComplete: true, onComplete: jest.fn() })),
 }))
 
-// Only mock useFrameDropDetection hook, but preserve other exports for tests
-jest.mock('@ui/hooks/useFrameDropDetection', () => {
-  const actual = jest.requireActual<typeof import('@ui/hooks/useFrameDropDetection')>(
-    '@ui/hooks/useFrameDropDetection'
-  )
-  return {
-    ...(actual as Record<string, unknown>),
-    useFrameDropDetection: jest.fn(() => ({ frameDrops: 0, isDropping: false })),
-  }
-})
+jest.mock('@ui/hooks/useFrameDropDetection', () => ({
+  useFrameDropDetection: jest.fn(() => ({ frameDrops: 0, isDropping: false })),
+}))
 
 jest.mock('@ui/hooks/useRenderProfile', () => ({
   useRenderProfile: jest.fn(() => ({ renderCount: 0, averageRenderTime: 0 })),
@@ -678,6 +658,15 @@ jest.mock('@ui/hooks/useRenderProfile', () => ({
 jest.mock('@ui/hooks/useSmoothnessTracking', () => ({
   useSmoothnessTracking: jest.fn(() => ({ smoothness: 1, isSmooth: true })),
 }))
+
+// Mock @app/hooks for UI component tests
+jest.mock('@app/hooks', () => {
+  const actual = jest.requireActual<typeof import('@app/hooks')>('@app/hooks')
+  return {
+    ...(actual as Record<string, unknown>),
+    useRenderDiagnostics: jest.fn(),
+  }
+})
 
 // Global test configuration
 beforeEach(() => {

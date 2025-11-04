@@ -58,6 +58,10 @@ export default function TabsLayout() {
   // Stable navigation ref to avoid recreating callbacks
   const navigationRef = useRef<any>(null)
 
+  // Stable activeTab ref for tabBarRenderer - prevents callback recreation on tab changes
+  const activeTabRef = useRef(activeTab)
+  activeTabRef.current = activeTab
+
   // Memoize tab change handler - use ref to avoid dependency on setActiveTab prop
   // This makes the callback stable forever, preventing BottomNavigation re-renders
   const handleTabChangeStable = useCallback(
@@ -73,22 +77,23 @@ export default function TabsLayout() {
   )
 
   // TabBar renderer - Expo Router calls this function multiple times during navigation
-  // Accept this behavior: return component tree directly with stable props
-  // The BottomNavigation component itself handles memoization internally
+  // Use ref for activeTab to prevent callback recreation - BottomNavigation's React.memo
+  // will still receive the correct activeTab value via props, but the renderer callback
+  // itself stays stable, eliminating cascading re-renders
   const tabBarRenderer = useCallback(
     (props: any) => {
       navigationRef.current = props.navigation
       return (
         <BottomNavigationContainer>
           <BottomNavigation
-            activeTab={activeTab}
+            activeTab={activeTabRef.current}
             disabled={false}
             onTabChange={handleTabChangeStable}
           />
         </BottomNavigationContainer>
       )
     },
-    [activeTab, handleTabChangeStable]
+    [handleTabChangeStable] // Only depends on stable callback - activeTab removed
   )
 
   // Stable objects for screen options - extract inline objects to prevent recreation

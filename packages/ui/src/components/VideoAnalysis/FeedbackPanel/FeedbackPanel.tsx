@@ -3,8 +3,12 @@ import {
   AlertCircle,
   CheckCircle,
   ChevronDown,
+  Hand,
   Heart,
   MessageSquare,
+  Mic2,
+  Move,
+  PersonStanding,
   Send,
   User,
 } from '@tamagui/lucide-icons'
@@ -459,6 +463,26 @@ export const FeedbackPanel = memo(
       }
     }, [])
 
+    // Get feedback category icon
+    const getFeedbackCategoryIcon = useCallback((category: FeedbackItem['category']) => {
+      // Handle case-insensitive matching for backend categories (Posture, Movement, Speech) and UI categories (posture, movement, voice)
+      const normalizedCategory = category.toLowerCase()
+      switch (normalizedCategory) {
+        case 'posture':
+          return PersonStanding
+        case 'movement':
+          return Move
+        case 'grip':
+          return Hand
+        case 'voice':
+        case 'speech':
+        case 'vocal variety':
+          return Mic2
+        default:
+          return null
+      }
+    }, [])
+
     // Handle comment submission
     const handleCommentSubmit = useCallback(() => {
       if (commentInput.trim() && onCommentSubmit) {
@@ -589,6 +613,7 @@ export const FeedbackPanel = memo(
         const isHighlighted = selectedFeedbackId === item.id
         const accessibilityLabel = `${formatTime(item.timestamp)}, ${item.text}, feedback item`
         const TypeIcon = getFeedbackTypeIcon(item.type)
+        const CategoryIcon = getFeedbackCategoryIcon(item.category)
 
         return (
           <ProfilerWrapper
@@ -619,10 +644,17 @@ export const FeedbackPanel = memo(
                   testID={`feedback-item-${index + 1}-icon`}
                   accessibilityLabel={`${item.type} feedback`}
                 >
-                  <TypeIcon
-                    size={18}
-                    color={isHighlighted ? '$yellow11' : '$color11'}
-                  />
+                  {CategoryIcon !== null ? (
+                    <CategoryIcon
+                      size={22}
+                      color={isHighlighted ? '$yellow11' : '$color11'}
+                    />
+                  ) : (
+                    <TypeIcon
+                      size={18}
+                      color={isHighlighted ? '$yellow11' : '$color11'}
+                    />
+                  )}
                 </Circle>
 
                 {/* Feedback content */}
@@ -698,6 +730,7 @@ export const FeedbackPanel = memo(
       [
         formatTime,
         getFeedbackTypeIcon,
+        getFeedbackCategoryIcon,
         onDismissError,
         onFeedbackItemPress,
         onRetryFeedback,

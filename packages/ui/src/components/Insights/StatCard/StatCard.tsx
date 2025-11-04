@@ -1,5 +1,6 @@
 import { TrendingDown, TrendingUp } from '@tamagui/lucide-icons'
 import type { ReactNode } from 'react'
+import { useMemo } from 'react'
 import { Text, XStack, YStack } from 'tamagui'
 
 export interface StatCardProps {
@@ -67,8 +68,11 @@ export function StatCard({
   variant = 'center',
   testID = 'stat-card',
 }: StatCardProps): React.ReactElement {
-  // Render trend icon based on trend prop
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null
+  // Memoize trend icon to prevent recalculation on every render
+  const TrendIcon = useMemo(
+    () => (trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null),
+    [trend]
+  )
 
   return (
     <YStack

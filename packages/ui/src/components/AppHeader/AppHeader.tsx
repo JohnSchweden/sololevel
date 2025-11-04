@@ -40,12 +40,16 @@ export function AppHeader({
   // Video settings sheet state
   const [videoSettingsSheetOpen, setVideoSettingsSheetOpen] = useState(false)
 
-  // Derive state from mode
-  const isRecording = mode === 'recording' || cameraProps?.isRecording
-  const isAnalysis = mode === 'analysis'
-  const isVideoSettings = mode === 'videoSettings'
+  // Derive state from mode - memoize to prevent recalculation on every render
+  const isRecording = useMemo(
+    () => mode === 'recording' || cameraProps?.isRecording,
+    [mode, cameraProps?.isRecording]
+  )
+  const isAnalysis = useMemo(() => mode === 'analysis', [mode])
+  const isVideoSettings = useMemo(() => mode === 'videoSettings', [mode])
 
-  const computedLeftAction = (() => {
+  // Memoize computed actions to prevent recalculation when dependencies haven't changed
+  const computedLeftAction = useMemo(() => {
     if (leftAction !== 'auto') {
       return leftAction
     }
@@ -59,9 +63,9 @@ export function AppHeader({
     }
 
     return 'sidesheet'
-  })()
+  }, [leftAction, leftSlot, isRecording, isAnalysis, isVideoSettings])
 
-  const computedRightAction = (() => {
+  const computedRightAction = useMemo(() => {
     if (rightAction !== 'auto') {
       return rightAction
     }
@@ -83,13 +87,14 @@ export function AppHeader({
     }
 
     return 'none'
-  })()
+  }, [rightAction, rightSlot, isVideoSettings, isAnalysis, mode])
 
   type IconColor = ComponentProps<typeof Bell>['color']
   type TextColor = ComponentProps<typeof Text>['color']
 
-  const foreground = '$color' as TextColor
-  const iconColor = '$color' as IconColor
+  // Memoize color constants (never change, but prevents re-creation)
+  const foreground = useMemo(() => '$color' as TextColor, [])
+  const iconColor = useMemo(() => '$color' as IconColor, [])
 
   // Memoize shared Button style objects to prevent re-renders
   const buttonHoverStyle = useMemo(

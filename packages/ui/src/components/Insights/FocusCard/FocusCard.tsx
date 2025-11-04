@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Text, XStack, YStack, type YStackProps } from 'tamagui'
 import { Badge } from '../Badge'
 import { Progress } from '../Progress'
@@ -47,9 +48,11 @@ export function FocusCard({
   testID = 'focus-card',
   ...props
 }: FocusCardProps): React.ReactElement {
-  // Map priority to badge variant
-  const badgeVariant =
-    priority === 'high' ? 'primary' : priority === 'medium' ? 'secondary' : 'destructive'
+  // Memoize badge variant calculation to prevent recalculation on every render
+  const badgeVariant = useMemo(
+    () => (priority === 'high' ? 'primary' : priority === 'medium' ? 'secondary' : 'destructive'),
+    [priority]
+  )
 
   return (
     <YStack
