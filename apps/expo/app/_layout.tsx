@@ -4,6 +4,7 @@ import React, { useEffect } from 'react'
 if (typeof global !== 'undefined') {
   global.React = React
 }
+
 import { NavigationAppHeader } from '@app/components/navigation'
 import { Provider } from '@app/provider'
 import { JosefinSans_400Regular, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans'

@@ -41,7 +41,7 @@ export const SuggestionChip = ({
       disabled={disabled}
       padding="$3"
       paddingHorizontal="$4"
-      backgroundColor="rgba(255,255,255,0.1)"
+      backgroundColor="rgba(255,255,255,0.05)"
       borderWidth={0}
       borderColor="rgba(255,255,255,0.2)"
       borderRadius="$5"
@@ -51,6 +51,7 @@ export const SuggestionChip = ({
         scale: 1.05,
       }}
       pressStyle={{
+        backgroundColor: 'rgba(255,255,255,0.05)',
         scale: 0.95,
       }}
       disabledStyle={{

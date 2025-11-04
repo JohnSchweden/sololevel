@@ -189,14 +189,19 @@ describe('VideoAnalysisScreen', () => {
       onFeedbackScrollY: jest.fn(),
       onFeedbackMomentumScrollEnd: jest.fn(),
     },
-    contextValue: {
-      videoUri: 'https://example.com/video.mp4',
-      feedbackItems: [],
-      isPullingToReveal: false,
-    },
+    // Context removed - videoUri is passed directly as prop
     refs: {
       videoControlsRef: { current: null },
       rootPanRef: { current: null },
+    },
+    audioOverlay: {
+      shouldShow: false,
+      activeAudio: null,
+    },
+    bubbleState: {
+      visible: false,
+      currentIndex: null,
+      items: [],
     },
   }
 
@@ -289,6 +294,14 @@ describe('VideoAnalysisScreen', () => {
             onAudioOverlayInteraction: initialCallbacks.onInteraction,
           },
         },
+        audioOverlay: {
+          shouldShow: true,
+          activeAudio,
+          onClose: initialCallbacks.onClose,
+          onInactivity: initialCallbacks.onInactivity,
+          onInteraction: initialCallbacks.onInteraction,
+          audioDuration: 0,
+        },
       },
     }
 
@@ -320,6 +333,14 @@ describe('VideoAnalysisScreen', () => {
           onAudioOverlayInteraction: updatedCallbacks.onInteraction,
         },
       },
+      audioOverlay: {
+        shouldShow: true,
+        activeAudio,
+        onClose: updatedCallbacks.onClose,
+        onInactivity: updatedCallbacks.onInactivity,
+        onInteraction: updatedCallbacks.onInteraction,
+        audioDuration: 0,
+      },
     }
 
     expect(orchestratorState.current.feedback.coordinator.onAudioOverlayClose).toBe(
@@ -344,5 +365,159 @@ describe('VideoAnalysisScreen', () => {
     expect(updatedCall?.audioOverlay.onClose).toBe(updatedCallbacks.onClose)
     expect(updatedCall?.audioOverlay.onInactivity).toBe(updatedCallbacks.onInactivity)
     expect(updatedCall?.audioOverlay.onInteraction).toBe(updatedCallbacks.onInteraction)
+  })
+
+  // Arrange-Act-Assert
+  test('feedbackItemsArray maintains reference stability when content unchanged', () => {
+    // Arrange
+    const mockFeedbackItems = [
+      {
+        id: '1',
+        timestamp: 1000,
+        text: 'Test',
+        type: 'positive' as const,
+        category: 'movement' as const,
+        confidence: 0.9,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+      {
+        id: '2',
+        timestamp: 2000,
+        text: 'Test 2',
+        type: 'suggestion' as const,
+        category: 'posture' as const,
+        confidence: 0.8,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    const orchestratorState: { current: UseVideoAnalysisOrchestratorReturn } = {
+      current: {
+        ...mockOrchestratorReturn,
+        feedback: {
+          ...mockOrchestratorReturn.feedback,
+          items: mockFeedbackItems, // Set items initially
+          itemsState: {
+            items: mockFeedbackItems,
+            selectedFeedbackId: null,
+          },
+        },
+      },
+    }
+
+    const { useVideoAnalysisOrchestrator } = require('./hooks/useVideoAnalysisOrchestrator')
+    useVideoAnalysisOrchestrator.mockImplementation(() => orchestratorState.current)
+
+    const props = {
+      videoUri: 'https://example.com/video.mp4',
+    }
+
+    // Act
+    const { rerender } = render(<VideoAnalysisScreen {...props} />)
+
+    const firstRender = layoutRenderHistory.at(-1)
+    const firstFeedbackItems = firstRender?.feedback?.items
+
+    // Second render - use same array reference to test reference stability
+    // (Real orchestrator would maintain same reference when content unchanged)
+    orchestratorState.current = {
+      ...orchestratorState.current,
+      feedback: {
+        ...orchestratorState.current.feedback,
+        items: mockFeedbackItems, // Same array reference
+        itemsState: {
+          items: mockFeedbackItems, // Same array reference
+          selectedFeedbackId: null,
+        },
+      },
+    }
+
+    rerender(<VideoAnalysisScreen {...props} />)
+
+    // Assert
+    // feedback.items should maintain same reference when array reference is unchanged
+    const secondRender = layoutRenderHistory.at(-1)
+    expect(secondRender?.feedback?.items).toBe(firstFeedbackItems)
+    expect(secondRender?.feedback?.items).toHaveLength(2)
+  })
+
+  // Arrange-Act-Assert
+  test('feedbackItemsArray creates new reference when content changes', () => {
+    // Arrange
+    const mockFeedbackItems1 = [
+      {
+        id: '1',
+        timestamp: 1000,
+        text: 'Test',
+        type: 'positive' as const,
+        category: 'movement' as const,
+        confidence: 0.9,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    const orchestratorState: { current: UseVideoAnalysisOrchestratorReturn } = {
+      current: {
+        ...mockOrchestratorReturn,
+        feedback: {
+          ...mockOrchestratorReturn.feedback,
+          itemsState: {
+            items: mockFeedbackItems1,
+            selectedFeedbackId: null,
+          },
+        },
+      },
+    }
+
+    const { useVideoAnalysisOrchestrator } = require('./hooks/useVideoAnalysisOrchestrator')
+    useVideoAnalysisOrchestrator.mockImplementation(() => orchestratorState.current)
+
+    const props = {
+      videoUri: 'https://example.com/video.mp4',
+    }
+
+    // Act
+    const { rerender } = render(<VideoAnalysisScreen {...props} />)
+
+    const firstRender = layoutRenderHistory.at(-1)
+    const firstFeedbackItems = firstRender?.feedback?.items
+
+    // Second render - different content
+    const mockFeedbackItems2 = [
+      ...mockFeedbackItems1,
+      {
+        id: '2',
+        timestamp: 2000,
+        text: 'Test 2',
+        type: 'suggestion' as const,
+        category: 'posture' as const,
+        confidence: 0.8,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    orchestratorState.current = {
+      ...orchestratorState.current,
+      feedback: {
+        ...orchestratorState.current.feedback,
+        items: mockFeedbackItems2, // Different content
+        itemsState: {
+          items: mockFeedbackItems2,
+          selectedFeedbackId: null,
+        },
+      },
+    }
+
+    rerender(<VideoAnalysisScreen {...props} />)
+
+    // Assert
+    // feedback.items should create new reference when content changes
+    const secondRender = layoutRenderHistory.at(-1)
+    expect(secondRender?.feedback?.items).not.toBe(firstFeedbackItems)
+    expect(secondRender?.feedback?.items).toHaveLength(2)
   })
 })

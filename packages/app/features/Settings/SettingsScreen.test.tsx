@@ -5,14 +5,25 @@ import type { SettingsNavItem } from '@my/ui'
 import { SettingsScreen } from './SettingsScreen'
 
 // Mock dependencies
+const mockAuthState = {
+  user: null,
+  session: null,
+  loading: false,
+  signOut: jest.fn(),
+}
+
 jest.mock('../../stores/auth', () => ({
-  useAuthStore: jest.fn(() => ({
-    user: null,
-    session: null,
-    loading: false,
-    signOut: jest.fn(),
-  })),
+  useAuthStore: jest.fn((selector?: (state: typeof mockAuthState) => unknown) => {
+    if (selector) {
+      return selector(mockAuthState)
+    }
+    return mockAuthState
+  }),
 }))
+
+// Export mock state for tests to update
+// biome-ignore lint/suspicious/noExportsInTest: Required for dynamic test state updates
+export { mockAuthState }
 
 // Test navigation items
 const TEST_NAVIGATION_ITEMS: SettingsNavItem[] = [
@@ -32,9 +43,14 @@ const renderWithProvider = (ui: React.ReactElement) => {
 describe('SettingsScreen', () => {
   // Arrange-Act-Assert pattern
   describe('Component Rendering', () => {
+    beforeEach(() => {
+      // Reset mock before each test
+      jest.clearAllMocks()
+    })
+
     it('renders all main sections', () => {
       // Arrange: Mock user data
-      const { useAuthStore } = require('../../stores/auth')
+      const { mockAuthState } = require('./SettingsScreen.test')
       const mockUser: Partial<User> = {
         id: '123',
         email: 'test@example.com',
@@ -44,11 +60,11 @@ describe('SettingsScreen', () => {
         },
       }
 
-      useAuthStore.mockReturnValue({
-        user: mockUser,
-        loading: false,
-        signOut: jest.fn(),
-      })
+      // Update mock state
+      mockAuthState.user = mockUser
+      mockAuthState.loading = false
+      mockAuthState.session = null
+      mockAuthState.signOut = jest.fn()
 
       // Act: Render screen
       renderWithProvider(
@@ -67,12 +83,11 @@ describe('SettingsScreen', () => {
 
     it('shows loading skeleton when user data loading', () => {
       // Arrange: Loading state
-      const { useAuthStore } = require('../../stores/auth')
-      useAuthStore.mockReturnValue({
-        user: null,
-        loading: true,
-        signOut: jest.fn(),
-      })
+      const { mockAuthState } = require('./SettingsScreen.test')
+      mockAuthState.user = null
+      mockAuthState.loading = true
+      mockAuthState.session = null
+      mockAuthState.signOut = jest.fn()
 
       // Act: Render loading
       renderWithProvider(
@@ -88,16 +103,15 @@ describe('SettingsScreen', () => {
 
     it('renders navigation items for all settings categories', () => {
       // Arrange: User logged in
-      const { useAuthStore } = require('../../stores/auth')
-      useAuthStore.mockReturnValue({
-        user: {
-          id: '123',
-          email: 'test@example.com',
-          user_metadata: { full_name: 'Test User' },
-        },
-        loading: false,
-        signOut: jest.fn(),
-      })
+      const { mockAuthState } = require('./SettingsScreen.test')
+      mockAuthState.user = {
+        id: '123',
+        email: 'test@example.com',
+        user_metadata: { full_name: 'Test User' },
+      } as Partial<User>
+      mockAuthState.loading = false
+      mockAuthState.session = null
+      mockAuthState.signOut = jest.fn()
 
       // Act: Render screen
       renderWithProvider(

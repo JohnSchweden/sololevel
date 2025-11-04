@@ -1,5 +1,4 @@
 import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
-import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { BlurView } from 'expo-blur'
@@ -11,6 +10,8 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated'
+
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
@@ -64,14 +65,6 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
     animationName: `bubble-scale-${message.id}`,
   })
 
-  // Track frame drops during animations
-  void useFrameDropDetection({
-    isActive: message.isActive || message.isHighlighted,
-    componentName: 'FeedbackBubbles',
-    animationName: `bubble-${message.id}`,
-    logOnly: true,
-  })
-
   // Reanimated style for opacity and scale (replaces Tamagui animation)
   const animatedStyle = useAnimatedStyle(() => {
     const targetOpacity = message.isActive ? 1 : 0.7
@@ -98,7 +91,7 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
       style={[
         {
           position: 'relative',
-          borderRadius: 24,
+          borderRadius: 14,
           borderColor: 'rgba(255, 255, 255, 0.3)',
           borderWidth: 1,
           maxWidth: 280,
@@ -150,7 +143,6 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
  */
 export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
   // Performance tracking: Render profile
-  const hasActiveMessages = messages.some((msg) => msg.isActive || msg.isHighlighted)
   useRenderProfile({
     componentName: 'FeedbackBubbles',
     enabled: __DEV__,
@@ -160,14 +152,6 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
       activeCount: messages.filter((m) => m.isActive).length,
       highlightedCount: messages.filter((m) => m.isHighlighted).length,
     },
-  })
-
-  // Track frame drops for container animations
-  void useFrameDropDetection({
-    isActive: hasActiveMessages,
-    componentName: 'FeedbackBubbles',
-    animationName: 'container',
-    logOnly: true,
   })
 
   // Filter messages to show (limit to prevent overcrowding)
@@ -191,40 +175,45 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
   }
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(200)}
-      exiting={FadeOut.duration(200)}
-      style={{
-        position: 'absolute',
-        bottom: 120,
-        left: 20,
-        right: 20,
-        zIndex: 0,
-        pointerEvents: 'box-none',
-      }}
-      testID="feedback-bubbles"
+    <ProfilerWrapper
+      id="FeedbackBubbles"
+      logToConsole={__DEV__}
     >
-      <YStack
-        flexDirection="row"
-        flexWrap="wrap"
-        justifyContent="center"
-        gap="$2"
-        pointerEvents="auto"
+      <Animated.View
+        entering={FadeIn.duration(200)}
+        exiting={FadeOut.duration(200)}
+        style={{
+          position: 'absolute',
+          bottom: 120,
+          left: 20,
+          right: 20,
+          zIndex: 0,
+          pointerEvents: 'box-none',
+        }}
+        testID="feedback-bubbles"
       >
-        {visibleMessages.map((message) => (
-          <Animated.View
-            key={message.id}
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(200)}
-            style={{
-              zIndex: message.isHighlighted ? 10 : 5,
-            }}
-            testID={`bubble-position-${message.id}`}
-          >
-            <SpeechBubble message={message} />
-          </Animated.View>
-        ))}
-      </YStack>
-    </Animated.View>
+        <YStack
+          flexDirection="row"
+          flexWrap="wrap"
+          justifyContent="center"
+          gap="$2"
+          pointerEvents="auto"
+        >
+          {visibleMessages.map((message) => (
+            <Animated.View
+              key={message.id}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={{
+                zIndex: message.isHighlighted ? 10 : 5,
+              }}
+              testID={`bubble-position-${message.id}`}
+            >
+              <SpeechBubble message={message} />
+            </Animated.View>
+          ))}
+        </YStack>
+      </Animated.View>
+    </ProfilerWrapper>
   )
 })

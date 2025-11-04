@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 export interface ConfirmDialogState {
   /**
@@ -57,15 +57,15 @@ export function useConfirmDialog(onConfirm: () => void | Promise<void>): Confirm
   const [isVisible, setIsVisible] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const show = (): void => {
+  const show = useCallback((): void => {
     setIsVisible(true)
-  }
+  }, [])
 
-  const hide = (): void => {
+  const hide = useCallback((): void => {
     setIsVisible(false)
-  }
+  }, [])
 
-  const confirm = async (): Promise<void> => {
+  const confirm = useCallback(async (): Promise<void> => {
     setIsProcessing(true)
     try {
       await onConfirm()
@@ -73,13 +73,16 @@ export function useConfirmDialog(onConfirm: () => void | Promise<void>): Confirm
       setIsProcessing(false)
       setIsVisible(false)
     }
-  }
+  }, [onConfirm])
 
-  return {
-    isVisible,
-    show,
-    hide,
-    confirm,
-    isProcessing,
-  }
+  return useMemo(
+    () => ({
+      isVisible,
+      show,
+      hide,
+      confirm,
+      isProcessing,
+    }),
+    [isVisible, show, hide, confirm, isProcessing]
+  )
 }

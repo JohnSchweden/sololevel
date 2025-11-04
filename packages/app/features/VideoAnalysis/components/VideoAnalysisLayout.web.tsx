@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
+
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { YStack } from 'tamagui'
 
 import { type PersistentProgressBarProps, ProgressBar } from '@ui/components/VideoAnalysis'
 
-import { VideoAnalysisProvider } from '../contexts/VideoAnalysisContext'
 import { FeedbackSection } from './FeedbackSection'
 import { UploadErrorState } from './UploadErrorState'
 import type { VideoAnalysisLayoutProps } from './VideoAnalysisLayout.native'
@@ -40,7 +41,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     audioOverlay,
     coachSpeaking,
     socialCounts,
-    contextValue,
+    videoUri,
     gesture,
     animation,
   } = props
@@ -63,7 +64,10 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
   }, [controls])
 
   return (
-    <VideoAnalysisProvider value={contextValue}>
+    <ProfilerWrapper
+      id="VideoAnalysisLayout"
+      logToConsole={__DEV__}
+    >
       <YStack
         flex={1}
         testID="video-analysis-screen"
@@ -81,6 +85,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           >
             {/* Video player section */}
             <VideoPlayerSection
+              videoUri={videoUri}
               videoControlsRef={videoControlsRef}
               pendingSeek={playback.pendingSeek}
               userIsPlaying={playback.isPlaying}
@@ -171,6 +176,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           </YStack>
         )}
       </YStack>
-    </VideoAnalysisProvider>
+    </ProfilerWrapper>
   )
 }

@@ -295,8 +295,27 @@ export function usePrefetchNextVideos(
 
   // Use refs to access latest state without triggering effect re-runs
   const stateRef = React.useRef(state)
+  const prevStateRef = React.useRef({ prefetching: 0, prefetched: 0, failed: 0 })
+
+  // Log prefetch state changes only when values actually change (debounced internally)
   React.useEffect(() => {
     stateRef.current = state
+
+    // Only log if counts actually changed (not just reference)
+    const currentCounts = {
+      prefetching: state.prefetching.length,
+      prefetched: state.prefetched.length,
+      failed: state.failed.length,
+    }
+
+    if (
+      prevStateRef.current.prefetching !== currentCounts.prefetching ||
+      prevStateRef.current.prefetched !== currentCounts.prefetched ||
+      prevStateRef.current.failed !== currentCounts.failed
+    ) {
+      log.debug('usePrefetchNextVideos', 'Prefetch state changed', currentCounts)
+      prevStateRef.current = currentCounts
+    }
   }, [state])
 
   /**

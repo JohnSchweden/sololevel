@@ -1,5 +1,8 @@
 import { log } from '@my/logging'
 import { Pause, Play, Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
+import { RecordingSettingsSheet } from '@ui/components/BottomSheets'
+import { ProfilerWrapper } from '@ui/components/Performance'
+import { memo, useState } from 'react'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -33,7 +36,7 @@ export interface RecordingControlsProps {
  * Pause/Stop controls, zoom levels, camera settings, and swap
  * Implements US-RU-06b: Recording states — Recording/Paused controls
  */
-export function RecordingControls({
+export const RecordingControls = memo(function RecordingControls({
   recordingState,
   //duration,
   zoomLevel,
@@ -48,6 +51,7 @@ export function RecordingControls({
   onSettingsOpen,
   disabled = false,
 }: RecordingControlsProps) {
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false)
   // const formatTime = (milliseconds: number): string => {
   //   if (formattedDuration) return formattedDuration
 
@@ -69,12 +73,16 @@ export function RecordingControls({
   //const isRecording = recordingState === RecordingState.RECORDING
 
   return (
-    <YStack
-      alignItems="center"
-      gap="$4"
+    <ProfilerWrapper
+      id="RecordingControls"
+      logToConsole={__DEV__}
     >
-      {/* Recording Timer */}
-      {/* <YStack
+      <YStack
+        alignItems="center"
+        gap="$4"
+      >
+        {/* Recording Timer */}
+        {/* <YStack
         backgroundColor="rgba(0,0,0,0.6)"
         paddingHorizontal="$4"
         paddingVertical="$2"
@@ -93,117 +101,126 @@ export function RecordingControls({
         </Text>
       </YStack> */}
 
-      {/* Primary Control Row - Pause/Resume and Stop */}
-      <XStack
-        alignItems="center"
-        justifyContent="center"
-        gap="$6"
-        paddingHorizontal="$4"
-      >
-        {/* Pause/Resume Button - Left side */}
-        <GlassButton
-          onPress={handlePauseResume}
-          disabled={disabled}
-          backgroundColor="transparent"
-          minHeight={60}
-          minWidth={60}
-          icon={
-            isPaused ? (
-              <Play
-                size="$2"
-                color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
-                fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
-              />
-            ) : (
-              <Pause
-                size="$2"
-                color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
-                fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
-              />
-            )
-          }
-          accessibilityLabel={isPaused ? 'Resume recording' : 'Pause recording'}
-          accessibilityHint={
-            isPaused ? 'Resume the current recording' : 'Pause the current recording'
-          }
-        />
-
-        {/* Stop Button */}
-        <GlassButton
-          onPress={onStop}
-          disabled={disabled || !canStop}
-          backgroundColor="transparent"
-          minHeight={60}
-          minWidth={60}
-          icon={
-            <Square
-              size="$2"
-              color={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
-              fill={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
-            />
-          }
-          accessibilityLabel="Stop recording"
-          accessibilityHint="Stop the current recording"
-        />
-      </XStack>
-
-      {/* Secondary Control Row - Settings, Zoom, Camera Swap */}
-      <XStack
-        alignItems="center"
-        justifyContent="center"
-        gap="$4"
-        paddingHorizontal="$4"
-      >
-        {/* Camera Settings Button */}
-        <GlassButton
-          onPress={onSettingsOpen}
-          disabled={disabled}
-          icon={
-            <Settings
-              size="$1"
-              color="white"
-            />
-          }
-          minHeight={44}
-          minWidth={44}
-          accessibilityLabel="Camera settings"
-        />
-
-        {/* Zoom Controls */}
-        <ZoomControls
-          currentZoom={zoomLevel}
-          onZoomChange={onZoomChange}
-          disabled={disabled}
-        />
-
-        {/* Camera Swap Button */}
-        <GlassButton
-          onPress={async () => {
-            try {
-              await onCameraSwap?.()
-            } catch (error) {
-              // Error is handled in the camera logic, just log for debugging
-              log.warn('RecordingControls', 'Camera swap failed', {
-                error: error instanceof Error ? error.message : String(error),
-              })
+        {/* Primary Control Row - Pause/Resume and Stop */}
+        <XStack
+          alignItems="center"
+          justifyContent="center"
+          gap="$6"
+          paddingHorizontal="$4"
+        >
+          {/* Pause/Resume Button - Left side */}
+          <GlassButton
+            onPress={handlePauseResume}
+            disabled={disabled}
+            backgroundColor="transparent"
+            minHeight={60}
+            minWidth={60}
+            icon={
+              isPaused ? (
+                <Play
+                  size="$2"
+                  color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                  fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                />
+              ) : (
+                <Pause
+                  size="$2"
+                  color={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                  fill={disabled ? 'rgba(255,255,255,0.5)' : 'white'}
+                />
+              )
             }
-          }}
-          disabled={disabled || !canSwapCamera}
-          icon={
-            <SwitchCamera
-              size="$1"
-              color="white"
-            />
-          }
-          minHeight={44}
-          minWidth={44}
-          opacity={!canSwapCamera ? 0.5 : 1}
-          accessibilityLabel="Switch camera"
-        />
-      </XStack>
-    </YStack>
+            accessibilityLabel={isPaused ? 'Resume recording' : 'Pause recording'}
+            accessibilityHint={
+              isPaused ? 'Resume the current recording' : 'Pause the current recording'
+            }
+          />
+
+          {/* Stop Button */}
+          <GlassButton
+            onPress={onStop}
+            disabled={disabled || !canStop}
+            backgroundColor="transparent"
+            minHeight={60}
+            minWidth={60}
+            icon={
+              <Square
+                size="$2"
+                color={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
+                fill={!canStop ? 'rgba(255,255,255,0.5)' : 'red'}
+              />
+            }
+            accessibilityLabel="Stop recording"
+            accessibilityHint="Stop the current recording"
+          />
+        </XStack>
+
+        {/* Secondary Control Row - Settings, Zoom, Camera Swap */}
+        <XStack
+          alignItems="center"
+          justifyContent="center"
+          gap="$4"
+          paddingHorizontal="$4"
+        >
+          {/* Camera Settings Button */}
+          <GlassButton
+            onPress={() => {
+              setSettingsSheetOpen(true)
+              onSettingsOpen?.()
+            }}
+            disabled={disabled}
+            icon={
+              <Settings
+                size="$1"
+                color="white"
+              />
+            }
+            minHeight={44}
+            minWidth={44}
+            accessibilityLabel="Camera settings"
+          />
+
+          {/* Zoom Controls */}
+          <ZoomControls
+            currentZoom={zoomLevel}
+            onZoomChange={onZoomChange}
+            disabled={disabled}
+          />
+
+          {/* Camera Swap Button */}
+          <GlassButton
+            onPress={async () => {
+              try {
+                await onCameraSwap?.()
+              } catch (error) {
+                // Error is handled in the camera logic, just log for debugging
+                log.warn('RecordingControls', 'Camera swap failed', {
+                  error: error instanceof Error ? error.message : String(error),
+                })
+              }
+            }}
+            disabled={disabled || !canSwapCamera}
+            icon={
+              <SwitchCamera
+                size="$1"
+                color="white"
+              />
+            }
+            minHeight={44}
+            minWidth={44}
+            opacity={!canSwapCamera ? 0.5 : 1}
+            accessibilityLabel="Switch camera"
+          />
+        </XStack>
+      </YStack>
+
+      <RecordingSettingsSheet
+        open={settingsSheetOpen}
+        onOpenChange={setSettingsSheetOpen}
+      />
+    </ProfilerWrapper>
   )
-}
+})
 
 export interface ZoomControlsProps {
   currentZoom: 1 | 2 | 3

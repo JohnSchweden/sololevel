@@ -89,6 +89,11 @@ export function useRecordingStateMachine(
 
   const timerRef = useRef<NodeJS.Timeout | number | null>(null)
 
+  // Use ref for duration to prevent callback recreation during recording
+  // Callbacks only need to read current duration, not recreate when it changes
+  const durationRef = useRef(duration)
+  durationRef.current = duration // Update ref synchronously on every render
+
   // Clear timers on unmount
   useEffect(() => {
     return () => {
@@ -181,7 +186,8 @@ export function useRecordingStateMachine(
       // Pause camera recording
       await cameraControls?.pauseRecording()
 
-      let finalDuration = duration
+      // Calculate final duration from startTime (more accurate than reading duration state)
+      let finalDuration = durationRef.current
       if (startTime) {
         const currentTime = Date.now()
         finalDuration = currentTime - startTime + pausedDuration
@@ -200,7 +206,7 @@ export function useRecordingStateMachine(
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Failed to pause recording')
     }
-  }, [recordingState, cameraControls, startTime, pausedDuration, duration, onStateChange, onError])
+  }, [recordingState, cameraControls, startTime, pausedDuration, onStateChange, onError])
 
   // Resume recording
   // Stop recording
@@ -215,7 +221,8 @@ export function useRecordingStateMachine(
       await cameraControls?.stopRecording()
 
       // Finalize duration if we were actively recording
-      let finalDuration = duration
+      // Use ref to read current duration without dependency
+      let finalDuration = durationRef.current
       if (recordingState === RecordingState.RECORDING && startTime) {
         const currentTime = Date.now()
         finalDuration = Math.min(currentTime - startTime + pausedDuration, maxDurationMs)
@@ -240,7 +247,6 @@ export function useRecordingStateMachine(
     cameraControls,
     startTime,
     pausedDuration,
-    duration,
     maxDurationMs,
     onStateChange,
     onError,
@@ -252,8 +258,8 @@ export function useRecordingStateMachine(
       return
     }
 
-    // Check if we would exceed max duration
-    if (duration >= maxDurationMs) {
+    // Check if we would exceed max duration (use ref to read current value)
+    if (durationRef.current >= maxDurationMs) {
       showAlert(
         'Maximum Duration Reached',
         'This recording has reached the 60-second limit and cannot be resumed.'
@@ -270,11 +276,12 @@ export function useRecordingStateMachine(
       // Keep pausedDuration as is - it will be used in timer calculations
       setRecordingState(RecordingState.RECORDING)
 
-      onStateChange?.(RecordingState.RECORDING, duration)
+      // Use ref to read current duration without dependency
+      onStateChange?.(RecordingState.RECORDING, durationRef.current)
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Failed to resume recording')
     }
-  }, [recordingState, cameraControls, duration, maxDurationMs, onStateChange, onError])
+  }, [recordingState, cameraControls, maxDurationMs, onStateChange, onError])
 
   // Reset to idle state
   const resetRecording = useCallback(() => {

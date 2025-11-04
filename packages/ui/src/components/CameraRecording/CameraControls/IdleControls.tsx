@@ -1,6 +1,7 @@
 import { shadows } from '@my/config'
 import { log } from '@my/logging'
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import React, { useCallback, useState } from 'react'
 // Use React Native Pressable with platform detection
 import { Pressable } from 'react-native'
@@ -81,99 +82,104 @@ export function IdleControls({
   const VideoPickerComponent = VideoFilePicker
 
   return (
-    <YStack
-      alignItems="center"
-      gap="$4"
-      testID={testID}
-      elevation={1}
+    <ProfilerWrapper
+      id="IdleControls"
+      logToConsole={__DEV__}
     >
-      {/* Main Control Row */}
-      <XStack
+      <YStack
         alignItems="center"
-        justifyContent="center"
-        gap="$6"
-        paddingHorizontal="$3"
+        gap="$4"
+        testID={testID}
+        elevation={1}
       >
-        {/* Upload Video Button */}
-        <GlassButton
-          onPress={handleUploadVideo}
-          disabled={disabled || showUploadProgress}
-          testID={uploadButtonTestID}
-          icon={
-            <Upload
-              size="$1"
-              color="$color"
-            />
-          }
-          accessibilityLabel="Upload video file"
-          accessibilityHint="Select an existing video to upload for analysis"
-        />
-
-        {/* Primary Record Button */}
-        <GlassButton
-          onPress={onStartRecording}
-          disabled={disabled}
-          testID={recordButtonTestID}
-          minWidth={70}
-          minHeight={70}
-          borderWidth={2}
-          borderColor="rgba(255,255,255,0.65)"
-          accessibilityLabel="Start recording"
-          accessibilityHint="Press to start recording a new video"
+        {/* Main Control Row */}
+        <XStack
+          alignItems="center"
+          justifyContent="center"
+          gap="$6"
+          paddingHorizontal="$3"
         >
-          <Circle
-            size={48}
-            backgroundColor="$orange10"
-            opacity={disabled ? 0.5 : 1.0}
-          />
-        </GlassButton>
-
-        {/* Camera Swap Button */}
-        <YStack
-          style={{
-            transitionDuration: `${cameraSwapTransitionDuration}ms`,
-          }}
-        >
+          {/* Upload Video Button */}
           <GlassButton
-            onPress={async () => {
-              try {
-                await onCameraSwap?.()
-              } catch (error) {
-                // Error is handled in the camera logic, just log for debugging
-                log.warn('IdleControls', 'Camera swap failed', {
-                  error: error instanceof Error ? error.message : String(error),
-                })
-              }
-            }}
-            disabled={disabled || cameraSwapDisabled || isCameraSwapping}
-            testID={cameraSwapButtonTestID}
+            onPress={handleUploadVideo}
+            disabled={disabled || showUploadProgress}
+            testID={uploadButtonTestID}
             icon={
-              <SwitchCamera
+              <Upload
                 size="$1"
-                color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
+                color="$color"
               />
             }
-            opacity={isCameraSwapping ? 0.7 : 1.0}
-            accessibilityLabel={isCameraSwapping ? 'Switching camera' : 'Switch camera'}
-            accessibilityHint="Switch between front and back camera"
+            accessibilityLabel="Upload video file"
+            accessibilityHint="Select an existing video to upload for analysis"
           />
-        </YStack>
-      </XStack>
 
-      {/* Integrated Video File Picker */}
-      {onVideoSelected && (
-        <VideoPickerComponent
-          isOpen={isPickerOpen}
-          onVideoSelected={handleVideoSelected}
-          onCancel={handlePickerCancel}
-          maxDurationSeconds={maxDurationSeconds}
-          maxFileSizeBytes={maxFileSizeBytes}
-          showUploadProgress={showUploadProgress}
-          uploadProgress={uploadProgress}
-          disabled={showUploadProgress}
-        />
-      )}
-    </YStack>
+          {/* Primary Record Button */}
+          <GlassButton
+            onPress={onStartRecording}
+            disabled={disabled}
+            testID={recordButtonTestID}
+            minWidth={70}
+            minHeight={70}
+            borderWidth={2}
+            borderColor="rgba(255,255,255,0.65)"
+            accessibilityLabel="Start recording"
+            accessibilityHint="Press to start recording a new video"
+          >
+            <Circle
+              size={48}
+              backgroundColor="$orange10"
+              opacity={disabled ? 0.5 : 1.0}
+            />
+          </GlassButton>
+
+          {/* Camera Swap Button */}
+          <YStack
+            style={{
+              transitionDuration: `${cameraSwapTransitionDuration}ms`,
+            }}
+          >
+            <GlassButton
+              onPress={async () => {
+                try {
+                  await onCameraSwap?.()
+                } catch (error) {
+                  // Error is handled in the camera logic, just log for debugging
+                  log.warn('IdleControls', 'Camera swap failed', {
+                    error: error instanceof Error ? error.message : String(error),
+                  })
+                }
+              }}
+              disabled={disabled || cameraSwapDisabled || isCameraSwapping}
+              testID={cameraSwapButtonTestID}
+              icon={
+                <SwitchCamera
+                  size="$1"
+                  color={isCameraSwapping ? 'rgba(255,255,255,0.6)' : 'white'}
+                />
+              }
+              opacity={isCameraSwapping ? 0.7 : 1.0}
+              accessibilityLabel={isCameraSwapping ? 'Switching camera' : 'Switch camera'}
+              accessibilityHint="Switch between front and back camera"
+            />
+          </YStack>
+        </XStack>
+
+        {/* Integrated Video File Picker */}
+        {onVideoSelected && (
+          <VideoPickerComponent
+            isOpen={isPickerOpen}
+            onVideoSelected={handleVideoSelected}
+            onCancel={handlePickerCancel}
+            maxDurationSeconds={maxDurationSeconds}
+            maxFileSizeBytes={maxFileSizeBytes}
+            showUploadProgress={showUploadProgress}
+            uploadProgress={uploadProgress}
+            disabled={showUploadProgress}
+          />
+        )}
+      </YStack>
+    </ProfilerWrapper>
   )
 }
 

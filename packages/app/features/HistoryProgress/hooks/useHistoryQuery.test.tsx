@@ -404,6 +404,7 @@ describe('useHistoryQuery', () => {
     } as any)
 
     // ARRANGE: Job with metadata containing local thumbnail URI
+    // Note: localUri must include 'recordings/' to be indexed by the store
     const jobWithMetadata = {
       ...mockJob,
       video_recordings: {
@@ -414,7 +415,7 @@ describe('useHistoryQuery', () => {
         duration_seconds: 30,
         created_at: '2025-10-11T09:55:00Z',
         metadata: {
-          localUri: 'file:///local/path/to/video.mp4',
+          localUri: 'file:///documents/recordings/video.mp4',
           thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
         },
       },
@@ -444,8 +445,8 @@ describe('useHistoryQuery', () => {
     ])
 
     const { getLocalUri, getCached } = useVideoHistoryStore.getState()
-    expect(getLocalUri('user-id/video.mp4')).toBe('file:///local/path/to/video.mp4')
-    expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
+    expect(getLocalUri('user-id/video.mp4')).toBe('file:///documents/recordings/video.mp4')
+    expect(getCached(1)?.videoUri).toBe('file:///documents/recordings/video.mp4')
   })
 
   it('should prioritize metadata thumbnailUri over thumbnail_url when local file exists', async () => {
@@ -457,6 +458,7 @@ describe('useHistoryQuery', () => {
     } as any)
 
     // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
+    // Note: localUri must include 'recordings/' to be indexed by the store
     const jobWithBoth = {
       ...mockJob,
       video_recordings: {
@@ -468,7 +470,7 @@ describe('useHistoryQuery', () => {
         created_at: '2025-10-11T09:55:00Z',
         thumbnail_url: 'https://example.com/cloud-thumb.jpg',
         metadata: {
-          localUri: 'file:///local/path/to/video.mp4',
+          localUri: 'file:///documents/recordings/video.mp4',
           thumbnailUri: 'file:///local/path/to/thumbnail.jpg',
         },
       },
@@ -486,11 +488,18 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
+    // ASSERT: Wait for store to be updated (localUriIndex is updated in addMultipleToCache)
+    await waitFor(() => {
+      const { getLocalUri, getCached } = useVideoHistoryStore.getState()
+      expect(getLocalUri('user-id/video.mp4')).toBeTruthy()
+      expect(getCached(1)?.videoUri).toBeTruthy()
+    })
+
     // ASSERT: metadata thumbnailUri takes precedence when file exists
     expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
     const { getLocalUri, getCached } = useVideoHistoryStore.getState()
-    expect(getLocalUri('user-id/video.mp4')).toBe('file:///local/path/to/video.mp4')
-    expect(getCached(1)?.videoUri).toBe('file:///local/path/to/video.mp4')
+    expect(getLocalUri('user-id/video.mp4')).toBe('file:///documents/recordings/video.mp4')
+    expect(getCached(1)?.videoUri).toBe('file:///documents/recordings/video.mp4')
   })
 
   it('should fallback to thumbnail_url when local file does not exist', async () => {

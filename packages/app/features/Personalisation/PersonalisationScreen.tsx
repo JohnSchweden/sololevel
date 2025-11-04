@@ -8,7 +8,7 @@ import {
   SettingsToggleItem,
 } from '@my/ui'
 import { AArrowUp, Globe, Palette, Type, Vibrate, Volume2, Zap } from '@tamagui/lucide-icons'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, YStack } from 'tamagui'
 
@@ -44,19 +44,22 @@ export function PersonalisationScreen({
   const [soundEffects, setSoundEffects] = useState(true)
   const [hapticFeedback, setHapticFeedback] = useState(true)
 
-  // Language options
-  const languageOptions: SettingsSelectItemOption[] = [
-    { value: 'en-US', label: 'English (US)' },
-    { value: 'en-GB', label: 'English (UK)' },
-    { value: 'es-ES', label: 'Español' },
-    { value: 'fr-FR', label: 'Français' },
-    { value: 'de-DE', label: 'Deutsch' },
-    { value: 'it-IT', label: 'Italiano' },
-    { value: 'pt-BR', label: 'Português (BR)' },
-    { value: 'ja-JP', label: '日本語' },
-    { value: 'ko-KR', label: '한국어' },
-    { value: 'zh-CN', label: '中文 (简体)' },
-  ]
+  // Language options (memoized - array is static, never changes)
+  const languageOptions: SettingsSelectItemOption[] = useMemo(
+    () => [
+      { value: 'en-US', label: 'English (US)' },
+      { value: 'en-GB', label: 'English (UK)' },
+      { value: 'es-ES', label: 'Español' },
+      { value: 'fr-FR', label: 'Français' },
+      { value: 'de-DE', label: 'Deutsch' },
+      { value: 'it-IT', label: 'Italiano' },
+      { value: 'pt-BR', label: 'Português (BR)' },
+      { value: 'ja-JP', label: '日本語' },
+      { value: 'ko-KR', label: '한국어' },
+      { value: 'zh-CN', label: '中文 (简体)' },
+    ],
+    []
+  )
 
   return (
     <GlassBackground

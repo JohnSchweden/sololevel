@@ -132,6 +132,40 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(false)
   })
 
+  it('returns stable object reference when dependencies have not changed', () => {
+    const { result, rerender } = renderHook(() => useAuth())
+
+    // Get initial reference
+    const firstRender = result.current
+
+    // Rerender without changing dependencies
+    rerender()
+
+    // Object reference should be stable (memoized)
+    expect(result.current).toBe(firstRender)
+  })
+
+  it('returns new object reference when dependencies change', () => {
+    const { result, rerender } = renderHook(() => useAuth())
+
+    // Get initial reference
+    const firstRender = result.current
+
+    // Change store state
+    const user = createSupabaseUser({ id: 'test-user-id' })
+    const session = createSupabaseSession({ user })
+    mockAuthStore.user = user
+    mockAuthStore.session = session
+
+    // Rerender after state change
+    rerender()
+
+    // Object reference should change when dependencies change
+    expect(result.current).not.toBe(firstRender)
+    expect(result.current.user).toBe(user)
+    expect(result.current.isAuthenticated).toBe(true)
+  })
+
   it('signs out successfully', async () => {
     const signOutSuccess: AuthResult<void> = {
       success: true,

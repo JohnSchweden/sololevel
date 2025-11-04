@@ -120,7 +120,7 @@ export const GlassButton = ({
   animation = 'bouncy',
 }: GlassButtonProps) => {
   // Convert borderRadius token to number for BlurView
-  const numericRadius = typeof borderRadius === 'string' ? 24 : Number(borderRadius) || 24
+  const numericRadius = typeof borderRadius === 'string' ? 32 : Number(borderRadius) || 32
 
   // Select glass overlay based on variant
   const overlaySource =

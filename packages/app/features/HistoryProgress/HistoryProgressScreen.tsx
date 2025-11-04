@@ -3,6 +3,7 @@ import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import React from 'react'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
@@ -72,9 +73,13 @@ export function HistoryProgressScreen({
   // Data fetching with TanStack Query + Zustand cache
   const { data: videos = [], isLoading, error, refetch } = useHistoryQuery()
 
+  // Memoize displayed videos array to prevent creating new array reference every render
+  // This is critical for preventing unnecessary VideosSection re-renders
+  const displayedVideos = React.useMemo(() => videos.slice(0, 10), [videos])
+
   // Prefetch video analysis data for all visible videos (10 shown in gallery)
   // Strategy: Immediate prefetch for top 3, deferred for remaining 7
-  const videoIds = React.useMemo(() => videos.slice(0, 10).map((v) => v.id), [videos])
+  const videoIds = React.useMemo(() => displayedVideos.map((v) => v.id), [displayedVideos])
   usePrefetchVideoAnalysis(videoIds)
 
   // Track visible videos for smart prefetch (next N items based on scroll position)
@@ -88,19 +93,44 @@ export function HistoryProgressScreen({
   // Smart prefetch: prefetch video/thumbnail files to disk
   // Note: usePrefetchVideoAnalysis above only prefetches analysis data (not thumbnails)
   // This hook handles thumbnail/video file downloads to disk
-  const videosToPrefetch = React.useMemo(() => videos.slice(0, 10), [videos])
+  // Use displayedVideos instead of recalculating slice - stable reference prevents cascade
+  const videosToPrefetch = React.useMemo(() => displayedVideos, [displayedVideos])
   const hasMoreVideos = videos.length > 10
+
+  // Memoize initial visible items slice to prevent creating new array reference
+  const initialVisibleItems = React.useMemo(
+    () => displayedVideos.slice(0, Math.min(3, displayedVideos.length)),
+    [displayedVideos]
+  )
+
+  // Store previous visible items IDs for content-based comparison
+  const prevVisibleIdsRef = React.useRef<string>('')
+  const stableVisibleItemsRef = React.useRef<typeof videos>(initialVisibleItems)
 
   // Determine visible items for prefetch: use actual visible items if available,
   // otherwise use first few videos as initial visible (VideosSection initializes with first 3)
+  // Stabilize by using content-based comparison to prevent unnecessary recalculations
+  // when visibleVideoItems array reference changes but content is identical
   const visibleItemsForPrefetch = React.useMemo(() => {
     if (visibleVideoItems.length > 0) {
-      return visibleVideoItems
+      // Create stable key from visible items IDs to detect actual content changes
+      const visibleIds = visibleVideoItems.map((v) => v.id).join(',')
+
+      // Only return new array if IDs actually changed (not just reference)
+      if (visibleIds !== prevVisibleIdsRef.current) {
+        prevVisibleIdsRef.current = visibleIds
+        stableVisibleItemsRef.current = visibleVideoItems
+        return visibleVideoItems
+      }
+      // Return previous stable reference if content unchanged
+      // Use initialVisibleItems as fallback if ref is empty (first render)
+      return stableVisibleItemsRef.current.length > 0
+        ? stableVisibleItemsRef.current
+        : visibleVideoItems
     }
-    // On mount before VideosSection reports visible items, assume first 3 are visible
-    // This ensures prefetch starts immediately rather than waiting for scroll
-    return videos.slice(0, Math.min(3, videos.length))
-  }, [visibleVideoItems, videos])
+    // On mount before VideosSection reports visible items, use memoized initial slice
+    return initialVisibleItems
+  }, [visibleVideoItems, initialVisibleItems])
 
   // Memoize prefetch config to prevent unnecessary recalculations
   const prefetchConfig = React.useMemo(
@@ -114,20 +144,9 @@ export function HistoryProgressScreen({
 
   // Prefetch videos based on visible items
   // Strategy: Prefetch next N items beyond visible items for smooth scrolling
-  const { prefetching, prefetched, failed } = usePrefetchNextVideos(
-    videosToPrefetch,
-    visibleItemsForPrefetch,
-    prefetchConfig
-  )
-
-  // Log prefetch state changes only when values actually change
-  React.useEffect(() => {
-    log.debug('HistoryProgressScreen', 'Prefetch state', {
-      prefetching: prefetching.length,
-      prefetched: prefetched.length,
-      failed: failed.length,
-    })
-  }, [prefetching.length, prefetched.length, failed.length])
+  // Note: Prefetch state logging is now handled inside usePrefetchNextVideos hook
+  // to prevent triggering unnecessary re-renders in parent component
+  usePrefetchNextVideos(videosToPrefetch, visibleItemsForPrefetch, prefetchConfig)
 
   // TanStack Query handles refetch-on-focus automatically via refetchOnFocus: true
   // It respects staleTime (5min), so fresh data won't trigger unnecessary refetches
@@ -213,44 +232,49 @@ export function HistoryProgressScreen({
   )
 
   return (
-    <GlassBackground
-      backgroundColor="$color3"
-      testID={testID}
+    <ProfilerWrapper
+      id="HistoryProgressScreen"
+      logToConsole={__DEV__}
     >
-      {/* AppHeader rendered automatically by _layout.tsx */}
-      <YStack
-        flex={1}
-        paddingTop={insets.top + APP_HEADER_HEIGHT}
-        marginTop="$4"
-        //marginBottom="$4"
-        borderRadius="$10"
-        overflow="hidden"
-        elevation={8}
-        testID={`${testID}-glass-container`}
+      <GlassBackground
+        backgroundColor="$color3"
+        testID={testID}
       >
-        <YStack flex={1}>
-          {/* Videos Section - Full Width */}
-          <VideosSection
-            videos={videos.slice(0, 10)}
-            onVideoPress={handleVideoPress}
-            onSeeAllPress={handleSeeAllPress}
-            isLoading={isLoading}
-            error={error}
-            onRetry={refetch}
-            onVisibleItemsChange={handleVisibleItemsChange}
-            testID={`${testID}-videos-section`}
-          />
+        {/* AppHeader rendered automatically by _layout.tsx */}
+        <YStack
+          flex={1}
+          paddingTop={insets.top + APP_HEADER_HEIGHT}
+          marginTop="$4"
+          //marginBottom="$4"
+          borderRadius="$10"
+          overflow="hidden"
+          elevation={8}
+          testID={`${testID}-glass-container`}
+        >
+          <YStack flex={1}>
+            {/* Videos Section - Full Width */}
+            <VideosSection
+              videos={displayedVideos}
+              onVideoPress={handleVideoPress}
+              onSeeAllPress={handleSeeAllPress}
+              isLoading={isLoading}
+              error={error}
+              onRetry={refetch}
+              onVisibleItemsChange={handleVisibleItemsChange}
+              testID={`${testID}-videos-section`}
+            />
 
-          {/* Coaching Sessions Section - With ScrollView */}
-          <CoachingSessionsSection
-            sessions={mockCoachingSessions}
-            onSessionPress={handleSessionPress}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            testID={`${testID}-coaching-sessions-section`}
-          />
+            {/* Coaching Sessions Section - With ScrollView */}
+            <CoachingSessionsSection
+              sessions={mockCoachingSessions}
+              onSessionPress={handleSessionPress}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              testID={`${testID}-coaching-sessions-section`}
+            />
+          </YStack>
         </YStack>
-      </YStack>
-    </GlassBackground>
+      </GlassBackground>
+    </ProfilerWrapper>
   )
 }

@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js'
+import { useMemo } from 'react'
 import { Image, Spinner, Text, YStack } from 'tamagui'
 
 // Import mock avatar image as fallback
@@ -99,6 +100,9 @@ export function ProfileSection({
   const userName = user?.name || 'User'
   const avatarUrl = user?.avatar_url
 
+  // Memoize image source to prevent Image re-renders when avatarUrl doesn't change
+  const imageSource = useMemo(() => (avatarUrl ? { uri: avatarUrl } : null), [avatarUrl])
+
   return (
     <YStack
       alignItems="center"
@@ -108,9 +112,9 @@ export function ProfileSection({
       testID={testID}
     >
       {/* Avatar with fallback: 1) real URL, 2) mock image, 3) letter fallback */}
-      {avatarUrl ? (
+      {imageSource ? (
         <Image
-          source={{ uri: avatarUrl }}
+          source={imageSource}
           width={84}
           height={84}
           borderRadius={42} // Half of width for perfect circle

@@ -11,10 +11,98 @@ import {
 } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import { BlurView } from 'expo-blur'
-import { useCallback, useRef, useState } from 'react'
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Animated, {
+  type SharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, Image, ScrollView, Text, XStack, YStack } from 'tamagui'
+import { Button, Image, Text, XStack, YStack } from 'tamagui'
+
+// Stable style objects for button animations (prevent re-renders)
+// Note: Button color prop controls text/icon color, pressStyle color doesn't override Text children
+const TOGGLE_BUTTON_HOVER_STYLE = { scale: 1.02, backgroundColor: 'transparent' } as const
+const TOGGLE_BUTTON_PRESS_STYLE = {
+  scale: 0.98,
+  backgroundColor: 'transparent',
+  opacity: 0.8,
+} as const
+
+// ROOT CAUSE FIX: AnimatedMessageWrapper defined outside component to prevent recreation on every render
+// This ensures React doesn't treat it as a new component type on each render
+interface AnimatedMessageWrapperProps {
+  messageId: string
+  children: React.ReactNode
+  scrollOffset: SharedValue<number>
+  messageLayoutsShared: React.MutableRefObject<
+    Map<string, { y: SharedValue<number>; height: SharedValue<number> }>
+  >
+}
+
+// ROOT CAUSE FIX: AnimatedMessageWrapper reads layout from shared values in map
+// Each wrapper creates its own shared values, registers them in the map, and reads from them
+const AnimatedMessageWrapper = ({
+  messageId,
+  children,
+  scrollOffset,
+  messageLayoutsShared,
+}: AnimatedMessageWrapperProps) => {
+  // Create shared values for this message - these are the actual values we'll read
+  const layoutY = useSharedValue(0)
+  const layoutHeight = useSharedValue(0)
+
+  // Register shared values in map so layout handler can update them
+  useLayoutEffect(() => {
+    messageLayoutsShared.current.set(messageId, { y: layoutY, height: layoutHeight })
+    return () => {
+      messageLayoutsShared.current.delete(messageId)
+    }
+  }, [messageId, layoutY, layoutHeight, messageLayoutsShared])
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet'
+    const fadeStart = 100
+    const fadeEnd = 0
+
+    // If not scrolled, all messages are fully visible
+    if (scrollOffset.value <= 0) {
+      return { opacity: 1 }
+    }
+
+    // ROOT CAUSE FIX: layoutY.value starts at 0 until onLayout fires
+    // If layout hasn't been measured yet, keep it fully visible
+    if (layoutY.value === 0) {
+      return { opacity: 1 }
+    }
+
+    // Calculate message position relative to viewport top
+    // layoutY = message's Y position in scroll content (from onLayout, includes content padding)
+    // scrollOffset = how far user has scrolled (content offset from top)
+    //
+    // ROOT CAUSE FIX: onLayout gives Y relative to content container (includes paddingTop)
+    // To get viewport-relative position, we need: layoutY - scrollOffset
+    // The header is outside the ScrollView viewport, so we don't need to account for it here
+    const messageTop = layoutY.value - scrollOffset.value
+
+    // Messages below fadeStart (100px from viewport top) are fully visible
+    if (messageTop >= fadeStart) {
+      return { opacity: 1 }
+    }
+    // Messages at/above fadeEnd (0px from viewport top) are minimum opacity
+    if (messageTop <= fadeEnd) {
+      return { opacity: 0.2 }
+    }
+    // Messages between fadeEnd and fadeStart fade smoothly
+    const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
+    const eased = progress ** 3
+    return { opacity: Math.max(0.2, Math.min(1, eased)) }
+  })
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>
+}
 
 export interface Message {
   id: string
@@ -99,6 +187,20 @@ const AI_RESPONSES = [
 ]
 
 /**
+ * Format today's date for new sessions
+ * Defined outside component to prevent new function reference on every render
+ */
+const getTodayDate = (): string => {
+  const today = new Date()
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  }
+  return today.toLocaleDateString('en-US', options)
+}
+
+/**
  * CoachScreen Component
  *
  * Chat interface for AI coaching with message history, suggestions, and voice input.
@@ -141,19 +243,38 @@ export function CoachScreen({
   hasBottomNavigation = true,
 }: CoachScreenProps = {}): React.ReactElement {
   // Hooks
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
-  // Format today's date for new sessions
-  const getTodayDate = (): string => {
-    const today = new Date()
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-    }
-    return today.toLocaleDateString('en-US', options)
-  }
+  // ROOT CAUSE FIX #1: useSafeAreaInsets returns NEW object reference every render
+  // Memoize insets based on content to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
+
+  // ROOT CAUSE FIX #2: Inline object literals in JSX create new references every render
+  // Memoize style objects to prevent child component re-renders
+  const safeAreaViewStyle = useMemo(() => ({ flex: 1 }), [])
+  const scrollViewContentStyle = useMemo(
+    () => ({
+      flexGrow: 1,
+      justifyContent: 'flex-end' as const,
+    }),
+    []
+  )
+  const blurViewStyle = useMemo(
+    () => ({
+      borderRadius: 0,
+      overflow: 'hidden' as const,
+      paddingTop: insets.top + APP_HEADER_HEIGHT,
+      marginHorizontal: 1,
+      marginTop: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255, 255, 255, 0.4)',
+    }),
+    [insets.top]
+  )
 
   // State
   const [messages, setMessages] = useState<Message[]>(
@@ -171,14 +292,39 @@ export function CoachScreen({
   const [isListening, setIsListening] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(!sessionId)
-  const [scrollOffset, setScrollOffset] = useState(0)
-  const { visibleItems: sectionsVisible } = useStaggeredAnimation({
+  const [isSuggestionsButtonPressed, setIsSuggestionsButtonPressed] = useState(false)
+  // ROOT CAUSE FIX: Use Reanimated shared value for scroll offset to prevent React re-renders
+  // This moves opacity calculations to UI thread, eliminating animation frame re-renders
+  const scrollOffset = useSharedValue(0)
+  // Reanimated shared value for suggestions slide animation (1 = visible, 0 = hidden)
+  // Initialize with 0 to avoid writing to shared value during render
+  const suggestionsProgress = useSharedValue(0)
+  const { visibleItems: sectionsVisibleRaw } = useStaggeredAnimation({
     itemCount: 4,
     staggerDelay: 50,
     dependencies: [isLoading, isError],
   })
   const scrollViewRef = useRef<any>(null)
   const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
+
+  // Stabilize sectionsVisible array reference - only create new reference when content changes
+  // This prevents re-renders when useStaggeredAnimation creates new array references with same content
+  const sectionsVisibleSignature = useMemo(
+    () => JSON.stringify(sectionsVisibleRaw),
+    [sectionsVisibleRaw]
+  )
+  const prevSectionsVisibleRef = useRef<boolean[]>(sectionsVisibleRaw)
+  const prevSignatureRef = useRef<string>(sectionsVisibleSignature)
+  const sectionsVisible = useMemo(() => {
+    // Only create new reference if content actually changed
+    if (sectionsVisibleSignature === prevSignatureRef.current) {
+      return prevSectionsVisibleRef.current // Return cached reference
+    }
+    // Content changed - update cache and return new reference
+    prevSignatureRef.current = sectionsVisibleSignature
+    prevSectionsVisibleRef.current = sectionsVisibleRaw
+    return sectionsVisibleRaw
+  }, [sectionsVisibleRaw, sectionsVisibleSignature])
 
   // Handlers - wrapped in useCallback to prevent child component re-renders
   const sendMessage = useCallback(
@@ -215,7 +361,7 @@ export function CoachScreen({
             scrollViewRef.current?.scrollToEnd({ animated: true })
           }, 100)
         },
-        1500 + Math.random() * 1000
+        1000 + Math.random() * 1000
       )
 
       // Scroll to bottom after user message
@@ -250,52 +396,134 @@ export function CoachScreen({
   }, [])
 
   const toggleSuggestions = useCallback((): void => {
-    setShowSuggestions((prev) => !prev)
-  }, [])
+    setShowSuggestions((prev) => {
+      const newValue = !prev
+      // Defer shared value update to avoid writing during render phase
+      // setTimeout(0) defers to next event loop tick, after render completes
+      setTimeout(() => {
+        suggestionsProgress.value = withTiming(newValue ? 1 : 0, {
+          duration: 300,
+        })
+      }, 0)
+      return newValue
+    })
+  }, []) // suggestionsProgress is stable, no need in deps
 
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>): void => {
-    setScrollOffset(event.nativeEvent.contentOffset.y)
-  }, [])
+  // Sync shared value with showSuggestions state
+  // On mount: set synchronously without animation
+  // After mount: animate transitions
+  const isMountedRef = useRef(false)
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true
+      // Initial mount: set synchronously without animation
+      suggestionsProgress.value = showSuggestions ? 1 : 0
+      return
+    }
+    // Subsequent changes: animate
+    suggestionsProgress.value = withTiming(showSuggestions ? 1 : 0, {
+      duration: 300,
+    })
+  }, [showSuggestions, suggestionsProgress])
 
-  const getMessageOpacity = useCallback(
-    (messageId: string): number => {
-      // Only fade when scrolled up
-      if (scrollOffset <= 0) return 1
+  // Animated style for suggestions slide-in/slide-out effect
+  const suggestionsAnimatedStyle = useAnimatedStyle(() => {
+    'worklet'
+    // Slide up from bottom (translateY: 0 when visible, positive when hidden)
+    // Opacity fades in/out
+    const translateY = (1 - suggestionsProgress.value) * 50 // Slide up 50px when hidden
+    const opacity = suggestionsProgress.value
+    const isVisible = suggestionsProgress.value > 0.01
 
-      const layout = messageLayoutsRef.current.get(messageId)
-      if (!layout) return 1
+    return {
+      transform: [{ translateY }],
+      opacity,
+      // Use maxHeight instead of height: 'auto' (not supported in Reanimated)
+      // Set to large value when visible, 0 when hidden
+      maxHeight: isVisible ? 1000 : 0,
+      overflow: 'hidden' as const,
+      pointerEvents: isVisible ? ('auto' as const) : ('none' as const),
+    }
+  })
 
-      // Calculate message position relative to viewport
-      // Account for padding and header by measuring distance from content top
-      const messageTop = layout.y - scrollOffset + insets.top + APP_HEADER_HEIGHT
-
-      // Fade zone: start fading at header bottom (0px below header), fully faded when scrolled past
-      const fadeStart = 100 // Start fading 20px below the header
-      const fadeEnd = 0 // Fully faded 30px above header
-
-      // Fully visible when below fade start
-      if (messageTop >= fadeStart) {
-        return 1
-      }
-
-      // Minimum opacity when at/above top
-      if (messageTop <= fadeEnd) {
-        return 0.2
-      }
-
-      // Smooth cubic fade between fadeStart and fadeEnd
-      const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
-      const eased = progress ** 3
-
-      // Ensure opacity stays between 0.2 and 1
-      return Math.max(0.2, Math.min(1, eased))
+  // ROOT CAUSE FIX: Use Reanimated scroll handler - runs on UI thread, no React re-renders
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      // Update shared value directly on UI thread - no React re-render
+      scrollOffset.value = event.contentOffset.y
     },
-    [scrollOffset, insets.top]
+  })
+
+  // ROOT CAUSE FIX: Store header offset as shared value for Reanimated worklet
+  // Initialize with 0 to avoid accessing state during render
+  const headerOffsetShared = useSharedValue(0)
+
+  // Update header offset when insets change (must be in useEffect to avoid render-phase writes)
+  useEffect(() => {
+    headerOffsetShared.value = insets.top + APP_HEADER_HEIGHT
+  }, [insets.top, headerOffsetShared])
+
+  // ROOT CAUSE FIX: Store message layouts as shared values to avoid React re-renders
+  // Layout updates go directly to shared values, Reanimated reads from them on UI thread
+  // Use a ref to store shared values - they're created per-message in AnimatedMessageWrapper
+  const messageLayoutsShared = useRef<
+    Map<string, { y: SharedValue<number>; height: SharedValue<number> }>
+  >(new Map())
+
+  // AnimatedMessageWrapper is now defined outside component to prevent recreation on every render
+
+  // messageOpacities removed - Reanimated handles opacity on UI thread
+
+  // ROOT CAUSE FIX: Layout handler updates shared values directly - NO React re-renders
+  // Reanimated reads from shared values on UI thread, so layout updates don't trigger component re-renders
+  // Note: Shared values are pre-created during render, so we just update their .value here
+  const handleMessageLayout = useCallback((messageId: string, y: number, height: number): void => {
+    // Only update if layout actually changed to prevent unnecessary work
+    const existing = messageLayoutsRef.current.get(messageId)
+    if (existing && existing.y === y && existing.height === height) {
+      return // No change, skip update
+    }
+
+    // Update ref for diagnostics
+    messageLayoutsRef.current.set(messageId, { y, height })
+
+    // Update shared values directly - shared values are pre-created during render
+    const layoutShared = messageLayoutsShared.current.get(messageId)
+    if (layoutShared) {
+      layoutShared.y.value = y
+      layoutShared.height.value = height
+    }
+    // If layoutShared doesn't exist, it means the message was just added and will be initialized on next render
+  }, [])
+
+  // ROOT CAUSE FIX: Memoize layout handlers per message to prevent new function references
+  // New function references cause XStack to re-render, which triggers layout measurements
+  // Layout measurements can cascade, causing multiple re-renders (84-97 in logs)
+  const layoutHandlersRef = useRef<Map<string, (event: any) => void>>(new Map())
+  const getLayoutHandler = useCallback(
+    (messageId: string) => {
+      if (!layoutHandlersRef.current.has(messageId)) {
+        layoutHandlersRef.current.set(messageId, (event: any) => {
+          const { y, height } = event.nativeEvent.layout
+          handleMessageLayout(messageId, y, height)
+        })
+      }
+      return layoutHandlersRef.current.get(messageId)!
+    },
+    [handleMessageLayout]
   )
 
-  const handleMessageLayout = useCallback((messageId: string, y: number, height: number): void => {
-    messageLayoutsRef.current.set(messageId, { y, height })
-  }, [])
+  // Clean up handlers for removed messages
+  useEffect(() => {
+    const currentMessageIds = new Set(messages.map((m) => m.id))
+    const handlerMessageIds = Array.from(layoutHandlersRef.current.keys())
+
+    handlerMessageIds.forEach((id) => {
+      if (!currentMessageIds.has(id)) {
+        layoutHandlersRef.current.delete(id)
+      }
+    })
+  }, [messages])
 
   const handleContentSizeChange = useCallback((): void => {
     // Only auto-scroll if we have initial messages (previous session)
@@ -345,7 +573,7 @@ export function CoachScreen({
     >
       <SafeAreaView
         edges={['bottom']}
-        style={{ flex: 1 }}
+        style={safeAreaViewStyle}
       >
         <YStack
           flex={1}
@@ -364,15 +592,7 @@ export function CoachScreen({
             <BlurView
               intensity={10}
               tint="regular"
-              style={{
-                borderRadius: 0,
-                overflow: 'hidden',
-                paddingTop: insets.top + APP_HEADER_HEIGHT,
-                marginHorizontal: 1,
-                marginTop: 0,
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255, 255, 255, 0.4)',
-              }}
+              style={blurViewStyle}
             >
               <XStack
                 alignItems="center"
@@ -380,7 +600,8 @@ export function CoachScreen({
                 gap="$4"
                 paddingHorizontal="$6"
                 opacity={sectionsVisible[0] ? 1 : 0}
-                animation="quick"
+                // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                // Staggered animation already handles visibility timing
                 testID={`${testID}-avatar-section`}
               >
                 {/* Avatar */}
@@ -413,7 +634,7 @@ export function CoachScreen({
                   <Text
                     fontSize="$1"
                     fontWeight="500"
-                    color="$color11"
+                    color="$color12"
                     testID={`${testID}-session-date`}
                   >
                     {sessionDate || getTodayDate()}
@@ -436,44 +657,48 @@ export function CoachScreen({
           <YStack
             flex={1}
             opacity={sectionsVisible[1] ? 1 : 0}
-            animation="quick"
+            // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+            // Staggered animation already handles visibility timing
             //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
           >
-            <ScrollView
+            <Animated.ScrollView
               ref={scrollViewRef}
-              flex={1}
-              paddingTop={insets.top + APP_HEADER_HEIGHT + 116}
-              paddingHorizontal="$6"
+              style={{ flex: 1 }}
+              contentContainerStyle={[
+                scrollViewContentStyle,
+                {
+                  paddingTop: insets.top + APP_HEADER_HEIGHT + 116,
+                  paddingHorizontal: 24, // $6 = 24px
+                },
+              ]}
               testID={`${testID}-messages`}
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'flex-end',
-              }}
-              onScroll={handleScroll}
-              onContentSizeChange={handleContentSizeChange}
+              onScroll={scrollHandler}
               scrollEventThrottle={16}
+              onContentSizeChange={handleContentSizeChange}
             >
               <YStack
                 gap="$4"
                 paddingBottom="$4"
               >
                 {messages.map((message) => (
-                  <XStack
+                  <AnimatedMessageWrapper
                     key={message.id}
-                    justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
-                    opacity={getMessageOpacity(message.id)}
-                    animation="lazy"
-                    onLayout={(event) => {
-                      const { y, height } = event.nativeEvent.layout
-                      handleMessageLayout(message.id, y, height)
-                    }}
+                    messageId={message.id}
+                    scrollOffset={scrollOffset}
+                    messageLayoutsShared={messageLayoutsShared}
                   >
-                    <MessageBubble
-                      type={message.type}
-                      content={message.content}
-                      timestamp={message.timestamp}
-                    />
-                  </XStack>
+                    <XStack
+                      justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
+                      // ROOT CAUSE FIX: Use stable layout handler reference to prevent re-renders
+                      onLayout={getLayoutHandler(message.id)}
+                    >
+                      <MessageBubble
+                        type={message.type}
+                        content={message.content}
+                        timestamp={message.timestamp}
+                      />
+                    </XStack>
+                  </AnimatedMessageWrapper>
                 ))}
 
                 {isTyping && (
@@ -482,7 +707,7 @@ export function CoachScreen({
                   </XStack>
                 )}
               </YStack>
-            </ScrollView>
+            </Animated.ScrollView>
           </YStack>
 
           {/* Input Area */}
@@ -498,7 +723,8 @@ export function CoachScreen({
             {/* Suggestions */}
             <YStack
               opacity={sectionsVisible[2] ? 1 : 0}
-              animation="quick"
+              // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+              // Staggered animation already handles visibility timing
               testID={`${testID}-suggestions`}
             >
               {/* Suggestions Header */}
@@ -508,61 +734,64 @@ export function CoachScreen({
               >
                 <Button
                   onPress={toggleSuggestions}
+                  onPressIn={() => setIsSuggestionsButtonPressed(true)}
+                  onPressOut={() => setIsSuggestionsButtonPressed(false)}
                   chromeless
                   size="$5"
                   flex={1}
                   justifyContent="space-between"
                   alignItems="center"
                   paddingHorizontal="$4"
-                  color="$color11"
+                  color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
+                  opacity={isSuggestionsButtonPressed ? 1 : 0.8}
                   iconAfter={showSuggestions ? ChevronDown : ChevronUp}
                   accessibilityLabel={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
                   testID={`${testID}-toggle-suggestions`}
-                  animation="quick"
+                  // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
                   scale={1}
-                  hoverStyle={{ scale: 1.05, backgroundColor: 'transparent' }}
-                  pressStyle={{ scale: 0.95, backgroundColor: 'transparent' }}
+                  hoverStyle={TOGGLE_BUTTON_HOVER_STYLE}
+                  pressStyle={TOGGLE_BUTTON_PRESS_STYLE}
                 >
                   <Text
                     fontSize="$3"
-                    color="$color11"
+                    color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
                   >
                     Suggestions
                   </Text>
                 </Button>
               </XStack>
 
-              {/* Suggestions List */}
-              <YStack
-                overflow="hidden"
-                animation="quick"
-                height={showSuggestions ? 'auto' : 0}
-                opacity={showSuggestions ? 1 : 0}
-              >
-                <XStack
-                  gap="$2"
-                  flexWrap="wrap"
-                  paddingTop="$1"
+              {/* Suggestions List - Reanimated slide animation */}
+              <Animated.View style={suggestionsAnimatedStyle}>
+                <YStack
+                  overflow="hidden"
+                  paddingTop="$0"
                   marginBottom="$2"
                 >
-                  {SUGGESTIONS.map((suggestion, index) => (
-                    <SuggestionChip
-                      key={index}
-                      icon={suggestion.icon}
-                      text={suggestion.text}
-                      category={suggestion.category}
-                      onPress={() => handleSuggestionPress(suggestion.text)}
-                      disabled={isTyping}
-                    />
-                  ))}
-                </XStack>
-              </YStack>
+                  <XStack
+                    gap="$2"
+                    flexWrap="wrap"
+                  >
+                    {SUGGESTIONS.map((suggestion, index) => (
+                      <SuggestionChip
+                        key={index}
+                        icon={suggestion.icon}
+                        text={suggestion.text}
+                        category={suggestion.category}
+                        onPress={() => handleSuggestionPress(suggestion.text)}
+                        disabled={isTyping}
+                      />
+                    ))}
+                  </XStack>
+                </YStack>
+              </Animated.View>
             </YStack>
 
             {/* Chat Input */}
             <YStack
               opacity={sectionsVisible[3] ? 1 : 0}
-              animation="quick"
+              // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+              // Staggered animation already handles visibility timing
             >
               <ChatInput
                 value={inputMessage}

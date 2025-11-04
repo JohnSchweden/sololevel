@@ -1,4 +1,6 @@
 import { Clock, PlayCircle, XCircle } from '@tamagui/lucide-icons'
+
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { Spinner, Text, XStack } from 'tamagui'
 
 export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
@@ -39,99 +41,119 @@ export function FeedbackStatusIndicator({
 
   if (isAnyFailed) {
     return (
-      <XStack
-        alignItems="center"
-        gap="$2"
-        testID={testID}
+      <ProfilerWrapper
+        id="FeedbackStatusIndicator"
+        logToConsole={__DEV__}
       >
-        <XCircle
-          size={iconSize}
-          color="$red9"
-        />
-        <Text
-          fontSize={textSize}
-          color="$red9"
+        <XStack
+          alignItems="center"
+          gap="$2"
+          testID={testID}
         >
-          Failed
-        </Text>
-        <Text
-          fontSize="$1"
-          color="$red10"
-        >
-          {ssmlLastError ? `SSML: ${ssmlLastError}` : ''}
-          {ssmlLastError && audioLastError ? ' • ' : ''}
-          {audioLastError ? `Audio: ${audioLastError}` : ''}
-        </Text>
-      </XStack>
+          <XCircle
+            size={iconSize}
+            color="$color11"
+          />
+          <Text
+            fontSize={textSize}
+            color="$color11"
+          >
+            Failed
+          </Text>
+          <Text
+            fontSize="$1"
+            color="$color11"
+          >
+            {ssmlLastError ? `SSML: ${ssmlLastError}` : ''}
+            {ssmlLastError && audioLastError ? ' • ' : ''}
+            {audioLastError ? `Audio: ${audioLastError}` : ''}
+          </Text>
+        </XStack>
+      </ProfilerWrapper>
     )
   }
 
   if (isFullyCompleted) {
     return (
-      <XStack
-        alignItems="center"
-        gap="$2"
-        testID={testID}
+      <ProfilerWrapper
+        id="FeedbackStatusIndicator"
+        logToConsole={__DEV__}
       >
-        <PlayCircle
-          size={iconSize}
-          color="$green9"
-        />
-        <Text
-          fontSize={textSize}
-          color="$green9"
+        <XStack
+          alignItems="center"
+          gap="$2"
+          testID={testID}
         >
-          Ready
-        </Text>
-      </XStack>
+          <PlayCircle
+            size={iconSize}
+            color="$color11"
+          />
+          <Text
+            fontSize={textSize}
+            color="$color11"
+          >
+            Ready
+          </Text>
+        </XStack>
+      </ProfilerWrapper>
     )
   }
 
   if (isAnyProcessing) {
     return (
-      <XStack
-        alignItems="center"
-        gap="$2"
-        testID={testID}
+      <ProfilerWrapper
+        id="FeedbackStatusIndicator"
+        logToConsole={__DEV__}
       >
-        {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
-        <Spinner
-          size={size === 'small' ? 'small' : 'large'}
-          color="$blue9"
-        />
-        <Text
-          fontSize={textSize}
-          color="$blue9"
+        <XStack
+          alignItems="center"
+          gap="$2"
+          testID={testID}
         >
-          Processing
-        </Text>
-        <Text
-          fontSize="$1"
-          color="$blue8"
-        >
-          {`SSML retries: ${ssmlAttempts} | Audio retries: ${audioAttempts}`}
-        </Text>
-      </XStack>
+          {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
+          <Spinner
+            size={size === 'small' ? 'small' : 'large'}
+            color="$color11"
+          />
+          <Text
+            fontSize={textSize}
+            color="$color11"
+          >
+            Processing
+          </Text>
+          <Text
+            fontSize="$1"
+            color="$color11"
+          >
+            {`SSML retries: ${ssmlAttempts} | Audio retries: ${audioAttempts}`}
+          </Text>
+        </XStack>
+      </ProfilerWrapper>
     )
   }
 
   // Default to queued if not failed, completed, or processing
   return (
-    <XStack
-      alignItems="center"
-      gap="$2"
-      testID={testID}
+    <ProfilerWrapper
+      id="FeedbackStatusIndicator"
+      logToConsole={__DEV__}
     >
-      <Clock
-        size={iconSize}
-        color="$color9"
-      />
-      <Text
-        fontSize={textSize}
-        color="$color9"
+      <XStack
+        alignItems="center"
+        gap="$2"
+        testID={testID}
       >
-        Queued
-      </Text>
-    </XStack>
+        <Clock
+          size={iconSize}
+          color="$color11"
+        />
+        <Text
+          fontSize={textSize}
+          color="$color11"
+        >
+          Queued
+        </Text>
+      </XStack>
+    </ProfilerWrapper>
   )
 }

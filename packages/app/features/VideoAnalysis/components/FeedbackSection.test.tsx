@@ -41,13 +41,7 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
   FeedbackPanel: jest.fn(() => null),
 }))
 
-// Mock VideoAnalysisContext
-jest.mock('../contexts/VideoAnalysisContext', () => ({
-  useVideoAnalysisContext: () => ({
-    videoUri: 'video.mp4',
-    feedbackItems: [],
-  }),
-}))
+// Context removed - not used in FeedbackSection
 
 describe('FeedbackSection', () => {
   const mockSocialIcons = SocialIcons as jest.Mock

@@ -1,6 +1,6 @@
 import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'
 
@@ -53,7 +53,9 @@ export function useTabPersistence() {
     loadSavedTab()
   }, [loadSavedTab])
 
-  const saveTab = useCallback(async (tab: TabType) => {
+  // Use ref for saveTab to keep setActiveTab stable (prevents cascade re-renders)
+  // Create stable callback first, then assign to ref
+  const saveTabCallback = useCallback(async (tab: TabType) => {
     try {
       await AsyncStorage.setItem(TAB_STORAGE_KEY, tab)
       log.debug('useTabPersistence', 'Saved tab state', { tab })
@@ -64,6 +66,10 @@ export function useTabPersistence() {
     }
   }, [])
 
+  const saveTabRef = useRef(saveTabCallback)
+  saveTabRef.current = saveTabCallback
+
+  // Stable setActiveTab callback - no dependencies means it never changes reference
   const setActiveTab = useCallback(
     (tab: TabType) => {
       if (!isValidTab(tab)) {
@@ -72,9 +78,9 @@ export function useTabPersistence() {
       }
 
       setActiveTabState(tab)
-      saveTab(tab)
+      saveTabRef.current(tab)
     },
-    [saveTab]
+    [] // No dependencies - callback is stable forever
   )
 
   // Memoize return object to prevent unnecessary re-renders in consumers

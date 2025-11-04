@@ -1036,3 +1036,364 @@ function shouldCache(analysis: CachedAnalysis): boolean {
 
 ---
 
+## Architectural Refactoring: God Hook Anti-Pattern
+
+### Task 56: Extract Domain Hooks from useVideoAnalysisOrchestrator
+**Effort:** 5-7 days | **Priority:** P2 (Technical Debt) | **Depends on:** None
+**User Story:** Refactor 1700 LOC God Hook into focused domain hooks following Single Responsibility Principle
+
+**STATUS:** 🟡 **PENDING**
+
+@step-by-step-rule.mdc - Break down `useVideoAnalysisOrchestrator` into focused, testable domain hooks to improve maintainability, testability, and reduce tight coupling.
+
+**OBJECTIVE:** Eliminate God Object anti-pattern by extracting 14 coordinated hooks into independent domain hooks with clear responsibilities.
+
+**CURRENT STATE:**
+- ❌ **God Hook**: `useVideoAnalysisOrchestrator` (1700+ LOC)
+- ❌ **14 hooks coordinated** in single file
+- ❌ **20+ layers of memoization** for prop stability
+- ❌ **Tight coupling** - everything depends on everything
+- ❌ **Hard to test** - must mock entire system
+- ❌ **Hard to maintain** - changes affect entire system
+- ✅ **Works correctly** - no functional bugs (MVP complete)
+
+**PROBLEM:**
+- **Single Responsibility Violation**: One hook manages video playback, audio control, feedback coordination, gesture handling, animations, error handling
+- **Tight Coupling**: All hooks depend on each other through orchestrator, can't be used independently
+- **Testing Nightmare**: Can't test hooks in isolation, must mock 13 dependencies
+- **Performance Complexity**: 20+ useMemo/useCallback layers make debugging re-renders difficult
+- **Maintenance Risk**: Adding features requires understanding entire 1700 LOC orchestrator
+
+**IMPACT:**
+- New features require changes across entire orchestrator
+- Bugs hard to isolate (complex stack traces)
+- Onboarding new developers slow
+- Performance optimization requires deep dive into memoization maze
+- Can't reuse hooks in other screens
+
+**ARCHITECTURAL ISSUES:**
+1. **God Object**: Single hook with too many responsibilities
+2. **Tight Coupling**: Everything depends on everything
+3. **Low Cohesion**: Unrelated concerns mixed together
+4. **Poor Testability**: Can't test hooks independently
+5. **Over-Engineered Memoization**: Compensating for architectural issues
+
+**SCOPE:**
+
+#### Phase 1: Extract Core Domain Hooks (High Priority)
+**Summary:** Split orchestrator into independent domain hooks - all 14 hooks are already separate files, but tightly coupled through orchestrator.
+
+**IMPORTANT CLARIFICATION:**
+The hooks are **already extracted** into separate files. The problem isn't that code is in one file - it's that the **orchestrator creates artificial coupling**. All 14 hooks funnel through a 1700 LOC orchestrator that:
+- Aggregates all hook results into one massive object
+- Adds 20+ memoization layers to stabilize references
+- Creates tight coupling - hooks can't be used without orchestrator
+- Makes testing hard - must mock entire orchestrator context
+
+**The Fix:** Remove the orchestrator middleman. Compose hooks directly in VideoAnalysisScreen.
+
+**Current 14 Hooks (lines 196-210 in orchestrator):**
+1. ✅ `useHistoricalAnalysis` - Load historical analysis data (already extracted)
+2. ✅ `useAnalysisState` - Manage analysis state and feedback (already extracted)
+3. ✅ `useVideoPlayback` - Control video playback (already extracted)
+4. ✅ `useVideoControls` - Manage video control visibility (already extracted)
+5. ✅ `useFeedbackAudioSource` - Resolve audio URLs for feedback (already extracted)
+6. ✅ `useAudioController` - Control audio playback (already extracted)
+7. ✅ `useFeedbackCoordinator` - Coordinate feedback with video/audio (already extracted)
+8. ✅ `useFeedbackPanel` - Manage feedback panel state (already extracted)
+9. ✅ `useVideoAudioSync` - Sync video and audio playback (already extracted)
+10. ✅ `useAutoPlayOnReady` - Auto-play video when ready (already extracted)
+11. ✅ `useGestureController` - YouTube-style gesture delegation (native only) (already extracted)
+12. ✅ `useAnimationController` - Mode-based animation calculations (native only) (already extracted)
+13. ✅ `useStatusBar` - Hide status bar when screen focused (already extracted)
+14. ❌ **Context value aggregation** - This is the orchestrator itself
+
+**The Real Problem:**
+- ✅ Hooks are already in separate files
+- ❌ **Orchestrator creates tight coupling** - all hooks coordinated through 1700 LOC orchestrator
+- ❌ **20+ memoization layers** in orchestrator to manage prop stability
+- ❌ **Can't use hooks independently** - must go through orchestrator
+
+**Tasks:**
+- [ ] **Remove orchestrator pattern** - compose hooks directly in VideoAnalysisScreen
+- [ ] **Refactor interdependencies** - hooks currently depend on orchestrator's memoized aggregations
+- [ ] **Move composition to component** - VideoAnalysisScreen should compose hooks, not orchestrator
+- [ ] **Eliminate coordination layer** - use Context/events for cross-hook communication
+- [ ] **Reduce memoization** - remove 20+ layers compensating for orchestrator complexity
+- [ ] Add tests for direct hook composition (no orchestrator)
+
+**Target Architecture:**
+```typescript
+// Before (God Hook Orchestrator - 1700 LOC)
+const orchestrator = useVideoAnalysisOrchestrator({
+  analysisJobId,
+  videoRecordingId,
+  videoUri,
+  initialStatus,
+  onBack,
+  onControlsVisibilityChange,
+  onProcessingChange,
+})
+// Returns massive aggregated object with 14 hook results
+
+// After (Direct Composition in Component)
+function VideoAnalysisScreen() {
+  // Status bar (simple, no dependencies)
+  useStatusBar(true, 'fade')
+  
+  // Data loading
+  const historical = useHistoricalAnalysis(analysisJobId)
+  const analysisState = useAnalysisState(historical.data)
+  
+  // Video playback
+  const videoPlayback = useVideoPlayback(videoUri)
+  const videoControls = useVideoControls()
+  
+  // Audio system
+  const audioSource = useFeedbackAudioSource(analysisState.feedback)
+  const audioController = useAudioController()
+  const audioSync = useVideoAudioSync(videoPlayback, audioController)
+  
+  // Feedback system
+  const feedbackPanel = useFeedbackPanel()
+  const feedbackCoordinator = useFeedbackCoordinator({
+    video: videoPlayback,
+    audio: audioController,
+    panel: feedbackPanel,
+  })
+  
+  // Auto-play behavior
+  useAutoPlayOnReady(videoPlayback, analysisState.isReady)
+  
+  // Native-only features
+  const gesture = useGestureController(Platform.OS !== 'web')
+  const animation = useAnimationController(Platform.OS !== 'web')
+  
+  // Compose for layout
+  return <VideoAnalysisLayout 
+    video={videoPlayback}
+    audio={{ controller: audioController, source: audioSource, sync: audioSync }}
+    feedback={{ 
+      items: analysisState.feedback,
+      coordinator: feedbackCoordinator,
+      panel: feedbackPanel,
+      state: analysisState 
+    }}
+    controls={videoControls}
+    gesture={gesture}
+    animation={animation}
+  />
+}
+```
+
+**Key Differences:**
+- **Before**: Orchestrator aggregates everything → 1700 LOC file, 20+ memoization layers
+- **After**: Component composes hooks directly → clear dependencies, minimal memoization
+- **Coupling**: Before (tight) → After (loose via props/context)
+- **Testability**: Before (mock 13 hooks) → After (test each independently)
+
+**Why Orchestrator Memoization is Unnecessary:**
+
+The orchestrator has **49 instances of useMemo/useCallback** to stabilize references in a massive aggregated object. This is **compensating for the orchestrator pattern itself**, not solving a real problem.
+
+**Current (Orchestrator Pattern):**
+```typescript
+// Orchestrator aggregates 14 hooks into one massive object
+const orchestrator = useVideoAnalysisOrchestrator(props)
+// Returns: { video: {...}, playback: {...}, audio: {...}, feedback: {...}, ... }
+// 49 memoization layers to stabilize this massive object
+
+// Component gets one massive prop
+<VideoAnalysisLayout orchestrator={orchestrator} />
+// React.memo needs stable reference to entire object
+```
+
+**After (Direct Composition):**
+```typescript
+// Component composes hooks directly
+const video = useVideoPlayback(uri)
+const audio = useAudioController()
+const feedback = useFeedback(items)
+
+// Component gets individual props
+<VideoAnalysisLayout 
+  video={video}      // Only re-renders when video state changes
+  audio={audio}     // Only re-renders when audio state changes
+  feedback={feedback} // Only re-renders when feedback state changes
+/>
+// React.memo can optimize individual props, not entire object
+```
+
+**Memoization Breakdown:**
+- **Orchestrator**: 49 memoization layers (useMemo/useCallback) to stabilize aggregated object
+- **After Refactor**: ~5-10 memoization layers (only where actually needed at component level)
+- **Reduction**: **80-90% less memoization** because:
+  - No aggregation layer to stabilize
+  - Each hook manages its own state
+  - Components get individual props (easier to memoize)
+  - Memoization happens where needed (component level), not in aggregation layer
+
+**The Real Insight:**
+The orchestrator's memoization is **compensating for architectural complexity**, not solving performance issues. Remove the orchestrator, remove the need for most memoization.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator removed - VideoAnalysisScreen composes hooks directly
+- [ ] Each hook remains in separate file (already done)
+- [ ] Hooks loosely coupled (via props/context, not orchestrator aggregation)
+- [ ] All existing functionality preserved (no regressions)
+- [ ] **Memoization reduced by 80-90%** (49 orchestrator instances → ~5-10 component-level instances)
+- [ ] Tests pass: `yarn workspace @my/app test`
+- [ ] Component LOC similar (~200 lines for composition vs 1700 in orchestrator)
+- [ ] **Performance validation**: No re-render regressions (memoization at component level sufficient)
+
+#### Phase 2: Context for Cross-Cutting Concerns (Medium Priority)
+**Summary:** Use React Context for data needed by multiple hooks instead of prop drilling.
+
+**Tasks:**
+- [ ] Create `VideoContext` for video playback state
+- [ ] Create `FeedbackContext` for feedback items
+- [ ] Update hooks to consume contexts when needed
+- [ ] Remove prop drilling through orchestrator
+- [ ] Add context tests
+
+**Interface:**
+```typescript
+// Context for shared state
+const VideoContext = createContext<VideoState | null>(null)
+
+function VideoProvider({ children, uri }: { children: ReactNode; uri: string }) {
+  const state = useVideoPlayback(uri)
+  return <VideoContext.Provider value={state}>{children}</VideoContext.Provider>
+}
+
+// Hooks consume context only when needed
+const useFeedback = () => {
+  const video = useContext(VideoContext)
+  // Use video.currentTime for feedback sync
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Contexts created for cross-cutting concerns
+- [ ] Prop drilling eliminated
+- [ ] Hooks loosely coupled via context
+- [ ] Tests validate context integration
+- [ ] No performance regression (context updates optimized)
+
+#### Phase 3: Event System for Hook Coordination (Low Priority)
+**Summary:** Implement event bus for hooks to communicate without direct dependencies.
+
+**Tasks:**
+- [ ] Create simple event bus (pub/sub pattern)
+- [ ] Define domain events (`video:play`, `feedback:select`, etc.)
+- [ ] Update hooks to emit/listen to events
+- [ ] Remove direct hook-to-hook calls
+- [ ] Add event flow documentation
+- [ ] Add event tests
+
+**Interface:**
+```typescript
+// Event-driven coordination
+const useVideoPlayback = () => {
+  const emit = useEventEmitter()
+  
+  const play = useCallback(() => {
+    // ... play logic
+    emit('video:play', { currentTime })
+  }, [emit])
+}
+
+const useFeedbackSync = () => {
+  useEventListener('video:play', (event) => {
+    // React to video play event
+    syncFeedback(event.currentTime)
+  })
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Event bus implemented (< 50 LOC)
+- [ ] Domain events documented
+- [ ] Hooks coordinate via events (no direct coupling)
+- [ ] Tests validate event flow
+- [ ] Event system debuggable (logging)
+
+**SUCCESS VALIDATION:**
+- [ ] `yarn type-check` passes (0 errors)
+- [ ] `yarn lint` passes (0 errors)
+- [ ] `yarn workspace @my/app test` passes (all tests)
+- [ ] No functional regressions (manual QA)
+- [ ] **Orchestrator LOC removed**: 1700 LOC file deleted (composition moved to component ~200 LOC)
+- [ ] **Memoization reduced**: 49 orchestrator instances → ~5-10 component-level instances (80-90% reduction)
+- [ ] Test coverage increased: Can test hooks independently (no orchestrator mocking)
+- [ ] Code maintainability improved: New features don't require orchestrator changes
+- [ ] **Performance validation**: Re-render counts same or better (memoization at component level sufficient)
+
+**MIGRATION STRATEGY:**
+1. **Start Small**: Compose 2-3 most independent hooks directly in VideoAnalysisScreen (proof of concept)
+2. **Test Coverage**: Verify existing tests still pass (hooks already tested individually)
+3. **Gradual Migration**: Move hook composition from orchestrator to component, validate after each
+4. **Preserve Behavior**: Use feature flags if needed to validate both paths (orchestrator vs direct composition)
+5. **Document Changes**: Update architecture docs with new patterns
+6. **Remove Orchestrator**: Once all hooks composed directly, delete orchestrator file
+
+**BENEFITS:**
+- ✅ **Testability**: Each hook testable in isolation
+- ✅ **Maintainability**: Changes localized to single hook
+- ✅ **Reusability**: Hooks can be used in other screens
+- ✅ **Performance**: Less over-engineered memoization
+- ✅ **Onboarding**: Easier to understand focused hooks
+- ✅ **Debugging**: Clear responsibility, simpler stack traces
+
+**RISKS:**
+- ⚠️ **Refactoring Time**: 5-7 days of development
+- ⚠️ **Regression Risk**: Must validate all functionality
+- ⚠️ **Team Familiarity**: Team must learn new patterns
+- ⚠️ **Coordination Complexity**: Need event system for hook communication
+
+**DECISION:**
+- **Refactor If**: Adding features is painful, bugs hard to find, team growing
+- **Keep Current If**: MVP working well, no major pain points, limited dev resources
+
+**FILES TO MODIFY:**
+- `packages/app/features/VideoAnalysis/hooks/useVideoAnalysisOrchestrator.ts` (**DELETE** - remove orchestrator pattern entirely)
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx` (compose 14 hooks directly instead of using orchestrator)
+- Potentially refactor some hooks to accept different parameters (less coupled to orchestrator's aggregations)
+
+**FILES TO CREATE:**
+- `packages/app/features/VideoAnalysis/contexts/VideoContext.tsx` (Phase 2)
+- `packages/app/features/VideoAnalysis/contexts/FeedbackContext.tsx` (Phase 2)
+- `packages/app/features/VideoAnalysis/utils/eventBus.ts` (Phase 3)
+- Test files for context providers and event bus
+
+**FILES THAT ALREADY EXIST (Don't recreate):**
+- ✅ `useHistoricalAnalysis.ts` (already extracted)
+- ✅ `useAnalysisState.ts` (already extracted)
+- ✅ `useVideoPlayback.ts` (already extracted)
+- ✅ `useVideoControls.ts` (already extracted)
+- ✅ `useFeedbackAudioSource.ts` (already extracted)
+- ✅ `useAudioController.ts` (already extracted)
+- ✅ `useFeedbackCoordinator.ts` (already extracted)
+- ✅ `useFeedbackPanel.ts` (already extracted)
+- ✅ `useVideoAudioSync.ts` (already extracted)
+- ✅ `useAutoPlayOnReady.ts` (already extracted)
+- ✅ `useGestureController.ts` (already extracted)
+- ✅ `useAnimationController.ts` (already extracted)
+- ✅ `@app/hooks/useStatusBar.ts` (already extracted)
+- ✅ All existing hook test files
+
+**DOCUMENTATION TO UPDATE:**
+- `docs/spec/architecture.mermaid` (update hook architecture)
+- `docs/spec/TRD.md` (document new hook patterns)
+- `docs/performance/react-memoization-architecture.md` (update memoization strategy)
+- Architecture decision record (ADR) for God Hook refactoring
+
+**NOTES:**
+- React 19 "MEMO BYPASSED" behavior is **expected**, not a bug to fix
+- Current architecture **works correctly** but is **not optimal**
+- This is **technical debt** that will accumulate over time
+- Refactoring is **investment** in long-term maintainability
+- Can be done incrementally (don't rewrite everything at once)
+
+---
+

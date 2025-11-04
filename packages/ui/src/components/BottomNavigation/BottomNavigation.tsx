@@ -1,6 +1,9 @@
+import { useRenderDiagnostics } from '@app/hooks'
 import { shadows } from '@my/config'
 import React, { useCallback, useMemo } from 'react'
 import { Platform } from 'react-native'
+
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { AnimatePresence, Button, Text, XStack, YStack } from 'tamagui'
 import { BottomNavigationContainer } from './BottomNavigationContainer'
 import type { BottomNavigationProps, NavigationTabProps } from './types'
@@ -13,83 +16,109 @@ export { BottomNavigationContainer }
  * Three-tab layout (Coach/Record/Insights) with active state management
  * Mobile-optimized with 44px touch targets and responsive sizing
  */
-export function BottomNavigation({
-  activeTab,
-  onTabChange,
-  disabled = false,
-}: BottomNavigationProps) {
-  const tabs = ['coach', 'record', 'insights'] as const
-  const activeIndex = tabs.indexOf(activeTab)
+export const BottomNavigation = React.memo(
+  function BottomNavigation({ activeTab, onTabChange, disabled = false }: BottomNavigationProps) {
+    // Diagnose prop changes causing re-renders
+    useRenderDiagnostics(
+      'BottomNavigation',
+      { activeTab, onTabChange, disabled },
+      {
+        logToConsole: __DEV__,
+        logOnlyChanges: true,
+      }
+    )
 
-  // Memoize tab press handlers to prevent NavigationTab re-renders
-  const handleCoachPress = useCallback(() => onTabChange('coach'), [onTabChange])
-  const handleRecordPress = useCallback(() => onTabChange('record'), [onTabChange])
-  const handleInsightsPress = useCallback(() => onTabChange('insights'), [onTabChange])
+    // Note: Expo Router calls tabBarRenderer multiple times during navigation transitions.
+    // This is expected behavior. React.memo with custom comparator prevents unnecessary
+    // re-renders when props haven't changed.
 
-  // Memoize tab handlers map to prevent recreation
-  const tabHandlers = useMemo(
-    () => ({
-      coach: handleCoachPress,
-      record: handleRecordPress,
-      insights: handleInsightsPress,
-    }),
-    [handleCoachPress, handleRecordPress, handleInsightsPress]
-  )
+    const tabs = ['coach', 'record', 'insights'] as const
+    const activeIndex = tabs.indexOf(activeTab)
 
-  return (
-    <XStack
-      flex={1}
-      alignItems="center"
-      justifyContent="space-between"
-      paddingHorizontal="$2"
-      position="relative"
-    >
-      {tabs.map((tab) => (
-        <NavigationTab
-          key={tab}
-          label={tab.charAt(0).toUpperCase() + tab.slice(1)}
-          isActive={activeTab === tab}
-          onPress={tabHandlers[tab]}
-          disabled={disabled}
-        />
-      ))}
+    // Memoize tab press handlers to prevent NavigationTab re-renders
+    const handleCoachPress = useCallback(() => onTabChange('coach'), [onTabChange])
+    const handleRecordPress = useCallback(() => onTabChange('record'), [onTabChange])
+    const handleInsightsPress = useCallback(() => onTabChange('insights'), [onTabChange])
 
-      {/* Animated sliding border */}
-      <AnimatePresence>
-        <YStack
-          key={`border-${activeTab}`}
-          position="absolute"
-          bottom={0}
-          height={2}
-          width="$4"
-          backgroundColor="$color12"
-          borderRadius="$2"
-          animation={disabled ? undefined : 'bouncy'}
-          left={`${activeIndex * 33.33 + 16.67}%`}
-          transform={[{ translateX: -8 }]} // Center the border (half of width="$4")
-          enterStyle={
-            disabled
-              ? undefined
-              : {
-                  opacity: 0,
-                  scaleX: 0,
-                  x: 0,
-                }
-          }
-          exitStyle={
-            disabled
-              ? undefined
-              : {
-                  opacity: 0,
-                  scaleX: 0,
-                  x: 0,
-                }
-          }
-        />
-      </AnimatePresence>
-    </XStack>
-  )
-}
+    // Memoize tab handlers map to prevent recreation
+    const tabHandlers = useMemo(
+      () => ({
+        coach: handleCoachPress,
+        record: handleRecordPress,
+        insights: handleInsightsPress,
+      }),
+      [handleCoachPress, handleRecordPress, handleInsightsPress]
+    )
+
+    return (
+      <ProfilerWrapper
+        id="BottomNavigation"
+        logToConsole={__DEV__}
+      >
+        <XStack
+          flex={1}
+          alignItems="center"
+          justifyContent="space-between"
+          paddingHorizontal="$2"
+          position="relative"
+        >
+          {tabs.map((tab) => (
+            <NavigationTab
+              key={tab}
+              label={tab.charAt(0).toUpperCase() + tab.slice(1)}
+              isActive={activeTab === tab}
+              onPress={tabHandlers[tab]}
+              disabled={disabled}
+            />
+          ))}
+
+          {/* Animated sliding border */}
+          <AnimatePresence>
+            <YStack
+              key={`border-${activeTab}`}
+              position="absolute"
+              bottom={0}
+              height={2}
+              width="$4"
+              backgroundColor="$color12"
+              borderRadius="$2"
+              animation={disabled ? undefined : 'bouncy'}
+              left={`${activeIndex * 33.33 + 16.67}%`}
+              transform={[{ translateX: -8 }]} // Center the border (half of width="$4")
+              enterStyle={
+                disabled
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      scaleX: 0,
+                      x: 0,
+                    }
+              }
+              exitStyle={
+                disabled
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      scaleX: 0,
+                      x: 0,
+                    }
+              }
+            />
+          </AnimatePresence>
+        </XStack>
+      </ProfilerWrapper>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Custom comparator: only re-render if activeTab or disabled changes
+    // onTabChange should be stable via useCallback in parent
+    return (
+      prevProps.activeTab === nextProps.activeTab &&
+      prevProps.disabled === nextProps.disabled &&
+      prevProps.onTabChange === nextProps.onTabChange
+    )
+  }
+)
 
 /**
  * Individual Navigation Tab

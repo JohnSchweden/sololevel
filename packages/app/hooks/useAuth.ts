@@ -1,6 +1,6 @@
 import { type AuthResult, type SignInData, authClient } from '@my/api'
 import { log } from '@my/logging'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useAuthStore } from '../stores/auth'
 
 /**
@@ -124,18 +124,23 @@ export function useAuth() {
     initialize()
   }, [initialize])
 
-  return {
-    // State
-    user,
-    session,
-    loading,
-    initialized,
-    userId,
-    isAuthenticated,
+  // Memoize return object to prevent unnecessary re-renders in consumers
+  // This ensures stable reference when dependencies haven't changed
+  return useMemo(
+    () => ({
+      // State
+      user,
+      session,
+      loading,
+      initialized,
+      userId,
+      isAuthenticated,
 
-    // Actions
-    signIn,
-    signOut,
-    initialize,
-  }
+      // Actions
+      signIn,
+      signOut,
+      initialize,
+    }),
+    [user, session, loading, initialized, userId, isAuthenticated, signIn, signOut, initialize]
+  )
 }

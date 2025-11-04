@@ -1,7 +1,9 @@
 import { log } from '@my/logging'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import Video from 'react-native-video'
+
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { Text, YStack } from 'tamagui'
 import type { VideoPlayerProps } from '../types'
 
@@ -106,67 +108,76 @@ export function VideoPlayerNative({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seekToTime])
 
-  return (
-    <YStack
-      flex={1}
-      position="relative"
-      testID="video-player-native"
-    >
-      {/* Error State */}
-      {error && (
-        <YStack
-          flex={1}
-          backgroundColor="$color2"
-          justifyContent="center"
-          alignItems="center"
-          padding="$4"
-          testID="video-error"
-        >
-          <YStack
-            backgroundColor="$color3"
-            padding="$4"
-            borderRadius="$4"
-            maxWidth={300}
-            alignItems="center"
-            testID="error-message"
-          >
-            {/* Error icon placeholder */}
-            <YStack
-              width={48}
-              height={48}
-              backgroundColor="$color4"
-              borderRadius={24}
-              marginBottom="$2"
-              testID="error-icon"
-            />
-            {/* User-safe error message */}
-            <Text testID="error-text">Unable to load video: {error}</Text>
-          </YStack>
-        </YStack>
-      )}
+  // Memoize video source to prevent unnecessary re-renders
+  // Video component is expensive to re-render, so stable source reference is important
+  const videoSource = useMemo(() => ({ uri: videoUri }), [videoUri])
 
-      {/* Native Video Player */}
-      {/* Preload strategy: Video mounts early (paused) to warm buffer before user taps play */}
-      {!error && (
-        <Video
-          ref={videoRef}
-          source={{ uri: videoUri }}
-          {...(posterUri ? { poster: posterUri, posterResizeMode: 'cover' } : {})}
-          style={{ flex: 1 }}
-          paused={!isPlaying}
-          onLoad={handleLoad}
-          onError={handleError}
-          onProgress={handleProgress}
-          onEnd={handleEnd}
-          resizeMode="cover"
-          controls={false}
-          playInBackground={false}
-          playWhenInactive={false}
-          ignoreSilentSwitch="ignore"
-          testID="native-video-element"
-        />
-      )}
-    </YStack>
+  return (
+    <ProfilerWrapper
+      id="VideoPlayer"
+      logToConsole={__DEV__}
+    >
+      <YStack
+        flex={1}
+        position="relative"
+        testID="video-player-native"
+      >
+        {/* Error State */}
+        {error && (
+          <YStack
+            flex={1}
+            backgroundColor="$color2"
+            justifyContent="center"
+            alignItems="center"
+            padding="$4"
+            testID="video-error"
+          >
+            <YStack
+              backgroundColor="$color3"
+              padding="$4"
+              borderRadius="$4"
+              maxWidth={300}
+              alignItems="center"
+              testID="error-message"
+            >
+              {/* Error icon placeholder */}
+              <YStack
+                width={48}
+                height={48}
+                backgroundColor="$color4"
+                borderRadius={24}
+                marginBottom="$2"
+                testID="error-icon"
+              />
+              {/* User-safe error message */}
+              <Text testID="error-text">Unable to load video: {error}</Text>
+            </YStack>
+          </YStack>
+        )}
+
+        {/* Native Video Player */}
+        {/* Preload strategy: Video mounts early (paused) to warm buffer before user taps play */}
+        {!error && (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            {...(posterUri ? { poster: posterUri, posterResizeMode: 'cover' } : {})}
+            style={{ flex: 1 }}
+            paused={!isPlaying}
+            onLoad={handleLoad}
+            onError={handleError}
+            onProgress={handleProgress}
+            onEnd={handleEnd}
+            resizeMode="cover"
+            controls={false}
+            playInBackground={false}
+            playWhenInactive={false}
+            ignoreSilentSwitch="ignore"
+            testID="native-video-element"
+          />
+        )}
+      </YStack>
+    </ProfilerWrapper>
   )
 }
 

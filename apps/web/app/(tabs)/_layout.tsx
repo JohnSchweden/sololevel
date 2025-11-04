@@ -1,6 +1,7 @@
 import { NavigationAppHeader } from '@app/components/navigation'
 import { useTabNavigation } from '@app/features/CameraRecording/hooks/useTabNavigation'
 import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPersistence'
+import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
 import { type Href, Tabs, usePathname, useRouter } from 'expo-router'
@@ -32,13 +33,24 @@ export default function TabsLayout() {
   setActiveTabRef.current = setActiveTab
 
   // Use custom hook for consolidated tab navigation logic
-  const { shouldRender, markUserInitiatedChange } = useTabNavigation({
+  const tabNavigationResult = useTabNavigation({
     pathname,
     router,
     activeTab,
     setActiveTab,
     isLoading,
   })
+  const { shouldRender, markUserInitiatedChange } = tabNavigationResult
+
+  // Track useTabNavigation hook return stability (should be memoized now)
+  useRenderDiagnostics(
+    'TabsLayout[useTabNavigation]',
+    tabNavigationResult as unknown as Record<string, unknown>,
+    {
+      logToConsole: __DEV__,
+      logOnlyChanges: true,
+    }
+  )
 
   // Memoize header renderer to prevent re-renders
   const headerRenderer = useCallback((props: any) => <NavigationAppHeader {...props} />, [])
@@ -60,7 +72,9 @@ export default function TabsLayout() {
     [markUserInitiatedChange] // Only depends on stable function from hook
   )
 
-  // TabBar renderer - memoized to prevent unnecessary re-renders
+  // TabBar renderer - Expo Router calls this function multiple times during navigation
+  // Accept this behavior: return component tree directly with stable props
+  // The BottomNavigation component itself handles memoization internally
   const tabBarRenderer = useCallback(
     (props: any) => {
       navigationRef.current = props.navigation

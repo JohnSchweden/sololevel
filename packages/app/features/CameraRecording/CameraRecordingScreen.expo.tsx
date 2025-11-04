@@ -14,7 +14,7 @@ import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 // Import external components directly
 import { BottomNavigation } from '@my/ui/src/components/BottomNavigation/BottomNavigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
@@ -63,6 +63,12 @@ export function CameraRecordingScreen({
   // Get active tab from tabs layout persistence
   const { activeTab } = useTabPersistence()
 
+  // Get hook result
+  const cameraScreenLogicResult = useCameraScreenLogic({
+    onVideoProcessed,
+    cameraRef,
+  })
+
   const {
     cameraType,
     zoomLevel,
@@ -90,10 +96,7 @@ export function CameraRecordingScreen({
     setShowNavigationDialog,
     handleVideoRecorded,
     resetRecording,
-  } = useCameraScreenLogic({
-    onVideoProcessed,
-    cameraRef,
-  })
+  } = cameraScreenLogicResult
 
   // Handle reset to idle state when navigating back from video analysis
   useEffect(() => {
@@ -107,13 +110,46 @@ export function CameraRecordingScreen({
   const isInRecordingState =
     recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
 
+  // Throttle header updates to prevent excessive navigation.setOptions() calls
+  // Duration updates every ~150-250ms, but timer display only needs to update once per second
+  // Use refs to track previous values to detect actual changes
+  const prevFormattedDurationRef = useRef<string | undefined>(undefined)
+  const prevRecordingStateRef = useRef<RecordingState | undefined>(undefined)
+  const prevIsInRecordingStateRef = useRef<boolean | undefined>(undefined)
+  const isInitialMountRef = useRef(true)
+
   // Communicate header state to route file via callback
+  // Only update when values actually change:
+  // - formattedDuration: when timer text changes (every second, not every tick)
+  // - recordingState/isInRecordingState: when state transitions (infrequent)
+  // Always update on initial mount to ensure header is configured with navigation handlers
   useEffect(() => {
-    onHeaderStateChange?.({
-      time: formattedDuration,
-      mode: recordingState,
-      isRecording: isInRecordingState,
-    })
+    const formattedDurationChanged = prevFormattedDurationRef.current !== formattedDuration
+    const recordingStateChanged = prevRecordingStateRef.current !== recordingState
+    const isInRecordingStateChanged = prevIsInRecordingStateRef.current !== isInRecordingState
+    const isInitialMount = isInitialMountRef.current
+
+    // Update header if any value changed OR on initial mount
+    if (
+      isInitialMount ||
+      formattedDurationChanged ||
+      recordingStateChanged ||
+      isInRecordingStateChanged
+    ) {
+      // Update refs
+      prevFormattedDurationRef.current = formattedDuration
+      prevRecordingStateRef.current = recordingState
+      prevIsInRecordingStateRef.current = isInRecordingState
+      isInitialMountRef.current = false
+
+      // Update header immediately when values change (user expects updates)
+      // This reduces header updates from ~4-6/sec to ~1/sec (once per second for timer)
+      onHeaderStateChange?.({
+        time: formattedDuration,
+        mode: recordingState,
+        isRecording: isInRecordingState,
+      })
+    }
   }, [formattedDuration, recordingState, isInRecordingState, onHeaderStateChange])
 
   // Share back press handler with route file via ref
@@ -122,6 +158,38 @@ export function CameraRecordingScreen({
       onBackPress.current = handleBackPress
     }
   }, [onBackPress, handleBackPress])
+
+  // Memoize RecordingControls props to prevent unnecessary re-renders
+  // Note: duration is included in props for type compatibility but not actually used by RecordingControls
+  // We exclude it from memo deps to prevent recreating props every ~150ms
+  // RecordingControls is wrapped with React.memo, so it only re-renders when props actually change
+  const recordingControlsProps = useMemo(
+    () => ({
+      recordingState,
+      duration, // Included for type compatibility, but not used by component
+      zoomLevel,
+      canSwapCamera: recordingState !== RecordingState.RECORDING,
+      canStop,
+      onPause: handlePauseRecording,
+      onResume: handleResumeRecording,
+      onStop: handleStopRecording,
+      onCameraSwap: handleCameraSwap,
+      onZoomChange: handleZoomChange,
+      onSettingsOpen: handleSettingsOpen,
+    }),
+    [
+      recordingState,
+      // Exclude duration - component doesn't use it, prevents memo recreation every ~150ms
+      zoomLevel,
+      canStop,
+      handlePauseRecording,
+      handleResumeRecording,
+      handleStopRecording,
+      handleCameraSwap,
+      handleZoomChange,
+      handleSettingsOpen,
+    ]
+  )
 
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
@@ -184,19 +252,7 @@ export function CameraRecordingScreen({
             </CameraControlsOverlay>
           ) : (
             <CameraControlsOverlay position="bottom">
-              <RecordingControls
-                recordingState={recordingState}
-                duration={duration}
-                zoomLevel={zoomLevel}
-                canSwapCamera={recordingState !== RecordingState.RECORDING}
-                canStop={canStop}
-                onPause={handlePauseRecording}
-                onResume={handleResumeRecording}
-                onStop={handleStopRecording}
-                onCameraSwap={handleCameraSwap}
-                onZoomChange={handleZoomChange}
-                onSettingsOpen={handleSettingsOpen}
-              />
+              <RecordingControls {...recordingControlsProps} />
             </CameraControlsOverlay>
           ))}
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
@@ -6,7 +6,6 @@ import { log } from '@my/logging'
 
 import { useStatusBar } from '@app/hooks/useStatusBar'
 import type { VideoControlsRef } from '@ui/components/VideoAnalysis'
-import type { VideoAnalysisContextValue } from '../contexts/VideoAnalysisContext'
 import type { FeedbackPanelItem } from '../types'
 import { type AnalysisPhase, useAnalysisState } from './useAnalysisState'
 import { useAnimationController } from './useAnimationController'
@@ -153,10 +152,40 @@ export interface UseVideoAnalysisOrchestratorReturn {
     onFeedbackScrollY: (scrollY: number) => void
     onFeedbackMomentumScrollEnd: () => void
   }
-  contextValue: VideoAnalysisContextValue
   refs: {
     videoControlsRef: React.RefObject<VideoControlsRef | null>
     rootPanRef: React.RefObject<any>
+  }
+  /**
+   * Pre-composed stable audio overlay object for consuming components.
+   * Memoized at source to prevent race conditions where props change between
+   * React.memo's arePropsEqual check and component render.
+   *
+   * Only recreates when actual data changes (overlayVisible, activeAudio, duration),
+   * not when parent hook objects are recreated. This eliminates the "MEMO BYPASSED"
+   * errors that occurred when VideoAnalysisScreen memoized these objects.
+   */
+  audioOverlay: {
+    shouldShow: boolean
+    activeAudio: { id: string; url: string } | null
+    onClose?: () => void
+    onInactivity?: () => void
+    onInteraction?: () => void
+    audioDuration?: number
+  }
+  /**
+   * Pre-composed stable bubble state object for consuming components.
+   * Memoized at source to prevent race conditions where props change between
+   * React.memo's arePropsEqual check and component render.
+   *
+   * Only recreates when actual data changes (visible, currentIndex, items),
+   * not when parent hook objects are recreated. This eliminates the "MEMO BYPASSED"
+   * errors that occurred when VideoAnalysisScreen memoized these objects.
+   */
+  bubbleState: {
+    visible: boolean
+    currentIndex: number | null
+    items: FeedbackPanelItem[]
   }
 }
 
@@ -180,8 +209,16 @@ export interface UseVideoAnalysisOrchestratorReturn {
  * 13. useStatusBar - Hide status bar when screen focused
  * 14. Context value aggregation
  *
+ * Performance Optimization:
+ * - All return values are memoized at source to provide stable references
+ * - Pre-composed objects (audioOverlay, bubbleState) are memoized here to prevent
+ *   race conditions where props change between React.memo's arePropsEqual check
+ *   and component render. This eliminates "MEMO BYPASSED" errors.
+ * - Memoization depends on primitive values and stable callbacks, not object references
+ *   that change on every render. This ensures props only change when actual data changes.
+ *
  * @param props - VideoAnalysisScreen props
- * @returns Organized orchestrator interface with video, playback, audio, feedback, gesture, animation, controls, error, handlers, context, and refs
+ * @returns Organized orchestrator interface with video, playback, audio, feedback, gesture, animation, controls, error, handlers, refs, audioOverlay, and bubbleState
  */
 export function useVideoAnalysisOrchestrator(
   props: VideoAnalysisScreenProps
@@ -196,8 +233,7 @@ export function useVideoAnalysisOrchestrator(
     onProcessingChange,
   } = props
 
-  // useTransition for deferring non-critical updates during animations
-  const [, startTransition] = useTransition()
+  // REMOVED useTransition - was causing race condition in controls visibility updates
 
   // Hide status bar when this screen is focused
   useStatusBar(true, 'fade')
@@ -437,9 +473,105 @@ export function useVideoAnalysisOrchestrator(
   const feedbackAudio = useFeedbackAudioSource(feedbackItems)
   const audioController = useAudioController(feedbackAudio.activeAudio?.url ?? null)
 
+  // Track seekTime transitions to filter out rapid transient changes (null→value→null)
+  // This prevents unnecessary signature changes when seeks complete quickly (<150ms)
+  const seekTimeTransitionRef = useRef<{
+    lastSeekTime: number | null
+    lastSeekTimeValue: number | null
+    lastSeekTimeSetAt: number
+    stableSeekTime: number | null
+    prevStableSeekTime: number | null // Preserve previous stable value during transient seeks
+  }>({
+    lastSeekTime: null,
+    lastSeekTimeValue: null,
+    lastSeekTimeSetAt: 0,
+    stableSeekTime: null,
+    prevStableSeekTime: null,
+  })
+
+  // Detect seekTime transitions and stabilize for signature calculation
+  // Goal: Filter out rapid transient changes (null→value→null within 150ms)
+  const currentSeekTime = audioController.seekTime
+  const prevSeekTime = seekTimeTransitionRef.current.lastSeekTime
+  const now = Date.now()
+
+  // If seekTime changed
+  if (currentSeekTime !== prevSeekTime) {
+    // SeekTime set (null → value or value1 → value2)
+    if (currentSeekTime !== null) {
+      // Preserve previous stable value before potentially transient seek
+      seekTimeTransitionRef.current.prevStableSeekTime =
+        seekTimeTransitionRef.current.stableSeekTime
+      seekTimeTransitionRef.current.lastSeekTime = currentSeekTime
+      seekTimeTransitionRef.current.lastSeekTimeValue = currentSeekTime
+      seekTimeTransitionRef.current.lastSeekTimeSetAt = now
+      // Don't update stableSeekTime yet - wait to see if it's transient (>150ms)
+      // Keep previous stable value until confirmed non-transient
+    }
+    // SeekTime cleared (value → null)
+    else {
+      const timeSinceSet = now - seekTimeTransitionRef.current.lastSeekTimeSetAt
+      // If cleared within 150ms, it's transient - restore previous stable value
+      if (timeSinceSet < 150) {
+        // Transient seek - restore previous stable value to ignore the transient change
+        seekTimeTransitionRef.current.stableSeekTime =
+          seekTimeTransitionRef.current.prevStableSeekTime
+        seekTimeTransitionRef.current.lastSeekTime = null
+        // Keep lastSeekTimeSetAt unchanged so timeSinceSet calculation still works on next render
+      } else {
+        // Legitimate seek completion after >150ms - update stable value
+        seekTimeTransitionRef.current.stableSeekTime = null
+        seekTimeTransitionRef.current.lastSeekTime = null
+      }
+    }
+  } else {
+    // SeekTime unchanged - if it's been stable for >150ms, confirm it's not transient
+    if (currentSeekTime !== null) {
+      const timeSinceSet = now - seekTimeTransitionRef.current.lastSeekTimeSetAt
+      if (timeSinceSet >= 150 && seekTimeTransitionRef.current.stableSeekTime !== currentSeekTime) {
+        // Confirmed stable - update stable value
+        seekTimeTransitionRef.current.stableSeekTime = currentSeekTime
+        seekTimeTransitionRef.current.prevStableSeekTime = currentSeekTime
+      }
+    } else {
+      // SeekTime is null and unchanged - stable value should be null
+      if (seekTimeTransitionRef.current.stableSeekTime !== null) {
+        seekTimeTransitionRef.current.stableSeekTime = null
+        seekTimeTransitionRef.current.prevStableSeekTime = null
+      }
+    }
+  }
+
+  // Use stabilized seekTime for signature calculation
+  // For transient seeks (null→value→null or value→null within 150ms), use previous stable value to prevent signature changes
+  const timeSinceSet = now - seekTimeTransitionRef.current.lastSeekTimeSetAt
+  const isRecentChange = timeSinceSet >= 0 && timeSinceSet < 150 // Ensure timeSinceSet is valid (>= 0)
+
+  // If seekTime was recently set and then cleared quickly, use previous stable value
+  const wasRecentlySetAndCleared =
+    currentSeekTime === null && prevSeekTime !== null && isRecentChange
+
+  // If seekTime is currently set but recent (<150ms), it might be transient - use stable value instead
+  // Only use actual value if it's been stable for >150ms
+  const isRecentlySet =
+    currentSeekTime !== null &&
+    isRecentChange &&
+    seekTimeTransitionRef.current.stableSeekTime !== currentSeekTime // Only if not yet confirmed stable
+
+  // Determine stabilized value for signature
+  // Priority: 1) If cleared quickly, use previous stable
+  //           2) If set recently, use stable (or null if not yet confirmed)
+  //           3) Otherwise use actual value
+  const stableSeekTimeForSignature = wasRecentlySetAndCleared
+    ? (seekTimeTransitionRef.current.stableSeekTime ?? null) // Recently cleared - use previous stable
+    : isRecentlySet
+      ? (seekTimeTransitionRef.current.stableSeekTime ?? null) // Recently set - use stable until confirmed
+      : currentSeekTime // Stable (>150ms) - use actual value
+
   // Stabilize audioController immediately to prevent useFeedbackCoordinator from re-running
   // when audioController reference changes but signature is unchanged
-  const audioControllerSignature = `${audioController.isPlaying}:${audioController.seekTime ?? 'null'}`
+  // Use stabilized seekTime to filter out rapid transient changes
+  const audioControllerSignature = `${audioController.isPlaying}:${stableSeekTimeForSignature ?? 'null'}`
   const prevAudioControllerForCoordinatorRef = useRef(audioController)
   const prevAudioControllerSignatureForCoordinatorRef = useRef(audioControllerSignature)
 
@@ -691,13 +823,14 @@ export function useVideoAnalysisOrchestrator(
 
   const handleControlsVisibilityChange = useCallback(
     (visible: boolean, isUserInteraction = false) => {
-      // Defer non-critical state updates during animations to reduce jank
-      startTransition(() => {
-        setControlsVisibleRef.current(visible)
-        onControlsVisibilityChange?.(visible, isUserInteraction)
-      })
+      // REMOVED startTransition - it causes race condition where controls object
+      // is recreated AFTER arePropsEqual checks but BEFORE render commits,
+      // bypassing React.memo and causing unnecessary re-renders
+      // Controls visibility updates are already fast enough without deferral
+      setControlsVisibleRef.current(visible)
+      onControlsVisibilityChange?.(visible, isUserInteraction)
     },
-    [onControlsVisibilityChange, startTransition]
+    [onControlsVisibilityChange]
   )
 
   const handlePlay = useCallback(() => {
@@ -731,28 +864,14 @@ export function useVideoAnalysisOrchestrator(
 
   const shouldShowUploadError = Boolean(uploadError)
 
-  // Store isPullingToReveal in ref to prevent reads from triggering re-renders
-  // Updates happen in gesture hook, we just provide stable reference for consumers
-  const isPullingToRevealRef = useRef(false)
-  isPullingToRevealRef.current = gesture?.isPullingToRevealJS ?? false
-
-  const contextValue: VideoAnalysisContextValue = useMemo(
-    () => ({
-      videoUri: resolvedVideoUri,
-      feedbackItems,
-      get isPullingToReveal() {
-        return isPullingToRevealRef.current
-      },
-    }),
-    [resolvedVideoUri, feedbackItems]
-  )
+  // Context removed - videoUri is now passed directly as prop to prevent memo bypass
 
   const handleShare = useCallback(() => log.info('VideoAnalysisScreen', 'Share button pressed'), [])
   const handleLike = useCallback(() => log.info('VideoAnalysisScreen', 'Like button pressed'), [])
-  const handleComment = useCallback(
-    () => log.info('VideoAnalysisScreen', 'Comment button pressed'),
-    []
-  )
+  const handleComment = useCallback(() => {
+    log.info('VideoAnalysisScreen', 'Comment button pressed')
+    feedbackPanel.setActiveTab('comments')
+  }, [feedbackPanel.setActiveTab])
   const handleBookmark = useCallback(
     () => log.info('VideoAnalysisScreen', 'Bookmark button pressed'),
     []
@@ -883,6 +1002,100 @@ export function useVideoAnalysisOrchestrator(
     playbackCallbacksRef.current.replay = replayVideo
     playbackCallbacksRef.current.seek = seekVideo
   }, [playVideo, handlePause, replayVideo, seekVideo])
+
+  // Stabilize pendingSeek to filter out rapid transient changes (null→value→null within 150ms)
+  // This prevents unnecessary playbackState recreation when video seeks complete quickly
+  const pendingSeekTransitionRef = useRef<{
+    lastPendingSeek: number | null
+    lastPendingSeekValue: number | null
+    lastPendingSeekSetAt: number
+    stablePendingSeek: number | null
+    prevStablePendingSeek: number | null
+  }>({
+    lastPendingSeek: null,
+    lastPendingSeekValue: null,
+    lastPendingSeekSetAt: 0,
+    stablePendingSeek: null,
+    prevStablePendingSeek: null,
+  })
+
+  // Detect pendingSeek transitions and stabilize
+  const currentPendingSeek = pendingSeek
+  const prevPendingSeek = pendingSeekTransitionRef.current.lastPendingSeek
+  const nowPendingSeek = Date.now()
+
+  // Calculate timing BEFORE updating refs (critical for transient detection)
+  const timeSinceSetPending = nowPendingSeek - pendingSeekTransitionRef.current.lastPendingSeekSetAt
+  const isRecentChangePending = timeSinceSetPending >= 0 && timeSinceSetPending < 150
+
+  // If pendingSeek changed
+  if (currentPendingSeek !== prevPendingSeek) {
+    // pendingSeek set (null → value or value1 → value2)
+    if (currentPendingSeek !== null) {
+      // Preserve previous stable value before potentially transient seek
+      pendingSeekTransitionRef.current.prevStablePendingSeek =
+        pendingSeekTransitionRef.current.stablePendingSeek
+      pendingSeekTransitionRef.current.lastPendingSeek = currentPendingSeek
+      pendingSeekTransitionRef.current.lastPendingSeekValue = currentPendingSeek
+      pendingSeekTransitionRef.current.lastPendingSeekSetAt = nowPendingSeek
+      // Don't update stablePendingSeek yet - wait to see if it's transient (>150ms)
+    }
+    // pendingSeek cleared (value → null)
+    else {
+      // If cleared within 150ms, it's transient - restore previous stable value
+      if (timeSinceSetPending < 150) {
+        // Transient seek - restore previous stable value to ignore the transient change
+        pendingSeekTransitionRef.current.stablePendingSeek =
+          pendingSeekTransitionRef.current.prevStablePendingSeek
+        // Keep lastPendingSeek as the value (not null) temporarily for wasRecentlySetAndClearedPending check
+        // Will update to null after stabilization calculation
+      } else {
+        // Legitimate seek completion after >150ms - update stable value
+        pendingSeekTransitionRef.current.stablePendingSeek = null
+        pendingSeekTransitionRef.current.lastPendingSeek = null
+      }
+    }
+  } else {
+    // pendingSeek unchanged - if it's been stable for >150ms, confirm it's not transient
+    if (currentPendingSeek !== null) {
+      if (
+        timeSinceSetPending >= 150 &&
+        pendingSeekTransitionRef.current.stablePendingSeek !== currentPendingSeek
+      ) {
+        // Confirmed stable - update stable value
+        pendingSeekTransitionRef.current.stablePendingSeek = currentPendingSeek
+        pendingSeekTransitionRef.current.prevStablePendingSeek = currentPendingSeek
+      }
+    } else {
+      // pendingSeek is null and unchanged - stable value should be null
+      if (pendingSeekTransitionRef.current.stablePendingSeek !== null) {
+        pendingSeekTransitionRef.current.stablePendingSeek = null
+        pendingSeekTransitionRef.current.prevStablePendingSeek = null
+      }
+      // Update lastPendingSeek to null if it was set (cleanup)
+      if (pendingSeekTransitionRef.current.lastPendingSeek !== null) {
+        pendingSeekTransitionRef.current.lastPendingSeek = null
+      }
+    }
+  }
+
+  // Use stabilized pendingSeek for playbackState creation
+  // Check if pendingSeek was recently set and then cleared quickly (BEFORE updating lastPendingSeek in transient case)
+  const wasRecentlySetAndClearedPending =
+    currentPendingSeek === null && prevPendingSeek !== null && isRecentChangePending
+
+  // Determine stabilized value for playbackState
+  // Strategy: Always allow seeks to happen immediately (use actual value when set),
+  // but filter out rapid clears (value→null within 150ms) to prevent unnecessary renders
+  // NOTE: Removed stablePendingSeekForState - pendingSeek must change for seeks to work correctly
+
+  // Update lastPendingSeek to null AFTER transient detection calculation (if it was cleared)
+  if (currentPendingSeek === null && pendingSeekTransitionRef.current.lastPendingSeek !== null) {
+    // Only update if we haven't already updated it (legitimate clears already updated it)
+    if (timeSinceSetPending >= 150 || !wasRecentlySetAndClearedPending) {
+      pendingSeekTransitionRef.current.lastPendingSeek = null
+    }
+  }
 
   const playbackState = useMemo(
     () => ({
@@ -1128,46 +1341,77 @@ export function useVideoAnalysisOrchestrator(
   // Feedback items state - only recalculates when items or selection changes
   // Use coordinatorHighlightedId (primitive) instead of stableCoordinator.highlightedFeedbackId (object property)
   // This prevents recalculation when stableCoordinator recreates but highlightedFeedbackId value hasn't changed
+  // CRITICAL FIX: Depend on feedbackItemsIds (content signature) instead of feedbackItems reference
+  // This prevents recreation when feedbackItems reference changes but content is unchanged
   const prevFeedbackItemsStateDepsRef = useRef<{
-    feedbackItems: any
+    feedbackItemsIds: string
+    feedbackItemsLength: number
     coordinatorHighlightedId: string | null
+    cachedItems: FeedbackPanelItem[]
   }>({
-    feedbackItems: [],
+    feedbackItemsIds: '',
+    feedbackItemsLength: 0,
     coordinatorHighlightedId: null,
+    cachedItems: [],
   })
   const feedbackItemsState = useMemo(() => {
     const prev = prevFeedbackItemsStateDepsRef.current
     const changed: string[] = []
 
-    if (prev.feedbackItems !== feedbackItems) {
+    // Compare by content (IDs) instead of reference
+    const itemsIdsChanged = prev.feedbackItemsIds !== feedbackItemsIds
+    const itemsLengthChanged = prev.feedbackItemsLength !== feedbackItems.length
+
+    if (itemsIdsChanged) {
       changed.push(
-        `feedbackItems: ${prev.feedbackItems?.length ?? 0} → ${feedbackItems?.length ?? 0} (ref changed)`
+        `feedbackItemsIds: "${prev.feedbackItemsIds}" → "${feedbackItemsIds}" (content changed)`
       )
+    } else if (itemsLengthChanged) {
+      changed.push(
+        `feedbackItemsLength: ${prev.feedbackItemsLength} → ${feedbackItems.length} (length changed)`
+      )
+    } else if (prev.cachedItems !== feedbackItems) {
+      // Reference changed but content same - don't log as change (this is expected)
     }
+
     if (prev.coordinatorHighlightedId !== coordinatorHighlightedId) {
       changed.push(
         `coordinatorHighlightedId: ${prev.coordinatorHighlightedId} → ${coordinatorHighlightedId}`
       )
     }
 
-    if (changed.length > 0) {
-      log.debug('useVideoAnalysisOrchestrator', '🔄 feedbackItemsState recalculating', {
-        dependencyChanges: changed,
-        feedbackItemsLength: feedbackItems?.length ?? 0,
+    // Only recreate if content actually changed
+    const coordinatorChanged = prev.coordinatorHighlightedId !== coordinatorHighlightedId
+
+    if (itemsIdsChanged || itemsLengthChanged || coordinatorChanged) {
+      if (changed.length > 0) {
+        log.debug('useVideoAnalysisOrchestrator', '🔄 feedbackItemsState recalculating', {
+          dependencyChanges: changed,
+          feedbackItemsLength: feedbackItems?.length ?? 0,
+          coordinatorHighlightedId,
+        })
+      }
+
+      prevFeedbackItemsStateDepsRef.current = {
+        feedbackItemsIds,
+        feedbackItemsLength: feedbackItems.length,
         coordinatorHighlightedId,
-      })
+        cachedItems: feedbackItems,
+      }
+
+      return {
+        items: feedbackItems,
+        selectedFeedbackId: coordinatorHighlightedId,
+      }
     }
 
-    prevFeedbackItemsStateDepsRef.current = {
-      feedbackItems,
-      coordinatorHighlightedId,
-    }
-
+    // Content unchanged - return cached object to maintain reference stability
+    // But still update selectedFeedbackId if coordinator changed (edge case handled above)
     return {
-      items: feedbackItems,
+      items: prev.cachedItems,
       selectedFeedbackId: coordinatorHighlightedId,
     }
-  }, [feedbackItems, coordinatorHighlightedId])
+  }, [feedbackItemsIds, feedbackItems.length, feedbackItems, coordinatorHighlightedId])
 
   // Feedback panel state - only recalculates when panel fraction or tab changes
   const feedbackPanelState = useMemo(
@@ -1282,8 +1526,79 @@ export function useVideoAnalysisOrchestrator(
     ]
   )
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Pre-compose stable objects for consuming components
+  // These are memoized at source to prevent race conditions in VideoAnalysisScreen
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Memoized audio overlay object for consuming components.
+   *
+   * Provides stable reference that only changes when actual data changes:
+   * - overlayVisible (boolean)
+   * - activeAudio (id + url)
+   * - audioDuration (number)
+   *
+   * Callbacks (onClose, onInactivity, onInteraction) are stable via refs
+   * and don't trigger recreation. This prevents "MEMO BYPASSED" errors
+   * where props change between React.memo's arePropsEqual check and render.
+   *
+   * @see UseVideoAnalysisOrchestratorReturn.audioOverlay
+   */
+  const stableAudioOverlay = useMemo(
+    () =>
+      coordinatorOverlayVisible
+        ? {
+            shouldShow: true as const,
+            activeAudio:
+              coordinatorActiveAudioId && coordinatorActiveAudioUrl
+                ? { id: coordinatorActiveAudioId, url: coordinatorActiveAudioUrl }
+                : null,
+            onClose: coordinatorCallbacksRef.current.onAudioOverlayClose,
+            onInactivity: coordinatorCallbacksRef.current.onAudioOverlayInactivity,
+            onInteraction: coordinatorCallbacksRef.current.onAudioOverlayInteraction,
+            audioDuration: stableAudioController.duration,
+          }
+        : {
+            shouldShow: false as const,
+            activeAudio: null,
+          },
+    [
+      coordinatorOverlayVisible,
+      coordinatorActiveAudioId,
+      coordinatorActiveAudioUrl,
+      stableAudioController.duration,
+      // Callbacks are stable via refs - don't include in deps
+    ]
+  )
+
+  /**
+   * Memoized bubble state object for consuming components.
+   *
+   * Provides stable reference that only changes when actual data changes:
+   * - visible (boolean)
+   * - currentIndex (number | null)
+   * - items (FeedbackPanelItem[] array reference)
+   *
+   * Only recreates when these primitive values change, not when parent
+   * coordinator objects are recreated. This prevents "MEMO BYPASSED" errors
+   * where props change between React.memo's arePropsEqual check and render.
+   *
+   * @see UseVideoAnalysisOrchestratorReturn.bubbleState
+   */
+  const stableBubbleState = useMemo(
+    () => ({
+      visible: coordinatorBubbleVisible,
+      currentIndex: coordinatorBubbleIndex,
+      items: feedbackItems,
+    }),
+    [coordinatorBubbleVisible, coordinatorBubbleIndex, feedbackItems]
+  )
+
   // Controls state - memoize to prevent re-renders
   // Only depend on showControls value, not the entire videoControls object
+  // NOTE: State updates are async, so props may change after arePropsEqual checks
+  // This is expected React behavior - memo will correctly detect changes on next render
   const controlsState = useMemo(
     () => ({
       showControls: videoControls.showControls,
@@ -1363,10 +1678,16 @@ export function useVideoAnalysisOrchestrator(
 
   // Gesture state - memoize to prevent recreation when only rootPan changes
   // rootPan changes every render by design, but primitive values (feedbackScrollEnabled, etc.) are stable
+  // Use ref to store rootPan so it doesn't break memoization
   const gestureCallbacksRef = useRef({
     onFeedbackScrollY: gesture.onFeedbackScrollY,
     onFeedbackMomentumScrollEnd: gesture.onFeedbackMomentumScrollEnd,
   })
+
+  // Store rootPan in ref to prevent it from breaking memoization
+  // rootPan changes every render, but we need stable reference for memo comparison
+  const rootPanRefForMemo = useRef(gesture.rootPan)
+  rootPanRefForMemo.current = gesture.rootPan
 
   useEffect(() => {
     gestureCallbacksRef.current.onFeedbackScrollY = gesture.onFeedbackScrollY
@@ -1377,7 +1698,10 @@ export function useVideoAnalysisOrchestrator(
     () =>
       Platform.OS !== 'web'
         ? {
-            rootPan: gesture.rootPan, // Always include latest (changes every render)
+            // Use getter to access latest rootPan without including it in deps
+            get rootPan() {
+              return rootPanRefForMemo.current
+            },
             rootPanRef: gesture.rootPanRef, // Ref is stable
             feedbackScrollEnabled: gesture.feedbackScrollEnabled,
             blockFeedbackScrollCompletely: gesture.blockFeedbackScrollCompletely,
@@ -1388,7 +1712,7 @@ export function useVideoAnalysisOrchestrator(
         : undefined,
     [
       // Only depend on primitive values that actually change
-      // rootPan changes every render but we include it in the object
+      // rootPan is accessed via getter from ref, not included in deps
       gesture.rootPanRef,
       gesture.feedbackScrollEnabled,
       gesture.blockFeedbackScrollCompletely,
@@ -1410,8 +1734,9 @@ export function useVideoAnalysisOrchestrator(
     controlsState,
     errorState,
     handlers,
-    contextValue,
     refs,
+    stableAudioOverlay,
+    stableBubbleState,
   })
 
   return useMemo(() => {
@@ -1424,8 +1749,9 @@ export function useVideoAnalysisOrchestrator(
       controlsState,
       errorState,
       handlers,
-      contextValue,
       refs,
+      stableAudioOverlay,
+      stableBubbleState,
     }
 
     return {
@@ -1439,8 +1765,10 @@ export function useVideoAnalysisOrchestrator(
       controls: controlsState,
       error: errorState,
       handlers,
-      contextValue,
       refs,
+      // Pre-composed stable objects for consuming components
+      audioOverlay: stableAudioOverlay,
+      bubbleState: stableBubbleState,
     }
   }, [
     videoState,
@@ -1452,7 +1780,8 @@ export function useVideoAnalysisOrchestrator(
     controlsState,
     errorState,
     handlers,
-    contextValue,
     refs,
+    stableAudioOverlay,
+    stableBubbleState,
   ])
 }

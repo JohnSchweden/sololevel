@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useCameraPermission, useMicrophonePermission } from 'react-native-vision-camera'
 import {
   BasePermissionResponse,
@@ -53,11 +53,15 @@ export function useCameraPermissions(
   } = useBaseCameraPermissions<VisionCameraPermissionResponse>(config)
 
   // Convert VisionCamera permission to our interface
-  const permission: VisionCameraPermissionResponse = {
-    granted: hasCameraPermission,
-    status: hasCameraPermission ? 'granted' : 'denied',
-    canAskAgain: !hasCameraPermission, // VisionCamera doesn't provide canAskAgain, assume true if not granted
-  }
+  // Memoize to prevent new object reference on every render
+  const permission: VisionCameraPermissionResponse = useMemo(
+    () => ({
+      granted: hasCameraPermission,
+      status: hasCameraPermission ? 'granted' : 'denied',
+      canAskAgain: !hasCameraPermission, // VisionCamera doesn't provide canAskAgain, assume true if not granted
+    }),
+    [hasCameraPermission]
+  )
 
   // Update Zustand store when permission changes
   useEffect(() => {
@@ -97,22 +101,36 @@ export function useCameraPermissions(
     return baseRetryRequest(requestPermission, hasCameraPermission)
   }, [baseRetryRequest, requestPermission, hasCameraPermission])
 
-  return {
-    // VisionCamera's original API (adapted)
-    permission,
-    requestPermission,
+  // Memoize return object to prevent unnecessary re-renders in consumers
+  return useMemo(
+    () => ({
+      // VisionCamera's original API (adapted)
+      permission,
+      requestPermission,
 
-    // Enhanced features
-    isLoading,
-    error,
-    canRequestAgain,
+      // Enhanced features
+      isLoading,
+      error,
+      canRequestAgain,
 
-    // Enhanced actions
-    requestPermissionWithRationale,
-    redirectToSettings,
-    clearError,
-    retryRequest,
-  }
+      // Enhanced actions
+      requestPermissionWithRationale,
+      redirectToSettings,
+      clearError,
+      retryRequest,
+    }),
+    [
+      permission,
+      requestPermission,
+      isLoading,
+      error,
+      canRequestAgain,
+      requestPermissionWithRationale,
+      redirectToSettings,
+      clearError,
+      retryRequest,
+    ]
+  )
 }
 
 /**

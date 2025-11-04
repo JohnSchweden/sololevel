@@ -64,7 +64,7 @@ export function SettingsFooter({
               log.info('SettingsFooter', 'Link pressed', { label, type })
               onLinkPress(type)
             }}
-            paddingHorizontal="$2"
+            paddingHorizontal="$0"
             paddingVertical="$1"
             borderRadius="$2"
             animation="quick"

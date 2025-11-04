@@ -8275,6 +8275,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@welldone-software/why-did-you-render@npm:^10.0.1":
+  version: 10.0.1
+  resolution: "@welldone-software/why-did-you-render@npm:10.0.1"
+  dependencies:
+    lodash: "npm:^4"
+  peerDependencies:
+    react: ^19
+  checksum: 10c0/30080a8f471d7fb29f0b82ccbf5894e760df0bf6169b716deb2b26723dfa72f6635db9326cf8abaa392391a8fab3baa4972057153eb548778440b233a66d5253
+  languageName: node
+  linkType: hard
+
 "@wix-pilot/core@npm:^3.4.2":
   version: 3.4.2
   resolution: "@wix-pilot/core@npm:3.4.2"
@@ -15189,7 +15200,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:^4.16.6, lodash@npm:^4.17.11, lodash@npm:^4.17.19, lodash@npm:^4.17.21, lodash@npm:^4.17.4, lodash@npm:^4.6.1":
+"lodash@npm:^4, lodash@npm:^4.16.6, lodash@npm:^4.17.11, lodash@npm:^4.17.19, lodash@npm:^4.17.21, lodash@npm:^4.17.4, lodash@npm:^4.6.1":
   version: 4.17.21
   resolution: "lodash@npm:4.17.21"
   checksum: 10c0/d8cbea072bb08655bb4c989da418994b073a608dffa608b09ac04b43a791b12aeae7cd7ad919aa4c925f33b48490b5cfe6c1f71d827956071dae2e7bb3a6b74c
@@ -18952,6 +18963,7 @@ __metadata:
     "@types/react-native-web": "npm:^0"
     "@types/ws": "npm:^8"
     "@vitest/coverage-v8": "npm:^3.2.4"
+    "@welldone-software/why-did-you-render": "npm:^10.0.1"
     babel-loader: "npm:^10.0.0"
     bcryptjs: "npm:^3.0.2"
     check-dependency-version-consistency: "npm:^4.1.0"

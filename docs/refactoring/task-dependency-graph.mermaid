@@ -1,0 +1,80 @@
+graph TB
+    %% Phase 1: Preparation (All Parallel)
+    T1_1[Task 1.1<br/>Document Orchestrator<br/>2 hours]
+    T1_2[Task 1.2<br/>Audit Memoization<br/>2 hours]
+    T1_3[Task 1.3<br/>Analyze Layout Props<br/>1 hour]
+    T1_4[Task 1.4<br/>Test Baseline<br/>1 hour]
+    
+    %% Phase 2: Incremental Extraction (Sequential)
+    T2_1[Task 2.1<br/>Extract Batch 1<br/>Independent Hooks<br/>4 hours]
+    T2_2[Task 2.2<br/>Extract Batch 2<br/>Video Playback<br/>3 hours]
+    T2_3[Task 2.3<br/>Extract Batch 3<br/>Audio System<br/>4 hours]
+    T2_4[Task 2.4<br/>Extract Batch 4<br/>Feedback System<br/>4 hours]
+    T2_5[Task 2.5<br/>Extract Batch 5<br/>Native-Only<br/>3 hours]
+    
+    %% Phase 3: Props Restructuring (Sequential)
+    T3_1[Task 3.1<br/>Simplify Layout Props<br/>4 hours]
+    T3_2[Task 3.2<br/>Remove Orchestrator Memo<br/>2 hours]
+    
+    %% Phase 4: Cleanup (Partially Parallel)
+    T4_1[Task 4.1<br/>Delete Orchestrator<br/>1 hour]
+    T4_2[Task 4.2<br/>Update Docs<br/>2 hours]
+    T4_3[Task 4.3<br/>Integration Tests<br/>3 hours]
+    T4_4[Task 4.4<br/>Performance Validation<br/>2 hours]
+    
+    %% Phase 5: Advanced Optimization (Parallel, Optional)
+    T5_1[Task 5.1<br/>Implement Context<br/>4 hours]
+    T5_2[Task 5.2<br/>Event Bus<br/>4 hours]
+    
+    %% Phase 1 Dependencies (All start from beginning)
+    START([Start Refactoring]) --> T1_1
+    START --> T1_2
+    START --> T1_3
+    START --> T1_4
+    
+    %% Phase 2 Dependencies (Sequential chain)
+    T1_1 --> T2_1
+    T1_2 --> T2_1
+    T1_3 --> T2_1
+    T1_4 --> T2_1
+    T2_1 --> T2_2
+    T2_2 --> T2_3
+    T2_3 --> T2_4
+    T2_4 --> T2_5
+    
+    %% Phase 3 Dependencies (Sequential)
+    T2_5 --> T3_1
+    T3_1 --> T3_2
+    
+    %% Phase 4 Dependencies (Partial parallelization)
+    T3_2 --> T4_1
+    T4_1 --> T4_2
+    T4_1 --> T4_3
+    T4_1 --> T4_4
+    
+    %% Phase 5 Dependencies (Optional, parallel)
+    T4_1 --> T5_1
+    T4_1 --> T5_2
+    
+    %% End nodes
+    T4_2 --> DONE_CORE([Core Refactoring Complete])
+    T4_3 --> DONE_CORE
+    T4_4 --> DONE_CORE
+    T5_1 --> DONE_ADVANCED([Advanced Optimization Complete])
+    T5_2 --> DONE_ADVANCED
+    
+    %% Styling
+    classDef phase1 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef phase2 fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef phase3 fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef phase4 fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef phase5 fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    classDef milestone fill:#ffcdd2,stroke:#b71c1c,stroke-width:3px
+    
+    class T1_1,T1_2,T1_3,T1_4 phase1
+    class T2_1,T2_2,T2_3,T2_4,T2_5 phase2
+    class T3_1,T3_2 phase3
+    class T4_1,T4_2,T4_3,T4_4 phase4
+    class T5_1,T5_2 phase5
+    class START,DONE_CORE,DONE_ADVANCED milestone
+

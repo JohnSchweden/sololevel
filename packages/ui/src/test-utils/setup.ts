@@ -633,6 +633,52 @@ jest.mock('@my/config', () => ({
   config: {},
 }))
 
+// Mock Performance components and hooks
+jest.mock('@ui/components/Performance', () => ({
+  ProfilerWrapper: ({ children }: { children: any }) => children,
+  useRenderCount: jest.fn(() => 0),
+  subscribeToMetrics: jest.fn(),
+  getMetrics: jest.fn(() => ({})),
+  clearMetrics: jest.fn(),
+  clearAllMetrics: jest.fn(),
+}))
+
+// Mock BottomSheets components
+jest.mock('@ui/components/BottomSheets', () => {
+  const React = require('react')
+  const MockSheet = ({ children, open, onOpenChange, ...props }: any) =>
+    open ? React.createElement('div', { 'data-testid': 'bottom-sheet', ...props }, children) : null
+  return {
+    NotificationSheet: MockSheet,
+    RecordingSettingsSheet: MockSheet,
+    ShareSheet: MockSheet,
+    VideoSettingsSheet: MockSheet,
+  }
+})
+
+jest.mock('@ui/hooks/useAnimationCompletion', () => ({
+  useAnimationCompletion: jest.fn(() => ({ isComplete: true, onComplete: jest.fn() })),
+}))
+
+// Only mock useFrameDropDetection hook, but preserve other exports for tests
+jest.mock('@ui/hooks/useFrameDropDetection', () => {
+  const actual = jest.requireActual<typeof import('@ui/hooks/useFrameDropDetection')>(
+    '@ui/hooks/useFrameDropDetection'
+  )
+  return {
+    ...(actual as Record<string, unknown>),
+    useFrameDropDetection: jest.fn(() => ({ frameDrops: 0, isDropping: false })),
+  }
+})
+
+jest.mock('@ui/hooks/useRenderProfile', () => ({
+  useRenderProfile: jest.fn(() => ({ renderCount: 0, averageRenderTime: 0 })),
+}))
+
+jest.mock('@ui/hooks/useSmoothnessTracking', () => ({
+  useSmoothnessTracking: jest.fn(() => ({ smoothness: 1, isSmooth: true })),
+}))
+
 // Global test configuration
 beforeEach(() => {
   // Clear all mocks before each test

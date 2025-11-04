@@ -117,7 +117,7 @@ export function ConfirmDialog({
           overflow="hidden"
           backgroundColor="transparent"
           borderRadius="$8"
-          borderWidth={1}
+          borderWidth={0}
           borderColor="rgba(255, 255, 255, 0.3)"
         >
           <BlurView

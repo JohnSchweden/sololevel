@@ -3,6 +3,10 @@ import React, { useState } from 'react'
 import { Image, Spinner, Stack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
+// Stable style objects to prevent unnecessary re-renders
+const THUMBNAIL_PRESS_STYLE = { scale: 0.97, opacity: 0.9 } as const
+const THUMBNAIL_HOVER_STYLE = { opacity: 0.95 } as const
+
 export interface VideoThumbnailCardProps {
   /**
    * Thumbnail image URI
@@ -72,12 +76,18 @@ export function VideoThumbnailCard({
     setHasError(false)
   }, [thumbnailUri])
 
+  // Memoize image source to prevent unnecessary re-renders
+  const imageSource = React.useMemo(
+    () => (thumbnailUri ? { uri: thumbnailUri } : undefined),
+    [thumbnailUri]
+  )
+
   return (
     <YStack
       onPress={onPress}
       animation="quick"
-      pressStyle={{ scale: 0.97, opacity: 0.9 }}
-      hoverStyle={{ opacity: 0.95 }}
+      pressStyle={THUMBNAIL_PRESS_STYLE}
+      hoverStyle={THUMBNAIL_HOVER_STYLE}
       cursor="pointer"
       width={width}
       height={height}
@@ -93,9 +103,9 @@ export function VideoThumbnailCard({
       testID={testID}
     >
       {/* Thumbnail Image or Placeholder */}
-      {thumbnailUri && !hasError ? (
+      {thumbnailUri && !hasError && imageSource ? (
         <Image
-          source={{ uri: thumbnailUri }}
+          source={imageSource}
           width={width}
           height={height}
           onLoad={() => setIsLoading(false)}
@@ -156,15 +166,15 @@ export function VideoThumbnailCard({
         testID={`${testID}-play-overlay`}
       >
         <GlassButton
-          minWidth={38}
-          minHeight={38}
+          minWidth={34}
+          minHeight={34}
           onPress={onPress}
           testID={`${testID}-play-button`}
           accessibilityLabel="Play video"
           accessibilityHint="Tap to play this video"
         >
           <Play
-            size="$1"
+            size={14}
             color="$color"
             fill="currentColor"
           />

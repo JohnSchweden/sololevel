@@ -18,10 +18,22 @@ jest.mock('@my/app/auth/testAuthBootstrap', () => ({
 // Mock logger
 jest.mock('@my/logging', () => ({
   log: {
+    trace: jest.fn(),
+    debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
+    fatal: jest.fn(),
   },
+  logger: {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  },
+  logOnChange: jest.fn(),
 }))
 
 // Mock useToastController

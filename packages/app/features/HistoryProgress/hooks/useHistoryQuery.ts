@@ -221,11 +221,8 @@ async function transformToCache(
   if (metadataLocalUri && Platform.OS !== 'web') {
     // Use metadata.localUri if available (from recording flow)
     videoUri = metadataLocalUri
-    // Store in localUriIndex for fast lookup (matches useHistoricalAnalysis behavior)
-    if (storagePath) {
-      const { setLocalUri } = useVideoHistoryStore.getState()
-      setLocalUri(storagePath, metadataLocalUri)
-    }
+    // Note: localUriIndex updates are now batched in the caller to prevent cascade re-renders
+    // This function no longer calls setLocalUri directly during transformation
   } else {
     // Fallback to storage_path (will be resolved via signed URL in useHistoricalAnalysis)
     videoUri = storagePath ?? job.video_recordings?.filename ?? null
@@ -353,33 +350,49 @@ export function useHistoryQuery(limit = 10) {
           )
 
           // Update cache with completed jobs and transform to VideoItem
-          const videoItems = await Promise.all(
+          // Collect all cache entries and localUri updates to batch them in a single store update
+          // This prevents 10 sequential re-renders during pull-to-refresh
+          const cacheEntries: Array<Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'>> = []
+          const localUriUpdates: Array<[string, string]> = []
+
+          const videoItemsData = await Promise.all(
             sortedCompletedJobs.map(async (job: any) => {
               const cacheEntry = await transformToCache(job)
+              cacheEntries.push(cacheEntry)
 
-              // Register local thumbnail / video URIs from metadata for cache reuse
-              // ONLY index persisted paths (recordings/), skip temporary cache paths
+              // Collect localUri updates instead of applying immediately
               const metadata = job.video_recordings?.metadata as Record<string, unknown> | undefined
               if (cacheEntry.storagePath) {
                 const localUri = metadata?.localUri as string | undefined
                 if (localUri && localUri.includes('recordings/')) {
-                  cache.setLocalUri(cacheEntry.storagePath, localUri)
+                  localUriUpdates.push([cacheEntry.storagePath, localUri])
                 }
               }
 
-              // Add to cache with transformed data
-              cache.addToCache(cacheEntry)
-
-              // Get cached entry to ensure we have cachedAt and lastAccessed
-              const cached = cache.getCached(job.id)
-              if (!cached) {
-                throw new Error(`Failed to cache entry for job ${job.id}`)
-              }
-
-              // Transform to VideoItem for UI
-              return transformToVideoItem(cached)
+              return { jobId: job.id, cacheEntry }
             })
           )
+
+          // Batch apply all cache updates in a single store transaction to prevent cascade re-renders
+          // This replaces 10 separate addToCache calls with 1 batched update
+          const now = Date.now()
+          cache.addMultipleToCache(
+            cacheEntries.map((entry) => ({
+              ...entry,
+              cachedAt: now,
+              lastAccessed: now,
+            })),
+            localUriUpdates
+          )
+
+          // Get cached entries and transform to VideoItems
+          const videoItems = videoItemsData.map(({ jobId }) => {
+            const cached = cache.getCached(jobId)
+            if (!cached) {
+              throw new Error(`Failed to cache entry for job ${jobId}`)
+            }
+            return transformToVideoItem(cached)
+          })
 
           const duration = Date.now() - startTime
           log.info('useHistoryQuery', 'History data fetched and cached', {

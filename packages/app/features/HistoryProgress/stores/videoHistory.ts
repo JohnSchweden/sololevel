@@ -71,6 +71,10 @@ export interface PersistedVideoHistoryState {
 export interface VideoHistoryActions {
   // Cache operations
   addToCache: (analysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'>) => void
+  addMultipleToCache: (
+    analyses: CachedAnalysis[],
+    localUriUpdates?: Array<[string, string]>
+  ) => void
   updateCache: (id: number, updates: Partial<CachedAnalysis>) => void
   getCached: (id: number) => CachedAnalysis | null
   getAllCached: () => CachedAnalysis[]
@@ -174,6 +178,36 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
               ) {
                 draft.localUriIndex.set(analysis.storagePath, analysis.videoUri)
               }
+            })
+
+            // Evict LRU if over limit (outside of set to avoid circular dependency)
+            if (get().cache.size > MAX_CACHE_ENTRIES) {
+              get().evictLRU()
+            }
+          },
+
+          // Batch add to cache - single store update prevents cascade re-renders
+          addMultipleToCache: (analyses, localUriUpdates = []) => {
+            set((draft) => {
+              // Add all cache entries in a single transaction
+              analyses.forEach((entry) => {
+                draft.cache.set(entry.id, entry)
+                // Only index persisted paths (recordings/), not temporary cache paths
+                if (
+                  entry.storagePath &&
+                  entry.videoUri?.startsWith('file://') &&
+                  entry.videoUri.includes('recordings/') &&
+                  !entry.videoUri.includes('Caches/') &&
+                  !entry.videoUri.includes('temp/') &&
+                  !entry.videoUri.includes('ExponentAsset-')
+                ) {
+                  draft.localUriIndex.set(entry.storagePath, entry.videoUri)
+                }
+              })
+              // Apply any additional localUri updates
+              localUriUpdates.forEach(([storagePath, localUri]) => {
+                draft.localUriIndex.set(storagePath, localUri)
+              })
             })
 
             // Evict LRU if over limit (outside of set to avoid circular dependency)

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { log } from '@my/logging'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import Animated, {
   Extrapolation,
   type SharedValue,
@@ -26,7 +27,6 @@ import {
   VideoPlayerArea,
 } from '@ui/components/VideoAnalysis'
 
-import { useVideoAnalysisContext } from '../contexts/VideoAnalysisContext'
 import type { FeedbackPanelItem } from '../types'
 
 interface BubbleState {
@@ -45,6 +45,7 @@ interface AudioOverlayState {
 }
 
 interface VideoPlayerSectionProps {
+  videoUri: string // Video URI - passed as prop instead of context
   videoControlsRef: React.RefObject<VideoControlsRef | null>
   pendingSeek: number | null
   userIsPlaying: boolean
@@ -106,6 +107,7 @@ interface VideoPlayerSectionProps {
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
 
 export const VideoPlayerSection = memo(function VideoPlayerSection({
+  videoUri,
   videoControlsRef,
   pendingSeek,
   userIsPlaying,
@@ -134,9 +136,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   collapseProgress,
   onPersistentProgressBarPropsChange,
 }: VideoPlayerSectionProps) {
-  // Get rarely-changing data from context
-  const { videoUri } = useVideoAnalysisContext()
-
   // Manage currentTime and duration internally
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -376,48 +375,52 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   }, [bubbleState.currentIndex, bubbleState.items, bubbleState.visible])
 
   return (
-    <VideoContainer
-      useFlexLayout
-      flex={1}
+    <ProfilerWrapper
+      id="VideoPlayerSection"
+      logToConsole={__DEV__}
     >
-      <VideoPlayerArea>
-        <YStack
-          flex={1}
-          position="relative"
-          onPress={onTap}
-          testID="video-player-container"
-        >
-          {videoUri && (
-            <VideoPlayer
-              videoUri={videoUri}
-              isPlaying={videoShouldPlay}
-              posterUri={posterUri}
-              onPause={onPause}
-              onEnd={handleEnd}
-              onLoad={handleLoad}
-              onProgress={handleProgress}
-              seekToTime={pendingSeek}
-              onSeekComplete={handleSeekComplete}
+      <VideoContainer
+        useFlexLayout
+        flex={1}
+      >
+        <VideoPlayerArea>
+          <YStack
+            flex={1}
+            position="relative"
+            onPress={onTap}
+            testID="video-player-container"
+          >
+            {videoUri && (
+              <VideoPlayer
+                videoUri={videoUri}
+                isPlaying={videoShouldPlay}
+                posterUri={posterUri}
+                onPause={onPause}
+                onEnd={handleEnd}
+                onLoad={handleLoad}
+                onProgress={handleProgress}
+                seekToTime={pendingSeek}
+                onSeekComplete={handleSeekComplete}
+              />
+            )}
+
+            {audioOverlay.activeAudio && (
+              <AudioPlayer
+                audioUrl={audioOverlay.activeAudio.url}
+                controller={audioPlayerController}
+                testID="feedback-audio-player"
+              />
+            )}
+
+            <MotionCaptureOverlay
+              poseData={[]}
+              isVisible
             />
-          )}
 
-          {audioOverlay.activeAudio && (
-            <AudioPlayer
-              audioUrl={audioOverlay.activeAudio.url}
-              controller={audioPlayerController}
-              testID="feedback-audio-player"
-            />
-          )}
+            <FeedbackBubbles messages={activeBubbleMessages} />
 
-          <MotionCaptureOverlay
-            poseData={[]}
-            isVisible
-          />
-
-          <FeedbackBubbles messages={activeBubbleMessages} />
-
-          {/* Audio Feedback Controls - Commented out, is for P1 */}
-          {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
+            {/* Audio Feedback Controls - Commented out, is for P1 */}
+            {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
             <AudioFeedback
               audioUrl={audioOverlay.activeAudio.url}
               controller={audioPlayerController}
@@ -429,56 +432,57 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             />
           )} */}
 
-          {/* Avatar - Always render with animated style */}
-          {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
-          <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
-            <CoachAvatar
-              isSpeaking={coachSpeaking}
-              size={80}
-              testID="video-analysis-coach-avatar"
-            />
-          </Animated.View>
+            {/* Avatar - Always render with animated style */}
+            {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
+            <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
+              <CoachAvatar
+                isSpeaking={coachSpeaking}
+                size={80}
+                testID="video-analysis-coach-avatar"
+              />
+            </Animated.View>
 
-          {/* Social Icons - Always render with animated style */}
-          <Animated.View
-            style={[socialAnimatedStyle, { zIndex: 10 }]}
-            testID="social-icons-container"
-          >
-            <SocialIcons
-              likes={socialCounts.likes}
-              comments={socialCounts.comments}
-              bookmarks={socialCounts.bookmarks}
-              shares={socialCounts.shares}
-              onShare={onSocialAction.onShare}
-              onLike={onSocialAction.onLike}
-              onComment={onSocialAction.onComment}
-              onBookmark={onSocialAction.onBookmark}
-              isVisible={true}
-              placement="rightBottom"
-              offsetBottom={30}
-            />
-          </Animated.View>
+            {/* Social Icons - Always render with animated style */}
+            <Animated.View
+              style={[socialAnimatedStyle, { zIndex: 10 }]}
+              testID="social-icons-container"
+            >
+              <SocialIcons
+                likes={socialCounts.likes}
+                comments={socialCounts.comments}
+                bookmarks={socialCounts.bookmarks}
+                shares={socialCounts.shares}
+                onShare={onSocialAction.onShare}
+                onLike={onSocialAction.onLike}
+                onComment={onSocialAction.onComment}
+                onBookmark={onSocialAction.onBookmark}
+                isVisible={true}
+                placement="rightBottom"
+                offsetBottom={30}
+              />
+            </Animated.View>
 
-          <VideoControls
-            ref={videoControlsRef}
-            isPlaying={userIsPlaying}
-            currentTime={currentTime}
-            duration={duration}
-            showControls={showControls}
-            isProcessing={isProcessing}
-            videoEnded={videoEnded}
-            videoMode={videoMode}
-            collapseProgress={collapseProgress}
-            onPlay={onPlay}
-            onPause={onPause}
-            onReplay={onReplay}
-            onSeek={onSeek}
-            onControlsVisibilityChange={onControlsVisibilityChange}
-            onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
-          />
-        </YStack>
-      </VideoPlayerArea>
-    </VideoContainer>
+            <VideoControls
+              ref={videoControlsRef}
+              isPlaying={userIsPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              showControls={showControls}
+              isProcessing={isProcessing}
+              videoEnded={videoEnded}
+              videoMode={videoMode}
+              collapseProgress={collapseProgress}
+              onPlay={onPlay}
+              onPause={onPause}
+              onReplay={onReplay}
+              onSeek={onSeek}
+              onControlsVisibilityChange={onControlsVisibilityChange}
+              onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
+            />
+          </YStack>
+        </VideoPlayerArea>
+      </VideoContainer>
+    </ProfilerWrapper>
   )
 })
 

@@ -1,6 +1,6 @@
 import { log } from '@my/logging'
 import type { Router } from 'expo-router'
-import { useCallback, useLayoutEffect, useRef } from 'react'
+import { startTransition, useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import type { TabType } from './useTabPersistence'
 
 /**
@@ -119,7 +119,10 @@ export function useTabNavigation({
         currentTab,
         activeTab,
       })
-      setActiveTabRef.current(currentTab)
+      // Use startTransition for non-urgent state updates to batch with other updates
+      startTransition(() => {
+        setActiveTabRef.current(currentTab)
+      })
       // Reset navigation state
       hasNavigated.current = true
       persistedTabApplied.current = true
@@ -160,9 +163,14 @@ export function useTabNavigation({
     userInitiatedChange.current = true
   }, [])
 
-  return {
-    currentTab,
-    shouldRender,
-    markUserInitiatedChange,
-  }
+  // Memoize return object to prevent unnecessary re-renders in consumers
+  // This ensures stable reference when dependencies haven't changed
+  return useMemo(
+    () => ({
+      currentTab,
+      shouldRender,
+      markUserInitiatedChange,
+    }),
+    [currentTab, shouldRender, markUserInitiatedChange]
+  )
 }

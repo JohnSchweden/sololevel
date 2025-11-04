@@ -536,6 +536,46 @@ export function useFeedbackCoordinator({
   // activeAudioId is already declared above (line 388), reuse it
   const activeAudioUrl = activeAudio?.url ?? null
 
+  // Normalize URL for comparison - remove cache-busting parameters (e.g., #replay=timestamp)
+  // When same audio is selected again, useFeedbackAudioSource adds #replay=timestamp to force reset
+  // We ignore this for comparison but keep original URL for actual playback
+  const normalizeUrlForComparison = (url: string | null): string | null => {
+    if (!url) return null
+    // Remove #replay= timestamp and other cache-busting fragments
+    return url.split('#')[0]
+  }
+
+  const normalizedActiveAudioUrl = normalizeUrlForComparison(activeAudioUrl)
+
+  // Memoize activeAudio object with content-based comparison to prevent unnecessary recreation
+  // This ensures the object only changes when id/url actually change, not when other dependencies change
+  // NOTE: URL comparison uses normalized URL (ignores cache-busting params) to prevent recreation for replays
+  const prevStableActiveAudioRef = useRef<{ id: string; url: string } | null>(null)
+  const prevActiveAudioIdRef = useRef<string | null>(null)
+  const prevNormalizedActiveAudioUrlRef = useRef<string | null>(null)
+
+  const stableActiveAudio = useMemo(() => {
+    // Compare by content (id/normalized-url) not reference
+    const idChanged = prevActiveAudioIdRef.current !== activeAudioId
+    const urlChanged = prevNormalizedActiveAudioUrlRef.current !== normalizedActiveAudioUrl
+
+    if (!idChanged && !urlChanged) {
+      // Content unchanged (including normalized URL) - return cached object to maintain stable reference
+      // Even if raw URL changed (e.g., replay timestamp), normalized URL is same, so keep same object
+      return prevStableActiveAudioRef.current
+    }
+
+    // Content changed - create new object
+    // Use original URL (with replay parameter if present) for actual playback
+    prevActiveAudioIdRef.current = activeAudioId
+    prevNormalizedActiveAudioUrlRef.current = normalizedActiveAudioUrl
+
+    const newActiveAudio =
+      activeAudioId && activeAudioUrl ? { id: activeAudioId, url: activeAudioUrl } : null
+    prevStableActiveAudioRef.current = newActiveAudio
+    return newActiveAudio
+  }, [activeAudioId, normalizedActiveAudioUrl, activeAudioUrl]) // Use normalized for comparison, actual URL for object
+
   // Store callbacks in refs to ensure stable references
   // These callbacks already use refs internally, so they're functionally stable
   const callbacksRef = useRef({
@@ -566,10 +606,8 @@ export function useFeedbackCoordinator({
     const timeSinceLastRecalc = now - lastRecalcTimeRef.current
     lastRecalcTimeRef.current = now
 
-    // Reconstruct activeAudio from primitives to prevent object reference changes
-    // This ensures the object only changes when id or url actually changes
-    const reconstructedActiveAudio =
-      activeAudioId && activeAudioUrl ? { id: activeAudioId, url: activeAudioUrl } : null
+    // Use pre-memoized stableActiveAudio to prevent object recreation when other dependencies change
+    const reconstructedActiveAudio = stableActiveAudio
 
     // Debug: track what's changing
     // Compare PRIMITIVE values, not object references, to match useMemo dependency array

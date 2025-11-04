@@ -35,7 +35,7 @@ export type {
 } from './types'
 
 export { FeedbackPanel } from './FeedbackPanel/FeedbackPanel'
-export type { FeedbackPanelProps } from './FeedbackPanel/FeedbackPanel'
+export type { FeedbackPanelProps, CommentItem } from './FeedbackPanel/FeedbackPanel'
 
 export { FeedbackStatusIndicator } from './FeedbackStatusIndicator/FeedbackStatusIndicator'
 export type { FeedbackStatusIndicatorProps } from './FeedbackStatusIndicator/FeedbackStatusIndicator'

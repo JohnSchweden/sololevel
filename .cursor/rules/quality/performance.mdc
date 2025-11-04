@@ -96,3 +96,72 @@ const AdminPanel = lazy(() => import('../admin/AdminPanel'))
 // ✅ Good - specific Tamagui imports
 import { Button, XStack } from '@tamagui/core'
 ```
+
+## Re-render Detection Workflow
+
+### Detection Tools
+
+**1. React DevTools Profiler (Primary Tool)**
+- **Web**: Browser extension → Profiler tab → Record session
+- **Native**: React DevTools standalone app or Flipper
+- **Workflow**: Record → Ranked View → Flamegraph → Identify cascades
+- **When to Use**: First step for any performance investigation
+
+**2. why-did-you-render (Web-Focused)**
+- **Setup**: Import `packages/app/utils/whyDidYouRender` in entry point
+- **Usage**: `Component.whyDidYouRender = true` on suspect components
+- **Limitation**: Limited React Native support
+- **When to Use**: Web-specific diagnosis, after Profiler identifies suspect components
+
+**3. useRenderDiagnostics Hook (Cross-Platform)**
+- **Usage**: `useRenderDiagnostics('ComponentName', props, { logToConsole: true })`
+- **What It Tracks**: Prop changes (reference vs content), render count
+- **When to Use**: Real-time prop change tracking, especially for React Native
+
+**4. ProfilerWrapper Component (Cross-Platform)**
+- **Usage**: `<ProfilerWrapper id="Component"><Component /></ProfilerWrapper>`
+- **Hook**: `useRenderCount('Component')` to get render count
+- **When to Use**: Continuous render tracking in development
+
+**5. Static Analysis Script**
+- **Usage**: `node scripts/ops/detect-re-renders.mjs [paths...]`
+- **What It Finds**: Inline objects, unstable hooks, unmemoized context, unstable deps
+- **When to Use**: Pre-commit checks, CI/CD, bulk analysis
+
+### Detection Workflow
+
+1. **Identify**: Use ProfilerWrapper or Profiler to find components rendering >5 times per interaction
+2. **Trace Props**: Use useRenderDiagnostics to see which props changed
+3. **Find Source**: Use Profiler Flamegraph to trace upward to parent causing re-renders
+4. **Verify**: Run static analysis script to find common patterns
+5. **Fix at Source**: Memoize hook returns, extract pass-through data, fix data creation not consumption
+
+### Fix Priority
+
+**Priority 1: Fix at Source**
+- Memoize hook returns: `return useMemo(() => ({ ... }), [deps])`
+- Extract pass-through data from main state objects
+- Stabilize context values with useMemo
+
+**Priority 2: Fix Data Flow**
+- Use content-based memoization when references change but content is stable
+- Split contexts into smaller, focused ones
+- Extract primitives from objects for dependency arrays
+
+**Priority 3: Component-Level (Last Resort)**
+- Add React.memo with custom comparators only for expensive components
+- Remove React.memo from simple components that need immediate updates
+- Never memoize at consumption if source is unstable
+
+### Performance Budget
+
+- **Render Count**: <5 renders per user interaction
+- **Render Time**: <16ms per component (60fps)
+- **Frame Drops**: <5% during animations
+
+**When to Investigate:**
+- Component renders >10 times per interaction
+- Render time >30ms
+- Noticeable jank or battery drain
+
+See `docs/performance/render-detection-workflow.md` for detailed workflow and examples.

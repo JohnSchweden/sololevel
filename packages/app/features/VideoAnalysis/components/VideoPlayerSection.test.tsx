@@ -5,15 +5,10 @@ import { AudioFeedback } from '@ui/components/VideoAnalysis'
 
 import { VideoPlayerSection } from './VideoPlayerSection'
 
-// Mock VideoAnalysisContext
-jest.mock('../contexts/VideoAnalysisContext', () => ({
-  useVideoAnalysisContext: () => ({
-    videoUri: 'video.mp4',
-    feedbackItems: [],
-  }),
-}))
+// Context removed - videoUri is now passed as prop
 
 const createProps = () => ({
+  videoUri: 'test-video.mp4',
   videoControlsRef: { current: null },
   pendingSeek: null,
   userIsPlaying: false,

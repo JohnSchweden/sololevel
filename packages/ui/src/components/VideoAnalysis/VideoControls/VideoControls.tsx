@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { Download, Share } from '@tamagui/lucide-icons'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import React, {
   useCallback,
   useEffect,
@@ -19,10 +19,9 @@ import Animated, {
   runOnJS,
   type SharedValue,
 } from 'react-native-reanimated'
-import { Text, XStack, YStack } from 'tamagui'
+import { XStack, YStack } from 'tamagui'
 
 import { useRenderProfile } from '../../../hooks/useRenderProfile'
-import { GlassButton } from '../../GlassButton'
 import { CenterControls } from './components/CenterControls'
 import { ProgressBar } from './components/ProgressBar'
 import { TimeDisplay } from './components/TimeDisplay'
@@ -97,7 +96,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     },
     ref
   ) => {
-    const [showMenu, setShowMenu] = useState(false)
     const [isAnyScrubbing, setIsAnyScrubbing] = useState(false)
     const progressBarWidthShared = useSharedValue(300)
     const persistentProgressBarWidthShared = useSharedValue(300)
@@ -280,7 +278,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     useRenderProfile({
       componentName: 'VideoControls',
-      enabled: __DEV__,
+      enabled: false,
       logInterval: 10,
       trackProps: {
         isPlaying,
@@ -353,18 +351,11 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
             : 0
 
     const handleMenuPress = useCallback(() => {
-      setShowMenu(true)
       // Reset auto-hide timer when menu is opened
       showControlsAndResetTimer()
       // Notify parent component that menu was pressed (for external menu integration)
       onMenuPress?.()
     }, [showControlsAndResetTimer, onMenuPress])
-
-    const handleMenuItemPress = useCallback((action: string) => {
-      log.info('VideoControls', `🎛️ Menu action: ${action}`)
-      setShowMenu(false)
-      // Could add specific handlers for different menu actions here
-    }, [])
 
     // Gesture handlers now provided by useProgressBarGesture hook
     const progressBarCombinedGesture = normalProgressBar.combinedGesture
@@ -429,16 +420,48 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       [persistentProgressBarWidth, duration, onSeek]
     )
 
-    // Track previous values to prevent unnecessary callback invocations
+    /**
+     * Track previous primitive values to detect when actual data changes.
+     *
+     * Used to compare incoming values with previous values before creating new props object.
+     * This prevents unnecessary object creation and callback invocations when values are unchanged.
+     *
+     * @see stablePropsObjectRef - stores the actual props object for reference stability
+     */
     const prevPersistentProgressRef = useRef<number | null>(null)
     const prevIsScrubbingRef = useRef<boolean | null>(null)
     const prevControlsVisibleRef = useRef<boolean | null>(null)
     const prevProgressBarWidthRef = useRef<number | null>(null)
 
-    // Provide persistent progress bar props to parent via callback for rendering at layout level
-    // This ensures React properly tracks and re-renders the progress bar when props change
-    // Store unstable objects in refs to prevent effect from running unnecessarily
-    // Note: currentInteractionTypeRef is already defined earlier in component
+    /**
+     * Store the stable props object to maintain reference equality when values haven't changed.
+     *
+     * CRITICAL PERFORMANCE FIX: This prevents "MEMO BYPASSED" errors in VideoAnalysisLayout.
+     *
+     * Problem: Previously, a new object literal was created on every useEffect run, even when
+     * primitive values (progress, isScrubbing, controlsVisible, progressBarWidth) were unchanged.
+     * This caused VideoAnalysisLayout's arePropsEqual to return true (comparing old props) while
+     * React saw new props (from the new object), causing unnecessary re-renders.
+     *
+     * Solution: Store the props object in this ref. Only create a new object when primitive
+     * values actually change. When values are unchanged, don't call the callback at all
+     * (parent already has the stable reference). This ensures React.memo can properly detect
+     * unchanged props via reference equality.
+     *
+     * @see prevPersistentProgressRef - tracks primitive values for comparison
+     */
+    const stablePropsObjectRef = useRef<PersistentProgressBarProps | null>(null)
+
+    /**
+     * Store unstable objects in refs to prevent effect from running unnecessarily.
+     *
+     * These objects (animatedStyle, gestures) change frequently during animations but
+     * don't need to trigger parent re-renders. By accessing them via refs, we keep them
+     * out of the dependency array while still providing the latest values when creating
+     * the props object.
+     *
+     * Note: currentInteractionTypeRef is already defined earlier in component
+     */
     const persistentBarAnimatedStyleRef = useRef(persistentBarAnimatedStyle)
     persistentBarAnimatedStyleRef.current = persistentBarAnimatedStyle
     const persistentProgressBarCombinedGestureRef = useRef(persistentProgressBarCombinedGesture)
@@ -446,19 +469,54 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const persistentProgressGestureRef = useRef(persistentProgressGesture)
     persistentProgressGestureRef.current = persistentProgressGesture
 
+    /**
+     * Provide persistent progress bar props to parent via callback for rendering at layout level.
+     *
+     * PERFORMANCE OPTIMIZATION: This effect ensures reference stability to prevent unnecessary
+     * re-renders in VideoAnalysisLayout (which uses React.memo with arePropsEqual).
+     *
+     * Strategy:
+     * 1. Compare primitive values (progress, isScrubbing, controlsVisible, progressBarWidth)
+     *    with previous values using refs
+     * 2. Only create new props object when primitive values actually change
+     * 3. Store the props object in stablePropsObjectRef for future reference stability
+     * 4. When values are unchanged, don't call the callback - parent already has stable reference
+     *
+     * Why this matters:
+     * - Creating new objects on every render causes React.memo to fail (reference inequality)
+     * - This triggers "MEMO BYPASSED" errors where arePropsEqual returns true but component renders
+     * - By maintaining reference stability at source, we prevent these race conditions
+     *
+     * Dependency strategy:
+     * - Only include PRIMITIVE dependencies (persistentProgress, isScrubbing, controlsVisible, width)
+     * - Unstable objects (animatedStyle, gestures) accessed via refs, not in dependency array
+     * - Stable callbacks (onLayout, onFallbackPress) excluded from dependencies
+     *
+     * @see stablePropsObjectRef - stores props object for reference stability
+     * @see prevPersistentProgressRef - tracks previous values for comparison
+     */
     useEffect(() => {
       if (!onPersistentProgressBarPropsChange) {
         return
       }
 
-      // Check if actual values changed (primitive check to avoid object comparison)
+      /**
+       * Check if actual primitive values changed (not object references).
+       *
+       * Primitive comparison is faster and avoids object equality checks.
+       * This ensures we only create new objects when data actually changes.
+       */
       const progressChanged = prevPersistentProgressRef.current !== persistentProgress
       const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
       const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
       const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
 
-      // Only call if actual values changed (ignore new object identity)
-      // First render always calls (all refs are null)
+      /**
+       * Only create and pass new props object when values actually changed.
+       *
+       * First render always calls (all refs are null) to initialize parent state.
+       * Subsequent renders only create new object when primitive values change.
+       */
       if (
         prevPersistentProgressRef.current === null ||
         prevIsScrubbingRef.current === null ||
@@ -471,7 +529,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       ) {
         // log.debug('VideoControls', '🎯 Calling onPersistentProgressBarPropsChange')
 
-        onPersistentProgressBarPropsChange({
+        /**
+         * Create new props object only when values change.
+         *
+         * This maintains reference stability: same object reference = same props = no re-render.
+         * When values are unchanged, we don't call the callback at all, so parent keeps existing reference.
+         */
+        const newPropsObject: PersistentProgressBarProps = {
           progress: persistentProgress,
           isScrubbing: persistentProgressBar.isScrubbing,
           controlsVisible,
@@ -482,265 +546,220 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
           animationName: getAnimationName(currentInteractionTypeRef.current),
           onLayout: stableOnLayout,
           onFallbackPress: stableOnFallbackPress,
-        })
+        }
 
-        // Update refs
+        /**
+         * Store props object for reference stability.
+         *
+         * This ensures we can reuse the same reference in future renders when values
+         * haven't changed (though we don't call callback in that case).
+         */
+        stablePropsObjectRef.current = newPropsObject
+        onPersistentProgressBarPropsChange(newPropsObject)
+
+        /**
+         * Update tracking refs with current primitive values.
+         *
+         * Used for comparison in next render to detect value changes.
+         */
         prevPersistentProgressRef.current = persistentProgress
         prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
         prevControlsVisibleRef.current = controlsVisible
         prevProgressBarWidthRef.current = persistentProgressBarWidth
       }
+      /**
+       * Values unchanged - don't call callback.
+       *
+       * Parent (VideoAnalysisScreen) already has stable reference from previous call.
+       * Calling callback would create unnecessary re-render cycle even if we passed same object.
+       */
 
       return () => {
+        /**
+         * Cleanup: notify parent that persistent progress bar should be removed.
+         *
+         * Called when component unmounts or when onPersistentProgressBarPropsChange
+         * prop changes (e.g., parent re-renders with new callback reference).
+         */
         onPersistentProgressBarPropsChange(null)
       }
     }, [
-      // Only include PRIMITIVE dependencies - unstable objects accessed via refs
+      /**
+       * Dependency array strategy:
+       *
+       * Only include PRIMITIVE dependencies - these are the actual values that determine
+       * whether props object should be recreated.
+       *
+       * Excluded from dependencies (accessed via refs or stable references):
+       * - persistentBarAnimatedStyle - changes frequently, accessed via persistentBarAnimatedStyleRef
+       * - persistentProgressBarCombinedGesture - changes frequently, accessed via ref
+       * - persistentProgressGesture - changes frequently, accessed via ref
+       * - currentInteractionType - changes frequently, accessed via currentInteractionTypeRef
+       * - stableOnLayout - stable callback reference
+       * - stableOnFallbackPress - stable callback reference
+       * - getAnimationName - stable function reference
+       * - duration, onSeek, showControlsAndResetTimer - stable values
+       */
       persistentProgress,
       persistentProgressBar.isScrubbing,
       controlsVisible,
       persistentProgressBarWidth,
-      // Omit unstable objects: persistentBarAnimatedStyle, persistentProgressBarCombinedGesture,
-      // persistentProgressGesture, currentInteractionType - accessed via refs
-      // Omit stable callbacks: stableOnLayout, stableOnFallbackPress, getAnimationName - stable references
-      // Omit other stable values: duration, onSeek, showControlsAndResetTimer - stable references
       onPersistentProgressBarPropsChange,
     ])
 
     return (
-      <Pressable
-        onPress={handlePress}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-        testID="video-controls-container"
+      <ProfilerWrapper
+        id="VideoControls"
+        logToConsole={__DEV__}
       >
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              justifyContent: 'flex-end',
-              padding: 16,
-            },
-            overlayAnimatedStyle,
-          ]}
-          pointerEvents={controlsVisible ? 'auto' : 'none'}
+        <Pressable
+          onPress={handlePress}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          testID="video-controls-container"
         >
-          <YStack
-            flex={1}
-            justifyContent="flex-end"
-            testID="video-controls-overlay"
-            accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
-            accessibilityRole="toolbar"
-            accessibilityState={{ expanded: controlsVisible }}
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                justifyContent: 'flex-end',
+                padding: 16,
+              },
+              overlayAnimatedStyle,
+            ]}
+            pointerEvents={controlsVisible ? 'auto' : 'none'}
           >
-            {/* Header - deprecated, use NavigationAppHeader instead */}
-            {headerComponent && headerComponent}
+            <YStack
+              flex={1}
+              justifyContent="flex-end"
+              testID="video-controls-overlay"
+              accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
+              accessibilityRole="toolbar"
+              accessibilityState={{ expanded: controlsVisible }}
+            >
+              {/* Header - deprecated, use NavigationAppHeader instead */}
+              {headerComponent && headerComponent}
 
-            {/* Center Controls - Absolutely positioned in vertical center of full screen */}
-            <CenterControls
-              isPlaying={isPlaying}
-              videoEnded={videoEnded}
-              isProcessing={isProcessing}
-              currentTime={currentTime}
-              onPlay={() => {
-                showControlsAndResetTimer()
-                onPlay()
-              }}
-              onPause={() => {
-                showControlsAndResetTimer()
-                onPause()
-              }}
-              onReplay={
-                onReplay
-                  ? () => {
-                      showControlsAndResetTimer()
-                      onReplay()
-                    }
-                  : undefined
-              }
-              onSkipBackward={() => {
-                showControlsAndResetTimer()
-                onSeek(Math.max(0, currentTime - 10))
-              }}
-              onSkipForward={() => {
-                showControlsAndResetTimer()
-                onSeek(Math.min(duration, currentTime + 10))
-              }}
-            />
-
-            {/* Bottom Controls - Normal Bar */}
-            <Animated.View style={normalBarAnimatedStyle}>
-              <YStack accessibilityLabel="Video timeline and controls">
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-24}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={currentTime}
-                    duration={duration}
-                    testID="time-display"
-                  />
-                </XStack>
-              </YStack>
-            </Animated.View>
-
-            {/* Bottom Controls - Persistent Bar */}
-            <Animated.View style={persistentBarAnimatedStyle}>
-              <YStack accessibilityLabel="Video timeline and controls">
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-48}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={currentTime}
-                    duration={duration}
-                    testID="time-display-persistent"
-                  />
-                </XStack>
-              </YStack>
-            </Animated.View>
-
-            {/* Progress Bar - Normal variant (visible with controls) */}
-            <ProgressBar
-              variant="normal"
-              progress={progress}
-              isScrubbing={normalProgressBar.isScrubbing}
-              controlsVisible={controlsVisible}
-              progressBarWidth={progressBarWidth}
-              animatedStyle={normalBarAnimatedStyle}
-              combinedGesture={progressBarCombinedGesture}
-              mainGesture={mainProgressGesture}
-              animationName={getAnimationName(currentInteractionType)}
-              onLayout={(event) => {
-                const { width } = event.nativeEvent.layout
-                setProgressBarWidth(width)
-              }}
-              onFallbackPress={(locationX) => {
-                if (progressBarWidth > 0 && duration > 0) {
-                  const seekPercentage = Math.max(
-                    0,
-                    Math.min(100, (locationX / progressBarWidth) * 100)
-                  )
-                  const seekTime = (seekPercentage / 100) * duration
-                  log.debug('VideoControls', 'Fallback press handler', {
-                    locationX,
-                    progressBarWidth,
-                    seekPercentage,
-                    seekTime,
-                    duration,
-                  })
-                  onSeek(seekTime)
-                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-                  // Fallback should only seek, not show controls (gesture handles that)
+              {/* Center Controls - Absolutely positioned in vertical center of full screen */}
+              <CenterControls
+                isPlaying={isPlaying}
+                videoEnded={videoEnded}
+                isProcessing={isProcessing}
+                currentTime={currentTime}
+                onPlay={() => {
+                  showControlsAndResetTimer()
+                  onPlay()
+                }}
+                onPause={() => {
+                  showControlsAndResetTimer()
+                  onPause()
+                }}
+                onReplay={
+                  onReplay
+                    ? () => {
+                        showControlsAndResetTimer()
+                        onReplay()
+                      }
+                    : undefined
                 }
-              }}
-            />
+                onSkipBackward={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.max(0, currentTime - 10))
+                }}
+                onSkipForward={() => {
+                  showControlsAndResetTimer()
+                  onSeek(Math.min(duration, currentTime + 10))
+                }}
+              />
 
-            {/* Fly-out Menu - Temporarily disabled for testing */}
-            {/* TODO: Re-enable Sheet component after fixing mock */}
-            {showMenu && (
-              <YStack
-                position="absolute"
-                bottom={0}
-                left={0}
-                right={0}
-                backgroundColor="$background"
-                borderTopLeftRadius="$4"
-                borderTopRightRadius="$4"
-                padding="$4"
-                gap="$3"
-                zIndex={20}
-                testID="menu-overlay"
-              >
-                <Text
-                  fontSize="$6"
-                  fontWeight="600"
-                  textAlign="center"
-                >
-                  Video Options
-                </Text>
-
-                <YStack gap="$2">
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('share')}
-                      icon={
-                        <Share
-                          size="$1"
-                          color="white"
-                        />
-                      }
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Share Video
-                      </Text>
-                    </GlassButton>
-                  </XStack>
-
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('download')}
-                      icon={
-                        <Download
-                          size="$1"
-                          color="white"
-                        />
-                      }
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Download Video
-                      </Text>
-                    </GlassButton>
-                  </XStack>
-
-                  <XStack>
-                    <GlassButton
-                      onPress={() => handleMenuItemPress('export')}
-                      minHeight={44}
-                      backgroundColor="transparent"
-                    >
-                      <Text
-                        color="white"
-                        fontSize="$4"
-                      >
-                        Export Analysis
-                      </Text>
-                    </GlassButton>
+              {/* Bottom Controls - Normal Bar */}
+              <Animated.View style={normalBarAnimatedStyle}>
+                <YStack accessibilityLabel="Video timeline and controls">
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bottom={-24}
+                    paddingBottom="$2"
+                    accessibilityLabel="Video time and controls"
+                  >
+                    <TimeDisplay
+                      currentTime={currentTime}
+                      duration={duration}
+                      testID="time-display"
+                    />
                   </XStack>
                 </YStack>
-              </YStack>
-            )}
-          </YStack>
-        </Animated.View>
+              </Animated.View>
 
-        {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
-        {/* {!onPersistentProgressBarPropsChange && (
+              {/* Bottom Controls - Persistent Bar */}
+              <Animated.View style={persistentBarAnimatedStyle}>
+                <YStack accessibilityLabel="Video timeline and controls">
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bottom={-48}
+                    paddingBottom="$2"
+                    accessibilityLabel="Video time and controls"
+                  >
+                    <TimeDisplay
+                      currentTime={currentTime}
+                      duration={duration}
+                      testID="time-display-persistent"
+                    />
+                  </XStack>
+                </YStack>
+              </Animated.View>
+
+              {/* Progress Bar - Normal variant (visible with controls) */}
+              <ProgressBar
+                variant="normal"
+                progress={progress}
+                isScrubbing={normalProgressBar.isScrubbing}
+                controlsVisible={controlsVisible}
+                progressBarWidth={progressBarWidth}
+                animatedStyle={normalBarAnimatedStyle}
+                combinedGesture={progressBarCombinedGesture}
+                mainGesture={mainProgressGesture}
+                animationName={getAnimationName(currentInteractionType)}
+                onLayout={(event) => {
+                  const { width } = event.nativeEvent.layout
+                  setProgressBarWidth(width)
+                }}
+                onFallbackPress={(locationX) => {
+                  if (progressBarWidth > 0 && duration > 0) {
+                    const seekPercentage = Math.max(
+                      0,
+                      Math.min(100, (locationX / progressBarWidth) * 100)
+                    )
+                    const seekTime = (seekPercentage / 100) * duration
+                    log.debug('VideoControls', 'Fallback press handler', {
+                      locationX,
+                      progressBarWidth,
+                      seekPercentage,
+                      seekTime,
+                      duration,
+                    })
+                    onSeek(seekTime)
+                    // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                    // Fallback should only seek, not show controls (gesture handles that)
+                  }
+                }}
+              />
+            </YStack>
+          </Animated.View>
+
+          {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
+          {/* {!onPersistentProgressBarPropsChange && (
             <ProgressBar
               variant="persistent"
               progress={persistentProgress}
@@ -776,7 +795,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
               }}
             />
           )} */}
-      </Pressable>
+        </Pressable>
+      </ProfilerWrapper>
     )
   }
 )

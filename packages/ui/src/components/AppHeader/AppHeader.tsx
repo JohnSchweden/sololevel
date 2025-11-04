@@ -1,8 +1,12 @@
 import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-icons'
-import type { ComponentProps } from 'react'
+import { BlurView } from 'expo-blur'
+import { type ComponentProps, useMemo, useState } from 'react'
+
+import { NotificationSheet } from '@ui/components/BottomSheets'
+import { VideoSettingsSheet } from '@ui/components/BottomSheets'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { Circle, Image, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
-import { GlassButton } from '../GlassButton'
 import type { AppHeaderProps } from './types'
 
 /**
@@ -31,6 +35,11 @@ export function AppHeader({
   themeName,
   profileImageUri,
 }: AppHeaderProps) {
+  // Notification sheet state
+  const [notificationSheetOpen, setNotificationSheetOpen] = useState(false)
+  // Video settings sheet state
+  const [videoSettingsSheetOpen, setVideoSettingsSheetOpen] = useState(false)
+
   // Derive state from mode
   const isRecording = mode === 'recording' || cameraProps?.isRecording
   const isAnalysis = mode === 'analysis'
@@ -82,6 +91,65 @@ export function AppHeader({
   const foreground = '$color' as TextColor
   const iconColor = '$color' as IconColor
 
+  // Memoize shared Button style objects to prevent re-renders
+  const buttonHoverStyle = useMemo(
+    () => ({
+      backgroundColor: '$backgroundHover' as const,
+      scale: 1.08,
+      opacity: 0.9,
+    }),
+    []
+  )
+
+  const buttonPressStyle = useMemo(
+    () => ({
+      scale: 0.82,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)' as const,
+      opacity: 0.85,
+    }),
+    []
+  )
+
+  const buttonFocusStyle = useMemo(
+    () => ({
+      borderWidth: 1,
+      borderColor: '$color7' as const,
+      opacity: 0.9,
+    }),
+    []
+  )
+
+  const leftButtonHoverStyle = useMemo(
+    () => ({
+      backgroundColor: '$backgroundPress' as const,
+      scale: 1.08,
+      opacity: 0.9,
+    }),
+    []
+  )
+
+  // Memoize BlurView timer style (static, no deps needed)
+  const blurViewStyle = useMemo(
+    () => ({
+      minWidth: 80,
+      minHeight: 32,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.15)',
+      overflow: 'hidden' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: 12,
+    }),
+    []
+  )
+
+  // Memoize Image source object (depends on profileImageUri)
+  const profileImageSource = useMemo(
+    () => (profileImageUri ? { uri: profileImageUri } : null),
+    [profileImageUri]
+  )
+
   const renderLeft = () => {
     if (leftSlot) {
       return leftSlot
@@ -102,21 +170,9 @@ export function AppHeader({
         backgroundColor="transparent"
         borderWidth={0}
         animation="quick"
-        hoverStyle={{
-          backgroundColor: '$backgroundPress',
-          scale: 1.08,
-          opacity: 0.9,
-        }}
-        pressStyle={{
-          scale: 0.92,
-          backgroundColor: '$color10',
-          opacity: 0.75,
-        }}
-        focusStyle={{
-          borderWidth: 1,
-          borderColor: '$color7',
-          opacity: 0.9,
-        }}
+        hoverStyle={leftButtonHoverStyle}
+        pressStyle={buttonPressStyle}
+        focusStyle={buttonFocusStyle}
         onPress={isBackButton ? onBackPress : onMenuPress}
         cursor="pointer"
         accessibilityRole="button"
@@ -160,21 +216,9 @@ export function AppHeader({
             backgroundColor="transparent"
             borderWidth={0}
             animation="quick"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-              scale: 1.08,
-              opacity: 0.9,
-            }}
-            pressStyle={{
-              scale: 0.92,
-              backgroundColor: '$color10',
-              opacity: 0.75,
-            }}
-            focusStyle={{
-              borderWidth: 1,
-              borderColor: '$color7',
-              opacity: 0.9,
-            }}
+            hoverStyle={buttonHoverStyle}
+            pressStyle={buttonPressStyle}
+            focusStyle={buttonFocusStyle}
             onPress={onMenuPress}
             cursor="pointer"
             accessibilityRole="button"
@@ -198,22 +242,13 @@ export function AppHeader({
             backgroundColor="transparent"
             borderWidth={0}
             animation="quick"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-              scale: 1.08,
-              opacity: 0.9,
+            hoverStyle={buttonHoverStyle}
+            pressStyle={buttonPressStyle}
+            focusStyle={buttonFocusStyle}
+            onPress={() => {
+              setVideoSettingsSheetOpen(true)
+              onMenuPress?.()
             }}
-            pressStyle={{
-              scale: 0.92,
-              backgroundColor: '$color10',
-              opacity: 0.75,
-            }}
-            focusStyle={{
-              borderWidth: 1,
-              borderColor: '$color7',
-              opacity: 0.9,
-            }}
-            onPress={onMenuPress}
             cursor="pointer"
             accessibilityRole="button"
             accessibilityLabel="Open video settings menu"
@@ -235,29 +270,21 @@ export function AppHeader({
               height="$4"
               borderRadius="$10"
               backgroundColor="transparent"
+              borderWidth={0}
               animation="quick"
-              hoverStyle={{
-                backgroundColor: '$backgroundHover',
-                scale: 1.08,
-                opacity: 0.9,
+              hoverStyle={buttonHoverStyle}
+              pressStyle={buttonPressStyle}
+              focusStyle={buttonFocusStyle}
+              onPress={() => {
+                setNotificationSheetOpen(true)
+                onNotificationPress?.()
               }}
-              pressStyle={{
-                scale: 0.92,
-                backgroundColor: '$color10',
-                opacity: 0.75,
-              }}
-              focusStyle={{
-                borderWidth: 1,
-                borderColor: '$color7',
-                opacity: 0.9,
-              }}
-              onPress={onNotificationPress}
               cursor="pointer"
               accessibilityRole="button"
               accessibilityLabel={
                 notificationBadgeCount > 0
                   ? `Notifications: ${notificationBadgeCount} unread`
-                  : 'Notifications'
+                  : 'Notifications: 4 recent updates'
               }
               icon={
                 <Bell
@@ -267,22 +294,31 @@ export function AppHeader({
               }
             />
 
-            {notificationBadgeCount > 0 && (
-              <Circle
-                backgroundColor="$red9"
-                alignItems="center"
-                justifyContent="center"
+            <Circle
+              backgroundColor="$red9"
+              alignItems="center"
+              justifyContent="center"
+              position="absolute"
+              top={-2}
+              right={-2}
+              minWidth={16}
+              minHeight={16}
+              paddingHorizontal={2}
+            >
+              <Text
+                fontSize={10}
+                color="$color12"
+                fontWeight="600"
+                textAlign="center"
+                lineHeight={16}
               >
-                <Text
-                  fontSize="$1"
-                  color="$color12"
-                  fontWeight="600"
-                  lineHeight="$1"
-                >
-                  {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
-                </Text>
-              </Circle>
-            )}
+                {notificationBadgeCount > 0
+                  ? notificationBadgeCount > 9
+                    ? '9+'
+                    : notificationBadgeCount
+                  : '4'}
+              </Text>
+            </Circle>
           </YStack>
         )
 
@@ -296,29 +332,17 @@ export function AppHeader({
             backgroundColor="transparent"
             borderWidth={0}
             animation="quick"
-            hoverStyle={{
-              backgroundColor: '$backgroundHover',
-              scale: 1.08,
-              opacity: 0.9,
-            }}
-            pressStyle={{
-              scale: 0.92,
-              backgroundColor: '$color10',
-              opacity: 0.75,
-            }}
-            focusStyle={{
-              borderWidth: 1,
-              borderColor: '$color7',
-              opacity: 0.9,
-            }}
+            hoverStyle={buttonHoverStyle}
+            pressStyle={buttonPressStyle}
+            focusStyle={buttonFocusStyle}
             onPress={onProfilePress}
             cursor="pointer"
             accessibilityRole="button"
             accessibilityLabel="Open profile"
             icon={
-              profileImageUri ? (
+              profileImageSource ? (
                 <Image
-                  source={{ uri: profileImageUri }}
+                  source={profileImageSource}
                   width={36}
                   height={36}
                 />
@@ -344,17 +368,10 @@ export function AppHeader({
 
     if (showTimer) {
       return (
-        <GlassButton
-          disabled
-          blurIntensity={10}
-          blurTint="dark"
-          minWidth={80}
-          minHeight={32}
-          borderRadius="$6"
-          borderWidth={1}
-          borderColor="rgba(255, 255, 255, 0.15)"
-          overlayOpacity={0.6}
-          edgeGlowIntensity={0.1}
+        <BlurView
+          intensity={10}
+          tint="dark"
+          style={blurViewStyle}
           accessibilityLabel={`Recording time: ${timerValue}`}
         >
           <Text
@@ -366,7 +383,7 @@ export function AppHeader({
           >
             {timerValue}
           </Text>
-        </GlassButton>
+        </BlurView>
       )
     }
 
@@ -420,7 +437,25 @@ export function AppHeader({
     </XStack>
   )
 
-  return themeName ? <Theme name={themeName}>{content}</Theme> : content
+  return (
+    <ProfilerWrapper
+      id="AppHeader"
+      logToConsole={__DEV__}
+    >
+      {themeName ? <Theme name={themeName}>{content}</Theme> : content}
+
+      <NotificationSheet
+        open={notificationSheetOpen}
+        onOpenChange={setNotificationSheetOpen}
+        notificationBadgeCount={notificationBadgeCount}
+      />
+
+      <VideoSettingsSheet
+        open={videoSettingsSheetOpen}
+        onOpenChange={setVideoSettingsSheetOpen}
+      />
+    </ProfilerWrapper>
+  )
 }
 
 export interface RecordingTimerProps {

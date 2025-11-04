@@ -1,5 +1,7 @@
+import { useRenderDiagnostics } from '@app/hooks'
 import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { log } from '@my/logging'
 import {
   AchievementCard,
   ActivityChart,
@@ -11,10 +13,13 @@ import {
   StateDisplay,
 } from '@my/ui'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
+import { ProfilerWrapper } from '@ui/components/Performance'
+import { memo, useCallback, useMemo } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 import { useInsightsData } from './hooks/useInsightsData'
+import type { InsightsData } from './hooks/useInsightsData'
 
 export interface InsightsScreenProps {
   /**
@@ -22,6 +27,193 @@ export interface InsightsScreenProps {
    */
   testID?: string
 }
+
+// Memoized section components to prevent re-renders when other sections animate
+const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
+  isVisible,
+  data,
+  dailyActivityData,
+}: {
+  isVisible: boolean
+  data: InsightsData
+  dailyActivityData: InsightsData['weeklyStats']['dailyActivity']
+}) {
+  return (
+    <YStack
+      gap="$4"
+      opacity={isVisible ? 1 : 0}
+      animation="quick"
+    >
+      <SettingsSectionHeader
+        title="This Week"
+        icon={BarChart3}
+      />
+
+      {/* Stats Grid */}
+      <XStack gap="$4">
+        <YStack flex={1}>
+          <StatCard
+            value={data.weeklyStats.totalSessions}
+            label="Total Sessions"
+          />
+        </YStack>
+        <YStack flex={1}>
+          <StatCard
+            value={`${data.weeklyStats.improvement}%`}
+            label="Improvement"
+            trend="up"
+          />
+        </YStack>
+      </XStack>
+
+      {/* Weekly Progress */}
+      <YStack
+        padding="$4"
+        backgroundColor="$backgroundHover"
+        borderRadius="$6"
+        borderWidth={1}
+        borderColor="$borderColor"
+        gap="$2"
+      >
+        <XStack justifyContent="space-between">
+          <Text
+            fontSize="$3"
+            color="$color11"
+          >
+            Weekly Progress
+          </Text>
+          <Text
+            fontSize="$3"
+            color="$color11"
+          >
+            {data.weeklyStats.weeklyProgress}%
+          </Text>
+        </XStack>
+        <Progress
+          value={data.weeklyStats.weeklyProgress}
+          size="md"
+        />
+      </YStack>
+
+      {/* Activity Chart */}
+      <YStack
+        padding="$4"
+        backgroundColor="$backgroundHover"
+        borderRadius="$6"
+        borderWidth={1}
+        borderColor="$borderColor"
+        gap="$3"
+      >
+        <Text
+          fontSize="$3"
+          color="$color11"
+        >
+          Daily Activity
+        </Text>
+        <ActivityChart data={dailyActivityData} />
+      </YStack>
+    </YStack>
+  )
+})
+
+const FocusAreasSection = memo(function FocusAreasSection({
+  isVisible,
+  focusAreasList,
+}: {
+  isVisible: boolean
+  focusAreasList: InsightsData['focusAreas']
+}) {
+  return (
+    <YStack
+      gap="$3"
+      opacity={isVisible ? 1 : 0}
+      animation="quick"
+    >
+      <SettingsSectionHeader
+        title="Focus Areas"
+        icon={Target}
+      />
+
+      {focusAreasList.map((focus, index) => (
+        <FocusCard
+          key={`focus-${index}`}
+          title={focus.title}
+          progress={focus.progress}
+          priority={focus.priority}
+        />
+      ))}
+    </YStack>
+  )
+})
+
+const AchievementsSection = memo(function AchievementsSection({
+  isVisible,
+  achievementsList,
+}: {
+  isVisible: boolean
+  achievementsList: InsightsData['achievements']
+}) {
+  return (
+    <YStack
+      gap="$3"
+      opacity={isVisible ? 1 : 0}
+      animation="quick"
+    >
+      <SettingsSectionHeader
+        title="Recent Achievements"
+        icon={Award}
+      />
+
+      {achievementsList.map((achievement, index) => (
+        <AchievementCard
+          key={`achievement-${index}`}
+          title={achievement.title}
+          date={achievement.date}
+          type={achievement.type}
+          icon={achievement.icon}
+        />
+      ))}
+    </YStack>
+  )
+})
+
+const QuickStatsSection = memo(function QuickStatsSection({
+  isVisible,
+  data,
+}: {
+  isVisible: boolean
+  data: InsightsData
+}) {
+  return (
+    <YStack
+      gap="$4"
+      opacity={isVisible ? 1 : 0}
+      animation="quick"
+    >
+      <SettingsSectionHeader
+        title="Quick Stats"
+        icon={Calendar}
+      />
+
+      <XStack gap="$4">
+        <YStack flex={1}>
+          <StatCard
+            value={data.quickStats.streakDays}
+            label="Day Streak"
+            variant="center"
+          />
+        </YStack>
+        <YStack flex={1}>
+          <StatCard
+            value={`${data.quickStats.avgSessionTime}min`}
+            label="Avg Session"
+            variant="center"
+          />
+        </YStack>
+      </XStack>
+    </YStack>
+  )
+})
 
 /**
  * Insights Screen
@@ -53,226 +245,168 @@ export function InsightsScreen({
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
   const { data, isLoading, isError, refetch } = useInsightsData()
 
+  // Diagnose what's causing re-renders - log all renders to see frequency
+  const diagnostics = useRenderDiagnostics(
+    'InsightsScreen',
+    { data, isLoading, isError },
+    {
+      logToConsole: __DEV__,
+      logOnlyChanges: false, // Log all renders to see frequency
+    }
+  )
+
+  // Warn if rendering too frequently
+  if (__DEV__ && diagnostics.renderCount > 10) {
+    log.warn('InsightsScreen', 'High render count detected', {
+      renderCount: diagnostics.renderCount,
+      message: 'Check for unstable dependencies or parent re-renders',
+    })
+  }
+
+  // Stable dependencies array to prevent useStaggeredAnimation from re-running unnecessarily
+  const staggerDependencies = useMemo(() => [isLoading], [isLoading])
+
   const { visibleItems: sectionsVisible } = useStaggeredAnimation({
     itemCount: 4,
     staggerDelay: 50,
-    dependencies: [isLoading], // Only restart animation when loading state changes, not on data updates
+    dependencies: staggerDependencies, // Only restart animation when loading state changes, not on data updates
   })
+
+  // Stable refetch callback
+  const handleRefresh = useCallback(() => {
+    refetch()
+  }, [refetch])
+
+  // Memoize refresh control to prevent recreation
+  const refreshControl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={isLoading}
+        onRefresh={handleRefresh}
+        tintColor="white"
+        titleColor="white"
+      />
+    ),
+    [isLoading, handleRefresh]
+  )
+
+  // Memoize data references to prevent child re-renders (only when data exists)
+  const dailyActivityData = useMemo(
+    () => data?.weeklyStats?.dailyActivity ?? [],
+    [data?.weeklyStats?.dailyActivity]
+  )
+  const focusAreasList = useMemo(() => data?.focusAreas ?? [], [data?.focusAreas])
+  const achievementsList = useMemo(() => data?.achievements ?? [], [data?.achievements])
+
+  // Render sections - parent will re-render when sectionsVisible changes (unavoidable)
+  // But memoized section components prevent expensive child re-renders - only the section
+  // with changing isVisible prop re-renders (memoized sections skip if props unchanged)
+  // No memoization here to avoid recalculating JSX on every sectionsVisible change
+  const sectionsContent = !data ? null : (
+    <>
+      {/* Weekly Overview Section */}
+      <WeeklyOverviewSection
+        isVisible={sectionsVisible[0]}
+        data={data}
+        dailyActivityData={dailyActivityData}
+      />
+
+      {/* Focus Areas Section */}
+      <FocusAreasSection
+        isVisible={sectionsVisible[1]}
+        focusAreasList={focusAreasList}
+      />
+
+      {/* Achievements Section */}
+      <AchievementsSection
+        isVisible={sectionsVisible[2]}
+        achievementsList={achievementsList}
+      />
+
+      {/* Quick Stats Section */}
+      <QuickStatsSection
+        isVisible={sectionsVisible[3]}
+        data={data}
+      />
+    </>
+  )
 
   if (isLoading) {
     return (
-      <GlassBackground
-        backgroundColor="$color3"
-        testID={testID}
+      <ProfilerWrapper
+        id="InsightsScreen"
+        logToConsole={__DEV__}
       >
-        <StateDisplay
-          type="loading"
-          title="Loading insights..."
-          testID={`${testID}-loading`}
-        />
-      </GlassBackground>
+        <GlassBackground
+          backgroundColor="$color3"
+          testID={testID}
+        >
+          <StateDisplay
+            type="loading"
+            title="Loading insights..."
+            testID={`${testID}-loading`}
+          />
+        </GlassBackground>
+      </ProfilerWrapper>
     )
   }
 
   if (isError || !data) {
     return (
-      <GlassBackground
-        backgroundColor="$color3"
-        testID={testID}
+      <ProfilerWrapper
+        id="InsightsScreen"
+        logToConsole={__DEV__}
       >
-        <StateDisplay
-          type={isError ? 'error' : 'empty'}
-          title={isError ? 'Failed to load insights' : 'No data available yet'}
-          description={
-            isError
-              ? 'Please try again later or pull to refresh.'
-              : 'Complete workouts to see insights about your performance and progress.'
-          }
-          icon="📊"
-          onRetry={isError ? refetch : undefined}
-          testID={`${testID}-${isError ? 'error' : 'empty'}`}
-        />
-      </GlassBackground>
+        <GlassBackground
+          backgroundColor="$color3"
+          testID={testID}
+        >
+          <StateDisplay
+            type={isError ? 'error' : 'empty'}
+            title={isError ? 'Failed to load insights' : 'No data available yet'}
+            description={
+              isError
+                ? 'Please try again later or pull to refresh.'
+                : 'Complete workouts to see insights about your performance and progress.'
+            }
+            icon="📊"
+            onRetry={isError ? refetch : undefined}
+            testID={`${testID}-${isError ? 'error' : 'empty'}`}
+          />
+        </GlassBackground>
+      </ProfilerWrapper>
     )
   }
 
   return (
-    <GlassBackground
-      backgroundColor="$color3"
-      testID={testID}
+    <ProfilerWrapper
+      id="InsightsScreen"
+      logToConsole={__DEV__}
     >
-      <SafeAreaView
-        edges={['left', 'right']}
-        style={{ flex: 1 }}
+      <GlassBackground
+        backgroundColor="$color3"
+        testID={testID}
       >
-        <ScrollView
-          flex={1}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={() => refetch()}
-              tintColor="white"
-              titleColor="white"
-            />
-          }
+        <SafeAreaView
+          edges={['left', 'right']}
+          style={{ flex: 1 }}
         >
-          <YStack
-            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
-            paddingHorizontal="$4"
-            gap="$6"
-            paddingBottom="$6"
-            marginBottom={insets.bottom}
+          <ScrollView
+            flex={1}
+            refreshControl={refreshControl}
           >
-            {/* Weekly Overview Section */}
             <YStack
-              gap="$4"
-              opacity={sectionsVisible[0] ? 1 : 0}
-              animation="quick"
+              paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+              paddingHorizontal="$4"
+              gap="$6"
+              paddingBottom="$6"
+              marginBottom={insets.bottom}
             >
-              <SettingsSectionHeader
-                title="This Week"
-                icon={BarChart3}
-              />
-
-              {/* Stats Grid */}
-              <XStack gap="$4">
-                <YStack flex={1}>
-                  <StatCard
-                    value={data.weeklyStats.totalSessions}
-                    label="Total Sessions"
-                  />
-                </YStack>
-                <YStack flex={1}>
-                  <StatCard
-                    value={`${data.weeklyStats.improvement}%`}
-                    label="Improvement"
-                    trend="up"
-                  />
-                </YStack>
-              </XStack>
-
-              {/* Weekly Progress */}
-              <YStack
-                padding="$4"
-                backgroundColor="$backgroundHover"
-                borderRadius="$6"
-                borderWidth={1}
-                borderColor="$borderColor"
-                gap="$2"
-              >
-                <XStack justifyContent="space-between">
-                  <Text
-                    fontSize="$3"
-                    color="$color11"
-                  >
-                    Weekly Progress
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    color="$color11"
-                  >
-                    {data.weeklyStats.weeklyProgress}%
-                  </Text>
-                </XStack>
-                <Progress
-                  value={data.weeklyStats.weeklyProgress}
-                  size="md"
-                />
-              </YStack>
-
-              {/* Activity Chart */}
-              <YStack
-                padding="$4"
-                backgroundColor="$backgroundHover"
-                borderRadius="$6"
-                borderWidth={1}
-                borderColor="$borderColor"
-                gap="$3"
-              >
-                <Text
-                  fontSize="$3"
-                  color="$color11"
-                >
-                  Daily Activity
-                </Text>
-                <ActivityChart data={data.weeklyStats.dailyActivity} />
-              </YStack>
+              {sectionsContent}
             </YStack>
-
-            {/* Focus Areas Section */}
-            <YStack
-              gap="$3"
-              opacity={sectionsVisible[1] ? 1 : 0}
-              animation="quick"
-            >
-              <SettingsSectionHeader
-                title="Focus Areas"
-                icon={Target}
-              />
-
-              {data.focusAreas.map((focus, index) => (
-                <FocusCard
-                  key={`focus-${index}`}
-                  title={focus.title}
-                  progress={focus.progress}
-                  priority={focus.priority}
-                />
-              ))}
-            </YStack>
-
-            {/* Achievements Section */}
-            <YStack
-              gap="$3"
-              opacity={sectionsVisible[2] ? 1 : 0}
-              animation="quick"
-            >
-              <SettingsSectionHeader
-                title="Recent Achievements"
-                icon={Award}
-              />
-
-              {data.achievements.map((achievement, index) => (
-                <AchievementCard
-                  key={`achievement-${index}`}
-                  title={achievement.title}
-                  date={achievement.date}
-                  type={achievement.type}
-                  icon={achievement.icon}
-                />
-              ))}
-            </YStack>
-
-            {/* Quick Stats Section */}
-            <YStack
-              gap="$4"
-              opacity={sectionsVisible[3] ? 1 : 0}
-              animation="quick"
-            >
-              <SettingsSectionHeader
-                title="Quick Stats"
-                icon={Calendar}
-              />
-
-              <XStack gap="$4">
-                <YStack flex={1}>
-                  <StatCard
-                    value={data.quickStats.streakDays}
-                    label="Day Streak"
-                    variant="center"
-                  />
-                </YStack>
-                <YStack flex={1}>
-                  <StatCard
-                    value={`${data.quickStats.avgSessionTime}min`}
-                    label="Avg Session"
-                    variant="center"
-                  />
-                </YStack>
-              </XStack>
-            </YStack>
-          </YStack>
-        </ScrollView>
-      </SafeAreaView>
-    </GlassBackground>
+          </ScrollView>
+        </SafeAreaView>
+      </GlassBackground>
+    </ProfilerWrapper>
   )
 }

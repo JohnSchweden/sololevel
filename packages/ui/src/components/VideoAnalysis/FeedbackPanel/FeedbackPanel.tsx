@@ -1,13 +1,33 @@
 import { log } from '@my/logging'
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
+  Heart,
+  MessageSquare,
+  Send,
+  User,
+} from '@tamagui/lucide-icons'
+import { ProfilerWrapper } from '@ui/components/Performance'
 import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { runOnJS, useAnimatedScrollHandler } from 'react-native-reanimated'
-import { Button, Text, XStack, YStack, styled } from 'tamagui'
+import {
+  AnimatePresence,
+  Button,
+  Circle,
+  Image,
+  Input,
+  Text,
+  XStack,
+  YStack,
+  styled,
+} from 'tamagui'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
 
@@ -19,35 +39,6 @@ import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStat
 /**
  * Styled components for feedback items following coaching session design pattern
  */
-
-/**
- * Pressable container for feedback item (matches SessionItemContainer exactly)
- */
-const FeedbackItemContainer = styled(YStack, {
-  name: 'FeedbackItemContainer',
-  gap: '$2',
-  padding: 0,
-  borderRadius: '$5',
-  paddingVertical: '$3',
-  paddingHorizontal: '$3',
-  //backgroundColor: '$color2',
-  cursor: 'pointer',
-  accessibilityRole: 'button',
-  animation: 'quick',
-
-  pressStyle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    scale: 0.98,
-  },
-
-  hoverStyle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-
-  variants: {
-    // Add variant support if needed in future
-  } as const,
-})
 
 /**
  * Time label text (matches DateLabel exactly)
@@ -67,15 +58,120 @@ const FeedbackText = styled(Text, {
   fontSize: '$4',
   fontWeight: '500',
   color: '$color12',
+  lineHeight: '$1',
 })
 
 /**
- * Metadata row for time and status indicators
+ * Comment container styled component
  */
-const FeedbackMetadata = styled(XStack, {
-  name: 'FeedbackMetadata',
-  justifyContent: 'space-between',
+const CommentContainer = styled(YStack, {
+  name: 'CommentContainer',
+  gap: '$2',
+  paddingVertical: '$3',
+  paddingHorizontal: '$0',
+})
+
+/**
+ * Feedback container styled component (matches CommentContainer pattern)
+ */
+const FeedbackContainer = styled(YStack, {
+  name: 'FeedbackContainer',
+  gap: '$2',
+  paddingVertical: '$3',
+  paddingHorizontal: '$0',
+  borderRadius: '$4',
+  cursor: 'pointer',
+  accessibilityRole: 'button',
+  animation: 'quick',
+
+  pressStyle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    scale: 0.98,
+  },
+
+  hoverStyle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+})
+
+/**
+ * Comment author name text
+ */
+const CommentAuthorName = styled(Text, {
+  name: 'CommentAuthorName',
+  fontSize: '$4',
+  fontWeight: '600',
+  color: '$color12',
+})
+
+/**
+ * Comment text content
+ */
+const CommentText = styled(Text, {
+  name: 'CommentText',
+  fontSize: '$4',
+  fontWeight: '400',
+  color: '$color12',
+  lineHeight: '$1',
+})
+
+/**
+ * Comment metadata row (time, reply link)
+ */
+const CommentMetadata = styled(XStack, {
+  name: 'CommentMetadata',
+  gap: '$2',
   alignItems: 'center',
+})
+
+/**
+ * Comment action text (reply, view replies)
+ */
+const CommentActionText = styled(Text, {
+  name: 'CommentActionText',
+  fontSize: '$3',
+  fontWeight: '400',
+  color: '$color11',
+})
+
+/**
+ * Comment likes container
+ */
+const CommentLikesContainer = styled(XStack, {
+  name: 'CommentLikesContainer',
+  gap: '$1',
+  alignItems: 'center',
+})
+
+/**
+ * Sort button container
+ */
+const SortButtonContainer = styled(XStack, {
+  name: 'SortButtonContainer',
+  gap: '$2',
+  paddingHorizontal: '$0',
+  paddingTop: '$3',
+  paddingBottom: '$2',
+})
+
+/**
+ * Feedback list container
+ */
+const FeedbackListContainer = styled(YStack, {
+  name: 'FeedbackListContainer',
+  gap: '$3',
+  paddingHorizontal: '$0',
+  paddingTop: '$2',
+})
+
+/**
+ * Comments list container
+ */
+const CommentsListContainer = styled(YStack, {
+  name: 'CommentsListContainer',
+  gap: '$3',
+  paddingHorizontal: '$0',
+  paddingTop: '$2',
 })
 
 // Types imported from VideoPlayer.tsx
@@ -97,11 +193,25 @@ interface FeedbackItem {
   confidence: number
 }
 
+// Comment item type matching wireframe design
+export interface CommentItem {
+  id: string
+  authorName: string
+  avatarUrl?: string // Avatar image URL
+  text: string
+  timeAgo: string // e.g., "1d", "10 days ago", "2h"
+  likes: number
+  repliesCount?: number
+  parentId?: string | null // For nested replies
+  createdAt: number // Timestamp for sorting
+}
+
 export interface FeedbackPanelProps {
   flex?: number // Added for flex-based sizing
   isExpanded: boolean
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
+  comments?: CommentItem[] // Comments for comments tab
   currentVideoTime?: number
   videoDuration?: number
   selectedFeedbackId?: string | null
@@ -115,6 +225,8 @@ export interface FeedbackPanelProps {
   onRetryFeedback?: (feedbackId: string) => void
   onDismissError?: (feedbackId: string) => void
   onSelectAudio?: (feedbackId: string) => void
+  // Comment callbacks
+  onCommentSubmit?: (text: string) => void
   // Nested scroll support
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
@@ -128,6 +240,7 @@ export const FeedbackPanel = memo(
     isExpanded,
     activeTab,
     feedbackItems,
+    comments = [],
     // currentVideoTime = 0, // DEPRECATED: auto-highlighting now controlled by coordinator
     selectedFeedbackId,
     //videoDuration = 0,
@@ -140,11 +253,36 @@ export const FeedbackPanel = memo(
     onRetryFeedback,
     onDismissError,
     onSelectAudio,
+    onCommentSubmit,
     onScrollYChange,
     onScrollEndDrag,
     scrollEnabled = true, // Default to enabled
     rootPanRef,
   }: FeedbackPanelProps) {
+    // Comment sorting state
+    const [commentSort, setCommentSort] = useState<'top' | 'new'>('top')
+
+    // Comment input state
+    const [commentInput, setCommentInput] = useState('')
+
+    // Feedback filter state
+    const [feedbackFilter, setFeedbackFilter] = useState<
+      'all' | 'voice' | 'posture' | 'grip' | 'movement'
+    >('all')
+
+    // Track previous activeTab to detect actual tab switches
+    const previousActiveTabRef = useRef(activeTab)
+    const tabActuallyChanged = previousActiveTabRef.current !== activeTab
+
+    // Update ref after checking if tab changed (for next render comparison)
+    useEffect(() => {
+      previousActiveTabRef.current = activeTab
+    }, [activeTab])
+
+    // Memoize animation styles to prevent object recreation on every render
+    const tabTransitionEnterStyle = useMemo(() => ({ opacity: 0, y: 10 }), [])
+    const tabTransitionExitStyle = useMemo(() => ({ opacity: 0, y: -10 }), [])
+
     // Create native gesture for ScrollView that works with root pan
     const nativeGesture = rootPanRef
       ? Gesture.Native().simultaneousWithExternalGesture(rootPanRef)
@@ -276,12 +414,570 @@ export const FeedbackPanel = memo(
       return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     }, [])
 
-    // Sort feedback items chronologically and determine current highlighted item
+    // Sort and filter feedback items
     const sortedFeedbackItems = useMemo(() => {
-      return [...feedbackItems].sort((a, b) => a.timestamp - b.timestamp)
-    }, [feedbackItems])
+      let filtered = feedbackItems
+
+      // Filter by category if not 'all'
+      if (feedbackFilter !== 'all') {
+        filtered = filtered.filter((item) => item.category === feedbackFilter)
+      }
+
+      // Sort chronologically
+      return [...filtered].sort((a, b) => a.timestamp - b.timestamp)
+    }, [feedbackItems, feedbackFilter])
+
+    // Sort and filter comments based on sort mode
+    const sortedComments = useMemo(() => {
+      const filtered = comments.filter((c) => !c.parentId) // Only top-level comments
+      if (commentSort === 'top') {
+        return [...filtered].sort((a, b) => b.likes - a.likes)
+      }
+      // 'new' - sort by createdAt descending
+      return [...filtered].sort((a, b) => b.createdAt - a.createdAt)
+    }, [comments, commentSort])
+
+    // Format count for display (similar to SocialIcons)
+    const formatCount = useCallback((count: number): string => {
+      if (count >= 1000) {
+        return `${(count / 1000).toFixed(1)}K`
+      }
+      return count.toString()
+    }, [])
+
+    // Get feedback type icon
+    const getFeedbackTypeIcon = useCallback((type: FeedbackItem['type']) => {
+      switch (type) {
+        case 'positive':
+          return CheckCircle
+        case 'correction':
+          return AlertCircle
+        case 'suggestion':
+          return MessageSquare
+        default:
+          return MessageSquare
+      }
+    }, [])
+
+    // Handle comment submission
+    const handleCommentSubmit = useCallback(() => {
+      if (commentInput.trim() && onCommentSubmit) {
+        onCommentSubmit(commentInput.trim())
+        setCommentInput('')
+      }
+    }, [commentInput, onCommentSubmit])
 
     const keyExtractor = useCallback((item: FeedbackItem) => item.id, [])
+
+    // Render comment item
+    const renderCommentItem = useCallback(
+      (comment: CommentItem, index: number) => {
+        return (
+          <CommentContainer
+            key={comment.id}
+            testID={`comment-${index + 1}`}
+          >
+            <XStack
+              gap="$3"
+              alignItems="flex-start"
+            >
+              {/* Avatar */}
+              {comment.avatarUrl ? (
+                <Circle
+                  size={32}
+                  overflow="hidden"
+                  testID={`comment-${index + 1}-avatar`}
+                  accessibilityLabel={`${comment.authorName} avatar`}
+                >
+                  <Image
+                    source={{ uri: comment.avatarUrl }}
+                    width={32}
+                    height={32}
+                    borderRadius={16}
+                    testID={`comment-${index + 1}-avatar-image`}
+                    accessibilityLabel={`${comment.authorName} avatar image`}
+                  />
+                </Circle>
+              ) : (
+                <Circle
+                  size={32}
+                  backgroundColor="$color5"
+                  alignItems="center"
+                  justifyContent="center"
+                  testID={`comment-${index + 1}-avatar`}
+                  accessibilityLabel={`${comment.authorName} avatar`}
+                >
+                  <User
+                    size={18}
+                    color="$color11"
+                  />
+                </Circle>
+              )}
+
+              {/* Comment content */}
+              <YStack
+                flex={1}
+                gap="$1"
+              >
+                {/* Author name and likes */}
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <CommentAuthorName>{comment.authorName}</CommentAuthorName>
+                  <CommentLikesContainer>
+                    <Heart
+                      size={14}
+                      color="$color11"
+                    />
+                    <Text
+                      fontSize="$3"
+                      color="$color11"
+                    >
+                      {formatCount(comment.likes)}
+                    </Text>
+                  </CommentLikesContainer>
+                </XStack>
+
+                {/* Comment text */}
+                <CommentText>{comment.text}</CommentText>
+
+                {/* Metadata: time, reply, view replies */}
+                <CommentMetadata>
+                  <CommentActionText>{comment.timeAgo}</CommentActionText>
+                  <CommentActionText
+                    onPress={() => {
+                      // TODO: Handle reply action
+                    }}
+                    cursor="pointer"
+                    testID={`comment-${index + 1}-reply`}
+                  >
+                    reply
+                  </CommentActionText>
+                  {comment.repliesCount !== undefined && comment.repliesCount > 0 && (
+                    <XStack
+                      gap="$1"
+                      alignItems="center"
+                    >
+                      <CommentActionText
+                        onPress={() => {
+                          // TODO: Handle view replies action
+                        }}
+                        cursor="pointer"
+                        testID={`comment-${index + 1}-view-replies`}
+                      >
+                        View replies ({comment.repliesCount})
+                      </CommentActionText>
+                      <ChevronDown
+                        size={14}
+                        color="$color11"
+                      />
+                    </XStack>
+                  )}
+                </CommentMetadata>
+              </YStack>
+            </XStack>
+          </CommentContainer>
+        )
+      },
+      [formatCount]
+    )
+
+    // Render feedback item node (must be defined before renderFeedbackContent)
+    const renderFeedbackItemNode = useCallback(
+      (item: FeedbackItem, index: number) => {
+        const isHighlighted = selectedFeedbackId === item.id
+        const accessibilityLabel = `${formatTime(item.timestamp)}, ${item.text}, feedback item`
+        const TypeIcon = getFeedbackTypeIcon(item.type)
+
+        return (
+          <ProfilerWrapper
+            id={`FeedbackItem-${item.id}`}
+            logToConsole={__DEV__}
+          >
+            <FeedbackContainer
+              key={item.id}
+              onPress={() => onFeedbackItemPress(item)}
+              {...(item.audioUrl && onSelectAudio
+                ? {
+                    onLongPress: () => onSelectAudio(item.id),
+                  }
+                : {})}
+              testID={`feedback-item-${index + 1}`}
+              accessibilityLabel={accessibilityLabel}
+              data-testid={`feedback-item-${index + 1}`}
+            >
+              <XStack
+                gap="$3"
+                alignItems="flex-start"
+              >
+                {/* Type icon */}
+                <Circle
+                  size={32}
+                  alignItems="center"
+                  justifyContent="center"
+                  testID={`feedback-item-${index + 1}-icon`}
+                  accessibilityLabel={`${item.type} feedback`}
+                >
+                  <TypeIcon
+                    size={18}
+                    color={isHighlighted ? '$yellow11' : '$color11'}
+                  />
+                </Circle>
+
+                {/* Feedback content */}
+                <YStack
+                  flex={1}
+                  gap="$1"
+                >
+                  {/* Header: time, category, and status */}
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <XStack
+                      gap="$2"
+                      alignItems="center"
+                      flex={1}
+                    >
+                      <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
+                        {formatTime(item.timestamp)}
+                      </TimeLabel>
+                      <Text
+                        fontSize="$2"
+                        fontWeight="500"
+                        color="$color11"
+                        textTransform="capitalize"
+                      >
+                        {item.category}
+                      </Text>
+                    </XStack>
+
+                    {(item.ssmlStatus || item.audioStatus) && (
+                      <FeedbackStatusIndicator
+                        ssmlStatus={item.ssmlStatus || 'queued'}
+                        audioStatus={item.audioStatus || 'queued'}
+                        ssmlAttempts={item.ssmlAttempts || 0}
+                        audioAttempts={item.audioAttempts || 0}
+                        ssmlLastError={item.ssmlLastError || null}
+                        audioLastError={item.audioLastError || null}
+                        size="small"
+                        testID={`feedback-status-${index + 1}`}
+                      />
+                    )}
+                  </XStack>
+
+                  {/* Feedback text */}
+                  <FeedbackText
+                    data-testid={`feedback-item-${index + 1}-text`}
+                    color={isHighlighted ? '$yellow11' : undefined}
+                  >
+                    {item.text}
+                  </FeedbackText>
+
+                  {/* Error handler */}
+                  {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
+                    onRetryFeedback && (
+                      <FeedbackErrorHandler
+                        feedbackId={item.id}
+                        feedbackText={item.text}
+                        ssmlFailed={item.ssmlStatus === 'failed'}
+                        audioFailed={item.audioStatus === 'failed'}
+                        onRetry={onRetryFeedback}
+                        onDismiss={onDismissError}
+                        size="small"
+                        testID={`feedback-error-${index + 1}`}
+                      />
+                    )}
+                </YStack>
+              </XStack>
+            </FeedbackContainer>
+          </ProfilerWrapper>
+        )
+      },
+      [
+        formatTime,
+        getFeedbackTypeIcon,
+        onDismissError,
+        onFeedbackItemPress,
+        onRetryFeedback,
+        onSelectAudio,
+        selectedFeedbackId,
+      ]
+    )
+
+    // Render feedback tab content
+    const renderFeedbackContent = useCallback(
+      () => (
+        <YStack
+          key="feedback-content"
+          paddingTop="$2"
+          testID="feedback-content"
+          accessibilityLabel="Feedback content area"
+        >
+          {/* Filter buttons */}
+          <SortButtonContainer>
+            {(['all', 'voice', 'posture', 'grip', 'movement'] as const).map((filter) => (
+              <Button
+                key={filter}
+                chromeless
+                size="$2"
+                height={32}
+                backgroundColor={feedbackFilter === filter ? '$color12' : '$color3'}
+                borderRadius="$4"
+                paddingHorizontal="$3"
+                paddingVertical="$1"
+                onPress={() => setFeedbackFilter(filter)}
+                testID={`filter-${filter}`}
+                accessibilityLabel={`Filter by ${filter}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: feedbackFilter === filter }}
+              >
+                <Text
+                  fontSize="$3"
+                  fontWeight={feedbackFilter === filter ? '600' : '400'}
+                  color={feedbackFilter === filter ? '$color1' : '$color11'}
+                  textTransform="capitalize"
+                >
+                  {filter}
+                </Text>
+              </Button>
+            ))}
+          </SortButtonContainer>
+
+          {/* Feedback list */}
+          <FeedbackListContainer>
+            {sortedFeedbackItems.length > 0 ? (
+              sortedFeedbackItems.map((item, index) => renderFeedbackItemNode(item, index))
+            ) : (
+              <YStack
+                padding="$4"
+                alignItems="center"
+                justifyContent="center"
+                gap="$2"
+                testID="no-feedback"
+                accessibilityLabel="No feedback available"
+              >
+                <Text
+                  fontSize="$4"
+                  color="$color10"
+                  textAlign="center"
+                >
+                  {feedbackFilter === 'all'
+                    ? 'Feedback will appear here once the analysis completes.'
+                    : `No ${feedbackFilter} feedback available.`}
+                </Text>
+              </YStack>
+            )}
+          </FeedbackListContainer>
+        </YStack>
+      ),
+      [feedbackFilter, sortedFeedbackItems, renderFeedbackItemNode]
+    )
+
+    // Render insights tab content
+    const renderInsightsContent = useCallback(
+      () => (
+        <YStack
+          key="insights-content"
+          flex={1}
+          justifyContent="center"
+          alignItems="center"
+          paddingTop="$4"
+          paddingBottom="$6"
+          testID="insights-content"
+          accessibilityLabel="Insights content area"
+        >
+          <Text
+            fontSize="$5"
+            color="$color11"
+            textAlign="center"
+            accessibilityLabel="Insights Coming Soon"
+          >
+            Insights Coming Soon
+          </Text>
+          <Text
+            fontSize="$4"
+            color="$color10"
+            textAlign="center"
+            marginTop="$2"
+            accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
+          >
+            Advanced analysis and performance metrics will be displayed here.
+          </Text>
+        </YStack>
+      ),
+      []
+    )
+
+    // Render comments tab content
+    const renderCommentsContent = useCallback(
+      () => (
+        <YStack
+          key="comments-content"
+          paddingTop="$2"
+          testID="comments-content"
+          accessibilityLabel="Comments content area"
+        >
+          {/* Sort buttons */}
+          <SortButtonContainer>
+            <Button
+              chromeless
+              size="$2"
+              height={32}
+              backgroundColor={commentSort === 'top' ? '$color12' : '$color3'}
+              borderRadius="$4"
+              paddingHorizontal="$3"
+              paddingVertical="$1"
+              onPress={() => setCommentSort('top')}
+              testID="sort-top"
+              accessibilityLabel="Sort by top comments"
+              accessibilityRole="button"
+              accessibilityState={{ selected: commentSort === 'top' }}
+            >
+              <Text
+                fontSize="$3"
+                fontWeight={commentSort === 'top' ? '600' : '400'}
+                color={commentSort === 'top' ? '$color1' : '$color11'}
+              >
+                Top
+              </Text>
+            </Button>
+            <Button
+              chromeless
+              size="$2"
+              height={32}
+              backgroundColor={commentSort === 'new' ? '$color12' : '$color3'}
+              borderRadius="$4"
+              paddingHorizontal="$3"
+              paddingVertical="$1"
+              onPress={() => setCommentSort('new')}
+              testID="sort-new"
+              accessibilityLabel="Sort by newest comments"
+              accessibilityRole="button"
+              accessibilityState={{ selected: commentSort === 'new' }}
+            >
+              <Text
+                fontSize="$3"
+                fontWeight={commentSort === 'new' ? '600' : '400'}
+                color={commentSort === 'new' ? '$color1' : '$color11'}
+              >
+                New
+              </Text>
+            </Button>
+          </SortButtonContainer>
+
+          {/* Comments list */}
+          <CommentsListContainer>
+            {sortedComments.length > 0 ? (
+              sortedComments.map((comment, index) => renderCommentItem(comment, index))
+            ) : (
+              <YStack
+                padding="$4"
+                alignItems="center"
+                justifyContent="center"
+                gap="$2"
+                testID="no-comments"
+                accessibilityLabel="No comments available"
+              >
+                <Text
+                  fontSize="$4"
+                  color="$color10"
+                  textAlign="center"
+                >
+                  No comments yet. Be the first to comment!
+                </Text>
+              </YStack>
+            )}
+          </CommentsListContainer>
+
+          {/* Comment input field */}
+          <XStack
+            gap="$2"
+            paddingHorizontal="$0"
+            paddingTop="$4"
+            paddingBottom="$2"
+            alignItems="center"
+            testID="comment-input-container"
+          >
+            <Input
+              flex={1}
+              placeholder="Share your thoughts"
+              value={commentInput}
+              onChangeText={setCommentInput}
+              backgroundColor="$color3"
+              borderColor="$color5"
+              borderRadius="$4"
+              paddingHorizontal="$3"
+              paddingVertical="$2"
+              fontSize="$4"
+              color="$color12"
+              placeholderTextColor="$color10"
+              testID="comment-input"
+              accessibilityLabel="Comment input field"
+              onSubmitEditing={handleCommentSubmit}
+            />
+            <Button
+              chromeless
+              size="$3"
+              width={40}
+              height={40}
+              backgroundColor="$purple10"
+              borderRadius="$4"
+              padding="$0"
+              onPress={handleCommentSubmit}
+              disabled={!commentInput.trim()}
+              testID="comment-send-button"
+              accessibilityLabel="Send comment"
+              accessibilityRole="button"
+            >
+              <Send
+                size={18}
+                color="$color1"
+              />
+            </Button>
+          </XStack>
+        </YStack>
+      ),
+      [commentSort, sortedComments, renderCommentItem, commentInput, handleCommentSubmit]
+    )
+
+    // Render active tab content with conditional animation
+    const renderTabContent = useCallback(() => {
+      let content: React.ReactNode
+      if (activeTab === 'feedback') {
+        content = renderFeedbackContent()
+      } else if (activeTab === 'insights') {
+        content = renderInsightsContent()
+      } else {
+        content = renderCommentsContent()
+      }
+
+      // Apply animation props only when tab actually changed
+      if (tabActuallyChanged) {
+        return (
+          <AnimatePresence>
+            <YStack
+              animation="quick"
+              enterStyle={tabTransitionEnterStyle}
+              exitStyle={tabTransitionExitStyle}
+            >
+              {content}
+            </YStack>
+          </AnimatePresence>
+        )
+      }
+
+      return content
+    }, [
+      activeTab,
+      tabActuallyChanged,
+      renderFeedbackContent,
+      renderInsightsContent,
+      renderCommentsContent,
+      tabTransitionEnterStyle,
+      tabTransitionExitStyle,
+    ])
 
     const renderListHeader = useCallback(
       () => (
@@ -326,17 +1022,25 @@ export const FeedbackPanel = memo(
                   key={tab}
                   chromeless
                   flex={1}
-                  height={36}
-                  backgroundColor={activeTab === tab ? '$color12' : '$color3'}
-                  borderRadius="$5"
+                  height={32}
+                  backgroundColor="transparent"
+                  borderRadius="$0"
                   marginVertical="$-1"
                   paddingVertical="$1"
                   paddingHorizontal="$1"
+                  borderLeftWidth={0}
+                  borderRightWidth={0}
+                  borderTopWidth={0}
+                  borderBottomWidth={activeTab === tab ? 1 : 0}
+                  borderBottomColor={activeTab === tab ? '$color12' : 'transparent'}
+                  animation="quick"
                   hoverStyle={{
-                    backgroundColor: '$color2',
+                    backgroundColor: 'transparent',
+                    opacity: 0.7,
                   }}
                   pressStyle={{
-                    backgroundColor: '$color6',
+                    backgroundColor: 'transparent',
+                    opacity: 0.6,
                     scale: 0.98,
                   }}
                   onPress={() => onTabChange(tab)}
@@ -349,9 +1053,10 @@ export const FeedbackPanel = memo(
                 >
                   <Text
                     fontSize="$4"
-                    fontWeight={activeTab === tab ? '400' : '400'}
-                    color={activeTab === tab ? '$color1' : '$color'}
+                    fontWeight={activeTab === tab ? '600' : '400'}
+                    color={activeTab === tab ? '$color12' : '$color11'}
                     textTransform="capitalize"
+                    animation="quick"
                   >
                     {tab}
                   </Text>
@@ -360,166 +1065,16 @@ export const FeedbackPanel = memo(
             </XStack>
           </YStack>
 
-          {activeTab === 'feedback' ? (
-            <YStack paddingTop="$4" />
-          ) : activeTab === 'insights' ? (
-            <YStack
-              flex={1}
-              justifyContent="center"
-              alignItems="center"
-              paddingTop="$4"
-              paddingBottom="$6"
-              testID="insights-content"
-              accessibilityLabel="Insights content area"
-            >
-              <Text
-                fontSize="$5"
-                color="$color11"
-                textAlign="center"
-                accessibilityLabel="Insights Coming Soon"
-              >
-                Insights Coming Soon
-              </Text>
-              <Text
-                fontSize="$4"
-                color="$color10"
-                textAlign="center"
-                marginTop="$2"
-                accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
-              >
-                Advanced analysis and performance metrics will be displayed here.
-              </Text>
-            </YStack>
-          ) : (
-            <YStack
-              flex={1}
-              justifyContent="center"
-              alignItems="center"
-              paddingTop="$4"
-              paddingBottom="$6"
-              testID="comments-content"
-              accessibilityLabel="Comments content area"
-            >
-              <Text
-                fontSize="$5"
-                color="$color11"
-                textAlign="center"
-                accessibilityLabel="Comments Coming Soon"
-              >
-                Comments Coming Soon
-              </Text>
-              <Text
-                fontSize="$4"
-                color="$color10"
-                textAlign="center"
-                marginTop="$2"
-                accessibilityLabel="Community discussions and expert feedback will appear here"
-              >
-                Community discussions and expert feedback will appear here.
-              </Text>
-            </YStack>
-          )}
+          {renderTabContent()}
         </YStack>
       ),
-      [activeTab, onTabChange]
-    )
-
-    const renderFeedbackItemNode = useCallback(
-      (item: FeedbackItem, index: number) => {
-        const isHighlighted = selectedFeedbackId === item.id
-        const accessibilityLabel = `${formatTime(item.timestamp)}, ${item.text}, feedback item`
-
-        return (
-          <FeedbackItemContainer
-            key={item.id}
-            onPress={() => onFeedbackItemPress(item)}
-            {...(item.audioUrl && onSelectAudio
-              ? {
-                  onLongPress: () => onSelectAudio(item.id),
-                }
-              : {})}
-            testID={`feedback-item-${index + 1}`}
-            accessibilityLabel={accessibilityLabel}
-            data-testid={`feedback-item-${index + 1}`}
-          >
-            <FeedbackMetadata>
-              <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
-                {formatTime(item.timestamp)} {item.category}
-              </TimeLabel>
-
-              {(item.ssmlStatus || item.audioStatus) && (
-                <FeedbackStatusIndicator
-                  ssmlStatus={item.ssmlStatus || 'queued'}
-                  audioStatus={item.audioStatus || 'queued'}
-                  ssmlAttempts={item.ssmlAttempts || 0}
-                  audioAttempts={item.audioAttempts || 0}
-                  ssmlLastError={item.ssmlLastError || null}
-                  audioLastError={item.audioLastError || null}
-                  size="small"
-                  testID={`feedback-status-${index + 1}`}
-                />
-              )}
-            </FeedbackMetadata>
-
-            <FeedbackText
-              data-testid={`feedback-item-${index + 1}-text`}
-              color={isHighlighted ? '$yellow11' : undefined}
-            >
-              {item.text}
-            </FeedbackText>
-
-            {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') && onRetryFeedback && (
-              <FeedbackErrorHandler
-                feedbackId={item.id}
-                feedbackText={item.text}
-                ssmlFailed={item.ssmlStatus === 'failed'}
-                audioFailed={item.audioStatus === 'failed'}
-                onRetry={onRetryFeedback}
-                onDismiss={onDismissError}
-                size="small"
-                testID={`feedback-error-${index + 1}`}
-              />
-            )}
-          </FeedbackItemContainer>
-        )
-      },
-      [
-        formatTime,
-        onDismissError,
-        onFeedbackItemPress,
-        onRetryFeedback,
-        onSelectAudio,
-        selectedFeedbackId,
-      ]
+      [activeTab, onTabChange, renderTabContent]
     )
 
     const renderFeedbackItem = useCallback(
       ({ item, index }: { item: FeedbackItem; index: number }) =>
         renderFeedbackItemNode(item, index),
       [renderFeedbackItemNode]
-    )
-
-    const renderItemSeparator = useCallback(() => <YStack height="$0.75" />, [])
-
-    const renderEmptyComponent = useCallback(
-      () => (
-        <YStack
-          padding="$4"
-          alignItems="center"
-          justifyContent="center"
-          gap="$2"
-          accessibilityLabel="No feedback available"
-        >
-          <Text
-            fontSize="$4"
-            color="$color10"
-            textAlign="center"
-          >
-            Feedback will appear here once the analysis completes.
-          </Text>
-        </YStack>
-      ),
-      []
     )
 
     // Debug: log selectedFeedbackId changes
@@ -541,22 +1096,26 @@ export const FeedbackPanel = memo(
     // }
 
     return (
-      <YStack
-        flex={flex}
-        position="relative"
-        elevation={5}
-        style={{ transition: 'all 0.5s ease-in-out' }}
-        testID="feedback-panel"
-        accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
-        accessibilityState={{ expanded: isExpanded }}
+      <ProfilerWrapper
+        id="FeedbackPanel"
+        logToConsole={__DEV__}
       >
-        {/* Content Container */}
         <YStack
-          flex={1}
-          zIndex={1}
+          flex={flex}
+          position="relative"
+          elevation={5}
+          style={{ transition: 'all 0.5s ease-in-out' }}
+          testID="feedback-panel"
+          accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
+          accessibilityState={{ expanded: isExpanded }}
         >
-          {/* Background Image */}
-          {/* <Image
+          {/* Content Container */}
+          <YStack
+            flex={1}
+            zIndex={1}
+          >
+            {/* Background Image */}
+            {/* <Image
             source={glassGradientBackground}
             position="absolute"
             top={0}
@@ -569,68 +1128,58 @@ export const FeedbackPanel = memo(
             zIndex={0}
           /> */}
 
-          <YStack flex={1}>
-            {/* Content with virtualized list - YouTube-style delegation */}
-            <GestureDetector gesture={nativeGesture}>
-              <YStack
-                flex={1}
-                testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
-                accessibilityLabel={activeTab === 'feedback' ? 'feedback content area' : undefined}
-                accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
-              >
-                {isWeb ? (
-                  <Animated.ScrollView
-                    style={{ paddingBottom: 30 }}
-                    testID="feedback-panel-scroll"
-                  >
-                    {renderListHeader()}
-                    {activeTab === 'feedback' && (
-                      <YStack
-                        accessibilityRole="list"
-                        gap="$1"
-                        paddingHorizontal={16}
-                      >
-                        {sortedFeedbackItems.map((item, index) =>
-                          renderFeedbackItemNode(item, index)
-                        )}
-                      </YStack>
-                    )}
-                  </Animated.ScrollView>
-                ) : (
-                  <Animated.FlatList<FeedbackItem>
-                    data={activeTab === 'feedback' ? sortedFeedbackItems : []}
-                    extraData={selectedFeedbackId}
-                    keyExtractor={keyExtractor}
-                    renderItem={renderFeedbackItem}
-                    ListHeaderComponent={renderListHeader}
-                    ItemSeparatorComponent={
-                      activeTab === 'feedback' ? renderItemSeparator : undefined
-                    }
-                    ListEmptyComponent={activeTab === 'feedback' ? renderEmptyComponent : undefined}
-                    contentContainerStyle={{
-                      paddingHorizontal: 16,
-                      paddingBottom: 30,
-                    }}
-                    onScroll={scrollHandler}
-                    scrollEventThrottle={16}
-                    showsVerticalScrollIndicator
-                    indicatorStyle="white"
-                    scrollEnabled={scrollEnabled}
-                    bounces
-                    testID="feedback-panel-scroll"
-                    initialNumToRender={8}
-                    maxToRenderPerBatch={8}
-                    windowSize={5}
-                    removeClippedSubviews
-                  />
-                )}
-              </YStack>
-            </GestureDetector>
-          </YStack>
+            <YStack flex={1}>
+              {/* Content with virtualized list - YouTube-style delegation */}
+              <GestureDetector gesture={nativeGesture}>
+                <YStack
+                  flex={1}
+                  testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
+                  accessibilityLabel={
+                    activeTab === 'feedback' ? 'feedback content area' : undefined
+                  }
+                  accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
+                >
+                  {isWeb ? (
+                    <Animated.ScrollView
+                      style={{ paddingBottom: 30 }}
+                      testID="feedback-panel-scroll"
+                    >
+                      {renderListHeader()}
+                    </Animated.ScrollView>
+                  ) : (
+                    <Animated.FlatList<FeedbackItem>
+                      data={[]}
+                      extraData={selectedFeedbackId}
+                      keyExtractor={keyExtractor}
+                      renderItem={renderFeedbackItem}
+                      ListHeaderComponent={renderListHeader}
+                      ItemSeparatorComponent={undefined}
+                      ListEmptyComponent={undefined}
+                      contentContainerStyle={{
+                        paddingHorizontal: 16,
+                        paddingBottom: 30,
+                      }}
+                      onScroll={scrollHandler}
+                      scrollEventThrottle={16}
+                      showsVerticalScrollIndicator
+                      indicatorStyle="white"
+                      scrollEnabled={scrollEnabled}
+                      bounces
+                      testID="feedback-panel-scroll"
+                      initialNumToRender={8}
+                      maxToRenderPerBatch={8}
+                      windowSize={5}
+                      removeClippedSubviews
+                    />
+                  )}
+                </YStack>
+              </GestureDetector>
+            </YStack>
 
-          {/* Legacy ScrollView variant removed */}
+            {/* Legacy ScrollView variant removed */}
+          </YStack>
         </YStack>
-      </YStack>
+      </ProfilerWrapper>
     )
   },
   (prevProps, nextProps) => {

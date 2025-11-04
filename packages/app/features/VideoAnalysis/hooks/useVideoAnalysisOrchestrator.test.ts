@@ -187,8 +187,14 @@ describe('useVideoAnalysisOrchestrator', () => {
     expect(result.current).toHaveProperty('controls')
     expect(result.current).toHaveProperty('error')
     expect(result.current).toHaveProperty('handlers')
-    expect(result.current).toHaveProperty('contextValue')
     expect(result.current).toHaveProperty('refs')
+    expect(result.current).toHaveProperty('audioOverlay')
+    expect(result.current).toHaveProperty('bubbleState')
+    expect(result.current.video).toHaveProperty('uri')
+    expect(result.current.audioOverlay).toHaveProperty('shouldShow')
+    expect(result.current.bubbleState).toHaveProperty('visible')
+    expect(result.current.bubbleState).toHaveProperty('currentIndex')
+    expect(result.current.bubbleState).toHaveProperty('items')
   })
 
   // Arrange-Act-Assert
@@ -286,5 +292,139 @@ describe('useVideoAnalysisOrchestrator', () => {
 
     // Assert
     expect(useHistoricalAnalysis).toHaveBeenCalledWith(null)
+  })
+
+  // Arrange-Act-Assert
+  test('feedbackItemsState.items maintains reference stability when content unchanged', () => {
+    // Arrange
+    const { useAnalysisState } = require('./useAnalysisState')
+    const mockFeedbackItems = [
+      {
+        id: '1',
+        timestamp: 1000,
+        text: 'Test',
+        type: 'positive' as const,
+        category: 'movement' as const,
+        confidence: 0.9,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+      {
+        id: '2',
+        timestamp: 2000,
+        text: 'Test 2',
+        type: 'suggestion' as const,
+        category: 'posture' as const,
+        confidence: 0.8,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    // First render with initial items
+    useAnalysisState.mockReturnValue({
+      isProcessing: false,
+      phase: 'idle',
+      progress: 0,
+      thumbnailUrl: null,
+      error: null,
+      channelExhausted: false,
+      feedback: { feedbackItems: mockFeedbackItems },
+    })
+
+    // Act
+    const { result, rerender } = renderHook(() => useVideoAnalysisOrchestrator(mockProps))
+
+    // Get initial reference
+    const firstRenderItems = result.current.feedback.itemsState.items
+    const firstRenderLength = firstRenderItems.length // Includes dummy items (5) + mock items (2) = 7
+
+    // Second render - same content, new reference (simulating store update)
+    useAnalysisState.mockReturnValue({
+      isProcessing: false,
+      phase: 'idle',
+      progress: 0,
+      thumbnailUrl: null,
+      error: null,
+      channelExhausted: false,
+      feedback: { feedbackItems: [...mockFeedbackItems] }, // New array, same content
+    })
+
+    rerender(mockProps)
+
+    // Assert
+    // itemsState.items should maintain same reference when content is unchanged
+    expect(result.current.feedback.itemsState.items).toBe(firstRenderItems)
+    expect(result.current.feedback.itemsState.items).toHaveLength(firstRenderLength)
+    // Verify real items are still present (first two should be our mock items)
+    expect(result.current.feedback.itemsState.items[0].id).toBe('1')
+    expect(result.current.feedback.itemsState.items[1].id).toBe('2')
+  })
+
+  // Arrange-Act-Assert
+  test('feedbackItemsState.items creates new reference when content changes', () => {
+    // Arrange
+    const { useAnalysisState } = require('./useAnalysisState')
+    const mockFeedbackItems1 = [
+      {
+        id: '1',
+        timestamp: 1000,
+        text: 'Test',
+        type: 'positive' as const,
+        category: 'movement' as const,
+        confidence: 0.9,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    useAnalysisState.mockReturnValue({
+      isProcessing: false,
+      phase: 'idle',
+      progress: 0,
+      thumbnailUrl: null,
+      error: null,
+      channelExhausted: false,
+      feedback: { feedbackItems: mockFeedbackItems1 },
+    })
+
+    // Act
+    const { result, rerender } = renderHook(() => useVideoAnalysisOrchestrator(mockProps))
+    const firstRenderItems = result.current.feedback.itemsState.items
+    const firstRenderLength = firstRenderItems.length // 1 mock + 5 dummy = 6
+
+    // Second render - different content (added one item)
+    const mockFeedbackItems2 = [
+      ...mockFeedbackItems1,
+      {
+        id: '2',
+        timestamp: 2000,
+        text: 'Test 2',
+        type: 'suggestion' as const,
+        category: 'posture' as const,
+        confidence: 0.8,
+        ssmlStatus: 'completed' as const,
+        audioStatus: 'completed' as const,
+      },
+    ]
+
+    useAnalysisState.mockReturnValue({
+      isProcessing: false,
+      phase: 'idle',
+      progress: 0,
+      thumbnailUrl: null,
+      error: null,
+      channelExhausted: false,
+      feedback: { feedbackItems: mockFeedbackItems2 },
+    })
+
+    rerender(mockProps)
+
+    // Assert
+    // itemsState.items should create new reference when content changes
+    expect(result.current.feedback.itemsState.items).not.toBe(firstRenderItems)
+    expect(result.current.feedback.itemsState.items).toHaveLength(firstRenderLength + 1) // 2 mock + 5 dummy = 7
+    expect(result.current.feedback.itemsState.items[0].id).toBe('1')
+    expect(result.current.feedback.itemsState.items[1].id).toBe('2')
   })
 })

@@ -3,6 +3,7 @@ import { useConfirmDialog } from '@my/app/hooks/useConfirmDialog'
 import { useAuthStore } from '@my/app/stores/auth'
 import { ConfirmDialog, type FooterLinkType, type SettingsNavItem } from '@my/ui'
 import { useRouter } from 'expo-router'
+import { useCallback, useRef } from 'react'
 
 // Navigation items configuration for settings
 const NAVIGATION_ITEMS: SettingsNavItem[] = [
@@ -21,22 +22,43 @@ const NAVIGATION_ITEMS: SettingsNavItem[] = [
  */
 export default function SettingsRoute() {
   const router = useRouter()
-  const { signOut } = useAuthStore()
+  // Use selective subscription to prevent re-renders on unrelated store changes
+  const signOut = useAuthStore((state) => state.signOut)
+
+  // Stabilize router reference to prevent callback recreation
+  const routerRef = useRef(router)
+  routerRef.current = router
 
   // Logout confirmation dialog
-  const logoutDialog = useConfirmDialog(async () => {
+  // Memoize onConfirm callback with stable refs to prevent useConfirmDialog from recreating handlers
+  const onLogoutConfirm = useCallback(async () => {
     await signOut()
     // Navigate to camera screen (index) instead of login
     // If test auth is disabled, AuthGate (in main layout) will redirect to sign-in
     // If test auth is enabled, auto-sign-in will happen and user stays on camera
-    router.replace('/')
-  })
+    routerRef.current.replace('/')
+  }, [signOut]) // Remove router from deps, use ref instead
+  const logoutDialog = useConfirmDialog(onLogoutConfirm)
 
-  const handleNavigate = (route: string): void => {
-    router.push(route as any)
-  }
+  // Extract stable show handler - logoutDialog.show is stable but accessing via
+  // logoutDialog object causes re-renders when dialog state changes
+  // Use ref to capture stable function reference
+  const showLogoutDialogRef = useRef(logoutDialog.show)
+  showLogoutDialogRef.current = logoutDialog.show
+  const handleLogout = useCallback(() => {
+    showLogoutDialogRef.current()
+  }, [])
 
-  const handleFooterLink = (link: FooterLinkType): void => {
+  // Memoize handlers to prevent SettingsScreen re-renders
+  // Use router ref to avoid dependency on potentially changing router object
+  const handleNavigate = useCallback(
+    (route: string): void => {
+      routerRef.current.push(route as any)
+    },
+    [] // No deps - router ref is stable
+  )
+
+  const handleFooterLink = useCallback((link: FooterLinkType): void => {
     const urls: Record<FooterLinkType, string> = {
       privacy: 'https://sololevel.ai/privacy',
       terms: 'https://sololevel.ai/terms',
@@ -46,7 +68,7 @@ export default function SettingsRoute() {
     console.log('Opening URL:', urls[link])
     // Open in new tab for web
     window.open(urls[link], '_blank', 'noopener,noreferrer')
-  }
+  }, [])
 
   return (
     <>
@@ -54,7 +76,7 @@ export default function SettingsRoute() {
         navigationItems={NAVIGATION_ITEMS}
         onNavigate={handleNavigate}
         onFooterLink={handleFooterLink}
-        onLogout={logoutDialog.show}
+        onLogout={handleLogout}
       />
 
       <ConfirmDialog

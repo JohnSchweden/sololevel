@@ -1,6 +1,9 @@
-import { Bookmark, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
-import { Text, YStack } from 'tamagui'
-import { Button } from 'tamagui'
+import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
+import { useState } from 'react'
+
+import { ShareSheet } from '@ui/components/BottomSheets'
+import { ProfilerWrapper } from '@ui/components/Performance'
+import { Button, Text, YStack } from 'tamagui'
 
 export interface SocialIconsProps {
   likes: number
@@ -32,6 +35,16 @@ export function SocialIcons({
   placement = 'rightCenter',
   offsetBottom,
 }: SocialIconsProps) {
+  // Local state for UI feedback
+  const [isLiked, setIsLiked] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+
+  // Track bookmark count changes locally
+  const [bookmarkCountOffset, setBookmarkCountOffset] = useState(0)
+
+  // Share sheet state
+  const [shareSheetOpen, setShareSheetOpen] = useState(false)
+
   if (!isVisible) {
     return null
   }
@@ -51,152 +64,240 @@ export function SocialIcons({
   const backgroundColor = 'transparent'
   const marginBottom = -4
 
+  // Button styling constants
+  const BUTTON_SIZE = 36
+  const BUTTON_BORDER_RADIUS = '$10'
+  const BUTTON_ANIMATION = 'bouncy'
+  const PRESS_OPACITY = 0.8
+  const PRESS_SCALE = 0.9
+  const HOVER_OPACITY = 0.9
+  const HOVER_SCALE = 1.1
+  const BUTTON_BORDER_WIDTH = 0
+  const BUTTON_BORDER_COLOR = 'transparent'
+  const BUTTON_MIN_WIDTH = 44
+  const BUTTON_MIN_HEIGHT = 44
+
+  // Shared button styles
+  const buttonPressStyle = {
+    opacity: PRESS_OPACITY,
+    scale: PRESS_SCALE,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  } as const
+
+  const buttonHoverStyle = {
+    opacity: HOVER_OPACITY,
+    scale: HOVER_SCALE,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  } as const
+
+  // Handle like with bounce animation
+  const handleLike = () => {
+    setIsLiked(!isLiked)
+    onLike()
+  }
+
+  // Handle bookmark with fill animation and count update
+  const handleBookmark = () => {
+    const wasBookmarked = isBookmarked
+    setIsBookmarked(!isBookmarked)
+    // Update count: +1 if being bookmarked, -1 if being unbookmarked
+    setBookmarkCountOffset(wasBookmarked ? bookmarkCountOffset - 1 : bookmarkCountOffset + 1)
+    onBookmark()
+  }
+
+  // Compute display count with local offset
+  const displayBookmarkCount = bookmarks + bookmarkCountOffset
+
+  // Handle share - open sheet
+  const handleShare = () => {
+    setShareSheetOpen(true)
+    onShare()
+  }
+
   const positionalProps =
     placement === 'rightBottom'
-      ? { right: 16, bottom: offsetBottom ?? 52 }
-      : { right: 16, top: 40, y: -50 }
+      ? { right: '$2' as const, y: '$5' as const, bottom: offsetBottom ?? ('$10' as const) }
+      : { right: '$2' as const, top: '$2' as const, y: '$-10' as const }
 
   return (
-    <YStack
-      position="absolute"
-      gap="$2"
-      opacity={1}
-      animation="quick"
-      enterStyle={{
-        opacity: 0,
-        scale: 0.8,
-        x: 20,
-      }}
-      exitStyle={{
-        opacity: 0,
-        scale: 0.8,
-        x: 20,
-      }}
-      testID="social-icons-vertical"
-      accessibilityLabel="Social interaction buttons"
-      accessibilityRole="toolbar"
-      zIndex={10}
-      {...positionalProps}
+    <ProfilerWrapper
+      id="SocialIcons"
+      logToConsole={__DEV__}
     >
       <YStack
-        alignItems="center"
-        //gap="$1"
-        backgroundColor={backgroundColor}
-        borderRadius={24}
-        //padding="$2"
+        position="absolute"
+        gap="$2"
+        opacity={1}
         animation="quick"
+        enterStyle={{
+          opacity: 0,
+          scale: 0.8,
+          x: 20,
+        }}
+        exitStyle={{
+          opacity: 0,
+          scale: 0.8,
+          x: 20,
+        }}
+        testID="social-icons-vertical"
+        accessibilityLabel="Social interaction buttons"
+        accessibilityRole="toolbar"
+        zIndex={10}
+        {...positionalProps}
       >
-        <Button
-          chromeless
-          size={36}
-          icon={Heart}
-          color={iconColor}
-          marginBottom={marginBottom}
-          onPress={onLike}
-          testID="social-like-button"
-          accessibilityLabel="Like this video"
-          accessibilityRole="button"
-          accessibilityHint="Tap to like this video"
-        />
-        <Text
-          fontSize="$2"
-          color={fontColor}
-          testID="social-likes-count"
-          accessibilityLabel="Number of likes"
+        <YStack
+          alignItems="center"
+          //gap="$1"
+          backgroundColor={backgroundColor}
+          //padding="$2"
+          animation="quick"
         >
-          {formatCount(likes)}
-        </Text>
+          <Button
+            chromeless
+            size={BUTTON_SIZE}
+            minWidth={BUTTON_MIN_WIDTH}
+            minHeight={BUTTON_MIN_HEIGHT}
+            icon={Heart}
+            color={isLiked ? '#ff3b30' : iconColor}
+            marginBottom={marginBottom}
+            onPress={handleLike}
+            testID="social-like-button"
+            accessibilityLabel="Like this video"
+            accessibilityRole="button"
+            accessibilityHint="Tap to like this video"
+            animation={BUTTON_ANIMATION}
+            borderRadius={BUTTON_BORDER_RADIUS}
+            borderWidth={BUTTON_BORDER_WIDTH}
+            borderColor={BUTTON_BORDER_COLOR}
+            pressStyle={buttonPressStyle}
+            hoverStyle={buttonHoverStyle}
+          />
+          <Text
+            fontSize="$2"
+            color={fontColor}
+            testID="social-likes-count"
+            accessibilityLabel="Number of likes"
+          >
+            {formatCount(likes)}
+          </Text>
+        </YStack>
+
+        <YStack
+          alignItems="center"
+          //gap="$1"
+          backgroundColor={backgroundColor}
+          //padding="$2"
+          animation="quick"
+        >
+          <Button
+            chromeless
+            size={BUTTON_SIZE}
+            minWidth={BUTTON_MIN_WIDTH}
+            minHeight={BUTTON_MIN_HEIGHT}
+            icon={MessageCircle}
+            color={iconColor}
+            marginBottom={marginBottom}
+            onPress={onComment}
+            testID="social-comment-button"
+            accessibilityLabel="Add comment"
+            accessibilityRole="button"
+            accessibilityHint="Tap to add a comment"
+            animation={BUTTON_ANIMATION}
+            borderRadius={BUTTON_BORDER_RADIUS}
+            borderWidth={BUTTON_BORDER_WIDTH}
+            borderColor={BUTTON_BORDER_COLOR}
+            pressStyle={buttonPressStyle}
+            hoverStyle={buttonHoverStyle}
+          />
+          <Text
+            fontSize="$2"
+            color={fontColor}
+            testID="social-comments-count"
+            accessibilityLabel="Number of comments"
+          >
+            {formatCount(comments)}
+          </Text>
+        </YStack>
+
+        <YStack
+          alignItems="center"
+          //gap="$1"
+          backgroundColor={backgroundColor}
+          //padding="$1"
+          animation="quick"
+        >
+          <Button
+            chromeless
+            size={BUTTON_SIZE}
+            minWidth={BUTTON_MIN_WIDTH}
+            minHeight={BUTTON_MIN_HEIGHT}
+            icon={isBookmarked ? BookmarkCheck : Bookmark}
+            color={iconColor}
+            marginBottom={marginBottom}
+            onPress={handleBookmark}
+            testID="social-bookmark-button"
+            accessibilityLabel="Bookmark this video"
+            accessibilityRole="button"
+            accessibilityHint="Tap to bookmark this video"
+            animation={BUTTON_ANIMATION}
+            borderRadius={BUTTON_BORDER_RADIUS}
+            borderWidth={BUTTON_BORDER_WIDTH}
+            borderColor={BUTTON_BORDER_COLOR}
+            pressStyle={buttonPressStyle}
+            hoverStyle={buttonHoverStyle}
+          />
+          <Text
+            fontSize="$2"
+            color={fontColor}
+            testID="social-bookmarks-count"
+            accessibilityLabel="Number of bookmarks"
+          >
+            {formatCount(displayBookmarkCount)}
+          </Text>
+        </YStack>
+
+        <YStack
+          alignItems="center"
+          //gap="$1"
+          backgroundColor={backgroundColor}
+          //padding="$2"
+          animation="quick"
+        >
+          <Button
+            chromeless
+            size={BUTTON_SIZE}
+            minWidth={BUTTON_MIN_WIDTH}
+            minHeight={BUTTON_MIN_HEIGHT}
+            icon={Share}
+            color={iconColor}
+            marginBottom={marginBottom}
+            onPress={handleShare}
+            testID="social-share-button"
+            accessibilityLabel="Share this video"
+            accessibilityRole="button"
+            accessibilityHint="Tap to share this video"
+            animation={BUTTON_ANIMATION}
+            borderRadius={BUTTON_BORDER_RADIUS}
+            borderWidth={BUTTON_BORDER_WIDTH}
+            borderColor={BUTTON_BORDER_COLOR}
+            pressStyle={buttonPressStyle}
+            hoverStyle={buttonHoverStyle}
+          />
+          <Text
+            fontSize="$2"
+            color={fontColor}
+            testID="social-shares-count"
+            accessibilityLabel="Number of shares"
+          >
+            {formatCount(shares)}
+          </Text>
+        </YStack>
       </YStack>
 
-      <YStack
-        alignItems="center"
-        //gap="$1"
-        backgroundColor={backgroundColor}
-        borderRadius={24}
-        //padding="$2"
-        animation="quick"
-      >
-        <Button
-          chromeless
-          size={36}
-          icon={MessageCircle}
-          color={iconColor}
-          marginBottom={marginBottom}
-          onPress={onComment}
-          testID="social-comment-button"
-          accessibilityLabel="Add comment"
-          accessibilityRole="button"
-          accessibilityHint="Tap to add a comment"
-        />
-        <Text
-          fontSize="$2"
-          color={fontColor}
-          testID="social-comments-count"
-          accessibilityLabel="Number of comments"
-        >
-          {formatCount(comments)}
-        </Text>
-      </YStack>
-
-      <YStack
-        alignItems="center"
-        //gap="$1"
-        backgroundColor={backgroundColor}
-        borderRadius={24}
-        //padding="$1"
-        animation="quick"
-      >
-        <Button
-          chromeless
-          size={36}
-          icon={Bookmark}
-          color={iconColor}
-          marginBottom={marginBottom}
-          onPress={onBookmark}
-          testID="social-bookmark-button"
-          accessibilityLabel="Bookmark this video"
-          accessibilityRole="button"
-          accessibilityHint="Tap to bookmark this video"
-        />
-        <Text
-          fontSize="$2"
-          color={fontColor}
-          testID="social-bookmarks-count"
-          accessibilityLabel="Number of bookmarks"
-        >
-          {formatCount(bookmarks)}
-        </Text>
-      </YStack>
-
-      <YStack
-        alignItems="center"
-        //gap="$1"
-        backgroundColor={backgroundColor}
-        borderRadius={24}
-        //padding="$2"
-        animation="quick"
-      >
-        <Button
-          chromeless
-          size={36}
-          icon={Share}
-          color={iconColor}
-          marginBottom={marginBottom}
-          onPress={onShare}
-          testID="social-share-button"
-          accessibilityLabel="Share this video"
-          accessibilityRole="button"
-          accessibilityHint="Tap to share this video"
-        />
-        <Text
-          fontSize="$2"
-          color={fontColor}
-          testID="social-shares-count"
-          accessibilityLabel="Number of shares"
-        >
-          {formatCount(shares)}
-        </Text>
-      </YStack>
-    </YStack>
+      <ShareSheet
+        open={shareSheetOpen}
+        onOpenChange={setShareSheetOpen}
+      />
+    </ProfilerWrapper>
   )
 }

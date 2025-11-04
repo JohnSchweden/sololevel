@@ -1,6 +1,6 @@
 import { useCameraPermissions as useExpoCameraPermissions } from 'expo-camera'
 import { PermissionResponse } from 'expo-camera'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import {
   BaseUseCameraPermissionsResult,
   UseCameraPermissionsConfig,
@@ -33,6 +33,25 @@ export function useCameraPermissions(
   // Use Expo's hook internally
   const [permission, requestPermission] = useExpoCameraPermissions()
 
+  // Stabilize permission object reference - Expo may return new object even when values don't change
+  // Extract primitive values to break reference equality dependency
+  const hasPermission = permission !== null
+  const permissionGranted = permission?.granted ?? false
+  const permissionStatus = permission?.status ?? 'undetermined'
+  const permissionCanAskAgain = permission?.canAskAgain ?? false
+  const permissionExpires = permission?.expires
+
+  const stablePermission = useMemo(() => {
+    if (!hasPermission) return null
+    // Create new object with same values to break reference dependency on Expo's object
+    return {
+      granted: permissionGranted,
+      status: permissionStatus,
+      canAskAgain: permissionCanAskAgain,
+      expires: permissionExpires,
+    } as PermissionResponse
+  }, [hasPermission, permissionGranted, permissionStatus, permissionCanAskAgain, permissionExpires])
+
   // Use base hook for shared functionality
   const {
     isLoading,
@@ -46,40 +65,55 @@ export function useCameraPermissions(
 
   // Update Zustand store when permission changes
   useEffect(() => {
-    if (permission) {
-      updateStorePermissions(permission)
+    if (stablePermission) {
+      updateStorePermissions(stablePermission)
     }
-  }, [permission, updateStorePermissions])
+  }, [stablePermission, updateStorePermissions])
 
   // Check if we can request permission again
-  const canRequestAgain = permission?.canAskAgain ?? false
+  const canRequestAgain = stablePermission?.canAskAgain ?? false
 
   // Request permission with enhanced UX
   const requestPermissionWithRationale = useCallback(async (): Promise<boolean> => {
-    return baseRequestPermissionWithRationale(requestPermission, permission?.granted ?? false)
-  }, [baseRequestPermissionWithRationale, requestPermission, permission?.granted])
+    return baseRequestPermissionWithRationale(requestPermission, stablePermission?.granted ?? false)
+  }, [baseRequestPermissionWithRationale, requestPermission, stablePermission?.granted])
 
   // Retry permission request
   const retryRequest = useCallback(async (): Promise<boolean> => {
-    return baseRetryRequest(requestPermission, permission?.granted ?? false)
-  }, [baseRetryRequest, requestPermission, permission?.granted])
+    return baseRetryRequest(requestPermission, stablePermission?.granted ?? false)
+  }, [baseRetryRequest, requestPermission, stablePermission?.granted])
 
-  return {
-    // Expo's original API
-    permission,
-    requestPermission,
+  // Memoize return object to prevent unnecessary re-renders in consumers
+  // Permission object reference from Expo may change even when values are stable
+  return useMemo(
+    () => ({
+      // Expo's original API
+      permission: stablePermission,
+      requestPermission,
 
-    // Enhanced features
-    isLoading,
-    error,
-    canRequestAgain,
+      // Enhanced features
+      isLoading,
+      error,
+      canRequestAgain,
 
-    // Enhanced actions
-    requestPermissionWithRationale,
-    redirectToSettings,
-    clearError,
-    retryRequest,
-  }
+      // Enhanced actions
+      requestPermissionWithRationale,
+      redirectToSettings,
+      clearError,
+      retryRequest,
+    }),
+    [
+      stablePermission,
+      requestPermission,
+      isLoading,
+      error,
+      canRequestAgain,
+      requestPermissionWithRationale,
+      redirectToSettings,
+      clearError,
+      retryRequest,
+    ]
+  )
 }
 
 /**

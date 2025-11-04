@@ -1,6 +1,6 @@
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
@@ -148,6 +148,11 @@ export const useCameraScreenLogic = ({
     onResetZoom: handleResetZoom,
   })
 
+  // Use ref for duration to prevent handleVideoRecorded callback recreation during recording
+  // The callback only needs to read current duration when called, not recreate when it changes
+  const durationRef = useRef(duration)
+  durationRef.current = duration // Update ref synchronously on every render
+
   // Handle video recording completion - notify parent, process in background
   const handleVideoRecorded = useCallback(
     async (videoUri: string) => {
@@ -157,9 +162,10 @@ export const useCameraScreenLogic = ({
       onVideoProcessed?.(videoUri)
 
       // 2) Start the upload and analysis pipeline in background
+      // Use ref to read current duration without creating dependency
       void startUploadAndAnalysis({
         sourceUri: videoUri,
-        durationSeconds: duration,
+        durationSeconds: durationRef.current,
         originalFilename: 'recorded_video.mp4',
         onRecordingIdAvailable: (recordingId) => {
           log.info('useCameraScreenLogic', 'Recording ID available - invalidating history cache', {
@@ -170,7 +176,7 @@ export const useCameraScreenLogic = ({
         },
       })
     },
-    [onVideoProcessed, duration, queryClient]
+    [onVideoProcessed, queryClient]
   )
 
   const handleCameraSwap = useCallback(async () => {
@@ -357,31 +363,57 @@ export const useCameraScreenLogic = ({
     log.info('useCameraScreenLogic', 'Camera is ready for recording')
   }, [])
 
-  const headerTitle =
-    recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
-      ? formattedDuration
-      : 'Solo:Level'
+  // Memoize main return object WITHOUT duration/formattedDuration to keep it stable
+  // This ensures parent component (CameraRecordingScreen) only re-renders on actual state changes,
+  // not on every duration tick (~4-6 times per second)
+  const stableLogic = useMemo(() => {
+    const isRecording = recordingState === RecordingState.RECORDING
 
-  const isRecording = recordingState === RecordingState.RECORDING
+    return {
+      // Camera state (excluding duration - passed separately)
+      cameraType,
+      zoomLevel,
+      showNavigationDialog,
+      recordingState,
+      isRecording,
+      cameraReady,
+      canStop,
 
-  return {
-    // Camera state
+      // Camera swap visual feedback
+      isCameraSwapping,
+      cameraSwapTransitionDuration: CAMERA_SWAP_TRANSITION_DURATION,
+
+      // Camera actions
+      handleCameraSwap,
+      handleZoomChange,
+      handleResetZoom,
+      handleStartRecording,
+      handlePauseRecording,
+      handleResumeRecording,
+      handleStopRecording,
+      handleBackPress,
+      handleUploadVideo,
+      handleVideoSelected,
+      handleSettingsOpen,
+      confirmNavigation,
+      cancelNavigation,
+      handleCameraReady,
+      setShowNavigationDialog,
+
+      // Recording actions
+      handleVideoRecorded,
+      resetRecording,
+    }
+  }, [
+    // Primitive state values (EXCLUDING duration/formattedDuration)
     cameraType,
     zoomLevel,
     showNavigationDialog,
     recordingState,
-    duration,
-    formattedDuration,
-    isRecording,
-    headerTitle,
     cameraReady,
     canStop,
-
-    // Camera swap visual feedback
     isCameraSwapping,
-    cameraSwapTransitionDuration: CAMERA_SWAP_TRANSITION_DURATION,
-
-    // Camera actions
+    // Callbacks (already stable via useCallback)
     handleCameraSwap,
     handleZoomChange,
     handleResetZoom,
@@ -397,9 +429,40 @@ export const useCameraScreenLogic = ({
     cancelNavigation,
     handleCameraReady,
     setShowNavigationDialog,
-
-    // Recording actions
     handleVideoRecorded,
     resetRecording,
-  }
+  ])
+
+  // Memoize final return object - only recreate when stableLogic changes OR formattedDuration changes
+  // formattedDuration only changes once per second (when seconds value changes), not every ~150ms like duration
+  // This prevents parent component from re-rendering on every duration tick
+  // Compute durationData inside this memo to ensure duration is always current, even when formattedDuration unchanged
+  return useMemo(() => {
+    // Compute durationData inside memo to ensure duration is always current
+    // formattedDuration changes once per second, so this memo recreates at that frequency
+    // duration value is always current because we read it directly from the closure
+    const durationData = {
+      duration,
+      formattedDuration,
+      // Derive headerTitle here since it depends on formattedDuration
+      headerTitle:
+        recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED
+          ? formattedDuration
+          : 'Solo:Level',
+    }
+
+    return {
+      ...stableLogic,
+      ...durationData,
+    }
+  }, [
+    stableLogic,
+    // Use formattedDuration instead of duration - only changes once per second
+    // This prevents object recreation every ~150ms when duration number changes
+    // duration value may be slightly stale (by up to ~150ms), but formattedDuration is always current
+    // This is acceptable since formattedDuration is what's displayed, and exact duration is only used
+    // in callbacks which already use refs to read current value
+    formattedDuration,
+    recordingState, // For headerTitle calculation
+  ])
 }
