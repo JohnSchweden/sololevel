@@ -215,7 +215,7 @@ export function CameraRecordingScreen({
   // Memoize RecordingControls props to prevent unnecessary re-renders
   // Note: duration is included in props for type compatibility but not actually used by RecordingControls
   // We exclude it from memo deps to prevent recreating props every ~150ms
-  // RecordingControls is wrapped with React.memo, so it only re-renders when props actually change
+  // Parent memoization prevents unnecessary re-renders - RecordingControls responds immediately to prop changes
   const recordingControlsProps = useMemo(
     () => ({
       recordingState,

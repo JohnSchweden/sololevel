@@ -643,13 +643,50 @@ jest.mock('@ui/components/Performance', () => ({
   clearAllMetrics: jest.fn(),
 }))
 
+// Mock BottomSheets components
+jest.mock('@ui/components/BottomSheets', () => {
+  const React = require('react')
+  return {
+    NotificationSheet: ({ children, open, ...props }: any) =>
+      open
+        ? React.createElement('div', { 'data-testid': 'notification-sheet', ...props }, children)
+        : null,
+    RecordingSettingsSheet: ({ children, open, ...props }: any) =>
+      open
+        ? React.createElement(
+            'div',
+            { 'data-testid': 'recording-settings-sheet', ...props },
+            children
+          )
+        : null,
+    ShareSheet: ({ children, open, ...props }: any) =>
+      open
+        ? React.createElement('div', { 'data-testid': 'share-sheet', ...props }, children)
+        : null,
+    VideoSettingsSheet: ({ children, open, ...props }: any) =>
+      open
+        ? React.createElement('div', { 'data-testid': 'video-settings-sheet', ...props }, children)
+        : null,
+  }
+})
+
 jest.mock('@ui/hooks/useAnimationCompletion', () => ({
   useAnimationCompletion: jest.fn(() => ({ isComplete: true, onComplete: jest.fn() })),
 }))
 
-jest.mock('@ui/hooks/useFrameDropDetection', () => ({
-  useFrameDropDetection: jest.fn(() => ({ frameDrops: 0, isDropping: false })),
-}))
+jest.mock('@ui/hooks/useFrameDropDetection', () => {
+  const actual = jest.requireActual<typeof import('@ui/hooks/useFrameDropDetection')>(
+    '@ui/hooks/useFrameDropDetection'
+  )
+  return {
+    ...actual,
+    useFrameDropDetection: jest.fn(() => ({
+      metrics: { droppedFrames: 0, frameCount: 0, currentFPS: 60, averageFPS: 60, frameTimes: [] },
+      hasFrameDrops: false,
+      reset: jest.fn(),
+    })),
+  }
+})
 
 jest.mock('@ui/hooks/useRenderProfile', () => ({
   useRenderProfile: jest.fn(() => ({ renderCount: 0, averageRenderTime: 0 })),

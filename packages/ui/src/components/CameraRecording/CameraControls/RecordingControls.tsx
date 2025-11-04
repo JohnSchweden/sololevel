@@ -2,7 +2,7 @@ import { log } from '@my/logging'
 import { Pause, Play, Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { RecordingSettingsSheet } from '@ui/components/BottomSheets'
 import { ProfilerWrapper } from '@ui/components/Performance'
-import { memo, useState } from 'react'
+import { useState } from 'react'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -36,7 +36,7 @@ export interface RecordingControlsProps {
  * Pause/Stop controls, zoom levels, camera settings, and swap
  * Implements US-RU-06b: Recording states — Recording/Paused controls
  */
-export const RecordingControls = memo(function RecordingControls({
+export function RecordingControls({
   recordingState,
   //duration,
   zoomLevel,
@@ -220,7 +220,7 @@ export const RecordingControls = memo(function RecordingControls({
       />
     </ProfilerWrapper>
   )
-})
+}
 
 export interface ZoomControlsProps {
   currentZoom: 1 | 2 | 3
