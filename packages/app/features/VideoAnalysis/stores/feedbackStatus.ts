@@ -450,7 +450,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             }
 
             // Set up real-time subscription
-            const subscription = supabase
+            const channel = supabase
               .channel(`analysis_feedback:${analysisId}`)
               .on(
                 'postgres_changes',
@@ -553,12 +553,13 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                 }
               })
 
-            // Store unsubscribe function
+            // Store unsubscribe function for cleanup
+            const unsubscribe = () => {
+              log.info('FeedbackStatusStore', `Unsubscribing from analysis ${analysisId}`)
+              channel.unsubscribe()
+            }
             set((draft) => {
-              draft.subscriptions.set(analysisId, () => {
-                log.info('FeedbackStatusStore', `Unsubscribing from analysis ${analysisId}`)
-                subscription.unsubscribe()
-              })
+              draft.subscriptions.set(analysisId, unsubscribe)
             })
           } catch (error) {
             log.error('FeedbackStatusStore', 'failed to subscribe to analysis', {

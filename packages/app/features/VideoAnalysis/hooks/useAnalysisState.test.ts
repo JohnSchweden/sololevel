@@ -375,4 +375,216 @@ describe('useAnalysisState', () => {
 
     expect(mockAnalysisStoreState.retry).toHaveBeenCalledWith('job:77')
   })
+
+  // Arrange-Act-Assert
+  describe('feedbackItems array stability', () => {
+    it('returns stable feedbackItems array reference when content unchanged', () => {
+      const stableFeedbackItems = [
+        {
+          id: '1',
+          timestamp: 1000,
+          text: 'Feedback 1',
+          type: 'suggestion' as const,
+          category: 'voice' as const,
+          ssmlStatus: 'completed' as const,
+          audioStatus: 'completed' as const,
+          confidence: 0.9,
+        },
+        {
+          id: '2',
+          timestamp: 2000,
+          text: 'Feedback 2',
+          type: 'suggestion' as const,
+          category: 'posture' as const,
+          ssmlStatus: 'completed' as const,
+          audioStatus: 'completed' as const,
+          confidence: 0.8,
+        },
+      ]
+
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: stableFeedbackItems,
+          stats: {
+            total: 2,
+            ssmlCompleted: 2,
+            audioCompleted: 2,
+            fullyCompleted: 2,
+            hasFailures: false,
+            isProcessing: false,
+            completionPercentage: 100,
+          },
+          isProcessing: false,
+          isFullyCompleted: true,
+        })
+      )
+
+      const { result, rerender } = renderHook(() => useAnalysisState(77, undefined, 'processing'))
+
+      // Get initial reference
+      const firstRenderItems = result.current.feedback.feedbackItems
+
+      // Rerender with same feedback items (but new object reference from mock)
+      // This simulates Zustand store update that creates new object but same array content
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: stableFeedbackItems, // Same content, but could be new array reference
+          stats: {
+            total: 2,
+            ssmlCompleted: 2,
+            audioCompleted: 2,
+            fullyCompleted: 2,
+            hasFailures: false,
+            isProcessing: false,
+            completionPercentage: 100,
+          },
+          isProcessing: false,
+          isFullyCompleted: true,
+        })
+      )
+
+      rerender()
+
+      // Array reference should be stable when content is unchanged
+      const secondRenderItems = result.current.feedback.feedbackItems
+      expect(secondRenderItems).toBe(firstRenderItems)
+      expect(secondRenderItems).toEqual(stableFeedbackItems)
+    })
+
+    it('creates new feedbackItems array reference when content changes', () => {
+      const initialFeedbackItems = [
+        {
+          id: '1',
+          timestamp: 1000,
+          text: 'Feedback 1',
+          type: 'suggestion' as const,
+          category: 'voice' as const,
+          ssmlStatus: 'completed' as const,
+          audioStatus: 'completed' as const,
+          confidence: 0.9,
+        },
+      ]
+
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: initialFeedbackItems,
+          stats: {
+            total: 1,
+            ssmlCompleted: 1,
+            audioCompleted: 1,
+            fullyCompleted: 1,
+            hasFailures: false,
+            isProcessing: false,
+            completionPercentage: 100,
+          },
+          isProcessing: false,
+          isFullyCompleted: true,
+        })
+      )
+
+      const { result, rerender } = renderHook(() => useAnalysisState(77, undefined, 'processing'))
+
+      const firstRenderItems = result.current.feedback.feedbackItems
+
+      // Update with new feedback item (content changed)
+      const updatedFeedbackItems = [
+        ...initialFeedbackItems,
+        {
+          id: '2',
+          timestamp: 2000,
+          text: 'Feedback 2',
+          type: 'suggestion' as const,
+          category: 'posture' as const,
+          ssmlStatus: 'completed' as const,
+          audioStatus: 'completed' as const,
+          confidence: 0.8,
+        },
+      ]
+
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: updatedFeedbackItems,
+          stats: {
+            total: 2,
+            ssmlCompleted: 2,
+            audioCompleted: 2,
+            fullyCompleted: 2,
+            hasFailures: false,
+            isProcessing: false,
+            completionPercentage: 100,
+          },
+          isProcessing: false,
+          isFullyCompleted: true,
+        })
+      )
+
+      rerender()
+
+      // Array reference should change when content changes
+      const secondRenderItems = result.current.feedback.feedbackItems
+      expect(secondRenderItems).not.toBe(firstRenderItems)
+      expect(secondRenderItems.length).toBe(2)
+      expect(secondRenderItems).toEqual(updatedFeedbackItems)
+    })
+
+    it('maintains stable reference when only non-content properties change', () => {
+      const stableFeedbackItems = [
+        {
+          id: '1',
+          timestamp: 1000,
+          text: 'Feedback 1',
+          type: 'suggestion' as const,
+          category: 'voice' as const,
+          ssmlStatus: 'completed' as const,
+          audioStatus: 'completed' as const,
+          confidence: 0.9,
+        },
+      ]
+
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: stableFeedbackItems,
+          stats: {
+            total: 1,
+            ssmlCompleted: 1,
+            audioCompleted: 1,
+            fullyCompleted: 1,
+            hasFailures: false,
+            isProcessing: false,
+            completionPercentage: 100,
+          },
+          isProcessing: false,
+          isFullyCompleted: true,
+        })
+      )
+
+      const { result, rerender } = renderHook(() => useAnalysisState(77, undefined, 'processing'))
+
+      const firstRenderItems = result.current.feedback.feedbackItems
+
+      // Change stats but keep same feedbackItems array
+      mockFeedbackStatusIntegration.mockReturnValue(
+        createFeedbackStatus({
+          feedbackItems: stableFeedbackItems, // Same array reference
+          stats: {
+            total: 1,
+            ssmlCompleted: 1,
+            audioCompleted: 1,
+            fullyCompleted: 1,
+            hasFailures: false,
+            isProcessing: true, // Changed, but doesn't affect feedbackItems
+            completionPercentage: 100,
+          },
+          isProcessing: true, // Changed
+          isFullyCompleted: true,
+        })
+      )
+
+      rerender()
+
+      // Array reference should remain stable even if other properties change
+      const secondRenderItems = result.current.feedback.feedbackItems
+      expect(secondRenderItems).toBe(firstRenderItems)
+    })
+  })
 })

@@ -8,6 +8,7 @@ import { Platform, StyleSheet, Text, View, type ViewStyle, useColorScheme } from
 import Animated, {
   cancelAnimation,
   Easing,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -283,28 +284,6 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
   const [announcementText, setAnnouncementText] = useState<string>('')
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Reanimated shared value for opacity (runs on UI thread)
-  // Initial value: 0 if history mode, 1 if visible, 0 if hidden, or 1 if not in video analysis mode
-  const initialOpacity = isVideoAnalysisMode
-    ? isHistoryMode
-      ? 0
-      : (navOptions.headerVisible ?? !isHistoryMode)
-        ? 1
-        : 0
-    : 1
-  const opacityValue = useSharedValue(initialOpacity)
-
-  // Track previous headerVisible prop for animation detection (prop updates synchronously)
-  // Use prop instead of state because state updates are async and might lag behind prop changes
-  const currentHeaderVisibleForRef = useMemo(
-    () => headerVisibleValue ?? !isHistoryMode,
-    [headerVisibleValue, isHistoryMode]
-  )
-  const prevHeaderVisibleForAnimationRef = useRef(
-    isVideoAnalysisMode ? currentHeaderVisibleForRef : (options.headerShown ?? true)
-  )
-  // Track previous animation speed to detect changes
-  const prevAnimationSpeedRef = useRef<'quick' | 'lazy'>(animationSpeed)
   // Track previous isVisible state for direction detection (used for logging)
   const prevIsVisibleForDirectionRef = useRef(isVisible)
 
@@ -315,74 +294,28 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
     () => headerVisibleValue ?? !isHistoryMode,
     [headerVisibleValue, isHistoryMode]
   )
+  const initialOpacity = useMemo(() => {
+    if (!isVideoAnalysisMode) {
+      return 1
+    }
+
+    if (isHistoryMode) {
+      return 0
+    }
+
+    return (navOptions.headerVisible ?? !isHistoryMode) ? 1 : 0
+  }, [isVideoAnalysisMode, isHistoryMode, navOptions.headerVisible])
+
   // Memoize targetOpacity to prevent unnecessary re-computations and effect triggers
   const targetOpacity = useMemo(
     () => (isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0),
     [isVideoAnalysisMode, currentHeaderVisible, isVisible]
   )
 
-  // Update opacity animation when visibility changes
-  useEffect(() => {
-    if (!isVideoAnalysisMode || !hasInitialized) {
-      // Non-video-analysis mode or not initialized: set immediately
-      opacityValue.value = targetOpacity
-      return
-    }
-
-    // Use headerVisible prop (synchronous) instead of isVisible state (async) for change detection
-    // This ensures we detect visibility changes immediately when setOptions is called
-    // Use memoized value to prevent unnecessary re-computations
-    const headerVisibleChanged = prevHeaderVisibleForAnimationRef.current !== currentHeaderVisible
-    const animationSpeedChanged = prevAnimationSpeedRef.current !== animationSpeed
-
-    if (!headerVisibleChanged && animationSpeedChanged) {
-      // Only animation speed changed but visibility didn't - don't restart animation
-      // The current animation should continue with its original speed
-      // Update the ref so we don't keep checking this
-      prevAnimationSpeedRef.current = animationSpeed
-      return
-    }
-
-    // If visibility changed, always restart animation (even if animation speed also changed)
-    // Cancel any in-progress animation only if visibility changed
-    if (headerVisibleChanged) {
-      cancelAnimation(opacityValue)
-    }
-
-    // Animate to target with appropriate timing
-    const duration =
-      animationSpeed === 'quick' ? ANIMATION_DURATIONS.quick : ANIMATION_DURATIONS.lazy
-    opacityValue.value = withTiming(targetOpacity, {
-      duration,
-      easing: Easing.out(Easing.ease),
-    })
-
-    // Update refs after starting animation
-    prevHeaderVisibleForAnimationRef.current = currentHeaderVisible
-    prevAnimationSpeedRef.current = animationSpeed
-  }, [
-    isVisible,
-    hasInitialized,
-    isVideoAnalysisMode,
-    targetOpacity,
-    headerVisibleValue,
-    isHistoryMode,
-    opacityValue,
-    animationSpeed,
-    currentHeaderVisible,
-  ])
-
   // Update direction ref when isVisible state changes (for logging/completion tracking)
   useEffect(() => {
     prevIsVisibleForDirectionRef.current = isVisible
   }, [isVisible])
-
-  // Animated style (runs on UI thread)
-  const animatedStyle = useAnimatedStyle<ViewStyle>(() => {
-    return {
-      opacity: opacityValue.value,
-    }
-  })
 
   // Disable animation completion tracking for Reanimated-based animations
   // as shared values can't be read during render
@@ -741,9 +674,14 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
         {Platform.OS === 'ios' ? <View style={topInsetStyle} /> : null}
         <View style={styles.wrapper}>
           {isVideoAnalysisMode ? (
-            <Animated.View style={animatedStyle}>
-              <AppHeader {...appHeaderProps} />
-            </Animated.View>
+            <VideoAnalysisAnimatedHeader
+              appHeaderProps={appHeaderProps}
+              initialOpacity={initialOpacity}
+              targetOpacity={targetOpacity}
+              hasInitialized={hasInitialized}
+              animationSpeed={animationSpeed}
+              currentHeaderVisible={currentHeaderVisible}
+            />
           ) : (
             <AppHeader {...appHeaderProps} />
           )}
@@ -760,6 +698,78 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
         </Text>
       </SafeAreaView>
     </ProfilerWrapper>
+  )
+}
+
+interface VideoAnalysisAnimatedHeaderProps {
+  appHeaderProps: AppHeaderProps
+  initialOpacity: number
+  targetOpacity: number
+  hasInitialized: boolean
+  animationSpeed: 'quick' | 'lazy'
+  currentHeaderVisible: boolean
+}
+
+function VideoAnalysisAnimatedHeader({
+  appHeaderProps,
+  initialOpacity,
+  targetOpacity,
+  hasInitialized,
+  animationSpeed,
+  currentHeaderVisible,
+}: VideoAnalysisAnimatedHeaderProps) {
+  const opacityValue = useSharedValue(initialOpacity)
+
+  useAnimatedReaction(
+    () => opacityValue.value,
+    () => {
+      // Listener intentionally empty; registers the shared value with UI runtime
+    }
+  )
+
+  const prevHeaderVisibleRef = useRef(currentHeaderVisible)
+  const prevAnimationSpeedRef = useRef<'quick' | 'lazy'>(animationSpeed)
+
+  useEffect(() => {
+    if (!hasInitialized) {
+      opacityValue.value = targetOpacity
+      prevHeaderVisibleRef.current = currentHeaderVisible
+      prevAnimationSpeedRef.current = animationSpeed
+      return
+    }
+
+    const headerVisibleChanged = prevHeaderVisibleRef.current !== currentHeaderVisible
+    const animationSpeedChanged = prevAnimationSpeedRef.current !== animationSpeed
+
+    if (!headerVisibleChanged && animationSpeedChanged) {
+      prevAnimationSpeedRef.current = animationSpeed
+      return
+    }
+
+    if (headerVisibleChanged) {
+      cancelAnimation(opacityValue)
+    }
+
+    const duration =
+      animationSpeed === 'quick' ? ANIMATION_DURATIONS.quick : ANIMATION_DURATIONS.lazy
+
+    opacityValue.value = withTiming(targetOpacity, {
+      duration,
+      easing: Easing.out(Easing.ease),
+    })
+
+    prevHeaderVisibleRef.current = currentHeaderVisible
+    prevAnimationSpeedRef.current = animationSpeed
+  }, [animationSpeed, currentHeaderVisible, hasInitialized, opacityValue, targetOpacity])
+
+  const animatedStyle = useAnimatedStyle<ViewStyle>(() => ({
+    opacity: opacityValue.value,
+  }))
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <AppHeader {...appHeaderProps} />
+    </Animated.View>
   )
 }
 

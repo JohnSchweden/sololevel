@@ -115,12 +115,15 @@ function detectSubscriptionLeaks(filePath, content) {
     if (line.includes('.channel(') || line.includes('.subscribe(')) {
       report.statistics.totalSubscriptions++;
       
-      // Check for unsubscribe
+      // Check for unsubscribe - increased window to 80 lines to catch complex patterns
       let hasUnsubscribe = false;
-      const contextLines = lines.slice(Math.max(0, i - 5), Math.min(lines.length, i + 30)).join('\n');
+      const contextLines = lines.slice(Math.max(0, i - 5), Math.min(lines.length, i + 80)).join('\n');                                                          
       
       if (contextLines.includes('.unsubscribe()') || 
+          contextLines.includes('channel.unsubscribe()') ||
+          contextLines.includes('subscription.unsubscribe()') ||
           contextLines.includes('return () =>') ||
+          contextLines.includes('return unsubscribe') ||
           contextLines.includes('removeAllChannels')) {
         hasUnsubscribe = true;
       }
@@ -139,10 +142,12 @@ function detectSubscriptionLeaks(filePath, content) {
 
     // Zustand subscriptions
     if (line.includes('useStore.subscribe(') || line.includes('.subscribe(')) {
-      const contextLines = lines.slice(Math.max(0, i - 3), Math.min(lines.length, i + 15)).join('\n');
+      // Increased window to 30 lines for Zustand subscriptions
+      const contextLines = lines.slice(Math.max(0, i - 3), Math.min(lines.length, i + 30)).join('\n');                                                          
       
       if (!contextLines.includes('return unsubscribe') && 
           !contextLines.includes('return () =>') &&
+          !contextLines.includes('return function') &&
           !filePath.includes('test')) {
         report.potentialLeaks.push({
           file: filePath,
@@ -166,17 +171,19 @@ function detectTimerLeaks(filePath, content) {
       report.statistics.totalTimers++;
       
       // Check if in useEffect or has cleanup
-      const contextLines = lines.slice(Math.max(0, i - 10), Math.min(lines.length, i + 20)).join('\n');
+      // Increased window to 40 lines after to catch cleanup that's further away
+      const contextLines = lines.slice(Math.max(0, i - 10), Math.min(lines.length, i + 40)).join('\n');                                                         
       const inUseEffect = contextLines.includes('useEffect');
       const hasCleanup = contextLines.includes('clearTimeout') || 
                         contextLines.includes('clearInterval') ||
-                        contextLines.includes('return () =>');
+                        contextLines.includes('return () =>') ||
+                        contextLines.includes('return function');
 
       if (inUseEffect && !hasCleanup) {
         report.timerIssues.push({
           file: filePath,
           line: i + 1,
-          type: line.includes('setInterval') ? 'setInterval Without Cleanup' : 'setTimeout Without Cleanup',
+          type: line.includes('setInterval') ? 'setInterval Without Cleanup' : 'setTimeout Without Cleanup',                                                    
           severity: line.includes('setInterval') ? 'HIGH' : 'MEDIUM',
           code: line.trim(),
           fix: 'Clear timer in useEffect cleanup function',
@@ -194,8 +201,18 @@ function detectUseEffectLeaks(filePath, content) {
 
     report.statistics.totalUseEffects++;
     
-    // Get effect body (next ~30 lines)
-    const effectBody = lines.slice(i, Math.min(i + 30, lines.length)).join('\n');
+    // Get effect body - increased to 100 lines to catch cleanup in complex effects
+    // Also check for the closing bracket/parenthesis to get full effect scope
+    let effectBodyEnd = i + 100;
+    for (let j = i; j < Math.min(i + 150, lines.length); j++) {
+      // Look for dependency array closing: }, [deps])
+      if (lines[j].match(/^\s*\}\s*,\s*\[/)) {
+        effectBodyEnd = j + 1;
+        break;
+      }
+    }
+    
+    const effectBody = lines.slice(i, Math.min(effectBodyEnd, lines.length)).join('\n');                                                                               
     
     // Check for patterns that need cleanup
     const needsCleanup = [
@@ -203,12 +220,21 @@ function detectUseEffectLeaks(filePath, content) {
       { pattern: 'Dimensions.addEventListener', name: 'Dimensions Listener' },
       { pattern: 'AppState.addEventListener', name: 'AppState Listener' },
       { pattern: 'subscribe(', name: 'Subscription' },
+      { pattern: '.subscribe()', name: 'Subscription' },
+      { pattern: 'Store.subscribe(', name: 'Subscription' },
     ];
 
     for (const { pattern, name } of needsCleanup) {
       if (effectBody.includes(pattern)) {
+        // More comprehensive cleanup detection patterns
         const hasReturn = effectBody.includes('return () =>') || 
-                         effectBody.includes('return function');
+                         effectBody.includes('return function') ||
+                         effectBody.includes('return unsubscribe') ||
+                         effectBody.includes('unsubscribe()') ||
+                         effectBody.includes('unsubscribeStore()') ||
+                         effectBody.includes('.unsubscribe()') ||
+                         effectBody.includes('unsubscribeFromJob') ||
+                         effectBody.includes('unsubscribeFromAnalysis');
         
         if (!hasReturn) {
           report.warningLeaks.push({

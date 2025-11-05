@@ -1,5 +1,5 @@
 //import { log } from '@my/logging'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { log } from '@my/logging'
 
@@ -44,6 +44,10 @@ export function useFeedbackSelection(
   const coachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Track current speaking state to prevent redundant renders
+  const isCoachSpeakingRef = useRef(false)
+  isCoachSpeakingRef.current = isCoachSpeaking
+
   // Extract setIsPlaying to avoid depending on entire audioController object
   // audioController changes when isPlaying changes, but setIsPlaying is stable
   const setIsPlaying = audioController.setIsPlaying
@@ -59,19 +63,39 @@ export function useFeedbackSelection(
   videoPlaybackSeekRef.current = videoPlayback.seek
 
   const triggerCoachSpeaking = useCallback((durationMs = 3000) => {
+    // Always clear existing timer first
     if (coachTimerRef.current) {
       clearTimeout(coachTimerRef.current)
       coachTimerRef.current = null
     }
 
     if (durationMs <= 0) {
-      setIsCoachSpeaking(false)
+      // Only set state if not already false (prevent redundant re-renders)
+      // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
+      if (isCoachSpeakingRef.current) {
+        startTransition(() => {
+          setIsCoachSpeaking(false)
+        })
+      }
       return
     }
 
-    setIsCoachSpeaking(true)
+    // Only set state if not already true (prevent redundant re-renders)
+    // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
+    if (!isCoachSpeakingRef.current) {
+      startTransition(() => {
+        setIsCoachSpeaking(true)
+      })
+    }
+
     coachTimerRef.current = setTimeout(() => {
-      setIsCoachSpeaking(false)
+      // Only set state if not already false (prevent redundant re-renders)
+      // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
+      if (isCoachSpeakingRef.current) {
+        startTransition(() => {
+          setIsCoachSpeaking(false)
+        })
+      }
       coachTimerRef.current = null
     }, durationMs)
   }, [])
@@ -131,42 +155,57 @@ export function useFeedbackSelection(
     ) => {
       clearHighlightTimer()
 
-      setHighlightedFeedback((previous) => {
-        if (previous?.id === item.id && previous.source === source) {
-          return previous
-        }
-
-        // log.info('useFeedbackSelection', 'Feedback highlight updated', {
-        //   id: item.id,
-        //   source,
-        // })
-
-        return { id: item.id, source }
-      })
-
-      setSelectedFeedbackId(item.id)
-
+      // URGENT: Seek operation happens immediately (not batched)
+      // User expects instant video response
       if (seek && item.timestamp) {
         const seekTime = item.timestamp / 1000
         videoPlaybackSeekRef.current(seekTime)
       }
 
-      if (playAudio && feedbackAudioRef.current.audioUrls[item.id]) {
-        feedbackAudioRef.current.selectAudio(item.id)
-        setIsPlaying(true)
-      }
+      // NON-URGENT: UI feedback updates can be batched with startTransition
+      // Reduces cascading renders from 4 state updates to 1-2 renders
+      startTransition(() => {
+        setHighlightedFeedback((previous) => {
+          if (previous?.id === item.id && previous.source === source) {
+            return previous
+          }
 
-      triggerCoachSpeaking()
+          // log.info('useFeedbackSelection', 'Feedback highlight updated', {
+          //   id: item.id,
+          //   source,
+          // })
 
-      if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
-        highlightTimerRef.current = setTimeout(() => {
-          clearHighlight({
-            matchId: item.id,
-            sources: ['auto'],
-            reason: 'auto-duration-elapsed',
+          return { id: item.id, source }
+        })
+
+        setSelectedFeedbackId(item.id)
+
+        if (playAudio && feedbackAudioRef.current.audioUrls[item.id]) {
+          const audioUrl = feedbackAudioRef.current.audioUrls[item.id]
+          log.debug('useFeedbackSelection.applyHighlight', '🎵 Playing audio for feedback', {
+            feedbackId: item.id,
+            hasAudioUrl: !!audioUrl,
+            currentActiveAudioId: feedbackAudioRef.current.activeAudio?.id ?? null,
           })
-        }, autoDurationMs)
-      }
+          feedbackAudioRef.current.selectAudio(item.id)
+          // Note: setIsPlaying(true) is called immediately after selectAudio
+          // The audio controller will receive the URL in the next render cycle
+          // If audioUrl is null in controller, it means React hasn't re-rendered yet
+          setIsPlaying(true)
+        }
+
+        triggerCoachSpeaking()
+
+        if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
+          highlightTimerRef.current = setTimeout(() => {
+            clearHighlight({
+              matchId: item.id,
+              sources: ['auto'],
+              reason: 'auto-duration-elapsed',
+            })
+          }, autoDurationMs)
+        }
+      })
     },
     [
       setIsPlaying,
@@ -214,11 +253,16 @@ export function useFeedbackSelection(
       // log.info('useFeedbackSelection', 'Clearing feedback selection', { id: selectedFeedbackId })
     }
 
-    clearHighlight({ reason: 'manual-clear' })
-    setSelectedFeedbackId(null)
-    feedbackAudioRef.current.clearActiveAudio()
-    setIsPlaying(false)
-    triggerCoachSpeaking(0)
+    // PERFORMANCE FIX: Batch all state updates together
+    // This reduces 5 separate setState calls to a single React update cycle
+    // Impact: Prevents 4 extra renders when clearing selection
+    startTransition(() => {
+      clearHighlight({ reason: 'manual-clear' })
+      setSelectedFeedbackId(null)
+      feedbackAudioRef.current.clearActiveAudio()
+      setIsPlaying(false)
+      triggerCoachSpeaking(0)
+    })
   }, [setIsPlaying, clearHighlight, selectedFeedbackId, triggerCoachSpeaking])
 
   useEffect(() => {

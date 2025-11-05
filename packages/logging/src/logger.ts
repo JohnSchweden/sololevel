@@ -124,8 +124,30 @@ function humanSeconds(seconds?: number): string | undefined {
   return `${seconds.toFixed(3)}s`
 }
 
+/**
+ * Custom replacer for JSON.stringify that avoids accessing SharedValue properties.
+ * CRITICAL: Prevents Reanimated warnings when serializing objects containing SharedValues.
+ */
+function safeStringifyReplacer(_key: string, value: unknown): unknown {
+  // Check if value is a SharedValue - don't traverse into it
+  // JSON.stringify's replacer is called for every property during traversal
+  if (typeof value === 'object' && value !== null && !Array.isArray(value) && 'value' in value) {
+    // Check for Reanimated-specific markers to confirm it's a SharedValue
+    if ('_isReanimatedSharedValue' in value || '_value' in value) {
+      return '[SharedValue]'
+    }
+  }
+  return value
+}
+
 function truncate(value: unknown, max = 120): string {
-  const str = typeof value === 'string' ? value : JSON.stringify(value)
+  // CRITICAL: Check if value is a SharedValue before stringifying
+  // JSON.stringify will traverse properties and access .value during render
+  if (typeof value === 'object' && value !== null && 'value' in value && !Array.isArray(value)) {
+    return 'SharedValue' // Don't access .value during render
+  }
+  
+  const str = typeof value === 'string' ? value : JSON.stringify(value, safeStringifyReplacer)
   if (!str) return ''
   return str.length > max ? `${str.slice(0, max)}…(${str.length})` : str
 }
@@ -194,6 +216,12 @@ function formatContext(obj?: Record<string, unknown>): string {
       Object.entries(obj)
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => {
+          // CRITICAL: Check if value is a SharedValue before processing
+          // Avoid accessing .value during render (causes Reanimated warnings)
+          if (typeof v === 'object' && v !== null && 'value' in v && !Array.isArray(v)) {
+            return [k, 'SharedValue']
+          }
+          
           const safeValue = redact(v)
           if (k === 'duration' || k === 'dur' || k === 'audioCurrentTime' || k === 'audioDuration' || k === 'currentTime') {
             return [k, humanSeconds(safeValue as number)]
@@ -202,7 +230,7 @@ function formatContext(obj?: Record<string, unknown>): string {
         })
     )
     
-    const jsonStr = JSON.stringify(safeObj, null, 2)
+    const jsonStr = JSON.stringify(safeObj, safeStringifyReplacer, 2)
     return '\n' + colorizeJson(jsonStr)
   }
 
@@ -210,6 +238,12 @@ function formatContext(obj?: Record<string, unknown>): string {
   const pairs = Object.entries(obj)
     .filter(([, v]) => v !== undefined)
     .map(([k, v]) => {
+      // CRITICAL: Check if value is a SharedValue before processing
+      // Avoid accessing .value during render (causes Reanimated warnings)
+      if (typeof v === 'object' && v !== null && 'value' in v && !Array.isArray(v)) {
+        return `${k}=SharedValue`
+      }
+      
       const safeValue = redact(v)
       if (k === 'duration' || k === 'dur' || k === 'audioCurrentTime' || k === 'audioDuration' || k === 'currentTime') {
         return `${k}=${humanSeconds(safeValue as number)}`

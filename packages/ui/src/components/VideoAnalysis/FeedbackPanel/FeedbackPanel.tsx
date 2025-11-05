@@ -619,9 +619,9 @@ export const FeedbackPanel = memo(
           <ProfilerWrapper
             id={`FeedbackItem-${item.id}`}
             logToConsole={__DEV__}
+            key={item.id}
           >
             <FeedbackContainer
-              key={item.id}
               onPress={() => onFeedbackItemPress(item)}
               {...(item.audioUrl && onSelectAudio
                 ? {
@@ -768,7 +768,7 @@ export const FeedbackPanel = memo(
               >
                 <Text
                   fontSize="$3"
-                  fontWeight={feedbackFilter === filter ? '600' : '400'}
+                  fontWeight={feedbackFilter === filter ? '600' : '600'}
                   color={feedbackFilter === filter ? '$color1' : '$color11'}
                   textTransform="capitalize"
                 >
@@ -870,7 +870,7 @@ export const FeedbackPanel = memo(
             >
               <Text
                 fontSize="$3"
-                fontWeight={commentSort === 'top' ? '600' : '400'}
+                fontWeight={commentSort === 'top' ? '600' : '600'}
                 color={commentSort === 'top' ? '$color1' : '$color11'}
               >
                 Top
@@ -892,7 +892,7 @@ export const FeedbackPanel = memo(
             >
               <Text
                 fontSize="$3"
-                fontWeight={commentSort === 'new' ? '600' : '400'}
+                fontWeight={commentSort === 'new' ? '600' : '600'}
                 color={commentSort === 'new' ? '$color1' : '$color11'}
               >
                 New
@@ -1057,15 +1057,15 @@ export const FeedbackPanel = memo(
                   flex={1}
                   height={32}
                   backgroundColor="transparent"
-                  borderRadius="$0"
+                  borderRadius="$5"
                   marginVertical="$-1"
                   paddingVertical="$1"
                   paddingHorizontal="$1"
                   borderLeftWidth={0}
                   borderRightWidth={0}
                   borderTopWidth={0}
-                  borderBottomWidth={activeTab === tab ? 1 : 0}
-                  borderBottomColor={activeTab === tab ? '$color12' : 'transparent'}
+                  borderBottomWidth={activeTab === tab ? 2 : 0}
+                  borderBottomColor={activeTab === tab ? '$color11' : 'transparent'}
                   animation="quick"
                   hoverStyle={{
                     backgroundColor: 'transparent',
@@ -1086,7 +1086,7 @@ export const FeedbackPanel = memo(
                 >
                   <Text
                     fontSize="$4"
-                    fontWeight={activeTab === tab ? '600' : '400'}
+                    fontWeight={activeTab === tab ? '600' : '600'}
                     color={activeTab === tab ? '$color12' : '$color11'}
                     textTransform="capitalize"
                     animation="quick"

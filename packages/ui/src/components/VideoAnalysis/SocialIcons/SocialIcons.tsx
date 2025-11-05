@@ -1,6 +1,7 @@
 import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { log } from '@my/logging'
 import { ShareSheet } from '@ui/components/BottomSheets'
 import { ProfilerWrapper } from '@ui/components/Performance'
 import { Button, Text, YStack } from 'tamagui'
@@ -44,6 +45,20 @@ export function SocialIcons({
 
   // Share sheet state
   const [shareSheetOpen, setShareSheetOpen] = useState(false)
+
+  // Log mount and visibility changes for debugging
+  useEffect(() => {
+    log.debug('SocialIcons', '📊 Component mounted/updated', {
+      isVisible,
+      likes,
+      comments,
+      bookmarks,
+      shares,
+      placement,
+      offsetBottom,
+      timestamp: Date.now(),
+    })
+  }, [isVisible, likes, comments, bookmarks, shares, placement, offsetBottom])
 
   if (!isVisible) {
     return null

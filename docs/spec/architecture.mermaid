@@ -19,10 +19,17 @@ graph TB
         BottomNavigationContainer"]
         App["⚙️ @my/app (Logic + Screens)
         useTabPersistence (AsyncStorage)
-        VideoAnalysisScreen (111 lines)
-        ├── useVideoAnalysisOrchestrator
-        ├── VideoAnalysisLayout.native
-        └── VideoAnalysisLayout.web"]
+        VideoAnalysisScreen (400 lines)
+        ├── Direct Hook Composition
+        ├── useVideoPlayback
+        ├── useAudioController
+        ├── useFeedbackCoordinator
+        ├── useVideoControls
+        ├── useVideoAudioSync
+        ├── useFeedbackPanel
+        ├── useGestureController
+        ├── useAnimationController
+        └── VideoAnalysisLayout.native/web"]
         API["🔌 @my/api (Supabase Client)"]
         Config["🧰 @my/config (Types)"]
     end
@@ -99,4 +106,4 @@ graph TB
     class UI,App,API,Config shared
     class Zustand,TSQ state
     class AuthSvc,DB,Storage,RT,Edge backend
-    class ClientPose,EdgeAI ai
+    class ClientPose,EdgeAI,SSMLW,AudioW ai

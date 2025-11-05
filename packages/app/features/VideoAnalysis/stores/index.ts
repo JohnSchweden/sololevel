@@ -59,3 +59,11 @@ export type {
   VideoAnalysisState,
   VideoAnalysisStore,
 } from './videoAnalysisStore'
+
+// Persistent Progress Store
+export { usePersistentProgressStore } from './persistentProgress'
+export type {
+  PersistentProgressActions,
+  PersistentProgressState,
+  PersistentProgressStore,
+} from './persistentProgress'

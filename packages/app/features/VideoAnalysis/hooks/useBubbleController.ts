@@ -136,6 +136,13 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   const hideBubble = useCallback(
     (reason: BubbleHideReason = 'manual') => {
+      log.debug('useBubbleController.hideBubble', '💬 Hiding bubble', {
+        reason,
+        currentBubbleIndex,
+        currentBubbleVisible: bubbleVisible,
+        currentItemId:
+          currentBubbleIndex !== null ? feedbackItemsRef.current[currentBubbleIndex]?.id : null,
+      })
       setBubbleVisible(false)
       clearBubbleTimer()
       resetTimerState()
@@ -237,11 +244,14 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         return
       }
 
-      // log.info('useBubbleController', 'showBubble invoked', {
-      //   index,
-      //   itemId: item.id,
-      //   timestamp: item.timestamp,
-      // })
+      log.debug('useBubbleController.showBubble', '💬 Showing bubble', {
+        index,
+        itemId: item.id,
+        timestamp: item.timestamp,
+        previousBubbleIndex: currentBubbleIndex,
+        previousBubbleVisible: bubbleVisible,
+        totalFeedbacks: feedbackItemsRef.current.length,
+      })
 
       clearBubbleTimer()
 
@@ -389,6 +399,13 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       // Check for ANY feedback in the range we just crossed (handles sparse progress events)
       // Only trigger feedbacks ahead of lastCheck to prevent re-triggering already-shown items
       const rangeEnd = currentTimeMs + TIMESTAMP_THRESHOLD_MS
+
+      log.debug('useBubbleController.checkAndShowBubbleAtTime', '🔍 Checking bubbles', {
+        currentTimeMs,
+        currentTimeSec: currentTimeMs / 1000,
+        lastCheck,
+        feedbackItemsCount: feedbackItemsRef.current.length,
+      })
 
       for (let index = 0; index < feedbackItemsRef.current.length; index += 1) {
         const item = feedbackItemsRef.current[index]

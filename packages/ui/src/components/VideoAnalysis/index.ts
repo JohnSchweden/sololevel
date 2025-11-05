@@ -31,6 +31,7 @@ export type { AudioPlayerProps } from './AudioPlayer/AudioPlayer'
 export { VideoPlayer } from './VideoPlayer'
 export type {
   VideoPlayerProps,
+  VideoPlayerRef,
   OriginalVideoPlayerProps,
 } from './types'
 

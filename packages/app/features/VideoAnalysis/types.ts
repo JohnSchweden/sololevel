@@ -15,3 +15,14 @@ export interface FeedbackPanelItem {
   audioError?: string
   confidence: number
 }
+
+// Props for VideoAnalysisScreen component (moved from orchestrator)
+export interface VideoAnalysisScreenProps {
+  analysisJobId?: number
+  videoRecordingId?: number
+  videoUri?: string
+  initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
+  onBack?: () => void
+  onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
+  onProcessingChange?: (isProcessing: boolean) => void
+}

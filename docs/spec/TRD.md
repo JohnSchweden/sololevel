@@ -78,6 +78,96 @@ analysis_feedback (
 )
 ```
 
+---
+
+## Hook Composition Pattern
+
+**Migration:** Replaced orchestrator pattern with direct hook composition (see ADR 005).
+
+### VideoAnalysisScreen Architecture
+
+```typescript
+// Direct hook composition - each hook owns one concern
+function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
+  // Core video state
+  const videoPlayback = useVideoPlayback(uri)
+  const videoControls = useVideoControls(...)
+  const videoAudioSync = useVideoAudioSync(...)
+
+  // Audio management
+  const audioController = useAudioController()
+  const feedbackAudioSource = useFeedbackAudioSource(...)
+
+  // Feedback coordination
+  const analysisState = useAnalysisState(...)
+  const feedbackPanel = useFeedbackPanel(...)
+  const feedbackCoordinator = useFeedbackCoordinator(...)
+
+  // Native-only (animations and gestures)
+  const gesture = useGestureController(...)
+  const animation = useAnimationController(...)
+
+  // Compose props and render layout
+  return <VideoAnalysisLayout
+    video={videoState}
+    playback={playback}
+    audio={audio}
+    feedback={feedback}
+    handlers={handlers}
+    // ... other props
+  />
+}
+```
+
+### Hook Responsibilities
+
+| Hook | Responsibility | Dependencies |
+|------|-----------------|--------------|
+| `useVideoPlayback` | Video playback control + state | video URI |
+| `useVideoControls` | Controls visibility + visibility changes | video state |
+| `useVideoAudioSync` | Audio/video sync coordination | video + audio states |
+| `useAudioController` | Audio playback control | audio URL |
+| `useFeedbackAudioSource` | Feedback audio URL + error management | none |
+| `useAnalysisState` | Analysis phase + progress + errors | analysis job ID |
+| `useFeedbackPanel` | Panel state (expanded, tab, selection) | none |
+| `useFeedbackCoordinator` | Feedback interaction + audio overlay | video + audio + panel |
+| `useGestureController` | Pan gesture + scroll handling | none |
+| `useAnimationController` | Animated values for layout animations | none |
+
+### Benefits Over Orchestrator Pattern
+
+**Before:** 1 God Hook (1789 LOC, 14 nested hooks, 49 memoization layers)
+```
+- Hard to test (need 14 mocks)
+- Tight coupling (everything depends on everything)
+- Defensive memoization (trying to prevent re-renders)
+- Difficult debugging (complex data flow)
+```
+
+**After:** 14 Focused Hooks (composition in component)
+```
+- Easy to test (mock individual hooks)
+- Loose coupling (each hook independent)
+- Minimal memoization (only where needed)
+- Clear debugging (direct data flow)
+```
+
+### Memoization Strategy
+
+- **Keep:** Stable references that affect layout rendering (bubble state, audio overlay)
+- **Remove:** Defensive memoization compensating for aggregation
+- **Result:** 90% reduction (49 → 5 instances)
+
+### Adding New Features
+
+1. Create focused hook: `useMyNewFeature()`
+2. Call in `VideoAnalysisScreen`
+3. Compose props to `VideoAnalysisLayout`
+4. Update layout to use new prop
+5. Test hook in isolation
+
+No need to touch complex orchestrator logic!
+
 Also used in codebase:
 - upload_sessions (tracks signed upload progress)
 - analysis_audio_segments, analysis_ssml_segments, analysis_metrics

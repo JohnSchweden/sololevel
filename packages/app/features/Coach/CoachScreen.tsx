@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur'
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Animated, {
   type SharedValue,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -62,19 +63,42 @@ const AnimatedMessageWrapper = ({
     }
   }, [messageId, layoutY, layoutHeight, messageLayoutsShared])
 
+  // LAZY INITIALIZATION FIX: Register listeners for shared values before they're written to
+  // This prevents "onAnimatedValueUpdate with no listeners" warnings
+  // The values are written by layout handlers before useAnimatedStyle might register
+  useAnimatedReaction(
+    () => layoutY.value,
+    () => {
+      // Dummy listener - ensures layoutY is registered before onLayout writes to it
+    }
+  )
+  useAnimatedReaction(
+    () => layoutHeight.value,
+    () => {
+      // Dummy listener - ensures layoutHeight is registered before onLayout writes to it
+    }
+  )
+
   const animatedStyle = useAnimatedStyle(() => {
     'worklet'
     const fadeStart = 100
     const fadeEnd = 0
 
+    // LAZY INITIALIZATION FIX: Always read shared values to ensure listener registration
+    // Even if we early return, accessing .value registers the listener
+    const currentScrollOffset = scrollOffset.value
+    const currentLayoutY = layoutY.value
+    // Read to register listener, value not used
+    void layoutHeight.value
+
     // If not scrolled, all messages are fully visible
-    if (scrollOffset.value <= 0) {
+    if (currentScrollOffset <= 0) {
       return { opacity: 1 }
     }
 
     // ROOT CAUSE FIX: layoutY.value starts at 0 until onLayout fires
     // If layout hasn't been measured yet, keep it fully visible
-    if (layoutY.value === 0) {
+    if (currentLayoutY === 0) {
       return { opacity: 1 }
     }
 
@@ -85,7 +109,7 @@ const AnimatedMessageWrapper = ({
     // ROOT CAUSE FIX: onLayout gives Y relative to content container (includes paddingTop)
     // To get viewport-relative position, we need: layoutY - scrollOffset
     // The header is outside the ScrollView viewport, so we don't need to account for it here
-    const messageTop = layoutY.value - scrollOffset.value
+    const messageTop = currentLayoutY - currentScrollOffset
 
     // Messages below fadeStart (100px from viewport top) are fully visible
     if (messageTop >= fadeStart) {
@@ -296,6 +320,15 @@ export function CoachScreen({
   // ROOT CAUSE FIX: Use Reanimated shared value for scroll offset to prevent React re-renders
   // This moves opacity calculations to UI thread, eliminating animation frame re-renders
   const scrollOffset = useSharedValue(0)
+
+  // LAZY INITIALIZATION FIX: Register listener for scrollOffset before scroll handler writes
+  // The scroll handler writes immediately, so we need the listener registered first
+  useAnimatedReaction(
+    () => scrollOffset.value,
+    () => {
+      // Dummy listener - ensures scrollOffset is registered before scroll handler writes to it
+    }
+  )
   // Reanimated shared value for suggestions slide animation (1 = visible, 0 = hidden)
   // Initialize with 0 to avoid writing to shared value during render
   const suggestionsProgress = useSharedValue(0)
@@ -409,6 +442,15 @@ export function CoachScreen({
     })
   }, []) // suggestionsProgress is stable, no need in deps
 
+  // LAZY INITIALIZATION FIX: Register listener for suggestionsProgress before any writes
+  // This ensures the listener exists before useEffect writes to it on mount
+  useAnimatedReaction(
+    () => suggestionsProgress.value,
+    () => {
+      // Dummy listener - ensures suggestionsProgress is registered before useEffect writes to it
+    }
+  )
+
   // Sync shared value with showSuggestions state
   // On mount: set synchronously without animation
   // After mount: animate transitions
@@ -457,6 +499,15 @@ export function CoachScreen({
   // ROOT CAUSE FIX: Store header offset as shared value for Reanimated worklet
   // Initialize with 0 to avoid accessing state during render
   const headerOffsetShared = useSharedValue(0)
+
+  // LAZY INITIALIZATION FIX: Register listener for headerOffsetShared to prevent warnings
+  // This shared value is written but may not be read immediately
+  useAnimatedReaction(
+    () => headerOffsetShared.value,
+    () => {
+      // Dummy listener - ensures headerOffsetShared is registered before useEffect writes to it
+    }
+  )
 
   // Update header offset when insets change (must be in useEffect to avoid render-phase writes)
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useRenderDiagnostics } from '@app/hooks'
+import { useLazySectionVisibility } from '@app/hooks/useLazySectionVisibility'
 import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
@@ -13,7 +14,7 @@ import {
   StateDisplay,
 } from '@my/ui'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { ProfilerWrapper } from '@ui/components/Performance'
+import { LazySection, ProfilerWrapper } from '@ui/components/Performance'
 import { memo, useCallback, useMemo } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -263,6 +264,14 @@ export function InsightsScreen({
     })
   }
 
+  // Lazy load sections to reduce initial render time
+  // First section renders immediately, others render after delay
+  const { visibleSections: lazyVisibleSections } = useLazySectionVisibility({
+    sectionCount: 4,
+    renderFirstImmediately: true,
+    renderDelay: 150, // Delay between sections to spread mount work
+  })
+
   // Stable dependencies array to prevent useStaggeredAnimation from re-running unnecessarily
   const staggerDependencies = useMemo(() => [isLoading], [isLoading])
 
@@ -298,40 +307,69 @@ export function InsightsScreen({
   const focusAreasList = useMemo(() => data?.focusAreas ?? [], [data?.focusAreas])
   const achievementsList = useMemo(() => data?.achievements ?? [], [data?.achievements])
 
-  // Memoize sections content to prevent unnecessary recalculations
-  // All sections render together, but memoization prevents re-renders when props haven't changed
+  // Memoize sections content with lazy loading
+  // First section renders immediately, others render only when lazyVisibleSections[i] is true
+  // This spreads out component mounting work to prevent frame drops
   const sectionsContent = useMemo(
     () =>
       !data ? null : (
         <>
-          {/* Weekly Overview Section */}
-          <WeeklyOverviewSection
-            isVisible={sectionsVisible[0]}
-            data={data}
-            dailyActivityData={dailyActivityData}
-          />
+          {/* Weekly Overview Section - renders immediately */}
+          <LazySection
+            isVisible={lazyVisibleSections[0]}
+            placeholderHeight={300}
+            testID="weekly-overview-section"
+          >
+            <WeeklyOverviewSection
+              isVisible={sectionsVisible[0]}
+              data={data}
+              dailyActivityData={dailyActivityData}
+            />
+          </LazySection>
 
-          {/* Focus Areas Section */}
-          <FocusAreasSection
-            isVisible={sectionsVisible[1]}
-            focusAreasList={focusAreasList}
-          />
+          {/* Focus Areas Section - lazy loaded */}
+          <LazySection
+            isVisible={lazyVisibleSections[1]}
+            placeholderHeight={200}
+            testID="focus-areas-section"
+          >
+            <FocusAreasSection
+              isVisible={sectionsVisible[1]}
+              focusAreasList={focusAreasList}
+            />
+          </LazySection>
 
-          {/* Achievements Section */}
-          <AchievementsSection
-            isVisible={sectionsVisible[2]}
-            achievementsList={achievementsList}
-          />
+          {/* Achievements Section - lazy loaded */}
+          <LazySection
+            isVisible={lazyVisibleSections[2]}
+            placeholderHeight={200}
+            testID="achievements-section"
+          >
+            <AchievementsSection
+              isVisible={sectionsVisible[2]}
+              achievementsList={achievementsList}
+            />
+          </LazySection>
 
-          {/* Quick Stats Section */}
-          <QuickStatsSection
-            isVisible={sectionsVisible[3]}
-            data={data}
-          />
+          {/* Quick Stats Section - lazy loaded */}
+          <LazySection
+            isVisible={lazyVisibleSections[3]}
+            placeholderHeight={150}
+            testID="quick-stats-section"
+          >
+            <QuickStatsSection
+              isVisible={sectionsVisible[3]}
+              data={data}
+            />
+          </LazySection>
         </>
       ),
     [
       data,
+      lazyVisibleSections[0],
+      lazyVisibleSections[1],
+      lazyVisibleSections[2],
+      lazyVisibleSections[3],
       sectionsVisible[0],
       sectionsVisible[1],
       sectionsVisible[2],

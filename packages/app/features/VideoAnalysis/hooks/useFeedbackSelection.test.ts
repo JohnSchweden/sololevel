@@ -198,4 +198,224 @@ describe('useFeedbackSelection', () => {
 
     expect(result.current.highlightedFeedbackId).toBeNull()
   })
+
+  describe('Task 5.2: Batched Selection State Updates', () => {
+    it('batches non-urgent UI state updates with startTransition', () => {
+      const deps = createFeedbackDeps()
+      let renderCount = 0
+
+      const { result, rerender } = renderHook(() => {
+        renderCount++
+        return useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      })
+
+      const initialRenderCount = renderCount
+
+      // Act - Select feedback (triggers 4 state updates: highlight, selected, audio, speaking)
+      act(() => {
+        result.current.selectFeedback(deps.item)
+      })
+
+      // Force a rerender to see batched updates
+      rerender()
+
+      const finalRenderCount = renderCount
+      const additionalRenders = finalRenderCount - initialRenderCount
+
+      // Without startTransition: ~4 renders (one per state update)
+      // With startTransition: 1-2 renders (batched)
+      expect(additionalRenders).toBeLessThanOrEqual(2)
+
+      // Verify all state was still set correctly
+      expect(result.current.selectedFeedbackId).toBe('1')
+      expect(result.current.highlightedFeedbackId).toBe('1')
+      expect(result.current.isCoachSpeaking).toBe(true)
+    })
+
+    it('urgent seek operation happens immediately without batching', () => {
+      const deps = createFeedbackDeps()
+
+      const { result } = renderHook(() =>
+        useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      )
+
+      const seekStartTime = performance.now()
+
+      act(() => {
+        result.current.selectFeedback(deps.item)
+      })
+
+      const seekEndTime = performance.now()
+      const seekDuration = seekEndTime - seekStartTime
+
+      // Seek should be called immediately (not deferred by startTransition)
+      expect(deps.videoPlayback.seek).toHaveBeenCalledWith(2)
+
+      // Should complete quickly (< 50ms, accounting for test overhead)
+      expect(seekDuration).toBeLessThan(50)
+    })
+  })
+
+  describe('Priority 3: Batch State Updates', () => {
+    it('batches clearSelection state updates in single transaction', () => {
+      const deps = createFeedbackDeps()
+      let renderCount = 0
+
+      const { result, rerender } = renderHook(() => {
+        renderCount++
+        return useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      })
+
+      // Arrange - Select feedback first
+      act(() => {
+        result.current.selectFeedback(deps.item)
+      })
+
+      const beforeClearRenderCount = renderCount
+
+      // Act - Clear selection (5 state updates: clearHighlight, setSelectedId, clearActiveAudio, setIsPlaying, triggerCoachSpeaking)
+      act(() => {
+        result.current.clearSelection()
+      })
+
+      // Force a rerender to see batched updates
+      rerender()
+
+      const afterClearRenderCount = renderCount
+      const additionalRenders = afterClearRenderCount - beforeClearRenderCount
+
+      // Assert - With startTransition batching: 1-2 renders (batched)
+      // Without batching: ~5 renders (one per state update)
+      expect(additionalRenders).toBeLessThanOrEqual(2)
+
+      // Verify all state was cleared correctly
+      expect(result.current.selectedFeedbackId).toBeNull()
+      expect(result.current.highlightedFeedbackId).toBeNull()
+      expect(result.current.isCoachSpeaking).toBe(false)
+      expect(deps.feedbackAudio.clearActiveAudio).toHaveBeenCalled()
+      expect(deps.audioController.setIsPlaying).toHaveBeenCalledWith(false)
+    })
+  })
+
+  describe('Task 5.3: Optimize coachSpeaking Timer', () => {
+    it('does not trigger re-render when timer is cleared if speaking is already false', () => {
+      const deps = createFeedbackDeps()
+      let renderCount = 0
+
+      const { result } = renderHook(() => {
+        renderCount++
+        return useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      })
+
+      // Act - Trigger speaking with 0 duration (should set to false without timer)
+      act(() => {
+        result.current.triggerCoachSpeaking(0)
+      })
+
+      const afterFirstCall = renderCount
+
+      // Should not trigger re-render if already false
+      act(() => {
+        result.current.triggerCoachSpeaking(0)
+      })
+
+      const afterSecondCall = renderCount
+
+      // Assert - Second call with 0 duration should not cause render (already false)
+      expect(afterSecondCall).toBe(afterFirstCall)
+      expect(result.current.isCoachSpeaking).toBe(false)
+    })
+
+    it('only triggers re-render when isCoachSpeaking actually changes', () => {
+      const deps = createFeedbackDeps()
+      let renderCount = 0
+
+      const { result } = renderHook(() => {
+        renderCount++
+        return useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      })
+
+      // Start speaking
+      act(() => {
+        result.current.triggerCoachSpeaking(100)
+      })
+
+      const afterStart = renderCount
+
+      // Interrupt with another speaking call (should clear previous timer)
+      act(() => {
+        result.current.triggerCoachSpeaking(100)
+      })
+
+      const afterInterrupt = renderCount
+
+      // Assert - Interrupting should not cause extra render (already true)
+      // Should only set new timer without state change
+      expect(afterInterrupt).toBe(afterStart)
+      expect(result.current.isCoachSpeaking).toBe(true)
+    })
+
+    it('prevents redundant state updates when timer expires', () => {
+      const deps = createFeedbackDeps()
+      let renderCount = 0
+
+      const { result } = renderHook(() => {
+        renderCount++
+        return useFeedbackSelection(
+          deps.feedbackAudio as any,
+          deps.audioController as any,
+          deps.videoPlayback as any
+        )
+      })
+
+      // Trigger speaking
+      act(() => {
+        result.current.triggerCoachSpeaking(10)
+      })
+
+      const beforeTimeout = renderCount
+
+      // Let timer expire
+      act(() => {
+        jest.advanceTimersByTime(10)
+      })
+
+      const afterTimeout = renderCount
+
+      // Assert - Timer expiring should cause one render to set false
+      expect(afterTimeout).toBe(beforeTimeout + 1)
+      expect(result.current.isCoachSpeaking).toBe(false)
+
+      // Manually set to false again (should not cause render)
+      const beforeSecondSet = renderCount
+      act(() => {
+        result.current.triggerCoachSpeaking(0)
+      })
+
+      const afterSecondSet = renderCount
+
+      // Should not render again (already false)
+      expect(afterSecondSet).toBe(beforeSecondSet)
+    })
+  })
 })

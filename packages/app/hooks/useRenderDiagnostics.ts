@@ -68,6 +68,14 @@ function getSignature(value: unknown): Signature {
   }
 
   if (typeof value === 'object') {
+    // Check if it's a SharedValue first - don't recurse into it
+    // CRITICAL: Only check structure (has 'value' property), don't access .value
+    // Accessing .value during render (even for type checking) causes Reanimated warnings
+    if ('value' in value && !Array.isArray(value)) {
+      // Likely a SharedValue - don't recurse into it or access .value
+      return 'SharedValue' as Signature
+    }
+
     // Object signature: sorted keys + first level values
     const keys = Object.keys(value).sort()
     if (keys.length === 0) return '{}'
@@ -83,6 +91,63 @@ function getSignature(value: unknown): Signature {
   }
 
   return String(value) as Signature
+}
+
+/**
+ * Safe JSON stringify that handles cyclical references and complex objects
+ */
+function safeStringify(value: unknown, maxLength = 50): string {
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  if (typeof value === 'function') return 'function'
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+
+  // Handle SharedValues and Reanimated objects
+  // CRITICAL: Don't access .value during render - just identify the type
+  // Accessing .value during render causes Reanimated warnings
+  if (typeof value === 'object' && value !== null) {
+    // Check if it's a SharedValue (has value property and is likely from Reanimated)
+    // Only check structure ('value' in object), don't access .value property
+    // Accessing .value even for type checking can trigger Reanimated warnings
+    if ('value' in value && !Array.isArray(value)) {
+      // Don't access .value - just indicate it's a SharedValue
+      // Accessing .value during render (even in useEffect) can trigger warnings
+      return 'SharedValue'
+    }
+
+    // Try to stringify, but handle cyclical references AND SharedValues
+    try {
+      const seen = new WeakSet()
+      const stringified = JSON.stringify(value, (_key, val) => {
+        if (typeof val === 'object' && val !== null) {
+          // Check for SharedValue - don't traverse into it
+          // CRITICAL: Prevents accessing .value during JSON.stringify traversal
+          if ('value' in val && !Array.isArray(val)) {
+            if ('_isReanimatedSharedValue' in val || '_value' in val) {
+              return '[SharedValue]'
+            }
+          }
+
+          if (seen.has(val)) {
+            return '[Circular]'
+          }
+          seen.add(val)
+        }
+        return val
+      })
+      return stringified.length > maxLength ? `${stringified.slice(0, maxLength)}...` : stringified
+    } catch (error) {
+      // If stringify fails, return a type description
+      if (Array.isArray(value)) {
+        return `[Array(${value.length})]`
+      }
+      return `[Object(${Object.keys(value).length} keys)]`
+    }
+  }
+
+  return String(value)
 }
 
 /**
@@ -194,13 +259,21 @@ export function useRenderDiagnostics<T extends Record<string, unknown>>(
             const flags = []
             if (c.referenceChanged) flags.push('REF')
             if (c.contentChanged && !c.referenceChanged) flags.push('CONTENT')
-            return `${c.prop} (${flags.join(',')})`
+
+            // Add value preview for debugging (using safe stringify to handle cyclical refs)
+            const prevPreview = safeStringify(c.prevValue, 30)
+            const nextPreview = safeStringify(c.nextValue, 30)
+
+            return `${c.prop} (${flags.join(',')}) ${prevPreview}→${nextPreview}`
           })
           .join(', ')
 
         log.debug(`RenderDiagnostics:${componentName}`, `Render #${currentRender}`, {
           changes: changes || 'none',
           propCount: propChangesRef.current.length,
+          hasRefChanges: hasReferenceChanges,
+          hasContentChanges: hasContentChanges,
+          changedProps: propChangesRef.current.map((c) => c.prop),
         })
       }
     }

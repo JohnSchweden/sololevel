@@ -1,5 +1,6 @@
 import { useAuth } from '@app/hooks/useAuth'
 import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { log } from '@my/logging'
 import {
@@ -28,6 +29,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   const authResult = useAuth()
   const { signIn, isAuthenticated } = authResult
   const toast = useToastController()
+  const insets = useSafeArea()
 
   // Track useAuth hook return stability (should be memoized now)
   useRenderDiagnostics('SignInScreen[useAuth]', authResult, {
@@ -98,7 +100,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
         testID="sign-in-screen"
       >
         <SafeAreaView
-          edges={['bottom']}
+          edges={[]}
           style={{ flex: 1 }}
         >
           <YStack
@@ -107,7 +109,8 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
             alignItems="center"
             gap="$6"
             paddingHorizontal="$6"
-            paddingVertical="$8"
+            paddingTop={insets.top}
+            paddingBottom={insets.bottom}
             overflow="visible"
           >
             {/* Header Section */}

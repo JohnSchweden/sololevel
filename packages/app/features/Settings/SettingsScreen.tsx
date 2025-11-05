@@ -173,7 +173,7 @@ export function SettingsScreen({
           <YStack
             gap="$6"
             position="absolute"
-            bottom={insets.bottom + 24} // paddingBottom="$6" = 24px + safe area bottom
+            bottom={insets.bottom + 0} // paddingBottom="$6" = 24px + safe area bottom
             left="$0"
             right="$0"
           >

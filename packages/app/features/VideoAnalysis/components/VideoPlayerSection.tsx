@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { log } from '@my/logging'
 import { ProfilerWrapper } from '@ui/components/Performance'
 import Animated, {
@@ -9,6 +10,8 @@ import Animated, {
   useAnimatedStyle,
   Easing,
   useDerivedValue,
+  useAnimatedReaction,
+  runOnJS,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -25,6 +28,7 @@ import {
   VideoControlsRef,
   VideoPlayer,
   VideoPlayerArea,
+  type VideoPlayerRef,
 } from '@ui/components/VideoAnalysis'
 
 import type { FeedbackPanelItem } from '../types'
@@ -100,8 +104,11 @@ interface VideoPlayerSectionProps {
   }
   // NEW: Animation props
   collapseProgress?: SharedValue<number> // 0 expanded → 1 collapsed
-  // NEW: Callback to provide persistent progress bar props to parent for rendering at layout level
+  // DEPRECATED: Use persistentProgressStoreSetter instead to prevent cascading re-renders
+  // Callback to provide persistent progress bar props to parent for rendering at layout level
   onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
+  // NEW: Store setter for persistent progress bar props (preferred over callback)
+  persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void
 }
 
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
@@ -135,17 +142,80 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onSocialAction,
   collapseProgress,
   onPersistentProgressBarPropsChange,
+  persistentProgressStoreSetter,
 }: VideoPlayerSectionProps) {
+  // Direct seek ref to bypass React render cycle for immediate seeks
+  const videoPlayerRef = useRef<VideoPlayerRef>(null)
+
+  // Track prop changes to diagnose render cascades from onSeek
+  useRenderDiagnostics(
+    'VideoPlayerSection',
+    {
+      pendingSeek,
+      userIsPlaying,
+      videoShouldPlay,
+      videoEnded,
+      showControls,
+    } as unknown as Record<string, unknown>,
+    {
+      logToConsole: __DEV__,
+      logOnlyChanges: true,
+    }
+  )
+
   // Manage currentTime and duration internally
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const lastNotifiedTimeRef = useRef(0)
   const stateUpdateCountRef = useRef(0)
   const lastStateUpdateTimeRef = useRef(0)
+  const lastSeekTargetRef = useRef<number | null>(null)
+  const seekCompleteTimeRef = useRef(0)
   // Track the target seek time to ignore stale progress events after seeking
   const pendingSeekTimeRef = useRef<number | null>(null)
   // Track the time before seek to detect backward seeks and filter stale events
   const timeBeforeSeekRef = useRef<number | null>(null)
+  // Persist pre-seek progress for the full stale event window (doesn't get cleared when accepting progress)
+  const persistedPreSeekProgressRef = useRef<number | null>(null)
+  const persistedPreSeekTimestampRef = useRef<number>(0)
+
+  // Debug: Track pendingSeek prop changes and reset tracking if needed
+  useEffect(() => {
+    log.debug('VideoPlayerSection', '📥 pendingSeek prop changed', {
+      pendingSeek,
+      currentLocalTime: currentTime,
+      pendingSeekTimeRef: pendingSeekTimeRef.current,
+      lastSeekTarget: lastSeekTargetRef.current,
+    })
+
+    // If pendingSeek prop changes to a new value, reset our internal tracking
+    // This handles cases like replay where we need to clear old seek state
+    if (pendingSeek !== null && pendingSeek !== pendingSeekTimeRef.current) {
+      log.debug('VideoPlayerSection', '🔄 Resetting seek tracking for new pendingSeek', {
+        newPendingSeek: pendingSeek,
+        oldPendingSeekTime: pendingSeekTimeRef.current,
+        currentLocalTime: currentTime,
+      })
+      // Save current time if this is a backward seek
+      if (pendingSeek < currentTime) {
+        timeBeforeSeekRef.current = currentTime
+        persistedPreSeekProgressRef.current = currentTime
+        persistedPreSeekTimestampRef.current = Date.now()
+        log.debug('VideoPlayerSection', '💾 Saved time before backward seek (from prop change)', {
+          timeBeforeSeek: timeBeforeSeekRef.current,
+          persistedPreSeekProgress: persistedPreSeekProgressRef.current,
+          seekTarget: pendingSeek,
+        })
+      } else {
+        timeBeforeSeekRef.current = null
+        persistedPreSeekProgressRef.current = null
+      }
+      // Don't set pendingSeekTimeRef here - let handleSeekComplete do it after seek completes
+      // But we do want to update lastSeekTarget for stale event filtering
+      lastSeekTargetRef.current = pendingSeek
+      seekCompleteTimeRef.current = Date.now()
+    }
+  }, [pendingSeek, currentTime])
 
   // Debug: Track state updates
   useEffect(() => {
@@ -164,10 +234,55 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     }
   }, [currentTime, duration])
 
+  // Optimized seek handler: use direct seek for immediate response, then update state
+  const handleDirectSeek = useCallback(
+    (time: number) => {
+      // Seek immediately via ref to bypass render cycle
+      videoPlayerRef.current?.seekDirect(time)
+      // Still call onSeek for state updates (for UI consistency)
+      onSeek(time)
+    },
+    [onSeek]
+  )
+
   // Only notify parent on significant progress changes (> 1 second)
   const handleProgress = useCallback(
     (data: { currentTime: number }) => {
       const { currentTime: reportedTime } = data
+
+      log.debug('VideoPlayerSection.handleProgress', '📥 Progress event received', {
+        reportedTime,
+        currentLocalTime: currentTime,
+        pendingSeekTime: pendingSeekTimeRef.current,
+        lastSeekTarget: lastSeekTargetRef.current,
+        timeBeforeSeek: timeBeforeSeekRef.current,
+        lastNotifiedTime: lastNotifiedTimeRef.current,
+        pendingSeekProp: pendingSeek,
+      })
+
+      // Filter stale progress events that arrive shortly after a seek
+      // Similar logic to useVideoPlayback.handleProgress
+      const timeSinceSeekComplete = Date.now() - seekCompleteTimeRef.current
+      const SEEK_STALE_EVENT_THRESHOLD_MS = 500
+
+      if (
+        lastSeekTargetRef.current !== null &&
+        timeSinceSeekComplete < SEEK_STALE_EVENT_THRESHOLD_MS &&
+        reportedTime > lastSeekTargetRef.current + 1.0 // Event is more than 1s ahead of seek target
+      ) {
+        log.debug('VideoPlayerSection.handleProgress', '🚫 Ignoring stale progress after seek', {
+          reportedTime,
+          seekTarget: lastSeekTargetRef.current,
+          timeSinceSeekComplete,
+          currentLocalTime: currentTime,
+        })
+        return
+      }
+
+      // Clear seek tracking after threshold passes
+      if (timeSinceSeekComplete >= SEEK_STALE_EVENT_THRESHOLD_MS) {
+        lastSeekTargetRef.current = null
+      }
 
       // If we have a pending seek, filter progress events intelligently
       // This prevents stale progress events from overwriting the seek position
@@ -176,19 +291,43 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         const timeBeforeSeek = timeBeforeSeekRef.current
         const timeDifference = Math.abs(reportedTime - targetTime)
 
+        log.debug('VideoPlayerSection.handleProgress', '🎯 Processing with pending seek', {
+          reportedTime,
+          targetTime,
+          timeBeforeSeek,
+          timeDifference,
+          currentLocalTime: currentTime,
+        })
+
         // Detect if this is a stale event from before a backward seek
-        // If we seek backward and reported time is still ahead of where we were, it's stale
+        // If we seek backward and reported time is close to pre-seek time, it's stale
         if (
           timeBeforeSeek !== null &&
           targetTime < timeBeforeSeek &&
-          reportedTime > timeBeforeSeek
+          Math.abs(reportedTime - timeBeforeSeek) < 0.5 // Within 500ms of old position = stale
         ) {
+          log.debug(
+            'VideoPlayerSection.handleProgress',
+            '🚫 Ignoring stale backward-seek event (close to pre-seek)',
+            {
+              reportedTime,
+              targetTime,
+              timeBeforeSeek,
+              difference: Math.abs(reportedTime - timeBeforeSeek),
+            }
+          )
           return
         }
 
         // If the reported time is very close to target (within 0.2s), accept it and clear pending seek
         if (timeDifference < 0.2) {
           const previousNotifiedTime = lastNotifiedTimeRef.current
+          log.debug('VideoPlayerSection.handleProgress', '✅ Accepting - close to target', {
+            reportedTime,
+            targetTime,
+            previousNotifiedTime,
+            willUpdateCurrentTime: true,
+          })
           pendingSeekTimeRef.current = null
           timeBeforeSeekRef.current = null
           setCurrentTime(reportedTime)
@@ -205,12 +344,23 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         // Accept it and clear pending seek - we've successfully moved past the seek
         // But only if we're not dealing with a stale backward-seek event
         if (reportedTime > targetTime + 0.2) {
-          // Additional check: if we seeked backward, ignore events that are still ahead of pre-seek time
+          // Additional check: if we seeked backward, ignore events that are close to pre-seek time
+          // This catches stale events from before the backward seek
           if (
             timeBeforeSeek !== null &&
             targetTime < timeBeforeSeek &&
-            reportedTime > timeBeforeSeek
+            Math.abs(reportedTime - timeBeforeSeek) < 0.5 // Within 500ms of old position = stale
           ) {
+            log.debug(
+              'VideoPlayerSection.handleProgress',
+              '🚫 Ignoring stale backward-seek event (close to pre-seek)',
+              {
+                reportedTime,
+                targetTime,
+                timeBeforeSeek,
+                difference: Math.abs(reportedTime - timeBeforeSeek),
+              }
+            )
             return
           }
 
@@ -229,7 +379,33 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
         // If reported time is approaching target from before (within 1s window), accept it
         // This handles the case where we seek forward and video catches up
+        // BUT: Only if we didn't seek backward (would be stale event)
         if (reportedTime >= targetTime - 1.0 && reportedTime < targetTime + 0.2) {
+          // Additional check: if we seeked backward, don't accept events that are close to pre-seek time
+          const isStaleBackwardSeekEvent =
+            timeBeforeSeek !== null &&
+            targetTime < timeBeforeSeek &&
+            Math.abs(reportedTime - timeBeforeSeek) < 0.5
+
+          if (isStaleBackwardSeekEvent) {
+            log.debug(
+              'VideoPlayerSection.handleProgress',
+              '🚫 Ignoring stale backward-seek event (approaching target check)',
+              {
+                reportedTime,
+                targetTime,
+                timeBeforeSeek,
+                difference: Math.abs(reportedTime - timeBeforeSeek),
+              }
+            )
+            return
+          }
+
+          log.debug('VideoPlayerSection.handleProgress', '✅ Accepting - approaching target', {
+            reportedTime,
+            targetTime,
+            willUpdateCurrentTime: true,
+          })
           setCurrentTime(reportedTime)
           lastNotifiedTimeRef.current = reportedTime
           return
@@ -238,20 +414,70 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         // Ignore stale progress events that are too far behind the target
         // This filters out old progress events from before the seek
         if (reportedTime < targetTime - 1.0) {
+          log.debug('VideoPlayerSection.handleProgress', '🚫 Ignoring - too far behind target', {
+            reportedTime,
+            targetTime,
+            difference: reportedTime - targetTime,
+          })
           return
         }
       }
 
       // Normal progress update (no pending seek)
+      // BUT: Still check for stale events if we recently did a backward seek
+      // Reuse timeSinceSeekComplete and SEEK_STALE_EVENT_THRESHOLD_MS from earlier in function
+      const timeSincePreSeekSaved = Date.now() - persistedPreSeekTimestampRef.current
+
+      // Clear persisted pre-seek progress after stale event window expires
+      if (timeSincePreSeekSaved >= SEEK_STALE_EVENT_THRESHOLD_MS) {
+        persistedPreSeekProgressRef.current = null
+      }
+
+      // Check for stale events after backward seek:
+      // 1. We have persisted pre-seek progress (from backward seek)
+      // 2. Still within stale event window
+      // 3. The reported time is close to pre-seek position (stale event)
+      if (
+        persistedPreSeekProgressRef.current !== null &&
+        lastSeekTargetRef.current !== null &&
+        timeSinceSeekComplete < SEEK_STALE_EVENT_THRESHOLD_MS &&
+        Math.abs(reportedTime - persistedPreSeekProgressRef.current) < 0.5 &&
+        Math.abs(reportedTime - lastSeekTargetRef.current) > 1.0
+      ) {
+        log.debug(
+          'VideoPlayerSection.handleProgress',
+          '🚫 Ignoring stale progress in normal update path',
+          {
+            reportedTime,
+            lastSeekTarget: lastSeekTargetRef.current,
+            persistedPreSeekProgress: persistedPreSeekProgressRef.current,
+            timeSinceSeekComplete,
+            timeSincePreSeekSaved,
+            differenceFromOld: Math.abs(reportedTime - persistedPreSeekProgressRef.current),
+            differenceFromTarget: Math.abs(reportedTime - lastSeekTargetRef.current),
+          }
+        )
+        return
+      }
+
+      log.debug('VideoPlayerSection.handleProgress', '✅ Normal progress update', {
+        reportedTime,
+        previousCurrentTime: currentTime,
+        willUpdateCurrentTime: true,
+      })
       setCurrentTime(reportedTime)
 
-      // Notify parent only if time changed significantly
-      if (Math.abs(reportedTime - lastNotifiedTimeRef.current) > 1.0) {
-        lastNotifiedTimeRef.current = reportedTime
-        onSignificantProgress(reportedTime)
-      }
+      // Notify parent on every progress update (for bubble triggers, feedback coordination)
+      // The > 1 second throttle broke bubble detection - we need updates every ~200ms
+      log.debug('VideoPlayerSection.handleProgress', '▶️ Calling onSignificantProgress', {
+        reportedTime,
+        timeSinceLastUpdate: reportedTime - lastNotifiedTimeRef.current,
+        pendingSeek: pendingSeekTimeRef.current,
+      })
+      lastNotifiedTimeRef.current = reportedTime
+      onSignificantProgress(reportedTime)
     },
-    [onSignificantProgress, duration]
+    [onSignificantProgress, duration, currentTime]
   )
 
   // Handle seek completion - update local currentTime immediately
@@ -259,17 +485,41 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const handleSeekComplete = useCallback(
     (seekTime?: number) => {
       const resolvedTime = seekTime ?? pendingSeek ?? currentTime
+      log.debug('VideoPlayerSection.handleSeekComplete', '🎯 Seek complete', {
+        providedSeekTime: seekTime,
+        pendingSeekProp: pendingSeek,
+        currentLocalTime: currentTime,
+        resolvedTime,
+        isBackwardSeek: resolvedTime < currentTime,
+      })
       if (typeof resolvedTime === 'number' && Number.isFinite(resolvedTime)) {
         // Track time before seek if this is a backward seek (to filter stale events)
         if (resolvedTime < currentTime) {
           timeBeforeSeekRef.current = currentTime
+          persistedPreSeekProgressRef.current = currentTime
+          persistedPreSeekTimestampRef.current = Date.now()
+          log.debug('VideoPlayerSection.handleSeekComplete', '💾 Saved time before backward seek', {
+            timeBeforeSeek: timeBeforeSeekRef.current,
+            persistedPreSeekProgress: persistedPreSeekProgressRef.current,
+            seekTarget: resolvedTime,
+          })
         } else {
           timeBeforeSeekRef.current = null
+          persistedPreSeekProgressRef.current = null
         }
         setCurrentTime(resolvedTime)
         lastNotifiedTimeRef.current = resolvedTime
         // Track the target seek time so we can filter stale progress events
         pendingSeekTimeRef.current = resolvedTime
+
+        // Track seek target for grace period filtering (similar to useVideoPlayback)
+        lastSeekTargetRef.current = resolvedTime
+        seekCompleteTimeRef.current = Date.now()
+        log.debug('VideoPlayerSection.handleSeekComplete', '✅ Seek tracking updated', {
+          pendingSeekTime: pendingSeekTimeRef.current,
+          lastSeekTarget: lastSeekTargetRef.current,
+          seekCompleteTime: seekCompleteTimeRef.current,
+        })
       }
       onSeekComplete(seekTime ?? pendingSeek ?? null)
     },
@@ -339,6 +589,65 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     }
   })
 
+  // Track collapseProgress changes for debugging
+  const prevCollapseProgressRef = useRef<number | null>(null)
+  const lastLogTimeRef = useRef(0)
+
+  // Log collapseProgress changes to debug social icons visibility delay
+  const logCollapseProgressChange = useCallback((progress: number) => {
+    const now = Date.now()
+    const prev = prevCollapseProgressRef.current
+
+    // Log on mount and when progress changes significantly
+    if (prev === null || Math.abs(progress - prev) > 0.05) {
+      if (now - lastLogTimeRef.current > 100) {
+        const easeFunction = Easing.inOut(Easing.cubic)
+        const easedProgress = easeFunction(progress)
+        const opacity = interpolate(easedProgress, [0, 0.5, 1], [0, 1, 0], Extrapolation.CLAMP)
+
+        log.debug('VideoPlayerSection', '📊 Social icons collapseProgress changed', {
+          rawProgress: progress,
+          easedProgress,
+          calculatedOpacity: opacity,
+          willShow: opacity > 0.1,
+          previousProgress: prev,
+          timeSinceLastLog: now - lastLogTimeRef.current,
+          timestamp: now,
+        })
+
+        prevCollapseProgressRef.current = progress
+        lastLogTimeRef.current = now
+      }
+    }
+  }, [])
+
+  // Track collapseProgress changes via useAnimatedReaction
+  useAnimatedReaction(
+    () => collapseProgress?.value ?? null,
+    (progress, previous) => {
+      if (progress !== null && progress !== previous) {
+        runOnJS(logCollapseProgressChange)(progress)
+      }
+    },
+    [collapseProgress]
+  )
+
+  // Log initial state (avoid accessing .value during render)
+  useEffect(() => {
+    if (!collapseProgress) {
+      log.debug('VideoPlayerSection', '📊 Social icons - no collapseProgress prop', {
+        hasCollapseProgress: false,
+        timestamp: Date.now(),
+      })
+    } else {
+      // Don't access .value directly - it's a SharedValue and should only be accessed in animated contexts
+      log.debug('VideoPlayerSection', '📊 Social icons - collapseProgress prop received', {
+        hasCollapseProgress: true,
+        timestamp: Date.now(),
+      })
+    }
+  }, [collapseProgress])
+
   const socialAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
     // Apply cubic easing for smooth slow-start fast-end effect
@@ -347,6 +656,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
     // Fade out at max mode (0) and min mode (1), visible in normal mode (0.5)
     const opacity = interpolate(easedProgress, [0, 0.5, 1], [0, 1, 0], Extrapolation.CLAMP)
+
     return {
       opacity,
       transform: [
@@ -392,6 +702,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           >
             {videoUri && (
               <VideoPlayer
+                ref={videoPlayerRef}
                 videoUri={videoUri}
                 isPlaying={videoShouldPlay}
                 posterUri={posterUri}
@@ -475,9 +786,10 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               onPlay={onPlay}
               onPause={onPause}
               onReplay={onReplay}
-              onSeek={onSeek}
+              onSeek={handleDirectSeek}
               onControlsVisibilityChange={onControlsVisibilityChange}
               onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
+              persistentProgressStoreSetter={persistentProgressStoreSetter}
             />
           </YStack>
         </VideoPlayerArea>
@@ -487,3 +799,11 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 })
 
 VideoPlayerSection.displayName = 'VideoPlayerSection'
+
+// Enable WDYR tracking for render cascade investigation
+if (__DEV__) {
+  // why-did-you-render adds this property at runtime
+  ;(VideoPlayerSection as any).whyDidYouRender = {
+    logOnDifferentValues: true, // Log when props change
+  }
+}

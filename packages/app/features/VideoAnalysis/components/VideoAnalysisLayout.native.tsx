@@ -2,7 +2,7 @@ import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { ProfilerWrapper } from '@ui/components/Performance'
 import type { RefObject } from 'react'
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -20,6 +20,7 @@ import {
 import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import type { AudioControllerState } from '../hooks/useAudioController'
+import { usePersistentProgressStore } from '../stores'
 import type { FeedbackPanelItem } from '../types'
 import { FeedbackSection } from './FeedbackSection'
 import { ProcessingIndicator } from './ProcessingIndicator'
@@ -83,6 +84,7 @@ export interface VideoAnalysisLayoutProps {
   // Playback state
   playback: {
     isPlaying: boolean
+    currentTime: number // Display time - updates every 1 second for UI
     videoEnded: boolean
     pendingSeek: number | null
     shouldPlayVideo: boolean
@@ -94,7 +96,7 @@ export interface VideoAnalysisLayoutProps {
     panelFraction: number
     activeTab: 'feedback' | 'insights' | 'comments'
     selectedFeedbackId: string | null
-    currentTime: number
+    currentTime?: number // Optional - deprecated, use video.currentTime instead
     phase: AnalysisPhase
     progress: {
       upload: number
@@ -142,6 +144,7 @@ export interface VideoAnalysisLayoutProps {
   controls: {
     showControls: boolean
     onControlsVisibilityChange: (visible: boolean, isUserInteraction?: boolean) => void
+    persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void
   }
 
   // Error state
@@ -154,6 +157,13 @@ export interface VideoAnalysisLayoutProps {
 
   // Audio controller
   audioController: AudioControllerState
+
+  // Audio state (FIX 3: grouped audio props)
+  audio?: {
+    controller: AudioControllerState
+    source: any // FeedbackAudioSourceState - avoid circular import
+    sync: any // VideoAudioSyncState - avoid circular import
+  }
 
   // Bubble state
   bubbleState: {
@@ -186,180 +196,8 @@ export interface VideoAnalysisLayoutProps {
   // Video URI - passed directly instead of context to prevent memo bypass
   videoUri: string
 
-  // Persistent progress bar props - lifted from local state to prevent memo bypass
-  persistentProgressBarProps: PersistentProgressBarProps | null
-  onPersistentProgressBarPropsChange: (props: PersistentProgressBarProps | null) => void
-}
-
-/**
- * Custom comparison function for VideoAnalysisLayout memo
- * Compares props to prevent unnecessary re-renders when parent re-renders
- */
-// Track calls to arePropsEqual for diagnostics
-// NOTE: Module-level refs can be reset by Fast Refresh/HMR in dev mode
-// We use a global object to persist across hot reloads
-// CRITICAL: Always read from global store, never cache in module-level refs
-function getGlobalTracking() {
-  const existing = (
-    global as typeof globalThis & {
-      __videoAnalysisLayoutTracking?: {
-        arePropsEqualCallCount: number
-        arePropsEqualReturnTrueCount: number
-        lastReturnTrueTime?: number
-        lastReturnTrueCallNumber?: number
-      }
-    }
-  ).__videoAnalysisLayoutTracking
-
-  if (existing) {
-    // Backward compatibility: Add timing fields if they don't exist (from old global store)
-    if (typeof existing.lastReturnTrueTime === 'undefined') {
-      existing.lastReturnTrueTime = 0
-    }
-    if (typeof existing.lastReturnTrueCallNumber === 'undefined') {
-      existing.lastReturnTrueCallNumber = 0
-    }
-    return existing as typeof existing & {
-      lastReturnTrueTime: number
-      lastReturnTrueCallNumber: number
-    }
-  }
-
-  // Initialize if it doesn't exist
-  const newStore = {
-    arePropsEqualCallCount: 0,
-    arePropsEqualReturnTrueCount: 0,
-    lastReturnTrueTime: 0,
-    lastReturnTrueCallNumber: 0,
-  }
-  ;(
-    global as typeof globalThis & {
-      __videoAnalysisLayoutTracking: typeof newStore
-    }
-  ).__videoAnalysisLayoutTracking = newStore
-  return newStore
-}
-
-// Module-level refs that sync with global store on each access
-// These are just for component-level tracking, actual counts come from global
-const arePropsEqualCallCountRef = { current: 0 }
-const arePropsEqualReturnTrueCountRef = { current: 0 }
-
-function arePropsEqual(
-  prevProps: VideoAnalysisLayoutProps,
-  nextProps: VideoAnalysisLayoutProps
-): boolean {
-  // Always read from global store (persists across HMR)
-  const globalTracking = getGlobalTracking()
-
-  // Increment in global store directly
-  globalTracking.arePropsEqualCallCount += 1
-  const callNumber = globalTracking.arePropsEqualCallCount
-
-  // Sync local ref for component-level tracking
-  arePropsEqualCallCountRef.current = callNumber
-
-  // Commented out verbose logging - only log when returning true or when props changed
-  // if (__DEV__) {
-  //   log.info('VideoAnalysisLayout.arePropsEqual', '🔍 Comparison called', {
-  //     callNumber,
-  //     globalStoreValue: globalTracking.arePropsEqualCallCount,
-  //     returnTrueCount: globalTracking.arePropsEqualReturnTrueCount,
-  //     globalStoreObject: globalTracking,
-  //     globalStoreAddress: String(globalTracking),
-  //     timestamp: Date.now(),
-  //   })
-  // }
-
-  // Compare primitive values
-  if (prevProps.coachSpeaking !== nextProps.coachSpeaking) {
-    if (__DEV__) {
-      log.debug('VideoAnalysisLayout.arePropsEqual', 'coachSpeaking changed', {
-        callNumber,
-        prev: prevProps.coachSpeaking,
-        next: nextProps.coachSpeaking,
-      })
-    }
-    return false
-  }
-
-  // Compare object references (should be stable if parent memoizes correctly)
-  const changedProps: string[] = []
-  if (prevProps.gesture !== nextProps.gesture) changedProps.push('gesture')
-  if (prevProps.animation !== nextProps.animation) changedProps.push('animation')
-  if (prevProps.video !== nextProps.video) changedProps.push('video')
-  if (prevProps.playback !== nextProps.playback) changedProps.push('playback')
-  if (prevProps.feedback !== nextProps.feedback) changedProps.push('feedback')
-  if (prevProps.handlers !== nextProps.handlers) changedProps.push('handlers')
-  if (prevProps.videoControlsRef !== nextProps.videoControlsRef)
-    changedProps.push('videoControlsRef')
-  if (prevProps.controls !== nextProps.controls) changedProps.push('controls')
-  if (prevProps.error !== nextProps.error) changedProps.push('error')
-  if (prevProps.audioController !== nextProps.audioController) changedProps.push('audioController')
-  if (prevProps.bubbleState !== nextProps.bubbleState) changedProps.push('bubbleState')
-  if (prevProps.audioOverlay !== nextProps.audioOverlay) changedProps.push('audioOverlay')
-  if (prevProps.socialCounts !== nextProps.socialCounts) changedProps.push('socialCounts')
-  if (prevProps.videoUri !== nextProps.videoUri) changedProps.push('videoUri')
-  if (prevProps.feedbackAudioUrls !== nextProps.feedbackAudioUrls)
-    changedProps.push('feedbackAudioUrls')
-  if (prevProps.feedbackErrors !== nextProps.feedbackErrors) changedProps.push('feedbackErrors')
-  if (prevProps.persistentProgressBarProps !== nextProps.persistentProgressBarProps)
-    changedProps.push('persistentProgressBarProps')
-  if (prevProps.onPersistentProgressBarPropsChange !== nextProps.onPersistentProgressBarPropsChange)
-    changedProps.push('onPersistentProgressBarPropsChange')
-
-  if (changedProps.length > 0) {
-    // Commented out verbose logging - props changed is expected
-    // if (__DEV__) {
-    //   const globalStoreAtReturn = getGlobalTracking()
-    //   log.debug('VideoAnalysisLayout.arePropsEqual', 'Props changed - allowing render', {
-    //     callNumber,
-    //     changedProps,
-    //     globalStoreCallCount: globalStoreAtReturn.arePropsEqualCallCount,
-    //     globalStoreReturnTrueCount: globalStoreAtReturn.arePropsEqualReturnTrueCount,
-    //   })
-    // }
-    return false
-  }
-
-  // ⚠️ CRITICAL: All props are same reference - memo should prevent render
-  // Always read from global store (persists across HMR)
-  const globalTrackingForReturn = getGlobalTracking()
-
-  // Increment in global store directly
-  globalTrackingForReturn.arePropsEqualReturnTrueCount += 1
-
-  // Sync local ref for component-level tracking
-  arePropsEqualReturnTrueCountRef.current = globalTrackingForReturn.arePropsEqualReturnTrueCount
-
-  // Track timing in global store to detect if props change between arePropsEqual and render
-  const now = Date.now()
-  const previousReturnTrueTime = globalTrackingForReturn.lastReturnTrueTime
-  globalTrackingForReturn.lastReturnTrueTime = now
-  globalTrackingForReturn.lastReturnTrueCallNumber = callNumber
-
-  if (__DEV__) {
-    log.warn(
-      'VideoAnalysisLayout.arePropsEqual',
-      '⚠️ RETURNING TRUE - props are equal, memo should prevent render',
-      {
-        callNumber,
-        returnTrueCount: globalTrackingForReturn.arePropsEqualReturnTrueCount,
-        // This log means arePropsEqual returned true, but component still rendered
-        // This indicates React.memo is being bypassed somehow
-        prevPropsKeys: Object.keys(prevProps),
-        nextPropsKeys: Object.keys(nextProps),
-        timestamp: now,
-        timeSinceLastReturnTrue: previousReturnTrueTime > 0 ? now - previousReturnTrueTime : 0,
-        // Verify timing is stored in global store
-        storedLastReturnTrueTime: globalTrackingForReturn.lastReturnTrueTime,
-        storedLastReturnTrueCallNumber: globalTrackingForReturn.lastReturnTrueCallNumber,
-        globalStoreObject: globalTrackingForReturn,
-      }
-    )
-  }
-
-  return true
+  // REMOVED: persistentProgressBarProps - now read directly from Zustand store
+  // REMOVED: onPersistentProgressBarPropsChange - deprecated, use store setter in controls
 }
 
 /**
@@ -376,9 +214,9 @@ function arePropsEqual(
  * - Error state handling
  *
  * Performance:
- * - Memoized with React.memo to prevent re-renders when props haven't changed
- * - Props are memoized at VideoAnalysisScreen level for stability
- * - Custom comparison function prevents re-renders when parent re-renders without prop changes
+ * - React.memo was removed as internal hooks (Zustand subscriptions, animated values)
+ *   bypass memoization. Optimization should be handled at parent level by stabilizing
+ *   props and moving state subscriptions to child components.
  *
  * @param props - All orchestrated state and handlers from VideoAnalysisScreen
  */
@@ -395,9 +233,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   // Debug: Track render count and prop changes
   const renderCountRef = useRef(0)
   const prevPropsRef = useRef(props)
-  const prevRenderCountRef = useRef(0)
-  const prevArePropsEqualCallCountRef = useRef(0)
-  const prevReturnTrueCountRef = useRef(0)
 
   renderCountRef.current += 1
 
@@ -409,153 +244,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
     const timeSinceLastRender = renderCountRef.current > 1 ? now - lastRenderTimeRef.current : 0
     if (renderCountRef.current > 1) {
       lastRenderTimeRef.current = now
-
-      // 🔍 DIAGNOSTIC: Check if arePropsEqual was called and what it returned
-      // IMPORTANT: arePropsEqual is called DURING React's reconciliation phase, BEFORE this component renders
-      // If arePropsEqual returns true, React should skip rendering (but StrictMode might still render)
-      // If arePropsEqual returns false OR is not called, React will render this component
-      //
-      // We read the counts AFTER render (in useEffect), so:
-      // - If arePropsEqual was called for this render, the count will be > prevCount
-      // - If arePropsEqual was NOT called, the count will be == prevCount (memo was bypassed)
-
-      // Always read from global store (persists across HMR)
-      const globalTracking = getGlobalTracking()
-
-      // Sync local refs with global store (for component-level tracking)
-      arePropsEqualCallCountRef.current = globalTracking.arePropsEqualCallCount
-      arePropsEqualReturnTrueCountRef.current = globalTracking.arePropsEqualReturnTrueCount
-
-      const currentCallCount = globalTracking.arePropsEqualCallCount
-      const currentReturnTrueCount = globalTracking.arePropsEqualReturnTrueCount
-
-      // Compare with what we stored after the LAST render (component-level refs)
-      const prevCallCount = prevArePropsEqualCallCountRef.current
-      const prevReturnTrueCount = prevReturnTrueCountRef.current
-
-      // Commented out verbose tracking logs - we have timing data now
-      // if (__DEV__ && renderCountRef.current <= 3) {
-      //   const globalStoreValue = globalTracking?.arePropsEqualCallCount ?? 'no global store'
-      //   const globalStoreTrueValue = globalTracking?.arePropsEqualReturnTrueCount ?? 'no global store'
-      //   log.debug('VideoAnalysisLayout', '🔍 Tracking refs raw values', {
-      //     renderCount: renderCountRef.current,
-      //     moduleRefCurrent: arePropsEqualCallCountRef.current,
-      //     moduleRefTrueCount: arePropsEqualReturnTrueCountRef.current,
-      //     componentRefCurrent: prevArePropsEqualCallCountRef.current,
-      //     componentRefTrueCount: prevReturnTrueCountRef.current,
-      //     globalStoreCallCount: globalStoreValue,
-      //     globalStoreReturnTrueCount: globalStoreTrueValue,
-      //     hasGlobalStore: !!globalTracking,
-      //     moduleRefObject: arePropsEqualCallCountRef,
-      //     componentRefObject: prevArePropsEqualCallCountRef,
-      //   })
-      // }
-
-      // Detect if arePropsEqual was called during reconciliation for THIS render
-      // If arePropsEqual was called, currentCallCount > prevCallCount
-      const arePropsEqualWasCalled = currentCallCount > prevCallCount
-
-      // Detect if arePropsEqual returned true during reconciliation for THIS render
-      // If arePropsEqual returned true, currentReturnTrueCount > prevReturnTrueCount
-      const arePropsEqualReturnedTrueBeforeThisRender = currentReturnTrueCount > prevReturnTrueCount
-
-      if (__DEV__) {
-        // 🔍 CRITICAL DIAGNOSTIC: If arePropsEqual returned true but we still rendered, memo is bypassed
-        const memoBypassed = arePropsEqualReturnedTrueBeforeThisRender && renderCountRef.current > 1
-
-        if (memoBypassed) {
-          // Calculate time between arePropsEqual returning true and this render
-          // Read from global store (persists across HMR)
-          const globalTrackingForTiming = getGlobalTracking()
-          const lastReturnTrueTime = globalTrackingForTiming.lastReturnTrueTime
-          const lastReturnTrueCallNumber = globalTrackingForTiming.lastReturnTrueCallNumber
-          const timeBetweenReturnTrueAndRender =
-            lastReturnTrueTime > 0 ? now - lastReturnTrueTime : -1
-
-          log.error(
-            'VideoAnalysisLayout',
-            '🚨 MEMO BYPASSED - arePropsEqual returned true but component still rendered!',
-            {
-              renderCount: renderCountRef.current,
-              timeSinceLastRender,
-              arePropsEqualWasCalled,
-              arePropsEqualReturnedTrueBeforeThisRender,
-              // Diagnostic values to verify tracking
-              currentCallCount,
-              prevCallCount,
-              currentReturnTrueCount,
-              prevReturnTrueCount,
-              arePropsEqualCallCount: arePropsEqualCallCountRef.current,
-              arePropsEqualReturnTrueCount: arePropsEqualReturnTrueCountRef.current,
-              // Timing analysis to detect race conditions (from global store)
-              lastReturnTrueCallNumber,
-              lastReturnTrueTime,
-              currentTime: now,
-              timeBetweenReturnTrueAndRender,
-              // Verify global store state
-              globalStoreCallCount: globalTrackingForTiming.arePropsEqualCallCount,
-              globalStoreReturnTrueCount: globalTrackingForTiming.arePropsEqualReturnTrueCount,
-              globalStoreLastReturnTrueTime: globalTrackingForTiming.lastReturnTrueTime,
-              globalStoreLastReturnTrueCallNumber: globalTrackingForTiming.lastReturnTrueCallNumber,
-              globalStoreObject: globalTrackingForTiming,
-              // Analysis of what triggered this render
-              likelyCause: !arePropsEqualWasCalled
-                ? 'Parent forced re-render (arePropsEqual not called)'
-                : arePropsEqualReturnedTrueBeforeThisRender
-                  ? timeBetweenReturnTrueAndRender > 0 && timeBetweenReturnTrueAndRender < 100
-                    ? 'Possible race condition - props may have changed between arePropsEqual check and render'
-                    : 'React.memo bypassed despite arePropsEqual returning true (React 19 concurrent mode?)'
-                  : 'Unknown',
-            }
-          )
-        } else if (!arePropsEqualWasCalled) {
-          // ⚠️ CRITICAL: arePropsEqual was NOT called, meaning React.memo was bypassed
-          // This happens when hooks inside the component trigger re-renders
-          log.warn(
-            'VideoAnalysisLayout',
-            '⚠️ MEMO BYPASSED - arePropsEqual was NOT called, React re-rendered directly!',
-            {
-              renderCount: renderCountRef.current,
-              timeSinceLastRender,
-              arePropsEqualWasCalled: false,
-              reason:
-                'Hooks inside component likely triggered re-render (useState, useContext, store subscriptions, etc.)',
-              // Diagnostic values to verify tracking
-              currentCallCount,
-              prevCallCount,
-              currentReturnTrueCount,
-              prevReturnTrueCount,
-              arePropsEqualCallCount: arePropsEqualCallCountRef.current,
-              arePropsEqualReturnTrueCount: arePropsEqualReturnTrueCountRef.current,
-            }
-          )
-        } else {
-          // Commented out verbose logging - only log critical memo bypass issues
-          // log.debug('VideoAnalysisLayout', '🔍 Render occurred', {
-          //   renderCount: renderCountRef.current,
-          //   timeSinceLastRender,
-          //   arePropsEqualWasCalled,
-          //   arePropsEqualReturnedTrueBeforeThisRender,
-          //   arePropsEqualCallCount: arePropsEqualCallCountRef.current,
-          //   arePropsEqualReturnTrueCount: arePropsEqualReturnTrueCountRef.current,
-          //   prevReturnTrueCount,
-          // })
-        }
-      }
-
-      // Update tracking refs AFTER logging
-      // Store the current counts for next comparison
-      // These will be compared in the NEXT render's useEffect
-      prevArePropsEqualCallCountRef.current = currentCallCount
-      prevReturnTrueCountRef.current = currentReturnTrueCount
-      prevRenderCountRef.current = renderCountRef.current
     } else {
-      // First render - initialize tracking refs
-      // On first render, arePropsEqual is NOT called (only called for subsequent renders)
-      // So we initialize with the current counts (which should be 0)
-      prevArePropsEqualCallCountRef.current = arePropsEqualCallCountRef.current
-      prevReturnTrueCountRef.current = arePropsEqualReturnTrueCountRef.current
-      prevRenderCountRef.current = renderCountRef.current
       lastRenderTimeRef.current = now // Initialize time tracking
     }
 
@@ -705,7 +394,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
         // })
       }
       prevPropsRef.current = props
-      prevRenderCountRef.current = renderCountRef.current
     }
   })
 
@@ -727,8 +415,28 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
     videoUri,
   } = props
 
-  // Persistent progress bar props - now passed as props from parent (lifted state)
-  const { persistentProgressBarProps, onPersistentProgressBarPropsChange } = props
+  /**
+   * Read persistent progress bar props directly from Zustand store.
+   *
+   * CRITICAL PERFORMANCE FIX: Reading directly from store prevents intermediary re-renders.
+   *
+   * Previous pattern (prop passing):
+   * 1. VideoControls updates store
+   * 2. VideoAnalysisScreen subscribes → re-renders
+   * 3. Passes new prop to VideoAnalysisLayout → re-renders
+   * Result: 2 renders (Screen + Layout)
+   *
+   * Current pattern (direct read):
+   * 1. VideoControls updates store
+   * 2. VideoAnalysisLayout subscribes → re-renders
+   * Result: 1 render (Layout only)
+   *
+   * VideoAnalysisScreen does NOT subscribe to store, so it never re-renders
+   * when persistent progress changes. Only VideoAnalysisLayout re-renders.
+   *
+   * @see usePersistentProgressStore - store with reference stability
+   */
+  const persistentProgressBarProps = usePersistentProgressStore((state) => state.props)
 
   // Toggle controls visibility on tap; guard with latest visibility state
   const handleTap = useCallback(() => {
@@ -861,7 +569,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                     socialCounts={socialCounts}
                     onSocialAction={socialActionHandlers}
                     collapseProgress={animation.collapseProgress}
-                    onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
+                    persistentProgressStoreSetter={controls.persistentProgressStoreSetter}
                   />
                 </Animated.View>
 
@@ -901,7 +609,13 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   >
                     <ProgressBar
                       variant="persistent"
-                      progress={persistentProgressBarProps.progress}
+                      progress={
+                        persistentProgressBarProps.duration > 0
+                          ? (persistentProgressBarProps.currentTime /
+                              persistentProgressBarProps.duration) *
+                            100
+                          : 0
+                      }
                       isScrubbing={persistentProgressBarProps.isScrubbing}
                       controlsVisible={persistentProgressBarProps.controlsVisible}
                       progressBarWidth={persistentProgressBarProps.progressBarWidth}
@@ -961,7 +675,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                     activeTab={feedback.activeTab}
                     feedbackItems={feedback.items}
                     selectedFeedbackId={feedback.selectedFeedbackId}
-                    currentVideoTime={feedback.currentTime}
+                    currentVideoTime={playback.currentTime ?? 0}
                     videoDuration={0}
                     errors={feedbackErrors}
                     audioUrls={feedbackAudioUrls}
@@ -990,5 +704,4 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   )
 }
 
-// Wrap with memo
-export const VideoAnalysisLayout = memo(VideoAnalysisLayoutComponent, arePropsEqual)
+export const VideoAnalysisLayout = VideoAnalysisLayoutComponent

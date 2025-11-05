@@ -141,3 +141,29 @@ const audioOverlay = useMemo(() => {
 **Lesson:** Only use `useMemo` for expensive computations. Pure functions with single input, boolean checks, primitive unwrapping, and simple O(1) operations add overhead without benefit. Extract tab from pathname: `split('/').pop()` is instant, no need for memo.
 **When:** Pure function with single input, O(1) operation, boolean/null checks, primitive unwrapping
 **Impact:** Removed pointless `currentTab` useMemo in `_layout.tsx` - pathname changes require recomputation anyway, memo was pure overhead
+
+## Mistake: Passing Zustand Store Values as Props Instead of Reading Directly
+**Wrong:**
+```typescript
+// Parent component subscribes to store
+const value = useStore((state) => state.value)
+// Passes as prop to child
+<Child value={value} />
+```
+**Why:** Parent subscribes to store → re-renders when store updates → passes new prop → child re-renders. Result: 2 renders (parent + child).
+
+**Correct:**
+```typescript
+// Parent does NOT subscribe (only gets setter if needed)
+const setValue = useStore((state) => state.setValue)
+// Child reads directly from store
+function Child() {
+  const value = useStore((state) => state.value) // Direct subscription
+  return <div>{value}</div>
+}
+```
+**Lesson:** When moving state to Zustand to eliminate cascading re-renders, the CONSUMER component must read directly from the store. Don't pass store values as props through intermediary components. The store setter can be passed as prop (stable reference), but store values should be read at point of use.
+
+**When:** Using Zustand to break render cascades, store values used by child components, intermediary components don't need the value
+**Impact:** Moving `persistentProgressBarProps` from prop passing to direct store read eliminated VideoAnalysisScreen re-renders when progress updates. Before: 78 renders (store update → Screen re-render → Layout re-render). After: ~10 renders (store update → Layout re-render only).
+**Proof:** `changedProps` logs showed `persistentProgressBarProps` still present after moving to store, causing intermediary renders. Fix: Removed prop from VideoAnalysisScreen, VideoAnalysisLayout reads directly from store.

@@ -38,7 +38,8 @@ export interface VideoControlsRef {
 }
 
 export interface PersistentProgressBarProps {
-  progress: number
+  currentTime: number
+  duration: number
   isScrubbing: boolean
   controlsVisible: boolean
   progressBarWidth: number
@@ -70,8 +71,12 @@ export interface VideoControlsProps {
   // NEW: Collapse progress for early fade-out animation (0 = max, 0.5 = normal, 1 = min)
   // Accept SharedValue directly to avoid JS re-renders during gestures
   collapseProgress?: SharedValue<number> | number
-  // NEW: Callback to provide persistent progress bar props to parent for rendering at layout level
+  // DEPRECATED: Use persistentProgressStoreSetter instead to prevent cascading re-renders
+  // Callback to provide persistent progress bar props to parent for rendering at layout level
   onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
+  // NEW: Store setter for persistent progress bar props (preferred over callback)
+  // Prevents cascading re-renders by writing directly to Zustand store instead of parent state
+  persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void
 }
 
 export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
@@ -93,6 +98,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       videoMode: _videoMode = 'max', // Reserved for future pointer events control
       collapseProgress = 0,
       onPersistentProgressBarPropsChange,
+      persistentProgressStoreSetter,
     },
     ref
   ) => {
@@ -119,17 +125,57 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // If number is passed (legacy/fallback), create a SharedValue and sync it
 
     // Check if collapseProgress is a SharedValue without reading .value (avoids Reanimated warning)
-    // Only check object structure, don't access .value during render
-    const isSharedValueProp = useMemo(() => {
-      // SharedValues have a 'value' property and are objects
-      // Check structure only, don't read .value during render
-      return (
-        typeof collapseProgress === 'object' &&
+    // Use refs to track value and type to prevent React dependency comparison from accessing .value
+    const collapseProgressRef = useRef(collapseProgress)
+    const isSharedValuePropRef = useRef(
+      typeof collapseProgress === 'object' &&
         collapseProgress !== null &&
         'value' in collapseProgress &&
         !Array.isArray(collapseProgress)
-      )
-    }, [collapseProgress])
+    )
+
+    // Track primitive value separately for number props (to trigger effect when number changes)
+    // This avoids including SharedValue in dependency arrays
+    // Use state to track number changes so React can properly detect updates
+    // Sanitize NaN/Infinity values to prevent render loops
+    const sanitizeCollapseProgress = (value: number): number => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.max(0, Math.min(1, value)) // Clamp to 0-1 range
+      }
+      return 0
+    }
+    const [collapseProgressNumber, setCollapseProgressNumber] = useState<number | null>(
+      typeof collapseProgress === 'number' ? sanitizeCollapseProgress(collapseProgress) : null
+    )
+
+    // Update refs when collapseProgress changes (identity comparison only, no .value access)
+    // Check identity first to avoid unnecessary updates
+    const prevIsSharedValue = isSharedValuePropRef.current
+    const isSharedValueNow =
+      typeof collapseProgress === 'object' &&
+      collapseProgress !== null &&
+      'value' in collapseProgress &&
+      !Array.isArray(collapseProgress)
+
+    if (
+      collapseProgressRef.current !== collapseProgress ||
+      prevIsSharedValue !== isSharedValueNow
+    ) {
+      collapseProgressRef.current = collapseProgress
+      isSharedValuePropRef.current = isSharedValueNow
+      // Track primitive number separately for effect dependency (only update if changed)
+      // Sanitize NaN/Infinity values to prevent render loops
+      if (typeof collapseProgress === 'number') {
+        const sanitized = sanitizeCollapseProgress(collapseProgress)
+        if (collapseProgressNumber !== sanitized) {
+          setCollapseProgressNumber(sanitized)
+        }
+      } else if (collapseProgressNumber !== null) {
+        setCollapseProgressNumber(null)
+      }
+    }
+
+    const isSharedValueProp = isSharedValuePropRef.current
 
     // Create internal SharedValue for number props only
     // If collapseProgress is a SharedValue, we'll use it directly (no internal SharedValue needed)
@@ -137,12 +183,16 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     // Sync prop changes - only sync if collapseProgress is a number (not a SharedValue)
     // If it's a SharedValue, we use it directly in useMemo below (no sync needed)
+    // CRITICAL: Use primitive number value in deps (not SharedValue) to avoid React accessing .value
+    // React's dependency comparison on SharedValue might access .value during render
     useEffect(() => {
-      if (!isSharedValueProp && typeof collapseProgress === 'number') {
-        collapseProgressShared.value = collapseProgress
+      if (!isSharedValueProp && collapseProgressNumber !== null) {
+        collapseProgressShared.value = collapseProgressNumber
       }
       // If it's a SharedValue prop, no sync needed - use it directly via isSharedValueProp
-    }, [collapseProgress, collapseProgressShared, isSharedValueProp])
+    }, [isSharedValueProp, collapseProgressNumber, collapseProgressShared])
+    // Note: Using collapseProgressNumber (primitive state) instead of collapseProgress
+    // This prevents React from comparing SharedValue objects (which might access .value)
 
     // Cleanup shared values on unmount to prevent memory corruption
     // This prevents Reanimated worklets from accessing freed memory during shadow tree cloning
@@ -291,11 +341,15 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       },
     })
 
+    // Guard against NaN/Infinity values to prevent render loops
+    const safeCurrentTime = Number.isFinite(currentTime) ? currentTime : 0
+    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
+
     // Progress bar gesture hooks for normal and persistent bars
     const normalProgressBar = useProgressBarGesture({
       barType: 'normal',
-      duration,
-      currentTime,
+      duration: safeDuration,
+      currentTime: safeCurrentTime,
       progressBarWidthShared,
       onSeek,
       showControlsAndResetTimer,
@@ -304,8 +358,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     const persistentProgressBar = useProgressBarGesture({
       barType: 'persistent',
-      duration,
-      currentTime,
+      duration: safeDuration,
+      currentTime: safeCurrentTime,
       progressBarWidthShared: persistentProgressBarWidthShared,
       onSeek,
       showControlsAndResetTimer,
@@ -322,9 +376,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     }, [isScrubbing, isAnyScrubbing])
     const scrubbingPosition = normalProgressBar.scrubbingPosition
     const lastScrubbedPosition = normalProgressBar.lastScrubbedPosition
-    const isPersistentScrubbing = persistentProgressBar.isScrubbing
-    const persistentScrubbingPosition = persistentProgressBar.scrubbingPosition
-    const lastPersistentScrubbedPosition = persistentProgressBar.lastScrubbedPosition
     const progressBarWidth = normalProgressBar.progressBarWidth
     const persistentProgressBarWidth = persistentProgressBar.progressBarWidth
     const setProgressBarWidth = normalProgressBar.setProgressBarWidth
@@ -336,18 +387,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         ? scrubbingPosition
         : lastScrubbedPosition !== null
           ? lastScrubbedPosition
-          : duration > 0
-            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
-            : 0
-
-    // Separate progress calculation for persistent progress bar - with snapback prevention
-    const persistentProgress =
-      isPersistentScrubbing && persistentScrubbingPosition !== null
-        ? persistentScrubbingPosition
-        : lastPersistentScrubbedPosition !== null
-          ? lastPersistentScrubbedPosition
-          : duration > 0
-            ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+          : safeDuration > 0
+            ? Math.min(100, Math.max(0, (safeCurrentTime / safeDuration) * 100))
             : 0
 
     const handleMenuPress = useCallback(() => {
@@ -366,14 +407,20 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // Animated styles for progress bars based on collapse progress
     // Use the SharedValue directly - if collapseProgress prop was a SharedValue, use it;
     // otherwise use the synced SharedValue we created
+    // CRITICAL: Access collapseProgress via ref to avoid React dependency comparison
+    // that might access .value during render, causing Reanimated warnings.
     const collapseProgressForAnimation = useMemo(() => {
       // Use the prop directly if it's a SharedValue (checked via isSharedValueProp)
       // Otherwise use our internal synced SharedValue
-      if (isSharedValueProp && typeof collapseProgress === 'object') {
-        return collapseProgress as SharedValue<number>
+      const currentCollapseProgress = collapseProgressRef.current
+      if (isSharedValueProp && typeof currentCollapseProgress === 'object') {
+        return currentCollapseProgress as SharedValue<number>
       }
       return collapseProgressShared
-    }, [isSharedValueProp, collapseProgress, collapseProgressShared])
+    }, [isSharedValueProp, collapseProgressShared])
+    // Note: collapseProgress accessed via ref to prevent Reanimated warning
+    // When collapseProgress is a SharedValue, reference is stable (no need to track in deps)
+    // When collapseProgress is a number, it's synced to collapseProgressShared via useEffect
 
     const { persistentBarAnimatedStyle, normalBarAnimatedStyle } = useProgressBarAnimation(
       collapseProgressForAnimation
@@ -428,7 +475,16 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
      *
      * @see stablePropsObjectRef - stores the actual props object for reference stability
      */
-    const prevPersistentProgressRef = useRef<number | null>(null)
+    /**
+     * Refs to track previous primitive values for comparison (avoid React accessing .value in deps).
+     *
+     * Used to compare incoming values with previous values before creating new props object.
+     * This prevents unnecessary object creation and callback invocations when values are unchanged.
+     *
+     * @see stablePropsObjectRef - stores the actual props object for reference stability
+     */
+    const prevCurrentTimeRef = useRef<number | null>(null)
+    const prevDurationRef = useRef<number | null>(null)
     const prevIsScrubbingRef = useRef<boolean | null>(null)
     const prevControlsVisibleRef = useRef<boolean | null>(null)
     const prevProgressBarWidthRef = useRef<number | null>(null)
@@ -460,6 +516,10 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
      * out of the dependency array while still providing the latest values when creating
      * the props object.
      *
+     * CRITICAL: Gestures are intentionally-unstable objects (Reanimated creates new instances).
+     * We access them via refs to avoid dependency changes, but ignore gesture-only updates
+     * in the effect (only update when primitives change).
+     *
      * Note: currentInteractionTypeRef is already defined earlier in component
      */
     const persistentBarAnimatedStyleRef = useRef(persistentBarAnimatedStyle)
@@ -470,33 +530,38 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     persistentProgressGestureRef.current = persistentProgressGesture
 
     /**
-     * Provide persistent progress bar props to parent via callback for rendering at layout level.
+     * Provide persistent progress bar props to parent/store for rendering at layout level.
      *
      * PERFORMANCE OPTIMIZATION: This effect ensures reference stability to prevent unnecessary
      * re-renders in VideoAnalysisLayout (which uses React.memo with arePropsEqual).
      *
      * Strategy:
-     * 1. Compare primitive values (progress, isScrubbing, controlsVisible, progressBarWidth)
+     * 1. Prefer persistentProgressStoreSetter (Zustand store) over callback if provided
+     * 2. Compare primitive values (progress, isScrubbing, controlsVisible, progressBarWidth)
      *    with previous values using refs
-     * 2. Only create new props object when primitive values actually change
-     * 3. Store the props object in stablePropsObjectRef for future reference stability
-     * 4. When values are unchanged, don't call the callback - parent already has stable reference
+     * 3. Only create new props object when primitive values actually change
+     * 4. Store the props object in stablePropsObjectRef for future reference stability
+     * 5. When values are unchanged, don't call setter/callback - parent already has stable reference
      *
      * Why this matters:
      * - Creating new objects on every render causes React.memo to fail (reference inequality)
      * - This triggers "MEMO BYPASSED" errors where arePropsEqual returns true but component renders
      * - By maintaining reference stability at source, we prevent these race conditions
+     * - Using Zustand store eliminates parent re-renders entirely (no prop passing up the tree)
      *
      * Dependency strategy:
-     * - Only include PRIMITIVE dependencies (persistentProgress, isScrubbing, controlsVisible, width)
+     * - Only include PRIMITIVE dependencies (currentTime, duration, isScrubbing, controlsVisible, width)
      * - Unstable objects (animatedStyle, gestures) accessed via refs, not in dependency array
      * - Stable callbacks (onLayout, onFallbackPress) excluded from dependencies
+     * - persistentProgressStoreSetter and onPersistentProgressBarPropsChange included for cleanup
      *
      * @see stablePropsObjectRef - stores props object for reference stability
-     * @see prevPersistentProgressRef - tracks previous values for comparison
+     * @see prevCurrentTimeRef, etc. - track previous values for comparison
      */
     useEffect(() => {
-      if (!onPersistentProgressBarPropsChange) {
+      // Prefer store setter over callback for better performance
+      const setter = persistentProgressStoreSetter || onPersistentProgressBarPropsChange
+      if (!setter) {
         return
       }
 
@@ -505,38 +570,53 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
        *
        * Primitive comparison is faster and avoids object equality checks.
        * This ensures we only create new objects when data actually changes.
+       * Use safe values to prevent NaN/Infinity from causing render loops.
        */
-      const progressChanged = prevPersistentProgressRef.current !== persistentProgress
+      const currentTimeChanged = prevCurrentTimeRef.current !== safeCurrentTime
+      const durationChanged = prevDurationRef.current !== safeDuration
       const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
       const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
       const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
 
       /**
-       * Only create and pass new props object when values actually changed.
+       * Only create and pass new props object when primitive values actually changed.
        *
        * First render always calls (all refs are null) to initialize parent state.
-       * Subsequent renders only create new object when primitive values change.
+       * Subsequent renders only create new object when PRIMITIVE values change.
+       *
+       * CRITICAL: We ignore gesture changes - gestures are pass-through objects that don't
+       * affect rendering logic. Even if gestures are recreated (new IDs), we don't update
+       * props if primitives are unchanged. This prevents cascading re-renders.
+       *
+       * Gestures are intentionally-unstable objects (Reanimated creates new instances),
+       * but they're functionally equivalent and don't need to trigger parent re-renders.
        */
       if (
-        prevPersistentProgressRef.current === null ||
+        prevCurrentTimeRef.current === null ||
+        prevDurationRef.current === null ||
         prevIsScrubbingRef.current === null ||
         prevControlsVisibleRef.current === null ||
         prevProgressBarWidthRef.current === null ||
-        progressChanged ||
+        currentTimeChanged ||
+        durationChanged ||
         scrubbingChanged ||
         controlsChanged ||
         widthChanged
       ) {
-        // log.debug('VideoControls', '🎯 Calling onPersistentProgressBarPropsChange')
+        // log.debug('VideoControls', '🎯 Calling setter with new props')
 
         /**
          * Create new props object only when values change.
          *
+         * CRITICAL: Pass raw currentTime and duration instead of calculated progress.
+         * This prevents redundant parent renders since parent already has these values.
+         *
          * This maintains reference stability: same object reference = same props = no re-render.
-         * When values are unchanged, we don't call the callback at all, so parent keeps existing reference.
+         * When values are unchanged, we don't call the setter at all, so parent/store keeps existing reference.
          */
         const newPropsObject: PersistentProgressBarProps = {
-          progress: persistentProgress,
+          currentTime: safeCurrentTime,
+          duration: safeDuration,
           isScrubbing: persistentProgressBar.isScrubbing,
           controlsVisible,
           progressBarWidth: persistentProgressBarWidth,
@@ -552,36 +632,38 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
          * Store props object for reference stability.
          *
          * This ensures we can reuse the same reference in future renders when values
-         * haven't changed (though we don't call callback in that case).
+         * haven't changed (though we don't call setter in that case).
          */
         stablePropsObjectRef.current = newPropsObject
-        onPersistentProgressBarPropsChange(newPropsObject)
+        setter(newPropsObject)
 
         /**
          * Update tracking refs with current primitive values.
          *
          * Used for comparison in next render to detect value changes.
+         * Note: We don't track gesture IDs since we ignore gesture-only changes.
          */
-        prevPersistentProgressRef.current = persistentProgress
+        prevCurrentTimeRef.current = safeCurrentTime
+        prevDurationRef.current = safeDuration
         prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
         prevControlsVisibleRef.current = controlsVisible
         prevProgressBarWidthRef.current = persistentProgressBarWidth
       }
       /**
-       * Values unchanged - don't call callback.
+       * Values unchanged - don't call setter.
        *
-       * Parent (VideoAnalysisScreen) already has stable reference from previous call.
-       * Calling callback would create unnecessary re-render cycle even if we passed same object.
+       * Parent (VideoAnalysisScreen) or store already has stable reference from previous call.
+       * Calling setter would create unnecessary re-render cycle even if we passed same object.
        */
 
       return () => {
         /**
-         * Cleanup: notify parent that persistent progress bar should be removed.
+         * Cleanup: notify parent/store that persistent progress bar should be removed.
          *
-         * Called when component unmounts or when onPersistentProgressBarPropsChange
-         * prop changes (e.g., parent re-renders with new callback reference).
+         * Called when component unmounts or when setter prop changes
+         * (e.g., parent re-renders with new callback reference).
          */
-        onPersistentProgressBarPropsChange(null)
+        setter(null)
       }
     }, [
       /**
@@ -600,10 +682,12 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
        * - getAnimationName - stable function reference
        * - duration, onSeek, showControlsAndResetTimer - stable values
        */
-      persistentProgress,
+      currentTime,
+      duration,
       persistentProgressBar.isScrubbing,
       controlsVisible,
       persistentProgressBarWidth,
+      persistentProgressStoreSetter,
       onPersistentProgressBarPropsChange,
     ])
 
@@ -655,7 +739,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                 isPlaying={isPlaying}
                 videoEnded={videoEnded}
                 isProcessing={isProcessing}
-                currentTime={currentTime}
+                currentTime={safeCurrentTime}
                 onPlay={() => {
                   showControlsAndResetTimer()
                   onPlay()
@@ -674,11 +758,11 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                 }
                 onSkipBackward={() => {
                   showControlsAndResetTimer()
-                  onSeek(Math.max(0, currentTime - 10))
+                  onSeek(Math.max(0, safeCurrentTime - 10))
                 }}
                 onSkipForward={() => {
                   showControlsAndResetTimer()
-                  onSeek(Math.min(duration, currentTime + 10))
+                  onSeek(Math.min(safeDuration, safeCurrentTime + 10))
                 }}
               />
 
@@ -693,8 +777,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                     accessibilityLabel="Video time and controls"
                   >
                     <TimeDisplay
-                      currentTime={currentTime}
-                      duration={duration}
+                      currentTime={safeCurrentTime}
+                      duration={safeDuration}
                       testID="time-display"
                     />
                   </XStack>

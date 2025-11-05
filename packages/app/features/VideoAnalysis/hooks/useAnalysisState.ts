@@ -418,37 +418,87 @@ export function useAnalysisState(
   // Check feature flag for mock data control
   const useMockData = useFeatureFlagsStore((state) => state.flags.useMockData)
 
+  /**
+   * Stabilize feedbackItems array reference to prevent mount/unmount thrashing.
+   *
+   * Even though useFeedbackStatusIntegration stabilizes the array, we need to stabilize
+   * it here as well because feedbackWithFallback spreads feedbackStatus which creates
+   * a new object. By comparing content (IDs and properties), we ensure the array
+   * reference only changes when actual data changes.
+   *
+   * Performance impact: Prevents FeedbackPanel from mounting/unmounting items
+   * when only object references change, not content.
+   */
+  const stableFeedbackItemsRef = useRef<typeof feedbackStatus.feedbackItems>([])
+  const prevFeedbackItemsSignatureRef = useRef<string>('')
+
+  // Create signature from feedback items content (IDs and key properties)
+  const feedbackItemsSignature = feedbackStatus.feedbackItems
+    .map(
+      (item) =>
+        `${item.id}:${item.timestamp}:${item.text?.substring(0, 20)}:${item.type}:${item.category}:${item.ssmlStatus}:${item.audioStatus}:${item.confidence}`
+    )
+    .join('|')
+
+  const stableFeedbackItems = useMemo(() => {
+    const prevSignature = prevFeedbackItemsSignatureRef.current
+    const currentItems = feedbackStatus.feedbackItems
+
+    // Compare signatures - if unchanged, return previous array reference
+    if (
+      prevSignature === feedbackItemsSignature &&
+      stableFeedbackItemsRef.current.length === currentItems.length
+    ) {
+      return stableFeedbackItemsRef.current
+    }
+
+    // Content changed - update refs synchronously during render
+    prevFeedbackItemsSignatureRef.current = feedbackItemsSignature
+    stableFeedbackItemsRef.current = currentItems
+    return currentItems
+  }, [feedbackItemsSignature, feedbackStatus.feedbackItems])
+
   // Apply mock fallback strategy based on feature flag
   // BUT: Skip mock data if we're in history mode and analysisJobId exists (might have prefetched data)
-  // CRITICAL: Only depend on feedbackStatus.feedbackItems (the array), NOT feedbackStatus (the object)
-  // to avoid recalculating when feedbackStatus object reference changes due to store updates
+  // CRITICAL: Use stableFeedbackItems instead of feedbackStatus.feedbackItems to maintain reference stability
+  // CRITICAL: Return a stable reference using useRef to prevent cascading re-renders
+  const feedbackWithFallbackRef = useRef(feedbackStatus)
+  const prevFeedbackFallbackSignatureRef = useRef<string>('')
+
   const feedbackWithFallback = useMemo(() => {
-    // Use real feedback items if available
-    if (feedbackStatus.feedbackItems.length > 0) {
-      return {
-        ...feedbackStatus,
-        feedbackItems: feedbackStatus.feedbackItems,
-      }
-    }
+    let items = stableFeedbackItems
 
     // In history mode with analysisJobId, skip mock data while UUID is being resolved
-    // This prevents flash of mock data when prefetched feedbacks are loading
-    if (isHistoryMode && analysisJobId && analysisUuid === null) {
-      // UUID is being resolved - don't show mock data yet (might have prefetched feedbacks)
-      return {
-        ...feedbackStatus,
-        feedbackItems: [],
-      }
+    if (
+      stableFeedbackItems.length === 0 &&
+      isHistoryMode &&
+      analysisJobId &&
+      analysisUuid === null
+    ) {
+      items = []
+    } else if (stableFeedbackItems.length === 0 && useMockData) {
+      // Only use mock data if feature flag is enabled
+      items = mockFeedbackItems as typeof feedbackStatus.feedbackItems
     }
 
-    // Only use mock data if feature flag is enabled
-    const items = useMockData ? (mockFeedbackItems as typeof feedbackStatus.feedbackItems) : []
+    // Create signature for content-based comparison
+    const currentSignature = `${items.length}:${items.map((f) => `${f.id}:${f.ssmlStatus}:${f.audioStatus}`).join(',')}`
+    const signature = `${currentSignature}:${feedbackStatus.hasFailures}:${feedbackStatus.isFullyCompleted}:${feedbackStatus.isProcessing}`
 
-    return {
+    // Only create new object if content actually changed
+    if (signature === prevFeedbackFallbackSignatureRef.current) {
+      return feedbackWithFallbackRef.current
+    }
+
+    const newFeedback = {
       ...feedbackStatus,
       feedbackItems: items,
     }
-  }, [feedbackStatus.feedbackItems, useMockData, isHistoryMode, analysisJobId, analysisUuid])
+
+    prevFeedbackFallbackSignatureRef.current = signature
+    feedbackWithFallbackRef.current = newFeedback
+    return newFeedback
+  }, [stableFeedbackItems, feedbackStatus, useMockData, isHistoryMode, analysisJobId, analysisUuid])
 
   useEffect(() => {
     if (!subscriptionKey) {

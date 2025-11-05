@@ -57,6 +57,12 @@ export interface VideoPlayerProps {
   onSeekComplete?: (seekTime?: number) => void
 }
 
+/** Ref interface for direct seeking to bypass React render cycle */
+export interface VideoPlayerRef {
+  /** Seek immediately without waiting for prop updates */
+  seekDirect: (time: number) => void
+}
+
 // VideoPlayerSection Component API
 export interface VideoPlayerSectionOptions {
   /** Optional poster/thumbnail to display before video loads */

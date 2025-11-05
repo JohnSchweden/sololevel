@@ -127,7 +127,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
               activeTab={feedback.activeTab}
               feedbackItems={feedback.items}
               selectedFeedbackId={feedback.selectedFeedbackId}
-              currentVideoTime={feedback.currentTime}
+              currentVideoTime={playback.currentTime ?? 0}
               videoDuration={0}
               errors={feedbackErrors}
               audioUrls={feedbackAudioUrls}
@@ -160,7 +160,13 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
               >
                 <ProgressBar
                   variant="persistent"
-                  progress={persistentProgressBarProps.progress}
+                  progress={
+                    persistentProgressBarProps.duration > 0
+                      ? (persistentProgressBarProps.currentTime /
+                          persistentProgressBarProps.duration) *
+                        100
+                      : 0
+                  }
                   isScrubbing={persistentProgressBarProps.isScrubbing}
                   controlsVisible={persistentProgressBarProps.controlsVisible}
                   progressBarWidth={persistentProgressBarProps.progressBarWidth}

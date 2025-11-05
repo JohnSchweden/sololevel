@@ -11,5 +11,8 @@ try {
   if (!internals.ReactCurrentOwner) internals.ReactCurrentOwner = { current: null }
 } catch {}
 
+// Initialize why-did-you-render for render cascade debugging (dev only)
+// Note: Imported in _layout.tsx instead due to path alias resolution
+
 // Expo Router entry
 import 'expo-router/entry'

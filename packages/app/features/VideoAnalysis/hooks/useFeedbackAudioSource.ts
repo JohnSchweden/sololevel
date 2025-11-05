@@ -226,11 +226,12 @@ export function useFeedbackAudioSource(
       const urlToUse =
         activeAudioRef.current?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
 
-      // log.info(CONTEXT, 'Selecting audio for feedback', {
-      //   feedbackId,
-      //   url: urlToUse.substring(0, 50) + '...',
-      //   previousActiveId: activeAudioRef.current?.id,
-      // })
+      log.debug(CONTEXT, '🎵 Selecting audio for feedback', {
+        feedbackId,
+        url: urlToUse.substring(0, 50) + '...',
+        previousActiveId: activeAudioRef.current?.id,
+        urlLength: urlToUse.length,
+      })
       setActiveAudio({ id: feedbackId, url: urlToUse })
     },
     [] // Empty deps - uses refs for all dynamic values

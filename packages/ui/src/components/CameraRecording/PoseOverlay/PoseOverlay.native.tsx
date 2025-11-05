@@ -29,7 +29,13 @@ import {
 } from '@shopify/react-native-skia'
 import React, { useMemo } from 'react'
 import { View } from 'react-native'
-import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated'
+import {
+  Easing,
+  useAnimatedReaction,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import { PoseOverlayUtils } from '../../../utils/PoseOverlayUtils'
 import type { PoseOverlayProps } from './PoseOverlay'
 
@@ -74,6 +80,21 @@ export function PoseOverlayNative({
   // Animated values for smooth transitions
   const animationProgress = useSharedValue(0)
   const glowIntensity = useSharedValue(0)
+
+  // LAZY INITIALIZATION: Register listeners before any writes occur to prevent
+  // "onAnimatedValueUpdate with no listeners" warnings in development.
+  useAnimatedReaction(
+    () => animationProgress.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => glowIntensity.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
 
   // Derived values for render-safe access
   const animationOpacity = useDerivedValue(() => animationProgress.value)

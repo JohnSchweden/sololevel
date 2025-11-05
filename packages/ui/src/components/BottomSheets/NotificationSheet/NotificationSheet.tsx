@@ -151,7 +151,8 @@ export function NotificationSheet({
                     lineHeight={18}
                     color="$color12"
                   >
-                    Your vocal variety improved 23% since last week. Only 77% more to go!
+                    Your vocal variety improved 23% since last week. Only 77% more to go! Are you
+                    still reading? CONTINUE!
                   </Text>
                 </YStack>
               </XStack>
@@ -232,7 +233,7 @@ export function NotificationSheet({
                     lineHeight={18}
                     color="$color12"
                   >
-                    You've recorded every day this week. The grind doesn't stop—neither should you.
+                    You've recorded every day this week. The grind doesn't stop, neither should you.
                   </Text>
                 </YStack>
               </XStack>

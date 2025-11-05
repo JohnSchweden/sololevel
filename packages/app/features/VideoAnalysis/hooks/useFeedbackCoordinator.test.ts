@@ -86,6 +86,9 @@ describe('useFeedbackCoordinator', () => {
       duration: overrides?.videoPlayback?.duration ?? 0,
       pendingSeek: overrides?.videoPlayback?.pendingSeek ?? null,
       videoEnded: overrides?.videoPlayback?.videoEnded ?? false,
+      // Ref-based access for performance
+      currentTimeRef: { current: overrides?.videoPlayback?.currentTime ?? 0 },
+      getPreciseCurrentTime: jest.fn(() => overrides?.videoPlayback?.currentTime ?? 0),
       play: jest.fn(),
       pause: jest.fn(),
       replay: jest.fn(),
@@ -704,5 +707,57 @@ describe('useFeedbackCoordinator', () => {
 
     expect(setIsPlaying).toHaveBeenCalledWith(false)
     expect(clearActiveAudio).toHaveBeenCalled()
+  })
+
+  /**
+   * PERFORMANCE TEST: Verify coordinator doesn't re-render on progress events
+   *
+   * Context: currentVideoTime was stored as state, causing coordinator to re-render
+   * on every progress event (every 250ms), which cascaded to VideoAnalysisScreen
+   * and created phantom pendingSeek changes.
+   *
+   * Fix: Convert currentVideoTime to ref - no re-renders, but still accessible
+   * by useBubbleController which needs it for bubble timing calculations.
+   *
+   * NOTE: The return object is already stable via refs, but we need to ensure
+   * the hook doesn't cause parent component re-renders due to internal state changes.
+   */
+  it('does not cause parent re-renders when onProgressTrigger is called', () => {
+    // Arrange
+    const deps = createDependencies()
+    let renderCount = 0
+
+    // Wrapper component that tracks re-renders
+    const TestComponent = () => {
+      renderCount++
+      const coordinator = useFeedbackCoordinator({
+        feedbackItems: deps.feedbackItems,
+        feedbackAudio: deps.feedbackAudio,
+        audioController: deps.audioController,
+        videoPlayback: deps.videoPlayback,
+      })
+      return coordinator
+    }
+
+    const { result } = renderHook(() => TestComponent())
+    const initialRenderCount = renderCount
+    const initialOnProgressTrigger = result.current.onProgressTrigger
+
+    // Act - Simulate multiple progress events (like video playing)
+    act(() => {
+      initialOnProgressTrigger(0.25)
+    })
+
+    act(() => {
+      initialOnProgressTrigger(0.5)
+    })
+
+    act(() => {
+      initialOnProgressTrigger(0.75)
+    })
+
+    // Assert - Render count should not increase after initial render
+    // (progress events should not trigger re-renders)
+    expect(renderCount).toBe(initialRenderCount)
   })
 })

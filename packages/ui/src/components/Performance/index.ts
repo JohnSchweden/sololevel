@@ -11,3 +11,5 @@ export type {
   RenderMetrics,
   RenderMetricsWithId,
 } from './ProfilerWrapper'
+export { LazySection } from './LazySection'
+export type { LazySectionProps } from './LazySection'

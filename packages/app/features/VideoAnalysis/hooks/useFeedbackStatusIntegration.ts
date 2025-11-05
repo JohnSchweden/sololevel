@@ -1,6 +1,6 @@
 import { useFeedbackStatusStore } from '@app/features/VideoAnalysis/stores/feedbackStatus'
 import { log } from '@my/logging'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type FeedbackState = ReturnType<typeof useFeedbackStatusStore.getState> extends infer StoreState
   ? StoreState extends { getFeedbacksByAnalysisId: (analysisId: string) => infer T }
@@ -327,57 +327,68 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     }
   }, [feedbacks])
 
-  // Helper functions for specific feedback operations
-  const getFeedbackById = (feedbackId: string) => {
-    const numericId = Number.parseInt(feedbackId, 10)
-    return getFeedbackByIdFromStore(numericId)
-  }
+  // Helper functions for specific feedback operations - memoized for stability
+  const getFeedbackById = useCallback(
+    (feedbackId: string) => {
+      const numericId = Number.parseInt(feedbackId, 10)
+      return getFeedbackByIdFromStore(numericId)
+    },
+    [getFeedbackByIdFromStore]
+  )
 
-  const retryFailedFeedback = (feedbackId: string) => {
-    const numericId = Number.parseInt(feedbackId, 10)
-    const feedback = getFeedbackByIdFromStore(numericId)
+  const retryFailedFeedback = useCallback(
+    (feedbackId: string) => {
+      const numericId = Number.parseInt(feedbackId, 10)
+      const feedback = getFeedbackByIdFromStore(numericId)
 
-    if (!feedback) {
-      log.warn('useFeedbackStatusIntegration', `Feedback ${feedbackId} not found for retry`)
-      return
-    }
+      if (!feedback) {
+        log.warn('useFeedbackStatusIntegration', `Feedback ${feedbackId} not found for retry`)
+        return
+      }
 
-    // Reset failed statuses to queued for retry
-    if (feedback.ssmlStatus === 'failed') {
-      setSSMLStatus(numericId, 'queued')
-      log.info('useFeedbackStatusIntegration', `Retrying SSML for feedback ${feedbackId}`)
-    }
+      // Reset failed statuses to queued for retry
+      if (feedback.ssmlStatus === 'failed') {
+        setSSMLStatus(numericId, 'queued')
+        log.info('useFeedbackStatusIntegration', `Retrying SSML for feedback ${feedbackId}`)
+      }
 
-    if (feedback.audioStatus === 'failed') {
-      setAudioStatus(numericId, 'queued')
-      log.info('useFeedbackStatusIntegration', `Retrying audio for feedback ${feedbackId}`)
-    }
-  }
+      if (feedback.audioStatus === 'failed') {
+        setAudioStatus(numericId, 'queued')
+        log.info('useFeedbackStatusIntegration', `Retrying audio for feedback ${feedbackId}`)
+      }
+    },
+    [getFeedbackByIdFromStore, setSSMLStatus, setAudioStatus]
+  )
 
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     if (analysisId) {
       useFeedbackStatusStore.getState().unsubscribeFromAnalysis(analysisId)
       log.info('useFeedbackStatusIntegration', `Cleaned up subscription for analysis ${analysisId}`)
     }
-  }
+  }, [analysisId])
 
-  return {
-    // Data
-    feedbackItems,
-    feedbacks,
-    stats,
-    isSubscribed,
+  // Memoize return value to prevent cascading re-renders
+  // Only recreate when actual data changes, not on every render
+  return useMemo(
+    () => ({
+      // Data
+      feedbackItems,
+      feedbacks,
+      stats,
+      isSubscribed,
 
-    // Status checks
-    isProcessing: stats.isProcessing,
-    hasFailures: stats.hasFailures,
-    isFullyCompleted: stats.total > 0 && stats.fullyCompleted === stats.total,
+      // Status checks
+      isProcessing: stats.isProcessing,
+      hasFailures: stats.hasFailures,
+      isFullyCompleted: stats.total > 0 && stats.fullyCompleted === stats.total,
 
-    // Actions
-    getFeedbackById,
-    retryFailedFeedback,
-    cleanup,
-  }
+      // Actions
+      getFeedbackById,
+      retryFailedFeedback,
+      cleanup,
+    }),
+    [feedbackItems, feedbacks, stats, isSubscribed, getFeedbackById, retryFailedFeedback, cleanup]
+  )
 }
 
 /**
