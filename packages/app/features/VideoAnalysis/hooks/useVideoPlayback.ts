@@ -71,11 +71,6 @@ export function useVideoPlayback(
   // PERFORMANCE: Round to second boundary to prevent fractional displayTime values
   const syncDisplayTime = useCallback((newTime: number) => {
     const roundedTime = Math.floor(newTime)
-    log.debug('useVideoPlayback.syncDisplayTime', '🔄 Syncing display time', {
-      newTime,
-      roundedTime,
-      willUpdate: roundedTime !== displayTimeRef.current,
-    })
     actualCurrentTimeRef.current = newTime // Keep precise time in ref
     displayTimeRef.current = roundedTime // Keep ref in sync with state
     setDisplayTime(roundedTime) // Only update state with boundary values
@@ -88,7 +83,6 @@ export function useVideoPlayback(
   }, [initialStatus])
 
   const play = useCallback(() => {
-    log.info('useVideoPlayback', 'play invoked')
     setIsPlaying(true)
     setVideoEnded(false)
     videoEndedRef.current = false
@@ -96,7 +90,6 @@ export function useVideoPlayback(
   }, [])
 
   const pause = useCallback(() => {
-    log.info('useVideoPlayback', 'pause invoked')
     // PERFORMANCE FIX: Sync display time on pause (meaningful event)
     syncDisplayTime(actualCurrentTimeRef.current)
     setIsPlaying(false)
@@ -106,20 +99,8 @@ export function useVideoPlayback(
   }, [syncDisplayTime])
 
   const replay = useCallback(() => {
-    log.info('useVideoPlayback', 'replay invoked', {
-      currentTime: actualCurrentTimeRef.current,
-      lastReportedProgress: lastReportedProgressRef.current,
-      duration: durationRef.current,
-      videoEnded,
-      isPlaying,
-    })
     // Save current progress before seek for stale event detection
     progressBeforeSeekRef.current = lastReportedProgressRef.current
-    log.debug('useVideoPlayback', '🔁 Replay state before reset', {
-      progressBeforeSeek: progressBeforeSeekRef.current,
-      lastSeekTarget: lastSeekTargetRef.current,
-      lastReportedProgress: lastReportedProgressRef.current,
-    })
     // Reset progress tracking to prevent stale events from end position
     lastSeekTargetRef.current = 0
     seekCompleteTimeRef.current = Date.now()
@@ -130,10 +111,6 @@ export function useVideoPlayback(
     videoEndedRef.current = false
     seekToEndRef.current = false
     setIsPlaying(true)
-    log.debug('useVideoPlayback', '🔁 Replay state after reset', {
-      lastSeekTarget: lastSeekTargetRef.current,
-      seekCompleteTime: seekCompleteTimeRef.current,
-    })
   }, [syncDisplayTime])
 
   const seek = useCallback((time: number) => {
@@ -142,7 +119,6 @@ export function useVideoPlayback(
       return
     }
 
-    log.info('useVideoPlayback', 'seek invoked', { time })
     // PERFORMANCE: Keep precise time in ref, but round pendingSeek to prevent fractional state
     // This ensures displayTime stays on second boundaries during seek
     actualCurrentTimeRef.current = time
@@ -160,7 +136,6 @@ export function useVideoPlayback(
       return
     }
 
-    log.info('useVideoPlayback', 'Video loaded', { duration: loadedDuration })
     setDuration(loadedDuration)
     setVideoEnded(false)
     videoEndedRef.current = false
@@ -225,10 +200,6 @@ export function useVideoPlayback(
       // Skip progress processing if video is already ended
       // This prevents redundant state updates and performance issues when seeking to end
       if (videoEndedRef.current) {
-        log.debug('useVideoPlayback.handleProgress', '🚫 Skipping progress - video already ended', {
-          nextTime,
-          lastReported: lastReportedProgressRef.current,
-        })
         return
       }
 
@@ -254,33 +225,7 @@ export function useVideoPlayback(
           Math.abs(nextTime - progressBeforeSeekRef.current) <
             Math.abs(nextTime - lastSeekTargetRef.current)
 
-        log.debug('useVideoPlayback.handleProgress', '🔍 Checking stale event filter', {
-          nextTime,
-          seekTarget: lastSeekTargetRef.current,
-          timeSinceSeekComplete,
-          lastReported: lastReportedProgressRef.current,
-          progressBeforeSeek: progressBeforeSeekRef.current,
-          isAheadOfTarget,
-          wasBackwardSeek,
-          isCloserToOldProgress,
-          willFilter: isAheadOfTarget || isCloserToOldProgress,
-        })
-
         if (isAheadOfTarget || isCloserToOldProgress) {
-          log.debug(
-            'useVideoPlayback.handleProgress',
-            '🚫 Ignoring stale progress event after seek',
-            {
-              nextTime,
-              seekTarget: lastSeekTargetRef.current,
-              timeSinceSeekComplete,
-              lastReported: lastReportedProgressRef.current,
-              progressBeforeSeek: progressBeforeSeekRef.current,
-              isAheadOfTarget,
-              wasBackwardSeek,
-              isCloserToOldProgress,
-            }
-          )
           return
         }
       }
@@ -296,25 +241,8 @@ export function useVideoPlayback(
         return
       }
 
-      // Log progress updates to debug jumps
       // PERFORMANCE: Read duration from ref to prevent handleProgress recreation
       const currentDuration = durationRef.current
-      const timeDelta = nextTime - lastReportedProgressRef.current
-      log.debug('useVideoPlayback.handleProgress', '📊 Progress update', {
-        nextTime,
-        previousTime: lastReportedProgressRef.current,
-        timeDelta,
-        timeDeltaAbs: Math.abs(timeDelta),
-        isLargeJump: Math.abs(timeDelta) > 1.0,
-        duration: currentDuration,
-        progressPercent: currentDuration > 0 ? (nextTime / currentDuration) * 100 : 0,
-      })
-
-      log.debug('useVideoPlayback.handleProgress', '✅ Accepting progress event', {
-        nextTime,
-        previousReported: lastReportedProgressRef.current,
-        timeDelta: nextTime - lastReportedProgressRef.current,
-      })
       lastReportedProgressRef.current = nextTime
 
       // PERFORMANCE FIX: Update ref immediately (no re-render)
@@ -325,15 +253,6 @@ export function useVideoPlayback(
       const currentDisplayTime = displayTimeRef.current
       const currentDisplaySecond = Math.floor(currentDisplayTime)
       const nextDisplaySecond = Math.floor(nextTime)
-
-      // DEBUG: Track displayTime boundary checks
-      log.debug('useVideoPlayback.handleProgress', '🔍 displayTime check', {
-        currentDisplayTime,
-        currentDisplaySecond,
-        nextTime,
-        nextDisplaySecond,
-        willUpdate: nextDisplaySecond !== currentDisplaySecond,
-      })
 
       if (nextDisplaySecond !== currentDisplaySecond) {
         // PERFORMANCE FIX: Set to second boundary, not raw time
@@ -352,14 +271,6 @@ export function useVideoPlayback(
         !(seekToEndRef.current && timeSinceSeekComplete < SEEK_TO_END_THRESHOLD_MS)
       ) {
         // 50ms tolerance
-        log.info('useVideoPlayback.handleProgress', '⏹️ Progress-based end detection triggered', {
-          currentTime: nextTime,
-          duration: currentDuration,
-          difference: currentDuration - nextTime,
-          lastSeekTarget: lastSeekTargetRef.current,
-          timeSinceSeekComplete,
-          seekToEnd: seekToEndRef.current,
-        })
         // Sync display time on end (meaningful event)
         syncDisplayTime(nextTime)
         setIsPlaying(false)

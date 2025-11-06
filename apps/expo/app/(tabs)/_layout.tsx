@@ -1,7 +1,6 @@
 import { NavigationAppHeader } from '@app/components/navigation'
 import { useTabNavigation } from '@app/features/CameraRecording/hooks/useTabNavigation'
 import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPersistence'
-import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
 import { Tabs, usePathname, useRouter } from 'expo-router'
@@ -29,16 +28,6 @@ export default function TabsLayout() {
     isLoading,
   })
   const { shouldRender, markUserInitiatedChange } = tabNavigationResult
-
-  // Track useTabNavigation hook return stability (should be memoized now)
-  useRenderDiagnostics(
-    'TabsLayout[useTabNavigation]',
-    tabNavigationResult as unknown as Record<string, unknown>,
-    {
-      logToConsole: __DEV__,
-      logOnlyChanges: true,
-    }
-  )
 
   // Memoize header renderer to prevent re-renders
   const headerRenderer = useCallback((props: any) => <NavigationAppHeader {...props} />, [])

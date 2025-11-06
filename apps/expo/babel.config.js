@@ -1,7 +1,17 @@
 module.exports = (api) => {
   api.cache(true)
   return {
-    presets: [['babel-preset-expo', { jsxRuntime: 'automatic', reanimated: false }]],
+    presets: [
+      [
+        'babel-preset-expo',
+        {
+          jsxRuntime: 'automatic',
+          reanimated: false,
+          // Enable source maps for better wdyr hook name visibility
+          //jsxImportSource: process.env.NODE_ENV === 'development' ? '@welldone-software/why-did-you-render' : undefined,
+        },
+      ],
+    ],
     plugins: [
       [
         require.resolve('babel-plugin-module-resolver'),

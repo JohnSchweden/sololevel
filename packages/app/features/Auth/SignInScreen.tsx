@@ -1,5 +1,4 @@
 import { useAuth } from '@app/hooks/useAuth'
-import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { log } from '@my/logging'
@@ -12,7 +11,6 @@ import {
   YStack,
   useToastController,
 } from '@my/ui'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { SignInScreenProps } from './types'
@@ -30,12 +28,6 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   const { signIn, isAuthenticated } = authResult
   const toast = useToastController()
   const insets = useSafeArea()
-
-  // Track useAuth hook return stability (should be memoized now)
-  useRenderDiagnostics('SignInScreen[useAuth]', authResult, {
-    logToConsole: __DEV__,
-    logOnlyChanges: true,
-  })
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -91,119 +83,114 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   }
 
   return (
-    <ProfilerWrapper
-      id="SignInScreen"
-      logToConsole={__DEV__}
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="sign-in-screen"
     >
-      <GlassBackground
-        backgroundColor="$color3"
-        testID="sign-in-screen"
+      <SafeAreaView
+        edges={[]}
+        style={{ flex: 1 }}
       >
-        <SafeAreaView
-          edges={[]}
-          style={{ flex: 1 }}
+        <YStack
+          flex={1}
+          justifyContent="center"
+          alignItems="center"
+          gap="$6"
+          paddingHorizontal="$6"
+          paddingTop={insets.top}
+          paddingBottom={insets.bottom}
+          overflow="visible"
         >
+          {/* Header Section */}
           <YStack
-            flex={1}
-            justifyContent="center"
+            gap="$3"
             alignItems="center"
-            gap="$6"
-            paddingHorizontal="$6"
-            paddingTop={insets.top}
-            paddingBottom={insets.bottom}
-            overflow="visible"
           >
-            {/* Header Section */}
+            <H2
+              fontSize={24}
+              fontWeight="600"
+              color="$color12"
+              textAlign="center"
+            >
+              Welcome Back
+            </H2>
+            <Paragraph
+              fontSize="$4"
+              color="$color11"
+              textAlign="center"
+              maxWidth={280}
+            >
+              Sign in to continue your journey with Solo:Level
+            </Paragraph>
+          </YStack>
+
+          <YStack
+            gap="$3"
+            paddingHorizontal="$4"
+          >
+            <Input
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Input
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <GlassButton
+              onPress={handleSignIn}
+              disabled={loading}
+              testID="sign-in-button"
+              accessibilityLabel="Sign in"
+              minHeight={44}
+              minWidth="100%"
+              borderRadius="$4"
+              borderWidth={1.1}
+              borderColor="$color12"
+              blurIntensity={0}
+              blurTint="light"
+              variant="variant2"
+              overlayOpacity={0.2}
+            >
+              <Paragraph
+                fontSize="$3"
+                fontWeight="400"
+                color="$color12"
+              >
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Paragraph>
+            </GlassButton>
+          </YStack>
+
+          {__DEV__ && (
             <YStack
-              gap="$3"
+              gap="$2"
               alignItems="center"
             >
-              <H2
-                fontSize={24}
-                fontWeight="600"
-                color="$color12"
-                textAlign="center"
-              >
-                Welcome Back
-              </H2>
               <Paragraph
-                fontSize="$4"
-                color="$color11"
-                textAlign="center"
-                maxWidth={280}
+                fontSize="$3"
+                color="$color10"
               >
-                Sign in to continue your journey with Solo:Level
+                Development Mode
+              </Paragraph>
+              <Paragraph
+                fontSize="$1"
+                color="$color10"
+                textAlign="center"
+              >
+                Test auth will auto-sign you in if TEST_AUTH_ENABLED=true
               </Paragraph>
             </YStack>
-
-            <YStack
-              gap="$3"
-              paddingHorizontal="$4"
-            >
-              <Input
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <Input
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-
-              <GlassButton
-                onPress={handleSignIn}
-                disabled={loading}
-                testID="sign-in-button"
-                accessibilityLabel="Sign in"
-                minHeight={44}
-                minWidth="100%"
-                borderRadius="$4"
-                borderWidth={1.1}
-                borderColor="$color12"
-                blurIntensity={0}
-                blurTint="light"
-                variant="variant2"
-                overlayOpacity={0.2}
-              >
-                <Paragraph
-                  fontSize="$3"
-                  fontWeight="400"
-                  color="$color12"
-                >
-                  {loading ? 'Signing In...' : 'Sign In'}
-                </Paragraph>
-              </GlassButton>
-            </YStack>
-
-            {__DEV__ && (
-              <YStack
-                gap="$2"
-                alignItems="center"
-              >
-                <Paragraph
-                  fontSize="$3"
-                  color="$color10"
-                >
-                  Development Mode
-                </Paragraph>
-                <Paragraph
-                  fontSize="$1"
-                  color="$color10"
-                  textAlign="center"
-                >
-                  Test auth will auto-sign you in if TEST_AUTH_ENABLED=true
-                </Paragraph>
-              </YStack>
-            )}
-          </YStack>
-        </SafeAreaView>
-      </GlassBackground>
-    </ProfilerWrapper>
+          )}
+        </YStack>
+      </SafeAreaView>
+    </GlassBackground>
   )
 }

@@ -1,4 +1,3 @@
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { useFeatureFlagsStore } from '../../stores/feature-flags'
 import { CameraRecordingScreenProps } from './types'
 
@@ -20,35 +19,25 @@ export function CameraRecordingScreenWrapper({
     // Dynamically import VisionCamera implementation
     const { CameraRecordingScreen: VisionCameraScreen } = require('./CameraRecordingScreen.vision')
     return (
-      <ProfilerWrapper
-        id="CameraRecordingScreen"
-        logToConsole={__DEV__}
-      >
-        <VisionCameraScreen
-          onVideoProcessed={onVideoProcessed}
-          onHeaderStateChange={onHeaderStateChange}
-          onBackPress={onBackPress}
-          onDevNavigate={onDevNavigate}
-          resetToIdle={resetToIdle}
-        />
-      </ProfilerWrapper>
-    )
-  }
-
-  // Dynamically import Expo Camera implementation
-  const { CameraRecordingScreen: ExpoCameraScreen } = require('./CameraRecordingScreen.expo')
-  return (
-    <ProfilerWrapper
-      id="CameraRecordingScreen"
-      logToConsole={__DEV__}
-    >
-      <ExpoCameraScreen
+      <VisionCameraScreen
         onVideoProcessed={onVideoProcessed}
         onHeaderStateChange={onHeaderStateChange}
         onBackPress={onBackPress}
         onDevNavigate={onDevNavigate}
         resetToIdle={resetToIdle}
       />
-    </ProfilerWrapper>
+    )
+  }
+
+  // Dynamically import Expo Camera implementation
+  const { CameraRecordingScreen: ExpoCameraScreen } = require('./CameraRecordingScreen.expo')
+  return (
+    <ExpoCameraScreen
+      onVideoProcessed={onVideoProcessed}
+      onHeaderStateChange={onHeaderStateChange}
+      onBackPress={onBackPress}
+      onDevNavigate={onDevNavigate}
+      resetToIdle={resetToIdle}
+    />
   )
 }

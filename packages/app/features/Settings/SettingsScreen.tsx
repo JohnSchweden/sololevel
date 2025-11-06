@@ -1,4 +1,3 @@
-import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
@@ -10,7 +9,6 @@ import {
   type SettingsNavItem,
   SettingsNavigationList,
 } from '@my/ui'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { useCallback, useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
@@ -74,16 +72,6 @@ export function SettingsScreen({
   const insets = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
-  // Track prop changes to diagnose re-renders
-  useRenderDiagnostics(
-    'SettingsScreen',
-    { navigationItems, onNavigate, onFooterLink, onLogout, user, isLoadingUser },
-    {
-      logToConsole: __DEV__,
-      logOnlyChanges: true,
-    }
-  )
-
   // Handlers - memoized to prevent child re-renders
   const handleNavigate = useCallback(
     (route: string): void => {
@@ -132,62 +120,57 @@ export function SettingsScreen({
   )
 
   return (
-    <ProfilerWrapper
-      id="SettingsScreen"
-      logToConsole={__DEV__}
+    <GlassBackground
+      backgroundColor="$color3"
+      testID={testID}
     >
-      <GlassBackground
-        backgroundColor="$color3"
-        testID={testID}
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ flex: 1 }}
       >
-        <SafeAreaView
-          edges={['bottom']}
-          style={{ flex: 1 }}
+        <YStack
+          flex={1}
+          paddingTop={insets.top + APP_HEADER_HEIGHT}
+          paddingHorizontal="$4"
+          gap="$6"
+          paddingBottom="$6"
         >
           <YStack
+            gap="$6"
             flex={1}
-            paddingTop={insets.top + APP_HEADER_HEIGHT}
-            paddingHorizontal="$4"
-            gap="$6"
-            paddingBottom="$6"
           >
-            <YStack
-              gap="$6"
-              flex={1}
-            >
-              {/* Profile Section */}
-              <ProfileSection
-                user={profileUser}
-                isLoading={isLoadingUser}
-              />
-
-              {/* Navigation List */}
-              <SettingsNavigationList
-                items={navigationItems}
-                onNavigate={handleNavigate}
-              />
-            </YStack>
-          </YStack>
-
-          {/* Bottom section positioned relative to SafeAreaView, not container */}
-          <YStack
-            gap="$6"
-            position="absolute"
-            bottom={insets.bottom + 0} // paddingBottom="$6" = 24px + safe area bottom
-            left="$0"
-            right="$0"
-          >
-            {/* Log Out Button */}
-            <LogOutButton
-              onPress={handleLogout}
-              isLoading={false} // P1: Track logout loading state
+            {/* Profile Section */}
+            <ProfileSection
+              user={profileUser}
+              isLoading={isLoadingUser}
             />
 
-            {/* Footer Links */}
-            <SettingsFooter onLinkPress={handleFooterLink} />
+            {/* Navigation List */}
+            <SettingsNavigationList
+              items={navigationItems}
+              onNavigate={handleNavigate}
+            />
           </YStack>
-        </SafeAreaView>
-      </GlassBackground>
-    </ProfilerWrapper>
+        </YStack>
+
+        {/* Bottom section positioned relative to SafeAreaView, not container */}
+        <YStack
+          gap="$6"
+          position="absolute"
+          bottom={insets.bottom + 0} // paddingBottom="$6" = 24px + safe area bottom
+          left="$0"
+          right="$0"
+        >
+          {/* Log Out Button */}
+          <LogOutButton
+            onPress={handleLogout}
+            isLoading={false} // P1: Track logout loading state
+          />
+
+          {/* Footer Links */}
+          <SettingsFooter onLinkPress={handleFooterLink} />
+        </YStack>
+      </SafeAreaView>
+    </GlassBackground>
   )
 }

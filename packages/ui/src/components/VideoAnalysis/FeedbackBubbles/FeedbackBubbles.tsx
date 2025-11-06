@@ -11,7 +11,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
@@ -175,45 +174,40 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
   }
 
   return (
-    <ProfilerWrapper
-      id="FeedbackBubbles"
-      logToConsole={__DEV__}
+    <Animated.View
+      entering={FadeIn.duration(200)}
+      exiting={FadeOut.duration(200)}
+      style={{
+        position: 'absolute',
+        bottom: 120,
+        left: 20,
+        right: 20,
+        zIndex: 0,
+        pointerEvents: 'box-none',
+      }}
+      testID="feedback-bubbles"
     >
-      <Animated.View
-        entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(200)}
-        style={{
-          position: 'absolute',
-          bottom: 120,
-          left: 20,
-          right: 20,
-          zIndex: 0,
-          pointerEvents: 'box-none',
-        }}
-        testID="feedback-bubbles"
+      <YStack
+        flexDirection="row"
+        flexWrap="wrap"
+        justifyContent="center"
+        gap="$2"
+        pointerEvents="auto"
       >
-        <YStack
-          flexDirection="row"
-          flexWrap="wrap"
-          justifyContent="center"
-          gap="$2"
-          pointerEvents="auto"
-        >
-          {visibleMessages.map((message) => (
-            <Animated.View
-              key={message.id}
-              entering={FadeIn.duration(200)}
-              exiting={FadeOut.duration(200)}
-              style={{
-                zIndex: message.isHighlighted ? 10 : 5,
-              }}
-              testID={`bubble-position-${message.id}`}
-            >
-              <SpeechBubble message={message} />
-            </Animated.View>
-          ))}
-        </YStack>
-      </Animated.View>
-    </ProfilerWrapper>
+        {visibleMessages.map((message) => (
+          <Animated.View
+            key={message.id}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            style={{
+              zIndex: message.isHighlighted ? 10 : 5,
+            }}
+            testID={`bubble-position-${message.id}`}
+          >
+            <SpeechBubble message={message} />
+          </Animated.View>
+        ))}
+      </YStack>
+    </Animated.View>
   )
 })

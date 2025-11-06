@@ -1,8 +1,6 @@
-import { useRenderDiagnostics } from '@app/hooks'
 import { useLazySectionVisibility } from '@app/hooks/useLazySectionVisibility'
 import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
-import { log } from '@my/logging'
 import {
   AchievementCard,
   ActivityChart,
@@ -14,7 +12,7 @@ import {
   StateDisplay,
 } from '@my/ui'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { LazySection, ProfilerWrapper } from '@ui/components/Performance'
+import { LazySection } from '@ui/components/Performance'
 import { memo, useCallback, useMemo } from 'react'
 import { RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -246,24 +244,6 @@ export function InsightsScreen({
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
   const { data, isLoading, isError, refetch } = useInsightsData()
 
-  // Diagnose what's causing re-renders - log all renders to see frequency
-  const diagnostics = useRenderDiagnostics(
-    'InsightsScreen',
-    { data, isLoading, isError },
-    {
-      logToConsole: __DEV__,
-      logOnlyChanges: false, // Log all renders to see frequency
-    }
-  )
-
-  // Warn if rendering too frequently
-  if (__DEV__ && diagnostics.renderCount > 10) {
-    log.warn('InsightsScreen', 'High render count detected', {
-      renderCount: diagnostics.renderCount,
-      message: 'Check for unstable dependencies or parent re-renders',
-    })
-  }
-
   // Lazy load sections to reduce initial render time
   // First section renders immediately, others render after delay
   const { visibleSections: lazyVisibleSections } = useLazySectionVisibility({
@@ -382,80 +362,65 @@ export function InsightsScreen({
 
   if (isLoading) {
     return (
-      <ProfilerWrapper
-        id="InsightsScreen"
-        logToConsole={__DEV__}
+      <GlassBackground
+        backgroundColor="$color3"
+        testID={testID}
       >
-        <GlassBackground
-          backgroundColor="$color3"
-          testID={testID}
-        >
-          <StateDisplay
-            type="loading"
-            title="Loading insights..."
-            testID={`${testID}-loading`}
-          />
-        </GlassBackground>
-      </ProfilerWrapper>
+        <StateDisplay
+          type="loading"
+          title="Loading insights..."
+          testID={`${testID}-loading`}
+        />
+      </GlassBackground>
     )
   }
 
   if (isError || !data) {
     return (
-      <ProfilerWrapper
-        id="InsightsScreen"
-        logToConsole={__DEV__}
-      >
-        <GlassBackground
-          backgroundColor="$color3"
-          testID={testID}
-        >
-          <StateDisplay
-            type={isError ? 'error' : 'empty'}
-            title={isError ? 'Failed to load insights' : 'No data available yet'}
-            description={
-              isError
-                ? 'Please try again later or pull to refresh.'
-                : 'Complete workouts to see insights about your performance and progress.'
-            }
-            icon="📊"
-            onRetry={isError ? refetch : undefined}
-            testID={`${testID}-${isError ? 'error' : 'empty'}`}
-          />
-        </GlassBackground>
-      </ProfilerWrapper>
-    )
-  }
-
-  return (
-    <ProfilerWrapper
-      id="InsightsScreen"
-      logToConsole={__DEV__}
-    >
       <GlassBackground
         backgroundColor="$color3"
         testID={testID}
       >
-        <SafeAreaView
-          edges={['left', 'right']}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            flex={1}
-            refreshControl={refreshControl}
-          >
-            <YStack
-              paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
-              paddingHorizontal="$4"
-              gap="$6"
-              paddingBottom="$6"
-              marginBottom={insets.bottom}
-            >
-              {sectionsContent}
-            </YStack>
-          </ScrollView>
-        </SafeAreaView>
+        <StateDisplay
+          type={isError ? 'error' : 'empty'}
+          title={isError ? 'Failed to load insights' : 'No data available yet'}
+          description={
+            isError
+              ? 'Please try again later or pull to refresh.'
+              : 'Complete workouts to see insights about your performance and progress.'
+          }
+          icon="📊"
+          onRetry={isError ? refetch : undefined}
+          testID={`${testID}-${isError ? 'error' : 'empty'}`}
+        />
       </GlassBackground>
-    </ProfilerWrapper>
+    )
+  }
+
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID={testID}
+    >
+      <SafeAreaView
+        edges={['left', 'right']}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          flex={1}
+          refreshControl={refreshControl}
+        >
+          <YStack
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+            paddingHorizontal="$4"
+            gap="$6"
+            paddingBottom="$6"
+            marginBottom={insets.bottom}
+          >
+            {sectionsContent}
+          </YStack>
+        </ScrollView>
+      </SafeAreaView>
+    </GlassBackground>
   )
 }

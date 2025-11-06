@@ -1,6 +1,5 @@
-import { BlurView } from 'expo-blur'
-import type React from 'react'
-import { Text } from 'tamagui'
+import React from 'react'
+import { Text, YStack } from 'tamagui'
 
 export interface MessageBubbleProps {
   type: 'user' | 'coach'
@@ -24,7 +23,7 @@ export interface MessageBubbleProps {
  * />
  * ```
  */
-export const MessageBubble = ({
+const MessageBubbleComponent = ({
   type,
   content,
   timestamp,
@@ -42,17 +41,14 @@ export const MessageBubble = ({
   }
 
   return (
-    <BlurView
-      intensity={isUser ? 20 : 15}
-      tint="light"
-      style={{
-        maxWidth: '80%',
-        padding: 12,
-        borderRadius: 12,
-        overflow: 'hidden',
-        borderWidth: isUser ? 0 : 1,
-        borderColor: isUser ? 'transparent' : 'rgba(255,255,255,0.2)',
-      }}
+    <YStack
+      maxWidth="80%"
+      padding="$3"
+      borderRadius="$4"
+      overflow="hidden"
+      backgroundColor={isUser ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.025)'}
+      borderWidth={isUser ? 0 : 0.75}
+      borderColor="rgba(255,255,255,0.2)"
       testID={testID}
       accessibilityLabel={`${type} message: ${content}`}
       accessibilityRole="text"
@@ -74,6 +70,18 @@ export const MessageBubble = ({
       >
         {formatTime(timestamp)}
       </Text>
-    </BlurView>
+    </YStack>
   )
 }
+/**
+ * Memoized MessageBubble to prevent re-renders when props haven't changed.
+ * Uses custom comparison for Date timestamps (compares time value, not reference).
+ */
+export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.type === nextProps.type &&
+    prevProps.content === nextProps.content &&
+    prevProps.timestamp.getTime() === nextProps.timestamp.getTime() &&
+    prevProps.testID === nextProps.testID
+  )
+})

@@ -4,7 +4,6 @@ import { type ComponentProps, useMemo, useState } from 'react'
 
 import { NotificationSheet } from '@ui/components/BottomSheets'
 import { VideoSettingsSheet } from '@ui/components/BottomSheets'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { Circle, Image, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
@@ -443,10 +442,7 @@ export function AppHeader({
   )
 
   return (
-    <ProfilerWrapper
-      id="AppHeader"
-      logToConsole={__DEV__}
-    >
+    <>
       {themeName ? <Theme name={themeName}>{content}</Theme> : content}
 
       <NotificationSheet
@@ -459,7 +455,7 @@ export function AppHeader({
         open={videoSettingsSheetOpen}
         onOpenChange={setVideoSettingsSheetOpen}
       />
-    </ProfilerWrapper>
+    </>
   )
 }
 
@@ -492,4 +488,9 @@ export function RecordingTimer({ duration }: RecordingTimerProps) {
       {formatTime(duration)}
     </Text>
   )
+}
+
+// Enable why-did-you-render tracking for AppHeader
+if (process.env.NODE_ENV === 'development') {
+  AppHeader.whyDidYouRender = false
 }

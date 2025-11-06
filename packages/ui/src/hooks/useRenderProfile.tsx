@@ -26,7 +26,7 @@ export interface UseRenderProfileOptions {
  * @param options - Profiling configuration
  */
 export function useRenderProfile(options: UseRenderProfileOptions): void {
-  const { componentName, enabled = false, logInterval = 1, trackProps = {} } = options
+  const { componentName, enabled = false, trackProps = {} } = options
 
   const renderCountRef = useRef(0)
   const lastRenderTimeRef = useRef(performance.now())
@@ -48,15 +48,7 @@ export function useRenderProfile(options: UseRenderProfileOptions): void {
     }
   }
 
-  // Log every Nth render
-  if (renderCountRef.current % logInterval === 0) {
-    log.debug(`useRenderProfile.${componentName}`, '🔄 Component re-rendered', {
-      renderCount: renderCountRef.current,
-      timeSinceLastRender: Math.round(timeSinceLastRender),
-      changedProps: changedProps.length > 0 ? changedProps : 'none',
-      propsSnapshot: trackProps,
-    })
-  }
+  // Log every Nth render (disabled for performance debugging)
 
   // Warn if renders are too frequent (< 16ms = faster than 60fps)
   if (timeSinceLastRender < 16 && renderCountRef.current > 1) {

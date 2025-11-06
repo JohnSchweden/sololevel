@@ -1,8 +1,6 @@
 import { log } from '@my/logging'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
-import { ProfilerWrapper } from '@ui/components/Performance'
-// import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View, type ViewStyle, useColorScheme } from 'react-native'
 import Animated, {
@@ -16,8 +14,6 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 // Animation durations for Reanimated withTiming animations
-// 'quick': 200ms for user-initiated interactions (tap, swipe)
-// 'lazy': 400ms for automatic changes (processing complete, auto-hide)
 const ANIMATION_DURATIONS = {
   quick: 200,
   lazy: 400,
@@ -37,29 +33,42 @@ export type NavAppHeaderOptions = {
 }
 
 /**
+ * Helper to compare appHeaderProps objects by value
+ */
+function compareAppHeaderProps(
+  prev: Partial<AppHeaderProps> | undefined,
+  next: Partial<AppHeaderProps> | undefined
+): boolean {
+  if (!prev && !next) return true
+  if (!prev || !next) return false
+
+  return (
+    prev.mode === next.mode &&
+    prev.showTimer === next.showTimer &&
+    prev.timerValue === next.timerValue &&
+    prev.title === next.title &&
+    prev.titleAlignment === next.titleAlignment &&
+    prev.leftAction === next.leftAction &&
+    prev.rightAction === next.rightAction &&
+    prev.themeName === next.themeName &&
+    prev.profileImageUri === next.profileImageUri &&
+    prev.notificationBadgeCount === next.notificationBadgeCount &&
+    prev.onBackPress === next.onBackPress &&
+    prev.onMenuPress === next.onMenuPress &&
+    prev.onNotificationPress === next.onNotificationPress &&
+    prev.onProfilePress === next.onProfilePress &&
+    prev.leftSlot === next.leftSlot &&
+    prev.rightSlot === next.rightSlot &&
+    prev.titleSlot === next.titleSlot &&
+    prev.cameraProps === next.cameraProps
+  )
+}
+
+/**
  * NavigationAppHeader
  *
  * Adapter that bridges React Navigation's header API with the custom AppHeader component.
  * Works on Web, iOS, and Android without absolute positioning or fake safe-area hacks.
- *
- * @component
- * @example
- * // Static header in _layout.tsx
- * <Stack.Screen
- *   name="route-name"
- *   options={{
- *     headerShown: true,
- *     header: (props) => <NavigationAppHeader {...props} />,
- *   }}
- * />
- *
- * @example
- * // Dynamic state updates from screen
- * useLayoutEffect(() => {
- *   navigation.setOptions({
- *     appHeaderProps: { mode, showTimer, timerValue, onMenuPress }
- *   })
- * }, [deps])
  *
  * ## Animation & Visibility Flow
  *
@@ -165,6 +174,25 @@ export type NavAppHeaderOptions = {
  * - Sets visibility and initializes immediately without animation
  * - Prevents flash from previous mode's visibility state
  *
+ * @component
+ * @example
+ * // Static header in _layout.tsx
+ * <Stack.Screen
+ *   name="route-name"
+ *   options={{
+ *     headerShown: true,
+ *     header: (props) => <NavigationAppHeader {...props} />,
+ *   }}
+ * />
+ *
+ * @example
+ * // Dynamic state updates from screen
+ * useLayoutEffect(() => {
+ *   navigation.setOptions({
+ *     appHeaderProps: { mode, showTimer, timerValue, onMenuPress }
+ *   })
+ * }, [deps])
+ *
  * @param {NativeStackHeaderProps} props - React Navigation header props
  * @returns {JSX.Element} Rendered header component with SafeAreaView wrapper
  */
@@ -173,165 +201,65 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
   const navOptions = options as unknown as NavAppHeaderOptions
   const colorScheme = useColorScheme()
   const insets = useSafeAreaInsets()
-  const isInitialMountRef = useRef(true)
-  const [hasInitialized, setHasInitialized] = useState(false)
-  const prevIsUserInteractionRef = useRef<boolean | undefined>(undefined)
 
-  // Memoize navOptions-derived values to prevent unnecessary effect triggers
-  // when options object reference changes but values haven't
-  const isUserInteractionValue = useMemo(
-    () => navOptions.isUserInteraction ?? false,
-    [navOptions.isUserInteraction]
-  )
-  const headerVisibleValue = useMemo(() => navOptions.headerVisible, [navOptions.headerVisible])
-  const isHistoryModeValue = useMemo(() => navOptions.isHistoryMode, [navOptions.isHistoryMode])
-
-  // Determine animation speed: quick for user interaction, lazy for automatic
-  // Memoize to prevent unnecessary re-renders when value hasn't changed
-  const animationSpeed = useMemo(
-    () => (isUserInteractionValue ? 'quick' : 'lazy'),
-    [isUserInteractionValue]
-  )
-
-  // Detect VideoAnalysis mode early from route params BEFORE first setOptions
-  // - History mode: has `analysisJobId` param
-  // - Analysis mode: has `videoRecordingId` param
-  // Memoize route param extraction to prevent re-computation when route.params object reference changes
+  // Extract route params once
   const routeParams = route.params as Record<string, unknown> | undefined
-  const analysisJobIdFromParams = useMemo(
-    () => routeParams?.analysisJobId,
-    [routeParams?.analysisJobId]
-  )
-  const videoRecordingIdFromParams = useMemo(
-    () => routeParams?.videoRecordingId,
-    [routeParams?.videoRecordingId]
-  )
-  const isVideoAnalysisRoute = useMemo(
-    () => !!analysisJobIdFromParams || !!videoRecordingIdFromParams,
-    [analysisJobIdFromParams, videoRecordingIdFromParams]
-  )
+  const analysisJobId = routeParams?.analysisJobId
+  const videoRecordingId = routeParams?.videoRecordingId
 
-  // Detect history mode: prefer explicit flag, fallback to route params
-  // History mode: data is prefetched/cached, isProcessing should be false quickly → start hidden
-  // Analysis mode: isProcessing starts as true → start visible
-  // Memoize to prevent re-computation when values haven't changed
-  const isHistoryMode = useMemo(
-    () => isHistoryModeValue ?? Boolean(analysisJobIdFromParams),
-    [isHistoryModeValue, analysisJobIdFromParams]
-  )
+  /**
+   * Mode Detection
+   * - VideoAnalysis route: Has analysisJobId or videoRecordingId in params
+   * - History mode: Explicit flag OR has analysisJobId (prefetched data)
+   * - VideoAnalysis mode: headerVisible prop set OR detected from route params
+   * - Animation speed: 'quick' (200ms) for user interaction, 'lazy' (400ms) for automatic
+   */
+  const isVideoAnalysisRoute = Boolean(analysisJobId || videoRecordingId)
+  const isHistoryMode = navOptions.isHistoryMode ?? Boolean(analysisJobId)
+  const isVideoAnalysisMode = navOptions.headerVisible !== undefined || isVideoAnalysisRoute
+  const isUserInteraction = navOptions.isUserInteraction ?? false
+  const animationSpeed = isUserInteraction ? 'quick' : 'lazy'
 
-  // VideoAnalysis mode: Control visibility via opacity (when headerVisible is explicitly set)
-  // Applies to both live analysis and history mode (both use /video-analysis route)
-  // Other screens: Normal React Navigation mount/unmount behavior via headerShown
-  // Check route params to detect VideoAnalysis mode BEFORE first setOptions
-  // Memoize to prevent re-computation when values haven't changed
-  const isVideoAnalysisMode = useMemo(
-    () => headerVisibleValue !== undefined || isVideoAnalysisRoute,
-    [headerVisibleValue, isVideoAnalysisRoute]
-  )
-
+  /**
+   * Initialize visibility state synchronously
+   * - VideoAnalysis mode: History starts hidden, Analysis starts visible
+   * - Standard mode: Uses headerShown from React Navigation
+   */
   const [isVisible, setIsVisible] = useState(() => {
-    // Compute initial visibility synchronously - defer logging to useEffect to prevent frame drops
     if (isVideoAnalysisMode || isVideoAnalysisRoute) {
-      // In VideoAnalysis mode, initialize visibility based on mode:
-      // - Analysis mode: Start visible (isProcessing = true, header should show immediately)
-      // - History mode: Start hidden (data prefetched, isProcessing false quickly)
-      if (isHistoryMode) {
-        // History mode: start hidden (data is prefetched, isProcessing will be false quickly)
-        return false
-      }
-      // Analysis mode: start visible (isProcessing = true initially)
-      // Use headerVisible if set, otherwise default to true for analysis mode
-      return navOptions.headerVisible ?? true
+      return isHistoryMode ? false : (navOptions.headerVisible ?? true)
     }
     return options.headerShown ?? true
   })
 
-  // Keep a stable top inset on iOS to avoid header jumping when status bar toggles
-  // On Android we continue relying on SafeAreaView's top edge behavior
-  // Memoize to prevent re-computation when insets object reference changes
-  // Calculate early so it can be used in render profiling
-  const topInset = useMemo(
-    () => (Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top),
-    [insets.top]
-  )
+  const [hasInitialized, setHasInitialized] = useState(false)
+  const isInitialMountRef = useRef(true)
+  const prevVideoAnalysisModeRef = useRef(false)
 
-  // Render profiling - enable in dev only
-  // Track props that might change to identify re-render causes
-  // useRenderProfile({
-  //   componentName: 'NavigationAppHeader',
-  //   enabled: __DEV__,
-  //   logInterval: 5,
-  //   trackProps: {
-  //     isVisible,
-  //     animationSpeed,
-  //     isUserInteraction: isUserInteractionValue,
-  //     headerShown: options.headerShown,
-  //     headerVisible: headerVisibleValue,
-  //     isVideoAnalysisMode,
-  //     isHistoryMode,
-  //     // Track route params to detect React Navigation updates
-  //     routeName: route.name,
-  //     hasBack: Boolean(back),
-  //     // Track hooks that might cause re-renders
-  //     colorScheme,
-  //     topInset,
-  //   },
-  // })
+  /**
+   * Top inset for iOS (stable to prevent layout shifts)
+   * On iOS, we keep a stable top inset to avoid header jumping when status bar toggles.
+   * On Android, we rely on SafeAreaView's top edge behavior.
+   */
+  const topInset = Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top
 
-  // Track previous visibility for ARIA announcements
-  const prevVisibilityRef = useRef(isVisible)
+  /**
+   * ARIA announcements for screen readers
+   * Announces header visibility changes to assistive technologies.
+   * Clears announcement text after 500ms to allow screen readers time to read it.
+   */
   const [announcementText, setAnnouncementText] = useState<string>('')
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Track previous isVisible state for direction detection (used for logging)
-  const prevIsVisibleForDirectionRef = useRef(isVisible)
-
-  // Track the target opacity value for completion detection
-  // Use headerVisible prop (synchronous) instead of isVisible state (async) to match change detection
-  // Use memoized value to prevent unnecessary re-computations
-  const currentHeaderVisible = useMemo(
-    () => headerVisibleValue ?? !isHistoryMode,
-    [headerVisibleValue, isHistoryMode]
-  )
-  const initialOpacity = useMemo(() => {
-    if (!isVideoAnalysisMode) {
-      return 1
-    }
-
-    if (isHistoryMode) {
-      return 0
-    }
-
-    return (navOptions.headerVisible ?? !isHistoryMode) ? 1 : 0
-  }, [isVideoAnalysisMode, isHistoryMode, navOptions.headerVisible])
-
-  // Memoize targetOpacity to prevent unnecessary re-computations and effect triggers
-  const targetOpacity = useMemo(
-    () => (isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0),
-    [isVideoAnalysisMode, currentHeaderVisible, isVisible]
-  )
-
-  // Update direction ref when isVisible state changes (for logging/completion tracking)
-  useEffect(() => {
-    prevIsVisibleForDirectionRef.current = isVisible
-  }, [isVisible])
-
-  // Disable animation completion tracking for Reanimated-based animations
-  // as shared values can't be read during render
-
-  // Disable smoothness and frame drop tracking for Reanimated animations
-  // These hooks are designed for declarative Tamagui animations, not imperative Reanimated
-  // Reanimated runs on UI thread, so JS-side metrics would be misleading anyway
-
-  // Clear announcement text after it's been read by screen readers
+  /**
+   * Clear announcement text after screen readers have time to read it
+   * Uses 500ms timeout to ensure screen readers can process the announcement
+   */
   useEffect(() => {
     if (announcementText) {
-      // Clear any existing timeout
       if (announcementTimeoutRef.current) {
         clearTimeout(announcementTimeoutRef.current)
       }
-      // Clear announcement after screen readers have time to read it (500ms)
       announcementTimeoutRef.current = setTimeout(() => {
         setAnnouncementText('')
         announcementTimeoutRef.current = null
@@ -344,72 +272,32 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
     }
   }, [announcementText])
 
-  // Log component mount and mode detection - deferred to prevent frame drops on first render
+  /**
+   * Log component mount and mode detection (dev only)
+   * Deferred to prevent frame drops on first render
+   */
   useEffect(() => {
-    // Log initial state detection that was computed in useState initializer
-    if (isVideoAnalysisMode || isVideoAnalysisRoute) {
-      if (isHistoryMode) {
-        log.debug('NavigationAppHeader', '🔍 [INIT] History mode detected - starting hidden', {
-          isHistoryMode: true,
-          analysisJobIdFromParams,
-          explicitFlag: navOptions.isHistoryMode,
-          routeParams: routeParams ? Object.keys(routeParams) : null,
-          initialVisibility: isVisible,
-        })
-      } else {
-        log.debug('NavigationAppHeader', '🔍 [INIT] Analysis mode detected - starting visible', {
-          isHistoryMode: false,
-          analysisJobIdFromParams,
-          explicitFlag: navOptions.isHistoryMode,
-          headerVisible: navOptions.headerVisible,
-          initialVisibility: isVisible,
-        })
-      }
-    } else {
-      log.debug('NavigationAppHeader', '🔍 [INIT] Standard mode - using headerShown', {
-        isVideoAnalysisMode: false,
-        headerShown: options.headerShown,
+    if (__DEV__) {
+      log.debug('NavigationAppHeader', 'Component mounted', {
+        routeName: route.name,
+        isVideoAnalysisMode,
+        isHistoryMode,
         initialVisibility: isVisible,
       })
     }
+  }, [])
 
-    log.debug('NavigationAppHeader', '🚀 [MOUNT] Component mounted', {
-      routeName: route.name,
-      isVideoAnalysisMode,
-      isHistoryMode,
-      initialVisibility: isVisible,
-      headerVisible: navOptions.headerVisible,
-      headerShown: options.headerShown,
-      animationSpeed,
-      isUserInteraction: navOptions.isUserInteraction,
-      routeParams: routeParams ? Object.keys(routeParams) : null,
-      analysisJobId: analysisJobIdFromParams,
-      explicitIsHistoryMode: navOptions.isHistoryMode,
-    })
-  }, []) // Only log on mount
-
-  // Log animation speed changes when user interaction mode changes
+  /**
+   * Update visibility when headerVisible or headerShown changes
+   *
+   * Handles three scenarios:
+   * 1. **Initial mount**: Set visibility immediately without animation, mark as initialized
+   * 2. **Transition into VideoAnalysis mode**: Set visibility immediately, prevent flash
+   * 3. **Subsequent updates**: Animate visibility changes (uses animationSpeed)
+   *
+   * Uses startTransition to prevent blocking render during state updates.
+   */
   useEffect(() => {
-    // Skip logging on initial mount - mount log already includes animation speed
-    if (prevIsUserInteractionRef.current === undefined) {
-      prevIsUserInteractionRef.current = isUserInteractionValue
-      return
-    }
-
-    // Only log if the value actually changed
-    if (prevIsUserInteractionRef.current === isUserInteractionValue) {
-      return
-    }
-    prevIsUserInteractionRef.current = isUserInteractionValue
-  }, [isUserInteractionValue])
-
-  // Track previous VideoAnalysis mode to detect transitions
-  const prevVideoAnalysisModeRef = useRef(false)
-
-  // Update visibility when headerVisible or headerShown changes
-  useEffect(() => {
-    // Only control visibility via opacity in VideoAnalysis mode
-    // For other screens, React Navigation handles mount/unmount via headerShown
     if (!isVideoAnalysisMode) {
       prevVideoAnalysisModeRef.current = false
       return
@@ -417,151 +305,88 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
 
     const isTransitioningIntoVideoAnalysis =
       !prevVideoAnalysisModeRef.current && isVideoAnalysisMode
-    // Use isHistoryMode to determine visibility when headerVisible isn't set yet during transition
-    // Use memoized value to prevent unnecessary re-computations
-    const shouldBeVisible = headerVisibleValue ?? !isHistoryMode
+    const shouldBeVisible = navOptions.headerVisible ?? !isHistoryMode
     prevVideoAnalysisModeRef.current = true
 
-    // Handle transition into VideoAnalysis mode: set visibility and initialize immediately
-    if (isTransitioningIntoVideoAnalysis) {
-      log.debug('NavigationAppHeader', '🔄 [TRANSITION] Entering VideoAnalysis mode', {
-        currentIsVisible: isVisible,
-        shouldBeVisible,
-        isHistoryMode,
-        headerVisible: navOptions.headerVisible,
-        willSetTo: shouldBeVisible,
-        reason: isHistoryMode
-          ? 'History mode - using headerVisible (should be false, isProcessing=false)'
-          : 'Analysis mode - using headerVisible (should be true, isProcessing=true)',
-      })
-      // Only update state if visibility actually needs to change
+    if (isTransitioningIntoVideoAnalysis || isInitialMountRef.current) {
+      if (isInitialMountRef.current) {
+        isInitialMountRef.current = false
+      }
       if (isVisible !== shouldBeVisible) {
         startTransition(() => {
           setIsVisible(shouldBeVisible)
-          // Announce visibility change for screen readers
           if (hasInitialized) {
             setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
           }
         })
       }
-      // Mark as initialized in transition to prevent blocking render
-      // Defer to prevent synchronous state update causing immediate re-render
       startTransition(() => {
-        isInitialMountRef.current = false
         setHasInitialized(true)
       })
       return
     }
 
-    // Handle initial mount: set visibility and initialize in transition to prevent frame drops
-    if (isInitialMountRef.current) {
-      log.debug(
-        'NavigationAppHeader',
-        '🚀 [INIT] Initial mount - setting visibility and initializing',
-        {
-          shouldBeVisible,
-          currentIsVisible: isVisible,
-          isHistoryMode,
-          headerVisible: navOptions.headerVisible,
-        }
-      )
-      // Wrap initialization in transition to prevent blocking render
-      startTransition(() => {
-        isInitialMountRef.current = false
-        if (isVisible !== shouldBeVisible) {
-          setIsVisible(shouldBeVisible)
-        }
-        setHasInitialized(true)
-      })
-      return
-    }
-
-    // Subsequent updates: animate normally
-    // Only update if visibility actually changed and we're initialized (to avoid announcements on mount)
-    // CRITICAL: Compare with current state (isVisible) to prevent redundant updates
-    // If state already matches desired value, skip update to prevent re-render cascade
     if (hasInitialized && isVisible !== shouldBeVisible) {
-      // Batch state updates using startTransition to prevent rapid re-renders
-      // This ensures setIsVisible and setAnnouncementText happen in a single render cycle
       startTransition(() => {
         setIsVisible(shouldBeVisible)
-        // Announce visibility change for screen readers
         setAnnouncementText(shouldBeVisible ? 'Header shown' : 'Header hidden')
       })
     }
-
-    prevVisibilityRef.current = shouldBeVisible
   }, [
     options.headerShown,
-    headerVisibleValue,
-    isUserInteractionValue,
+    navOptions.headerVisible,
+    isUserInteraction,
     isVideoAnalysisMode,
     isVisible,
     hasInitialized,
     isHistoryMode,
   ])
 
-  // Memoize options-derived values to prevent re-computation when options object reference changes
-  const tintColor = useMemo(() => options.headerTintColor ?? undefined, [options.headerTintColor])
-  const isTransparent = useMemo(
-    () => options.headerTransparent ?? false,
-    [options.headerTransparent]
-  )
+  /**
+   * Extract options-derived values
+   * Direct access without memoization - these are simple primitives or simple computations
+   */
+  const tintColor = options.headerTintColor ?? undefined
+  const isTransparent = options.headerTransparent ?? false
   const headerStyle = options.headerStyle
-  const backgroundColor = useMemo(() => {
-    return typeof headerStyle === 'object' && headerStyle && 'backgroundColor' in headerStyle
+  const backgroundColor =
+    typeof headerStyle === 'object' && headerStyle && 'backgroundColor' in headerStyle
       ? (headerStyle.backgroundColor ?? 'transparent')
       : 'transparent'
-  }, [headerStyle])
-  const titleAlignment = useMemo(
-    () => (options.headerTitleAlign === 'left' ? 'left' : 'center'),
-    [options.headerTitleAlign]
-  )
+  const titleAlignment = options.headerTitleAlign === 'left' ? 'left' : 'center'
+  const computedLeftAction = back ? 'back' : 'sidesheet'
 
-  const computedLeftAction = useMemo(() => (back ? 'back' : 'sidesheet'), [back])
-
-  // Stable navigation ref to avoid dependency on navigation object identity
+  /**
+   * Stable navigation ref to avoid dependency on navigation object identity
+   * Navigation object may change reference, but we only need the goBack method
+   */
   const navigationRef = useRef(navigation)
   navigationRef.current = navigation
 
-  // Stable default back handler to prevent inline function creation
+  /**
+   * Stable default back handler to prevent inline function creation
+   * Only created if back button is available
+   */
   const defaultBackHandler = useCallback(() => {
     navigationRef.current.goBack()
   }, [])
 
-  // Memoize default back handler conditional - only create if back is available
-  const memoizedDefaultBackHandler = useMemo(
-    () => (back ? defaultBackHandler : undefined),
-    [back, defaultBackHandler]
-  )
+  const memoizedDefaultBackHandler = back ? defaultBackHandler : undefined
 
-  // Extract primitive values from navOptions.appHeaderProps BEFORE useMemo
-  // This prevents object reference changes from triggering unnecessary re-renders
+  /**
+   * Extract appHeaderProps values
+   * Extracted before useMemo to prevent object reference changes from triggering re-renders
+   */
   const navHeaderProps = navOptions.appHeaderProps ?? {}
-  const navMode = navHeaderProps.mode
-  const navShowTimer = navHeaderProps.showTimer
-  const navTimerValue = navHeaderProps.timerValue
-  const navTitle = navHeaderProps.title
-  const navTitleAlignment = navHeaderProps.titleAlignment
-  const navLeftAction = navHeaderProps.leftAction
-  const navRightAction = navHeaderProps.rightAction
-  const navThemeName = navHeaderProps.themeName
-  const navProfileImageUri = navHeaderProps.profileImageUri
-  const navNotificationBadgeCount = navHeaderProps.notificationBadgeCount
-  // Callbacks - extracted but compared separately (may be stable or new references)
-  const navOnBackPress = navHeaderProps.onBackPress
-  const navOnMenuPress = navHeaderProps.onMenuPress
-  const navOnNotificationPress = navHeaderProps.onNotificationPress
-  const navOnProfilePress = navHeaderProps.onProfilePress
-  // Complex objects - extracted but compared by reference
-  const navLeftSlot = navHeaderProps.leftSlot
-  const navRightSlot = navHeaderProps.rightSlot
-  const navTitleSlot = navHeaderProps.titleSlot
-  const navCameraProps = navHeaderProps.cameraProps
 
+  /**
+   * Build AppHeader props from navigation options
+   * Memoized to prevent re-creation when dependencies haven't changed.
+   * Handles slot rendering (leftSlot, rightSlot, titleSlot) from React Navigation options.
+   */
   const appHeaderProps: AppHeaderProps = useMemo(() => {
     const leftSlot =
-      navLeftSlot ??
+      navHeaderProps.leftSlot ??
       (options.headerLeft
         ? options.headerLeft({
             canGoBack: Boolean(back),
@@ -571,7 +396,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
         : undefined)
 
     const rightSlot =
-      navRightSlot ??
+      navHeaderProps.rightSlot ??
       (options.headerRight
         ? options.headerRight({
             tintColor,
@@ -579,7 +404,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
         : undefined)
 
     const titleSlot =
-      navTitleSlot ??
+      navHeaderProps.titleSlot ??
       (options.headerTitle && typeof options.headerTitle === 'function'
         ? options.headerTitle({
             children: typeof options.title === 'string' ? options.title : route.name,
@@ -588,48 +413,29 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
         : undefined)
 
     return {
-      title: typeof options.title === 'string' ? options.title : (navTitle ?? route.name),
-      mode: navMode ?? 'default',
-      showTimer: navShowTimer ?? false,
-      timerValue: navTimerValue ?? '00:00:00',
-      onBackPress: navOnBackPress ?? memoizedDefaultBackHandler,
-      onMenuPress: navOnMenuPress,
-      onNotificationPress: navOnNotificationPress,
-      onProfilePress: navOnProfilePress,
-      notificationBadgeCount: navNotificationBadgeCount ?? 0,
-      cameraProps: navCameraProps,
-      titleAlignment: navTitleAlignment ?? titleAlignment,
-      leftAction: navLeftAction ?? (leftSlot ? 'none' : computedLeftAction),
-      rightAction: navRightAction ?? (rightSlot ? 'none' : 'auto'),
-      themeName: navThemeName ?? (isTransparent && colorScheme === 'dark' ? 'dark' : undefined),
-      profileImageUri: navProfileImageUri,
+      title:
+        typeof options.title === 'string' ? options.title : (navHeaderProps.title ?? route.name),
+      mode: navHeaderProps.mode ?? 'default',
+      showTimer: navHeaderProps.showTimer ?? false,
+      timerValue: navHeaderProps.timerValue ?? '00:00:00',
+      onBackPress: navHeaderProps.onBackPress ?? memoizedDefaultBackHandler,
+      onMenuPress: navHeaderProps.onMenuPress,
+      onNotificationPress: navHeaderProps.onNotificationPress,
+      onProfilePress: navHeaderProps.onProfilePress,
+      notificationBadgeCount: navHeaderProps.notificationBadgeCount ?? 0,
+      cameraProps: navHeaderProps.cameraProps,
+      titleAlignment: navHeaderProps.titleAlignment ?? titleAlignment,
+      leftAction: navHeaderProps.leftAction ?? (leftSlot ? 'none' : computedLeftAction),
+      rightAction: navHeaderProps.rightAction ?? (rightSlot ? 'none' : 'auto'),
+      themeName:
+        navHeaderProps.themeName ?? (isTransparent && colorScheme === 'dark' ? 'dark' : undefined),
+      profileImageUri: navHeaderProps.profileImageUri,
       leftSlot,
       rightSlot,
       titleSlot,
     }
   }, [
-    // Primitive values from navOptions.appHeaderProps (stable references)
-    navMode,
-    navShowTimer,
-    navTimerValue,
-    navTitle,
-    navTitleAlignment,
-    navLeftAction,
-    navRightAction,
-    navThemeName,
-    navProfileImageUri,
-    navNotificationBadgeCount,
-    // Callbacks from navOptions.appHeaderProps (may change but compared directly)
-    navOnBackPress,
-    navOnMenuPress,
-    navOnNotificationPress,
-    navOnProfilePress,
-    // Complex objects from navOptions.appHeaderProps (compared by reference)
-    navLeftSlot,
-    navRightSlot,
-    navTitleSlot,
-    navCameraProps,
-    // Options and other dependencies
+    navHeaderProps,
     options.title,
     options.headerTitle,
     options.headerRight,
@@ -645,59 +451,66 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
     computedLeftAction,
   ])
 
-  // Stable edges array to prevent SafeAreaView re-renders
-  const safeAreaEdges = useMemo(
-    () =>
-      Platform.OS === 'ios' ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const),
-    []
-  )
+  /**
+   * Compute opacity values for VideoAnalysis mode
+   * - currentHeaderVisible: Target visibility state (synchronous, from props)
+   * - initialOpacity: Starting opacity (0 for history mode, 1 for analysis mode)
+   * - targetOpacity: Target opacity for animation (1 = visible, 0 = hidden)
+   */
+  const currentHeaderVisible = navOptions.headerVisible ?? !isHistoryMode
+  const initialOpacity = isVideoAnalysisMode
+    ? isHistoryMode
+      ? 0
+      : navOptions.headerVisible === false
+        ? 0
+        : 1
+    : 1
+  const targetOpacity = isVideoAnalysisMode ? (currentHeaderVisible ? 1 : 0) : isVisible ? 1 : 0
 
-  // Stable safe area style to prevent re-creation
+  /**
+   * Stable style objects to prevent SafeAreaView re-renders
+   * - safeAreaEdges: Platform-specific edges (iOS excludes top to prevent layout shifts)
+   * - safeAreaStyle: Memoized to prevent re-creation when backgroundColor changes
+   * - topInsetStyle: Memoized for iOS top inset view
+   */
+  const safeAreaEdges =
+    Platform.OS === 'ios' ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const)
   const safeAreaStyle = useMemo(() => [styles.safeArea, { backgroundColor }], [backgroundColor])
-
-  // Stable top inset style for iOS
   const topInsetStyle = useMemo(
     () => ({ height: topInset, backgroundColor }),
     [topInset, backgroundColor]
   )
 
   return (
-    <ProfilerWrapper
-      id="NavigationAppHeader"
-      logToConsole={__DEV__}
+    <SafeAreaView
+      edges={safeAreaEdges}
+      style={safeAreaStyle}
     >
-      <SafeAreaView
-        // Avoid using the top edge on iOS to prevent layout shifts when status bar shows/hides
-        edges={safeAreaEdges}
-        style={safeAreaStyle}
+      {Platform.OS === 'ios' ? <View style={topInsetStyle} /> : null}
+      <View style={styles.wrapper}>
+        {isVideoAnalysisMode ? (
+          <VideoAnalysisAnimatedHeader
+            appHeaderProps={appHeaderProps}
+            initialOpacity={initialOpacity}
+            targetOpacity={targetOpacity}
+            hasInitialized={hasInitialized}
+            animationSpeed={animationSpeed}
+            currentHeaderVisible={currentHeaderVisible}
+          />
+        ) : (
+          <AppHeader {...appHeaderProps} />
+        )}
+      </View>
+      <Text
+        style={styles.ariaLiveRegion}
+        accessibilityLiveRegion={Platform.OS === 'android' ? 'polite' : undefined}
+        aria-live={Platform.OS === 'web' ? 'polite' : undefined}
+        {...(Platform.OS === 'web' ? { 'aria-atomic': true } : {})}
+        testID="header-visibility-announcement"
       >
-        {Platform.OS === 'ios' ? <View style={topInsetStyle} /> : null}
-        <View style={styles.wrapper}>
-          {isVideoAnalysisMode ? (
-            <VideoAnalysisAnimatedHeader
-              appHeaderProps={appHeaderProps}
-              initialOpacity={initialOpacity}
-              targetOpacity={targetOpacity}
-              hasInitialized={hasInitialized}
-              animationSpeed={animationSpeed}
-              currentHeaderVisible={currentHeaderVisible}
-            />
-          ) : (
-            <AppHeader {...appHeaderProps} />
-          )}
-        </View>
-        {/* ARIA live region for screen reader announcements */}
-        <Text
-          style={styles.ariaLiveRegion}
-          accessibilityLiveRegion={Platform.OS === 'android' ? 'polite' : undefined}
-          aria-live={Platform.OS === 'web' ? 'polite' : undefined}
-          {...(Platform.OS === 'web' ? { 'aria-atomic': true } : {})}
-          testID="header-visibility-announcement"
-        >
-          {announcementText}
-        </Text>
-      </SafeAreaView>
-    </ProfilerWrapper>
+        {announcementText}
+      </Text>
+    </SafeAreaView>
   )
 }
 
@@ -710,6 +523,17 @@ interface VideoAnalysisAnimatedHeaderProps {
   currentHeaderVisible: boolean
 }
 
+/**
+ * VideoAnalysisAnimatedHeader
+ *
+ * Wraps AppHeader with Reanimated opacity animation for VideoAnalysis mode.
+ * Handles smooth fade in/out transitions based on visibility state.
+ *
+ * Behavior:
+ * - Before initialization: Sets opacity immediately (no animation)
+ * - After initialization: Animates opacity changes with duration based on animationSpeed
+ * - Cancels in-progress animations when visibility changes
+ */
 function VideoAnalysisAnimatedHeader({
   appHeaderProps,
   initialOpacity,
@@ -719,17 +543,26 @@ function VideoAnalysisAnimatedHeader({
   currentHeaderVisible,
 }: VideoAnalysisAnimatedHeaderProps) {
   const opacityValue = useSharedValue(initialOpacity)
-
-  useAnimatedReaction(
-    () => opacityValue.value,
-    () => {
-      // Listener intentionally empty; registers the shared value with UI runtime
-    }
-  )
-
   const prevHeaderVisibleRef = useRef(currentHeaderVisible)
   const prevAnimationSpeedRef = useRef<'quick' | 'lazy'>(animationSpeed)
 
+  /**
+   * Register shared value with UI runtime
+   * Empty listener ensures the shared value is tracked by Reanimated
+   */
+  useAnimatedReaction(
+    () => opacityValue.value,
+    () => {
+      // Listener intentionally empty
+    }
+  )
+
+  /**
+   * Update opacity animation
+   * - Before initialization: Set immediately without animation
+   * - After initialization: Animate with duration based on animationSpeed
+   * - Cancel in-progress animations when visibility changes
+   */
   useEffect(() => {
     if (!hasInitialized) {
       opacityValue.value = targetOpacity
@@ -794,7 +627,6 @@ const styles = StyleSheet.create({
     opacity: 0,
     ...(Platform.OS === 'web'
       ? {
-          // Web-specific: ensure screen readers can access it
           clip: 'rect(0, 0, 0, 0)',
           clipPath: 'inset(50%)',
         }
@@ -804,176 +636,110 @@ const styles = StyleSheet.create({
 
 /**
  * NavigationAppHeader with React.memo - compares option values, not references
+ *
  * React Navigation creates new options objects every render, so we need content-based comparison
+ * to prevent unnecessary re-renders when option values haven't actually changed.
+ *
+ * Comparison strategy:
+ * 1. Route identity (name, key)
+ * 2. Back button presence
+ * 3. Header shown state
+ * 4. Custom nav options (headerVisible, isUserInteraction, isHistoryMode)
+ * 5. Route params (analysisJobId, videoRecordingId)
+ * 6. AppHeaderProps (content-based comparison via helper)
+ * 7. Standard React Navigation options (title, tintColor, etc.)
+ * 8. Header functions (by reference)
+ * 9. Header style (backgroundColor comparison)
  *
  * Note: During tab navigation transitions, React Navigation may legitimately trigger 2-3 renders:
  * 1. Mount render when navigating to new tab (expected)
  * 2. Transition update as React Navigation updates options (expected)
  * 3. Final state after transition (may be minimized but not always avoidable)
- *
- * Fast render times (< 1ms) on subsequent renders indicate React.memo is working correctly.
  */
 export const NavigationAppHeader = React.memo(NavigationAppHeaderImpl, (prev, next) => {
-  // Compare route identity (route.name should be stable)
-  if (prev.route.name !== next.route.name) {
+  // Route identity
+  if (prev.route.name !== next.route.name || prev.route.key !== next.route.key) {
     return false
   }
 
-  // Compare back button presence
+  // Back button
   if (Boolean(prev.back) !== Boolean(next.back)) {
     return false
   }
 
-  // Compare headerShown
+  // Header shown
   if (prev.options.headerShown !== next.options.headerShown) {
     return false
   }
 
-  // Extract and compare custom navOptions values (content-based, not reference)
+  // Custom nav options
   const prevNavOptions = prev.options as unknown as NavAppHeaderOptions
   const nextNavOptions = next.options as unknown as NavAppHeaderOptions
 
-  if (prevNavOptions.headerVisible !== nextNavOptions.headerVisible) {
+  if (
+    prevNavOptions.headerVisible !== nextNavOptions.headerVisible ||
+    prevNavOptions.isUserInteraction !== nextNavOptions.isUserInteraction ||
+    prevNavOptions.isHistoryMode !== nextNavOptions.isHistoryMode
+  ) {
     return false
   }
 
-  if (prevNavOptions.isUserInteraction !== nextNavOptions.isUserInteraction) {
-    return false
-  }
-
-  if (prevNavOptions.isHistoryMode !== nextNavOptions.isHistoryMode) {
-    return false
-  }
-
-  // Compare route params for VideoAnalysis mode detection
+  // Route params
   const prevParams = prev.route.params as Record<string, unknown> | undefined
   const nextParams = next.route.params as Record<string, unknown> | undefined
-  if (prevParams?.analysisJobId !== nextParams?.analysisJobId) {
-    return false
-  }
-  if (prevParams?.videoRecordingId !== nextParams?.videoRecordingId) {
-    return false
-  }
-
-  // Compare appHeaderProps values (content-based)
-  const prevAppHeaderProps = prevNavOptions.appHeaderProps
-  const nextAppHeaderProps = nextNavOptions.appHeaderProps
-
-  if (!prevAppHeaderProps && !nextAppHeaderProps) {
-    // Both undefined - equal
-  } else if (!prevAppHeaderProps || !nextAppHeaderProps) {
-    return false // One defined, one not - different
-  } else {
-    // Compare key values from appHeaderProps
-    if (
-      prevAppHeaderProps.mode !== nextAppHeaderProps.mode ||
-      prevAppHeaderProps.showTimer !== nextAppHeaderProps.showTimer ||
-      prevAppHeaderProps.timerValue !== nextAppHeaderProps.timerValue ||
-      prevAppHeaderProps.title !== nextAppHeaderProps.title ||
-      prevAppHeaderProps.titleAlignment !== nextAppHeaderProps.titleAlignment ||
-      prevAppHeaderProps.leftAction !== nextAppHeaderProps.leftAction ||
-      prevAppHeaderProps.rightAction !== nextAppHeaderProps.rightAction ||
-      prevAppHeaderProps.themeName !== nextAppHeaderProps.themeName ||
-      prevAppHeaderProps.profileImageUri !== nextAppHeaderProps.profileImageUri ||
-      prevAppHeaderProps.notificationBadgeCount !== nextAppHeaderProps.notificationBadgeCount
-    ) {
-      return false
-    }
-
-    // Compare callback references (if they changed, we need to re-render)
-    // Note: Callbacks are compared by reference - if parent creates new callbacks, we re-render
-    if (
-      prevAppHeaderProps.onBackPress !== nextAppHeaderProps.onBackPress ||
-      prevAppHeaderProps.onMenuPress !== nextAppHeaderProps.onMenuPress ||
-      prevAppHeaderProps.onNotificationPress !== nextAppHeaderProps.onNotificationPress ||
-      prevAppHeaderProps.onProfilePress !== nextAppHeaderProps.onProfilePress
-    ) {
-      return false
-    }
-  }
-
-  // Compare options.headerLeft/Right/Title functions by reference
-  // Only compare if they're actually set (not undefined) - React Navigation may recreate
-  // undefined values during transitions without meaningful change
   if (
-    (prev.options.headerLeft !== undefined || next.options.headerLeft !== undefined) &&
-    prev.options.headerLeft !== next.options.headerLeft
+    prevParams?.analysisJobId !== nextParams?.analysisJobId ||
+    prevParams?.videoRecordingId !== nextParams?.videoRecordingId
   ) {
     return false
   }
+
+  // AppHeaderProps comparison
+  if (!compareAppHeaderProps(prevNavOptions.appHeaderProps, nextNavOptions.appHeaderProps)) {
+    return false
+  }
+
+  // Standard options
   if (
-    (prev.options.headerRight !== undefined || next.options.headerRight !== undefined) &&
-    prev.options.headerRight !== next.options.headerRight
+    prev.options.title !== next.options.title ||
+    prev.options.headerTitleAlign !== next.options.headerTitleAlign ||
+    prev.options.headerTintColor !== next.options.headerTintColor ||
+    prev.options.headerTransparent !== next.options.headerTransparent
   ) {
     return false
   }
+
+  // Header functions (by reference)
   if (
-    (prev.options.headerTitle !== undefined || next.options.headerTitle !== undefined) &&
-    prev.options.headerTitle !== next.options.headerTitle
-  ) {
-    return false
-  }
-  if (
-    (prev.options.headerBackTitle !== undefined || next.options.headerBackTitle !== undefined) &&
+    prev.options.headerLeft !== next.options.headerLeft ||
+    prev.options.headerRight !== next.options.headerRight ||
+    prev.options.headerTitle !== next.options.headerTitle ||
     prev.options.headerBackTitle !== next.options.headerBackTitle
   ) {
     return false
   }
 
-  // Compare options.title
-  if (prev.options.title !== next.options.title) {
-    return false
-  }
-
-  // Compare options.headerTitleAlign
-  if (prev.options.headerTitleAlign !== next.options.headerTitleAlign) {
-    return false
-  }
-
-  // Compare options.headerTintColor
-  if (prev.options.headerTintColor !== next.options.headerTintColor) {
-    return false
-  }
-
-  // Compare options.headerTransparent
-  if (prev.options.headerTransparent !== next.options.headerTransparent) {
-    return false
-  }
-
-  // Compare route.key (React Navigation uses this for route identity)
-  // If route.key changes, it's a different route instance - need to re-render
-  if (prev.route.key !== next.route.key) {
-    return false
-  }
-
-  // Compare navigation objects by identity (should be stable, but check anyway)
-  if (prev.navigation !== next.navigation) {
-    // Navigation object identity changed - might need to re-render if we use it
-    // But we use a ref, so this is usually safe to ignore
-    // Only re-render if route also changed (caught above)
-  }
-
-  // Compare headerStyle object (React Navigation may recreate this)
-  const prevHeaderStyle = prev.options.headerStyle
-  const nextHeaderStyle = next.options.headerStyle
-  if (prevHeaderStyle !== nextHeaderStyle) {
-    // Compare by content, not reference
-    if (
-      typeof prevHeaderStyle === 'object' &&
-      typeof nextHeaderStyle === 'object' &&
-      prevHeaderStyle !== null &&
-      nextHeaderStyle !== null
-    ) {
-      const prevBg = (prevHeaderStyle as any).backgroundColor
-      const nextBg = (nextHeaderStyle as any).backgroundColor
-      if (prevBg !== nextBg) {
-        return false
-      }
-    } else if (prevHeaderStyle !== nextHeaderStyle) {
+  // Header style (compare backgroundColor)
+  const prevStyle = prev.options.headerStyle
+  const nextStyle = next.options.headerStyle
+  if (prevStyle !== nextStyle) {
+    const prevBg =
+      typeof prevStyle === 'object' && prevStyle && 'backgroundColor' in prevStyle
+        ? prevStyle.backgroundColor
+        : undefined
+    const nextBg =
+      typeof nextStyle === 'object' && nextStyle && 'backgroundColor' in nextStyle
+        ? nextStyle.backgroundColor
+        : undefined
+    if (prevBg !== nextBg) {
       return false
     }
   }
 
-  // All relevant props are equal - skip re-render
   return true
 })
+
+// Enable why-did-you-render tracking for NavigationAppHeader
+if (process.env.NODE_ENV === 'development') {
+  NavigationAppHeader.whyDidYouRender = true
+}

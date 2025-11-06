@@ -97,7 +97,6 @@ export function useFeedbackAudioSource(
           const storedExt = storedPath.match(/\.([^.]+)$/)?.[1]
           const hasCached = await checkCachedAudio(feedbackId, storedExt)
           if (hasCached) {
-            log.info(CONTEXT, 'Using cached audio from store', { feedbackId, path: storedPath })
             return storedPath
           }
           // Cache miss - clear stale entry

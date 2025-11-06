@@ -75,12 +75,6 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       return
     }
 
-    log.debug('useFeedbackStatusIntegration', 'Syncing state for analysisId change', {
-      analysisId,
-      previousAnalysisId: lastAnalysisIdRef.current,
-      mountCycle: currentMount,
-    })
-
     const sync = () => {
       const state = useFeedbackStatusStore.getState()
       const storeFeedbacks = state.getFeedbacksByAnalysisId(analysisId)
@@ -94,13 +88,6 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
         | 'failed'
         | undefined
       setSubscriptionStatus(status ?? 'idle')
-
-      log.debug('useFeedbackStatusIntegration', 'Synced feedbacks from store', {
-        analysisId,
-        count: storeFeedbacks.length,
-        isSubscribed: state.subscriptions.has(analysisId),
-        status: status ?? 'idle',
-      })
     }
 
     // Sync immediately (might have prefetched data)
@@ -133,20 +120,9 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     )
 
     return () => {
-      log.debug('useFeedbackStatusIntegration', 'Cleanup: unsubscribing from store updates', {
-        analysisId,
-        mountCycle: currentMount,
-      })
       unsubscribeStore()
     }
   }, [analysisId])
-
-  // Log subscription status changes
-  useEffect(() => {
-    if (analysisId && isSubscribed) {
-      log.info('useFeedbackStatusIntegration', `Subscribed to feedbacks for analysis ${analysisId}`)
-    }
-  }, [analysisId, isSubscribed])
 
   // Subscribe/unsubscribe based on analysis ID using a ref guard to prevent churn
   useEffect(() => {

@@ -355,16 +355,81 @@ export function useGestureController(
   // Pull-to-reveal state (JavaScript-accessible for UI indicators)
   const [isPullingToRevealJS, setIsPullingToRevealJS] = useState(false)
 
+  // LAZY INITIALIZATION: Register listeners for internal tracking shared values
+  // to prevent "onAnimatedValueUpdate with no listeners" warnings in development.
+  // These values are read within worklets but need registered listeners to avoid warnings.
+  useAnimatedReaction(
+    () => gestureIsActive.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => gestureDirection.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => gestureVelocity.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => gestureStartTime.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => initialTouchY.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => initialTouchX.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => initialIsInVideoArea.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => isFastSwipeVideoModeChange.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => committedToVideoControl.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => initialScrollY.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+  useAnimatedReaction(
+    () => isLeftEdgeSwipe.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+
   const setFeedbackScrollEnabledTransition = useCallback((value: boolean) => {
     setFeedbackScrollEnabled((prev) => {
       if (prev === value) {
         return prev
       }
-
-      log.debug('useGestureController', '🔍 setFeedbackScrollEnabledTransition', {
-        prev,
-        next: value,
-      })
 
       return value
     })
@@ -446,20 +511,7 @@ export function useGestureController(
   // Update refs when dependencies change (but keep callback references stable)
   useEffect(() => {
     feedbackScrollYRef.current = (scrollYValue: number) => {
-      const prevOffset = feedbackContentOffsetY.value
       feedbackContentOffsetY.value = scrollYValue
-
-      // Only log significant changes to reduce noise
-      if (Math.abs(scrollYValue - prevOffset) > 5) {
-        log.debug('VideoAnalysisScreen.onFeedbackScrollY', 'Feedback scroll position changed', {
-          prevOffset: Math.round(prevOffset * 100) / 100,
-          newOffset: Math.round(scrollYValue * 100) / 100,
-          delta: Math.round((scrollYValue - prevOffset) * 100) / 100,
-          scrollY: Math.round(scrollY.value * 100) / 100,
-          gestureIsActive: gestureIsActive.value,
-          committedToVideoControl: committedToVideoControl.value,
-        })
-      }
     }
 
     feedbackMomentumScrollEndRef.current = () => {
@@ -619,7 +671,7 @@ export function useGestureController(
 
         // Use initial touch area for consistent decision making
         const scrollValue = scrollY.value
-        const currentVideoHeight = calculateVideoHeight(scrollValue)
+        // const currentVideoHeight = calculateVideoHeight(scrollValue)
         const isInVideoArea = initialIsInVideoArea.value // Use stored initial value
         const isAtTop = feedbackContentOffsetY.value <= 0
         const isNormalMode =
@@ -637,92 +689,92 @@ export function useGestureController(
             committedToVideoControl.value = true
             runOnJS(setFeedbackScrollEnabledTransition)(false)
             runOnJS(setBlockFeedbackScrollCompletelyTransition)(true)
-            runOnJS(log.debug)(
-              'VideoAnalysisScreen.rootPan',
-              'Fast swipe detected - video mode change (COMMITTED)',
-              {
-                direction: gestureDirection.value,
-                velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-                isNormalMode,
-                isFastSwipe,
-                threshold: FAST_SWIPE_THRESHOLD,
-                initialTouchY: initialTouchY.value,
-                currentVideoHeight,
-                isInVideoArea,
-                isAtTop,
-                scrollValue,
-                initialScrollY: initialScrollY.value,
-              }
-            )
+            // runOnJS(log.debug)(
+            //   'VideoAnalysisScreen.rootPan',
+            //   'Fast swipe detected - video mode change (COMMITTED)',
+            //   {
+            //     direction: gestureDirection.value,
+            //     velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+            //     isNormalMode,
+            //     isFastSwipe,
+            //     threshold: FAST_SWIPE_THRESHOLD,
+            //     initialTouchY: initialTouchY.value,
+            //     currentVideoHeight,
+            //     isInVideoArea,
+            //     isAtTop,
+            //     scrollValue,
+            //     initialScrollY: initialScrollY.value,
+            //   }
+            // )
           } else {
             // Slow swipe UP → Hand off to ScrollView for feedback scrolling
-            const wasActive = gestureIsActive.value
+            // const wasActive = gestureIsActive.value
             gestureIsActive.value = false
             runOnJS(setFeedbackScrollEnabledTransition)(true)
-            runOnJS(log.debug)(
-              'VideoAnalysisScreen.rootPan',
-              'Slow swipe - handed off to ScrollView (NOT COMMITTED)',
-              {
-                wasActive,
-                nowActive: false,
-                direction: gestureDirection.value,
-                velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-                isNormalMode,
-                isFastSwipe,
-                threshold: FAST_SWIPE_THRESHOLD,
-                initialTouchY: initialTouchY.value,
-                currentVideoHeight,
-                isInVideoArea,
-                isAtTop,
-                scrollValue,
-                initialScrollY: initialScrollY.value,
-                committedToVideoControl: committedToVideoControl.value,
-              }
-            )
+            // runOnJS(log.debug)(
+            //   'VideoAnalysisScreen.rootPan',
+            //   'Slow swipe - handed off to ScrollView (NOT COMMITTED)',
+            //   {
+            //     wasActive,
+            //     nowActive: false,
+            //     direction: gestureDirection.value,
+            //     velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+            //     isNormalMode,
+            //     isFastSwipe,
+            //     threshold: FAST_SWIPE_THRESHOLD,
+            //     initialTouchY: initialTouchY.value,
+            //     currentVideoHeight,
+            //     isInVideoArea,
+            //     isAtTop,
+            //     scrollValue,
+            //     initialScrollY: initialScrollY.value,
+            //     committedToVideoControl: committedToVideoControl.value,
+            //   }
+            // )
             return
           }
         } else if (!isInVideoArea && !isAtTop) {
           // CRITICAL FIX: Feedback area is already scrolled (not at top)
           // Do NOT commit to video control - this would steal the scroll gesture
           // and reset the feedback scroll position
-          const wasActive = gestureIsActive.value
+          // const wasActive = gestureIsActive.value
           gestureIsActive.value = false
           runOnJS(setFeedbackScrollEnabledTransition)(true)
-          runOnJS(log.debug)(
-            'VideoAnalysisScreen.rootPan',
-            'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
-            {
-              wasActive,
-              nowActive: false,
-              direction: gestureDirection.value,
-              velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-              isInVideoArea,
-              isAtTop,
-              feedbackOffset: feedbackContentOffsetY.value,
-              scrollValue,
-              initialScrollY: initialScrollY.value,
-              reason: 'feedback-already-scrolled',
-            }
-          )
+          // runOnJS(log.debug)(
+          //   'VideoAnalysisScreen.rootPan',
+          //   'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
+          //   {
+          //     wasActive,
+          //     nowActive: false,
+          //     direction: gestureDirection.value,
+          //     velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+          //     isInVideoArea,
+          //     isAtTop,
+          //     feedbackOffset: feedbackContentOffsetY.value,
+          //     scrollValue,
+          //     initialScrollY: initialScrollY.value,
+          //     reason: 'feedback-already-scrolled',
+          //   }
+          // )
           return
         } else {
           // All other cases: Commit to gesture control
           committedToVideoControl.value = true
           runOnJS(setFeedbackScrollEnabledTransition)(false)
-          runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture committed to video control', {
-            direction: gestureDirection.value,
-            velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-            isInVideoArea,
-            isAtTop,
-            initialTouchY: initialTouchY.value,
-            currentVideoHeight,
-            scrollValue,
-            isNormalMode,
-            isFastSwipe,
-            threshold: FAST_SWIPE_THRESHOLD,
-            initialScrollY: initialScrollY.value,
-            committedToVideoControl: committedToVideoControl.value,
-          })
+          // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture committed to video control', {
+          //   direction: gestureDirection.value,
+          //   velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+          //   isInVideoArea,
+          //   isAtTop,
+          //   initialTouchY: initialTouchY.value,
+          //   currentVideoHeight,
+          //   scrollValue,
+          //   isNormalMode,
+          //   isFastSwipe,
+          //   threshold: FAST_SWIPE_THRESHOLD,
+          //   initialScrollY: initialScrollY.value,
+          //   committedToVideoControl: committedToVideoControl.value,
+          // })
         }
       }
 
@@ -738,16 +790,16 @@ export function useGestureController(
         isPullingToReveal.value = next < -PULL_THRESHOLD
         scrollTo(scrollRef, 0, next, false)
 
-        runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'onChange - scrollY moved', {
-          prevScrollY: Math.round(prevScrollY * 100) / 100,
-          nextScrollY: Math.round(next * 100) / 100,
-          changeY: Math.round(e.changeY * 100) / 100,
-          totalChange: Math.round((next - initialScrollY.value) * 100) / 100,
-          gestureActive: gestureIsActive.value,
-          committedToVideoControl: committedToVideoControl.value,
-          isPullingToReveal: isPullingToReveal.value,
-          feedbackOffset: feedbackContentOffsetY.value,
-        })
+        // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'onChange - scrollY moved', {
+        //   prevScrollY: Math.round(prevScrollY * 100) / 100,
+        //   nextScrollY: Math.round(next * 100) / 100,
+        //   changeY: Math.round(e.changeY * 100) / 100,
+        //   totalChange: Math.round((next - initialScrollY.value) * 100) / 100,
+        //   gestureActive: gestureIsActive.value,
+        //   committedToVideoControl: committedToVideoControl.value,
+        //   isPullingToReveal: isPullingToReveal.value,
+        //   feedbackOffset: feedbackContentOffsetY.value,
+        // })
       }
 
       // Track gesture change for AI analysis
@@ -762,37 +814,37 @@ export function useGestureController(
     .onEnd((event) => {
       'worklet'
       const currentScrollY = scrollY.value
-      const scrollYDelta = currentScrollY - initialScrollY.value
+      // const scrollYDelta = currentScrollY - initialScrollY.value
 
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - evaluating snap', {
-        gestureIsActive: gestureIsActive.value,
-        committedToVideoControl: committedToVideoControl.value,
-        isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
-        isPullingToReveal: isPullingToReveal.value,
-        initialScrollY: Math.round(initialScrollY.value * 100) / 100,
-        currentScrollY: Math.round(currentScrollY * 100) / 100,
-        scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-        feedbackOffset: feedbackContentOffsetY.value,
-        gestureDirection: gestureDirection.value,
-        translation: {
-          x: Math.round(event.translationX * 100) / 100,
-          y: Math.round(event.translationY * 100) / 100,
-        },
-        velocity: {
-          x: Math.round(event.velocityX * 100) / 100,
-          y: Math.round(event.velocityY * 100) / 100,
-        },
-      })
+      // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - evaluating snap', {
+      //   gestureIsActive: gestureIsActive.value,
+      //   committedToVideoControl: committedToVideoControl.value,
+      //   isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
+      //   isPullingToReveal: isPullingToReveal.value,
+      //   initialScrollY: Math.round(initialScrollY.value * 100) / 100,
+      //   currentScrollY: Math.round(currentScrollY * 100) / 100,
+      //   scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+      //   feedbackOffset: feedbackContentOffsetY.value,
+      //   gestureDirection: gestureDirection.value,
+      //   translation: {
+      //     x: Math.round(event.translationX * 100) / 100,
+      //     y: Math.round(event.translationY * 100) / 100,
+      //   },
+      //   velocity: {
+      //     x: Math.round(event.velocityX * 100) / 100,
+      //     y: Math.round(event.velocityY * 100) / 100,
+      //   },
+      // })
 
       if (!gestureIsActive.value) {
-        runOnJS(log.debug)(
-          'VideoAnalysisScreen.rootPan',
-          'Gesture end - SKIPPED (gesture not active, no snap)',
-          {
-            scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-            committedToVideoControl: committedToVideoControl.value,
-          }
-        )
+        // runOnJS(log.debug)(
+        //   'VideoAnalysisScreen.rootPan',
+        //   'Gesture end - SKIPPED (gesture not active, no snap)',
+        //   {
+        //     scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+        //     committedToVideoControl: committedToVideoControl.value,
+        //   }
+        // )
         return
       }
 
@@ -808,36 +860,36 @@ export function useGestureController(
       // ← CRITICAL: Re-enable ScrollView when gesture ends
       runOnJS(setFeedbackScrollEnabledTransition)(true)
       runOnJS(setBlockFeedbackScrollCompletelyTransition)(false)
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - re-enabled scroll', {
-        feedbackScrollEnabled: true,
-        blockFeedbackScrollCompletely: false,
-        feedbackOffset: feedbackContentOffsetY.value,
-        scrollY: scrollY.value,
-        gestureWasActive: gestureIsActive.value,
-        committedToVideoControl: committedToVideoControl.value,
-      })
+      // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - re-enabled scroll', {
+      //   feedbackScrollEnabled: true,
+      //   blockFeedbackScrollCompletely: false,
+      //   feedbackOffset: feedbackContentOffsetY.value,
+      //   scrollY: scrollY.value,
+      //   gestureWasActive: gestureIsActive.value,
+      //   committedToVideoControl: committedToVideoControl.value,
+      // })
 
       const targetMode = scrollToMode(currentScrollY)
       const targetScrollPos = modeToScroll(targetMode)
 
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - SNAPPING to mode', {
-        targetMode,
-        targetScrollPos,
-        fromScrollY: Math.round(currentScrollY * 100) / 100,
-        snapDistance: Math.round((targetScrollPos - currentScrollY) * 100) / 100,
-        committedToVideoControl: committedToVideoControl.value,
-        isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
-        isPullingToReveal: isPullingToReveal.value,
-        scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-        feedbackOffset: feedbackContentOffsetY.value,
-        reason: committedToVideoControl.value
-          ? 'committed to video control'
-          : isFastSwipeVideoModeChange.value
-            ? 'fast swipe mode change'
-            : isPullingToReveal.value
-              ? 'pull-to-reveal'
-              : 'gesture active but not committed (possible bug)',
-      })
+      // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture end - SNAPPING to mode', {
+      //   targetMode,
+      //   targetScrollPos,
+      //   fromScrollY: Math.round(currentScrollY * 100) / 100,
+      //   snapDistance: Math.round((targetScrollPos - currentScrollY) * 100) / 100,
+      //   committedToVideoControl: committedToVideoControl.value,
+      //   isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
+      //   isPullingToReveal: isPullingToReveal.value,
+      //   scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+      //   feedbackOffset: feedbackContentOffsetY.value,
+      //   reason: committedToVideoControl.value
+      //     ? 'committed to video control'
+      //     : isFastSwipeVideoModeChange.value
+      //       ? 'fast swipe mode change'
+      //       : isPullingToReveal.value
+      //         ? 'pull-to-reveal'
+      //         : 'gesture active but not committed (possible bug)',
+      // })
 
       scrollY.value = withTiming(targetScrollPos, {
         duration: SNAP_DURATION_MS,
@@ -846,18 +898,18 @@ export function useGestureController(
       scrollTo(scrollRef, 0, targetScrollPos, true)
 
       // Log if feedback offset is non-zero when snapping - this might indicate an issue
-      if (feedbackContentOffsetY.value > 0) {
-        runOnJS(log.warn)(
-          'VideoAnalysisScreen.rootPan',
-          'Feedback panel has non-zero offset during mode snap - may cause scroll issues',
-          {
-            feedbackOffset: feedbackContentOffsetY.value,
-            targetMode,
-            fromScrollY: currentScrollY,
-            targetScrollPos,
-          }
-        )
-      }
+      // if (feedbackContentOffsetY.value > 0) {
+      //   runOnJS(log.warn)(
+      //     'VideoAnalysisScreen.rootPan',
+      //     'Feedback panel has non-zero offset during mode snap - may cause scroll issues',
+      //     {
+      //       feedbackOffset: feedbackContentOffsetY.value,
+      //       targetMode,
+      //       fromScrollY: currentScrollY,
+      //       targetScrollPos,
+      //     }
+      //   )
+      // }
     })
     .onFinalize((event) => {
       'worklet'
@@ -870,15 +922,7 @@ export function useGestureController(
         velocity: { x: event.velocityX, y: event.velocityY },
       })
 
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture finalize - resetting state', {
-        wasActive: gestureIsActive.value,
-        wasCommitted: committedToVideoControl.value,
-        finalScrollY: Math.round(scrollY.value * 100) / 100,
-        initialScrollY: Math.round(initialScrollY.value * 100) / 100,
-        scrollYDelta: Math.round((scrollY.value - initialScrollY.value) * 100) / 100,
-        feedbackOffset: feedbackContentOffsetY.value,
-      })
-
+      // Gesture finalize - resetting state
       gestureIsActive.value = false
       gestureDirection.value = 'unknown'
       gestureVelocity.value = 0

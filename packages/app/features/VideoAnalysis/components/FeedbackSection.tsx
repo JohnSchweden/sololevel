@@ -1,7 +1,6 @@
 //import { log } from '@my/logging'
 import { memo, useEffect, useMemo } from 'react'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { YStack } from 'tamagui'
 
 import { FeedbackPanel } from '@ui/components/VideoAnalysis'
@@ -75,44 +74,39 @@ export const FeedbackSection = memo(function FeedbackSection({
   }, [selectedFeedbackId, panelFraction])
 
   return (
-    <ProfilerWrapper
-      id="FeedbackSection"
-      logToConsole={__DEV__}
+    <YStack
+      height="100%"
+      width="100%"
+      position="relative"
     >
-      <YStack
-        height="100%"
-        width="100%"
-        position="relative"
-      >
-        <FeedbackPanel
-          flex={1}
-          isExpanded={true}
-          activeTab={activeTab}
-          feedbackItems={preparedItems}
-          comments={mockComments}
-          currentVideoTime={currentVideoTime}
-          videoDuration={videoDuration}
-          selectedFeedbackId={selectedFeedbackId}
-          onTabChange={onTabChange}
-          // TEMP_DISABLED: Sheet expand/collapse for static layout
-          // onSheetExpand={onExpand}
-          // onSheetCollapse={onCollapse}
-          onFeedbackItemPress={onItemPress}
-          onVideoSeek={onSeek}
-          onRetryFeedback={onRetryFeedback}
-          onDismissError={onDismissError}
-          onSelectAudio={onSelectAudio}
-          onCommentSubmit={(text) => {
-            // TODO: Handle comment submission
-            console.log('Comment submitted:', text)
-          }}
-          onScrollYChange={onScrollYChange}
-          onScrollEndDrag={onScrollEndDrag}
-          scrollEnabled={scrollEnabled}
-          rootPanRef={rootPanRef}
-        />
-      </YStack>
-    </ProfilerWrapper>
+      <FeedbackPanel
+        flex={1}
+        isExpanded={true}
+        activeTab={activeTab}
+        feedbackItems={preparedItems}
+        comments={mockComments}
+        currentVideoTime={currentVideoTime}
+        videoDuration={videoDuration}
+        selectedFeedbackId={selectedFeedbackId}
+        onTabChange={onTabChange}
+        // TEMP_DISABLED: Sheet expand/collapse for static layout
+        // onSheetExpand={onExpand}
+        // onSheetCollapse={onCollapse}
+        onFeedbackItemPress={onItemPress}
+        onVideoSeek={onSeek}
+        onRetryFeedback={onRetryFeedback}
+        onDismissError={onDismissError}
+        onSelectAudio={onSelectAudio}
+        onCommentSubmit={(text) => {
+          // TODO: Handle comment submission
+          console.log('Comment submitted:', text)
+        }}
+        onScrollYChange={onScrollYChange}
+        onScrollEndDrag={onScrollEndDrag}
+        scrollEnabled={scrollEnabled}
+        rootPanRef={rootPanRef}
+      />
+    </YStack>
   )
 })
 

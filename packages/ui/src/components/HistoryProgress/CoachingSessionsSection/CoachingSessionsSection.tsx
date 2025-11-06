@@ -1,5 +1,4 @@
 import type { GetProps } from '@tamagui/core'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { RefreshControl } from 'react-native'
 import { ScrollView, Text, YStack, styled } from 'tamagui'
 import { CoachingSessionItem } from '../CoachingSessionItem'
@@ -119,39 +118,34 @@ export function CoachingSessionsSection({
   testID = 'coaching-sessions-section',
 }: CoachingSessionsSectionProps): React.ReactElement {
   return (
-    <ProfilerWrapper
-      id="CoachingSessionsSection"
-      logToConsole={__DEV__}
-    >
-      <SectionContainer data-testid={testID}>
-        <SectionHeader data-testid={`${testID}-header`}>Coaching sessions</SectionHeader>
+    <SectionContainer data-testid={testID}>
+      <SectionHeader data-testid={`${testID}-header`}>Coaching sessions</SectionHeader>
 
-        <ScrollView
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="$color11"
-              />
-            ) : undefined
-          }
-          testID={`${testID}-scroll`}
-        >
-          <SessionsList data-testid={`${testID}-list`}>
-            {sessions.map((session) => (
-              <CoachingSessionItem
-                key={session.id}
-                date={session.date}
-                title={session.title}
-                onPress={() => onSessionPress(session.id)}
-                testID={`${testID}-item-${session.id}`}
-              />
-            ))}
-          </SessionsList>
-        </ScrollView>
-      </SectionContainer>
-    </ProfilerWrapper>
+      <ScrollView
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="$color11"
+            />
+          ) : undefined
+        }
+        testID={`${testID}-scroll`}
+      >
+        <SessionsList data-testid={`${testID}-list`}>
+          {sessions.map((session) => (
+            <CoachingSessionItem
+              key={session.id}
+              date={session.date}
+              title={session.title}
+              onPress={() => onSessionPress(session.id)}
+              testID={`${testID}-item-${session.id}`}
+            />
+          ))}
+        </SessionsList>
+      </ScrollView>
+    </SectionContainer>
   )
 }
 

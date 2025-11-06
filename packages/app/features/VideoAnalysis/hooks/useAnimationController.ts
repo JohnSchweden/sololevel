@@ -1,5 +1,4 @@
-import { log } from '@my/logging'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import Animated, {
@@ -11,7 +10,6 @@ import Animated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
-  runOnJS,
   type AnimatedRef,
   type AnimatedStyle,
   type SharedValue,
@@ -239,6 +237,17 @@ export function useAnimationController(): UseAnimationControllerReturn {
   // Feedback panel scroll tracking
   const feedbackContentOffsetY = useSharedValue(0)
 
+  // LAZY INITIALIZATION: Register listener for feedbackContentOffsetY
+  // to prevent "onAnimatedValueUpdate with no listeners" warnings in development.
+  // This value is updated from ScrollView callbacks and read in worklets but needs
+  // a registered listener to avoid warnings.
+  useAnimatedReaction(
+    () => feedbackContentOffsetY.value,
+    () => {
+      // Listener intentionally empty - ensures value is observed by UI runtime
+    }
+  )
+
   // Cleanup shared values on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -316,67 +325,13 @@ export function useAnimationController(): UseAnimationControllerReturn {
   // This prevents crashes when React Native tries to clone shadow nodes
   const collapseProgress = useSharedValue(0.5) // Initialize to normal mode (0.5)
 
-  // Track previous values for logging
-  const prevCollapseProgressRef = useRef<number | null>(null)
-  const lastLogTimeRef = useRef(0)
-
-  // Log collapseProgress changes for debugging social icons visibility
-  const logProgressChange = useCallback(
-    (progress: number, scrollYValue: number, headerHeightValue: number) => {
-      const now = Date.now()
-      const prev = prevCollapseProgressRef.current
-
-      // Log on mount and when progress changes significantly
-      if (prev === null || Math.abs(progress - prev) > 0.05) {
-        if (now - lastLogTimeRef.current > 100) {
-          log.debug('useAnimationController', '📊 collapseProgress changed', {
-            progress,
-            previousProgress: prev,
-            delta: prev !== null ? progress - prev : null,
-            timestamp: now,
-            scrollY: scrollYValue,
-            headerHeight: headerHeightValue,
-          })
-
-          prevCollapseProgressRef.current = progress
-          lastLogTimeRef.current = now
-        }
-      }
-    },
-    []
-  )
-
-  // Sync DerivedValue to SharedValue on UI thread and log changes
+  // Sync DerivedValue to SharedValue on UI thread
   useAnimatedReaction(
-    () => ({
-      progress: collapseProgressDerived.value,
-      scrollY: scrollY.value,
-      headerHeight: headerHeight.value,
-    }),
-    (current, previous) => {
-      const prev = collapseProgress.value
-      collapseProgress.value = current.progress
-
-      // Log significant changes
-      if (previous === null || Math.abs(current.progress - (previous?.progress ?? prev)) > 0.05) {
-        const now = Date.now()
-        if (now - lastLogTimeRef.current > 100) {
-          runOnJS(logProgressChange)(current.progress, current.scrollY, current.headerHeight)
-        }
-      }
+    () => collapseProgressDerived.value,
+    (current) => {
+      collapseProgress.value = current
     }
   )
-
-  // Log initial state
-  useEffect(() => {
-    log.debug('useAnimationController', '📊 Initial collapseProgress state', {
-      initialScrollY: INITIAL_SCROLL_Y,
-      initialCollapseProgress: collapseProgress.value,
-      scrollY: scrollY.value,
-      headerHeight: headerHeight.value,
-      timestamp: Date.now(),
-    })
-  }, [])
 
   // PERFORMANCE OPTIMIZATION: Batch style calculations in single useAnimatedStyle
   // Reduces per-frame worklet executions during gestures by ~60%

@@ -22,6 +22,32 @@ jest.mock('@app/provider/safe-area/use-safe-area', () => ({
   }),
 }))
 
+// Mock react-native (needed for FlatList)
+jest.mock('react-native', () => {
+  const React = require('react')
+  return {
+    FlatList: ({ data, renderItem, keyExtractor, testID, ...props }: any) => {
+      const items = data || []
+      return React.createElement(
+        'div',
+        { 'data-testid': testID || 'flat-list', ...props },
+        items.map((item: any, index: number) => {
+          const key = keyExtractor ? keyExtractor(item, index) : index
+          return React.createElement(
+            React.Fragment,
+            { key },
+            renderItem ? renderItem({ item, index }) : null
+          )
+        })
+      )
+    },
+    Platform: {
+      OS: 'web',
+      select: jest.fn((obj: any) => obj.web || obj.default),
+    },
+  }
+})
+
 // Mock the UI components used by CoachScreen
 jest.mock('@my/ui', () => {
   const React = require('react')

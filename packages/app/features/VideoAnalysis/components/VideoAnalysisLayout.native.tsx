@@ -1,8 +1,6 @@
-import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import type { RefObject } from 'react'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -17,7 +15,6 @@ import {
   type VideoControlsRef,
 } from '@ui/components/VideoAnalysis'
 
-import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import type { AudioControllerState } from '../hooks/useAudioController'
 import { usePersistentProgressStore } from '../stores'
@@ -224,179 +221,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   // Destructure props for use
   const { feedbackAudioUrls, feedbackErrors } = props
 
-  // Detailed prop diagnostics using useRenderDiagnostics
-  useRenderDiagnostics('VideoAnalysisLayout', props as unknown as Record<string, unknown>, {
-    logToConsole: __DEV__,
-    logOnlyChanges: true,
-  })
-
-  // Debug: Track render count and prop changes
-  const renderCountRef = useRef(0)
-  const prevPropsRef = useRef(props)
-
-  renderCountRef.current += 1
-
-  const lastRenderTimeRef = useRef<number>(Date.now())
-
-  useEffect(() => {
-    // Calculate time since last render (for both first and subsequent renders)
-    const now = Date.now()
-    const timeSinceLastRender = renderCountRef.current > 1 ? now - lastRenderTimeRef.current : 0
-    if (renderCountRef.current > 1) {
-      lastRenderTimeRef.current = now
-    } else {
-      lastRenderTimeRef.current = now // Initialize time tracking
-    }
-
-    // Track prop changes (for both first and subsequent renders)
-    if (renderCountRef.current > 1) {
-      const prev = prevPropsRef.current
-      const changed: string[] = []
-
-      // Check ALL props to identify what's actually changing
-      // Object references with value inspection
-      if (prev.gesture !== props.gesture) {
-        const gestureChanged =
-          prev.gesture?.feedbackScrollEnabled !== props.gesture?.feedbackScrollEnabled ||
-          prev.gesture?.blockFeedbackScrollCompletely !==
-            props.gesture?.blockFeedbackScrollCompletely ||
-          prev.gesture?.isPullingToRevealJS !== props.gesture?.isPullingToRevealJS
-        if (gestureChanged) {
-          changed.push(
-            `gesture: values changed (scrollEnabled: ${prev.gesture?.feedbackScrollEnabled}→${props.gesture?.feedbackScrollEnabled}, blockScroll: ${prev.gesture?.blockFeedbackScrollCompletely}→${props.gesture?.blockFeedbackScrollCompletely})`
-          )
-        } else {
-          changed.push('gesture (REF)')
-        }
-      }
-      if (prev.animation !== props.animation) changed.push('animation (ref)')
-      if (prev.video !== props.video) changed.push('video (ref)')
-      if (prev.playback !== props.playback) {
-        const playbackChanged =
-          prev.playback?.isPlaying !== props.playback?.isPlaying ||
-          prev.playback?.videoEnded !== props.playback?.videoEnded ||
-          prev.playback?.pendingSeek !== props.playback?.pendingSeek ||
-          prev.playback?.shouldPlayVideo !== props.playback?.shouldPlayVideo
-        if (playbackChanged) {
-          changed.push(
-            `playback: values changed (isPlaying: ${prev.playback?.isPlaying}→${props.playback?.isPlaying}, pendingSeek: ${prev.playback?.pendingSeek}→${props.playback?.pendingSeek})`
-          )
-        } else {
-          changed.push('playback (REF)')
-        }
-      }
-      if (prev.feedback !== props.feedback) changed.push('feedback (ref)')
-      if (prev.handlers !== props.handlers) changed.push('handlers (ref)')
-      if (prev.videoControlsRef !== props.videoControlsRef) changed.push('videoControlsRef (ref)')
-      if (prev.controls !== props.controls) {
-        const controlsChanged = prev.controls?.showControls !== props.controls?.showControls
-        if (controlsChanged) {
-          changed.push(
-            `controls: showControls changed (${prev.controls?.showControls}→${props.controls?.showControls})`
-          )
-        } else {
-          changed.push('controls (REF)')
-        }
-      }
-      if (prev.error !== props.error) changed.push('error (ref)')
-      if (prev.audioController !== props.audioController) changed.push('audioController (ref)')
-      if (prev.bubbleState !== props.bubbleState) changed.push('bubbleState (ref)')
-      if (prev.audioOverlay !== props.audioOverlay) changed.push('audioOverlay (ref)')
-      if (prev.coachSpeaking !== props.coachSpeaking) changed.push('coachSpeaking')
-      if (prev.socialCounts !== props.socialCounts) changed.push('socialCounts (ref)')
-      if (prev.feedbackAudioUrls !== props.feedbackAudioUrls)
-        changed.push('feedbackAudioUrls (ref)')
-      if (prev.feedbackErrors !== props.feedbackErrors) changed.push('feedbackErrors (ref)')
-
-      // Check key props that change frequently (for detailed logging)
-      if (prev.gesture?.feedbackScrollEnabled !== props.gesture?.feedbackScrollEnabled)
-        changed.push('gesture.feedbackScrollEnabled')
-      if (
-        prev.gesture?.blockFeedbackScrollCompletely !== props.gesture?.blockFeedbackScrollCompletely
-      )
-        changed.push('gesture.blockFeedbackScrollCompletely')
-      if (prev.gesture?.isPullingToRevealJS !== props.gesture?.isPullingToRevealJS)
-        changed.push('gesture.isPullingToRevealJS')
-      if (prev.feedback?.selectedFeedbackId !== props.feedback?.selectedFeedbackId)
-        changed.push('feedback.selectedFeedbackId')
-      if (prev.playback?.isPlaying !== props.playback?.isPlaying) changed.push('playback.isPlaying')
-      if (prev.controls?.showControls !== props.controls?.showControls)
-        changed.push('controls.showControls')
-
-      // Deep comparison for nested objects
-      if (prev.bubbleState && props.bubbleState) {
-        if (prev.bubbleState.visible !== props.bubbleState.visible)
-          changed.push('bubbleState.visible')
-        if (prev.bubbleState.currentIndex !== props.bubbleState.currentIndex)
-          changed.push('bubbleState.currentIndex')
-        if (prev.bubbleState.items !== props.bubbleState.items) changed.push('bubbleState.items')
-      }
-      if (prev.audioOverlay && props.audioOverlay) {
-        if (prev.audioOverlay.shouldShow !== props.audioOverlay.shouldShow)
-          changed.push('audioOverlay.shouldShow')
-        if (prev.audioOverlay.activeAudio !== props.audioOverlay.activeAudio) {
-          changed.push('audioOverlay.activeAudio')
-          log.debug('VideoAnalysisLayout', '🔍 audioOverlay.activeAudio changed', {
-            prevId: prev.audioOverlay.activeAudio?.id ?? 'null',
-            newId: props.audioOverlay.activeAudio?.id ?? 'null',
-            prevRef: prev.audioOverlay.activeAudio ? 'exists' : 'null',
-            newRef: props.audioOverlay.activeAudio ? 'exists' : 'null',
-            sameObject: prev.audioOverlay.activeAudio === props.audioOverlay.activeAudio,
-          })
-        }
-      } else if (prev.audioOverlay !== props.audioOverlay) {
-        // One is null/undefined
-        changed.push('audioOverlay (null check)')
-        log.debug('VideoAnalysisLayout', '🔍 audioOverlay null/undefined changed', {
-          prevExists: !!prev.audioOverlay,
-          newExists: !!props.audioOverlay,
-        })
-      }
-
-      if (changed.length > 0) {
-        log.debug('VideoAnalysisLayout', '🔍 Props changed', {
-          renderCount: renderCountRef.current,
-          changedProps: changed,
-          timeSinceLastRender,
-          gestureFeedbackScrollEnabled: props.gesture?.feedbackScrollEnabled,
-          gestureBlockFeedbackScrollCompletely: props.gesture?.blockFeedbackScrollCompletely,
-        })
-      } else {
-        // Commented out verbose logging - we have better tracking now:
-        // 1. Parent props tracking (VideoAnalysisScreen) shows which props changed
-        // 2. Orchestrator tracking shows when controls object is recreated
-        // 3. Critical "MEMO BYPASSED" error logs show the race condition
-        // This log was redundant and added noise without actionable info
-        // log.warn('VideoAnalysisLayout', '⚠️ Re-rendered WITHOUT tracked prop changes', {
-        //   renderCount: renderCountRef.current,
-        //   renderCountDiff: renderCountRef.current - prevRenderCountRef.current,
-        //   timeSinceLastRender,
-        //   isRapid: timeSinceLastRender < 16,
-        //   propRefs: {
-        //     gesture: prev.gesture === props.gesture ? 'same' : 'changed',
-        //     animation: prev.animation === props.animation ? 'same' : 'changed',
-        //     video: prev.video === props.video ? 'same' : 'changed',
-        //     playback: prev.playback === props.playback ? 'same' : 'changed',
-        //     feedback: prev.feedback === props.feedback ? 'same' : 'changed',
-        //     handlers: prev.handlers === props.handlers ? 'same' : 'changed',
-        //     controls: prev.controls === props.controls ? 'same' : 'changed',
-        //     audioOverlay: prev.audioOverlay === props.audioOverlay ? 'same' : 'changed',
-        //     bubbleState: prev.bubbleState === props.bubbleState ? 'same' : 'changed',
-        //     audioController: prev.audioController === props.audioController ? 'same' : 'changed',
-        //     videoUri: prev.videoUri === props.videoUri ? 'same' : 'changed',
-        //     coachSpeaking: prev.coachSpeaking === props.coachSpeaking ? 'same' : 'changed',
-        //     socialCounts: prev.socialCounts === props.socialCounts ? 'same' : 'changed',
-        //   },
-        //   stackTrace:
-        //     timeSinceLastRender < 16
-        //       ? new Error().stack?.split('\n').slice(1, 10).join('\n')
-        //       : undefined,
-        // })
-      }
-      prevPropsRef.current = props
-    }
-  })
-
   const {
     gesture,
     animation,
@@ -505,202 +329,197 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   // When feedbackScrollEnabled is false, that indicates a gesture is active and animations are happening
 
   return (
-    <ProfilerWrapper
-      id="VideoAnalysisLayout"
-      logToConsole={__DEV__}
-    >
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <GlassBackground
-          flex={1}
-          backgroundColor="$color3"
-          testID="video-analysis-screen"
-        >
-          <UploadErrorState
-            visible={error.visible}
-            errorMessage={error.message}
-            onRetry={error.onRetry}
-            onBack={error.onBack}
-          />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GlassBackground
+        flex={1}
+        backgroundColor="$color3"
+        testID="video-analysis-screen"
+      >
+        <UploadErrorState
+          visible={error.visible}
+          errorMessage={error.message}
+          onRetry={error.onRetry}
+          onBack={error.onBack}
+        />
 
-          {!error.visible && (
-            <GestureDetector gesture={gesture.rootPan}>
-              <YStack flex={1}>
-                {/* Collapsible header (video) */}
-                <Animated.View
-                  style={[
-                    {
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      zIndex: 2,
-                      overflow: 'hidden',
-                    },
-                    animation.headerStyle,
-                  ]}
-                  testID="video-analysis-collapsible-header"
-                >
-                  <VideoPlayerSection
-                    videoUri={videoUri}
-                    videoControlsRef={videoControlsRef}
-                    pendingSeek={playback.pendingSeek}
-                    userIsPlaying={playback.isPlaying}
-                    videoShouldPlay={playback.shouldPlayVideo}
-                    videoEnded={playback.videoEnded}
-                    showControls={computedShowControls}
-                    isProcessing={video.isProcessing}
-                    videoAreaScale={computedVideoAreaScale}
-                    posterUri={video.posterUri}
-                    onPlay={handlers.onPlay}
-                    onPause={handlers.onPause}
-                    onReplay={handlers.onReplay}
-                    onSeek={handlers.onSeek}
-                    onSeekComplete={handlers.onSeekComplete}
-                    onSignificantProgress={handlers.onSignificantProgress}
-                    onLoad={handlers.onVideoLoad}
-                    onEnd={handlers.onEnd}
-                    onTap={handleTap}
-                    onControlsVisibilityChange={controls.onControlsVisibilityChange}
-                    audioPlayerController={audioController}
-                    bubbleState={bubbleState}
-                    audioOverlay={audioOverlay}
-                    coachSpeaking={coachSpeaking}
-                    panelFraction={feedback.panelFraction}
-                    socialCounts={socialCounts}
-                    onSocialAction={socialActionHandlers}
-                    collapseProgress={animation.collapseProgress}
-                    persistentProgressStoreSetter={controls.persistentProgressStoreSetter}
-                  />
-                </Animated.View>
-
-                {/* Pull-to-reveal indicator */}
-                <Animated.View
-                  style={[
-                    {
-                      position: 'absolute',
-                      top: VIDEO_HEIGHTS.normal - 40, // Show indicator at normal video height
-                      left: 0,
-                      right: 0,
-                      zIndex: 3,
-                      alignItems: 'center',
-                      pointerEvents: 'none',
-                    },
-                    animation.pullIndicatorStyle,
-                  ]}
-                  testID="pull-to-reveal-indicator"
-                >
-                  {/* Indicator content commented out in original - keeping same */}
-                </Animated.View>
-
-                {/* Persistent Progress Bar - Positioned at bottom of video header */}
-                {persistentProgressBarProps && (
-                  <Animated.View
-                    style={[
-                      {
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        zIndex: 10,
-                        pointerEvents: 'box-none',
-                      },
-                      persistentProgressBarPositionStyle,
-                    ]}
-                    testID="persistent-progress-bar-container"
-                  >
-                    <ProgressBar
-                      variant="persistent"
-                      progress={
-                        persistentProgressBarProps.duration > 0
-                          ? (persistentProgressBarProps.currentTime /
-                              persistentProgressBarProps.duration) *
-                            100
-                          : 0
-                      }
-                      isScrubbing={persistentProgressBarProps.isScrubbing}
-                      controlsVisible={persistentProgressBarProps.controlsVisible}
-                      progressBarWidth={persistentProgressBarProps.progressBarWidth}
-                      animatedStyle={persistentProgressBarProps.animatedStyle}
-                      combinedGesture={persistentProgressBarProps.combinedGesture}
-                      mainGesture={persistentProgressBarProps.mainGesture}
-                      onLayout={persistentProgressBarProps.onLayout}
-                      onFallbackPress={persistentProgressBarProps.onFallbackPress}
-                      testID="persistent-progress-bar"
-                    />
-                  </Animated.View>
-                )}
-
-                {/* Single scroll source with content starting below header */}
-                <Animated.ScrollView
-                  ref={animation.scrollRef}
-                  scrollEnabled={false}
-                  pointerEvents="none"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{
-                    paddingTop: VIDEO_HEIGHTS.max, // Start content below full video (100%)
-                    paddingBottom: 0,
-                  }}
-                  testID="video-analysis-scroll-container"
+        {!error.visible && (
+          <GestureDetector gesture={gesture.rootPan}>
+            <YStack flex={1}>
+              {/* Collapsible header (video) */}
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 2,
+                    overflow: 'hidden',
+                  },
+                  animation.headerStyle,
+                ]}
+                testID="video-analysis-collapsible-header"
+              >
+                <VideoPlayerSection
+                  videoUri={videoUri}
+                  videoControlsRef={videoControlsRef}
+                  pendingSeek={playback.pendingSeek}
+                  userIsPlaying={playback.isPlaying}
+                  videoShouldPlay={playback.shouldPlayVideo}
+                  videoEnded={playback.videoEnded}
+                  showControls={computedShowControls}
+                  isProcessing={video.isProcessing}
+                  videoAreaScale={computedVideoAreaScale}
+                  posterUri={video.posterUri}
+                  onPlay={handlers.onPlay}
+                  onPause={handlers.onPause}
+                  onReplay={handlers.onReplay}
+                  onSeek={handlers.onSeek}
+                  onSeekComplete={handlers.onSeekComplete}
+                  onSignificantProgress={handlers.onSignificantProgress}
+                  onLoad={handlers.onVideoLoad}
+                  onEnd={handlers.onEnd}
+                  onTap={handleTap}
+                  onControlsVisibilityChange={controls.onControlsVisibilityChange}
+                  audioPlayerController={audioController}
+                  bubbleState={bubbleState}
+                  audioOverlay={audioOverlay}
+                  coachSpeaking={coachSpeaking}
+                  panelFraction={feedback.panelFraction}
+                  socialCounts={socialCounts}
+                  onSocialAction={socialActionHandlers}
+                  collapseProgress={animation.collapseProgress}
+                  persistentProgressStoreSetter={controls.persistentProgressStoreSetter}
                 />
+              </Animated.View>
 
-                {/* Processing Indicator - positioned absolutely to overlay above video section */}
-                <ProcessingIndicator
-                  phase={
-                    video.isReady && feedback.phase === 'generating-feedback'
-                      ? ('ready' as AnalysisPhase)
-                      : video.isReady
-                        ? feedback.phase
-                        : 'analyzing'
-                  }
-                  progress={feedback.progress}
-                  channelExhausted={feedback.channelExhausted}
-                />
+              {/* Pull-to-reveal indicator */}
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: VIDEO_HEIGHTS.normal - 40, // Show indicator at normal video height
+                    left: 0,
+                    right: 0,
+                    zIndex: 3,
+                    alignItems: 'center',
+                    pointerEvents: 'none',
+                  },
+                  animation.pullIndicatorStyle,
+                ]}
+                testID="pull-to-reveal-indicator"
+              >
+                {/* Indicator content commented out in original - keeping same */}
+              </Animated.View>
 
-                {/* Feedback positioned absolutely below video header - tracks exact height */}
-                {/* OPTIMIZED: feedbackSectionStyle now includes merged transform */}
+              {/* Persistent Progress Bar - Positioned at bottom of video header */}
+              {persistentProgressBarProps && (
                 <Animated.View
                   style={[
                     {
                       position: 'absolute',
-                      top: 0,
                       left: 0,
                       right: 0,
-                      zIndex: 1,
+                      zIndex: 10,
+                      pointerEvents: 'box-none',
                     },
-                    animation.feedbackSectionStyle,
+                    persistentProgressBarPositionStyle,
                   ]}
-                  testID="feedback-section-container"
+                  testID="persistent-progress-bar-container"
                 >
-                  <FeedbackSection
-                    panelFraction={feedback.panelFraction}
-                    activeTab={feedback.activeTab}
-                    feedbackItems={feedback.items}
-                    selectedFeedbackId={feedback.selectedFeedbackId}
-                    currentVideoTime={playback.currentTime ?? 0}
-                    videoDuration={0}
-                    errors={feedbackErrors}
-                    audioUrls={feedbackAudioUrls}
-                    onTabChange={handlers.onTabChange}
-                    onExpand={handlers.onExpand}
-                    onCollapse={handlers.onCollapsePanel}
-                    onItemPress={handlers.onFeedbackItemPress}
-                    onSeek={handlers.onSeek}
-                    onRetryFeedback={handlers.onRetryFeedback}
-                    onDismissError={handlers.onDismissError}
-                    onSelectAudio={handlers.onSelectAudio}
-                    onScrollYChange={handlers.onFeedbackScrollY}
-                    onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
-                    scrollEnabled={
-                      gesture.feedbackScrollEnabled && !gesture.blockFeedbackScrollCompletely
+                  <ProgressBar
+                    variant="persistent"
+                    progress={
+                      persistentProgressBarProps.duration > 0
+                        ? (persistentProgressBarProps.currentTime /
+                            persistentProgressBarProps.duration) *
+                          100
+                        : 0
                     }
-                    rootPanRef={gesture.rootPanRef}
+                    isScrubbing={persistentProgressBarProps.isScrubbing}
+                    controlsVisible={persistentProgressBarProps.controlsVisible}
+                    progressBarWidth={persistentProgressBarProps.progressBarWidth}
+                    animatedStyle={persistentProgressBarProps.animatedStyle}
+                    combinedGesture={persistentProgressBarProps.combinedGesture}
+                    mainGesture={persistentProgressBarProps.mainGesture}
+                    onLayout={persistentProgressBarProps.onLayout}
+                    onFallbackPress={persistentProgressBarProps.onFallbackPress}
+                    testID="persistent-progress-bar"
                   />
                 </Animated.View>
-              </YStack>
-            </GestureDetector>
-          )}
-        </GlassBackground>
-      </GestureHandlerRootView>
-    </ProfilerWrapper>
+              )}
+
+              {/* Single scroll source with content starting below header */}
+              <Animated.ScrollView
+                ref={animation.scrollRef}
+                scrollEnabled={false}
+                pointerEvents="none"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingTop: VIDEO_HEIGHTS.max, // Start content below full video (100%)
+                  paddingBottom: 0,
+                }}
+                testID="video-analysis-scroll-container"
+              />
+
+              {/* Processing Indicator - positioned absolutely to overlay above video section */}
+              <ProcessingIndicator
+                phase={
+                  video.isReady && feedback.phase === 'generating-feedback'
+                    ? ('ready' as AnalysisPhase)
+                    : video.isReady
+                      ? feedback.phase
+                      : 'analyzing'
+                }
+                progress={feedback.progress}
+                channelExhausted={feedback.channelExhausted}
+              />
+
+              {/* Feedback positioned absolutely below video header - tracks exact height */}
+              {/* OPTIMIZED: feedbackSectionStyle now includes merged transform */}
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 1,
+                  },
+                  animation.feedbackSectionStyle,
+                ]}
+                testID="feedback-section-container"
+              >
+                <FeedbackSection
+                  panelFraction={feedback.panelFraction}
+                  activeTab={feedback.activeTab}
+                  feedbackItems={feedback.items}
+                  selectedFeedbackId={feedback.selectedFeedbackId}
+                  currentVideoTime={playback.currentTime ?? 0}
+                  videoDuration={0}
+                  errors={feedbackErrors}
+                  audioUrls={feedbackAudioUrls}
+                  onTabChange={handlers.onTabChange}
+                  onExpand={handlers.onExpand}
+                  onCollapse={handlers.onCollapsePanel}
+                  onItemPress={handlers.onFeedbackItemPress}
+                  onSeek={handlers.onSeek}
+                  onRetryFeedback={handlers.onRetryFeedback}
+                  onDismissError={handlers.onDismissError}
+                  onSelectAudio={handlers.onSelectAudio}
+                  onScrollYChange={handlers.onFeedbackScrollY}
+                  onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
+                  scrollEnabled={
+                    gesture.feedbackScrollEnabled && !gesture.blockFeedbackScrollCompletely
+                  }
+                  rootPanRef={gesture.rootPanRef}
+                />
+              </Animated.View>
+            </YStack>
+          </GestureDetector>
+        )}
+      </GlassBackground>
+    </GestureHandlerRootView>
   )
 }
 

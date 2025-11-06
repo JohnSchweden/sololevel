@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { YStack } from 'tamagui'
 
 import { type PersistentProgressBarProps, ProgressBar } from '@ui/components/VideoAnalysis'
@@ -64,124 +63,117 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
   }, [controls])
 
   return (
-    <ProfilerWrapper
-      id="VideoAnalysisLayout"
-      logToConsole={__DEV__}
+    <YStack
+      flex={1}
+      testID="video-analysis-screen"
     >
-      <YStack
-        flex={1}
-        testID="video-analysis-screen"
-      >
-        <UploadErrorState
-          visible={error.visible}
-          errorMessage={error.message}
-          onRetry={error.onRetry}
-          onBack={error.onBack}
-        />
-        {!error.visible && (
-          <YStack
-            flex={1}
-            position="relative"
-          >
-            {/* Video player section */}
-            <VideoPlayerSection
-              videoUri={videoUri}
-              videoControlsRef={videoControlsRef}
-              pendingSeek={playback.pendingSeek}
-              userIsPlaying={playback.isPlaying}
-              videoShouldPlay={playback.shouldPlayVideo}
-              videoEnded={playback.videoEnded}
-              showControls={video.isReady && controls.showControls}
-              isProcessing={video.isProcessing}
-              videoAreaScale={1 - feedback.panelFraction}
-              posterUri={video.posterUri}
-              onPlay={handlers.onPlay}
-              onPause={handlers.onPause}
-              onReplay={handlers.onPause}
-              onSeek={handlers.onSeek}
-              onSeekComplete={handlers.onSeekComplete}
-              onSignificantProgress={handlers.onSignificantProgress}
-              onLoad={handlers.onVideoLoad}
-              onEnd={handlers.onPause}
-              onTap={handleTap}
-              onControlsVisibilityChange={controls.onControlsVisibilityChange}
-              audioPlayerController={audioController}
-              bubbleState={bubbleState}
-              audioOverlay={audioOverlay}
-              coachSpeaking={coachSpeaking}
-              panelFraction={feedback.panelFraction}
-              socialCounts={socialCounts}
-              onSocialAction={{
-                onShare: handlers.onShare,
-                onLike: handlers.onLike,
-                onComment: handlers.onComment,
-                onBookmark: handlers.onBookmark,
-              }}
-              collapseProgress={animation.collapseProgress}
-              onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
-            />
+      <UploadErrorState
+        visible={error.visible}
+        errorMessage={error.message}
+        onRetry={error.onRetry}
+        onBack={error.onBack}
+      />
+      {!error.visible && (
+        <YStack
+          flex={1}
+          position="relative"
+        >
+          {/* Video player section */}
+          <VideoPlayerSection
+            videoUri={videoUri}
+            videoControlsRef={videoControlsRef}
+            pendingSeek={playback.pendingSeek}
+            userIsPlaying={playback.isPlaying}
+            videoShouldPlay={playback.shouldPlayVideo}
+            videoEnded={playback.videoEnded}
+            showControls={video.isReady && controls.showControls}
+            isProcessing={video.isProcessing}
+            videoAreaScale={1 - feedback.panelFraction}
+            posterUri={video.posterUri}
+            onPlay={handlers.onPlay}
+            onPause={handlers.onPause}
+            onReplay={handlers.onPause}
+            onSeek={handlers.onSeek}
+            onSeekComplete={handlers.onSeekComplete}
+            onSignificantProgress={handlers.onSignificantProgress}
+            onLoad={handlers.onVideoLoad}
+            onEnd={handlers.onPause}
+            onTap={handleTap}
+            onControlsVisibilityChange={controls.onControlsVisibilityChange}
+            audioPlayerController={audioController}
+            bubbleState={bubbleState}
+            audioOverlay={audioOverlay}
+            coachSpeaking={coachSpeaking}
+            panelFraction={feedback.panelFraction}
+            socialCounts={socialCounts}
+            onSocialAction={{
+              onShare: handlers.onShare,
+              onLike: handlers.onLike,
+              onComment: handlers.onComment,
+              onBookmark: handlers.onBookmark,
+            }}
+            collapseProgress={animation.collapseProgress}
+            onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
+          />
 
-            {/* Feedback section */}
-            <FeedbackSection
-              panelFraction={feedback.panelFraction}
-              activeTab={feedback.activeTab}
-              feedbackItems={feedback.items}
-              selectedFeedbackId={feedback.selectedFeedbackId}
-              currentVideoTime={playback.currentTime ?? 0}
-              videoDuration={0}
-              errors={feedbackErrors}
-              audioUrls={feedbackAudioUrls}
-              onTabChange={handlers.onTabChange}
-              onExpand={handlers.onExpand}
-              onCollapse={handlers.onCollapsePanel}
-              onItemPress={handlers.onFeedbackItemPress}
-              onSeek={handlers.onSeek}
-              onRetryFeedback={handlers.onRetryFeedback}
-              onDismissError={handlers.onDismissError}
-              onSelectAudio={handlers.onSelectAudio}
-              onScrollYChange={handlers.onFeedbackScrollY}
-              onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
-              scrollEnabled={
-                gesture.feedbackScrollEnabled && !gesture.blockFeedbackScrollCompletely
-              }
-              rootPanRef={gesture.rootPanRef}
-            />
+          {/* Feedback section */}
+          <FeedbackSection
+            panelFraction={feedback.panelFraction}
+            activeTab={feedback.activeTab}
+            feedbackItems={feedback.items}
+            selectedFeedbackId={feedback.selectedFeedbackId}
+            currentVideoTime={playback.currentTime ?? 0}
+            videoDuration={0}
+            errors={feedbackErrors}
+            audioUrls={feedbackAudioUrls}
+            onTabChange={handlers.onTabChange}
+            onExpand={handlers.onExpand}
+            onCollapse={handlers.onCollapsePanel}
+            onItemPress={handlers.onFeedbackItemPress}
+            onSeek={handlers.onSeek}
+            onRetryFeedback={handlers.onRetryFeedback}
+            onDismissError={handlers.onDismissError}
+            onSelectAudio={handlers.onSelectAudio}
+            onScrollYChange={handlers.onFeedbackScrollY}
+            onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
+            scrollEnabled={gesture.feedbackScrollEnabled && !gesture.blockFeedbackScrollCompletely}
+            rootPanRef={gesture.rootPanRef}
+          />
 
-            {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}
-            {persistentProgressBarProps && (
-              <YStack
-                position="absolute"
-                bottom={0}
-                left={0}
-                right={0}
-                zIndex={10}
-                pointerEvents="box-none"
-                testID="persistent-progress-bar-container"
-              >
-                <ProgressBar
-                  variant="persistent"
-                  progress={
-                    persistentProgressBarProps.duration > 0
-                      ? (persistentProgressBarProps.currentTime /
-                          persistentProgressBarProps.duration) *
-                        100
-                      : 0
-                  }
-                  isScrubbing={persistentProgressBarProps.isScrubbing}
-                  controlsVisible={persistentProgressBarProps.controlsVisible}
-                  progressBarWidth={persistentProgressBarProps.progressBarWidth}
-                  animatedStyle={persistentProgressBarProps.animatedStyle}
-                  combinedGesture={persistentProgressBarProps.combinedGesture}
-                  mainGesture={persistentProgressBarProps.mainGesture}
-                  onLayout={persistentProgressBarProps.onLayout}
-                  onFallbackPress={persistentProgressBarProps.onFallbackPress}
-                  testID="persistent-progress-bar"
-                />
-              </YStack>
-            )}
-          </YStack>
-        )}
-      </YStack>
-    </ProfilerWrapper>
+          {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}
+          {persistentProgressBarProps && (
+            <YStack
+              position="absolute"
+              bottom={0}
+              left={0}
+              right={0}
+              zIndex={10}
+              pointerEvents="box-none"
+              testID="persistent-progress-bar-container"
+            >
+              <ProgressBar
+                variant="persistent"
+                progress={
+                  persistentProgressBarProps.duration > 0
+                    ? (persistentProgressBarProps.currentTime /
+                        persistentProgressBarProps.duration) *
+                      100
+                    : 0
+                }
+                isScrubbing={persistentProgressBarProps.isScrubbing}
+                controlsVisible={persistentProgressBarProps.controlsVisible}
+                progressBarWidth={persistentProgressBarProps.progressBarWidth}
+                animatedStyle={persistentProgressBarProps.animatedStyle}
+                combinedGesture={persistentProgressBarProps.combinedGesture}
+                mainGesture={persistentProgressBarProps.mainGesture}
+                onLayout={persistentProgressBarProps.onLayout}
+                onFallbackPress={persistentProgressBarProps.onFallbackPress}
+                testID="persistent-progress-bar"
+              />
+            </YStack>
+          )}
+        </YStack>
+      )}
+    </YStack>
   )
 }

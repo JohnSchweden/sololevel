@@ -400,13 +400,6 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       // Only trigger feedbacks ahead of lastCheck to prevent re-triggering already-shown items
       const rangeEnd = currentTimeMs + TIMESTAMP_THRESHOLD_MS
 
-      log.debug('useBubbleController.checkAndShowBubbleAtTime', '🔍 Checking bubbles', {
-        currentTimeMs,
-        currentTimeSec: currentTimeMs / 1000,
-        lastCheck,
-        feedbackItemsCount: feedbackItemsRef.current.length,
-      })
-
       for (let index = 0; index < feedbackItemsRef.current.length; index += 1) {
         const item = feedbackItemsRef.current[index]
 

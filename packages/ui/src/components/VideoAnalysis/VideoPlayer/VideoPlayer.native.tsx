@@ -3,7 +3,6 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { Platform } from 'react-native'
 import Video from 'react-native-video'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { Text, YStack } from 'tamagui'
 import type { VideoPlayerProps, VideoPlayerRef } from '../types'
 
@@ -142,71 +141,66 @@ export const VideoPlayerNative = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const videoSource = useMemo(() => ({ uri: videoUri }), [videoUri])
 
     return (
-      <ProfilerWrapper
-        id="VideoPlayer"
-        logToConsole={__DEV__}
+      <YStack
+        flex={1}
+        position="relative"
+        testID="video-player-native"
       >
-        <YStack
-          flex={1}
-          position="relative"
-          testID="video-player-native"
-        >
-          {/* Error State */}
-          {error && (
+        {/* Error State */}
+        {error && (
+          <YStack
+            flex={1}
+            backgroundColor="$color2"
+            justifyContent="center"
+            alignItems="center"
+            padding="$4"
+            testID="video-error"
+          >
             <YStack
-              flex={1}
-              backgroundColor="$color2"
-              justifyContent="center"
-              alignItems="center"
+              backgroundColor="$color3"
               padding="$4"
-              testID="video-error"
+              borderRadius="$4"
+              maxWidth={300}
+              alignItems="center"
+              testID="error-message"
             >
+              {/* Error icon placeholder */}
               <YStack
-                backgroundColor="$color3"
-                padding="$4"
-                borderRadius="$4"
-                maxWidth={300}
-                alignItems="center"
-                testID="error-message"
-              >
-                {/* Error icon placeholder */}
-                <YStack
-                  width={48}
-                  height={48}
-                  backgroundColor="$color4"
-                  borderRadius={24}
-                  marginBottom="$2"
-                  testID="error-icon"
-                />
-                {/* User-safe error message */}
-                <Text testID="error-text">Unable to load video: {error}</Text>
-              </YStack>
+                width={48}
+                height={48}
+                backgroundColor="$color4"
+                borderRadius={24}
+                marginBottom="$2"
+                testID="error-icon"
+              />
+              {/* User-safe error message */}
+              <Text testID="error-text">Unable to load video: {error}</Text>
             </YStack>
-          )}
+          </YStack>
+        )}
 
-          {/* Native Video Player */}
-          {/* Preload strategy: Video mounts early (paused) to warm buffer before user taps play */}
-          {!error && (
-            <Video
-              ref={videoRef}
-              source={videoSource}
-              {...(posterUri ? { poster: posterUri, posterResizeMode: 'cover' } : {})}
-              style={{ flex: 1 }}
-              paused={!isPlaying}
-              onLoad={handleLoad}
-              onError={handleError}
-              onProgress={handleProgress}
-              onEnd={handleEnd}
-              resizeMode="cover"
-              controls={false}
-              playInBackground={false}
-              playWhenInactive={false}
-              ignoreSilentSwitch="ignore"
-              testID="native-video-element"
-            />
-          )}
-        </YStack>
-      </ProfilerWrapper>
+        {/* Native Video Player */}
+        {/* Preload strategy: Video mounts early (paused) to warm buffer before user taps play */}
+        {!error && (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            {...(posterUri ? { poster: posterUri, posterResizeMode: 'cover' } : {})}
+            style={{ flex: 1 }}
+            paused={!isPlaying}
+            onLoad={handleLoad}
+            onError={handleError}
+            onProgress={handleProgress}
+            onEnd={handleEnd}
+            resizeMode="cover"
+            controls={false}
+            playInBackground={false}
+            playWhenInactive={false}
+            ignoreSilentSwitch="ignore"
+            testID="native-video-element"
+          />
+        )}
+      </YStack>
     )
   }
 )

@@ -1,4 +1,3 @@
-import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
@@ -11,17 +10,19 @@ import {
 } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import { BlurView } from 'expo-blur'
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FlatList, type FlatListProps, type ListRenderItem } from 'react-native'
 import Animated, {
-  type SharedValue,
   useAnimatedReaction,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, Image, Text, XStack, YStack } from 'tamagui'
+
+// Create animated FlatList for Reanimated compatibility
+const AnimatedFlatList = Animated.createAnimatedComponent<FlatListProps<Message>>(FlatList)
 
 // Stable style objects for button animations (prevent re-renders)
 // Note: Button color prop controls text/icon color, pressStyle color doesn't override Text children
@@ -31,102 +32,6 @@ const TOGGLE_BUTTON_PRESS_STYLE = {
   backgroundColor: 'transparent',
   opacity: 0.8,
 } as const
-
-// ROOT CAUSE FIX: AnimatedMessageWrapper defined outside component to prevent recreation on every render
-// This ensures React doesn't treat it as a new component type on each render
-interface AnimatedMessageWrapperProps {
-  messageId: string
-  children: React.ReactNode
-  scrollOffset: SharedValue<number>
-  messageLayoutsShared: React.MutableRefObject<
-    Map<string, { y: SharedValue<number>; height: SharedValue<number> }>
-  >
-}
-
-// ROOT CAUSE FIX: AnimatedMessageWrapper reads layout from shared values in map
-// Each wrapper creates its own shared values, registers them in the map, and reads from them
-const AnimatedMessageWrapper = ({
-  messageId,
-  children,
-  scrollOffset,
-  messageLayoutsShared,
-}: AnimatedMessageWrapperProps) => {
-  // Create shared values for this message - these are the actual values we'll read
-  const layoutY = useSharedValue(0)
-  const layoutHeight = useSharedValue(0)
-
-  // Register shared values in map so layout handler can update them
-  useLayoutEffect(() => {
-    messageLayoutsShared.current.set(messageId, { y: layoutY, height: layoutHeight })
-    return () => {
-      messageLayoutsShared.current.delete(messageId)
-    }
-  }, [messageId, layoutY, layoutHeight, messageLayoutsShared])
-
-  // LAZY INITIALIZATION FIX: Register listeners for shared values before they're written to
-  // This prevents "onAnimatedValueUpdate with no listeners" warnings
-  // The values are written by layout handlers before useAnimatedStyle might register
-  useAnimatedReaction(
-    () => layoutY.value,
-    () => {
-      // Dummy listener - ensures layoutY is registered before onLayout writes to it
-    }
-  )
-  useAnimatedReaction(
-    () => layoutHeight.value,
-    () => {
-      // Dummy listener - ensures layoutHeight is registered before onLayout writes to it
-    }
-  )
-
-  const animatedStyle = useAnimatedStyle(() => {
-    'worklet'
-    const fadeStart = 100
-    const fadeEnd = 0
-
-    // LAZY INITIALIZATION FIX: Always read shared values to ensure listener registration
-    // Even if we early return, accessing .value registers the listener
-    const currentScrollOffset = scrollOffset.value
-    const currentLayoutY = layoutY.value
-    // Read to register listener, value not used
-    void layoutHeight.value
-
-    // If not scrolled, all messages are fully visible
-    if (currentScrollOffset <= 0) {
-      return { opacity: 1 }
-    }
-
-    // ROOT CAUSE FIX: layoutY.value starts at 0 until onLayout fires
-    // If layout hasn't been measured yet, keep it fully visible
-    if (currentLayoutY === 0) {
-      return { opacity: 1 }
-    }
-
-    // Calculate message position relative to viewport top
-    // layoutY = message's Y position in scroll content (from onLayout, includes content padding)
-    // scrollOffset = how far user has scrolled (content offset from top)
-    //
-    // ROOT CAUSE FIX: onLayout gives Y relative to content container (includes paddingTop)
-    // To get viewport-relative position, we need: layoutY - scrollOffset
-    // The header is outside the ScrollView viewport, so we don't need to account for it here
-    const messageTop = currentLayoutY - currentScrollOffset
-
-    // Messages below fadeStart (100px from viewport top) are fully visible
-    if (messageTop >= fadeStart) {
-      return { opacity: 1 }
-    }
-    // Messages at/above fadeEnd (0px from viewport top) are minimum opacity
-    if (messageTop <= fadeEnd) {
-      return { opacity: 0.2 }
-    }
-    // Messages between fadeEnd and fadeStart fade smoothly
-    const progress = (messageTop - fadeEnd) / (fadeStart - fadeEnd)
-    const eased = progress ** 3
-    return { opacity: Math.max(0.2, Math.min(1, eased)) }
-  })
-
-  return <Animated.View style={animatedStyle}>{children}</Animated.View>
-}
 
 export interface Message {
   id: string
@@ -269,6 +174,7 @@ export function CoachScreen({
   // Hooks
   const insetsRaw = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+  const BOTTOM_TAB_BAR_HEIGHT = 72 // Fixed height from BottomNavigationContainer
 
   // ROOT CAUSE FIX #1: useSafeAreaInsets returns NEW object reference every render
   // Memoize insets based on content to prevent re-renders when values haven't changed
@@ -280,13 +186,6 @@ export function CoachScreen({
   // ROOT CAUSE FIX #2: Inline object literals in JSX create new references every render
   // Memoize style objects to prevent child component re-renders
   const safeAreaViewStyle = useMemo(() => ({ flex: 1 }), [])
-  const scrollViewContentStyle = useMemo(
-    () => ({
-      flexGrow: 1,
-      justifyContent: 'flex-end' as const,
-    }),
-    []
-  )
   const blurViewStyle = useMemo(
     () => ({
       borderRadius: 0,
@@ -317,47 +216,16 @@ export function CoachScreen({
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(!sessionId)
   const [isSuggestionsButtonPressed, setIsSuggestionsButtonPressed] = useState(false)
-  // ROOT CAUSE FIX: Use Reanimated shared value for scroll offset to prevent React re-renders
-  // This moves opacity calculations to UI thread, eliminating animation frame re-renders
-  const scrollOffset = useSharedValue(0)
-
-  // LAZY INITIALIZATION FIX: Register listener for scrollOffset before scroll handler writes
-  // The scroll handler writes immediately, so we need the listener registered first
-  useAnimatedReaction(
-    () => scrollOffset.value,
-    () => {
-      // Dummy listener - ensures scrollOffset is registered before scroll handler writes to it
-    }
-  )
   // Reanimated shared value for suggestions slide animation (1 = visible, 0 = hidden)
-  // Initialize with 0 to avoid writing to shared value during render
-  const suggestionsProgress = useSharedValue(0)
-  const { visibleItems: sectionsVisibleRaw } = useStaggeredAnimation({
-    itemCount: 4,
-    staggerDelay: 50,
-    dependencies: [isLoading, isError],
-  })
-  const scrollViewRef = useRef<any>(null)
-  const messageLayoutsRef = useRef<Map<string, { y: number; height: number }>>(new Map())
+  // Initialize based on sessionId: expanded for new sessions, collapsed for existing sessions
+  const suggestionsProgress = useSharedValue(!sessionId ? 1 : 0)
+  const flatListRef = useRef<FlatList<Message>>(null)
 
-  // Stabilize sectionsVisible array reference - only create new reference when content changes
-  // This prevents re-renders when useStaggeredAnimation creates new array references with same content
-  const sectionsVisibleSignature = useMemo(
-    () => JSON.stringify(sectionsVisibleRaw),
-    [sectionsVisibleRaw]
-  )
-  const prevSectionsVisibleRef = useRef<boolean[]>(sectionsVisibleRaw)
-  const prevSignatureRef = useRef<string>(sectionsVisibleSignature)
+  // Simple visibility check - show all sections when not loading/error
   const sectionsVisible = useMemo(() => {
-    // Only create new reference if content actually changed
-    if (sectionsVisibleSignature === prevSignatureRef.current) {
-      return prevSectionsVisibleRef.current // Return cached reference
-    }
-    // Content changed - update cache and return new reference
-    prevSignatureRef.current = sectionsVisibleSignature
-    prevSectionsVisibleRef.current = sectionsVisibleRaw
-    return sectionsVisibleRaw
-  }, [sectionsVisibleRaw, sectionsVisibleSignature])
+    const isVisible = !isLoading && !isError
+    return [isVisible, isVisible, isVisible, isVisible]
+  }, [isLoading, isError])
 
   // Handlers - wrapped in useCallback to prevent child component re-renders
   const sendMessage = useCallback(
@@ -388,19 +256,9 @@ export function CoachScreen({
           }
           setMessages((prev) => [...prev, coachResponse])
           setIsTyping(false)
-
-          // Scroll to bottom
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true })
-          }, 100)
         },
         1000 + Math.random() * 1000
       )
-
-      // Scroll to bottom after user message
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true })
-      }, 100)
     },
     [inputMessage, isTyping]
   )
@@ -488,100 +346,28 @@ export function CoachScreen({
     }
   })
 
-  // ROOT CAUSE FIX: Use Reanimated scroll handler - runs on UI thread, no React re-renders
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      // Update shared value directly on UI thread - no React re-render
-      scrollOffset.value = event.contentOffset.y
-    },
-  })
-
-  // ROOT CAUSE FIX: Store header offset as shared value for Reanimated worklet
-  // Initialize with 0 to avoid accessing state during render
-  const headerOffsetShared = useSharedValue(0)
-
-  // LAZY INITIALIZATION FIX: Register listener for headerOffsetShared to prevent warnings
-  // This shared value is written but may not be read immediately
-  useAnimatedReaction(
-    () => headerOffsetShared.value,
-    () => {
-      // Dummy listener - ensures headerOffsetShared is registered before useEffect writes to it
-    }
+  // Memoized renderItem to prevent re-renders
+  const renderMessageItem = useCallback<ListRenderItem<Message>>(
+    ({ item: message }) => (
+      <XStack
+        justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
+        marginBottom="$4"
+      >
+        <MessageBubble
+          type={message.type}
+          content={message.content}
+          timestamp={message.timestamp}
+        />
+      </XStack>
+    ),
+    []
   )
 
-  // Update header offset when insets change (must be in useEffect to avoid render-phase writes)
-  useEffect(() => {
-    headerOffsetShared.value = insets.top + APP_HEADER_HEIGHT
-  }, [insets.top, headerOffsetShared])
+  // Memoized keyExtractor
+  const keyExtractor = useCallback((item: Message) => item.id, [])
 
-  // ROOT CAUSE FIX: Store message layouts as shared values to avoid React re-renders
-  // Layout updates go directly to shared values, Reanimated reads from them on UI thread
-  // Use a ref to store shared values - they're created per-message in AnimatedMessageWrapper
-  const messageLayoutsShared = useRef<
-    Map<string, { y: SharedValue<number>; height: SharedValue<number> }>
-  >(new Map())
-
-  // AnimatedMessageWrapper is now defined outside component to prevent recreation on every render
-
-  // messageOpacities removed - Reanimated handles opacity on UI thread
-
-  // ROOT CAUSE FIX: Layout handler updates shared values directly - NO React re-renders
-  // Reanimated reads from shared values on UI thread, so layout updates don't trigger component re-renders
-  // Note: Shared values are pre-created during render, so we just update their .value here
-  const handleMessageLayout = useCallback((messageId: string, y: number, height: number): void => {
-    // Only update if layout actually changed to prevent unnecessary work
-    const existing = messageLayoutsRef.current.get(messageId)
-    if (existing && existing.y === y && existing.height === height) {
-      return // No change, skip update
-    }
-
-    // Update ref for diagnostics
-    messageLayoutsRef.current.set(messageId, { y, height })
-
-    // Update shared values directly - shared values are pre-created during render
-    const layoutShared = messageLayoutsShared.current.get(messageId)
-    if (layoutShared) {
-      layoutShared.y.value = y
-      layoutShared.height.value = height
-    }
-    // If layoutShared doesn't exist, it means the message was just added and will be initialized on next render
-  }, [])
-
-  // ROOT CAUSE FIX: Memoize layout handlers per message to prevent new function references
-  // New function references cause XStack to re-render, which triggers layout measurements
-  // Layout measurements can cascade, causing multiple re-renders (84-97 in logs)
-  const layoutHandlersRef = useRef<Map<string, (event: any) => void>>(new Map())
-  const getLayoutHandler = useCallback(
-    (messageId: string) => {
-      if (!layoutHandlersRef.current.has(messageId)) {
-        layoutHandlersRef.current.set(messageId, (event: any) => {
-          const { y, height } = event.nativeEvent.layout
-          handleMessageLayout(messageId, y, height)
-        })
-      }
-      return layoutHandlersRef.current.get(messageId)!
-    },
-    [handleMessageLayout]
-  )
-
-  // Clean up handlers for removed messages
-  useEffect(() => {
-    const currentMessageIds = new Set(messages.map((m) => m.id))
-    const handlerMessageIds = Array.from(layoutHandlersRef.current.keys())
-
-    handlerMessageIds.forEach((id) => {
-      if (!currentMessageIds.has(id)) {
-        layoutHandlersRef.current.delete(id)
-      }
-    })
-  }, [messages])
-
-  const handleContentSizeChange = useCallback((): void => {
-    // Only auto-scroll if we have initial messages (previous session)
-    if (initialMessages && initialMessages.length > 0) {
-      scrollViewRef.current?.scrollToEnd({ animated: false })
-    }
-  }, [initialMessages])
+  // Reverse messages for inverted FlatList (newest at bottom, oldest at top)
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages])
 
   // State handling
   if (isLoading) {
@@ -623,11 +409,18 @@ export function CoachScreen({
       testID={testID}
     >
       <SafeAreaView
-        edges={['bottom']}
+        edges={[]}
         style={safeAreaViewStyle}
       >
         <YStack
           flex={1}
+          paddingBottom={
+            hasBottomNavigation
+              ? BOTTOM_TAB_BAR_HEIGHT // Tab context: tab bar height + safe area
+              : sessionId
+                ? insets.bottom // Coaching session: account for safe area only
+                : 0 // New session without tabs: no bottom padding needed
+          }
           testID={`${testID}-content`}
         >
           {/* Sticky Header Overlay */}
@@ -712,53 +505,30 @@ export function CoachScreen({
             // Staggered animation already handles visibility timing
             //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
           >
-            <Animated.ScrollView
-              ref={scrollViewRef}
-              style={{ flex: 1 }}
-              contentContainerStyle={[
-                scrollViewContentStyle,
-                {
-                  paddingTop: insets.top + APP_HEADER_HEIGHT + 116,
-                  paddingHorizontal: 24, // $6 = 24px
-                },
-              ]}
-              testID={`${testID}-messages`}
-              onScroll={scrollHandler}
-              scrollEventThrottle={16}
-              onContentSizeChange={handleContentSizeChange}
-            >
-              <YStack
-                gap="$4"
-                paddingBottom="$4"
-              >
-                {messages.map((message) => (
-                  <AnimatedMessageWrapper
-                    key={message.id}
-                    messageId={message.id}
-                    scrollOffset={scrollOffset}
-                    messageLayoutsShared={messageLayoutsShared}
+            <AnimatedFlatList
+              ref={flatListRef}
+              data={reversedMessages}
+              keyExtractor={keyExtractor}
+              renderItem={renderMessageItem}
+              ListHeaderComponent={
+                isTyping ? (
+                  <XStack
+                    justifyContent="flex-start"
+                    marginBottom="$4"
                   >
-                    <XStack
-                      justifyContent={message.type === 'user' ? 'flex-end' : 'flex-start'}
-                      // ROOT CAUSE FIX: Use stable layout handler reference to prevent re-renders
-                      onLayout={getLayoutHandler(message.id)}
-                    >
-                      <MessageBubble
-                        type={message.type}
-                        content={message.content}
-                        timestamp={message.timestamp}
-                      />
-                    </XStack>
-                  </AnimatedMessageWrapper>
-                ))}
-
-                {isTyping && (
-                  <XStack justifyContent="flex-start">
                     <TypingIndicator />
                   </XStack>
-                )}
-              </YStack>
-            </Animated.ScrollView>
+                ) : null
+              }
+              contentContainerStyle={{
+                paddingTop: 16, // $4 = 16px (bottom padding when inverted)
+                paddingHorizontal: 24, // $6 = 24px
+                paddingBottom: insets.top + APP_HEADER_HEIGHT + 116, // Top padding when inverted
+              }}
+              style={{ flex: 1 }}
+              testID={`${testID}-messages`}
+              inverted={true}
+            />
           </YStack>
 
           {/* Input Area */}
@@ -766,7 +536,7 @@ export function CoachScreen({
             marginHorizontal="$0.5"
             paddingHorizontal="$4"
             gap="$0"
-            paddingBottom={hasBottomNavigation ? insets.bottom : -insets.bottom}
+            paddingBottom={0}
             backgroundColor="$color3"
             borderRadius="$9"
             testID={`${testID}-input-area`}
@@ -874,3 +644,6 @@ export function CoachScreen({
     </GlassBackground>
   )
 }
+
+// Enable why-did-you-render tracking for performance debugging
+CoachScreen.whyDidYouRender = true

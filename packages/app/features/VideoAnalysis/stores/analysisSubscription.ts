@@ -290,11 +290,6 @@ function createSubscription(
   set: StoreSetter
 ): Promise<() => void> {
   if (options.analysisJobId) {
-    log.info('AnalysisSubscriptionStore', 'Creating job subscription', {
-      key,
-      analysisJobId: options.analysisJobId,
-    })
-
     return new Promise((resolve, reject) => {
       const unsubscribe = subscribeToAnalysisJob(
         options.analysisJobId!,

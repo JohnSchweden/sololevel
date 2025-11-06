@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 
 import { log } from '@my/logging'
 import { ShareSheet } from '@ui/components/BottomSheets'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { Button, Text, YStack } from 'tamagui'
 
 export interface SocialIconsProps {
@@ -135,10 +134,7 @@ export function SocialIcons({
       : { right: '$2' as const, top: '$2' as const, y: '$-10' as const }
 
   return (
-    <ProfilerWrapper
-      id="SocialIcons"
-      logToConsole={__DEV__}
-    >
+    <>
       <YStack
         position="absolute"
         gap="$2"
@@ -313,6 +309,6 @@ export function SocialIcons({
         open={shareSheetOpen}
         onOpenChange={setShareSheetOpen}
       />
-    </ProfilerWrapper>
+    </>
   )
 }

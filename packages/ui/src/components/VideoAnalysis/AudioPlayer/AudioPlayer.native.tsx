@@ -2,7 +2,6 @@ import { log } from '@my/logging'
 import { useEffect, useMemo, useRef } from 'react'
 import Video from 'react-native-video'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import type { AudioPlayerProps } from '../types'
 
 // Defensive URL normalizer for dev environment
@@ -70,88 +69,83 @@ export const AudioPlayer = function AudioPlayer({
   const audioSource = useMemo(() => ({ uri: normalizedAudioUrl }), [normalizedAudioUrl])
 
   return (
-    <ProfilerWrapper
-      id="AudioPlayer"
-      logToConsole={__DEV__}
-    >
-      <Video
-        testID={testID}
-        source={audioSource}
-        paused={!controller.isPlaying}
-        seek={controller.seekTime ?? undefined}
-        onLoad={(data) => {
-          // log.info('AudioPlayer', 'Video component onLoad', {
-          //   data,
-          //   controllerState: {
-          //     isPlaying: controller.isPlaying,
-          //     currentTime: controller.currentTime,
-          //     seekTime: controller.seekTime,
-          //     isLoaded: controller.isLoaded,
-          //   },
-          // })
-          controller.handleLoad(data)
+    <Video
+      testID={testID}
+      source={audioSource}
+      paused={!controller.isPlaying}
+      seek={controller.seekTime ?? undefined}
+      onLoad={(data) => {
+        // log.info('AudioPlayer', 'Video component onLoad', {
+        //   data,
+        //   controllerState: {
+        //     isPlaying: controller.isPlaying,
+        //     currentTime: controller.currentTime,
+        //     seekTime: controller.seekTime,
+        //     isLoaded: controller.isLoaded,
+        //   },
+        // })
+        controller.handleLoad(data)
 
-          // Only do initial seek once per audio URL to prevent redundant seeks
-          // Skip if player is already at start (selection effect may have set seekTime=0)
-          if (
-            !hasInitializedRef.current &&
-            controller.seekTime === null &&
-            (typeof data?.currentTime !== 'number' || Math.abs(data.currentTime) > 0.05)
-          ) {
-            // log.debug('AudioPlayer', 'Initial seek to start after load')
-            controller.seekTo(0)
-            hasInitializedRef.current = true
-          }
-        }}
-        onProgress={(data) => {
-          // Throttle progress logging to avoid spam (log every 2 seconds)
-          // if (
-          //   Math.floor(data.currentTime) % 2 === 0 &&
-          //   Math.floor(data.currentTime) !== Math.floor(controller.currentTime)
-          // ) {
-          //   log.debug('AudioPlayer', 'Video component onProgress', {
-          //     currentTime: data.currentTime,
-          //     playableDuration: data.playableDuration,
-          //     seekableDuration: data.seekableDuration,
-          //   })
-          // }
-          controller.handleProgress(data)
+        // Only do initial seek once per audio URL to prevent redundant seeks
+        // Skip if player is already at start (selection effect may have set seekTime=0)
+        if (
+          !hasInitializedRef.current &&
+          controller.seekTime === null &&
+          (typeof data?.currentTime !== 'number' || Math.abs(data.currentTime) > 0.05)
+        ) {
+          // log.debug('AudioPlayer', 'Initial seek to start after load')
+          controller.seekTo(0)
+          hasInitializedRef.current = true
+        }
+      }}
+      onProgress={(data) => {
+        // Throttle progress logging to avoid spam (log every 2 seconds)
+        // if (
+        //   Math.floor(data.currentTime) % 2 === 0 &&
+        //   Math.floor(data.currentTime) !== Math.floor(controller.currentTime)
+        // ) {
+        //   log.debug('AudioPlayer', 'Video component onProgress', {
+        //     currentTime: data.currentTime,
+        //     playableDuration: data.playableDuration,
+        //     seekableDuration: data.seekableDuration,
+        //   })
+        // }
+        controller.handleProgress(data)
 
-          // Detect seek completion when player time reaches target seek time
-          if (
-            typeof controller.seekTime === 'number' &&
-            Math.abs(data.currentTime - controller.seekTime) < 0.05
-          ) {
-            // log.debug('AudioPlayer', 'Detected seek completion via progress callback', {
-            //   currentTime: data.currentTime,
-            //   targetSeekTime: controller.seekTime,
-            // })
-            controller.handleSeekComplete()
-          }
-        }}
-        onEnd={() => {
-          // log.info('AudioPlayer', 'Video component onEnd', {
-          //   controllerState: {
-          //     isPlaying: controller.isPlaying,
-          //     currentTime: controller.currentTime,
-          //     duration: controller.duration,
-          //     seekTime: controller.seekTime,
-          //     isLoaded: controller.isLoaded,
-          //   },
+        // Detect seek completion when player time reaches target seek time
+        if (
+          typeof controller.seekTime === 'number' &&
+          Math.abs(data.currentTime - controller.seekTime) < 0.05
+        ) {
+          // log.debug('AudioPlayer', 'Detected seek completion via progress callback', {
+          //   currentTime: data.currentTime,
+          //   targetSeekTime: controller.seekTime,
           // })
-          controller.handleEnd()
-        }}
-        onError={(error) => {
-          log.error('AudioPlayer', 'Video component onError', { error })
-          controller.handleError(error)
-        }}
-        ignoreSilentSwitch="ignore" // Play in silent mode on iOS
-        style={{
-          width: 0,
-          height: 0,
-          position: 'absolute',
-        }}
-      />
-    </ProfilerWrapper>
+          controller.handleSeekComplete()
+        }
+      }}
+      onEnd={() => {
+        // log.info('AudioPlayer', 'Video component onEnd', {
+        //   controllerState: {
+        //     isPlaying: controller.isPlaying,
+        //     currentTime: controller.currentTime,
+        //     duration: controller.duration,
+        //     seekTime: controller.seekTime,
+        //     isLoaded: controller.isLoaded,
+        //   },
+        // })
+        controller.handleEnd()
+      }}
+      onError={(error) => {
+        log.error('AudioPlayer', 'Video component onError', { error })
+        controller.handleError(error)
+      }}
+      ignoreSilentSwitch="ignore" // Play in silent mode on iOS
+      style={{
+        width: 0,
+        height: 0,
+        position: 'absolute',
+      }}
+    />
   )
 }

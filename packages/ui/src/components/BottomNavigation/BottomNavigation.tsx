@@ -1,8 +1,9 @@
+/// <reference types="@welldone-software/why-did-you-render" />
+
 import { shadows } from '@my/config'
 import React, { useCallback, useMemo } from 'react'
 import { Platform } from 'react-native'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { AnimatePresence, Button, Text, XStack, YStack } from 'tamagui'
 import { BottomNavigationContainer } from './BottomNavigationContainer'
 import type { BottomNavigationProps, NavigationTabProps } from './types'
@@ -40,62 +41,57 @@ export const BottomNavigation = React.memo(
     )
 
     return (
-      <ProfilerWrapper
-        id="BottomNavigation"
-        logToConsole={__DEV__}
+      <XStack
+        flex={1}
+        alignItems="center"
+        justifyContent="space-between"
+        paddingHorizontal="$2"
+        position="relative"
       >
-        <XStack
-          flex={1}
-          alignItems="center"
-          justifyContent="space-between"
-          paddingHorizontal="$2"
-          position="relative"
-        >
-          {tabs.map((tab) => (
-            <NavigationTab
-              key={tab}
-              label={tab.charAt(0).toUpperCase() + tab.slice(1)}
-              isActive={activeTab === tab}
-              onPress={tabHandlers[tab]}
-              disabled={disabled}
-            />
-          ))}
+        {tabs.map((tab) => (
+          <NavigationTab
+            key={tab}
+            label={tab.charAt(0).toUpperCase() + tab.slice(1)}
+            isActive={activeTab === tab}
+            onPress={tabHandlers[tab]}
+            disabled={disabled}
+          />
+        ))}
 
-          {/* Animated sliding border */}
-          <AnimatePresence>
-            <YStack
-              key={`border-${activeTab}`}
-              position="absolute"
-              bottom={0}
-              height={2}
-              width="$4"
-              backgroundColor="$color12"
-              borderRadius="$2"
-              animation={disabled ? undefined : 'bouncy'}
-              left={`${activeIndex * 33.33 + 16.67}%`}
-              transform={[{ translateX: -8 }]} // Center the border (half of width="$4")
-              enterStyle={
-                disabled
-                  ? undefined
-                  : {
-                      opacity: 0,
-                      scaleX: 0,
-                      x: 0,
-                    }
-              }
-              exitStyle={
-                disabled
-                  ? undefined
-                  : {
-                      opacity: 0,
-                      scaleX: 0,
-                      x: 0,
-                    }
-              }
-            />
-          </AnimatePresence>
-        </XStack>
-      </ProfilerWrapper>
+        {/* Animated sliding border */}
+        <AnimatePresence>
+          <YStack
+            key={`border-${activeTab}`}
+            position="absolute"
+            bottom={0}
+            height={2}
+            width="$4"
+            backgroundColor="$color12"
+            borderRadius="$2"
+            animation={disabled ? undefined : 'bouncy'}
+            left={`${activeIndex * 33.33 + 16.67}%`}
+            transform={[{ translateX: -8 }]} // Center the border (half of width="$4")
+            enterStyle={
+              disabled
+                ? undefined
+                : {
+                    opacity: 0,
+                    scaleX: 0,
+                    x: 0,
+                  }
+            }
+            exitStyle={
+              disabled
+                ? undefined
+                : {
+                    opacity: 0,
+                    scaleX: 0,
+                    x: 0,
+                  }
+            }
+          />
+        </AnimatePresence>
+      </XStack>
     )
   },
   (prevProps, nextProps) => {
@@ -213,4 +209,9 @@ export function TabBar({ children }: TabBarProps) {
       {children}
     </XStack>
   )
+}
+
+// Enable why-did-you-render tracking for performance debugging
+if (process.env.NODE_ENV === 'development') {
+  BottomNavigation.whyDidYouRender = true
 }

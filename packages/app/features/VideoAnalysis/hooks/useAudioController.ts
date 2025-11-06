@@ -87,15 +87,6 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
 
   const setIsPlayingCallback = useCallback(
     (playing: boolean) => {
-      const previousPlaying = isPlayingRef.current
-      log.debug('useAudioController.setIsPlaying', '🔊 Audio play state change', {
-        previousPlaying,
-        newPlaying: playing,
-        audioUrl: audioUrl ? `${audioUrl.substring(0, 50)}...` : null,
-        currentTime: currentTimeRef.current,
-        duration: durationRef.current,
-        stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n'),
-      })
       setIsPlaying(playing)
     },
     [audioUrl]

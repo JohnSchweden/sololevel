@@ -1,5 +1,4 @@
 import { log } from '@my/logging'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import React, {
   useCallback,
   useEffect,
@@ -692,158 +691,154 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     ])
 
     return (
-      <ProfilerWrapper
-        id="VideoControls"
-        logToConsole={__DEV__}
+      <Pressable
+        onPress={handlePress}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+        testID="video-controls-container"
       >
-        <Pressable
-          onPress={handlePress}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-          testID="video-controls-container"
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'flex-end',
+              padding: 16,
+            },
+            overlayAnimatedStyle,
+          ]}
+          pointerEvents={controlsVisible ? 'auto' : 'none'}
         >
-          <Animated.View
-            style={[
-              {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                justifyContent: 'flex-end',
-                padding: 16,
-              },
-              overlayAnimatedStyle,
-            ]}
-            pointerEvents={controlsVisible ? 'auto' : 'none'}
+          <YStack
+            flex={1}
+            justifyContent="flex-end"
+            testID="video-controls-overlay"
+            accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
+            accessibilityRole="toolbar"
+            accessibilityState={{ expanded: controlsVisible }}
           >
-            <YStack
-              flex={1}
-              justifyContent="flex-end"
-              testID="video-controls-overlay"
-              accessibilityLabel={`Video controls overlay ${controlsVisible ? 'visible' : 'hidden'}`}
-              accessibilityRole="toolbar"
-              accessibilityState={{ expanded: controlsVisible }}
-            >
-              {/* Header - deprecated, use NavigationAppHeader instead */}
-              {headerComponent && headerComponent}
+            {/* Header - deprecated, use NavigationAppHeader instead */}
+            {headerComponent && headerComponent}
 
-              {/* Center Controls - Absolutely positioned in vertical center of full screen */}
-              <CenterControls
-                isPlaying={isPlaying}
-                videoEnded={videoEnded}
-                isProcessing={isProcessing}
-                currentTime={safeCurrentTime}
-                onPlay={() => {
-                  showControlsAndResetTimer()
-                  onPlay()
-                }}
-                onPause={() => {
-                  showControlsAndResetTimer()
-                  onPause()
-                }}
-                onReplay={
-                  onReplay
-                    ? () => {
-                        showControlsAndResetTimer()
-                        onReplay()
-                      }
-                    : undefined
+            {/* Center Controls - Absolutely positioned in vertical center of full screen */}
+            <CenterControls
+              isPlaying={isPlaying}
+              videoEnded={videoEnded}
+              isProcessing={isProcessing}
+              currentTime={safeCurrentTime}
+              onPlay={() => {
+                showControlsAndResetTimer()
+                onPlay()
+              }}
+              onPause={() => {
+                showControlsAndResetTimer()
+                onPause()
+              }}
+              onReplay={
+                onReplay
+                  ? () => {
+                      showControlsAndResetTimer()
+                      onReplay()
+                    }
+                  : undefined
+              }
+              onSkipBackward={() => {
+                showControlsAndResetTimer()
+                onSeek(Math.max(0, safeCurrentTime - 10))
+              }}
+              onSkipForward={() => {
+                showControlsAndResetTimer()
+                onSeek(Math.min(safeDuration, safeCurrentTime + 10))
+              }}
+            />
+
+            {/* Bottom Controls - Normal Bar */}
+            <Animated.View style={normalBarAnimatedStyle}>
+              <YStack accessibilityLabel="Video timeline and controls">
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  bottom={-24}
+                  paddingBottom="$2"
+                  accessibilityLabel="Video time and controls"
+                >
+                  <TimeDisplay
+                    currentTime={safeCurrentTime}
+                    duration={safeDuration}
+                    testID="time-display"
+                  />
+                </XStack>
+              </YStack>
+            </Animated.View>
+
+            {/* Bottom Controls - Persistent Bar */}
+            <Animated.View style={persistentBarAnimatedStyle}>
+              <YStack accessibilityLabel="Video timeline and controls">
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  bottom={-48}
+                  paddingBottom="$2"
+                  accessibilityLabel="Video time and controls"
+                >
+                  <TimeDisplay
+                    currentTime={currentTime}
+                    duration={duration}
+                    testID="time-display-persistent"
+                  />
+                </XStack>
+              </YStack>
+            </Animated.View>
+
+            {/* Progress Bar - Normal variant (visible with controls) */}
+            <ProgressBar
+              variant="normal"
+              progress={progress}
+              isScrubbing={normalProgressBar.isScrubbing}
+              controlsVisible={controlsVisible}
+              progressBarWidth={progressBarWidth}
+              animatedStyle={normalBarAnimatedStyle}
+              combinedGesture={progressBarCombinedGesture}
+              mainGesture={mainProgressGesture}
+              animationName={getAnimationName(currentInteractionType)}
+              onLayout={(event) => {
+                const { width } = event.nativeEvent.layout
+                setProgressBarWidth(width)
+              }}
+              onFallbackPress={(locationX) => {
+                if (progressBarWidth > 0 && duration > 0) {
+                  const seekPercentage = Math.max(
+                    0,
+                    Math.min(100, (locationX / progressBarWidth) * 100)
+                  )
+                  const seekTime = (seekPercentage / 100) * duration
+                  log.debug('VideoControls', 'Fallback press handler', {
+                    locationX,
+                    progressBarWidth,
+                    seekPercentage,
+                    seekTime,
+                    duration,
+                  })
+                  onSeek(seekTime)
+                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                  // Fallback should only seek, not show controls (gesture handles that)
                 }
-                onSkipBackward={() => {
-                  showControlsAndResetTimer()
-                  onSeek(Math.max(0, safeCurrentTime - 10))
-                }}
-                onSkipForward={() => {
-                  showControlsAndResetTimer()
-                  onSeek(Math.min(safeDuration, safeCurrentTime + 10))
-                }}
-              />
+              }}
+            />
+          </YStack>
+        </Animated.View>
 
-              {/* Bottom Controls - Normal Bar */}
-              <Animated.View style={normalBarAnimatedStyle}>
-                <YStack accessibilityLabel="Video timeline and controls">
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    bottom={-24}
-                    paddingBottom="$2"
-                    accessibilityLabel="Video time and controls"
-                  >
-                    <TimeDisplay
-                      currentTime={safeCurrentTime}
-                      duration={safeDuration}
-                      testID="time-display"
-                    />
-                  </XStack>
-                </YStack>
-              </Animated.View>
-
-              {/* Bottom Controls - Persistent Bar */}
-              <Animated.View style={persistentBarAnimatedStyle}>
-                <YStack accessibilityLabel="Video timeline and controls">
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    bottom={-48}
-                    paddingBottom="$2"
-                    accessibilityLabel="Video time and controls"
-                  >
-                    <TimeDisplay
-                      currentTime={currentTime}
-                      duration={duration}
-                      testID="time-display-persistent"
-                    />
-                  </XStack>
-                </YStack>
-              </Animated.View>
-
-              {/* Progress Bar - Normal variant (visible with controls) */}
-              <ProgressBar
-                variant="normal"
-                progress={progress}
-                isScrubbing={normalProgressBar.isScrubbing}
-                controlsVisible={controlsVisible}
-                progressBarWidth={progressBarWidth}
-                animatedStyle={normalBarAnimatedStyle}
-                combinedGesture={progressBarCombinedGesture}
-                mainGesture={mainProgressGesture}
-                animationName={getAnimationName(currentInteractionType)}
-                onLayout={(event) => {
-                  const { width } = event.nativeEvent.layout
-                  setProgressBarWidth(width)
-                }}
-                onFallbackPress={(locationX) => {
-                  if (progressBarWidth > 0 && duration > 0) {
-                    const seekPercentage = Math.max(
-                      0,
-                      Math.min(100, (locationX / progressBarWidth) * 100)
-                    )
-                    const seekTime = (seekPercentage / 100) * duration
-                    log.debug('VideoControls', 'Fallback press handler', {
-                      locationX,
-                      progressBarWidth,
-                      seekPercentage,
-                      seekTime,
-                      duration,
-                    })
-                    onSeek(seekTime)
-                    // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-                    // Fallback should only seek, not show controls (gesture handles that)
-                  }
-                }}
-              />
-            </YStack>
-          </Animated.View>
-
-          {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
-          {/* {!onPersistentProgressBarPropsChange && (
+        {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
+        {/* {!onPersistentProgressBarPropsChange && (
             <ProgressBar
               variant="persistent"
               progress={persistentProgress}
@@ -879,8 +874,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
               }}
             />
           )} */}
-        </Pressable>
-      </ProfilerWrapper>
+      </Pressable>
     )
   }
 )

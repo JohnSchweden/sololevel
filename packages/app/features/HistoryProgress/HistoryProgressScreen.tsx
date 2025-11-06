@@ -3,7 +3,6 @@ import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import React from 'react'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
@@ -232,49 +231,44 @@ export function HistoryProgressScreen({
   )
 
   return (
-    <ProfilerWrapper
-      id="HistoryProgressScreen"
-      logToConsole={__DEV__}
+    <GlassBackground
+      backgroundColor="$color3"
+      testID={testID}
     >
-      <GlassBackground
-        backgroundColor="$color3"
-        testID={testID}
+      {/* AppHeader rendered automatically by _layout.tsx */}
+      <YStack
+        flex={1}
+        paddingTop={insets.top + APP_HEADER_HEIGHT}
+        marginTop="$4"
+        //marginBottom="$4"
+        borderRadius="$10"
+        overflow="hidden"
+        elevation={8}
+        testID={`${testID}-glass-container`}
       >
-        {/* AppHeader rendered automatically by _layout.tsx */}
-        <YStack
-          flex={1}
-          paddingTop={insets.top + APP_HEADER_HEIGHT}
-          marginTop="$4"
-          //marginBottom="$4"
-          borderRadius="$10"
-          overflow="hidden"
-          elevation={8}
-          testID={`${testID}-glass-container`}
-        >
-          <YStack flex={1}>
-            {/* Videos Section - Full Width */}
-            <VideosSection
-              videos={displayedVideos}
-              onVideoPress={handleVideoPress}
-              onSeeAllPress={handleSeeAllPress}
-              isLoading={isLoading}
-              error={error}
-              onRetry={refetch}
-              onVisibleItemsChange={handleVisibleItemsChange}
-              testID={`${testID}-videos-section`}
-            />
+        <YStack flex={1}>
+          {/* Videos Section - Full Width */}
+          <VideosSection
+            videos={displayedVideos}
+            onVideoPress={handleVideoPress}
+            onSeeAllPress={handleSeeAllPress}
+            isLoading={isLoading}
+            error={error}
+            onRetry={refetch}
+            onVisibleItemsChange={handleVisibleItemsChange}
+            testID={`${testID}-videos-section`}
+          />
 
-            {/* Coaching Sessions Section - With ScrollView */}
-            <CoachingSessionsSection
-              sessions={mockCoachingSessions}
-              onSessionPress={handleSessionPress}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              testID={`${testID}-coaching-sessions-section`}
-            />
-          </YStack>
+          {/* Coaching Sessions Section - With ScrollView */}
+          <CoachingSessionsSection
+            sessions={mockCoachingSessions}
+            onSessionPress={handleSessionPress}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            testID={`${testID}-coaching-sessions-section`}
+          />
         </YStack>
-      </GlassBackground>
-    </ProfilerWrapper>
+      </YStack>
+    </GlassBackground>
   )
 }

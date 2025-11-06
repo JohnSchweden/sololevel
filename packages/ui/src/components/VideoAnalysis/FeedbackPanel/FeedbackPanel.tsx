@@ -12,7 +12,6 @@ import {
   Send,
   User,
 } from '@tamagui/lucide-icons'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
@@ -298,12 +297,6 @@ export const FeedbackPanel = memo(
         if (onScrollYChange) {
           runOnJS(onScrollYChange)(event.contentOffset.y)
         }
-        runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'FlatList onScroll fired', {
-          contentOffsetY: Math.round(event.contentOffset.y * 100) / 100,
-          contentSizeHeight: Math.round(event.contentSize.height * 100) / 100,
-          layoutMeasurementHeight: Math.round(event.layoutMeasurement.height * 100) / 100,
-          scrollEnabled,
-        })
       },
       onEndDrag: () => {
         if (onScrollEndDrag) {
@@ -616,115 +609,110 @@ export const FeedbackPanel = memo(
         const CategoryIcon = getFeedbackCategoryIcon(item.category)
 
         return (
-          <ProfilerWrapper
-            id={`FeedbackItem-${item.id}`}
-            logToConsole={__DEV__}
+          <FeedbackContainer
             key={item.id}
+            onPress={() => onFeedbackItemPress(item)}
+            {...(item.audioUrl && onSelectAudio
+              ? {
+                  onLongPress: () => onSelectAudio(item.id),
+                }
+              : {})}
+            testID={`feedback-item-${index + 1}`}
+            accessibilityLabel={accessibilityLabel}
+            data-testid={`feedback-item-${index + 1}`}
           >
-            <FeedbackContainer
-              onPress={() => onFeedbackItemPress(item)}
-              {...(item.audioUrl && onSelectAudio
-                ? {
-                    onLongPress: () => onSelectAudio(item.id),
-                  }
-                : {})}
-              testID={`feedback-item-${index + 1}`}
-              accessibilityLabel={accessibilityLabel}
-              data-testid={`feedback-item-${index + 1}`}
+            <XStack
+              gap="$3"
+              alignItems="flex-start"
             >
-              <XStack
-                gap="$3"
-                alignItems="flex-start"
+              {/* Type icon */}
+              <Circle
+                size={32}
+                alignItems="center"
+                justifyContent="center"
+                testID={`feedback-item-${index + 1}-icon`}
+                accessibilityLabel={`${item.type} feedback`}
               >
-                {/* Type icon */}
-                <Circle
-                  size={32}
+                {CategoryIcon !== null ? (
+                  <CategoryIcon
+                    size={22}
+                    color={isHighlighted ? '$yellow11' : '$color11'}
+                  />
+                ) : (
+                  <TypeIcon
+                    size={18}
+                    color={isHighlighted ? '$yellow11' : '$color11'}
+                  />
+                )}
+              </Circle>
+
+              {/* Feedback content */}
+              <YStack
+                flex={1}
+                gap="$1"
+              >
+                {/* Header: time, category, and status */}
+                <XStack
+                  justifyContent="space-between"
                   alignItems="center"
-                  justifyContent="center"
-                  testID={`feedback-item-${index + 1}-icon`}
-                  accessibilityLabel={`${item.type} feedback`}
                 >
-                  {CategoryIcon !== null ? (
-                    <CategoryIcon
-                      size={22}
-                      color={isHighlighted ? '$yellow11' : '$color11'}
-                    />
-                  ) : (
-                    <TypeIcon
-                      size={18}
-                      color={isHighlighted ? '$yellow11' : '$color11'}
-                    />
-                  )}
-                </Circle>
-
-                {/* Feedback content */}
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  {/* Header: time, category, and status */}
                   <XStack
-                    justifyContent="space-between"
+                    gap="$2"
                     alignItems="center"
+                    flex={1}
                   >
-                    <XStack
-                      gap="$2"
-                      alignItems="center"
-                      flex={1}
+                    <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
+                      {formatTime(item.timestamp)}
+                    </TimeLabel>
+                    <Text
+                      fontSize="$2"
+                      fontWeight="500"
+                      color="$color11"
+                      textTransform="capitalize"
                     >
-                      <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
-                        {formatTime(item.timestamp)}
-                      </TimeLabel>
-                      <Text
-                        fontSize="$2"
-                        fontWeight="500"
-                        color="$color11"
-                        textTransform="capitalize"
-                      >
-                        {item.category}
-                      </Text>
-                    </XStack>
-
-                    {(item.ssmlStatus || item.audioStatus) && (
-                      <FeedbackStatusIndicator
-                        ssmlStatus={item.ssmlStatus || 'queued'}
-                        audioStatus={item.audioStatus || 'queued'}
-                        ssmlAttempts={item.ssmlAttempts || 0}
-                        audioAttempts={item.audioAttempts || 0}
-                        ssmlLastError={item.ssmlLastError || null}
-                        audioLastError={item.audioLastError || null}
-                        size="small"
-                        testID={`feedback-status-${index + 1}`}
-                      />
-                    )}
+                      {item.category}
+                    </Text>
                   </XStack>
 
-                  {/* Feedback text */}
-                  <FeedbackText
-                    data-testid={`feedback-item-${index + 1}-text`}
-                    color={isHighlighted ? '$yellow11' : undefined}
-                  >
-                    {item.text}
-                  </FeedbackText>
+                  {(item.ssmlStatus || item.audioStatus) && (
+                    <FeedbackStatusIndicator
+                      ssmlStatus={item.ssmlStatus || 'queued'}
+                      audioStatus={item.audioStatus || 'queued'}
+                      ssmlAttempts={item.ssmlAttempts || 0}
+                      audioAttempts={item.audioAttempts || 0}
+                      ssmlLastError={item.ssmlLastError || null}
+                      audioLastError={item.audioLastError || null}
+                      size="small"
+                      testID={`feedback-status-${index + 1}`}
+                    />
+                  )}
+                </XStack>
 
-                  {/* Error handler */}
-                  {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
-                    onRetryFeedback && (
-                      <FeedbackErrorHandler
-                        feedbackId={item.id}
-                        feedbackText={item.text}
-                        ssmlFailed={item.ssmlStatus === 'failed'}
-                        audioFailed={item.audioStatus === 'failed'}
-                        onRetry={onRetryFeedback}
-                        onDismiss={onDismissError}
-                        size="small"
-                        testID={`feedback-error-${index + 1}`}
-                      />
-                    )}
-                </YStack>
-              </XStack>
-            </FeedbackContainer>
-          </ProfilerWrapper>
+                {/* Feedback text */}
+                <FeedbackText
+                  data-testid={`feedback-item-${index + 1}-text`}
+                  color={isHighlighted ? '$yellow11' : undefined}
+                >
+                  {item.text}
+                </FeedbackText>
+
+                {/* Error handler */}
+                {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
+                  onRetryFeedback && (
+                    <FeedbackErrorHandler
+                      feedbackId={item.id}
+                      feedbackText={item.text}
+                      ssmlFailed={item.ssmlStatus === 'failed'}
+                      audioFailed={item.audioStatus === 'failed'}
+                      onRetry={onRetryFeedback}
+                      onDismiss={onDismissError}
+                      size="small"
+                      testID={`feedback-error-${index + 1}`}
+                    />
+                  )}
+              </YStack>
+            </XStack>
+          </FeedbackContainer>
         )
       },
       [
@@ -1129,26 +1117,22 @@ export const FeedbackPanel = memo(
     // }
 
     return (
-      <ProfilerWrapper
-        id="FeedbackPanel"
-        logToConsole={__DEV__}
+      <YStack
+        flex={flex}
+        position="relative"
+        elevation={5}
+        style={{ transition: 'all 0.5s ease-in-out' }}
+        testID="feedback-panel"
+        accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
+        accessibilityState={{ expanded: isExpanded }}
       >
+        {/* Content Container */}
         <YStack
-          flex={flex}
-          position="relative"
-          elevation={5}
-          style={{ transition: 'all 0.5s ease-in-out' }}
-          testID="feedback-panel"
-          accessibilityLabel={`Feedback panel ${isExpanded ? 'expanded' : 'collapsed'}`}
-          accessibilityState={{ expanded: isExpanded }}
+          flex={1}
+          zIndex={1}
         >
-          {/* Content Container */}
-          <YStack
-            flex={1}
-            zIndex={1}
-          >
-            {/* Background Image */}
-            {/* <Image
+          {/* Background Image */}
+          {/* <Image
             source={glassGradientBackground}
             position="absolute"
             top={0}
@@ -1161,58 +1145,55 @@ export const FeedbackPanel = memo(
             zIndex={0}
           /> */}
 
-            <YStack flex={1}>
-              {/* Content with virtualized list - YouTube-style delegation */}
-              <GestureDetector gesture={nativeGesture}>
-                <YStack
-                  flex={1}
-                  testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
-                  accessibilityLabel={
-                    activeTab === 'feedback' ? 'feedback content area' : undefined
-                  }
-                  accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
-                >
-                  {isWeb ? (
-                    <Animated.ScrollView
-                      style={{ paddingBottom: 30 }}
-                      testID="feedback-panel-scroll"
-                    >
-                      {renderListHeader()}
-                    </Animated.ScrollView>
-                  ) : (
-                    <Animated.FlatList<FeedbackItem>
-                      data={[]}
-                      extraData={selectedFeedbackId}
-                      keyExtractor={keyExtractor}
-                      renderItem={renderFeedbackItem}
-                      ListHeaderComponent={renderListHeader}
-                      ItemSeparatorComponent={undefined}
-                      ListEmptyComponent={undefined}
-                      contentContainerStyle={{
-                        paddingHorizontal: 16,
-                        paddingBottom: 30,
-                      }}
-                      onScroll={scrollHandler}
-                      scrollEventThrottle={16}
-                      showsVerticalScrollIndicator
-                      indicatorStyle="white"
-                      scrollEnabled={scrollEnabled}
-                      bounces
-                      testID="feedback-panel-scroll"
-                      initialNumToRender={8}
-                      maxToRenderPerBatch={8}
-                      windowSize={5}
-                      removeClippedSubviews
-                    />
-                  )}
-                </YStack>
-              </GestureDetector>
-            </YStack>
-
-            {/* Legacy ScrollView variant removed */}
+          <YStack flex={1}>
+            {/* Content with virtualized list - YouTube-style delegation */}
+            <GestureDetector gesture={nativeGesture}>
+              <YStack
+                flex={1}
+                testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
+                accessibilityLabel={activeTab === 'feedback' ? 'feedback content area' : undefined}
+                accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
+              >
+                {isWeb ? (
+                  <Animated.ScrollView
+                    style={{ paddingBottom: 30 }}
+                    testID="feedback-panel-scroll"
+                  >
+                    {renderListHeader()}
+                  </Animated.ScrollView>
+                ) : (
+                  <Animated.FlatList<FeedbackItem>
+                    data={[]}
+                    extraData={selectedFeedbackId}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderFeedbackItem}
+                    ListHeaderComponent={renderListHeader}
+                    ItemSeparatorComponent={undefined}
+                    ListEmptyComponent={undefined}
+                    contentContainerStyle={{
+                      paddingHorizontal: 16,
+                      paddingBottom: 30,
+                    }}
+                    onScroll={scrollHandler}
+                    scrollEventThrottle={16}
+                    showsVerticalScrollIndicator
+                    indicatorStyle="white"
+                    scrollEnabled={scrollEnabled}
+                    bounces
+                    testID="feedback-panel-scroll"
+                    initialNumToRender={8}
+                    maxToRenderPerBatch={8}
+                    windowSize={5}
+                    removeClippedSubviews
+                  />
+                )}
+              </YStack>
+            </GestureDetector>
           </YStack>
+
+          {/* Legacy ScrollView variant removed */}
         </YStack>
-      </ProfilerWrapper>
+      </YStack>
     )
   },
   (prevProps, nextProps) => {

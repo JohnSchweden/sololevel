@@ -1,3 +1,5 @@
+/// <reference types="@welldone-software/why-did-you-render" />
+
 /**
  * why-did-you-render setup for React 19
  *
@@ -25,6 +27,14 @@ if (isDev) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const whyDidYouRender = require('@welldone-software/why-did-you-render')
 
+    // Minimal setup - uses default console output
+    whyDidYouRender(React, {
+      trackAllPureComponents: false, // Only track manually enabled components
+    })
+
+    log.info('why-did-you-render', '✅ Initialized successfully')
+
+    /* COMMENTED OUT: Custom notifier with deduplication and React Native logging
     // Deduplication cache to prevent duplicate notifications for the same update
     // Maps component+hook signature to timestamp
     // Use a closure to ensure cache is shared across all notifier calls
@@ -338,6 +348,7 @@ if (isDev) {
       'why-did-you-render',
       '✅ Initialized successfully - tracking manually enabled components'
     )
+    */
   } catch (error) {
     // Gracefully fail if package not installed
     if (error instanceof Error && error.message.includes('Cannot find module')) {

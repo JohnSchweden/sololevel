@@ -94,19 +94,8 @@ export default function VideoAnalysis() {
       const prevIsUserInteraction = isUserInteractionRef.current
 
       if (prevVisible === visible && prevIsUserInteraction === isUserInteraction) {
-        log.debug('VideoAnalysis', 'Controls visibility change skipped - no state change', {
-          visible,
-          isUserInteraction,
-        })
         return
       }
-
-      log.debug('VideoAnalysis', 'Controls visibility changed', {
-        visible,
-        isProcessing,
-        previousControlsVisible: controlsVisibleRef.current,
-        isUserInteraction,
-      })
 
       // Mark animation start for user interactions
       if (isUserInteraction) {
@@ -144,20 +133,8 @@ export default function VideoAnalysis() {
           previousOptions.isUserInteraction !== headerOptions.isUserInteraction
 
         if (headerOptionsChanged) {
-          log.debug('VideoAnalysis', 'Applying header options immediately (user interaction)', {
-            controlsVisible: visible,
-            isProcessing,
-            headerShown,
-            headerIsUserInteraction: true,
-          })
-
           navigation.setOptions(headerOptions)
           pendingOptionsRef.current = headerOptions
-        } else {
-          log.debug('VideoAnalysis', 'Skipping header options update - values unchanged', {
-            controlsVisible: visible,
-            headerShown,
-          })
         }
 
         // Failsafe: reset animation flag after max animation duration if callback doesn't fire
@@ -194,11 +171,6 @@ export default function VideoAnalysis() {
         }
 
         userInteractionTimeoutRef.current = setTimeout(() => {
-          log.debug(
-            'VideoAnalysis',
-            'Resetting user interaction flag after quick animation (state only)'
-          )
-
           // Mark animation complete
           isAnimatingRef.current = false
 
@@ -220,10 +192,6 @@ export default function VideoAnalysis() {
     // Skip if animation is in progress - we already applied options immediately in handleControlsVisibilityChange
     // This prevents duplicate setOptions calls during the same interaction
     if (isAnimatingRef.current) {
-      log.debug(
-        'VideoAnalysis',
-        'Skipping setOptions - animation in progress, already applied in callback'
-      )
       return
     }
 
@@ -232,17 +200,6 @@ export default function VideoAnalysis() {
     // - false if only isProcessing changed (automatic)
     const headerIsUserInteraction = isUserInteraction
     const headerShown = isProcessing || controlsVisible
-
-    log.debug('VideoAnalysis', 'Updating header options', {
-      controlsVisible,
-      isProcessing,
-      isUserInteraction,
-      headerIsUserInteraction,
-      headerShown,
-      reason: isProcessing ? 'processing' : controlsVisible ? 'controls' : 'hidden',
-      willShowHeader: headerShown,
-      willHideHeader: !headerShown,
-    })
 
     const options = {
       // @ts-ignore: custom appHeaderProps not in base type

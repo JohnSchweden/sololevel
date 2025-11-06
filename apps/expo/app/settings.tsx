@@ -1,6 +1,5 @@
 import { SettingsScreen } from '@my/app/features/Settings'
 import { useConfirmDialog } from '@my/app/hooks/useConfirmDialog'
-import { useRenderDiagnostics } from '@my/app/hooks/useRenderDiagnostics'
 import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
 import { ConfirmDialog, type FooterLinkType, type SettingsNavItem } from '@my/ui'
@@ -78,16 +77,6 @@ export default function SettingsRoute() {
       log.error('SettingsRoute', 'Error opening URL', { link, url: urls[link], error })
     }
   }, [])
-
-  // Track what's changing in SettingsRoute (exclude logoutDialog - it changes on dialog state but doesn't affect SettingsScreen props)
-  useRenderDiagnostics(
-    'SettingsRoute',
-    { handleNavigate, handleFooterLink, handleLogout, signOut },
-    {
-      logToConsole: __DEV__,
-      logOnlyChanges: true,
-    }
-  )
 
   return (
     <>

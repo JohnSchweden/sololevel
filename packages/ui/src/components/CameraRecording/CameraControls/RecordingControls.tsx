@@ -1,7 +1,6 @@
 import { log } from '@my/logging'
 import { Pause, Play, Settings, Square, SwitchCamera } from '@tamagui/lucide-icons'
 import { RecordingSettingsSheet } from '@ui/components/BottomSheets'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { useState } from 'react'
 import { Text, XStack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
@@ -73,10 +72,7 @@ export function RecordingControls({
   //const isRecording = recordingState === RecordingState.RECORDING
 
   return (
-    <ProfilerWrapper
-      id="RecordingControls"
-      logToConsole={__DEV__}
-    >
+    <>
       <YStack
         alignItems="center"
         gap="$4"
@@ -218,7 +214,7 @@ export function RecordingControls({
         open={settingsSheetOpen}
         onOpenChange={setSettingsSheetOpen}
       />
-    </ProfilerWrapper>
+    </>
   )
 }
 

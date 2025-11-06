@@ -485,18 +485,6 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
         // Access latest state via refs (not from stale closure)
         const currentPlayback = videoPlaybackRef.current
         const currentCoordinator = feedbackCoordinatorRef.current
-        log.debug('VideoAnalysisScreen.onSignificantProgress', '📍 Progress event', {
-          time,
-          isProcessing,
-          videoPlayback: {
-            isPlaying: currentPlayback.isPlaying,
-            currentTime: currentPlayback.currentTime,
-          },
-          feedbackCoordinator: {
-            highlightedId: currentCoordinator.highlightedFeedbackId,
-            bubbleVisible: currentCoordinator.bubbleState.bubbleVisible,
-          },
-        })
         currentPlayback.handleProgress({ currentTime: time })
         currentCoordinator.onProgressTrigger(time)
       },

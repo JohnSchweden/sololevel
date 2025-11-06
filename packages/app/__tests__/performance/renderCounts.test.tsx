@@ -12,7 +12,6 @@
 
 // import { render, waitFor } from '@testing-library/react';
 // import React from 'react';
-import { clearAllMetrics } from '@ui/components/Performance'
 
 // Baseline render counts per component per interaction
 // Format: ComponentName -> max renders per interaction
@@ -69,11 +68,11 @@ const EXPECTED_RENDER_COUNTS: Record<string, number> = {
 
 describe('Render Count Baselines', () => {
   beforeEach(() => {
-    clearAllMetrics()
+    // clearAllMetrics() - removed with ProfilerWrapper
   })
 
   afterEach(() => {
-    clearAllMetrics()
+    // clearAllMetrics() - removed with ProfilerWrapper
   })
 
   // Test each component with a basic interaction
@@ -84,7 +83,7 @@ describe('Render Count Baselines', () => {
 
       // Note: This is a template test. In practice, you would:
       // 1. Import the actual component
-      // 2. Render it with ProfilerWrapper
+      // 2. Render it with React DevTools Profiler
       // 3. Simulate user interaction
       // 4. Check render count
 

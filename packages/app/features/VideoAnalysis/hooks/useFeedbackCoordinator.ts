@@ -231,16 +231,8 @@ export function useFeedbackCoordinator({
         return
       }
 
-      log.debug('useFeedbackCoordinator.handleProgressTrigger', '🎯 Checking for bubbles', {
-        timeSeconds,
-        bubbleFeedbackItemsCount: bubbleFeedbackItems.length,
-      })
-
       const triggeredIndex = checkAndShowBubbleAtTime(timeSeconds * 1000)
       if (triggeredIndex === null) {
-        log.debug('useFeedbackCoordinator.handleProgressTrigger', '❌ No bubble triggered', {
-          timeSeconds,
-        })
         return
       }
 
@@ -596,15 +588,6 @@ export function useFeedbackCoordinator({
   // Memoize pause handler to prevent recreation
   // Always call setIsPlaying(false) - harmless if already false, avoids dependency on isPlaying
   const handlePause = useCallback(() => {
-    const currentController = audioControllerRef.current
-    const currentFeedbackAudio = feedbackAudioRef.current
-    const currentAudioId = currentFeedbackAudio.activeAudio?.id ?? null
-    const currentIsPlaying = currentController?.isPlaying ?? false
-    log.debug('useFeedbackCoordinator.handlePause', '⏸️ Pausing audio and video', {
-      activeAudioId: currentAudioId,
-      audioIsPlaying: currentIsPlaying,
-      videoIsPlaying: videoPlayback.isPlaying,
-    })
     // When pause is pressed, pause audio feedback if playing (but don't stop/hide)
     // The bubble timer will be paused automatically when isPlaying becomes false
     // Always call setIsPlaying(false) unconditionally to ensure audio stops
@@ -729,7 +712,6 @@ export function useFeedbackCoordinator({
 
   return useMemo(() => {
     const now = Date.now()
-    const timeSinceLastRecalc = now - lastRecalcTimeRef.current
     lastRecalcTimeRef.current = now
 
     // Use pre-memoized stableActiveAudio to prevent object recreation when other dependencies change
@@ -801,25 +783,7 @@ export function useFeedbackCoordinator({
         changed.push('activeAudio')
       }
 
-      if (changed.length > 0 || dependencyChanges.length > 0) {
-        log.debug('useFeedbackCoordinator', '🔥 Coordinator recalculating', {
-          changed,
-          dependencyChanges: dependencyChanges.length > 0 ? dependencyChanges : undefined,
-          timeSinceLastRecalc,
-          isRapid: timeSinceLastRecalc < 16,
-          selectionHighlightId: selection.highlightedFeedbackId,
-          selectionIsCoachSpeaking: selection.isCoachSpeaking,
-          selectionSelectedId: selection.selectedFeedbackId,
-          currentBubbleIndex,
-          bubbleVisible,
-          overlayVisible,
-          activeAudioId: activeAudioId,
-          stackTrace:
-            timeSinceLastRecalc < 16
-              ? new Error().stack?.split('\n').slice(1, 8).join('\n')
-              : undefined,
-        })
-      }
+      // Logging removed for performance
     }
 
     // Store primitive values for accurate comparison (not object references)

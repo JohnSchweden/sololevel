@@ -349,12 +349,6 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         subscribeToAnalysisFeedbacks: async (analysisId) => {
           const state = get()
 
-          log.debug('FeedbackStatusStore', 'subscribeToAnalysisFeedbacks called', {
-            analysisId,
-            hasSubscription: state.subscriptions.has(analysisId),
-            subscriptionStatus: state.subscriptionStatus.get(analysisId),
-          })
-
           // Strengthen guard: don't subscribe if already active OR pending
           if (
             state.subscriptions.has(analysisId) &&
@@ -377,8 +371,6 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           }
 
           try {
-            log.info('FeedbackStatusStore', `Subscribing to feedbacks for analysis ${analysisId}`)
-
             // Defer state update to avoid updating during render cycle
             await Promise.resolve().then(() => {
               set((draft) => {
@@ -397,14 +389,6 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
 
             if (hasPrefetchedFeedbacks) {
               // Use prefetched feedbacks - skip database fetch for instant display
-              log.debug(
-                'FeedbackStatusStore',
-                'Using prefetched feedbacks, skipping database fetch',
-                {
-                  analysisId,
-                  count: existingFeedbacksInStore.length,
-                }
-              )
               existingFeedbacks = existingFeedbacksInStore.map((fb) => ({
                 id: fb.id,
                 analysis_id: fb.analysisId,
@@ -497,10 +481,6 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               )
               .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                  log.info(
-                    'FeedbackStatusStore',
-                    `Successfully subscribed to analysis ${analysisId}`
-                  )
                   set((draft) => {
                     draft.subscriptionStatus.set(analysisId, 'active')
                     const retryState = draft.subscriptionRetries.get(analysisId)

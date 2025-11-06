@@ -55,7 +55,11 @@ export function useStaggeredAnimation({
   autoStart = true,
   dependencies = [],
 }: UseStaggeredAnimationOptions): UseStaggeredAnimationReturn {
-  const [visibleItems, setVisibleItems] = useState<boolean[]>(new Array(itemCount).fill(false))
+  // Use function initializer to create stable initial state
+  // React only calls this on mount, so we get a stable reference
+  const [visibleItems, setVisibleItems] = useState<boolean[]>(() => {
+    return new Array(itemCount).fill(false)
+  })
   const [isAnimating, setIsAnimating] = useState(false)
 
   const startAnimation = useCallback((): (() => void) => {
@@ -90,7 +94,15 @@ export function useStaggeredAnimation({
   }, [itemCount, staggerDelay])
 
   const resetAnimation = useCallback((): void => {
-    setVisibleItems(new Array(itemCount).fill(false))
+    // Only reset if values actually changed - prevents unnecessary re-renders
+    setVisibleItems((prev) => {
+      // Check if all items are already false
+      if (prev.every((item) => item === false)) {
+        return prev // No change, return same reference
+      }
+      // Values need to change - create new array
+      return new Array(itemCount).fill(false)
+    })
     setIsAnimating(false)
   }, [itemCount])
 
@@ -122,10 +134,30 @@ export function useStaggeredAnimation({
     return undefined
   }, [dependenciesKey, autoStart, resetAnimation, startAnimation])
 
-  return {
-    visibleItems,
-    startAnimation,
-    resetAnimation,
-    isAnimating,
-  }
+  // Stabilize visibleItems array reference - only create new reference when values actually change
+  // This prevents why-did-you-render from flagging re-renders when array values are identical
+  const visibleItemsSignature = useMemo(() => JSON.stringify(visibleItems), [visibleItems])
+  const prevVisibleItemsRef = useRef<boolean[]>(visibleItems)
+  const prevSignatureRef = useRef<string>(visibleItemsSignature)
+  const stableVisibleItems = useMemo(() => {
+    // Only create new reference if values actually changed
+    if (visibleItemsSignature === prevSignatureRef.current) {
+      return prevVisibleItemsRef.current // Return cached reference
+    }
+    // Values changed - update cache and return new reference
+    prevSignatureRef.current = visibleItemsSignature
+    prevVisibleItemsRef.current = visibleItems
+    return visibleItems
+  }, [visibleItems, visibleItemsSignature])
+
+  // Memoize return value to prevent new object reference on every render
+  return useMemo(
+    () => ({
+      visibleItems: stableVisibleItems,
+      startAnimation,
+      resetAnimation,
+      isAnimating,
+    }),
+    [stableVisibleItems, startAnimation, resetAnimation, isAnimating]
+  )
 }

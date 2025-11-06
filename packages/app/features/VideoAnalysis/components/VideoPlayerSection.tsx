@@ -1,8 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { useRenderDiagnostics } from '@app/hooks/useRenderDiagnostics'
 import { log } from '@my/logging'
-import { ProfilerWrapper } from '@ui/components/Performance'
 import Animated, {
   Extrapolation,
   type SharedValue,
@@ -10,8 +8,6 @@ import Animated, {
   useAnimatedStyle,
   Easing,
   useDerivedValue,
-  useAnimatedReaction,
-  runOnJS,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -147,22 +143,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   // Direct seek ref to bypass React render cycle for immediate seeks
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
-  // Track prop changes to diagnose render cascades from onSeek
-  useRenderDiagnostics(
-    'VideoPlayerSection',
-    {
-      pendingSeek,
-      userIsPlaying,
-      videoShouldPlay,
-      videoEnded,
-      showControls,
-    } as unknown as Record<string, unknown>,
-    {
-      logToConsole: __DEV__,
-      logOnlyChanges: true,
-    }
-  )
-
   // Manage currentTime and duration internally
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -181,31 +161,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
   // Debug: Track pendingSeek prop changes and reset tracking if needed
   useEffect(() => {
-    log.debug('VideoPlayerSection', '📥 pendingSeek prop changed', {
-      pendingSeek,
-      currentLocalTime: currentTime,
-      pendingSeekTimeRef: pendingSeekTimeRef.current,
-      lastSeekTarget: lastSeekTargetRef.current,
-    })
-
     // If pendingSeek prop changes to a new value, reset our internal tracking
     // This handles cases like replay where we need to clear old seek state
     if (pendingSeek !== null && pendingSeek !== pendingSeekTimeRef.current) {
-      log.debug('VideoPlayerSection', '🔄 Resetting seek tracking for new pendingSeek', {
-        newPendingSeek: pendingSeek,
-        oldPendingSeekTime: pendingSeekTimeRef.current,
-        currentLocalTime: currentTime,
-      })
       // Save current time if this is a backward seek
       if (pendingSeek < currentTime) {
         timeBeforeSeekRef.current = currentTime
         persistedPreSeekProgressRef.current = currentTime
         persistedPreSeekTimestampRef.current = Date.now()
-        log.debug('VideoPlayerSection', '💾 Saved time before backward seek (from prop change)', {
-          timeBeforeSeek: timeBeforeSeekRef.current,
-          persistedPreSeekProgress: persistedPreSeekProgressRef.current,
-          seekTarget: pendingSeek,
-        })
       } else {
         timeBeforeSeekRef.current = null
         persistedPreSeekProgressRef.current = null
@@ -250,16 +213,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     (data: { currentTime: number }) => {
       const { currentTime: reportedTime } = data
 
-      log.debug('VideoPlayerSection.handleProgress', '📥 Progress event received', {
-        reportedTime,
-        currentLocalTime: currentTime,
-        pendingSeekTime: pendingSeekTimeRef.current,
-        lastSeekTarget: lastSeekTargetRef.current,
-        timeBeforeSeek: timeBeforeSeekRef.current,
-        lastNotifiedTime: lastNotifiedTimeRef.current,
-        pendingSeekProp: pendingSeek,
-      })
-
       // Filter stale progress events that arrive shortly after a seek
       // Similar logic to useVideoPlayback.handleProgress
       const timeSinceSeekComplete = Date.now() - seekCompleteTimeRef.current
@@ -270,12 +223,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         timeSinceSeekComplete < SEEK_STALE_EVENT_THRESHOLD_MS &&
         reportedTime > lastSeekTargetRef.current + 1.0 // Event is more than 1s ahead of seek target
       ) {
-        log.debug('VideoPlayerSection.handleProgress', '🚫 Ignoring stale progress after seek', {
-          reportedTime,
-          seekTarget: lastSeekTargetRef.current,
-          timeSinceSeekComplete,
-          currentLocalTime: currentTime,
-        })
         return
       }
 
@@ -291,14 +238,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         const timeBeforeSeek = timeBeforeSeekRef.current
         const timeDifference = Math.abs(reportedTime - targetTime)
 
-        log.debug('VideoPlayerSection.handleProgress', '🎯 Processing with pending seek', {
-          reportedTime,
-          targetTime,
-          timeBeforeSeek,
-          timeDifference,
-          currentLocalTime: currentTime,
-        })
-
         // Detect if this is a stale event from before a backward seek
         // If we seek backward and reported time is close to pre-seek time, it's stale
         if (
@@ -306,28 +245,12 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           targetTime < timeBeforeSeek &&
           Math.abs(reportedTime - timeBeforeSeek) < 0.5 // Within 500ms of old position = stale
         ) {
-          log.debug(
-            'VideoPlayerSection.handleProgress',
-            '🚫 Ignoring stale backward-seek event (close to pre-seek)',
-            {
-              reportedTime,
-              targetTime,
-              timeBeforeSeek,
-              difference: Math.abs(reportedTime - timeBeforeSeek),
-            }
-          )
           return
         }
 
         // If the reported time is very close to target (within 0.2s), accept it and clear pending seek
         if (timeDifference < 0.2) {
           const previousNotifiedTime = lastNotifiedTimeRef.current
-          log.debug('VideoPlayerSection.handleProgress', '✅ Accepting - close to target', {
-            reportedTime,
-            targetTime,
-            previousNotifiedTime,
-            willUpdateCurrentTime: true,
-          })
           pendingSeekTimeRef.current = null
           timeBeforeSeekRef.current = null
           setCurrentTime(reportedTime)
@@ -351,16 +274,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             targetTime < timeBeforeSeek &&
             Math.abs(reportedTime - timeBeforeSeek) < 0.5 // Within 500ms of old position = stale
           ) {
-            log.debug(
-              'VideoPlayerSection.handleProgress',
-              '🚫 Ignoring stale backward-seek event (close to pre-seek)',
-              {
-                reportedTime,
-                targetTime,
-                timeBeforeSeek,
-                difference: Math.abs(reportedTime - timeBeforeSeek),
-              }
-            )
             return
           }
 
@@ -388,24 +301,9 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             Math.abs(reportedTime - timeBeforeSeek) < 0.5
 
           if (isStaleBackwardSeekEvent) {
-            log.debug(
-              'VideoPlayerSection.handleProgress',
-              '🚫 Ignoring stale backward-seek event (approaching target check)',
-              {
-                reportedTime,
-                targetTime,
-                timeBeforeSeek,
-                difference: Math.abs(reportedTime - timeBeforeSeek),
-              }
-            )
             return
           }
 
-          log.debug('VideoPlayerSection.handleProgress', '✅ Accepting - approaching target', {
-            reportedTime,
-            targetTime,
-            willUpdateCurrentTime: true,
-          })
           setCurrentTime(reportedTime)
           lastNotifiedTimeRef.current = reportedTime
           return
@@ -414,11 +312,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         // Ignore stale progress events that are too far behind the target
         // This filters out old progress events from before the seek
         if (reportedTime < targetTime - 1.0) {
-          log.debug('VideoPlayerSection.handleProgress', '🚫 Ignoring - too far behind target', {
-            reportedTime,
-            targetTime,
-            difference: reportedTime - targetTime,
-          })
           return
         }
       }
@@ -444,36 +337,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         Math.abs(reportedTime - persistedPreSeekProgressRef.current) < 0.5 &&
         Math.abs(reportedTime - lastSeekTargetRef.current) > 1.0
       ) {
-        log.debug(
-          'VideoPlayerSection.handleProgress',
-          '🚫 Ignoring stale progress in normal update path',
-          {
-            reportedTime,
-            lastSeekTarget: lastSeekTargetRef.current,
-            persistedPreSeekProgress: persistedPreSeekProgressRef.current,
-            timeSinceSeekComplete,
-            timeSincePreSeekSaved,
-            differenceFromOld: Math.abs(reportedTime - persistedPreSeekProgressRef.current),
-            differenceFromTarget: Math.abs(reportedTime - lastSeekTargetRef.current),
-          }
-        )
         return
       }
 
-      log.debug('VideoPlayerSection.handleProgress', '✅ Normal progress update', {
-        reportedTime,
-        previousCurrentTime: currentTime,
-        willUpdateCurrentTime: true,
-      })
       setCurrentTime(reportedTime)
 
       // Notify parent on every progress update (for bubble triggers, feedback coordination)
       // The > 1 second throttle broke bubble detection - we need updates every ~200ms
-      log.debug('VideoPlayerSection.handleProgress', '▶️ Calling onSignificantProgress', {
-        reportedTime,
-        timeSinceLastUpdate: reportedTime - lastNotifiedTimeRef.current,
-        pendingSeek: pendingSeekTimeRef.current,
-      })
       lastNotifiedTimeRef.current = reportedTime
       onSignificantProgress(reportedTime)
     },
@@ -485,24 +355,12 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const handleSeekComplete = useCallback(
     (seekTime?: number) => {
       const resolvedTime = seekTime ?? pendingSeek ?? currentTime
-      log.debug('VideoPlayerSection.handleSeekComplete', '🎯 Seek complete', {
-        providedSeekTime: seekTime,
-        pendingSeekProp: pendingSeek,
-        currentLocalTime: currentTime,
-        resolvedTime,
-        isBackwardSeek: resolvedTime < currentTime,
-      })
       if (typeof resolvedTime === 'number' && Number.isFinite(resolvedTime)) {
         // Track time before seek if this is a backward seek (to filter stale events)
         if (resolvedTime < currentTime) {
           timeBeforeSeekRef.current = currentTime
           persistedPreSeekProgressRef.current = currentTime
           persistedPreSeekTimestampRef.current = Date.now()
-          log.debug('VideoPlayerSection.handleSeekComplete', '💾 Saved time before backward seek', {
-            timeBeforeSeek: timeBeforeSeekRef.current,
-            persistedPreSeekProgress: persistedPreSeekProgressRef.current,
-            seekTarget: resolvedTime,
-          })
         } else {
           timeBeforeSeekRef.current = null
           persistedPreSeekProgressRef.current = null
@@ -515,11 +373,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         // Track seek target for grace period filtering (similar to useVideoPlayback)
         lastSeekTargetRef.current = resolvedTime
         seekCompleteTimeRef.current = Date.now()
-        log.debug('VideoPlayerSection.handleSeekComplete', '✅ Seek tracking updated', {
-          pendingSeekTime: pendingSeekTimeRef.current,
-          lastSeekTarget: lastSeekTargetRef.current,
-          seekCompleteTime: seekCompleteTimeRef.current,
-        })
       }
       onSeekComplete(seekTime ?? pendingSeek ?? null)
     },
@@ -589,65 +442,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     }
   })
 
-  // Track collapseProgress changes for debugging
-  const prevCollapseProgressRef = useRef<number | null>(null)
-  const lastLogTimeRef = useRef(0)
-
-  // Log collapseProgress changes to debug social icons visibility delay
-  const logCollapseProgressChange = useCallback((progress: number) => {
-    const now = Date.now()
-    const prev = prevCollapseProgressRef.current
-
-    // Log on mount and when progress changes significantly
-    if (prev === null || Math.abs(progress - prev) > 0.05) {
-      if (now - lastLogTimeRef.current > 100) {
-        const easeFunction = Easing.inOut(Easing.cubic)
-        const easedProgress = easeFunction(progress)
-        const opacity = interpolate(easedProgress, [0, 0.5, 1], [0, 1, 0], Extrapolation.CLAMP)
-
-        log.debug('VideoPlayerSection', '📊 Social icons collapseProgress changed', {
-          rawProgress: progress,
-          easedProgress,
-          calculatedOpacity: opacity,
-          willShow: opacity > 0.1,
-          previousProgress: prev,
-          timeSinceLastLog: now - lastLogTimeRef.current,
-          timestamp: now,
-        })
-
-        prevCollapseProgressRef.current = progress
-        lastLogTimeRef.current = now
-      }
-    }
-  }, [])
-
-  // Track collapseProgress changes via useAnimatedReaction
-  useAnimatedReaction(
-    () => collapseProgress?.value ?? null,
-    (progress, previous) => {
-      if (progress !== null && progress !== previous) {
-        runOnJS(logCollapseProgressChange)(progress)
-      }
-    },
-    [collapseProgress]
-  )
-
-  // Log initial state (avoid accessing .value during render)
-  useEffect(() => {
-    if (!collapseProgress) {
-      log.debug('VideoPlayerSection', '📊 Social icons - no collapseProgress prop', {
-        hasCollapseProgress: false,
-        timestamp: Date.now(),
-      })
-    } else {
-      // Don't access .value directly - it's a SharedValue and should only be accessed in animated contexts
-      log.debug('VideoPlayerSection', '📊 Social icons - collapseProgress prop received', {
-        hasCollapseProgress: true,
-        timestamp: Date.now(),
-      })
-    }
-  }, [collapseProgress])
-
   const socialAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
     // Apply cubic easing for smooth slow-start fast-end effect
@@ -685,53 +479,49 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   }, [bubbleState.currentIndex, bubbleState.items, bubbleState.visible])
 
   return (
-    <ProfilerWrapper
-      id="VideoPlayerSection"
-      logToConsole={__DEV__}
+    <VideoContainer
+      useFlexLayout
+      flex={1}
     >
-      <VideoContainer
-        useFlexLayout
-        flex={1}
-      >
-        <VideoPlayerArea>
-          <YStack
-            flex={1}
-            position="relative"
-            onPress={onTap}
-            testID="video-player-container"
-          >
-            {videoUri && (
-              <VideoPlayer
-                ref={videoPlayerRef}
-                videoUri={videoUri}
-                isPlaying={videoShouldPlay}
-                posterUri={posterUri}
-                onPause={onPause}
-                onEnd={handleEnd}
-                onLoad={handleLoad}
-                onProgress={handleProgress}
-                seekToTime={pendingSeek}
-                onSeekComplete={handleSeekComplete}
-              />
-            )}
-
-            {audioOverlay.activeAudio && (
-              <AudioPlayer
-                audioUrl={audioOverlay.activeAudio.url}
-                controller={audioPlayerController}
-                testID="feedback-audio-player"
-              />
-            )}
-
-            <MotionCaptureOverlay
-              poseData={[]}
-              isVisible
+      <VideoPlayerArea>
+        <YStack
+          flex={1}
+          position="relative"
+          onPress={onTap}
+          testID="video-player-container"
+        >
+          {videoUri && (
+            <VideoPlayer
+              ref={videoPlayerRef}
+              videoUri={videoUri}
+              isPlaying={videoShouldPlay}
+              posterUri={posterUri}
+              onPause={onPause}
+              onEnd={handleEnd}
+              onLoad={handleLoad}
+              onProgress={handleProgress}
+              seekToTime={pendingSeek}
+              onSeekComplete={handleSeekComplete}
             />
+          )}
 
-            <FeedbackBubbles messages={activeBubbleMessages} />
+          {audioOverlay.activeAudio && (
+            <AudioPlayer
+              audioUrl={audioOverlay.activeAudio.url}
+              controller={audioPlayerController}
+              testID="feedback-audio-player"
+            />
+          )}
 
-            {/* Audio Feedback Controls - Commented out, is for P1 */}
-            {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
+          <MotionCaptureOverlay
+            poseData={[]}
+            isVisible
+          />
+
+          <FeedbackBubbles messages={activeBubbleMessages} />
+
+          {/* Audio Feedback Controls - Commented out, is for P1 */}
+          {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
             <AudioFeedback
               audioUrl={audioOverlay.activeAudio.url}
               controller={audioPlayerController}
@@ -743,58 +533,57 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             />
           )} */}
 
-            {/* Avatar - Always render with animated style */}
-            {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
-            <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
-              <CoachAvatar
-                isSpeaking={coachSpeaking}
-                size={80}
-                testID="video-analysis-coach-avatar"
-              />
-            </Animated.View>
-
-            {/* Social Icons - Always render with animated style */}
-            <Animated.View
-              style={[socialAnimatedStyle, { zIndex: 10 }]}
-              testID="social-icons-container"
-            >
-              <SocialIcons
-                likes={socialCounts.likes}
-                comments={socialCounts.comments}
-                bookmarks={socialCounts.bookmarks}
-                shares={socialCounts.shares}
-                onShare={onSocialAction.onShare}
-                onLike={onSocialAction.onLike}
-                onComment={onSocialAction.onComment}
-                onBookmark={onSocialAction.onBookmark}
-                isVisible={true}
-                placement="rightBottom"
-                offsetBottom={30}
-              />
-            </Animated.View>
-
-            <VideoControls
-              ref={videoControlsRef}
-              isPlaying={userIsPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              showControls={showControls}
-              isProcessing={isProcessing}
-              videoEnded={videoEnded}
-              videoMode={videoMode}
-              collapseProgress={collapseProgress}
-              onPlay={onPlay}
-              onPause={onPause}
-              onReplay={onReplay}
-              onSeek={handleDirectSeek}
-              onControlsVisibilityChange={onControlsVisibilityChange}
-              onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
-              persistentProgressStoreSetter={persistentProgressStoreSetter}
+          {/* Avatar - Always render with animated style */}
+          {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
+          <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
+            <CoachAvatar
+              isSpeaking={coachSpeaking}
+              size={80}
+              testID="video-analysis-coach-avatar"
             />
-          </YStack>
-        </VideoPlayerArea>
-      </VideoContainer>
-    </ProfilerWrapper>
+          </Animated.View>
+
+          {/* Social Icons - Always render with animated style */}
+          <Animated.View
+            style={[socialAnimatedStyle, { zIndex: 10 }]}
+            testID="social-icons-container"
+          >
+            <SocialIcons
+              likes={socialCounts.likes}
+              comments={socialCounts.comments}
+              bookmarks={socialCounts.bookmarks}
+              shares={socialCounts.shares}
+              onShare={onSocialAction.onShare}
+              onLike={onSocialAction.onLike}
+              onComment={onSocialAction.onComment}
+              onBookmark={onSocialAction.onBookmark}
+              isVisible={true}
+              placement="rightBottom"
+              offsetBottom={30}
+            />
+          </Animated.View>
+
+          <VideoControls
+            ref={videoControlsRef}
+            isPlaying={userIsPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            showControls={showControls}
+            isProcessing={isProcessing}
+            videoEnded={videoEnded}
+            videoMode={videoMode}
+            collapseProgress={collapseProgress}
+            onPlay={onPlay}
+            onPause={onPause}
+            onReplay={onReplay}
+            onSeek={handleDirectSeek}
+            onControlsVisibilityChange={onControlsVisibilityChange}
+            onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
+            persistentProgressStoreSetter={persistentProgressStoreSetter}
+          />
+        </YStack>
+      </VideoPlayerArea>
+    </VideoContainer>
   )
 })
 

@@ -52,7 +52,8 @@
       "**/useCameraScreenLogic.ts.backup.prod",
       "**/useRecordingStateMachine.ts.backup.prod",
       "**/poseStore.ts",
-      "**/logger.ts"
+      "**/logger.ts",
+      "**/wdyr.ts"
     ],
 
     "rules": {

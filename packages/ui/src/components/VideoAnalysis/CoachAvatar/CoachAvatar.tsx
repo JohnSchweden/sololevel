@@ -1,6 +1,5 @@
 import { BlurView } from 'expo-blur'
 
-import { ProfilerWrapper } from '@ui/components/Performance'
 import { Image, View } from 'tamagui'
 
 export interface CoachAvatarProps {
@@ -29,50 +28,45 @@ export function CoachAvatar({
   zIndex = 0,
 }: CoachAvatarProps) {
   return (
-    <ProfilerWrapper
-      id="CoachAvatar"
-      logToConsole={__DEV__}
+    <View
+      position={position}
+      bottom={bottom}
+      right={right}
+      zIndex={zIndex}
     >
-      <View
-        position={position}
-        bottom={bottom}
-        right={right}
-        zIndex={zIndex}
+      <BlurView
+        intensity={15}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 1.5,
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        <BlurView
-          intensity={15}
-          style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: 1.5,
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-            overflow: 'hidden',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+        <View
+          width={size}
+          height={size}
+          borderRadius={size / 2}
+          alignItems="center"
+          justifyContent="center"
+          testID={testID}
+          accessibilityLabel="AI Coach Avatar"
+          accessibilityRole="image"
+          data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
         >
-          <View
-            width={size}
-            height={size}
-            borderRadius={size / 2}
-            alignItems="center"
-            justifyContent="center"
-            testID={testID}
-            accessibilityLabel="AI Coach Avatar"
-            accessibilityRole="image"
-            data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
-          >
-            <Image
-              source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
-              width={size * 1.15}
-              height={size * 1.15}
-              marginTop={-9}
-              testID="coach-avatar-image"
-            />
-          </View>
-        </BlurView>
-      </View>
-    </ProfilerWrapper>
+          <Image
+            source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
+            width={size * 1.15}
+            height={size * 1.15}
+            marginTop={-9}
+            testID="coach-avatar-image"
+          />
+        </View>
+      </BlurView>
+    </View>
   )
 }

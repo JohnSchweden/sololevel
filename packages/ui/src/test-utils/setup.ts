@@ -635,12 +635,7 @@ jest.mock('@my/config', () => ({
 
 // Mock Performance components and hooks
 jest.mock('@ui/components/Performance', () => ({
-  ProfilerWrapper: ({ children }: { children: React.ReactNode }) => children,
-  useRenderCount: jest.fn(() => 0),
-  subscribeToMetrics: jest.fn(),
-  getMetrics: jest.fn(() => ({})),
-  clearMetrics: jest.fn(),
-  clearAllMetrics: jest.fn(),
+  LazySection: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 // Mock BottomSheets components
@@ -701,7 +696,6 @@ jest.mock('@app/hooks', () => {
   const actual = jest.requireActual<typeof import('@app/hooks')>('@app/hooks')
   return {
     ...(actual as Record<string, unknown>),
-    useRenderDiagnostics: jest.fn(),
   }
 })
 

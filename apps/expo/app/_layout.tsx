@@ -5,16 +5,6 @@ if (typeof global !== 'undefined') {
   global.React = React
 }
 
-// Initialize why-did-you-render for render cascade debugging (dev only)
-if (__DEV__) {
-  try {
-    // Import here to ensure proper module resolution with path aliases
-    require('@app/utils/whyDidYouRender')
-  } catch (error) {
-    // WDYR not available - skip silently (package might not be installed)
-  }
-}
-
 import { NavigationAppHeader } from '@app/components/navigation'
 import { Provider } from '@app/provider'
 import { JosefinSans_400Regular, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans'

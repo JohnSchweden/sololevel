@@ -1,3 +1,5 @@
+export { LazySection } from './LazySection'
+export type { LazySectionProps } from './LazySection'
 export {
   ProfilerWrapper,
   useRenderCount,
@@ -6,10 +8,4 @@ export {
   clearMetrics,
   clearAllMetrics,
 } from './ProfilerWrapper'
-export type {
-  RenderPhase,
-  RenderMetrics,
-  RenderMetricsWithId,
-} from './ProfilerWrapper'
-export { LazySection } from './LazySection'
-export type { LazySectionProps } from './LazySection'
+export type { RenderPhase, RenderMetrics, RenderMetricsWithId } from './ProfilerWrapper'
