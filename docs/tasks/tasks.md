@@ -1,514 +1,513 @@
 # Tasks
 
+---
 
+# Task 52: Conditional Rendering Progress Bars Implementation Plan
+
+## Objective - ✅ Complete (2025-11-07)
+
+Replace opacity-based progress bar visibility with pure conditional rendering (mount/unmount). Progress bars operate independently of controls visibility. Use pointerEvents to prevent interactions when bars are transitioning.
+
+## Current State Analysis
+
+**Files Involved:**
+
+- `packages/ui/src/components/VideoAnalysis/VideoControls/hooks/useProgressBarAnimation.ts` - Current hook (opacity-only, always renders)
+- `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx` - Normal bar always rendered (line 803-836)
+- `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.native.tsx` - Persistent bar rendered at layout level (line 416-446)
+
+**Current Boundaries:**
+
+- Normal bar: opacity 1 → 0 at `collapseProgress > 0.027` (ultra-fast fade)
+- Persistent bar: opacity 0 → 1 at `collapseProgress ≥ 0.48` (cubic easing)
+- Both bars always mounted, only opacity changes
+
+## Implementation Strategy
+
+### Phase 1: Create Visibility Hook (TDD)
+
+**File:** `packages/ui/src/components/VideoAnalysis/VideoControls/hooks/useProgressBarVisibility.ts`
+
+**Test Cases (RED phase):**
+
+1. shouldRenderNormal returns true when collapseProgress <= 0.03
+2. shouldRenderNormal returns false when collapseProgress > 0.03
+3. shouldRenderPersistent returns false when collapseProgress < 0.45
+4. shouldRenderPersistent returns true when collapseProgress >= 0.45
+5. Visibility flags update when collapseProgress SharedValue changes
+6. Visibility flags sync correctly with useAnimatedReaction
+7. Edge case: negative collapseProgress → shouldRenderNormal = true, shouldRenderPersistent = false
+8. Edge case: collapseProgress > 1 → shouldRenderNormal = false, shouldRenderPersistent = true
+9. Normal bar visibility independent of showControls prop
+10. Persistent bar visibility independent of showControls prop
+
+**Hook Interface:**
+
+```typescript
+export interface UseProgressBarVisibilityReturn {
+  shouldRenderNormal: boolean // JS state for conditional rendering
+  shouldRenderPersistent: boolean // JS state for conditional rendering
+}
+
+export function useProgressBarVisibility(
+  collapseProgressShared: SharedValue<number>
+): UseProgressBarVisibilityReturn
+```
+
+**Implementation (GREEN phase):**
+
+- Use `useDerivedValue` to compute visibility booleans on UI thread
+- Use `useAnimatedReaction` to sync SharedValue → JS state
+- Normal bar: render when `collapseProgress <= 0.03` (independent of showControls)
+- Persistent bar: render when `collapseProgress >= 0.45` (independent of showControls)
+- No opacity animations - pure mount/unmount
+
+### Phase 2: Update VideoControls (TDD)
+
+**File:** `packages/ui/src/components/VideoControls/VideoControls.tsx`
+
+**Test Cases (RED phase):**
+
+1. Normal bar renders when shouldRenderNormal = true
+2. Normal bar does not render when shouldRenderNormal = false
+3. Normal bar renders independently of showControls prop
+4. Normal bar has pointerEvents 'auto' when rendered
+5. Persistent bar props include shouldRender flag (for layout-level conditional rendering)
+6. No re-renders when collapseProgress changes but visibility flags unchanged
+
+**Changes:**
+
+- Replace `useProgressBarAnimation` import with `useProgressBarVisibility`
+- Remove `normalBarAnimatedStyle` usage (no opacity animations)
+- Wrap normal ProgressBar in conditional: `{shouldRenderNormal && <ProgressBar variant="normal" {...props} />}`
+- Remove `animatedStyle` prop from normal ProgressBar (no longer needed)
+- Update persistent bar props to include `shouldRenderPersistent` flag
+- Ensure normal bar visibility independent of `showControls` prop
+
+### Phase 3: Update Layout-Level Persistent Bar (TDD)
+
+**File:** `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.native.tsx`
+
+**Test Cases (RED phase):**
+
+1. Persistent bar renders when shouldRenderPersistent = true
+2. Persistent bar does not render when shouldRenderPersistent = false
+3. Persistent bar renders independently of controls visibility
+4. Persistent bar has pointerEvents 'auto' when rendered
+
+**Changes:**
+
+- Read `shouldRenderPersistent` from persistent progress bar props
+- Wrap persistent ProgressBar in conditional: `{persistentProgressBarProps?.shouldRenderPersistent && <ProgressBar ... />}`
+- Remove `animatedStyle` prop usage (no opacity animations)
+- Ensure persistent bar visibility independent of controls visibility
+
+### Phase 4: Update ProgressBar Component (TDD)
+
+**File:** `packages/ui/src/components/VideoAnalysis/VideoControls/components/ProgressBar.tsx`
+
+**Test Cases (RED phase):**
+
+1. ProgressBar accepts optional animatedStyle prop (backward compatibility)
+2. ProgressBar applies pointerEvents 'auto' by default
+3. ProgressBar respects pointerEvents prop when provided
+4. No opacity animations when animatedStyle not provided
+
+**Changes:**
+
+- Make `animatedStyle` prop optional (for backward compatibility)
+- Ensure default pointerEvents = 'auto' (no ghost interactions)
+- Remove opacity-based handle animations (no longer needed)
+
+### Phase 5: Cleanup & Remove Old Hook (TDD)
+
+**File:** `packages/ui/src/components/VideoAnalysis/VideoControls/hooks/useProgressBarAnimation.ts`
+
+**Actions:**
+
+- Delete `useProgressBarAnimation.ts` and `.test.ts`
+- Update all imports across codebase
+- Remove from exports
+
+**File:** `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.test.tsx`
+
+**Actions:**
+
+- Remove `useProgressBarAnimation` mock
+- Update tests to use `useProgressBarVisibility` mock
+- Add tests for conditional rendering behavior
+- Verify no re-renders during gesture when visibility unchanged
+
+## Quality Gates - ✅ Satisfied
+
+- Tests: `yarn workspace @my/ui test useProgressBarVisibility`, `yarn workspace @my/ui test VideoControls`, `yarn workspace @my/ui test`
+- Type check: `yarn type-check`
+- Lint: `yarn lint`
+- Manual verification: Video controls run in Expo without Reanimated `.value` warnings or synchronous worklet errors; render diagnostics confirm conditional mount cuts redundant re-renders.
+
+## Definition of Done - ✅ All Criteria Met
+
+- [x] New hook `useProgressBarVisibility` created with full test coverage
+- [x] VideoControls uses pure conditional rendering for normal bar (no opacity)
+- [x] Normal bar visibility independent of showControls prop
+- [x] Persistent bar uses conditional rendering at layout level
+- [x] Persistent bar visibility independent of controls visibility
+- [x] All opacity animations removed
+- [x] pointerEvents 'auto' ensures no ghost interactions
+- [x] Old hook `useProgressBarAnimation` removed
+- [x] All existing tests pass
+- [x] No TypeScript errors
+- [x] No lint errors
+- [x] Render count reduced significantly (verified via render diagnostics)
+
+### Completion Notes
+
+- `useProgressBarVisibility` now operates entirely on the UI thread via `useDerivedValue`/`useAnimatedReaction` and never reads shared values during render.
+- `VideoControls`, native/web layouts, and `ProgressBar` respect the conditional mount flags without opacity hacks; pointer events stay explicit.
+- Expo runtime confirms the 0.03 / 0.45 thresholds align with spec and no longer trigger Reanimated bridge warnings.
+
+## Key Differences from Hybrid Approach
+
+1. **No opacity animations** - Pure mount/unmount only
+2. **No transition windows** - Immediate mount/unmount at boundaries (0.03 and 0.45)
+3. **Independent visibility** - Progress bars not tied to controls visibility
+4. **Simpler implementation** - No animated styles, just boolean flags
+
+## Risk Mitigation
+
+**Risk:** Abrupt mount/unmount causes visual jump
+
+**Mitigation:** Boundaries chosen at natural transition points (0.03 and 0.45) where bars are already invisible
+
+**Risk:** Visibility flags out of sync with SharedValue
+
+**Mitigation:** Use `useAnimatedReaction` with proper cleanup, test sync timing
+
+**Risk:** Breaking existing persistent bar rendering at layout level
+
+**Mitigation:** Add `shouldRenderPersistent` flag to props, maintain backward compatibility during migration
 
 ---
 
-
 ## VideoAnalysisScreen Simplification
 
-### Task 51: Move State to Zustand Store (Single Source of Truth)
-**Effort:** 1-2 days | **Priority:** P1 (Technical Debt) | **Depends on:** None
-**User Story:** N/A (Technical debt reduction)
+### Task 53: Simplify VideoAnalysisScreen Architecture (Battle-Tested Pattern)
+**Effort:** 3-5 days | **Priority:** P1 (Technical Debt) | **Depends on:** None
+**User Story:** N/A (Technical debt reduction - architectural simplification)
 
-**STATUS:** 🔄 **PENDING**
+**STATUS:** 🟢 **READY TO START**
 
-**OBJECTIVE:** Eliminate dual state management (Zustand + local hooks) by moving all video/feedback state to a single Zustand store. This simplifies the architecture and removes prop drilling.
+**OBJECTIVE:** Simplify VideoAnalysisScreen from 13 hooks + 2 stores + 612 lines to 3-4 hooks + 1 store + ~150 lines using battle-tested patterns (YouTube/Vimeo architecture). Consolidate related functionality while keeping social features as UI placeholders.
 
 **CURRENT STATE:**
-- ❌ Dual state management: Zustand store for some state (`highlightedFeedbackId`, `bubbleState`), local hooks for other state (`videoPlayback`, `audioController`)
-- ❌ Prop drilling through composition layers (hook → useMemo → Screen → Layout)
-- ❌ Granular Zustand subscriptions to avoid re-renders (adds overhead)
-- ✅ Existing `useFeedbackCoordinatorStore` and `usePersistentProgressStore` patterns
+- ❌ 13 hooks called directly in component (useVideoPlayback, useVideoControls, useVideoAudioSync, useAudioController, useFeedbackAudioSource, useAnalysisState, useFeedbackPanel, useFeedbackCoordinator, useHistoricalAnalysis, useAutoPlayOnReady, useGestureController, useAnimationController, useStatusBar)
+- ❌ 2 Zustand stores (useFeedbackCoordinatorStore, usePersistentProgressStore)
+- ❌ 7 useMemo compositions (videoState, playback, audio, feedback, handlers, error, socialCounts)
+- ✅ Active features: Feedback system, video playback
+- ✅ Social features: Kept as placeholders (socialCounts, social actions, mock comments) for UI completeness
+- ✅ Architecture diagram: `docs/spec/video-analysis-screen-architecture.mermaid`
+- ✅ Simplification proposal: `docs/spec/video-analysis-simplification-proposal.md`
 
 **PROBLEM:**
-- Inconsistent state management patterns (Zustand vs local hooks)
-- Prop composition creates unnecessary re-render cascades
-- Cognitive overhead from tracking state in multiple places
-- Hard to test (need to mock both hooks and store)
+- Hook explosion (13 hooks) creates complex dependency graph
+- Dual state management (Zustand + local hooks) adds cognitive overhead
+- Prop composition layers (hook → useMemo → Screen → Layout) cause re-render cascades
+- Hard to test (need to mock 13 hooks + 2 stores)
+- Violates battle-tested patterns (YouTube/Vimeo use 3-4 hooks max, imperative APIs)
 
 **IMPACT:**
-- **Maintainability:** Developers must understand both Zustand and local hook patterns
-- **Performance:** Prop drilling creates unnecessary re-renders
-- **Testing:** Requires mocking 14 hooks + store subscriptions
+- **Maintainability:** Developers must understand 13 hooks + 2 stores + 7 compositions
+- **Performance:** Prop drilling and memoization overhead
+- **Testing:** Requires mocking 13 hooks + 2 stores
 - **Debugging:** State scattered across multiple sources
+- **Onboarding:** Complex architecture discourages new contributors
 
 **SCOPE:**
 
-#### Module 1.1: Create Unified VideoAnalysisStore
-**Summary:** Create single Zustand store for all video/feedback state.
+#### Phase 1: Consolidate Video Hooks → useVideoPlayer
+**Summary:** Merge useVideoPlayback + useVideoControls + useVideoAudioSync into single hook with imperative API.
 
-**File to Create/Modify:** `packages/app/features/VideoAnalysis/stores/videoAnalysisStore.ts` (or extend existing)
+**File to Create:** `packages/app/features/VideoAnalysis/hooks/useVideoPlayer.ts`
 
 **Tasks:**
-- [ ] Define store interface with video state (isPlaying, currentTime, duration, videoEnded)
-- [ ] Define store interface with feedback state (highlightedFeedbackId, bubbleState, overlayVisible)
-- [ ] Define store actions (play, pause, seek, highlightFeedback, etc.)
-- [ ] Implement store with immer middleware
-- [ ] Add selectors for derived state (shouldPlayVideo, isCoachSpeaking, etc.)
-- [ ] Create test file with store tests
+- [ ] Create `useVideoPlayer` hook with imperative ref API
+- [ ] Consolidate video playback state (isPlaying, currentTime, duration, videoEnded, pendingSeek)
+- [ ] Consolidate controls visibility logic (showControls, auto-hide timers)
+- [ ] Consolidate video-audio sync logic (shouldPlayVideo)
+- [ ] Expose imperative methods: `play()`, `pause()`, `seek(time)`, `replay()`
+- [ ] Move `useAutoPlayOnReady` logic into hook
+- [ ] Create test file with full coverage (1:2 ratio)
+- [ ] Update VideoAnalysisScreen to use new hook
+- [ ] Remove old hooks: useVideoPlayback, useVideoControls, useVideoAudioSync, useAutoPlayOnReady
 
 **Interface:**
 ```typescript
-interface VideoAnalysisStore {
-  // Video state
+export interface VideoPlayerRef {
+  play: () => void
+  pause: () => void
+  seek: (time: number) => void
+  replay: () => void
+  getCurrentTime: () => number
+  getDuration: () => number
+}
+
+export interface UseVideoPlayerReturn {
+  ref: React.RefObject<VideoPlayerRef>
   isPlaying: boolean
   currentTime: number
   duration: number
   videoEnded: boolean
-  
-  // Feedback state
-  highlightedFeedbackId: string | null
-  bubbleState: BubbleState
-  overlayVisible: boolean
-  activeAudio: { id: string; url: string } | null
-  
-  // Actions
-  play: () => void
-  pause: () => void
-  seek: (time: number) => void
-  setHighlightedFeedback: (id: string | null) => void
-  // ... more actions
+  pendingSeek: number | null
+  showControls: boolean
+  shouldPlayVideo: boolean
+  onLoad: (data: { duration: number }) => void
+  onProgress: (time: number) => void
+  onEnd: () => void
 }
 ```
 
-**Reference:** `packages/app/features/VideoAnalysis/stores/feedbackCoordinatorStore.ts`
+**Reference:** Battle-tested pattern from YouTube/Vimeo (imperative ref API)
 
 **Acceptance Criteria:**
-- [ ] Store follows existing Zustand patterns (immer, selectors)
-- [ ] All video/feedback state moved to store
-- [ ] Actions are stable references (no re-creation)
+- [ ] Single hook replaces 4 hooks (useVideoPlayback, useVideoControls, useVideoAudioSync, useAutoPlayOnReady)
+- [ ] Imperative API matches YouTube/Vimeo pattern
 - [ ] Test coverage ≥ 1:2 ratio
-- [ ] `yarn workspace @my/app test videoAnalysisStore.test.ts` passes
+- [ ] `yarn workspace @my/app test useVideoPlayer.test.ts` passes
+- [ ] VideoAnalysisScreen updated to use new hook
+- [ ] Old hooks removed from codebase
 
-#### Module 1.2: Update Components to Use Store Directly
-**Summary:** Replace prop passing with direct store subscriptions.
+#### Phase 2: Consolidate Feedback Hooks → useFeedbackSystem
+**Summary:** Merge useFeedbackCoordinator + useFeedbackAudioSource + useAudioController + useFeedbackPanel into single hook.
 
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-
-**Tasks:**
-- [ ] Remove prop composition for video state (videoState, playback)
-- [ ] Remove prop composition for feedback state (feedback, bubbleState, audioOverlay)
-- [ ] Update VideoAnalysisLayout to read directly from store
-- [ ] Update child components to subscribe directly (VideoPlayerSection, FeedbackPanel, etc.)
-- [ ] Remove Zustand store getter props from VideoAnalysisScreen
-
-**Acceptance Criteria:**
-- [ ] No video/feedback state passed as props
-- [ ] Components subscribe directly to store
-- [ ] No prop drilling through VideoAnalysisScreen
-- [ ] All existing tests pass (update mocks if needed)
-- [ ] `yarn workspace @my/app test VideoAnalysisScreen.test.tsx` passes
-
-#### Module 1.3: Remove Prop Composition useMemo Calls
-**Summary:** Eliminate useMemo calls for prop composition since state is now in store.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
+**File to Create:** `packages/app/features/VideoAnalysis/hooks/useFeedbackSystem.ts`
 
 **Tasks:**
-- [ ] Remove `videoState` useMemo (lines 379-400)
-- [ ] Remove `playback` useMemo (lines 342-355)
-- [ ] Remove `feedback` useMemo (lines 307-329)
-- [ ] Remove `audio` useMemo (lines 361-368)
-- [ ] Remove `error` useMemo if store-based (lines 542-550)
-- [ ] Update VideoAnalysisLayout props to accept store selectors instead
+- [ ] Create `useFeedbackSystem` hook
+- [ ] Consolidate feedback coordination (highlighting, bubble state, overlay)
+- [ ] Consolidate audio source management (audio URLs, errors, selection)
+- [ ] Consolidate audio playback control (isPlaying, currentTime, duration)
+- [ ] Consolidate panel state (panelFraction, activeTab, selectedFeedbackId)
+- [ ] Create test file with full coverage (1:2 ratio)
+- [ ] Update VideoAnalysisScreen to use new hook
+- [ ] Remove old hooks: useFeedbackCoordinator, useFeedbackAudioSource, useAudioController, useFeedbackPanel
+
+**Interface:**
+```typescript
+export interface UseFeedbackSystemReturn {
+  items: FeedbackPanelItem[]
+  selectedId: string | null
+  bubbleState: { visible: boolean; currentIndex: number | null }
+  overlayVisible: boolean
+  activeAudio: { id: string; url: string } | null
+  panelFraction: number
+  activeTab: 'feedback' | 'insights' | 'comments'
+  audioUrls: Record<string, string>
+  errors: Record<string, string>
+  handlers: {
+    onFeedbackTap: (item: FeedbackPanelItem) => void
+    onPanelCollapse: () => void
+    onTabChange: (tab: 'feedback' | 'insights' | 'comments') => void
+    onSelectAudio: (id: string) => void
+    onRetryFeedback: (id: string) => void
+    onDismissError: (id: string) => void
+  }
+}
+```
 
 **Acceptance Criteria:**
-- [ ] No useMemo calls for state composition
-- [ ] Components read directly from store
-- [ ] No performance regression (measure with React DevTools Profiler)
-- [ ] All tests pass
+- [ ] Single hook replaces 4 hooks
+- [ ] Test coverage ≥ 1:2 ratio
+- [ ] `yarn workspace @my/app test useFeedbackSystem.test.ts` passes
+- [ ] VideoAnalysisScreen updated to use new hook
+- [ ] Old hooks removed from codebase
+
+#### Phase 3: Consolidate Analysis Hooks → useAnalysis
+**Summary:** Merge useAnalysisState + useHistoricalAnalysis into single hook.
+
+**File to Create:** `packages/app/features/VideoAnalysis/hooks/useAnalysis.ts`
+
+**Tasks:**
+- [ ] Create `useAnalysis` hook
+- [ ] Consolidate analysis state (phase, progress, feedbackItems, error)
+- [ ] Consolidate historical analysis data loading
+- [ ] Handle both history mode and live analysis modes
+- [ ] Create test file with full coverage (1:2 ratio)
+- [ ] Update VideoAnalysisScreen to use new hook
+- [ ] Remove old hooks: useAnalysisState, useHistoricalAnalysis
+
+**Interface:**
+```typescript
+export interface UseAnalysisReturn {
+  phase: AnalysisPhase
+  progress: number
+  feedbackItems: FeedbackPanelItem[]
+  error: { phase: string; message: string } | null
+  isProcessing: boolean
+  channelExhausted: boolean
+  videoUri: string | null
+  retry: () => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Single hook replaces 2 hooks
+- [ ] Test coverage ≥ 1:2 ratio
+- [ ] `yarn workspace @my/app test useAnalysis.test.ts` passes
+- [ ] VideoAnalysisScreen updated to use new hook
+- [ ] Old hooks removed from codebase
+
+#### Phase 4: Merge Stores → Single useFeedbackStore
+**Summary:** Merge useFeedbackCoordinatorStore + usePersistentProgressStore into single store.
+
+**File to Modify:** `packages/app/features/VideoAnalysis/stores/feedbackStore.ts` (rename from feedbackCoordinatorStore)
+
+**Tasks:**
+- [ ] Merge feedbackCoordinatorStore state into single store
+- [ ] Merge persistentProgressStore state into single store
+- [ ] Update all store subscriptions across codebase
+- [ ] Create test file with full coverage
+- [ ] Remove old stores: feedbackCoordinatorStore, persistentProgressStore
+
+**Interface:**
+```typescript
+export interface FeedbackStore {
+  // Coordinator state
+  highlightedFeedbackId: string | null
+  isCoachSpeaking: boolean
+  bubbleState: { currentBubbleIndex: number | null; bubbleVisible: boolean }
+  overlayVisible: boolean
+  activeAudio: { id: string; url: string } | null
+  
+  // Persistent progress state
+  persistentProgressProps: PersistentProgressBarProps | null
+  
+  // Actions
+  setHighlightedFeedbackId: (id: string | null) => void
+  setIsCoachSpeaking: (speaking: boolean) => void
+  setBubbleState: (state: BubbleState) => void
+  setOverlayVisible: (visible: boolean) => void
+  setActiveAudio: (audio: { id: string; url: string } | null) => void
+  setPersistentProgressProps: (props: PersistentProgressBarProps | null) => void
+  reset: () => void
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Single store replaces 2 stores
+- [ ] All subscriptions updated across codebase
+- [ ] Test coverage maintained
+- [ ] `yarn workspace @my/app test feedbackStore.test.ts` passes
+- [ ] Old stores removed from codebase
+
+#### Phase 5: Keep Social Features (No Changes)
+**Summary:** Keep placeholder features (social counts, social actions, mock comments) as-is. These are intentionally kept for UI completeness and future implementation.
+
+**Files Affected:**
+- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
+- `packages/app/features/VideoAnalysis/components/FeedbackSection.tsx`
+
+**Tasks:**
+- [ ] Keep `socialCounts` hardcoded object (UI placeholder)
+- [ ] Keep `onShare`, `onLike`, `onComment`, `onBookmark` handlers (log placeholders)
+- [ ] Keep mock comments (UI placeholder until real API)
+
+**Acceptance Criteria:**
+- [ ] Social features remain in UI (placeholders)
+- [ ] Handlers remain as log placeholders
+- [ ] Mock data remains for UI completeness
+- [ ] All tests updated to reflect kept features
+
+#### Phase 6: Optional - Consolidate Native Hooks → useVideoLayout
+**Summary:** Merge useGestureController + useAnimationController into single native-only hook.
+
+**File to Create:** `packages/app/features/VideoAnalysis/hooks/useVideoLayout.ts` (native only)
+
+**Tasks:**
+- [ ] Create `useVideoLayout` hook (native only)
+- [ ] Consolidate gesture handling (pan, scroll, conflict detection)
+- [ ] Consolidate animation values (scrollY, feedbackContentOffsetY, scrollRef)
+- [ ] Create test file with full coverage
+- [ ] Update VideoAnalysisScreen to use new hook
+- [ ] Remove old hooks: useGestureController, useAnimationController
+
+**Acceptance Criteria:**
+- [ ] Single hook replaces 2 hooks (native only)
+- [ ] Test coverage ≥ 1:2 ratio
+- [ ] `yarn workspace @my/app test useVideoLayout.test.ts` passes
+- [ ] VideoAnalysisScreen updated to use new hook
+- [ ] Old hooks removed from codebase
 
 **SUCCESS VALIDATION:**
-- [ ] Single source of truth (Zustand store only)
-- [ ] No prop drilling for video/feedback state
-- [ ] Components subscribe directly to store
+- [ ] Hook count reduced from 13 → 3-4 hooks (75% reduction)
+- [ ] Store count reduced from 2 → 1 store (50% reduction)
+- [ ] Component lines reduced from 612 → ~150 lines (75% reduction)
+- [ ] Social features kept as placeholders (intentional UI completeness)
+- [ ] Imperative API pattern implemented (YouTube/Vimeo style)
 - [ ] `yarn type-check` passes (0 errors)
 - [ ] `yarn lint` passes (0 errors)
 - [ ] `yarn workspace @my/app test` passes (all tests)
-- [ ] React DevTools Profiler shows no performance regression
+- [ ] React DevTools Profiler shows performance improvement
+- [ ] Architecture diagram updated: `docs/spec/video-analysis-simplified-architecture.mermaid`
+
+**FILES TO CREATE:**
+- `packages/app/features/VideoAnalysis/hooks/useVideoPlayer.ts`
+- `packages/app/features/VideoAnalysis/hooks/useVideoPlayer.test.ts`
+- `packages/app/features/VideoAnalysis/hooks/useFeedbackSystem.ts`
+- `packages/app/features/VideoAnalysis/hooks/useFeedbackSystem.test.ts`
+- `packages/app/features/VideoAnalysis/hooks/useAnalysis.ts`
+- `packages/app/features/VideoAnalysis/hooks/useAnalysis.test.ts`
+- `packages/app/features/VideoAnalysis/hooks/useVideoLayout.ts` (optional, native only)
+- `packages/app/features/VideoAnalysis/hooks/useVideoLayout.test.ts` (optional)
 
 **FILES TO MODIFY:**
 - `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
 - `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.native.tsx`
 - `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.web.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx`
 - `packages/app/features/VideoAnalysis/components/FeedbackSection.tsx`
+- `packages/app/features/VideoAnalysis/stores/feedbackStore.ts` (rename from feedbackCoordinatorStore)
 
----
-
-### Task 52: Consolidate Hooks (14 → 4-5 Core Hooks)
-**Effort:** 2-3 days | **Priority:** P1 (Technical Debt) | **Depends on:** Task 51
-**User Story:** N/A (Technical debt reduction)
-
-**STATUS:** 🔄 **PENDING**
-
-**OBJECTIVE:** Reduce complexity by consolidating 14 hooks into 4-5 core hooks with clear responsibilities. This simplifies testing, reduces dependency graphs, and improves maintainability.
-
-**CURRENT STATE:**
-- ❌ 14 hooks called directly in VideoAnalysisScreen
-- ❌ Complex dependency graphs between hooks
-- ❌ Hard to test (14 hooks to mock)
-- ✅ Hooks have single responsibilities (good)
-
-**PROBLEM:**
-- Too many hooks = too many failure points
-- Complex dependency graphs make debugging difficult
-- Testing requires mocking 14 hooks
-- Cognitive overhead from tracking hook interactions
-
-**IMPACT:**
-- **Maintainability:** Changes require understanding 14 hooks
-- **Testing:** Requires mocking 14 hooks in every test
-- **Debugging:** Complex dependency chains
-- **Performance:** Hook overhead (14 hooks called per render)
-
-**SCOPE:**
-
-#### Module 2.1: Merge Video Hooks → useVideoPlayer
-**Summary:** Consolidate `useVideoPlayback` + `useAudioController` + `useVideoAudioSync` → `useVideoPlayer`.
-
-**Files to Modify:**
+**FILES TO DELETE:**
 - `packages/app/features/VideoAnalysis/hooks/useVideoPlayback.ts`
-- `packages/app/features/VideoAnalysis/hooks/useAudioController.ts`
+- `packages/app/features/VideoAnalysis/hooks/useVideoControls.ts`
 - `packages/app/features/VideoAnalysis/hooks/useVideoAudioSync.ts`
-
-**Tasks:**
-- [ ] Create `useVideoPlayer` hook that combines video + audio playback
-- [ ] Merge playback state (isPlaying, currentTime, duration)
-- [ ] Merge audio state (isAudioPlaying, audioCurrentTime)
-- [ ] Merge sync logic (shouldPlayVideo)
-- [ ] Update tests to cover combined hook
-- [ ] Remove old hooks (or mark deprecated)
-
-**Acceptance Criteria:**
-- [ ] Single hook replaces 3 hooks
-- [ ] All existing functionality preserved
-- [ ] Tests pass (update mocks)
-- [ ] `yarn workspace @my/app test useVideoPlayer.test.ts` passes
-
-#### Module 2.2: Merge Feedback Hooks → useFeedbackSystem
-**Summary:** Consolidate feedback-related hooks → `useFeedbackSystem`.
-
-**Files to Modify:**
+- `packages/app/features/VideoAnalysis/hooks/useAutoPlayOnReady.ts`
 - `packages/app/features/VideoAnalysis/hooks/useFeedbackCoordinator.ts`
 - `packages/app/features/VideoAnalysis/hooks/useFeedbackAudioSource.ts`
-- `packages/app/features/VideoAnalysis/hooks/useFeedbackSelection.ts`
-- `packages/app/features/VideoAnalysis/hooks/useBubbleController.ts`
-
-**Tasks:**
-- [ ] Create `useFeedbackSystem` hook
-- [ ] Merge feedback coordination logic
-- [ ] Merge audio source management
-- [ ] Merge selection logic
-- [ ] Merge bubble controller
-- [ ] Update tests
-- [ ] Remove old hooks (or mark deprecated)
-
-**Acceptance Criteria:**
-- [ ] Single hook replaces 4 hooks
-- [ ] All existing functionality preserved
-- [ ] Tests pass (update mocks)
-- [ ] `yarn workspace @my/app test useFeedbackSystem.test.ts` passes
-
-#### Module 2.3: Keep Native-Only Hooks Separate
-**Summary:** Keep gesture/animation hooks separate (native-only concerns).
-
-**Files:** (No changes needed)
-- `packages/app/features/VideoAnalysis/hooks/useGestureController.ts`
-- `packages/app/features/VideoAnalysis/hooks/useAnimationController.ts`
-
-**Rationale:** These are platform-specific (native only) and should remain separate.
-
-**Acceptance Criteria:**
-- [ ] Gesture/animation hooks remain separate
-- [ ] No changes needed (already platform-specific)
-
-#### Module 2.4: Update VideoAnalysisScreen
-**Summary:** Replace 14 hook calls with 4-5 consolidated hooks.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-
-**Tasks:**
-- [ ] Replace 3 video hooks → `useVideoPlayer`
-- [ ] Replace 4 feedback hooks → `useFeedbackSystem`
-- [ ] Keep `useAnalysisState` (data fetching)
-- [ ] Keep `useFeedbackPanel` (UI state)
-- [ ] Keep `useHistoricalAnalysis` (data fetching)
-- [ ] Keep gesture/animation hooks (native only)
-- [ ] Update tests to mock new hooks
-
-**Acceptance Criteria:**
-- [ ] 14 hooks reduced to 4-5 hooks
-- [ ] All functionality preserved
-- [ ] Tests pass (update mocks)
-- [ ] `yarn workspace @my/app test VideoAnalysisScreen.test.tsx` passes
-- [ ] Component renders correctly (manual QA)
-
-**SUCCESS VALIDATION:**
-- [ ] 14 hooks → 4-5 hooks (60-70% reduction)
-- [ ] All tests pass
-- [ ] No functionality regression
-- [ ] `yarn type-check` passes (0 errors)
-- [ ] `yarn lint` passes (0 errors)
-- [ ] Component renders correctly (manual QA)
-
-**FILES TO MODIFY:**
-- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-- `packages/app/features/VideoAnalysis/hooks/useVideoPlayer.ts` (new)
-- `packages/app/features/VideoAnalysis/hooks/useFeedbackSystem.ts` (new)
-- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.test.tsx`
-
----
-
-### Task 53: Remove Unnecessary Memoization & Clean Debug Code
-**Effort:** 1 day | **Priority:** P2 (Code Quality) | **Depends on:** Task 51, Task 52
-**User Story:** N/A (Code quality improvement)
-
-**STATUS:** 🔄 **PENDING**
-
-**OBJECTIVE:** Remove premature optimizations (useMemo/useCallback) and clean up debug code from production. Trust React's reconciliation, optimize only what profiling proves slow.
-
-**CURRENT STATE:**
-- ❌ 5 useMemo calls for prop composition (lines 307-550)
-- ❌ 6 refs for "stable" handlers (lines 441-454) - refs updated every render
-- ❌ 2 debug useEffects running in production (lines 200-242)
-- ❌ 300+ lines of prop change tracking in VideoAnalysisLayout
-- ✅ React DevTools Profiler available for actual performance measurement
-
-**PROBLEM:**
-- Memoization overhead without proven benefit (5 useMemo = ~5-10ms per render)
-- Refs updated every render = no stability gain ("optimization theater")
-- Debug code adds overhead in production
-- Prop tracking code clutters layout component
-
-**IMPACT:**
-- **Performance:** Memoization overhead may exceed benefit
-- **Maintainability:** Complex dependency arrays to maintain
-- **Code Quality:** Debug code in production
-- **Bundle Size:** Unnecessary code in production
-
-**SCOPE:**
-
-#### Module 3.1: Remove useMemo from Prop Composition
-**Summary:** Remove useMemo calls, let React re-render naturally.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-
-**Tasks:**
-- [ ] Remove `feedback` useMemo (lines 307-329)
-- [ ] Remove `playback` useMemo (lines 342-355)
-- [ ] Remove `audio` useMemo (lines 361-368)
-- [ ] Remove `videoState` useMemo (lines 379-400) - if not removed in Task 51
-- [ ] Remove `error` useMemo (lines 542-550) - if not removed in Task 51
-- [ ] Remove `socialCounts` useMemo (lines 290-293) - replace with constant
-- [ ] Remove `handlers` useMemo (lines 461-535) - replace with direct handlers or Zustand actions
-
-**Acceptance Criteria:**
-- [ ] No useMemo calls for prop composition
-- [ ] Components read directly from store or props
-- [ ] React DevTools Profiler shows no performance regression
-- [ ] All tests pass
-
-#### Module 3.2: Remove Ref-Based Handler Optimization
-**Summary:** Remove ref indirection for handlers - either use Zustand actions or pass handlers directly.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-
-**Tasks:**
-- [ ] Remove ref declarations (lines 441-446)
-- [ ] Remove ref updates (lines 449-454)
-- [ ] Replace ref-based handlers with Zustand actions OR direct handlers
-- [ ] Use `useCallback` with proper deps if handlers needed (not refs)
-- [ ] Update handlers object (lines 461-535)
-
-**Acceptance Criteria:**
-- [ ] No refs for handler stability
-- [ ] Handlers use Zustand actions OR direct callbacks
-- [ ] No "optimization theater"
-- [ ] All tests pass
-
-#### Module 3.3: Remove Debug Code from Production
-**Summary:** Remove or gate debug useEffects behind `__DEV__` flag.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-
-**Tasks:**
-- [ ] Remove or gate debug useEffect (lines 200-217) - useState index tracking
-- [ ] Remove or gate debug useEffect (lines 223-242) - Zustand subscription tracking
-- [ ] Remove debug comments explaining "why-did-you-render" behavior
-- [ ] Remove WDYR configuration (lines 612-617) or gate behind `__DEV__`
-
-**Acceptance Criteria:**
-- [ ] No debug code running in production
-- [ ] Debug code gated behind `__DEV__` if needed for dev debugging
-- [ ] Production bundle size reduced
-- [ ] All tests pass
-
-#### Module 3.4: Clean VideoAnalysisLayout Component
-**Summary:** Remove prop change tracking code, extract to dev-only wrapper.
-
-**File to Modify:** `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.native.tsx`
-
-**Tasks:**
-- [ ] Remove prop change tracking (lines 240-356)
-- [ ] Remove render diagnostics (lines 227-230)
-- [ ] Remove render count tracking (lines 233-239)
-- [ ] Extract to dev-only wrapper if needed: `withRenderTracking(VideoAnalysisLayout)`
-- [ ] Simplify component to presentation-only
-
-**File to Create:** `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.dev.tsx` (if needed)
-
-**Acceptance Criteria:**
-- [ ] Layout component is presentation-only
-- [ ] No prop tracking in production code
-- [ ] Component simplified (700 lines → ~400 lines)
-- [ ] All tests pass
-
-**SUCCESS VALIDATION:**
-- [ ] No useMemo for prop composition
-- [ ] No ref-based handler optimization
-- [ ] No debug code in production
-- [ ] Layout component simplified
-- [ ] React DevTools Profiler shows no performance regression
-- [ ] `yarn type-check` passes (0 errors)
-- [ ] `yarn lint` passes (0 errors)
-- [ ] `yarn workspace @my/app test` passes (all tests)
-- [ ] Bundle size reduced (measure before/after)
-
-**FILES TO MODIFY:**
-- `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.native.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.web.tsx` (if needed)
-
-**FILES TO CREATE:**
-- `packages/app/features/VideoAnalysis/components/VideoAnalysisLayout.dev.tsx` (optional, for dev-only wrapper)
-
----
-
-### Task 54: Add Accessibility Improvements (Keyboard Navigation & ARIA)
-**Effort:** 0.5-1 day | **Priority:** P2 (Accessibility) | **Depends on:** None
-**User Story:** US-A11Y-01 (Video controls must be keyboard accessible)
-
-**STATUS:** 🔄 **PENDING**
-
-**OBJECTIVE:** Add keyboard navigation and ARIA labels to video controls for accessibility compliance.
-
-**CURRENT STATE:**
-- ❌ No keyboard navigation for video controls
-- ❌ No ARIA labels on interactive elements
-- ❌ No screen reader announcements for state changes
-- ❌ No focus management during feedback interactions
-- ✅ Video controls work with touch/mouse
-
-**PROBLEM:**
-- Video player is not accessible to keyboard users
-- Screen readers cannot navigate or understand controls
-- No focus management during interactions
-- Violates WCAG 2.1 AA compliance
-
-**IMPACT:**
-- **Accessibility:** Keyboard users cannot use video player
-- **Compliance:** Fails WCAG 2.1 AA requirements
-- **User Experience:** Screen reader users cannot understand state changes
-- **Legal:** Potential ADA compliance issues
-
-**SCOPE:**
-
-#### Module 4.1: Add Keyboard Navigation
-**Summary:** Add keyboard shortcuts for video controls.
-
-**Files to Modify:**
-- `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx`
-
-**Tasks:**
-- [ ] Add keyboard event handler for spacebar (play/pause)
-- [ ] Add keyboard event handler for arrow keys (seek ±5s)
-- [ ] Add keyboard event handler for 'M' (mute/unmute)
-- [ ] Add keyboard event handler for 'F' (fullscreen)
-- [ ] Prevent default browser behavior for video shortcuts
-- [ ] Add visual feedback for keyboard interactions
-
-**Acceptance Criteria:**
-- [ ] Spacebar toggles play/pause
-- [ ] Left/Right arrows seek ±5s
-- [ ] Keyboard shortcuts work on web and native (if applicable)
-- [ ] Tests validate keyboard interactions
-
-#### Module 4.2: Add ARIA Labels
-**Summary:** Add ARIA labels to all interactive elements.
-
-**Files to Modify:**
-- `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx`
-- `packages/ui/src/components/VideoAnalysis/VideoControls/components/CenterControls.tsx`
-- `packages/ui/src/components/VideoAnalysis/VideoControls/components/ProgressBar.tsx`
-
-**Tasks:**
-- [ ] Add `aria-label` to play/pause button
-- [ ] Add `aria-label` to seek bar
-- [ ] Add `aria-label` to time display
-- [ ] Add `aria-label` to fullscreen button
-- [ ] Add `role="button"` to interactive elements
-- [ ] Add `aria-live` region for state announcements
-
-**Acceptance Criteria:**
-- [ ] All interactive elements have ARIA labels
-- [ ] Screen reader can navigate all controls
-- [ ] Labels are descriptive and clear
-- [ ] Tests validate ARIA attributes
-
-#### Module 4.3: Add Screen Reader Announcements
-**Summary:** Announce state changes to screen readers.
-
-**Files to Modify:**
-- `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx`
-
-**Tasks:**
-- [ ] Add `aria-live="polite"` region for state announcements
-- [ ] Announce "Playing" when video starts
-- [ ] Announce "Paused" when video pauses
-- [ ] Announce "Seeking to [time]" on seek
-- [ ] Announce feedback highlights (if applicable)
-
-**Acceptance Criteria:**
-- [ ] State changes announced to screen readers
-- [ ] Announcements are timely and clear
-- [ ] Tests validate announcements
-
-#### Module 4.4: Add Focus Management
-**Summary:** Manage focus during feedback interactions.
-
-**Files to Modify:**
-- `packages/app/features/VideoAnalysis/components/FeedbackSection.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx`
-
-**Tasks:**
-- [ ] Focus feedback item when tapped/selected
-- [ ] Focus video controls when panel collapses
-- [ ] Trap focus in overlay modals (if any)
-- [ ] Return focus after modal closes
-
-**Acceptance Criteria:**
-- [ ] Focus moves logically during interactions
-- [ ] Focus trap works in modals
-- [ ] Tests validate focus management
-
-**SUCCESS VALIDATION:**
-- [ ] Keyboard navigation works (space, arrows, M, F)
-- [ ] All interactive elements have ARIA labels
-- [ ] Screen reader announces state changes
-- [ ] Focus management works correctly
-- [ ] WCAG 2.1 AA compliance verified (manual audit)
-- [ ] `yarn type-check` passes (0 errors)
-- [ ] `yarn lint` passes (0 errors)
-- [ ] `yarn workspace @my/app test` passes (all tests)
-
-**FILES TO MODIFY:**
-- `packages/ui/src/components/VideoAnalysis/VideoControls/VideoControls.tsx`
-- `packages/ui/src/components/VideoAnalysis/VideoControls/components/CenterControls.tsx`
-- `packages/ui/src/components/VideoAnalysis/VideoControls/components/ProgressBar.tsx`
-- `packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx`
-- `packages/app/features/VideoAnalysis/components/FeedbackSection.tsx`
+- `packages/app/features/VideoAnalysis/hooks/useAudioController.ts`
+- `packages/app/features/VideoAnalysis/hooks/useFeedbackPanel.ts`
+- `packages/app/features/VideoAnalysis/hooks/useAnalysisState.ts`
+- `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.ts`
+- `packages/app/features/VideoAnalysis/hooks/useGestureController.ts` (optional)
+- `packages/app/features/VideoAnalysis/hooks/useAnimationController.ts` (optional)
+- `packages/app/features/VideoAnalysis/stores/feedbackCoordinatorStore.ts`
+- `packages/app/features/VideoAnalysis/stores/persistentProgress.ts`
+
+**QUALITY GATES:**
+
+After each phase:
+1. Run tests: `yarn workspace @my/app test <new-hook>.test.ts`
+2. Type check: `yarn workspace @my/app type-check`
+3. Lint: `yarn workspace @my/app lint`
+4. Verify no regressions: Manual testing of video playback and feedback features
+5. Update architecture diagram if needed
+
+**RISK MITIGATION:**
+
+**Risk:** Breaking existing functionality during consolidation
+**Mitigation:** Implement phases incrementally, maintain full test coverage, manual testing after each phase
+
+**Risk:** Imperative API pattern unfamiliar to team
+**Mitigation:** Document pattern clearly, reference YouTube/Vimeo examples, provide examples in code comments
+
+**Risk:** Store merge causes subscription issues
+**Mitigation:** Update all subscriptions in single commit, use granular selectors, test subscription behavior
+
+**Risk:** Social features need to remain for UI completeness
+**Mitigation:** Keep social features as placeholders (socialCounts, handlers, mock comments) - no changes needed in Phase 5
+
+**REFERENCES:**
+- Simplification proposal: `docs/spec/video-analysis-simplification-proposal.md`
+- Simplified architecture diagram: `docs/spec/video-analysis-simplified-architecture.mermaid`
+- Current architecture diagram: `docs/spec/video-analysis-screen-architecture.mermaid`
 
 ---

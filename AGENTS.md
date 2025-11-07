@@ -92,7 +92,23 @@ See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
   - `yarn workspace @my/supabase-functions test:deno` (Deno for Edge)
   - `yarn test:db` (pgTAP database tests)
 
-See `.cursor/rules/core/development-operations.mdc` for complete workspace commands reference table.
+## Quality Scripts Reference
+
+Key scripts to maintain code quality and consistency across workspaces:
+
+- **Type Checks**
+  - `yarn type-check` — Run strict TypeScript validation across all workspaces
+  - `yarn type-check:<workspace>` — Type check a specific workspace (`ui`, `app`, `api`, `config`, `logging`)
+- **Linting**
+  - `yarn lint` — Lint all packages for code style and errors
+  - `yarn lint:fix` — Auto-fix lint issues project-wide
+  - `yarn lint:<workspace>` — Lint a specific workspace
+  - `yarn lint:<workspace>:fix` — Auto-fix for a specific workspace
+- **Formatting**
+  - `yarn format` — Format code using project standards
+  - `yarn format:fix` — Auto-fix all formatting issues
+
+Full table of workspace commands is in `.cursor/rules/core/development-operations.mdc`.
 
 ## Error Prevention
 ### VALIDATION_RULES
@@ -109,7 +125,7 @@ See `.cursor/rules/core/development-operations.mdc` for complete workspace comma
 - **Ratio**: Maximum 1:2 test-to-code ratio
 - **Pattern**: AAA (Arrange-Act-Assert) mandatory with comments
 - **Focus**: Test user behavior, not implementation details
- - **Event usage**: Web uses `fireEvent.click()`; Native uses `fireEvent.press()`
+- **Event usage**: Web uses `fireEvent.click()`; Native uses `fireEvent.press()`
 
 ## Detailed Documentation
 

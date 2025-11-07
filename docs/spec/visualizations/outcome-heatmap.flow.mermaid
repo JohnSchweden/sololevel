@@ -1,0 +1,28 @@
+flowchart TB
+  classDef success fill:#388e3c,color:#fff,stroke:#2e7d32,stroke-width:2px
+  classDef softfail fill:#fbc02d,color:#263238,stroke:#f57f17,stroke-width:2px
+  classDef hardfail fill:#d32f2f,color:#fff,stroke:#b71c1c,stroke-width:2px
+  classDef header fill:#eceff1,color:#37474f,stroke:#90a4ae,stroke-width:1px
+  classDef intent fill:#e3f2fd,color:#0d47a1,stroke:#64b5f6,stroke-width:1px
+
+  subgraph Legend["Outcome Legend"]
+    L1[Success ≥ 85%]
+    L2[Soft Fail < 85% & > 60%]
+    L3[Hard Fail ≤ 60%]
+  end
+
+  class L1,L2,L3 header
+  class L1 success
+  class L2 softfail
+  class L3 hardfail
+
+  subgraph Heatmap["Intent vs Outcome"]
+    direction TB
+    h0[" "]:::header --- h1["Upload"]:::intent --- h2["Analysis"]:::intent --- h3["Feedback"]:::intent
+
+    row1["Success"]:::header --- cell11[93%]\nStable uploads:::success --- cell12[88%]\nAnalysis completed:::success --- cell13[76%]\nFeedback consumed:::softfail
+
+    row2["Soft Failure"]:::header --- cell21[5%]\nRetry uploads:::softfail --- cell22[8%]\nPartial insights:::softfail --- cell23[14%]\nSkipped review:::softfail
+
+    row3["Hard Failure"]:::header --- cell31[2%]\nFatal upload errors:::hardfail --- cell32[4%]\nAnalysis timeouts:::hardfail --- cell33[10%]\nUsers exit early:::hardfail
+  end

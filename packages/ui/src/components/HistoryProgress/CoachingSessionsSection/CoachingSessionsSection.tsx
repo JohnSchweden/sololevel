@@ -1,5 +1,4 @@
 import type { GetProps } from '@tamagui/core'
-import { RefreshControl } from 'react-native'
 import { ScrollView, Text, YStack, styled } from 'tamagui'
 import { CoachingSessionItem } from '../CoachingSessionItem'
 
@@ -39,10 +38,10 @@ export interface CoachingSessionsSectionProps {
   onSessionPress: (sessionId: number) => void
 
   /**
-   * Pull-to-refresh functionality
+   * Pull-to-refresh functionality (temporarily disabled)
    */
-  refreshing?: boolean
-  onRefresh?: () => void
+  // refreshing?: boolean
+  // onRefresh?: () => void
 
   /**
    * Test ID for testing
@@ -113,8 +112,6 @@ const SessionsList = styled(YStack, {
 export function CoachingSessionsSection({
   sessions,
   onSessionPress,
-  refreshing = false,
-  onRefresh,
   testID = 'coaching-sessions-section',
 }: CoachingSessionsSectionProps): React.ReactElement {
   return (
@@ -122,15 +119,15 @@ export function CoachingSessionsSection({
       <SectionHeader data-testid={`${testID}-header`}>Coaching sessions</SectionHeader>
 
       <ScrollView
-        refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="$color11"
-            />
-          ) : undefined
-        }
+        // refreshControl={
+        //   onRefresh ? (
+        //     <RefreshControl
+        //       refreshing={refreshing}
+        //       onRefresh={onRefresh}
+        //       tintColor="$color11"
+        //     />
+        //   ) : undefined
+        // }
         testID={`${testID}-scroll`}
       >
         <SessionsList data-testid={`${testID}-list`}>

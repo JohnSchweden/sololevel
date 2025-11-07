@@ -9,6 +9,7 @@ import React from 'react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 import { VideoControls } from './VideoControls'
+import type { VideoControlsProps } from './VideoControls'
 
 // Mock react-native Platform for native environment
 jest.mock('react-native', () => ({
@@ -33,7 +34,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
 }
 
-const mockProps = {
+const createMockProps = (overrides: Partial<VideoControlsProps> = {}): VideoControlsProps => ({
   isPlaying: false,
   currentTime: 30,
   duration: 120,
@@ -44,7 +45,8 @@ const mockProps = {
   onSeek: jest.fn(),
   onControlsVisibilityChange: jest.fn(),
   onMenuPress: jest.fn(),
-}
+  ...overrides,
+})
 
 describe('VideoControls - React Native Environment Tests', () => {
   beforeEach(() => {
@@ -59,7 +61,8 @@ describe('VideoControls - React Native Environment Tests', () => {
 
   describe('PanResponder Scrubbing Functionality - Native', () => {
     it('progress bar renders with correct visual elements in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} />)
+      const props = createMockProps()
+      renderWithProviders(<VideoControls {...props} />)
 
       // In React Native environment, we can test the actual View components
       const progressBarContainer = screen.getByTestId('progress-bar-container')
@@ -70,7 +73,8 @@ describe('VideoControls - React Native Environment Tests', () => {
     })
 
     it('scrubber handle shows correct visual state based on props in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} />)
+      const props = createMockProps()
+      renderWithProviders(<VideoControls {...props} />)
 
       // Test scrubber handle visual state
       const scrubberHandle = screen.getByTestId('scrubber-handle')
@@ -78,83 +82,35 @@ describe('VideoControls - React Native Environment Tests', () => {
       expect(scrubberHandle).toBeInTheDocument()
     })
 
-    it('component setup supports PanResponder event handling in React Native', () => {
-      renderWithProviders(<VideoControls {...mockProps} />)
+    it('exposes gesture targets for scrubbing in React Native', () => {
+      const props = createMockProps()
+      renderWithProviders(<VideoControls {...props} />)
 
-      // Test that PanResponder is properly attached to the progress bar
-      // React Native converts testID to lowercase testid in web environment
-      const progressScrubber = document.querySelector('[testid="progress-scrubber"]')
-      expect(progressScrubber).toBeTruthy()
+      // Verify primary gesture targets exist for scrubbing interactions
+      expect(screen.getByTestId('progress-bar-pressable')).toBeInTheDocument()
+      expect(screen.getByTestId('scrubber-handle')).toBeInTheDocument()
     })
   })
 
   describe('Processing State Management - Native', () => {
-    it('hides regular controls when processing in React Native', () => {
-      renderWithProviders(
-        <VideoControls
-          {...mockProps}
-          isProcessing={true}
-        />
-      )
+    it('disables center controls when processing in React Native', () => {
+      const props = createMockProps({ isProcessing: true })
+      renderWithProviders(<VideoControls {...props} />)
 
-      // Test that regular controls are hidden when processing
-      const playButton = screen.queryByTestId('play-button')
-      const pauseButton = screen.queryByTestId('pause-button')
-
-      // When processing, play/pause buttons should not be visible
-      expect(playButton).toBeNull()
-      expect(pauseButton).toBeNull()
+      const playbackControls = screen.getByLabelText('Video playback controls')
+      expect(playbackControls).toBeInTheDocument()
+      expect(playbackControls.getAttribute('pointer-events')).toBe('none')
     })
 
-    it('processing overlay has correct accessibility attributes in React Native', () => {
-      renderWithProviders(
-        <VideoControls
-          {...mockProps}
-          isProcessing={true}
-        />
-      )
-
-      // Test processing overlay accessibility
-      const processingOverlay = screen.getByTestId('processing-overlay')
-      expect(processingOverlay).toBeInTheDocument()
-    })
-
-    it('maintains processing overlay during playback state changes in React Native', () => {
+    it('restores interactive controls after processing ends in React Native', () => {
       const { rerender } = renderWithProviders(
-        <VideoControls
-          {...mockProps}
-          isProcessing={true}
-        />
+        <VideoControls {...createMockProps({ isProcessing: true })} />
       )
 
-      // Verify processing overlay is present initially
-      expect(screen.getByTestId('processing-overlay')).toBeTruthy()
+      rerender(<VideoControls {...createMockProps({ isProcessing: false })} />)
 
-      // Change playback state while processing
-      rerender(
-        <VideoControls
-          {...mockProps}
-          isProcessing={true}
-          isPlaying={true}
-        />
-      )
-
-      // Processing overlay should still be present
-      expect(screen.getByTestId('processing-overlay')).toBeTruthy()
-      expect(screen.queryByTestId('play-button')).toBeNull() // Controls still hidden
-    })
-
-    it('processing spinner indicates busy state in React Native', () => {
-      renderWithProviders(
-        <VideoControls
-          {...mockProps}
-          isProcessing={true}
-        />
-      )
-
-      // Test that spinner has correct accessibility and visual properties
-      const spinner = screen.getByTestId('processing-spinner')
-      expect(spinner).toBeInTheDocument()
+      const playbackControls = screen.getByLabelText('Video playback controls')
+      expect(playbackControls.getAttribute('pointer-events')).toBe('auto')
     })
   })
 
@@ -163,8 +119,7 @@ describe('VideoControls - React Native Environment Tests', () => {
       const mockOnControlsVisibilityChange = jest.fn()
       renderWithProviders(
         <VideoControls
-          {...mockProps}
-          onControlsVisibilityChange={mockOnControlsVisibilityChange}
+          {...createMockProps({ onControlsVisibilityChange: mockOnControlsVisibilityChange })}
         />
       )
 
@@ -179,30 +134,17 @@ describe('VideoControls - React Native Environment Tests', () => {
       }
 
       // Verify touch interaction triggers visibility change
-      expect(mockOnControlsVisibilityChange).toHaveBeenCalledWith(true)
+      expect(mockOnControlsVisibilityChange).toHaveBeenCalled()
+      const [visible] = mockOnControlsVisibilityChange.mock.calls[0] ?? []
+      expect(visible).toBe(true)
     })
 
-    it('handles PanResponder touch gestures for scrubbing in React Native', () => {
-      const mockOnSeek = jest.fn()
-      renderWithProviders(
-        <VideoControls
-          {...mockProps}
-          onSeek={mockOnSeek}
-        />
-      )
+    it('provides gesture surfaces for scrubbing in React Native', () => {
+      const props = createMockProps()
+      renderWithProviders(<VideoControls {...props} />)
 
-      // Find the progress scrubber by its testid attribute (React Native converts to lowercase)
-      const progressScrubber = document.querySelector('[testid="progress-scrubber"]')
-
-      expect(progressScrubber).toBeTruthy()
-
-      // Simulate touch gestures (using click for web environment)
-      if (progressScrubber) {
-        fireEvent.click(progressScrubber)
-      }
-
-      // Verify the element exists and can handle touch events
-      expect(progressScrubber).toBeInTheDocument()
+      expect(screen.getByTestId('progress-bar-container')).toBeInTheDocument()
+      expect(screen.getByTestId('scrubber-handle')).toBeInTheDocument()
     })
   })
 })

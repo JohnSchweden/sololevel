@@ -6,8 +6,8 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "echo 'api package - no build needed'",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
+    "lint": "../../node_modules/.bin/biome check src",
+    "lint:fix": "../../node_modules/.bin/biome check --write src",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

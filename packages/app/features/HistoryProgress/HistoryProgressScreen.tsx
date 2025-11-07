@@ -172,28 +172,28 @@ export function HistoryProgressScreen({
     }
   }, [videos, isLoading, error])
 
-  // Pull-to-refresh state
-  const [refreshing, setRefreshing] = React.useState(false)
+  // Pull-to-refresh state (temporarily disabled)
+  // const [refreshing, setRefreshing] = React.useState(false)
 
-  const handleRefresh = React.useCallback(async () => {
-    const startTime = Date.now()
-    log.debug('HistoryProgressScreen', 'Pull-to-refresh initiated')
+  // const handleRefresh = React.useCallback(async () => {
+  //   const startTime = Date.now()
+  //   log.debug('HistoryProgressScreen', 'Pull-to-refresh initiated')
 
-    setRefreshing(true)
-    try {
-      await refetch()
-      const duration = Date.now() - startTime
-      log.info('HistoryProgressScreen', 'Pull-to-refresh completed', { duration })
-    } catch (error) {
-      const duration = Date.now() - startTime
-      log.error('HistoryProgressScreen', 'Pull-to-refresh failed', {
-        error: error instanceof Error ? error.message : String(error),
-        duration,
-      })
-    } finally {
-      setRefreshing(false)
-    }
-  }, [refetch])
+  //   setRefreshing(true)
+  //   try {
+  //     await refetch()
+  //     const duration = Date.now() - startTime
+  //     log.info('HistoryProgressScreen', 'Pull-to-refresh completed', { duration })
+  //   } catch (error) {
+  //     const duration = Date.now() - startTime
+  //     log.error('HistoryProgressScreen', 'Pull-to-refresh failed', {
+  //       error: error instanceof Error ? error.message : String(error),
+  //       duration,
+  //     })
+  //   } finally {
+  //     setRefreshing(false)
+  //   }
+  // }, [refetch])
 
   // Navigation handlers
   const handleVideoPress = React.useCallback(
@@ -263,8 +263,6 @@ export function HistoryProgressScreen({
           <CoachingSessionsSection
             sessions={mockCoachingSessions}
             onSessionPress={handleSessionPress}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
             testID={`${testID}-coaching-sessions-section`}
           />
         </YStack>

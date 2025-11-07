@@ -29,8 +29,8 @@ import {
   useConditionalAnimationTiming,
 } from './hooks/useConditionalAnimationTiming'
 import { useControlsVisibility } from './hooks/useControlsVisibility'
-import { useProgressBarAnimation } from './hooks/useProgressBarAnimation'
 import { useProgressBarGesture } from './hooks/useProgressBarGesture'
+import { useProgressBarVisibility } from './hooks/useProgressBarVisibility'
 
 export interface VideoControlsRef {
   triggerMenu: () => void
@@ -42,12 +42,11 @@ export interface PersistentProgressBarProps {
   isScrubbing: boolean
   controlsVisible: boolean
   progressBarWidth: number
-  animatedStyle: any
+  shouldRenderPersistent: boolean
   combinedGesture: any
   mainGesture: any
   onLayout: (event: any) => void
   onFallbackPress: (locationX: number) => void
-  animationName?: 'quick' | 'lazy'
 }
 
 export interface VideoControlsProps {
@@ -108,16 +107,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const globalScrubbingShared = useSharedValue(false)
 
     // Conditional animation timing hook
-    const { getAnimationName, getAnimationDuration } = useConditionalAnimationTiming()
+    const { getAnimationDuration } = useConditionalAnimationTiming()
 
     // Consolidated animation state - derive interaction type from props to reduce state updates
     const currentInteractionTypeRef = useRef<AnimationInteractionType>('user-tap')
 
     // Derive interaction type from current props (no state updates needed)
-    const currentInteractionType = useMemo(() => {
-      if (videoEnded) return 'playback-end'
-      return currentInteractionTypeRef.current
-    }, [videoEnded])
+    // Note: currentInteractionType is computed on demand, not stored
 
     // Handle collapseProgress: accept SharedValue directly or convert number to SharedValue
     // If SharedValue is passed, use it directly (no re-renders during gestures)
@@ -408,7 +404,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // otherwise use the synced SharedValue we created
     // CRITICAL: Access collapseProgress via ref to avoid React dependency comparison
     // that might access .value during render, causing Reanimated warnings.
-    const collapseProgressForAnimation = useMemo(() => {
+    const collapseProgressSharedValue = useMemo(() => {
       // Use the prop directly if it's a SharedValue (checked via isSharedValueProp)
       // Otherwise use our internal synced SharedValue
       const currentCollapseProgress = collapseProgressRef.current
@@ -421,8 +417,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // When collapseProgress is a SharedValue, reference is stable (no need to track in deps)
     // When collapseProgress is a number, it's synced to collapseProgressShared via useEffect
 
-    const { persistentBarAnimatedStyle, normalBarAnimatedStyle } = useProgressBarAnimation(
-      collapseProgressForAnimation
+    const { shouldRenderNormal, shouldRenderPersistent } = useProgressBarVisibility(
+      collapseProgressSharedValue
     )
 
     // Expose handleMenuPress to parent component via ref
@@ -487,6 +483,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const prevIsScrubbingRef = useRef<boolean | null>(null)
     const prevControlsVisibleRef = useRef<boolean | null>(null)
     const prevProgressBarWidthRef = useRef<number | null>(null)
+    const prevShouldRenderPersistentRef = useRef<boolean | null>(null)
 
     /**
      * Store the stable props object to maintain reference equality when values haven't changed.
@@ -521,8 +518,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
      *
      * Note: currentInteractionTypeRef is already defined earlier in component
      */
-    const persistentBarAnimatedStyleRef = useRef(persistentBarAnimatedStyle)
-    persistentBarAnimatedStyleRef.current = persistentBarAnimatedStyle
     const persistentProgressBarCombinedGestureRef = useRef(persistentProgressBarCombinedGesture)
     persistentProgressBarCombinedGestureRef.current = persistentProgressBarCombinedGesture
     const persistentProgressGestureRef = useRef(persistentProgressGesture)
@@ -576,6 +571,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
       const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
       const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
+      const persistentVisibilityChanged =
+        prevShouldRenderPersistentRef.current !== shouldRenderPersistent
 
       /**
        * Only create and pass new props object when primitive values actually changed.
@@ -596,11 +593,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         prevIsScrubbingRef.current === null ||
         prevControlsVisibleRef.current === null ||
         prevProgressBarWidthRef.current === null ||
+        prevShouldRenderPersistentRef.current === null ||
         currentTimeChanged ||
         durationChanged ||
         scrubbingChanged ||
         controlsChanged ||
-        widthChanged
+        widthChanged ||
+        persistentVisibilityChanged
       ) {
         // log.debug('VideoControls', '🎯 Calling setter with new props')
 
@@ -619,10 +618,9 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
           isScrubbing: persistentProgressBar.isScrubbing,
           controlsVisible,
           progressBarWidth: persistentProgressBarWidth,
-          animatedStyle: persistentBarAnimatedStyleRef.current,
+          shouldRenderPersistent,
           combinedGesture: persistentProgressBarCombinedGestureRef.current,
           mainGesture: persistentProgressGestureRef.current,
-          animationName: getAnimationName(currentInteractionTypeRef.current),
           onLayout: stableOnLayout,
           onFallbackPress: stableOnFallbackPress,
         }
@@ -647,6 +645,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
         prevControlsVisibleRef.current = controlsVisible
         prevProgressBarWidthRef.current = persistentProgressBarWidth
+        prevShouldRenderPersistentRef.current = shouldRenderPersistent
       }
       /**
        * Values unchanged - don't call setter.
@@ -678,7 +677,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
        * - currentInteractionType - changes frequently, accessed via currentInteractionTypeRef
        * - stableOnLayout - stable callback reference
        * - stableOnFallbackPress - stable callback reference
-       * - getAnimationName - stable function reference
        * - duration, onSeek, showControlsAndResetTimer - stable values
        */
       currentTime,
@@ -686,6 +684,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       persistentProgressBar.isScrubbing,
       controlsVisible,
       persistentProgressBarWidth,
+      shouldRenderPersistent,
       persistentProgressStoreSetter,
       onPersistentProgressBarPropsChange,
     ])
@@ -762,7 +761,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
             />
 
             {/* Bottom Controls - Normal Bar */}
-            <Animated.View style={normalBarAnimatedStyle}>
+            {shouldRenderNormal && (
               <YStack accessibilityLabel="Video timeline and controls">
                 <XStack
                   justifyContent="space-between"
@@ -778,10 +777,10 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                   />
                 </XStack>
               </YStack>
-            </Animated.View>
+            )}
 
             {/* Bottom Controls - Persistent Bar */}
-            <Animated.View style={persistentBarAnimatedStyle}>
+            {shouldRenderPersistent && (
               <YStack accessibilityLabel="Video timeline and controls">
                 <XStack
                   justifyContent="space-between"
@@ -797,43 +796,43 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                   />
                 </XStack>
               </YStack>
-            </Animated.View>
+            )}
 
-            {/* Progress Bar - Normal variant (visible with controls) */}
-            <ProgressBar
-              variant="normal"
-              progress={progress}
-              isScrubbing={normalProgressBar.isScrubbing}
-              controlsVisible={controlsVisible}
-              progressBarWidth={progressBarWidth}
-              animatedStyle={normalBarAnimatedStyle}
-              combinedGesture={progressBarCombinedGesture}
-              mainGesture={mainProgressGesture}
-              animationName={getAnimationName(currentInteractionType)}
-              onLayout={(event) => {
-                const { width } = event.nativeEvent.layout
-                setProgressBarWidth(width)
-              }}
-              onFallbackPress={(locationX) => {
-                if (progressBarWidth > 0 && duration > 0) {
-                  const seekPercentage = Math.max(
-                    0,
-                    Math.min(100, (locationX / progressBarWidth) * 100)
-                  )
-                  const seekTime = (seekPercentage / 100) * duration
-                  log.debug('VideoControls', 'Fallback press handler', {
-                    locationX,
-                    progressBarWidth,
-                    seekPercentage,
-                    seekTime,
-                    duration,
-                  })
-                  onSeek(seekTime)
-                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-                  // Fallback should only seek, not show controls (gesture handles that)
-                }
-              }}
-            />
+            {/* Progress Bar - Normal variant (conditionally rendered) */}
+            {shouldRenderNormal && (
+              <ProgressBar
+                variant="normal"
+                progress={progress}
+                isScrubbing={normalProgressBar.isScrubbing}
+                controlsVisible={controlsVisible}
+                progressBarWidth={progressBarWidth}
+                combinedGesture={progressBarCombinedGesture}
+                mainGesture={mainProgressGesture}
+                onLayout={(event) => {
+                  const { width } = event.nativeEvent.layout
+                  setProgressBarWidth(width)
+                }}
+                onFallbackPress={(locationX) => {
+                  if (progressBarWidth > 0 && duration > 0) {
+                    const seekPercentage = Math.max(
+                      0,
+                      Math.min(100, (locationX / progressBarWidth) * 100)
+                    )
+                    const seekTime = (seekPercentage / 100) * duration
+                    log.debug('VideoControls', 'Fallback press handler', {
+                      locationX,
+                      progressBarWidth,
+                      seekPercentage,
+                      seekTime,
+                      duration,
+                    })
+                    onSeek(seekTime)
+                    // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                    // Fallback should only seek, not show controls (gesture handles that)
+                  }
+                }}
+              />
+            )}
           </YStack>
         </Animated.View>
 

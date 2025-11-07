@@ -1,0 +1,20 @@
+---
+title Timeline: User Interaction vs System Response
+---
+gantt
+dateFormat  mm:ss
+axisFormat  %M:%S
+
+section User Action
+Capture Session        :active, 00:00, 00:20
+Upload Confirmation    :done,   00:20, 00:10
+Await Feedback         :        00:30, 00:90
+Review Feedback        :active, 02:00, 01:30
+Share / Save Results   :        03:30, 00:45
+
+section System Response
+Encode & Chunk Upload  :crit,   00:20, 00:40
+Edge Analysis Pipeline :crit,   01:00, 00:60
+Prepare Feedback Assets:        02:00, 00:40
+Realtime Update Push   :        02:40, 00:05
+Persist Session Notes  :        03:30, 00:20

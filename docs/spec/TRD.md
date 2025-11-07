@@ -84,28 +84,36 @@ analysis_feedback (
 
 **Migration:** Replaced orchestrator pattern with direct hook composition (see ADR 005).
 
+**Architecture Diagram:** See `docs/spec/video-analysis-screen-architecture.mermaid` for visual hook dependency graph.
+
 ### VideoAnalysisScreen Architecture
 
 ```typescript
 // Direct hook composition - each hook owns one concern
 function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
   // Core video state
-  const videoPlayback = useVideoPlayback(uri)
+  const videoPlayback = useVideoPlayback(initialStatus)
   const videoControls = useVideoControls(...)
   const videoAudioSync = useVideoAudioSync(...)
 
   // Audio management
-  const audioController = useAudioController()
-  const feedbackAudioSource = useFeedbackAudioSource(...)
+  const audioController = useAudioController(audioUrl)
+  const feedbackAudioSource = useFeedbackAudioSource(feedbackItems)
 
   // Feedback coordination
   const analysisState = useAnalysisState(...)
-  const feedbackPanel = useFeedbackPanel(...)
+  const feedbackPanel = useFeedbackPanel()
   const feedbackCoordinator = useFeedbackCoordinator(...)
+
+  // Zustand stores (granular subscriptions)
+  const highlightedFeedbackId = useFeedbackCoordinatorStore(s => s.highlightedFeedbackId)
+  const bubbleState = useFeedbackCoordinatorStore(s => s.bubbleState)
+  const overlayVisible = useFeedbackCoordinatorStore(s => s.overlayVisible)
+  const setPersistentProgressProps = usePersistentProgressStore(s => s.setProps)
 
   // Native-only (animations and gestures)
   const gesture = useGestureController(...)
-  const animation = useAnimationController(...)
+  const animation = useAnimationController()
 
   // Compose props and render layout
   return <VideoAnalysisLayout
@@ -123,16 +131,26 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 
 | Hook | Responsibility | Dependencies |
 |------|-----------------|--------------|
-| `useVideoPlayback` | Video playback control + state | video URI |
-| `useVideoControls` | Controls visibility + visibility changes | video state |
+| `useVideoPlayback` | Video playback control + state | initialStatus |
+| `useVideoControls` | Controls visibility + visibility changes | isProcessing, video state |
 | `useVideoAudioSync` | Audio/video sync coordination | video + audio states |
 | `useAudioController` | Audio playback control | audio URL |
-| `useFeedbackAudioSource` | Feedback audio URL + error management | none |
-| `useAnalysisState` | Analysis phase + progress + errors | analysis job ID |
+| `useFeedbackAudioSource` | Feedback audio URL + error management | feedbackItems |
+| `useAnalysisState` | Analysis phase + progress + errors | analysis job ID, videoRecordingId |
 | `useFeedbackPanel` | Panel state (expanded, tab, selection) | none |
 | `useFeedbackCoordinator` | Feedback interaction + audio overlay | video + audio + panel |
-| `useGestureController` | Pan gesture + scroll handling | none |
+| `useHistoricalAnalysis` | Historical analysis data loading | analysisJobId |
+| `useAutoPlayOnReady` | Auto-play when analysis completes | isProcessing, video state |
+| `useGestureController` | Pan gesture + scroll handling | animation refs |
 | `useAnimationController` | Animated values for layout animations | none |
+| `useStatusBar` | Status bar visibility control | none |
+
+### Zustand Stores
+
+| Store | Purpose | Usage Pattern |
+|-------|---------|---------------|
+| `useFeedbackCoordinatorStore` | Granular feedback coordinator state (highlightedFeedbackId, bubbleState, overlayVisible, activeAudio) | Granular selectors to prevent re-renders |
+| `usePersistentProgressStore` | Persistent video progress tracking | Set/get progress props |
 
 ### Benefits Over Orchestrator Pattern
 
@@ -144,12 +162,13 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 - Difficult debugging (complex data flow)
 ```
 
-**After:** 14 Focused Hooks (composition in component)
+**After:** 13 Focused Hooks + Zustand Stores (direct composition, ~611 LOC)
 ```
 - Easy to test (mock individual hooks)
 - Loose coupling (each hook independent)
 - Minimal memoization (only where needed)
 - Clear debugging (direct data flow)
+- Granular Zustand subscriptions prevent re-render cascades
 ```
 
 ### Memoization Strategy

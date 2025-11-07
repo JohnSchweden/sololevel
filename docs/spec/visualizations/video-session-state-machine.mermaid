@@ -1,0 +1,26 @@
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Capturing : startRecording
+  Capturing --> ReviewingCapture : finishRecording
+  ReviewingCapture --> Capturing : retake
+  ReviewingCapture --> Uploading : accept
+
+  Uploading --> UploadSucceeded : uploadSuccess
+  Uploading --> UploadFailed : uploadError
+
+  UploadFailed --> Uploading : retry
+  UploadFailed --> Idle : cancel
+
+  UploadSucceeded --> Analyzing : enqueueAnalysis
+  Analyzing --> AnalysisFailed : jobError
+  Analyzing --> AnalysisReady : jobComplete
+
+  AnalysisFailed --> Analyzing : retryAnalysis
+  AnalysisFailed --> Idle : exit
+
+  AnalysisReady --> ConsumingFeedback : userOpensFeedback
+  ConsumingFeedback --> ConsumingFeedback : scrubTimeline / highlightFeedback
+  ConsumingFeedback --> SessionComplete : saveNotes
+  ConsumingFeedback --> Idle : exit
+
+  SessionComplete --> Idle : newSession

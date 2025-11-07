@@ -1,21 +1,9 @@
 // import { log } from '@my/logging'
-import React, { useCallback, useEffect } from 'react'
+import React from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated, {
-  type AnimatedStyle,
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-  cancelAnimation,
-  runOnJS,
-} from 'react-native-reanimated'
+import Animated, { type AnimatedStyle } from 'react-native-reanimated'
 import { YStack, useTheme } from 'tamagui'
-
-// Animation duration for Reanimated withTiming animation
-// 'quick': 200ms for user-initiated interactions
-const QUICK_ANIMATION_DURATION = 200
 
 /**
  * Props for the ProgressBar component
@@ -44,8 +32,8 @@ export interface ProgressBarProps {
   controlsVisible: boolean
   /** Width of the progress bar in pixels (from onLayout) */
   progressBarWidth: number
-  /** Reanimated style for fade in/out animations */
-  animatedStyle: AnimatedStyle<ViewStyle>
+  /** Optional animated style for backward compatibility */
+  animatedStyle?: AnimatedStyle<ViewStyle>
   /** Combined gesture handler for track (tap + pan) */
   combinedGesture: GestureType
   /** Main gesture handler for scrubber handle (pan) */
@@ -56,8 +44,6 @@ export interface ProgressBarProps {
   onFallbackPress: (locationX: number) => void
   /** Optional test identifier for the progress bar container */
   testID?: string
-  /** Tamagui animation name for conditional timing (e.g., 'quick', 'lazy') */
-  animationName?: 'quick' | 'lazy'
 }
 
 /**
@@ -97,7 +83,6 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     onLayout,
     onFallbackPress,
     testID,
-    animationName = 'quick', // Default to 'quick' for backwards compatibility
   }) => {
     // Get theme to resolve Tamagui color tokens for React Native Animated.View
     const theme = useTheme()
@@ -128,73 +113,16 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     const handleColor = theme[handleColorToken.slice(1) as keyof typeof theme]?.val as string
 
     // Calculate target opacity and scale based on state
-    const targetOpacity = isNormal
+    // Persistent bar visibility is independent of controlsVisible (only affected by scrubbing)
+    const handleOpacity = isNormal
       ? controlsVisible || isScrubbing
         ? 1
         : 0.7
-      : controlsVisible || isScrubbing
+      : isScrubbing
         ? 1
-        : 0
+        : 0.8 // Slightly dimmed but always visible for persistent bar
 
-    const targetScale = isNormal
-      ? controlsVisible || isScrubbing
-        ? 1
-        : 0.3
-      : controlsVisible || isScrubbing
-        ? 1
-        : 0.3
-
-    // Reanimated shared values for handle animation (runs on UI thread)
-    const handleOpacity = useSharedValue(targetOpacity)
-    const handleScale = useSharedValue(targetScale)
-
-    // Animation duration
-    const duration = animationName === 'quick' ? QUICK_ANIMATION_DURATION : 400
-
-    // Stable callback for animation completion logging
-    const handleAnimationComplete = useCallback(() => {
-      // log.debug('ProgressBar', '📊 [PERFORMANCE] Animation completed', {
-      //   animationName: `handle-opacity-${variant}`,
-      //   targetValue: targetOpacity,
-      //   configuredDuration,
-      // })
-    }, [])
-
-    // Update animations when state changes
-    useEffect(() => {
-      cancelAnimation(handleOpacity)
-      cancelAnimation(handleScale)
-
-      handleOpacity.value = withTiming(
-        targetOpacity,
-        {
-          duration,
-          easing: Easing.out(Easing.ease),
-        },
-        (finished) => {
-          'worklet'
-          if (finished) {
-            runOnJS(handleAnimationComplete)()
-          }
-        }
-      )
-
-      handleScale.value = withTiming(targetScale, {
-        duration,
-        easing: Easing.out(Easing.ease),
-      })
-    }, [targetOpacity, targetScale, duration, handleAnimationComplete])
-
-    // Animated styles for handle (runs on UI thread)
-    const handleAnimatedStyle = useAnimatedStyle(() => {
-      const currentOpacity = handleOpacity.value
-      const currentScale = handleScale.value
-
-      return {
-        opacity: currentOpacity,
-        transform: [{ scale: currentScale }],
-      }
-    })
+    const handleScale = isNormal ? (controlsVisible || isScrubbing ? 1 : 0.3) : 1
 
     // Round progress percentage for accessibility
     const progressPercentage = Math.round(progress)
@@ -213,28 +141,32 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
       ? 'progress-bar-pressable'
       : 'persistent-progress-bar-pressable'
 
+    const containerStyles: Array<ViewStyle | AnimatedStyle<ViewStyle>> = [
+      {
+        position: isNormal ? 'relative' : 'absolute',
+        bottom: containerBottom,
+        left: 0,
+        right: 0,
+        height: containerHeight,
+        justifyContent: 'center',
+        zIndex: isNormal ? 30 : undefined,
+        pointerEvents: 'auto',
+      },
+    ]
+
+    if (animatedStyle) {
+      containerStyles.push(animatedStyle)
+    }
+
     return (
-      <Animated.View
-        style={[
-          {
-            position: isNormal ? 'relative' : 'absolute',
-            bottom: containerBottom,
-            left: 0,
-            right: 0,
-            height: containerHeight,
-            justifyContent: 'center',
-            zIndex: isNormal ? 30 : undefined,
-            pointerEvents: 'auto',
-          },
-          animatedStyle,
-        ]}
-      >
+      <Animated.View style={containerStyles}>
         {isNormal ? (
           // Normal variant: Wrapped in YStack for container structure
           <YStack
             height={44}
             justifyContent="center"
             testID={containerTestID}
+            data-testid={containerTestID}
           >
             <GestureDetector gesture={combinedGesture}>
               <Pressable
@@ -244,6 +176,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                 }}
                 style={{ flex: 1 }}
                 testID={pressableTestID}
+                data-testid={pressableTestID}
               >
                 <YStack
                   height={44}
@@ -251,6 +184,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   borderRadius={2}
                   position="relative"
                   testID={trackTestID}
+                  data-testid={trackTestID}
                   justifyContent="center"
                   onLayout={onLayout}
                 >
@@ -268,10 +202,10 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                       backgroundColor={fillColor}
                       borderRadius={2}
                       testID={fillTestID}
+                      data-testid={fillTestID}
                       position="absolute"
                       left={0}
                       top={0}
-                      animation={animationName}
                     />
 
                     {/* Scrubber handle */}
@@ -289,21 +223,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           alignItems: 'center',
                         }}
                       >
-                        <Animated.View
-                          style={[
-                            {
-                              width: handleSize,
-                              height: handleSize,
-                              backgroundColor: handleColor,
-                              borderRadius: handleSize / 2,
-                              borderWidth: 0,
-                              borderColor: '$color12',
-                              elevation: isScrubbing ? 2 : 0,
-                            },
-                            handleAnimatedStyle,
-                          ]}
+                        <View
+                          style={{
+                            width: handleSize,
+                            height: handleSize,
+                            backgroundColor: handleColor,
+                            borderRadius: handleSize / 2,
+                            borderWidth: 0,
+                            borderColor: '$color12',
+                            elevation: isScrubbing ? 2 : 0,
+                            opacity: handleOpacity,
+                            transform: [{ scale: handleScale }],
+                          }}
                           testID={handleTestID}
-                          pointerEvents={targetOpacity > 0.01 ? 'auto' : 'none'}
+                          data-testid={handleTestID}
+                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
                         />
                       </View>
                     </GestureDetector>
@@ -322,12 +256,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
               }}
               style={{ flex: 1 }}
               testID={pressableTestID}
+              data-testid={pressableTestID}
             >
               <YStack
                 height={44}
                 backgroundColor="transparent"
                 opacity={0.8}
                 testID={trackTestID}
+                data-testid={trackTestID}
                 accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
                 accessibilityRole="progressbar"
                 justifyContent="center"
@@ -345,7 +281,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                     width={`${progress}%`}
                     backgroundColor={fillColor}
                     testID={fillTestID}
-                    animation={animationName}
+                    data-testid={fillTestID}
                   />
 
                   <YStack paddingLeft={12}>
@@ -364,21 +300,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           alignItems: 'center',
                         }}
                       >
-                        <Animated.View
-                          style={[
-                            {
-                              width: handleSize,
-                              height: handleSize,
-                              backgroundColor: handleColor,
-                              borderRadius: handleSize / 2,
-                              borderWidth: 0,
-                              borderColor: '$color12',
-                              elevation: isScrubbing ? 2 : 0,
-                            },
-                            handleAnimatedStyle,
-                          ]}
+                        <View
+                          style={{
+                            width: handleSize,
+                            height: handleSize,
+                            backgroundColor: handleColor,
+                            borderRadius: handleSize / 2,
+                            borderWidth: 0,
+                            borderColor: '$color12',
+                            elevation: isScrubbing ? 2 : 0,
+                            opacity: handleOpacity,
+                            transform: [{ scale: handleScale }],
+                          }}
                           testID={handleTestID}
-                          pointerEvents={targetOpacity > 0.01 ? 'auto' : 'none'}
+                          data-testid={handleTestID}
+                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
                         />
                       </View>
                     </GestureDetector>

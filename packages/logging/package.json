@@ -11,8 +11,8 @@
   ],
   "scripts": {
     "build": "echo 'logging package - built by tsc in root'",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
+    "lint": "../../node_modules/.bin/biome check src",
+    "lint:fix": "../../node_modules/.bin/biome check --write src",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

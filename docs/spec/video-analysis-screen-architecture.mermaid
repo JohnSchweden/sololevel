@@ -1,0 +1,150 @@
+graph TB
+    subgraph Props["📥 Props"]
+        ScreenProps["VideoAnalysisScreenProps<br/>analysisJobId<br/>videoRecordingId<br/>initialStatus<br/>videoUri<br/>onBack<br/>onProcessingChange"]
+    end
+
+    subgraph Batch1["Batch 1: Independent Hooks"]
+        StatusBar["useStatusBar<br/>(status bar visibility)"]
+        Historical["useHistoricalAnalysis<br/>(historical data)"]
+        VideoPlayback["useVideoPlayback<br/>(playback state)"]
+        FeedbackPanel["useFeedbackPanel<br/>(panel state)"]
+    end
+
+    subgraph Batch2["Batch 2: Dependent Hooks"]
+        AnalysisState["useAnalysisState<br/>(analysis phase + progress)"]
+        FeedbackAudioSource["useFeedbackAudioSource<br/>(audio URLs + errors)"]
+        VideoControls["useVideoControls<br/>(controls visibility)"]
+        AudioController["useAudioController<br/>(audio playback)"]
+        VideoAudioSync["useVideoAudioSync<br/>(sync coordination)"]
+        AutoPlay["useAutoPlayOnReady<br/>(auto-play logic)"]
+    end
+
+    subgraph Batch3["Batch 3: Coordinator"]
+        FeedbackCoordinator["useFeedbackCoordinator<br/>(feedback interaction)"]
+    end
+
+    subgraph Batch4["Batch 4: Native-Only"]
+        Animation["useAnimationController<br/>(animated values)"]
+        Gesture["useGestureController<br/>(pan + scroll)"]
+    end
+
+    subgraph Stores["🗃️ Zustand Stores"]
+        FeedbackCoordStore["useFeedbackCoordinatorStore<br/>Granular subscriptions:<br/>- highlightedFeedbackId<br/>- isCoachSpeaking<br/>- bubbleState<br/>- overlayVisible<br/>- activeAudio"]
+        PersistentProgressStore["usePersistentProgressStore<br/>setProps (progress bar)"]
+    end
+
+    subgraph Composition["🔧 Prop Composition (useMemo)"]
+        VideoState["videoState<br/>(uri, isReady, isPlaying, currentTime, pendingSeek)"]
+        Playback["playback<br/>(isPlaying, currentTime, videoEnded, pendingSeek)"]
+        Audio["audio<br/>(controller, source, sync)"]
+        Feedback["feedback<br/>(items, panelFraction, activeTab, selectedFeedbackId, phase, progress)"]
+        Handlers["handlers<br/>(onPlay, onPause, onSeek, onFeedbackItemPress, ...)"]
+        Error["error<br/>(visible, message, onRetry)"]
+        SocialCounts["socialCounts<br/>(likes, comments, bookmarks, shares)"]
+    end
+
+    subgraph Layout["📱 VideoAnalysisLayout"]
+        NativeLayout["VideoAnalysisLayout.native<br/>(gestures + animations)"]
+        WebLayout["VideoAnalysisLayout.web<br/>(simplified)"]
+    end
+
+    %% Props to Batch 1
+    ScreenProps --> StatusBar
+    ScreenProps --> Historical
+    ScreenProps --> VideoPlayback
+    ScreenProps --> FeedbackPanel
+
+    %% Batch 1 to Batch 2 dependencies
+    Historical --> AnalysisState
+    ScreenProps --> AnalysisState
+    AnalysisState --> FeedbackAudioSource
+    AnalysisState --> VideoControls
+    VideoPlayback --> VideoControls
+    FeedbackAudioSource --> AudioController
+    VideoPlayback --> VideoAudioSync
+    AudioController --> VideoAudioSync
+    AnalysisState --> AutoPlay
+    VideoPlayback --> AutoPlay
+
+    %% Batch 2 to Batch 3
+    AnalysisState --> FeedbackCoordinator
+    FeedbackAudioSource --> FeedbackCoordinator
+    AudioController --> FeedbackCoordinator
+    VideoPlayback --> FeedbackCoordinator
+
+    %% Batch 3 to Store
+    FeedbackCoordinator --> FeedbackCoordStore
+
+    %% Batch 4 dependencies
+    Animation --> Gesture
+
+    %% Composition dependencies
+    Historical --> VideoState
+    ScreenProps --> VideoState
+    VideoPlayback --> VideoState
+    VideoAudioSync --> VideoState
+    
+    VideoPlayback --> Playback
+    VideoAudioSync --> Playback
+    
+    AudioController --> Audio
+    FeedbackAudioSource --> Audio
+    VideoAudioSync --> Audio
+    
+    AnalysisState --> Feedback
+    FeedbackPanel --> Feedback
+    FeedbackCoordStore --> Feedback
+    
+    FeedbackCoordinator --> Handlers
+    VideoPlayback --> Handlers
+    AnalysisState --> Handlers
+    FeedbackPanel --> Handlers
+    FeedbackAudioSource --> Handlers
+    Gesture --> Handlers
+    ScreenProps --> Handlers
+    
+    AnalysisState --> Error
+    ScreenProps --> Error
+
+    VideoControls --> PersistentProgressStore
+
+    %% Composition to Layout
+    VideoState --> NativeLayout
+    VideoState --> WebLayout
+    Playback --> NativeLayout
+    Playback --> WebLayout
+    Audio --> NativeLayout
+    Audio --> WebLayout
+    Feedback --> NativeLayout
+    Feedback --> WebLayout
+    Handlers --> NativeLayout
+    Handlers --> WebLayout
+    Error --> NativeLayout
+    Error --> WebLayout
+    SocialCounts --> NativeLayout
+    SocialCounts --> WebLayout
+    Gesture --> NativeLayout
+    Animation --> NativeLayout
+    FeedbackCoordStore --> NativeLayout
+    FeedbackCoordStore --> WebLayout
+    PersistentProgressStore --> NativeLayout
+
+    %% Styling
+    classDef batch1 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef batch2 fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef batch3 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef batch4 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef stores fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    classDef composition fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef layout fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef props fill:#f5f5f5,stroke:#616161,stroke-width:2px
+
+    class StatusBar,Historical,VideoPlayback,FeedbackPanel batch1
+    class AnalysisState,FeedbackAudioSource,VideoControls,AudioController,VideoAudioSync,AutoPlay batch2
+    class FeedbackCoordinator batch3
+    class Animation,Gesture batch4
+    class FeedbackCoordStore,PersistentProgressStore stores
+    class VideoState,Playback,Audio,Feedback,Handlers,Error,SocialCounts composition
+    class NativeLayout,WebLayout layout
+    class ScreenProps props
+

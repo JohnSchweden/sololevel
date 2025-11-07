@@ -1,0 +1,55 @@
+---
+flowchart TB
+  subgraph LaneUser["Customer Actions"]
+    A1[Record practice video]
+    A2[Submit video for AI analysis]
+    A3[Review AI feedback summary]
+    A4[Play detailed feedback clips]
+    A5[Save session notes]
+  end
+
+  subgraph LaneFrontstage["Frontstage (Visible to User)"]
+    F1[Guided capture UI]
+    F2[Upload progress indicator]
+    F3[AI progress tracker]
+    F4[Feedback timeline & annotations]
+    F5[Session notebook]
+  end
+
+  subgraph LaneBackstage["Backstage (Internal Ops)"]
+    B1[Edge function: video preprocessing]
+    B2[Pose extraction & feature tagging]
+    B3[Gemini analysis & feedback synthesis]
+    B4[Audio TTS rendering]
+    B5[Data persistence to Supabase]
+  end
+
+  subgraph LaneSupport["Support Metrics"]
+    M1[Capture success rate]
+    M2[Upload error rate]
+    M3[Analysis completion SLA]
+    M4[Feedback consumption rate]
+    M5[Session retention]
+  end
+
+  A1 --> A2 --> A3 --> A4 --> A5
+  A1 --> F1
+  A2 --> F2
+  A3 --> F3
+  A4 --> F4
+  A5 --> F5
+
+  F1 --> B1
+  F2 --> B2
+  F3 --> B3
+  F4 --> B4
+  F5 --> B5
+
+  B1 --> M1
+  B2 --> M2
+  B3 --> M3
+  B4 --> M4
+  B5 --> M5
+
+  classDef lane fill:#f5f5f5,stroke:#616161,stroke-width:2px
+  class LaneUser,LaneFrontstage,LaneBackstage,LaneSupport lane

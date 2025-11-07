@@ -2,39 +2,41 @@
 
 ## IN PROGRESS
 
-### Navigation Header Alignment — 🟡 In Progress (2025-10-10)
-- Refactoring `AppHeader` to remain presentational while moving React Navigation wiring into `NavigationAppHeader`
-- Added configurable actions/slots to preserve flexibility without bundling navigation logic inside UI package
-- Pending validation: run `yarn type-check`, `yarn lint`, and targeted navigation tests once integration is finalized
-
-## RECENT COMPLETION
-
-### VideoAnalysisScreen Refactoring — ✅ Complete (2025-01-27)
-- Successfully reduced VideoAnalysisScreen from 1,131 lines to 111 lines (90% reduction)
-- Extracted 14 hooks into single orchestrator with clear separation of concerns
-- Implemented platform-specific layouts (`.native.tsx` / `.web.tsx`) for clean separation
-- Created comprehensive test coverage (32 new tests) with 1:50 test-to-code ratio
-- Established reusable architecture patterns for future complex components
-- Quality gates: `yarn type-check` → 0 errors, `yarn lint` → 0 errors, all tests passing
-- Performance: No regressions in gesture response or animation smoothness
-- Documentation: Feature README, architecture updates, and completion report created
-
----
-
-## RECENT VERIFICATION
-
-### Architectural Refactor Verification — ✅ Complete (2025-10-09)
-- Moved hooks from `@my/api` to `@my/app` (useAnalysis, useUser, useVideoUpload, useMutationWithErrorHandling, useQueryWithErrorHandling)
-- Updated imports across codebase to use new locations (`@app/hooks/*`)
-- Fixed test mocks in `useAnalysisState.test.ts` to reference new hook locations
-- Verified package exports are clean (API only exports services/types/utilities)
-- Quality gates: `yarn type-check:all` → 0 errors, `yarn lint:all` → 0 errors (fixed 7 files), `yarn build` → success
-- Full test suite: 56 test suites passed, 619 tests passed (11 skipped)
-- Architecture now correctly separates: API package (backend client) vs App package (business logic/hooks)
+_None_
 
 ---
 
 ## COMPLETED
+
+### Ad-hoc: AGENTS Quality Command Reference — ✅ Complete (2025-11-07)
+- Collapsed guidance into a minimal `Quality Scripts` list covering root and workspace `type-check`, `lint`, and `format` commands.
+- Pointed to `core/typescript-standards.mdc` for the full policy details.
+
+### Ad-hoc: Coaching Sessions RefreshControl Commented — ✅ Complete (2025-11-07)
+- Temporarily disabled `RefreshControl` on `CoachingSessionsSection` ScrollView while evaluating UX impact of pull-to-refresh.
+- Keeps scroll interaction intact without triggering spinner or refresh callbacks.
+
+### Task 52: Conditional Rendering Progress Bars — ✅ Complete (2025-11-07)
+- Replaced opacity tricks with strict mount/unmount logic driven by `useProgressBarVisibility` shared-value thresholds (0.03 / 0.45).
+- Persistent/normal bars render independently of `showControls`; pointer events stay explicit to avoid ghost interactions.
+- Cleanup: removed legacy `useProgressBarAnimation`, refreshed integration/unit coverage, and verified Expo runtime free of Reanimated `value`-during-render warnings.
+
+### Ad-hoc: Native VideoControls Test Migration — ✅ Complete (2025-11-07)
+- Added battle-tested Jest config (`jest.native.core.config.js`) plus scoped setup (`setup.native.core.ts`) with deterministic Reanimated/Gesture/Expo mocks.
+- Rebuilt `VideoControls.native.core.test.tsx` on top of `@testing-library/react-native`, covering press handling, fallback seek, and visibility gating without mega-mocks.
+- Baseline vs new suite: runtime 1.706 s → 0.793 s (-53%), heap 183 MB → 116 MB (-37%), statement coverage 61.9% → 66.7% (+4.8 pts), zero flakes across 5 runs.
+
+### Architectural Refactor Verification — ✅ Complete (2025-10-29)
+- Moved hooks from `@my/api` to `@my/app` (useAnalysis, useUser, useVideoUpload, useMutationWithErrorHandling, useQueryWithErrorHandling)
+- Updated imports across codebase to use new locations (`@app/hooks/*`)
+- Verified package exports are clean (API only exports services/types/utilities)
+- Architecture now correctly separates: API package (backend client) vs App package (business logic/hooks)
+
+### VideoAnalysisScreen Refactoring — ✅ Complete (2025-10-27)
+- Successfully reduced VideoAnalysisScreen from 1,131 lines to 111 lines (90% reduction)
+- Extracted 14 hooks into single orchestrator with clear separation of concerns
+- Implemented platform-specific layouts (`.native.tsx` / `.web.tsx`) for clean separation
+- Established reusable architecture patterns for future complex components
 
 ### Task 24: AudioFeedback Demotion — Presentation-Only, Lift Inactivity Up — ✅ Complete (2025-10-08)
 - `AudioFeedback` now emits optional `onInactivity` without mutating visibility directly; timers skip when unused
@@ -44,25 +46,19 @@
 ### Task 25: Screen Wiring Cleanup — Derive Overlay from Coordinator — ✅ Complete (2025-10-08)
 - Removed duplicate overlay handlers from `VideoAnalysisScreen`; screen now purely wires coordinator state
 - `coordinateFeedback.overlayVisible` drives overlay visibility exclusively; no custom lifecycle logic remains
-- Verified `yarn type-check` passes and all visibility transitions happen via coordinator
 
 ### Task 23: Bubble Timer Realignment — ✅ Complete (2025-10-08)
 - Updated `useBubbleController` to arm the hide timer on first confirmed playback (`isPlaying`/progress) instead of `showBubble`
 - Added duration-aware rescheduling and immediate pause/end teardown to keep overlay and bubble in lockstep
-- Expanded unit suite to cover playback start delays, late-arriving durations, pause/end sync; pending follow-up: seek interaction test
-- Verified via `yarn workspace @my/app test features/VideoAnalysis/hooks/useBubbleController.test.ts --runTestsByPath`, `yarn type-check`, `yarn lint`
 
 ### Task 21: Audio/Overlay Orchestration — ✅ Complete (2025-10-07)
 - Centralised overlay visibility logic inside `useFeedbackCoordinator` so bubble/overlay share lifecycle
 - Screen now consumes coordinator `overlayVisible`; removed duplicate overlay computation
 - Added coordinator reactions to align bubble visibility with audio start/pause/end states
 - Fixed perpetual bubble loop caused by activeAudioId fallback; coordinator now only realigns when highlight exists
-- Unit tests expanded to 10 cases covering overlay/bubble synchronization scenarios
 
 ### Task 22: Audio End-State Reliability — ✅ Complete (2025-10-07)
 - Refactored `useAudioController.handleEnd` to read fresh refs for playback state and deterministically reset `isPlaying`
-- Added regression tests covering near-zero end, unloaded end, and post-seek scenarios to prevent stale closure regressions
-- Verified `yarn workspace @my/app test features/VideoAnalysis/hooks/useAudioController.test.ts --runTestsByPath` passes locally
 
 ---
 

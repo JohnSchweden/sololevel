@@ -86,7 +86,7 @@ function primitivesEqual(
     prev.isScrubbing === next.isScrubbing &&
     prev.controlsVisible === next.controlsVisible &&
     prev.progressBarWidth === next.progressBarWidth &&
-    prev.animationName === next.animationName
+    prev.shouldRenderPersistent === next.shouldRenderPersistent
   )
 }
 

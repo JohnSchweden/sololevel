@@ -141,7 +141,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           />
 
           {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}
-          {persistentProgressBarProps && (
+          {persistentProgressBarProps?.shouldRenderPersistent && (
             <YStack
               position="absolute"
               bottom={0}
@@ -163,7 +163,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                 isScrubbing={persistentProgressBarProps.isScrubbing}
                 controlsVisible={persistentProgressBarProps.controlsVisible}
                 progressBarWidth={persistentProgressBarProps.progressBarWidth}
-                animatedStyle={persistentProgressBarProps.animatedStyle}
                 combinedGesture={persistentProgressBarProps.combinedGesture}
                 mainGesture={persistentProgressBarProps.mainGesture}
                 onLayout={persistentProgressBarProps.onLayout}

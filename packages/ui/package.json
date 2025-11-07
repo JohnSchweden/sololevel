@@ -15,8 +15,8 @@
   "scripts": {
     "test:fast": "jest --passWithNoTests --no-coverage",
     "build": "echo 'ui package - built by tsc in root'",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
+    "lint": "../../node_modules/.bin/biome check src",
+    "lint:fix": "../../node_modules/.bin/biome check --write src",
     "watch": "tamagui-build --skip-types --watch",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -25,6 +25,7 @@
     "test:native": "jest --config jest.native.config.js",
     "test:native:watch": "jest --config jest.native.config.js --watch",
     "test:native:coverage": "jest --config jest.native.config.js --coverage",
+    "test:native:core": "jest --config jest.native.core.config.js --runInBand --detectOpenHandles",
     "test:all": "jest && jest --config jest.native.config.js"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 ---
 description: Testing philosophy and guidelines for consistent, effective test writing
-alwaysApply: false
+alwaysApply: true
 globs: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**"]
 ---
 

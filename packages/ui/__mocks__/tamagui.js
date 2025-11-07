@@ -53,17 +53,26 @@ const mockComponent = (name) =>
 
 const mockStyled = (_component, _config) => mockComponent
 
+const mockTheme = new Proxy(
+  {},
+  {
+    get: () => ({ val: '#ffffff' }),
+  }
+)
+
 module.exports = {
   TamaguiProvider: ({ children }) => children,
   styled: mockStyled,
   createTamagui: jest.fn(() => ({})),
   useIsomorphicLayoutEffect: React.useLayoutEffect,
+  useTheme: () => mockTheme,
   Stack: mockComponent('Stack'),
   XStack: mockComponent('XStack'),
   YStack: mockComponent('YStack'),
   Button: mockComponent('Button'),
   Text: mockComponent('Text'),
   View: mockComponent('View'),
+  Image: mockComponent('Image'),
   Circle: mockComponent('Circle'),
   Dialog: {
     Root: ({ children }) => children,

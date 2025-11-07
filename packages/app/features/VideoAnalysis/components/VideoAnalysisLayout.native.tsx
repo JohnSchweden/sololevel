@@ -413,7 +413,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
               </Animated.View>
 
               {/* Persistent Progress Bar - Positioned at bottom of video header */}
-              {persistentProgressBarProps && (
+              {persistentProgressBarProps?.shouldRenderPersistent && (
                 <Animated.View
                   style={[
                     {
@@ -439,7 +439,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                     isScrubbing={persistentProgressBarProps.isScrubbing}
                     controlsVisible={persistentProgressBarProps.controlsVisible}
                     progressBarWidth={persistentProgressBarProps.progressBarWidth}
-                    animatedStyle={persistentProgressBarProps.animatedStyle}
                     combinedGesture={persistentProgressBarProps.combinedGesture}
                     mainGesture={persistentProgressBarProps.mainGesture}
                     onLayout={persistentProgressBarProps.onLayout}

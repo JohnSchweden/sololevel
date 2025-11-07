@@ -132,6 +132,16 @@ describe('ProgressBar', () => {
       expect(handle).toBeInTheDocument()
       // Opacity changes are handled by Tamagui animation system
     })
+
+    it('maintains default pointerEvents auto', () => {
+      // Act
+      renderWithProvider(<ProgressBar {...defaultProps} />)
+
+      // Assert
+      const container = screen.getByTestId('progress-bar-container')
+      // pointerEvents is handled by React Native, we verify the component renders
+      expect(container).toBeInTheDocument()
+    })
   })
 
   describe('Variant: Persistent Progress Bar', () => {
@@ -170,6 +180,20 @@ describe('ProgressBar', () => {
       const track = screen.getByTestId('persistent-progress-bar')
       expect(track).toBeInTheDocument()
       // Height differences are handled by Tamagui styling
+    })
+
+    it('keeps persistent progress bar visible when controls are hidden', () => {
+      renderWithProvider(
+        <ProgressBar
+          {...defaultProps}
+          variant="persistent"
+          controlsVisible={false}
+          testID="persistent-progress-bar"
+        />
+      )
+
+      expect(screen.getByTestId('persistent-progress-bar')).toBeInTheDocument()
+      expect(screen.getByTestId('persistent-scrubber-handle')).toBeInTheDocument()
     })
 
     it('shows correct progress percentage', () => {

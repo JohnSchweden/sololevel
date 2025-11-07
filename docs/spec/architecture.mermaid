@@ -19,23 +19,32 @@ graph TB
         BottomNavigationContainer"]
         App["⚙️ @my/app (Logic + Screens)
         useTabPersistence (AsyncStorage)
-        VideoAnalysisScreen (400 lines)
-        ├── Direct Hook Composition
+        VideoAnalysisScreen (~611 lines)
+        ├── Direct Hook Composition (13 hooks)
         ├── useVideoPlayback
         ├── useAudioController
         ├── useFeedbackCoordinator
         ├── useVideoControls
         ├── useVideoAudioSync
         ├── useFeedbackPanel
+        ├── useAnalysisState
+        ├── useHistoricalAnalysis
+        ├── useAutoPlayOnReady
         ├── useGestureController
         ├── useAnimationController
+        ├── Zustand Stores
+        │   ├── useFeedbackCoordinatorStore
+        │   └── usePersistentProgressStore
         └── VideoAnalysisLayout.native/web"]
         API["🔌 @my/api (Supabase Client)"]
         Config["🧰 @my/config (Types)"]
     end
 
     subgraph State["State Management"]
-        Zustand["🗃️ Zustand (Client)"]
+        Zustand["🗃️ Zustand (Client)
+        useFeedbackCoordinatorStore
+        usePersistentProgressStore
+        useVideoAnalysisStore"]
         TSQ["📊 TanStack Query (Server)"]
     end
 

@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 import '@testing-library/jest-dom'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
@@ -7,6 +7,15 @@ import { VideoControls, VideoControlsRef } from './VideoControls'
 const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
 }
+
+const mockUseProgressBarVisibility = jest.fn(() => ({
+  shouldRenderNormal: true,
+  shouldRenderPersistent: false,
+}))
+
+jest.mock('./hooks/useProgressBarVisibility', () => ({
+  useProgressBarVisibility: (...args: unknown[]) => mockUseProgressBarVisibility(...args),
+}))
 
 // Mock all extracted hooks
 jest.mock('./hooks/useProgressBarGesture', () => ({
@@ -22,13 +31,6 @@ jest.mock('./hooks/useProgressBarGesture', () => ({
     },
     progressBarWidth: 300,
     setProgressBarWidth: jest.fn(),
-  })),
-}))
-
-jest.mock('./hooks/useProgressBarAnimation', () => ({
-  useProgressBarAnimation: jest.fn(() => ({
-    normalBarAnimatedStyle: {},
-    persistentBarAnimatedStyle: {},
   })),
 }))
 
@@ -50,6 +52,11 @@ const mockProps = {
 describe('VideoControls', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseProgressBarVisibility.mockReset()
+    mockUseProgressBarVisibility.mockReturnValue({
+      shouldRenderNormal: true,
+      shouldRenderPersistent: false,
+    })
   })
 
   describe('Auto-hide Timer Functionality', () => {
@@ -831,6 +838,111 @@ describe('VideoControls', () => {
         />
       )
       expect(screen.getByLabelText('Pause video')).toBeTruthy()
+    })
+  })
+
+  describe('Progress Bar Visibility', () => {
+    it('renders normal progress bar in max mode even when controls hidden', async () => {
+      mockUseProgressBarVisibility.mockReturnValue({
+        shouldRenderNormal: true,
+        shouldRenderPersistent: false,
+      })
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          showControls={false}
+          collapseProgress={0.02}
+        />
+      )
+
+      const normalBar = await waitFor(() => screen.getByTestId('progress-bar-container'))
+      expect(normalBar).toBeInTheDocument()
+    })
+
+    it('hides normal progress bar once collapseProgress exceeds threshold', async () => {
+      mockUseProgressBarVisibility.mockReturnValue({
+        shouldRenderNormal: false,
+        shouldRenderPersistent: false,
+      })
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          showControls={true}
+          collapseProgress={0.5}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('progress-bar-container')).toBeNull()
+      })
+    })
+
+    it('emits shouldRenderPersistent=true when collapseProgress >= 0.45', async () => {
+      const setter = jest.fn()
+      mockUseProgressBarVisibility.mockReturnValue({
+        shouldRenderNormal: false,
+        shouldRenderPersistent: true,
+      })
+
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.6}
+          persistentProgressStoreSetter={setter}
+        />
+      )
+
+      await waitFor(() => {
+        expect(setter).toHaveBeenCalledWith(
+          expect.objectContaining({ shouldRenderPersistent: true })
+        )
+      })
+    })
+
+    it('emits shouldRenderPersistent=true when controls are hidden', async () => {
+      const setter = jest.fn()
+      mockUseProgressBarVisibility.mockReturnValue({
+        shouldRenderNormal: false,
+        shouldRenderPersistent: true,
+      })
+
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          showControls={false}
+          collapseProgress={0.6}
+          persistentProgressStoreSetter={setter}
+        />
+      )
+
+      await waitFor(() => {
+        expect(setter).toHaveBeenCalledWith(
+          expect.objectContaining({ shouldRenderPersistent: true })
+        )
+      })
+    })
+
+    it('emits shouldRenderPersistent=false when collapseProgress < 0.45', async () => {
+      const setter = jest.fn()
+      mockUseProgressBarVisibility.mockReturnValue({
+        shouldRenderNormal: true,
+        shouldRenderPersistent: false,
+      })
+
+      renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.2}
+          persistentProgressStoreSetter={setter}
+        />
+      )
+
+      await waitFor(() => {
+        expect(setter).toHaveBeenCalled()
+      })
+
+      const latestCall = setter.mock.calls.at(-1)
+      expect(latestCall?.[0]?.shouldRenderPersistent).toBe(false)
     })
   })
 

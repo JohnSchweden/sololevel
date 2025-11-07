@@ -1,0 +1,91 @@
+flowchart TB
+  classDef action fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px,color:#0d47a1
+  classDef outcome fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+  classDef guard fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100
+  classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c
+  classDef passive fill:#eceff1,stroke:#546e7a,stroke-width:1px,color:#37474f
+
+  subgraph Entry["Screen Entry"]
+    E0["Screen mounts"]:::passive
+    E1{"analysisJobId provided?"}:::guard
+    E0 --> E1
+    E1 -->|History mode| E2["Prefetch historical analysis"]:::outcome
+    E1 -->|Live session| E3["Resume upload progress store"]:::outcome
+  end
+
+  subgraph VideoControls["Video Playback Interactions"]
+    VC1["Tap Play"]:::action
+    VC2["Tap Pause"]:::action
+    VC3["Tap Replay"]:::action
+    VC4["Scrub / Seek"]:::action
+    VC5["Reach End"]:::passive
+
+    VC1 --> VC1a{"Analysis ready?"}:::guard
+    VC1a -->|Yes| VC1b["videoPlayback.play()\nfeedbackCoordinator.onPlay()"]:::outcome
+    VC1a -->|No| VC1c["Remain paused\nshow processing indicator"]:::guard
+
+    VC2 --> VC2b["videoPlayback.pause()\nAuto-play disabled"]:::outcome
+    VC3 --> VC3b["Restart from t=0\nBubble reset"]:::outcome
+
+    VC4 --> VC4a{"Gesture grace period?"}:::guard
+    VC4a -->|Active| VC4b["Seek ignored to avoid accidental input"]:::guard
+    VC4a -->|Clear| VC4c["videoPlayback.seek(time)\nOverlay closed"]:::outcome
+    VC4 --> VC4d["Seek completes"]:::passive --> VC4e["pendingSeek cleared\nprogress synced"]:::outcome
+
+    VC5 --> VC5b["videoEnded=true\nCoordinator triggers wrap-up"]:::outcome
+  end
+
+  subgraph FeedbackPanel["Feedback Panel & Timeline"]
+    FP1["Tap Feedback Item"]:::action
+    FP2["Expand Panel"]:::action
+    FP3["Collapse Panel"]:::action
+    FP4["Change Tab"]:::action
+    FP5["Retry Feedback Item"]:::action
+
+    FP1 --> FP1a{"Gesture grace period?"}:::guard
+    FP1a -->|Active| FP1b["Tap suppressed"]:::guard
+    FP1a -->|Clear| FP1c["highlightedFeedbackId updated\naudio overlay opened"]:::outcome
+
+    FP2 --> FP2b["panelFraction → 1\nfeedbackPanel.expand()"]:::outcome
+    FP3 --> FP3b["panelFraction minimized\noverlay allowed"]:::outcome
+
+    FP4 --> FP4b["feedbackPanel.setActiveTab(tab)"]:::outcome
+    FP5 --> FP5b["analysisState.feedback.retryFailedFeedback(id)"]:::outcome
+  end
+
+  subgraph AudioOverlay["Audio Overlay & Coach Voice"]
+    AO1["Select Audio Clip"]:::action
+    AO2["Close Overlay"]:::action
+    AO3["Inactivity Timeout"]:::passive
+    AO4["Coach Speaking Auto-Start"]:::passive
+    AO5["Dismiss Audio Error"]:::action
+
+    AO1 --> AO1b["feedbackAudioSource.selectAudio(id)\nactiveAudio updated"]:::outcome
+    AO2 --> AO2b["overlayVisible=false\naudioController.stop()"]:::outcome
+    AO3 --> AO3b["Coordinator auto-closes overlay"]:::outcome
+    AO4 --> AO4b["isCoachSpeaking=true\nbubble hidden"]:::outcome
+    AO5 --> AO5b["feedbackAudioSource.clearError(id)"]:::outcome
+  end
+
+  subgraph ProgressAndErrors["Progress, Retries & Exit"]
+    PR1["Tap Retry (global)"]:::action
+    PR2["Upload Error Banner"]:::error
+    PR3["Analysis Error Banner"]:::error
+    PR4["Tap Back"]:::action
+    PR5["Share / Like / Bookmark"]:::action
+
+    PR1 --> PR1b["analysisState.retry()\nre-subscribe to job"]:::outcome
+    PR2 --> PR2b["Show error\nallow retry or exit"]:::guard
+    PR3 --> PR3b["analysisState.retryAnalysis()"]:::outcome
+    PR4 --> PR4b["Invoke props.onBack\ncleanup subscriptions"]:::outcome
+    PR5 --> PR5b["Telemetry logged\nUI feedback only"]:::outcome
+  end
+
+  %% Cross-area flows
+  E2 --> VC1
+  E3 --> VC1
+  VC1b --> FP1
+  FP1c --> AO1
+  AO1b --> AO4
+  AO2b --> FP3b
+  FP5b --> PR1b
