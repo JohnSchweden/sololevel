@@ -2,6 +2,113 @@
 
 ---
 
+### Task 54: UI Test Migration — Phase 0 Inventory & Baseline
+**Effort:** 1 day | **Priority:** P1 | **Depends on:** VideoControls native suite migration
+
+**STATUS:** 🟢 **READY TO START**
+
+**OBJECTIVE:** Build a full inventory of `@my/ui` component tests, document current runners/mocks, and capture baseline runtime/heap/coverage numbers before refactors begin.
+
+**TASKS:**
+- [ ] List every component + associated test file, runner (`jest`, `jest.native`, etc.), and global mock dependencies.
+- [ ] Execute baseline commands with `--logHeapUsage --coverage` and store results under `reports/*-baseline.md`.
+- [ ] Record flake rate by running each suite 5× sequentially (`--runInBand --silent`).
+- [ ] Summarize findings + migration priorities in the shared inventory.
+
+**QUALITY GATES:**
+- Inventory reviewed/approved by UI maintainers.
+- Baseline metric reports checked into `reports/` with command references.
+
+**DONE WHEN:** Every suite has documented baseline metrics and stakeholders approve migration order.
+
+---
+
+### Task 55: UI Test Migration — Phase 1 Tooling Foundations
+**Effort:** 1 day | **Priority:** P1 | **Depends on:** Task 54
+
+**STATUS:** 🟢 **READY TO START**
+
+**OBJECTIVE:** Lock down the shared battle-tested testing stack (configs, setup files, templates, documentation) for `@my/ui`.
+
+**TASKS:**
+- [ ] Finalize `jest.native.core.config.js` and any lean web config required for pure Tamagui suites.
+- [ ] Harden `setup.native.core.ts` (Reanimated, gesture handler, Expo, Tamagui mocks) and provide matching web setup if needed.
+- [ ] Publish AAA test templates/helpers (native + web) in `src/test-utils/`.
+- [ ] Update `@testing-philosophy.mdc`, AGENTS, and migration docs with the new playbook.
+
+**QUALITY GATES:**
+- `yarn workspace @my/ui test:native:core` passes locally and on CI using the new setup.
+- Documentation updates reviewed by code owners.
+
+**DONE WHEN:** Tooling + documentation enable any suite to migrate without additional infra changes.
+
+---
+
+### Task 56: UI Test Migration — Phase 2 Critical Native Components
+**Effort:** 3 days | **Priority:** P0 | **Depends on:** Task 55
+
+**STATUS:** 🟢 **READY TO START**
+
+**OBJECTIVE:** Migrate high-impact native components (VideoAnalysis ecosystem, HistoryProgress native surfaces, Camera/Recording flows) to the new testing stack with behavior-first assertions.
+
+**TASKS:**
+- [ ] Port suites to `@testing-library/react-native`, enforcing AAA (`// Arrange // Act // Assert`).
+- [ ] Replace legacy mega-mocks with scoped stubs per suite (Reanimated gestures, Expo modules, sensors, Zustand stores).
+- [ ] Assert user-facing behavior (press/seek, visibility toggles, accessibility labels) instead of DOM styles.
+- [ ] Capture post-migration metrics (`reports/*-migration.md`) and compare vs baselines.
+
+**QUALITY GATES:**
+- Runtime and heap improvements ≥20% vs baseline (or documented rationale if not possible).
+- Coverage meets/exceeds baseline numbers.
+- Manual Expo sanity check confirms no regressions.
+
+**DONE WHEN:** All critical native suites run via `test:native:core`, metrics documented, legacy tests removed.
+
+---
+
+### Task 57: UI Test Migration — Phase 3 Shared UI & Utilities
+**Effort:** 3 days | **Priority:** P1 | **Depends on:** Task 56
+
+**STATUS:** 🟢 **READY TO START**
+
+**OBJECTIVE:** Migrate cross-platform Tamagui components and utility widgets to consistent AAA, behavior-driven tests.
+
+**TASKS:**
+- [ ] Determine runner (native vs web) per component based on RN primitive usage; update configs where required.
+- [ ] Rewrite suites to assert user-visible behavior + accessibility (roles, labels, `testID`s).
+- [ ] Localize mocks; delete unused exports from `src/test-utils/setup.ts`.
+- [ ] Update docs/templates if new patterns emerge.
+
+**QUALITY GATES:**
+- No remaining references to global mega-mocks.
+- Coverage maintained or improved.
+- Lint checks confirm AAA comment structure where applicable.
+
+**DONE WHEN:** Every shared UI/utility test adheres to the new conventions and legacy scaffolding is removed.
+
+---
+
+### Task 58: UI Test Migration — Phase 4 Cleanup & CI Hardening
+**Effort:** 2 days | **Priority:** P1 | **Depends on:** Task 57
+
+**STATUS:** 🟢 **READY TO START**
+
+**OBJECTIVE:** Remove obsolete configs/mocks and enforce runtime/heap/coverage safeguards in CI.
+
+**TASKS:**
+- [ ] Delete legacy `jest.native.config.js`, mega-setup utilities, and redundant helpers.
+- [ ] Wire `test:native:core` into CI workflows with failure thresholds (>20% runtime/heap regression, coverage drops).
+- [ ] Automate metric diff reporting (e.g., compare against baselines per suite).
+- [ ] Final audit + documentation summary of migration completion.
+
+**QUALITY GATES:**
+- CI runs succeed with guards active; intentional regressions require documented waivers.
+- Docs/STATUS updated to reflect completion and protections in place.
+
+**DONE WHEN:** Legacy infrastructure is gone, CI enforces the battle-tested stack, and migration documentation is complete.
+
+---
+
 # Task 52: Conditional Rendering Progress Bars Implementation Plan
 
 ## Objective - ✅ Complete (2025-11-07)
