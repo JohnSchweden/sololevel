@@ -52,7 +52,8 @@ export interface HistoryProgressScreenProps {
  * />
  * ```
  */
-export function HistoryProgressScreen({
+// Memoize to prevent re-renders during navigation animations
+export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   onNavigateToVideoAnalysis,
   onNavigateToVideos,
   onNavigateToCoachingSession,
@@ -269,4 +270,9 @@ export function HistoryProgressScreen({
       </YStack>
     </GlassBackground>
   )
+})
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  HistoryProgressScreen.whyDidYouRender = true
 }

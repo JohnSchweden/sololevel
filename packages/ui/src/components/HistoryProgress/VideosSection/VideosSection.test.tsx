@@ -1,5 +1,4 @@
-import { screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, screen } from '@testing-library/react'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 import { VideosSection } from './VideosSection'
 
@@ -32,11 +31,8 @@ describe('VideosSection', () => {
   const mockOnVideoPress = jest.fn()
   const mockOnSeeAllPress = jest.fn()
   const mockOnRetry = jest.fn()
-  let user: ReturnType<typeof userEvent.setup>
-
   beforeEach(() => {
     jest.clearAllMocks()
-    user = userEvent.setup()
   })
 
   // ARRANGE: Setup
@@ -281,7 +277,7 @@ describe('VideosSection', () => {
       )
 
       // ACT: Click first thumbnail
-      await user.click(screen.getByTestId('videos-section-thumbnail-1'))
+      fireEvent.click(screen.getByTestId('videos-section-thumbnail-1'))
 
       // ASSERT: Handler called with correct ID
       expect(mockOnVideoPress).toHaveBeenCalledTimes(1)
@@ -299,7 +295,7 @@ describe('VideosSection', () => {
       )
 
       // ACT: Click "See all" button
-      await user.click(screen.getByRole('button', { name: /see all/i }))
+      fireEvent.click(screen.getByRole('button', { name: /see all/i }))
 
       // ASSERT: Handler called
       expect(mockOnSeeAllPress).toHaveBeenCalledTimes(1)
@@ -319,7 +315,7 @@ describe('VideosSection', () => {
       )
 
       // ACT: Click retry button
-      await user.click(screen.getByRole('button', { name: /retry/i }))
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }))
 
       // ASSERT: Handler called
       expect(mockOnRetry).toHaveBeenCalledTimes(1)
@@ -336,13 +332,13 @@ describe('VideosSection', () => {
       )
 
       // ACT: Click second thumbnail
-      await user.click(screen.getByTestId('videos-section-thumbnail-2'))
+      fireEvent.click(screen.getByTestId('videos-section-thumbnail-2'))
 
       // ASSERT: Handler called with ID 2
       expect(mockOnVideoPress).toHaveBeenCalledWith(2)
 
       // ACT: Click third thumbnail
-      await user.click(screen.getByTestId('videos-section-thumbnail-3'))
+      fireEvent.click(screen.getByTestId('videos-section-thumbnail-3'))
 
       // ASSERT: Handler called with ID 3
       expect(mockOnVideoPress).toHaveBeenCalledWith(3)

@@ -51,7 +51,7 @@ describe('ProcessingIndicator', () => {
       <ProcessingIndicator
         phase="analyzing"
         progress={{ upload: 0, analysis: 0, feedback: 0 }}
-        channelExhausted={false}
+        subscription={{ key: null, shouldSubscribe: false }}
       />
     )
 
@@ -64,7 +64,7 @@ describe('ProcessingIndicator', () => {
       <ProcessingIndicator
         phase="ready"
         progress={{ upload: 100, analysis: 100, feedback: 100 }}
-        channelExhausted={false}
+        subscription={{ key: null, shouldSubscribe: false }}
       />
     )
 
@@ -76,7 +76,7 @@ describe('ProcessingIndicator', () => {
       <ProcessingIndicator
         phase="analyzing"
         progress={{ upload: 0, analysis: 0, feedback: 0 }}
-        channelExhausted
+        subscription={{ key: 'job:123', shouldSubscribe: true }}
       />
     )
 

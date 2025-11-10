@@ -14,3 +14,8 @@ export function AudioPlayer(props: AudioPlayerProps) {
   const { AudioPlayerWeb } = require('./AudioPlayer.web')
   return <AudioPlayerWeb {...props} />
 }
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(AudioPlayer as any).whyDidYouRender = true
+}

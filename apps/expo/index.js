@@ -1,4 +1,13 @@
-// why-did-you-render setup - must be imported first (before React)
+// Suppress Reanimated strict mode warnings caused by WDYR hook wrapping
+import { ReanimatedLogLevel, configureReanimatedLogger } from 'react-native-reanimated'
+if (__DEV__) {
+  configureReanimatedLogger({
+    level: ReanimatedLogLevel.warn,
+    strict: false, // Disable strict mode warnings
+  })
+}
+
+// why-did-you-render setup - must be imported after Reanimated config
 import './wdyr'
 
 // Minimal safe boot guard for Hermes + React 19 in dev

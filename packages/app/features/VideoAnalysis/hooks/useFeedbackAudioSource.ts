@@ -1,5 +1,5 @@
 import { getInfoAsync } from 'expo-file-system'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Platform } from 'react-native'
 
 import { getFirstAudioUrlForFeedback } from '@my/api'
@@ -16,9 +16,6 @@ export interface FeedbackAudioItem {
 }
 
 export interface FeedbackAudioSourceState {
-  audioUrls: Record<string, string>
-  activeAudio: { id: string; url: string } | null
-  errors: Record<string, string>
   selectAudio: (feedbackId: string) => void
   clearActiveAudio: () => void
   clearError: (feedbackId: string) => void
@@ -29,244 +26,232 @@ const CONTEXT = 'useFeedbackAudioSource'
 export function useFeedbackAudioSource(
   feedbackItems: FeedbackAudioItem[]
 ): FeedbackAudioSourceState {
-  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({})
-  const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null)
-  const [errors, setErrors] = useState<Record<string, string>>({})
   const inFlightRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    // log.debug(CONTEXT, 'useFeedbackAudioSource: Processing feedback items', {
-    //   totalItems: feedbackItems.length,
-    //   itemsByStatus: feedbackItems.reduce(
-    //     (acc, item) => {
-    //       const status = item.audioStatus || 'undefined'
-    //       acc[status] = (acc[status] || 0) + 1
-    //       return acc
-    //     },
-    //     {} as Record<string, number>
-    //   ),
-    //   itemDetails: feedbackItems.map((item) => ({
-    //     id: item.id,
-    //     audioStatus: item.audioStatus,
-    //     timestamp: item.timestamp,
-    //   })),
-    // })
+    if (!feedbackItems.length) {
+      return undefined
+    }
 
-    feedbackItems.forEach((item) => {
-      if (!item || item.audioStatus !== 'completed') {
-        // log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
-        //   feedbackId: item.id,
-        //   audioStatus: item.audioStatus,
-        // })
-        return
-      }
+    // Defer audio initialization to prevent blocking initial render
+    // Move audio cache resolution off critical path (similar to prefetch deferral)
+    const timeoutId = setTimeout(() => {
+      // log.debug(CONTEXT, 'useFeedbackAudioSource: Processing feedback items', {
+      //   totalItems: feedbackItems.length,
+      //   itemsByStatus: feedbackItems.reduce(
+      //     (acc, item) => {
+      //       const status = item.audioStatus || 'undefined'
+      //       acc[status] = (acc[status] || 0) + 1
+      //       return acc
+      //     },
+      //     {} as Record<string, number>
+      //   ),
+      //   itemDetails: feedbackItems.map((item) => ({
+      //     id: item.id,
+      //     audioStatus: item.audioStatus,
+      //     timestamp: item.timestamp,
+      //   })),
+      // })
 
-      const feedbackId = item.id
-      if (!feedbackId) {
-        return
-      }
-
-      if (audioUrls[feedbackId] || inFlightRef.current.has(feedbackId)) {
-        return
-      }
-
-      // Handle both numeric and string feedback IDs
-      const numericId = Number.parseInt(feedbackId, 10)
-      if (Number.isNaN(numericId)) {
-        // For non-numeric IDs (like mock data), skip audio fetch silently
-        // This is expected behavior for mock/seed data
-        // log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
-        //   feedbackId,
-        // })
-        return
-      }
-
-      inFlightRef.current.add(feedbackId)
-
-      // 4-tier cache resolution order (Task 52 Module 3.2):
-      // 1. feedbackAudio store (indexed cache)
-      // 2. Direct file check (rebuilds index on cache miss) - Task 51 pattern
-      // 3. Generate signed URL from storage_path
-      // 4. Download and persist to disk (background)
-
-      async function resolveAudioUri() {
-        // Tier 1: Check feedbackAudio store first (indexed cache)
-        const storedPath = useFeedbackAudioStore.getState().getAudioPath(feedbackId)
-        if (storedPath && Platform.OS !== 'web') {
-          // Extract extension from stored path if available, otherwise check all formats
-          const storedExt = storedPath.match(/\.([^.]+)$/)?.[1]
-          const hasCached = await checkCachedAudio(feedbackId, storedExt)
-          if (hasCached) {
-            return storedPath
-          }
-          // Cache miss - clear stale entry
-          useFeedbackAudioStore.getState().setAudioPath(feedbackId, null)
+      feedbackItems.forEach((item) => {
+        if (!item || item.audioStatus !== 'completed') {
+          // log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
+          //   feedbackId: item.id,
+          //   audioStatus: item.audioStatus,
+          // })
+          return
         }
 
-        // Tier 2: Direct file check (rebuilds index on cache miss - Task 51 pattern)
-        // Only check if we haven't already checked (avoid duplicate calls)
-        if (Platform.OS !== 'web' && !storedPath) {
-          const hasCached = await checkCachedAudio(feedbackId)
-          if (hasCached) {
-            // Try to find the actual file by checking which extension exists
-            // Priority order: wav, mp3, aac, m4a
-            const extensions = ['wav', 'mp3', 'aac', 'm4a']
-            for (const ext of extensions) {
-              const cachedPath = getCachedAudioPath(feedbackId, ext)
-              try {
-                const info = await getInfoAsync(cachedPath)
-                if (info.exists) {
-                  log.info(CONTEXT, 'Rebuilt cache from direct file check', {
-                    feedbackId,
-                    cachedPath,
-                    extension: ext,
-                  })
-                  // Rebuild index
-                  useFeedbackAudioStore.getState().setAudioPath(feedbackId, cachedPath)
-                  return cachedPath
+        const feedbackId = item.id
+        if (!feedbackId) {
+          return
+        }
+
+        const audioUrls = useFeedbackAudioStore.getState().audioUrls
+        if (audioUrls[feedbackId] || inFlightRef.current.has(feedbackId)) {
+          return
+        }
+
+        // Handle both numeric and string feedback IDs
+        const numericId = Number.parseInt(feedbackId, 10)
+        if (Number.isNaN(numericId)) {
+          // For non-numeric IDs (like mock data), skip audio fetch silently
+          // This is expected behavior for mock/seed data
+          // log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
+          //   feedbackId,
+          // })
+          return
+        }
+
+        inFlightRef.current.add(feedbackId)
+
+        // 4-tier cache resolution order (Task 52 Module 3.2):
+        // 1. feedbackAudio store (indexed cache)
+        // 2. Direct file check (rebuilds index on cache miss) - Task 51 pattern
+        // 3. Generate signed URL from storage_path
+        // 4. Download and persist to disk (background)
+
+        async function resolveAudioUri() {
+          // Tier 1: Check feedbackAudio store first (indexed cache)
+          const storedPath = useFeedbackAudioStore.getState().getAudioPath(feedbackId)
+          if (storedPath && Platform.OS !== 'web') {
+            // Extract extension from stored path if available, otherwise check all formats
+            const storedExt = storedPath.match(/\.([^.]+)$/)?.[1]
+            const hasCached = await checkCachedAudio(feedbackId, storedExt)
+            if (hasCached) {
+              return storedPath
+            }
+            // Cache miss - clear stale entry
+            useFeedbackAudioStore.getState().setAudioPath(feedbackId, null)
+          }
+
+          // Tier 2: Direct file check (rebuilds index on cache miss - Task 51 pattern)
+          // Only check if we haven't already checked (avoid duplicate calls)
+          if (Platform.OS !== 'web' && !storedPath) {
+            const hasCached = await checkCachedAudio(feedbackId)
+            if (hasCached) {
+              // Try to find the actual file by checking which extension exists
+              // Priority order: wav, mp3, aac, m4a
+              const extensions = ['wav', 'mp3', 'aac', 'm4a']
+              for (const ext of extensions) {
+                const cachedPath = getCachedAudioPath(feedbackId, ext)
+                try {
+                  const info = await getInfoAsync(cachedPath)
+                  if (info.exists) {
+                    log.info(CONTEXT, 'Rebuilt cache from direct file check', {
+                      feedbackId,
+                      cachedPath,
+                      extension: ext,
+                    })
+                    // Rebuild index
+                    useFeedbackAudioStore.getState().setAudioPath(feedbackId, cachedPath)
+                    return cachedPath
+                  }
+                } catch {
+                  // Try next extension
                 }
-              } catch {
-                // Try next extension
               }
             }
           }
-        }
 
-        // Tier 3: Generate signed URL from cloud
-        const result = await getFirstAudioUrlForFeedback(numericId)
-        if (!result.ok) {
-          throw new Error(result.error)
-        }
+          // Tier 3: Generate signed URL from cloud
+          const result = await getFirstAudioUrlForFeedback(numericId)
+          if (!result.ok) {
+            throw new Error(result.error)
+          }
 
-        // Tier 4: Persist to disk in background (non-blocking)
-        if (Platform.OS !== 'web' && result.url.startsWith('http')) {
-          persistAudioFile(feedbackId, result.url)
-            .then((persistentPath) => {
-              log.info(CONTEXT, 'Audio persisted in background', {
-                feedbackId,
-                path: persistentPath,
+          // Tier 4: Persist to disk in background (non-blocking)
+          if (Platform.OS !== 'web' && result.url.startsWith('http')) {
+            persistAudioFile(feedbackId, result.url)
+              .then((persistentPath) => {
+                log.info(CONTEXT, 'Audio persisted in background', {
+                  feedbackId,
+                  path: persistentPath,
+                })
+                // Update store with persistent path
+                useFeedbackAudioStore.getState().setAudioPath(feedbackId, persistentPath)
               })
-              // Update store with persistent path
-              useFeedbackAudioStore.getState().setAudioPath(feedbackId, persistentPath)
-            })
-            .catch((error) => {
-              log.warn(CONTEXT, 'Background audio persistence failed', {
-                feedbackId,
-                error: error instanceof Error ? error.message : String(error),
+              .catch((error) => {
+                log.warn(CONTEXT, 'Background audio persistence failed', {
+                  feedbackId,
+                  error: error instanceof Error ? error.message : String(error),
+                })
               })
-            })
+          }
+
+          return result.url
         }
 
-        return result.url
-      }
+        void resolveAudioUri()
+          .then((url) => {
+            // Update audio URLs in store
+            useFeedbackAudioStore.getState().setAudioUrls({
+              ...useFeedbackAudioStore.getState().audioUrls,
+              [feedbackId]: url,
+            })
 
-      void resolveAudioUri()
-        .then((url) => {
-          setAudioUrls((prev) => {
-            if (prev[feedbackId]) {
-              return prev
+            // Clear any existing error for this feedback
+            const currentErrors = useFeedbackAudioStore.getState().errors
+            if (currentErrors[feedbackId]) {
+              useFeedbackAudioStore.getState().clearError(feedbackId)
             }
 
-            const next = { ...prev, [feedbackId]: url }
-            return next
+            // Note: Removed auto-select behavior - only select on user action
+
+            // log.info(CONTEXT, 'Audio url resolved for feedback', {
+            //   feedbackId,
+            // })
           })
-
-          setErrors((prev) => {
-            if (!prev[feedbackId]) {
-              return prev
-            }
-            const next = { ...prev }
-            delete next[feedbackId]
-            return next
+          .catch((error) => {
+            const message = error instanceof Error ? error.message : 'Unknown error'
+            // Set error in store
+            useFeedbackAudioStore.getState().setErrors({
+              ...useFeedbackAudioStore.getState().errors,
+              [feedbackId]: message,
+            })
+            log.error(CONTEXT, 'Audio url fetch threw unexpected error', {
+              feedbackId,
+              error: message,
+            })
           })
-
-          setActiveAudio((prev) => prev ?? { id: feedbackId, url })
-
-          // log.info(CONTEXT, 'Audio url resolved for feedback', {
-          //   feedbackId,
-          // })
-        })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : 'Unknown error'
-          setErrors((prev) => ({ ...prev, [feedbackId]: message }))
-          log.error(CONTEXT, 'Audio url fetch threw unexpected error', {
-            feedbackId,
-            error: message,
+          .finally(() => {
+            inFlightRef.current.delete(feedbackId)
           })
-        })
-        .finally(() => {
-          inFlightRef.current.delete(feedbackId)
-        })
-    })
-  }, [audioUrls, errors, feedbackItems])
+      })
+    }, 100) // 100ms delay - same as prefetch deferral
 
-  // Use ref to access activeAudio without including it in callback deps
-  // This prevents selectAudio/clearActiveAudio from changing when activeAudio changes
-  const activeAudioRef = useRef(activeAudio)
-  activeAudioRef.current = activeAudio
-
-  // Store audioUrls in ref to prevent selectAudio from recreating when object reference changes
-  // Only the actual URL values matter, not the object identity
-  const audioUrlsRef = useRef(audioUrls)
-  audioUrlsRef.current = audioUrls
+    return () => clearTimeout(timeoutId)
+  }, [feedbackItems])
 
   const selectAudio = useCallback(
     (feedbackId: string) => {
-      const url = audioUrlsRef.current[feedbackId]
+      const audioUrls = useFeedbackAudioStore.getState().audioUrls
+      const activeAudio = useFeedbackAudioStore.getState().activeAudio
+
+      const url = audioUrls[feedbackId]
       if (!url) {
         log.warn(CONTEXT, 'Attempted to select feedback audio without cached url', {
           feedbackId,
-          availableUrls: Object.keys(audioUrlsRef.current),
+          availableUrls: Object.keys(audioUrls),
         })
         return
       }
 
       // If selecting the same audio id again, append a cache-busting fragment to force controller reset
-      const urlToUse =
-        activeAudioRef.current?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
+      const urlToUse = activeAudio?.id === feedbackId ? `${url}#replay=${Date.now()}` : url
 
       log.debug(CONTEXT, '🎵 Selecting audio for feedback', {
         feedbackId,
         url: urlToUse.substring(0, 50) + '...',
-        previousActiveId: activeAudioRef.current?.id,
+        previousActiveId: activeAudio?.id,
         urlLength: urlToUse.length,
       })
-      setActiveAudio({ id: feedbackId, url: urlToUse })
+
+      useFeedbackAudioStore.getState().setActiveAudio({ id: feedbackId, url: urlToUse })
     },
-    [] // Empty deps - uses refs for all dynamic values
+    [] // Empty deps - reads from store directly
   )
 
   const clearActiveAudio = useCallback(() => {
     // log.info(CONTEXT, 'Clearing active audio', {
-    //   previousActiveId: activeAudioRef.current?.id,
+    //   previousActiveId: useFeedbackAudioStore.getState().activeAudio?.id,
     // })
-    setActiveAudio(null)
+    useFeedbackAudioStore.getState().setActiveAudio(null)
   }, [])
 
   const clearError = useCallback((feedbackId: string) => {
     // log.info(CONTEXT, 'Clearing error for feedback', { feedbackId })
-    setErrors((prev) => {
-      if (!prev[feedbackId]) {
-        return prev
-      }
-
-      const next = { ...prev }
-      delete next[feedbackId]
-      return next
-    })
+    useFeedbackAudioStore.getState().clearError(feedbackId)
   }, [])
 
   // Memoize return value to prevent recreation on every render
   // This is critical for preventing cascading re-renders in VideoAnalysisScreen
   return useMemo(
     () => ({
-      audioUrls,
-      activeAudio,
-      errors,
       selectAudio,
       clearActiveAudio,
       clearError,
     }),
-    [audioUrls, activeAudio, errors, selectAudio, clearActiveAudio, clearError]
+    [selectAudio, clearActiveAudio, clearError]
   )
 }

@@ -85,8 +85,8 @@ function primitivesEqual(
     prev.duration === next.duration &&
     prev.isScrubbing === next.isScrubbing &&
     prev.controlsVisible === next.controlsVisible &&
-    prev.progressBarWidth === next.progressBarWidth &&
-    prev.shouldRenderPersistent === next.shouldRenderPersistent
+    prev.shouldRenderPersistent === next.shouldRenderPersistent &&
+    prev.pointerEvents === next.pointerEvents
   )
 }
 

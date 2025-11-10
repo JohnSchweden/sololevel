@@ -7,7 +7,7 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)', '**/*.(test|spec).(ts|tsx|js)'],
 
   // 🚀 PARALLEL EXECUTION CONFIGURATION (High Impact)
-  maxWorkers: '50%', // Use 50% of available cores for parallel execution
+  maxWorkers: 1, // Run sequentially to avoid OOM from large UI suites
   // Alternative options:
   // maxWorkers: 4, // Fixed number of workers
   // maxWorkers: '25%', // Percentage of available cores

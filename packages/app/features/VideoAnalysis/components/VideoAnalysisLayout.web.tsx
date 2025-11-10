@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 
 import { YStack } from 'tamagui'
 
 import { type PersistentProgressBarProps, ProgressBar } from '@ui/components/VideoAnalysis'
 
+import { useVideoPlayerStore } from '../stores'
 import { FeedbackSection } from './FeedbackSection'
 import { UploadErrorState } from './UploadErrorState'
 import type { VideoAnalysisLayoutProps } from './VideoAnalysisLayout.native'
@@ -27,23 +28,41 @@ import { toggleControlsVisibilityOnTap } from './toggleControlsVisibility'
 export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
   const {
     video,
-    playback,
     feedback,
-    feedbackAudioUrls,
-    feedbackErrors,
+    // feedbackAudioUrls, - REMOVED: FeedbackSection subscribes directly
+    // feedbackErrors, - REMOVED: FeedbackSection subscribes directly
     handlers,
     videoControlsRef,
     controls,
     error,
-    audioController,
-    bubbleState,
+    // audioController, - REMOVED: moved to VideoPlayerSection
     audioOverlay,
-    coachSpeaking,
-    socialCounts,
+    // coachSpeaking, - REMOVED: VideoPlayerSection now subscribes directly
     videoUri,
     gesture,
     animation,
   } = props
+
+  // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
+  // Eliminates prop drilling and prevents VideoAnalysisLayout re-renders on playback state changes
+  // GATE: Only read displayTime after meaningful playback has started to avoid 0 → 6.133 flip
+  const playbackCurrentTime =
+    process.env.NODE_ENV !== 'test'
+      ? useVideoPlayerStore((state) => {
+          const isPlaying = state.isPlaying
+          return isPlaying || state.pendingSeek !== null ? state.displayTime : 0
+        })
+      : 0
+  const controlsVisible =
+    process.env.NODE_ENV !== 'test' ? useVideoPlayerStore((state) => state.controlsVisible) : true
+
+  const feedbackScrollSnapshot = useSyncExternalStore(
+    gesture.feedbackScroll.subscribe,
+    gesture.feedbackScroll.getSnapshot,
+    gesture.feedbackScroll.getSnapshot
+  )
+  const isFeedbackScrollEnabled = feedbackScrollSnapshot.enabled
+  const isFeedbackScrollCompletelyBlocked = feedbackScrollSnapshot.blockCompletely
 
   // Store persistent progress bar props for rendering at layout level
   // This ensures React properly tracks and re-renders when props change
@@ -59,8 +78,10 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
   )
 
   const handleTap = useCallback(() => {
-    toggleControlsVisibilityOnTap(controls.showControls, controls.onControlsVisibilityChange)
+    toggleControlsVisibilityOnTap(controlsVisible, controls.onControlsVisibilityChange)
   }, [controls])
+
+  const computedVideoAreaScale = 0.6
 
   return (
     <YStack
@@ -82,13 +103,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           <VideoPlayerSection
             videoUri={videoUri}
             videoControlsRef={videoControlsRef}
-            pendingSeek={playback.pendingSeek}
-            userIsPlaying={playback.isPlaying}
-            videoShouldPlay={playback.shouldPlayVideo}
-            videoEnded={playback.videoEnded}
-            showControls={video.isReady && controls.showControls}
             isProcessing={video.isProcessing}
-            videoAreaScale={1 - feedback.panelFraction}
+            videoAreaScale={computedVideoAreaScale}
             posterUri={video.posterUri}
             onPlay={handlers.onPlay}
             onPause={handlers.onPause}
@@ -98,36 +114,30 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             onSignificantProgress={handlers.onSignificantProgress}
             onLoad={handlers.onVideoLoad}
             onEnd={handlers.onPause}
+            onAudioNaturalEnd={handlers.onAudioNaturalEnd}
             onTap={handleTap}
             onControlsVisibilityChange={controls.onControlsVisibilityChange}
-            audioPlayerController={audioController}
-            bubbleState={bubbleState}
-            audioOverlay={audioOverlay}
-            coachSpeaking={coachSpeaking}
-            panelFraction={feedback.panelFraction}
-            socialCounts={socialCounts}
-            onSocialAction={{
-              onShare: handlers.onShare,
-              onLike: handlers.onLike,
-              onComment: handlers.onComment,
-              onBookmark: handlers.onBookmark,
+            feedbackItems={feedback.items}
+            audioOverlayFunctions={{
+              onClose: audioOverlay.onClose,
+              onInactivity: audioOverlay.onInactivity,
+              onInteraction: audioOverlay.onInteraction,
+              audioDuration: audioOverlay.audioDuration,
             }}
+            // audioOverlay={audioOverlay} - RECONSTRUCTED: VideoPlayerSection subscribes to state directly
             collapseProgress={animation.collapseProgress}
+            overscroll={animation.scrollY}
             onPersistentProgressBarPropsChange={handlePersistentProgressBarPropsChange}
           />
 
           {/* Feedback section */}
           <FeedbackSection
-            panelFraction={feedback.panelFraction}
-            activeTab={feedback.activeTab}
             feedbackItems={feedback.items}
-            selectedFeedbackId={feedback.selectedFeedbackId}
-            currentVideoTime={playback.currentTime ?? 0}
+            // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
+            currentVideoTime={playbackCurrentTime}
             videoDuration={0}
-            errors={feedbackErrors}
-            audioUrls={feedbackAudioUrls}
-            onTabChange={handlers.onTabChange}
-            onExpand={handlers.onExpand}
+            // errors={feedbackErrors} - REMOVED: FeedbackSection subscribes directly
+            // audioUrls={feedbackAudioUrls} - REMOVED: FeedbackSection subscribes directly
             onCollapse={handlers.onCollapsePanel}
             onItemPress={handlers.onFeedbackItemPress}
             onSeek={handlers.onSeek}
@@ -136,12 +146,12 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             onSelectAudio={handlers.onSelectAudio}
             onScrollYChange={handlers.onFeedbackScrollY}
             onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
-            scrollEnabled={gesture.feedbackScrollEnabled && !gesture.blockFeedbackScrollCompletely}
+            scrollEnabled={isFeedbackScrollEnabled && !isFeedbackScrollCompletelyBlocked}
             rootPanRef={gesture.rootPanRef}
           />
 
           {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}
-          {persistentProgressBarProps?.shouldRenderPersistent && (
+          {persistentProgressBarProps && (
             <YStack
               position="absolute"
               bottom={0}
@@ -153,6 +163,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             >
               <ProgressBar
                 variant="persistent"
+                animatedStyle={persistentProgressBarProps.animatedStyle}
+                pointerEvents={persistentProgressBarProps.pointerEvents}
                 progress={
                   persistentProgressBarProps.duration > 0
                     ? (persistentProgressBarProps.currentTime /
@@ -162,7 +174,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
                 }
                 isScrubbing={persistentProgressBarProps.isScrubbing}
                 controlsVisible={persistentProgressBarProps.controlsVisible}
-                progressBarWidth={persistentProgressBarProps.progressBarWidth}
                 combinedGesture={persistentProgressBarProps.combinedGesture}
                 mainGesture={persistentProgressBarProps.mainGesture}
                 onLayout={persistentProgressBarProps.onLayout}

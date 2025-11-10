@@ -83,59 +83,31 @@ export function VideosSection({
   onVisibleItemsChange,
   testID = 'videos-section',
 }: VideosSectionProps): React.ReactElement {
-  // Track scroll position for prefetch
-  // Initialize with first 3 items visible on mount (for immediate prefetch)
-  const [visibleIndices, setVisibleIndices] = React.useState<number[]>(() => {
-    // On mount, assume first 3 items are visible (horizontal scroll starts at 0)
-    const initialVisible = Math.min(3, videos.length)
-    return Array.from({ length: initialVisible }, (_, i) => i)
-  })
+  // CRITICAL FIX: Track scroll position in ref instead of state
+  // setState during scroll was triggering parent re-renders every 100ms
+  // Use ref to track indices, only notify parent on scroll END
+  const initialVisible = Math.min(3, videos.length)
+  const visibleIndicesRef = React.useRef<number[]>(
+    Array.from({ length: initialVisible }, (_, i) => i)
+  )
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasInitializedRef = React.useRef(false)
 
-  // Throttled handler to prevent excessive parent updates during scroll
-  // Increased debounce from 150ms to 300ms to reduce cascade re-renders
-  const handleVisibleItemsChange = React.useCallback(
-    (indices: number[]) => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        if (indices.length > 0) {
-          const visibleItems = indices.map((idx) => videos[idx]).filter(Boolean)
-          onVisibleItemsChange?.(visibleItems)
-        }
-      }, 300) // Throttle by 300ms to reduce parent re-render frequency
-    },
-    [videos, onVisibleItemsChange]
-  )
-
-  // Notify parent of visible items on mount and when they change
+  // Notify parent of visible items on mount only
+  // Do NOT re-run on scroll events - only on explicit scroll end
   React.useEffect(() => {
-    // On mount, immediately notify with initial visible items (no debounce)
-    if (!hasInitializedRef.current && visibleIndices.length > 0) {
+    // On mount, immediately notify with initial visible items
+    if (!hasInitializedRef.current && visibleIndicesRef.current.length > 0) {
       hasInitializedRef.current = true
-      const visibleItems = visibleIndices.map((idx) => videos[idx]).filter(Boolean)
+      const visibleItems = visibleIndicesRef.current.map((idx) => videos[idx]).filter(Boolean)
       onVisibleItemsChange?.(visibleItems)
-    } else if (hasInitializedRef.current && visibleIndices.length > 0) {
-      // After mount, use debounced handler for scroll updates
-      handleVisibleItemsChange(visibleIndices)
     }
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [visibleIndices, handleVisibleItemsChange, videos, onVisibleItemsChange])
-
-  // Update initial visible indices when videos change (e.g., after data loads)
-  React.useEffect(() => {
-    if (!hasInitializedRef.current && videos.length > 0) {
-      const initialVisible = Math.min(3, videos.length)
-      const newIndices = Array.from({ length: initialVisible }, (_, i) => i)
-      setVisibleIndices(newIndices)
-    }
-  }, [videos])
+  }, []) // Only run on mount, not on scroll
 
   return (
     <YStack
@@ -284,8 +256,8 @@ export function VideosSection({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={SCROLL_CONTENT_STYLE}
           onScroll={(event) => {
+            // Update ref tracking visible items during scroll (no setState)
             // Calculate visible item indices based on scroll position
-            // For horizontal scroll, approximate visible items
             const contentOffsetX = event.nativeEvent.contentOffset.x
             const itemWidth = 150 // Approximate thumbnail width + gap
             const startIdx = Math.floor(contentOffsetX / itemWidth)
@@ -293,13 +265,17 @@ export function VideosSection({
             const indices = Array.from({ length: visibleCount }, (_, i) => startIdx + i).filter(
               (idx) => idx >= 0 && idx < videos.length
             )
-            // Only update if indices actually changed (prevent unnecessary re-renders)
-            setVisibleIndices((prev) => {
-              if (prev.length === indices.length && prev.every((val, i) => val === indices[i])) {
-                return prev
-              }
-              return indices
-            })
+            // Store in ref - no setState during scroll
+            visibleIndicesRef.current = indices
+          }}
+          onScrollEndDrag={() => {
+            // Only notify parent AFTER scroll ends
+            if (visibleIndicesRef.current.length > 0) {
+              const visibleItems = visibleIndicesRef.current
+                .map((idx) => videos[idx])
+                .filter(Boolean)
+              onVisibleItemsChange?.(visibleItems)
+            }
           }}
           scrollEventThrottle={100}
           testID={`${testID}-scroll`}
@@ -325,4 +301,9 @@ export function VideosSection({
       )}
     </YStack>
   )
+}
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(VideosSection as any).whyDidYouRender = true
 }

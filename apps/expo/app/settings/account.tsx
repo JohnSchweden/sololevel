@@ -23,7 +23,8 @@ export default function AccountSettingsRoute() {
     navigation.setOptions({
       appHeaderProps: {
         title: 'Account',
-        showBackButton: true,
+        leftAction: 'back',
+        rightAction: 'none',
         onBackPress: () => router.back(),
       },
     })

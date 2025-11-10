@@ -49,9 +49,10 @@ describe('useGestureController', () => {
       // Assert
       expect(result.current.rootPan).toBeDefined()
       expect(result.current.rootPanRef).toBeDefined()
-      expect(result.current.feedbackScrollEnabled).toBe(true)
-      expect(result.current.blockFeedbackScrollCompletely).toBe(false)
-      expect(result.current.isPullingToRevealJS).toBe(false)
+      const feedbackScrollSnapshot = result.current.feedbackScroll.getSnapshot()
+      expect(feedbackScrollSnapshot.enabled).toBe(true)
+      expect(feedbackScrollSnapshot.blockCompletely).toBe(false)
+      expect(result.current.pullToReveal.getSnapshot()).toBe(false)
     })
 
     it('should configure pan gesture with correct parameters', () => {

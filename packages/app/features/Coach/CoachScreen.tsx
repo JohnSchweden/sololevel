@@ -171,6 +171,9 @@ export function CoachScreen({
   initialMessages,
   hasBottomNavigation = true,
 }: CoachScreenProps = {}): React.ReactElement {
+  // PERF: Measure render duration to surface slow renders in development
+  // const renderStartTime = __DEV__ ? performance.now() : 0
+
   // Hooks
   const insetsRaw = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
@@ -368,6 +371,17 @@ export function CoachScreen({
 
   // Reverse messages for inverted FlatList (newest at bottom, oldest at top)
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages])
+
+  // useEffect(() => {
+  //   if (__DEV__) {
+  //     const renderDuration = performance.now() - renderStartTime
+  //     if (renderDuration > 16) {
+  //       log.warn('CoachScreen', `Slow render: ${renderDuration.toFixed(2)}ms`, {
+  //         stack: new Error('CoachScreen slow render').stack ?? undefined,
+  //       })
+  //     }
+  //   }
+  // })
 
   // State handling
   if (isLoading) {
@@ -646,4 +660,6 @@ export function CoachScreen({
 }
 
 // Enable why-did-you-render tracking for performance debugging
-CoachScreen.whyDidYouRender = true
+if (__DEV__) {
+  CoachScreen.whyDidYouRender = true
+}

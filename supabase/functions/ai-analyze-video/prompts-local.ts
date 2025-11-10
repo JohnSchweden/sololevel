@@ -82,6 +82,10 @@ Roast me, motherfuckaaa!!!
 Create two distinct outputs with clear separators:
 
 **=== TEXT FEEDBACK START ===
+**Title Start**
+[A concise roast title for the feedback based on the video content - max 60 characters]
+**Title End**
+
 [Your detailed analysis here]
 
 **Big Picture**

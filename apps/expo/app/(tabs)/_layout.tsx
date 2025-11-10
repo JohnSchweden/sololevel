@@ -4,16 +4,18 @@ import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPer
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
 import { Tabs, usePathname, useRouter } from 'expo-router'
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 export default function TabsLayout() {
   const pathname = usePathname()
   const router = useRouter()
   const { activeTab, setActiveTab, isLoading } = useTabPersistence()
 
-  // Stable router ref for navigation
+  // Stable router ref for navigation - only set once to avoid function recreation
   const routerRef = useRef(router)
-  routerRef.current = router
+  useEffect(() => {
+    routerRef.current = router
+  }, [router])
 
   // Stable setActiveTab ref for stable callbacks
   const setActiveTabRef = useRef(setActiveTab)
@@ -60,6 +62,21 @@ export default function TabsLayout() {
   const tabBarRenderer = useCallback(
     (props: any) => {
       navigationRef.current = props.navigation
+
+      // Only render bottom navigation when actually in tabs navigation context
+      // Expo Router keeps tabs mounted even when navigating to Stack routes
+      // Check pathname to determine if we're in tabs or external Stack route
+      const currentPathname = pathname || ''
+      const isInTabsContext =
+        currentPathname.includes('/(tabs)/') ||
+        currentPathname === '/coach' ||
+        currentPathname === '/record' ||
+        currentPathname === '/insights'
+
+      if (!isInTabsContext) {
+        return null // Don't render bottom nav outside tabs
+      }
+
       return (
         <BottomNavigationContainer>
           <BottomNavigation
@@ -70,7 +87,7 @@ export default function TabsLayout() {
         </BottomNavigationContainer>
       )
     },
-    [handleTabChangeStable] // Only depends on stable callback - activeTab removed
+    [handleTabChangeStable, pathname] // Depend on pathname to re-evaluate on route changes
   )
 
   // Stable objects for screen options - extract inline objects to prevent recreation
@@ -103,16 +120,28 @@ export default function TabsLayout() {
     []
   )
 
+  const coachAppHeaderProps = useMemo(
+    () => ({
+      onMenuPress: handleMenuPress,
+    }),
+    [handleMenuPress]
+  )
+
+  const insightsAppHeaderProps = useMemo(
+    () => ({
+      onMenuPress: handleMenuPress,
+    }),
+    [handleMenuPress]
+  )
+
   const coachOptions = useMemo(
     () => ({
       title: 'Chat/Mirror',
       lazy: true,
       // @ts-ignore: custom appHeaderProps extension
-      appHeaderProps: {
-        onMenuPress: handleMenuPress,
-      },
+      appHeaderProps: coachAppHeaderProps,
     }),
-    [handleMenuPress]
+    [coachAppHeaderProps]
   )
 
   const insightsOptions = useMemo(
@@ -120,11 +149,9 @@ export default function TabsLayout() {
       title: 'Insights',
       lazy: true,
       // @ts-ignore: custom appHeaderProps extension
-      appHeaderProps: {
-        onMenuPress: handleMenuPress,
-      },
+      appHeaderProps: insightsAppHeaderProps,
     }),
-    [handleMenuPress]
+    [insightsAppHeaderProps]
   )
 
   // Don't render until hook determines it's safe (handles loading and navigation timing)

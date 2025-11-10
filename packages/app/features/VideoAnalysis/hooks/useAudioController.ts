@@ -1,6 +1,19 @@
 import { log } from '@my/logging'
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
+
+/**
+ * Snapshot of the audio playback controller consumed by `VideoPlayerSection`
+ * and the feedback coordinator. Mirrors the original `useAudioController`
+ * shape so existing consumers keep working while we route all writes through
+ * the feedback audio store.
+ *
+ * @remarks
+ * Values that change every 250ms (`currentTime`) are still exposed, but the
+ * hook throttles React updates and relies on refs for precision. Consumers
+ * should call `seekTo` / `reset` rather than mutating state directly.
+ */
 export interface AudioControllerState {
   isPlaying: boolean
   currentTime: number
@@ -22,11 +35,45 @@ export interface AudioControllerState {
   reset: () => void
 }
 
-export function useAudioController(audioUrl: string | null): AudioControllerState {
+/**
+ * Optional lifecycle callbacks for `useAudioController`.
+ *
+ * - `onNaturalEnd` fires only when audio reaches the end without manual stop.
+ *   The feedback coordinator uses this to resume video playback.
+ */
+export interface UseAudioControllerCallbacks {
+  onNaturalEnd?: () => void
+}
+
+/**
+ * Core audio playback hook that proxies all imperative updates to the
+ * `useFeedbackAudioStore` while keeping React renders minimal.
+ *
+ * ## Responsibilities
+ * - Synchronise active audio metadata when the Supabase feedback selection changes.
+ * - Keep precise playback state in refs to avoid 4 fps render storms.
+ * - Expose the legacy `AudioControllerState` API for components/tests.
+ * - Invoke optional callbacks on natural end to unblock video playback.
+ *
+ * ## Performance Notes
+ * - Progress events update React state only on significant deltas (>0.5s) or
+ *   when crossing zero, preventing continuous parent renders.
+ * - Most mutations flow through Zustand actions (`useFeedbackAudioStore`) so
+ *   other subscribers (e.g. overlay UI) receive updates without new hook
+ *   instances.
+ *
+ * @param audioUrl - Resolved feedback audio URL or `null` to clear playback.
+ * @param callbacks - Optional lifecycle callbacks (e.g. natural end hook).
+ * @returns Stable controller state and handlers for audio playback.
+ */
+export function useAudioController(
+  audioUrl: string | null,
+  callbacks: UseAudioControllerCallbacks = {}
+): AudioControllerState {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [, setCurrentTime] = useState(0)
+  const [, setDuration] = useState(0)
+  const [, setIsLoaded] = useState(false)
   const [seekTime, setSeekTime] = useState<number | null>(null)
 
   const currentTimeRef = useRef(0)
@@ -85,8 +132,22 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     isPlayingRef.current = isPlaying
   }, [isPlaying])
 
+  const callbacksRef = useRef<UseAudioControllerCallbacks>(callbacks)
+  useEffect(() => {
+    callbacksRef.current = callbacks
+  }, [callbacks])
+
+  // PERF FIX: Remove isPlaying from deps to prevent callback recreation on every play/pause toggle
+  // Read from ref instead for logging; only recreate when audioUrl changes (legitimate new audio source)
   const setIsPlayingCallback = useCallback(
     (playing: boolean) => {
+      log.debug(
+        'useAudioController.setIsPlaying',
+        `Setting playback state ${isPlayingRef.current} → ${playing}`,
+        {
+          audioUrl: audioUrl ? `${audioUrl.substring(0, 50)}...` : null,
+        }
+      )
       setIsPlaying(playing)
     },
     [audioUrl]
@@ -165,28 +226,35 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
 
     if (suspectedPrematureEnd) {
       log.debug(
-        'useAudioController',
-        'Received end event before meaningful playback progress; forcing stop to avoid stuck overlay',
+        'useAudioController.handleEnd',
+        '🚫 Premature end detected - forcing stop',
         logContext
       )
       hasPlaybackStartedRef.current = false
       setIsPlaying(false)
+      // CRITICAL FIX: Update store when playback ends
+      useFeedbackAudioStore.getState().setIsPlaying(false)
       currentTimeRef.current = 0
       setCurrentTime(0)
       return
     }
 
-    // log.debug('useAudioController', 'Audio playback ended', logContext)
+    log.debug('useAudioController.handleEnd', '✓ Audio playback ended naturally', logContext)
 
     hasPlaybackStartedRef.current = false
     setIsPlaying(false)
+    // Update store's isPlaying - cleanup effect will check currentTime === 0 to distinguish natural end from manual pause
+    useFeedbackAudioStore.getState().setIsPlaying(false)
     currentTimeRef.current = 0
     setCurrentTime(0)
+    callbacksRef.current.onNaturalEnd?.()
   }, [])
 
   const handleError = useCallback((error: any) => {
     log.error('useAudioController', 'Audio playback error', { error })
     setIsPlaying(false)
+    // CRITICAL FIX: Update store on error
+    useFeedbackAudioStore.getState().setIsPlaying(false)
     setIsLoaded(false)
     isLoadedRef.current = false
     hasPlaybackStartedRef.current = false
@@ -231,41 +299,79 @@ export function useAudioController(audioUrl: string | null): AudioControllerStat
     hasPlaybackStartedRef.current = false
   }, [])
 
-  // Memoize return value to prevent recreation on every render
-  // currentTime is throttled to only update state on zero-crossing or significant changes
-  // This prevents object recreation every 250ms while still allowing effects to detect important changes
-  return useMemo(
-    () => ({
-      isPlaying,
-      currentTime: currentTimeRef.current, // Use ref value for always-current time
-      duration,
-      isLoaded,
-      seekTime,
-      setIsPlaying: setIsPlayingCallback,
-      togglePlayback,
-      handleLoad,
-      handleProgress,
-      handleEnd,
-      handleError,
-      handleSeekComplete,
-      seekTo,
-      reset,
-    }),
-    [
-      isPlaying,
-      currentTime, // Include state value - only updates on zero-crossing or significant changes
-      duration,
-      isLoaded,
-      seekTime,
-      setIsPlayingCallback,
-      togglePlayback,
-      handleLoad,
-      handleProgress,
-      handleEnd,
-      handleError,
-      handleSeekComplete,
-      seekTo,
-      reset,
-    ]
-  )
+  // Maintain stable controller reference across renders to prevent downstream effects (setController) from thrashing
+  const setIsPlayingRef = useRef(setIsPlayingCallback)
+  const togglePlaybackRef = useRef(togglePlayback)
+  const handleLoadRef = useRef(handleLoad)
+  const handleProgressRef = useRef(handleProgress)
+  const handleEndRef = useRef(handleEnd)
+  const handleErrorRef = useRef(handleError)
+  const handleSeekCompleteRef = useRef(handleSeekComplete)
+  const seekToRef = useRef(seekTo)
+  const resetRef = useRef(reset)
+
+  useEffect(() => {
+    setIsPlayingRef.current = setIsPlayingCallback
+  }, [setIsPlayingCallback])
+  useEffect(() => {
+    togglePlaybackRef.current = togglePlayback
+  }, [togglePlayback])
+  useEffect(() => {
+    handleLoadRef.current = handleLoad
+  }, [handleLoad])
+  useEffect(() => {
+    handleProgressRef.current = handleProgress
+  }, [handleProgress])
+  useEffect(() => {
+    handleEndRef.current = handleEnd
+  }, [handleEnd])
+  useEffect(() => {
+    handleErrorRef.current = handleError
+  }, [handleError])
+  useEffect(() => {
+    handleSeekCompleteRef.current = handleSeekComplete
+  }, [handleSeekComplete])
+  useEffect(() => {
+    seekToRef.current = seekTo
+  }, [seekTo])
+  useEffect(() => {
+    resetRef.current = reset
+  }, [reset])
+
+  // Keep stable ref with getters for backwards compatibility
+  const controllerRef = useRef<AudioControllerState | null>(null)
+  if (!controllerRef.current) {
+    const controller: Partial<AudioControllerState> = {}
+    Object.defineProperties(controller, {
+      isPlaying: {
+        get: () => isPlayingRef.current,
+      },
+      currentTime: {
+        get: () => currentTimeRef.current,
+      },
+      duration: {
+        get: () => durationRef.current,
+      },
+      isLoaded: {
+        get: () => isLoadedRef.current,
+      },
+      seekTime: {
+        get: () => seekTimeRef.current,
+      },
+    })
+
+    controller.setIsPlaying = (playing: boolean) => setIsPlayingRef.current(playing)
+    controller.togglePlayback = () => togglePlaybackRef.current()
+    controller.handleLoad = (data) => handleLoadRef.current(data)
+    controller.handleProgress = (data) => handleProgressRef.current(data)
+    controller.handleEnd = () => handleEndRef.current()
+    controller.handleError = (error) => handleErrorRef.current(error)
+    controller.handleSeekComplete = () => handleSeekCompleteRef.current()
+    controller.seekTo = (time) => seekToRef.current(time)
+    controller.reset = () => resetRef.current()
+
+    controllerRef.current = controller as AudioControllerState
+  }
+
+  return controllerRef.current
 }

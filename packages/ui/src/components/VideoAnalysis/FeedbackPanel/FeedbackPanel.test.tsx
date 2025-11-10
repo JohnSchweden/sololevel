@@ -1,5 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: jest.fn(() => ({
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  })),
+}))
+
 import { FeedbackPanel } from './FeedbackPanel'
 
 // Mocks are handled globally in src/test-utils/setup.ts

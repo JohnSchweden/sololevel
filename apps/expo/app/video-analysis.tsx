@@ -1,4 +1,7 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
+import { useVideoPlayerStore } from '@my/app/features/VideoAnalysis/stores'
+import { useAnalysisJobStatus } from '@my/app/features/VideoAnalysis/stores/analysisStatus'
+import { useFeedbackCoordinatorStore } from '@my/app/features/VideoAnalysis/stores/feedbackCoordinatorStore'
 import { log } from '@my/logging'
 //import { useHeaderHeight } from '@react-navigation/elements'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
@@ -25,25 +28,31 @@ export default function VideoAnalysis() {
     analysisJobId?: string
   }>()
 
-  // Initialize isProcessing based on mode:
-  // - History mode: false (data is prefetched, processing completes quickly)
-  // - Analysis mode: true (live processing starts immediately)
-  const isHistoryMode = !!analysisJobId
-  const [isProcessing, setIsProcessing] = useState(() => {
-    const initialProcessing = !isHistoryMode
-    log.debug('VideoAnalysis', '🔍 [INIT] Initializing processing state', {
-      isHistoryMode,
-      analysisJobId,
-      initialProcessing,
-      reason: isHistoryMode ? 'History mode - data prefetched' : 'Analysis mode - live processing',
-    })
-    return initialProcessing
-  })
+  // Get processing state from store instead of local state
+  const jobStatus = useAnalysisJobStatus(analysisJobId ? Number.parseInt(analysisJobId, 10) : 0)
+  const isProcessing = analysisJobId ? jobStatus.isProcessing : true
+
+  // Reset feedback coordinator store synchronously before rendering VideoAnalysisScreen
+  // This ensures clean state for each video analysis session
   const [isUserInteraction, setIsUserInteraction] = useState(false)
   const userInteractionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Animation state tracking to prevent setOptions during animations
   const isAnimatingRef = useRef(false)
+
+  // Track which analysisJobId we've reset for to avoid duplicate resets
+  const lastResetAnalysisIdRef = useRef<string | undefined>(undefined)
+
+  // Reset feedback coordinator store synchronously if we haven't for this analysis
+  if (lastResetAnalysisIdRef.current !== analysisJobId) {
+    log.debug('VideoAnalysis', '🔄 Resetting feedback coordinator store for new video analysis', {
+      analysisJobId,
+      lastReset: lastResetAnalysisIdRef.current,
+    })
+    useFeedbackCoordinatorStore.getState().reset()
+    useVideoPlayerStore.getState().reset()
+    lastResetAnalysisIdRef.current = analysisJobId
+  }
   const pendingOptionsRef = useRef<any>(null)
   const pendingOptionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   //const headerHeight = useHeaderHeight()
@@ -154,6 +163,14 @@ export default function VideoAnalysis() {
       isUserInteractionRef.current = isUserInteraction
 
       if (prevVisible !== visible) {
+        if (__DEV__) {
+          log.debug('VideoAnalysisRoute', '🔍 WDYR: controlsVisible state changed', {
+            prevVisible,
+            newVisible: visible,
+            isUserInteraction,
+            willCauseRerender: true, // This state change will cause route component re-render
+          })
+        }
         setControlsVisible(visible)
       }
 
@@ -230,22 +247,6 @@ export default function VideoAnalysis() {
     handleMenuPress,
   ])
 
-  const handleProcessingChange = useCallback(
-    (processing: boolean) => {
-      const headerShown = processing || controlsVisibleRef.current
-      log.debug('VideoAnalysis', 'Processing state changed', {
-        isProcessing: processing,
-        controlsVisible: controlsVisibleRef.current,
-        isUserInteraction: isUserInteractionRef.current,
-        headerShown,
-        willShowHeader: headerShown,
-        willHideHeader: !headerShown,
-      })
-      setIsProcessing(processing)
-    },
-    [] // No deps - uses refs for logging-only values
-  )
-
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -272,7 +273,6 @@ export default function VideoAnalysis() {
         videoUri={videoUri} // Pass the video URI from navigation params
         onBack={handleBack}
         onControlsVisibilityChange={handleControlsVisibilityChange}
-        onProcessingChange={handleProcessingChange}
       />
     </YStack>
   )

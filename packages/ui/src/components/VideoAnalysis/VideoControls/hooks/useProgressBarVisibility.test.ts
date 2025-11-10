@@ -66,13 +66,13 @@ describe('useProgressBarVisibility', () => {
     })
   })
 
-  it('treats negative collapseProgress as max mode', async () => {
+  it('treats significant negative collapseProgress as transition (overpull)', async () => {
     const collapseProgress = useSharedValue(-1)
 
     const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
 
     await waitFor(() => {
-      expect(result.current.shouldRenderNormal).toBe(true)
+      expect(result.current.shouldRenderNormal).toBe(false)
       expect(result.current.shouldRenderPersistent).toBe(false)
     })
   })
@@ -98,12 +98,7 @@ describe('useProgressBarVisibility', () => {
 
     act(() => {
       collapseProgress.value = 0.5
-      const helper = (
-        result.current as unknown as {
-          __applyProgressForTests?: (value: number) => void
-        }
-      ).__applyProgressForTests
-      helper?.(0.5)
+      result.current.__applyProgressForTests?.(0.5)
     })
 
     await waitFor(() => {
@@ -113,16 +108,46 @@ describe('useProgressBarVisibility', () => {
 
     act(() => {
       collapseProgress.value = 0.2
-      const helper = (
-        result.current as unknown as {
-          __applyProgressForTests?: (value: number) => void
-        }
-      ).__applyProgressForTests
-      helper?.(0.2)
+      result.current.__applyProgressForTests?.(0.2)
     })
 
     await waitFor(() => {
       expect(result.current.shouldRenderNormal).toBe(false)
+      expect(result.current.shouldRenderPersistent).toBe(false)
+    })
+  })
+
+  it('keeps normal mode visible for minor negative overshoot', async () => {
+    const collapseProgress = useSharedValue(-0.01)
+
+    const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
+
+    await waitFor(() => {
+      expect(result.current.shouldRenderNormal).toBe(true)
+      expect(result.current.shouldRenderPersistent).toBe(false)
+    })
+  })
+
+  it('hides normal bar when overscroll goes beyond threshold', async () => {
+    const collapseProgress = useSharedValue(0)
+    const overscroll = useSharedValue(-25)
+
+    const { result } = renderHook(() => useProgressBarVisibility(collapseProgress, overscroll))
+
+    await waitFor(() => {
+      expect(result.current.shouldRenderNormal).toBe(false)
+      expect(result.current.shouldRenderPersistent).toBe(false)
+    })
+  })
+
+  it('keeps normal bar visible for small overscroll', async () => {
+    const collapseProgress = useSharedValue(0)
+    const overscroll = useSharedValue(-2)
+
+    const { result } = renderHook(() => useProgressBarVisibility(collapseProgress, overscroll))
+
+    await waitFor(() => {
+      expect(result.current.shouldRenderNormal).toBe(true)
       expect(result.current.shouldRenderPersistent).toBe(false)
     })
   })

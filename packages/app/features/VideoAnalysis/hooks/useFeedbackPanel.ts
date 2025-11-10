@@ -2,8 +2,49 @@ import { LayoutAnimation, Platform } from 'react-native'
 
 // import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { create } from 'zustand'
 
 export type FeedbackPanelTab = 'feedback' | 'insights' | 'comments'
+
+interface FeedbackPanelCommand {
+  tab: FeedbackPanelTab
+  token: number
+}
+
+interface FeedbackPanelCommandState {
+  command: FeedbackPanelCommand | null
+  sequence: number
+  requestTab: (tab: FeedbackPanelTab) => void
+  clear: () => void
+  reset: () => void
+}
+
+export const useFeedbackPanelCommandStore = create<FeedbackPanelCommandState>((set, get) => ({
+  command: null,
+  sequence: 0,
+  requestTab: (tab) => {
+    const nextSequence = get().sequence + 1
+    set({ command: { tab, token: nextSequence }, sequence: nextSequence })
+  },
+  clear: () => set({ command: null }),
+  reset: () => set({ command: null, sequence: 0 }),
+}))
+
+export const requestFeedbackPanelTab = (tab: FeedbackPanelTab) => {
+  useFeedbackPanelCommandStore.getState().requestTab(tab)
+}
+
+export const resetFeedbackPanelCommandBus = () => {
+  useFeedbackPanelCommandStore.getState().reset()
+}
+
+export const useFeedbackPanelCommandSubscription = () =>
+  useFeedbackPanelCommandStore((state) => ({
+    command: state.command,
+    clear: state.clear,
+  }))
+
+export const getFeedbackPanelCommandState = () => useFeedbackPanelCommandStore.getState()
 
 export interface FeedbackPanelState {
   panelFraction: number

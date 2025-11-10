@@ -96,7 +96,10 @@ export function usePrefetchNextVideos(
 ): PrefetchState {
   const finalConfig = React.useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config])
 
-  const [state, setState] = React.useState<PrefetchState>({
+  // CRITICAL FIX: Use ref for state to prevent parent re-renders
+  // Parent component was re-rendering every time prefetch state changed
+  // (prefetching array updates, prefetched array updates) causing cascade
+  const stateRef = React.useRef<PrefetchState>({
     prefetching: [],
     prefetched: [],
     failed: [],
@@ -254,11 +257,11 @@ export function usePrefetchNextVideos(
         return
       }
 
-      // Mark as prefetching
-      setState((prev) => ({
-        ...prev,
-        prefetching: [...prev.prefetching, item.id],
-      }))
+      // Mark as prefetching (update ref only, no parent re-render)
+      stateRef.current = {
+        ...stateRef.current,
+        prefetching: [...stateRef.current.prefetching, item.id],
+      }
 
       try {
         // Prefetch thumbnail first (priority 1)
@@ -273,19 +276,19 @@ export function usePrefetchNextVideos(
           })
         })
 
-        // Mark as prefetched
-        setState((prev) => ({
-          ...prev,
-          prefetching: prev.prefetching.filter((id) => id !== item.id),
-          prefetched: [...prev.prefetched, item.id],
-        }))
+        // Mark as prefetched (update ref only, no parent re-render)
+        stateRef.current = {
+          ...stateRef.current,
+          prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
+          prefetched: [...stateRef.current.prefetched, item.id],
+        }
       } catch (error) {
-        // Mark as failed
-        setState((prev) => ({
-          ...prev,
-          prefetching: prev.prefetching.filter((id) => id !== item.id),
-          failed: [...prev.failed, item.id],
-        }))
+        // Mark as failed (update ref only, no parent re-render)
+        stateRef.current = {
+          ...stateRef.current,
+          prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
+          failed: [...stateRef.current.failed, item.id],
+        }
       } finally {
         activeDownloadsRef.current.delete(item.id)
       }
@@ -293,30 +296,31 @@ export function usePrefetchNextVideos(
     [prefetchThumbnail, prefetchVideo]
   )
 
-  // Use refs to access latest state without triggering effect re-runs
-  const stateRef = React.useRef(state)
+  // Track previous counts for logging (prevent spam logs on ref updates)
   const prevStateRef = React.useRef({ prefetching: 0, prefetched: 0, failed: 0 })
 
-  // Log prefetch state changes only when values actually change (debounced internally)
+  // Periodic logging of prefetch state changes
+  // Since we use ref for state, we need to trigger logging externally
   React.useEffect(() => {
-    stateRef.current = state
+    const logInterval = setInterval(() => {
+      const currentCounts = {
+        prefetching: stateRef.current.prefetching.length,
+        prefetched: stateRef.current.prefetched.length,
+        failed: stateRef.current.failed.length,
+      }
 
-    // Only log if counts actually changed (not just reference)
-    const currentCounts = {
-      prefetching: state.prefetching.length,
-      prefetched: state.prefetched.length,
-      failed: state.failed.length,
-    }
+      if (
+        prevStateRef.current.prefetching !== currentCounts.prefetching ||
+        prevStateRef.current.prefetched !== currentCounts.prefetched ||
+        prevStateRef.current.failed !== currentCounts.failed
+      ) {
+        log.debug('usePrefetchNextVideos', 'Prefetch state changed', currentCounts)
+        prevStateRef.current = currentCounts
+      }
+    }, 1000) // Log every 1s instead of on every state change
 
-    if (
-      prevStateRef.current.prefetching !== currentCounts.prefetching ||
-      prevStateRef.current.prefetched !== currentCounts.prefetched ||
-      prevStateRef.current.failed !== currentCounts.failed
-    ) {
-      log.debug('usePrefetchNextVideos', 'Prefetch state changed', currentCounts)
-      prevStateRef.current = currentCounts
-    }
-  }, [state])
+    return () => clearInterval(logInterval)
+  }, [])
 
   /**
    * Process prefetch queue with concurrency limit
@@ -357,18 +361,18 @@ export function usePrefetchNextVideos(
         availableItems.push(item)
       }
 
-      // Batch update state for all newly discovered cached items
+      // Batch update state for all newly discovered cached items (update ref only)
       if (newlyPrefetched.length > 0) {
-        setState((prev) => {
-          const alreadyPrefetched = newlyPrefetched.filter((id) => prev.prefetched.includes(id))
-          if (alreadyPrefetched.length === newlyPrefetched.length) {
-            return prev // All already marked, no change needed
+        const alreadyPrefetched = newlyPrefetched.filter((id) =>
+          stateRef.current.prefetched.includes(id)
+        )
+        if (alreadyPrefetched.length < newlyPrefetched.length) {
+          // Only update if there are new items to add
+          stateRef.current = {
+            ...stateRef.current,
+            prefetched: [...stateRef.current.prefetched, ...newlyPrefetched],
           }
-          return {
-            ...prev,
-            prefetched: [...prev.prefetched, ...newlyPrefetched],
-          }
-        })
+        }
       }
 
       // Skip if nothing to do
@@ -467,7 +471,7 @@ export function usePrefetchNextVideos(
     }
   }, [allItems, visibleItems, finalConfig.enabled, finalConfig.lookAhead, processPrefetchQueue])
 
-  // Return state directly - React.useState already handles stability
-  // State only changes when setState is called with different values
-  return state
+  // Return stable ref state - never triggers parent re-renders
+  // All state updates go to ref, parent always gets same object reference
+  return stateRef.current
 }

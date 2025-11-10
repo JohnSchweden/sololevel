@@ -3,7 +3,10 @@ import React from 'react'
 
 import { renderWithProviderNative } from '../../../test-utils/TestProvider'
 import { VideoControls, type VideoControlsProps } from './VideoControls'
-import { useProgressBarVisibility } from './hooks/useProgressBarVisibility'
+import {
+  type UseProgressBarVisibilityReturn,
+  useProgressBarVisibility,
+} from './hooks/useProgressBarVisibility'
 
 jest.mock('./hooks/useProgressBarVisibility', () => ({
   useProgressBarVisibility: jest.fn(),
@@ -13,7 +16,19 @@ const mockUseProgressBarVisibility = useProgressBarVisibility as jest.MockedFunc
   typeof useProgressBarVisibility
 >
 
-let visibilityState: { shouldRenderNormal: boolean; shouldRenderPersistent: boolean }
+const createVisibilityState = (
+  shouldRenderNormal: boolean,
+  shouldRenderPersistent: boolean
+): UseProgressBarVisibilityReturn => ({
+  shouldRenderNormal,
+  shouldRenderPersistent,
+  mode: shouldRenderNormal ? 'normal' : shouldRenderPersistent ? 'persistent' : 'transition',
+  normalVisibility: { value: shouldRenderNormal ? 1 : 0 } as any,
+  persistentVisibility: { value: shouldRenderPersistent ? 1 : 0 } as any,
+  __applyProgressForTests: jest.fn(),
+})
+
+let visibilityState: UseProgressBarVisibilityReturn
 
 const createProps = (overrides: Partial<VideoControlsProps> = {}): VideoControlsProps => ({
   isPlaying: false,
@@ -34,7 +49,7 @@ describe('VideoControls.native.core', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockUseProgressBarVisibility.mockReset()
-    visibilityState = { shouldRenderNormal: true, shouldRenderPersistent: false }
+    visibilityState = createVisibilityState(true, false)
     mockUseProgressBarVisibility.mockImplementation(() => visibilityState)
   })
 
@@ -97,7 +112,7 @@ describe('VideoControls.native.core', () => {
     expect(screen.getByTestId('progress-bar-container')).toBeTruthy()
 
     // Act
-    visibilityState = { shouldRenderNormal: false, shouldRenderPersistent: true }
+    visibilityState = createVisibilityState(false, true)
     rerender(<VideoControls {...createProps({ collapseProgress: 0.6 })} />)
 
     // Assert

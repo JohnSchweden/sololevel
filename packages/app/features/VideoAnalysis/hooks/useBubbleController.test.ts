@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
 
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import { useBubbleController } from './useBubbleController'
 
 jest.mock('@my/logging', () => ({
@@ -18,14 +19,18 @@ const createFeedbackItems = () => [
   { id: '3', timestamp: 5000 },
 ]
 
+type BubbleState = ReturnType<typeof useFeedbackCoordinatorStore.getState>['bubbleState']
+
 describe('useBubbleController', () => {
   beforeEach(() => {
     jest.useFakeTimers()
+    useFeedbackCoordinatorStore.getState().reset()
   })
 
   afterEach(() => {
     jest.runOnlyPendingTimers()
     jest.useRealTimers()
+    useFeedbackCoordinatorStore.getState().reset()
   })
 
   it('shows bubble when timestamp threshold is met', () => {
@@ -36,8 +41,9 @@ describe('useBubbleController', () => {
       expect(index).toBe(0)
     })
 
-    expect(result.current.currentBubbleIndex).toBe(0)
-    expect(result.current.bubbleVisible).toBe(true)
+    const bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.currentBubbleIndex).toBe(0)
+    expect(bubbleState.bubbleVisible).toBe(true)
   })
 
   it('delays timer start until playback begins when audio is pending', () => {
@@ -58,7 +64,8 @@ describe('useBubbleController', () => {
       jest.advanceTimersByTime(4000)
     })
 
-    expect(result.current.bubbleVisible).toBe(true)
+    let bubbleState: BubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       rerender({ isPlaying: true, audioDuration: 5 })
@@ -67,14 +74,16 @@ describe('useBubbleController', () => {
     act(() => {
       jest.advanceTimersByTime(4999)
     })
-    expect(result.current.bubbleVisible).toBe(true)
+    bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       jest.advanceTimersByTime(1)
     })
 
-    expect(result.current.bubbleVisible).toBe(false)
-    expect(result.current.currentBubbleIndex).toBeNull()
+    bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(false)
+    expect(bubbleState.currentBubbleIndex).toBeNull()
   })
 
   it('recomputes timer when audio duration becomes available', () => {
@@ -94,7 +103,8 @@ describe('useBubbleController', () => {
     act(() => {
       jest.advanceTimersByTime(2800)
     })
-    expect(result.current.bubbleVisible).toBe(true)
+    let bubbleState: BubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       rerender({ audioDuration: 5 })
@@ -103,12 +113,13 @@ describe('useBubbleController', () => {
     act(() => {
       jest.advanceTimersByTime(4999)
     })
-    expect(result.current.bubbleVisible).toBe(true)
+    bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       jest.advanceTimersByTime(1)
     })
-    expect(result.current.bubbleVisible).toBe(false)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(false)
   })
 
   it('keeps bubble visible and pauses timer when playback pauses after timer start', () => {
@@ -124,7 +135,8 @@ describe('useBubbleController', () => {
       result.current.showBubble(0)
     })
 
-    expect(result.current.bubbleVisible).toBe(true)
+    let bubbleState: BubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     // Advance time to start the timer
     act(() => {
@@ -136,16 +148,18 @@ describe('useBubbleController', () => {
     })
 
     // Bubble should stay visible when paused (timer pauses, bubble doesn't hide)
-    expect(result.current.bubbleVisible).toBe(true)
-    expect(result.current.currentBubbleIndex).toBe(0)
+    bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
+    expect(bubbleState.currentBubbleIndex).toBe(0)
 
     // Resume playback - timer should resume
     act(() => {
       rerender({ isPlaying: true })
     })
 
-    expect(result.current.bubbleVisible).toBe(true)
-    expect(result.current.currentBubbleIndex).toBe(0)
+    bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
+    expect(bubbleState.currentBubbleIndex).toBe(0)
   })
 
   it('respects minimum display duration when no audio URL', () => {
@@ -159,13 +173,14 @@ describe('useBubbleController', () => {
       jest.advanceTimersByTime(2500)
     })
 
-    expect(result.current.bubbleVisible).toBe(true)
+    const bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+    expect(bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       jest.advanceTimersByTime(600)
     })
 
-    expect(result.current.bubbleVisible).toBe(false)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(false)
   })
 
   it('cleans up timers on unmount', () => {
@@ -193,12 +208,12 @@ describe('useBubbleController', () => {
     ]
     const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
 
-    // Act: First progress event at 2.25s (catches first feedback)
+    // Act: Progress event just after first timestamp (2.6s) catches first feedback
     act(() => {
-      const index = result.current.checkAndShowBubbleAtTime(2250)
+      const index = result.current.checkAndShowBubbleAtTime(2600)
       expect(index).toBe(0)
     })
-    expect(result.current.currentBubbleIndex).toBe(0)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.currentBubbleIndex).toBe(0)
 
     // Act: Simulate progress jump from 3.5s to 4.75s (range includes 4.1s feedback)
     act(() => {
@@ -217,8 +232,8 @@ describe('useBubbleController', () => {
     })
 
     // Assert: Second feedback was triggered
-    expect(result.current.currentBubbleIndex).toBe(1)
-    expect(result.current.bubbleVisible).toBe(true)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.currentBubbleIndex).toBe(1)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(true)
   })
 
   it('does not re-trigger already-shown feedback', () => {
@@ -228,10 +243,10 @@ describe('useBubbleController', () => {
 
     // Act: First check at 2.0s triggers feedback
     act(() => {
-      const index = result.current.checkAndShowBubbleAtTime(2000)
+      const index = result.current.checkAndShowBubbleAtTime(2600)
       expect(index).toBe(0)
     })
-    expect(result.current.bubbleVisible).toBe(true)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(true)
 
     act(() => {
       result.current.hideBubble('manual')
@@ -245,6 +260,6 @@ describe('useBubbleController', () => {
     })
 
     // Assert: Bubble remains hidden
-    expect(result.current.bubbleVisible).toBe(false)
+    expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(false)
   })
 })

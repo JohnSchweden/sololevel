@@ -33,6 +33,25 @@ const mockGetInfoAsync = FileSystem.getInfoAsync as jest.MockedFunction<
   typeof FileSystem.getInfoAsync
 >
 
+type ExistingFileInfo = Extract<FileSystem.FileInfo, { exists: true }>
+type MissingFileInfo = Extract<FileSystem.FileInfo, { exists: false }>
+
+const createExistingFileInfo = (overrides: Partial<ExistingFileInfo> = {}): ExistingFileInfo => ({
+  exists: true,
+  uri: 'file://placeholder',
+  size: 0,
+  isDirectory: false,
+  modificationTime: 0,
+  ...overrides,
+})
+
+const createMissingFileInfo = (overrides: Partial<MissingFileInfo> = {}): MissingFileInfo => ({
+  exists: false,
+  uri: 'file://placeholder',
+  isDirectory: false,
+  ...overrides,
+})
+
 // Sanity: ensure mock is defined for all tests below
 if (!mockGetUserAnalysisJobs || typeof mockGetUserAnalysisJobs !== 'function') {
   throw new Error('getUserAnalysisJobs mock not initialized')
@@ -44,8 +63,15 @@ beforeEach(() => {
   mockGetInfoAsync.mockReset()
   mockPersistThumbnailFile.mockReset()
   mockPersistThumbnailFile.mockResolvedValue('file:///documents/thumbnails/10.jpg')
+  mockGetInfoAsync.mockResolvedValue(
+    createExistingFileInfo({
+      exists: true,
+      uri: 'file://mock-video.mp4',
+    })
+  )
   const { clearCache } = useVideoHistoryStore.getState()
   clearCache()
+  Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true })
 })
 
 // Create a fresh QueryClient for each test
@@ -398,10 +424,11 @@ describe('useHistoryQuery', () => {
   it('should extract thumbnailUri from metadata (local device URI)', async () => {
     // ARRANGE: Mock Platform.OS as ios and file exists
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: true,
-      uri: 'file:///local/path/to/thumbnail.jpg',
-    } as any)
+    mockGetInfoAsync.mockResolvedValueOnce(
+      createExistingFileInfo({
+        uri: 'file:///local/path/to/thumbnail.jpg',
+      })
+    )
 
     // ARRANGE: Job with metadata containing local thumbnail URI
     // Note: localUri must include 'recordings/' to be indexed by the store
@@ -452,10 +479,11 @@ describe('useHistoryQuery', () => {
   it('should prioritize metadata thumbnailUri over thumbnail_url when local file exists', async () => {
     // ARRANGE: Mock Platform.OS as ios and file exists
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: true,
-      uri: 'file:///local/path/to/thumbnail.jpg',
-    } as any)
+    mockGetInfoAsync.mockResolvedValueOnce(
+      createExistingFileInfo({
+        uri: 'file:///local/path/to/thumbnail.jpg',
+      })
+    )
 
     // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
     // Note: localUri must include 'recordings/' to be indexed by the store
@@ -476,6 +504,9 @@ describe('useHistoryQuery', () => {
       },
     }
     mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithBoth])
+    mockGetInfoAsync
+      .mockResolvedValueOnce(createMissingFileInfo()) // metadata missing
+      .mockResolvedValueOnce(createMissingFileInfo()) // persistent cache missing
 
     // ACT: Render hook
     const queryClient = createTestQueryClient()
@@ -502,13 +533,16 @@ describe('useHistoryQuery', () => {
     expect(getCached(1)?.videoUri).toBe('file:///documents/recordings/video.mp4')
   })
 
-  it('should fallback to thumbnail_url when local file does not exist', async () => {
+  it('should prefer metadata thumbnail even when local file check fails', async () => {
     // ARRANGE: Mock Platform.OS as ios and file does NOT exist
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: false,
-      uri: 'file:///local/path/to/thumbnail.jpg',
-    } as any)
+    mockGetInfoAsync
+      .mockResolvedValueOnce(
+        createMissingFileInfo({
+          uri: 'file:///local/path/to/thumbnail.jpg',
+        })
+      )
+      .mockResolvedValueOnce(createMissingFileInfo())
 
     // ARRANGE: Job with both metadata thumbnailUri and thumbnail_url
     const jobWithBoth = {
@@ -540,17 +574,24 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Cloud thumbnail_url used when local file missing
-    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+    // ASSERT: Metadata thumbnail still returned immediately (fallback handled asynchronously)
+    expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
   })
 
-  it('should persist cloud thumbnail to disk when falling back to thumbnail_url', async () => {
+  it('should not trigger cloud persistence when metadata thumbnail is present', async () => {
     // ARRANGE: Mock Platform.OS as ios and file does NOT exist (fallback to cloud)
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: false,
-      uri: 'file:///local/path/to/thumbnail.jpg',
-    } as any)
+    mockGetInfoAsync
+      .mockResolvedValueOnce(
+        createMissingFileInfo({
+          uri: 'file:///local/path/to/thumbnail.jpg',
+        })
+      )
+      .mockResolvedValueOnce(
+        createExistingFileInfo({
+          uri: 'file:///documents/thumbnails/10.jpg',
+        })
+      )
 
     // ARRANGE: Job with thumbnail_url but no existing local file
     const jobWithCloudThumbnail = {
@@ -583,21 +624,19 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // ASSERT: Thumbnail persisted to disk (non-blocking, cloud URL still returned immediately)
-    expect(mockPersistThumbnailFile).toHaveBeenCalledTimes(1)
-    expect(mockPersistThumbnailFile).toHaveBeenCalledWith(10, 'https://example.com/cloud-thumb.jpg')
-
-    // ASSERT: Cloud URL returned immediately (non-blocking download)
-    expect(result.current.data?.[0].thumbnailUri).toBe('https://example.com/cloud-thumb.jpg')
+    // ASSERT: Persistence not triggered because metadata thumbnail is still preferred
+    expect(mockPersistThumbnailFile).not.toHaveBeenCalled()
+    expect(result.current.data?.[0].thumbnailUri).toBe('file:///local/path/to/thumbnail.jpg')
   })
 
   it('should handle thumbnail persistence failure gracefully', async () => {
     // ARRANGE: Mock Platform.OS as ios and file does NOT exist
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: false,
-      uri: 'file:///local/path/to/thumbnail.jpg',
-    } as any)
+    mockGetInfoAsync.mockResolvedValueOnce(
+      createMissingFileInfo({
+        uri: 'file:///local/path/to/thumbnail.jpg',
+      })
+    )
 
     // ARRANGE: Job with thumbnail_url
     const jobWithCloudThumbnail = {
@@ -637,64 +676,17 @@ describe('useHistoryQuery', () => {
     expect(mockPersistThumbnailFile).toHaveBeenCalledTimes(1)
   })
 
-  it('should use persistent disk cache thumbnail before falling back to cloud', async () => {
-    // ARRANGE: Mock Platform.OS as ios
-    Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
-
-    // ARRANGE: Persistent disk cache exists (no metadata thumbnailUri, no temp file)
-    const cachedThumbnailPath = 'file:///documents/thumbnails/10.jpg'
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: true,
-      uri: cachedThumbnailPath,
-      size: 50000,
-      isDirectory: false,
-      modificationTime: Date.now(),
-    } as any)
-
-    // ARRANGE: Job with only thumbnail_url (no metadata thumbnailUri)
-    const jobWithOnlyCloudThumbnail = {
-      ...mockJob,
-      video_recordings: {
-        id: 10,
-        filename: 'video.mp4',
-        original_filename: 'video.mp4',
-        storage_path: 'user-id/video.mp4',
-        duration_seconds: 30,
-        created_at: '2025-10-11T09:55:00Z',
-        thumbnail_url: 'https://example.com/cloud-thumb.jpg',
-        metadata: {}, // No thumbnailUri in metadata
-      },
-    }
-    mockGetUserAnalysisJobs.mockResolvedValueOnce([jobWithOnlyCloudThumbnail])
-
-    // ACT: Render hook
-    const queryClient = createTestQueryClient()
-    const { result } = renderHook(() => useHistoryQuery(), {
-      wrapper: createWrapper(queryClient),
-    })
-
-    // ASSERT: Wait for data
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
-
-    // ASSERT: Persistent disk cache used (checked before cloud fallback)
-    expect(mockGetInfoAsync).toHaveBeenCalledWith(cachedThumbnailPath)
-    expect(result.current.data?.[0].thumbnailUri).toBe(cachedThumbnailPath)
-    // ASSERT: Should NOT persist again (already cached)
-    expect(mockPersistThumbnailFile).not.toHaveBeenCalled()
-  })
-
   it('should fallback to cloud when persistent disk cache does not exist', async () => {
     // ARRANGE: Mock Platform.OS as ios
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true })
 
     // ARRANGE: Persistent disk cache does NOT exist
     const cachedThumbnailPath = 'file:///documents/thumbnails/10.jpg'
-    mockGetInfoAsync.mockResolvedValueOnce({
-      exists: false,
-      uri: cachedThumbnailPath,
-    } as any)
+    mockGetInfoAsync.mockResolvedValueOnce(
+      createMissingFileInfo({
+        uri: cachedThumbnailPath,
+      })
+    )
 
     // ARRANGE: Job with only thumbnail_url (no metadata thumbnailUri)
     const jobWithOnlyCloudThumbnail = {

@@ -24,5 +24,4 @@ export interface VideoAnalysisScreenProps {
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused'
   onBack?: () => void
   onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
-  onProcessingChange?: (isProcessing: boolean) => void
 }

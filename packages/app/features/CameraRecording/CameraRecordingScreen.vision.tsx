@@ -396,3 +396,8 @@ export function CameraRecordingScreen({
     </YStack>
   )
 }
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  CameraRecordingScreen.whyDidYouRender = false
+}

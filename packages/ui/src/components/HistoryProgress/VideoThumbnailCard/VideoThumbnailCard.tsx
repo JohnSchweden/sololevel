@@ -1,5 +1,5 @@
 import { Play } from '@tamagui/lucide-icons'
-import React, { useState } from 'react'
+import React from 'react'
 import { Image, Spinner, Stack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
@@ -63,24 +63,28 @@ export function VideoThumbnailCard({
   accessibilityLabel,
   testID = 'video-thumbnail-card',
 }: VideoThumbnailCardProps): React.ReactElement {
-  // For file:// URIs (cached thumbnails), skip loading state - they load instantly
-  // Only show loading for remote HTTP/HTTPS URIs
+  // CRITICAL FIX: Use refs instead of useState to prevent cascade re-renders
+  // useState hooks were triggering parent re-renders on every image load event
+  // 10 cards × 2 useState hooks × image loads = 20+ state updates per render cycle
+  // Use refs + forceUpdate to re-render only when final state is known
   const isLocalFile = thumbnailUri?.startsWith('file://') ?? false
-  const [isLoading, setIsLoading] = useState(!isLocalFile)
-  const [hasError, setHasError] = useState(false)
-
-  // Reset loading state when thumbnail URI changes
-  React.useEffect(() => {
-    const isLocal = thumbnailUri?.startsWith('file://') ?? false
-    setIsLoading(!isLocal)
-    setHasError(false)
-  }, [thumbnailUri])
+  const isLoadingRef = React.useRef(!isLocalFile)
+  const hasErrorRef = React.useRef(false)
+  const [, forceRender] = React.useReducer((x) => x + 1, 0)
 
   // Memoize image source to prevent unnecessary re-renders
   const imageSource = React.useMemo(
     () => (thumbnailUri ? { uri: thumbnailUri } : undefined),
     [thumbnailUri]
   )
+
+  // Reset loading state when thumbnail URI changes
+  // Update refs only, no setState - prevents cascade
+  React.useEffect(() => {
+    const isLocal = thumbnailUri?.startsWith('file://') ?? false
+    isLoadingRef.current = !isLocal
+    hasErrorRef.current = false
+  }, [thumbnailUri])
 
   return (
     <YStack
@@ -103,15 +107,19 @@ export function VideoThumbnailCard({
       testID={testID}
     >
       {/* Thumbnail Image or Placeholder */}
-      {thumbnailUri && !hasError && imageSource ? (
+      {thumbnailUri && !hasErrorRef.current && imageSource ? (
         <Image
           source={imageSource}
           width={width}
           height={height}
-          onLoad={() => setIsLoading(false)}
+          onLoad={() => {
+            isLoadingRef.current = false
+            forceRender()
+          }}
           onError={() => {
-            setIsLoading(false)
-            setHasError(true)
+            isLoadingRef.current = false
+            hasErrorRef.current = true
+            forceRender()
           }}
           testID={`${testID}-image`}
         />
@@ -132,7 +140,7 @@ export function VideoThumbnailCard({
       )}
 
       {/* Loading State */}
-      {isLoading && thumbnailUri && !hasError && (
+      {isLoadingRef.current && thumbnailUri && !hasErrorRef.current && (
         <YStack
           position="absolute"
           top={0}

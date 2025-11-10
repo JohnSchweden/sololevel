@@ -94,8 +94,9 @@ export const VideoPlayerNative = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           return
         }
 
-        // Only update progress every 250ms to prevent excessive re-renders
-        if (now - lastProgressUpdateRef.current >= 250) {
+        // Throttle updates to 60 FPS (16ms) for smooth progress without excessive re-renders
+        // Previously 250ms (4 FPS) caused jerky 1-second-tact updates
+        if (now - lastProgressUpdateRef.current >= 16) {
           lastProgressUpdateRef.current = now
           onProgress({ currentTime })
         }

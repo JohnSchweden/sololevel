@@ -918,13 +918,20 @@ export const MockImage = React.forwardRef<HTMLDivElement, ImageProps>((props, re
     Object.entries(rest).filter(([key]) => !TAMAGUI_PROPS_TO_FILTER.has(key))
   )
 
+  const hasLoadedRef = React.useRef(false)
+
   // Simulate image loading behavior
   React.useEffect(() => {
-    if (source && typeof onLoad === 'function') {
-      // Simulate successful load by default
+    if (!source || hasLoadedRef.current) {
+      return
+    }
+
+    hasLoadedRef.current = true
+
+    if (typeof onLoad === 'function') {
       onLoad()
     }
-  }, [source, onLoad])
+  }, [source])
 
   return React.createElement('div', {
     ...domProps,

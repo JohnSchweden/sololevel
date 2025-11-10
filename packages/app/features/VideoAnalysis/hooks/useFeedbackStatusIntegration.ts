@@ -1,4 +1,5 @@
 import { useFeedbackStatusStore } from '@app/features/VideoAnalysis/stores/feedbackStatus'
+import type { FeedbackPanelItem } from '@app/features/VideoAnalysis/types'
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -7,6 +8,58 @@ type FeedbackState = ReturnType<typeof useFeedbackStatusStore.getState> extends 
     ? T
     : never
   : never
+
+export type NormalizedFeedbackCategory = FeedbackPanelItem['category']
+
+export const normalizeFeedbackCategory = (category: string): NormalizedFeedbackCategory => {
+  const normalized = category?.trim().toLowerCase() ?? ''
+
+  if (normalized.includes('posture')) {
+    return 'posture'
+  }
+
+  if (normalized.includes('movement')) {
+    return 'movement'
+  }
+
+  if (normalized.includes('grip')) {
+    return 'grip'
+  }
+
+  if (
+    normalized.includes('speech') ||
+    normalized.includes('voice') ||
+    normalized.includes('vocal')
+  ) {
+    return 'voice'
+  }
+
+  return 'voice'
+}
+
+const createFeedbackSignature = (items: FeedbackState): string =>
+  items
+    .map((item) =>
+      [
+        item.id,
+        item.analysisId,
+        item.message,
+        item.category,
+        item.timestampSeconds,
+        item.confidence,
+        item.ssmlStatus,
+        item.audioStatus,
+        item.ssmlAttempts,
+        item.audioAttempts,
+        item.ssmlLastError ?? '',
+        item.audioLastError ?? '',
+        item.ssmlUpdatedAt,
+        item.audioUpdatedAt,
+        item.updatedAt,
+        item.isSubscribed ? '1' : '0',
+      ].join(':')
+    )
+    .join('|')
 
 /**
  * Hook to integrate feedback status tracking with VideoAnalysis components
@@ -27,29 +80,50 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     const state = useFeedbackStatusStore.getState()
     return state.getFeedbacksByAnalysisId(analysisId)
   })
+  const feedbackSignatureRef = useRef<string>(createFeedbackSignature(feedbacks))
 
-  const [isSubscribed, setIsSubscribed] = useState(() => {
-    if (!analysisId) {
-      return false
-    }
-    const state = useFeedbackStatusStore.getState()
-    return state.subscriptions.has(analysisId)
-  })
+  // Replace render-time subscription status selectors with effect-based refs to prevent re-renders
+  const isSubscriptionActiveOrPendingRef = useRef(false)
+  const isSubscriptionFailedRef = useRef(false)
+  const isSubscribedRef = useRef(false)
 
-  const [subscriptionStatus, setSubscriptionStatus] = useState<
-    'idle' | 'pending' | 'active' | 'failed'
-  >(() => {
-    if (!analysisId) {
-      return 'idle'
-    }
+  // Initialize isSubscribedRef with current store state
+  if (!isSubscribedRef.current && analysisId) {
     const state = useFeedbackStatusStore.getState()
-    const status = state.subscriptionStatus.get(analysisId) as
-      | 'pending'
-      | 'active'
-      | 'failed'
-      | undefined
-    return status ?? 'idle'
-  })
+    isSubscribedRef.current = state.subscriptions.has(analysisId)
+  }
+
+  // Effect to update refs when subscription status changes (no re-render)
+  useEffect(() => {
+    if (!analysisId) {
+      isSubscriptionActiveOrPendingRef.current = false
+      isSubscriptionFailedRef.current = false
+      isSubscribedRef.current = false
+      return
+    }
+
+    const updateRefs = (status?: string) => {
+      isSubscriptionActiveOrPendingRef.current = status === 'pending' || status === 'active'
+      isSubscriptionFailedRef.current = status === 'failed'
+    }
+
+    // Initialize with current state
+    const currentStatus = useFeedbackStatusStore.getState().subscriptionStatus.get(analysisId)
+    const state = useFeedbackStatusStore.getState()
+    isSubscribedRef.current = state.subscriptions.has(analysisId)
+    updateRefs(currentStatus)
+
+    // Subscribe to changes (effect-based, no re-render)
+    return useFeedbackStatusStore.subscribe(
+      (state) => state.subscriptionStatus.get(analysisId),
+      (status) => updateRefs(status)
+    )
+  }, [analysisId])
+
+  // Computed values for render (read from refs, no selectors)
+  const isSubscriptionActiveOrPending = isSubscriptionActiveOrPendingRef.current
+  const isSubscriptionFailed = isSubscriptionFailedRef.current
+  const isSubscribed = isSubscribedRef.current
 
   // Track active analysis to avoid duplicate subscribe/unsubscribe loops when the
   // same analysisId is provided repeatedly in quick succession (StrictMode rerenders).
@@ -57,6 +131,20 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
   const lastSubscriptionAttemptRef = useRef<number>(0)
   const isSubscribingRef = useRef<boolean>(false) // Track in-flight subscription attempts
   const mountCountRef = useRef<number>(0) // Track mount cycles for StrictMode diagnosis
+
+  const updateFeedbacksState = useCallback((nextFeedbacks: FeedbackState) => {
+    const nextSignature = createFeedbackSignature(nextFeedbacks)
+    setFeedbacks((previous) => {
+      const prevSignature = feedbackSignatureRef.current
+
+      if (previous.length === nextFeedbacks.length && prevSignature === nextSignature) {
+        return previous
+      }
+
+      feedbackSignatureRef.current = nextSignature
+      return nextFeedbacks
+    })
+  }, [])
 
   // Sync local state when analysis ID changes and subscribe to store updates
   useEffect(() => {
@@ -67,9 +155,8 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       log.debug('useFeedbackStatusIntegration', 'Resetting state - no analysisId', {
         mountCycle: currentMount,
       })
-      setFeedbacks([])
-      setIsSubscribed(false)
-      setSubscriptionStatus('idle')
+      updateFeedbacksState([])
+      isSubscribedRef.current = false
       lastAnalysisIdRef.current = undefined
       isSubscribingRef.current = false // Reset subscribing flag
       return
@@ -80,14 +167,8 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       const storeFeedbacks = state.getFeedbacksByAnalysisId(analysisId)
 
       // Immediately sync feedbacks from store (might be prefetched)
-      setFeedbacks(storeFeedbacks)
-      setIsSubscribed(state.subscriptions.has(analysisId))
-      const status = state.subscriptionStatus.get(analysisId) as
-        | 'pending'
-        | 'active'
-        | 'failed'
-        | undefined
-      setSubscriptionStatus(status ?? 'idle')
+      updateFeedbacksState(storeFeedbacks)
+      isSubscribedRef.current = state.subscriptions.has(analysisId)
     }
 
     // Sync immediately (might have prefetched data)
@@ -97,32 +178,17 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
       (state) => ({
         feedbacks: state.getFeedbacksByAnalysisId(analysisId),
         isSubscribed: state.subscriptions.has(analysisId),
-        status: state.subscriptionStatus.get(analysisId) as
-          | 'pending'
-          | 'active'
-          | 'failed'
-          | undefined,
       }),
       (next) => {
-        const previousStatus = subscriptionStatus
-        setFeedbacks(next.feedbacks)
-        setIsSubscribed(next.isSubscribed)
-        setSubscriptionStatus(next.status ?? 'idle')
-
-        // Reset subscribing flag when status becomes active or failed
-        if (
-          (previousStatus === 'pending' || previousStatus === 'idle') &&
-          (next.status === 'active' || next.status === 'failed')
-        ) {
-          isSubscribingRef.current = false
-        }
+        updateFeedbacksState(next.feedbacks)
+        isSubscribedRef.current = next.isSubscribed
       }
     )
 
     return () => {
       unsubscribeStore()
     }
-  }, [analysisId])
+  }, [analysisId, updateFeedbacksState])
 
   // Subscribe/unsubscribe based on analysis ID using a ref guard to prevent churn
   useEffect(() => {
@@ -152,8 +218,7 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
 
     // CRITICAL: Guard against re-subscription if already subscribed or attempting
     const alreadySubscribed =
-      lastAnalysisIdRef.current === analysisId &&
-      (isSubscribed || subscriptionStatus === 'pending' || subscriptionStatus === 'active')
+      lastAnalysisIdRef.current === analysisId && (isSubscribed || isSubscriptionActiveOrPending)
 
     if (alreadySubscribed) {
       log.debug(
@@ -161,14 +226,15 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
         `Skipping subscription - already subscribed/active for ${analysisId}`,
         {
           isSubscribed,
-          subscriptionStatus,
+          isSubscriptionActiveOrPending,
+          isSubscriptionFailed,
           lastAnalysisId: lastAnalysisIdRef.current,
         }
       )
       return undefined
     }
 
-    if (subscriptionStatus === 'failed') {
+    if (isSubscriptionFailed) {
       log.warn(
         'useFeedbackStatusIntegration',
         `Realtime disabled for analysis ${analysisId} after repeated failures`
@@ -209,8 +275,8 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     }
   }, [analysisId])
 
-  // Debug dependency changes
-  useEffect(() => {}, [analysisId, isSubscribed, subscriptionStatus])
+  // Debug dependency changes (subscription status values now read from refs, no re-renders)
+  useEffect(() => {}, [analysisId, isSubscribed])
 
   // Transform feedback data for UI components
   // Stabilize by comparing content signatures instead of array reference - prevents unnecessary recreations
@@ -221,10 +287,10 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
         `${f.id}:${f.ssmlStatus}:${f.audioStatus}:${f.timestampSeconds}:${f.message?.substring(0, 20)}:${f.confidence}:${f.category}`
     )
     .join('|')
-  const prevFeedbackItemsRef = useRef<any[]>([])
+  const prevFeedbackItemsRef = useRef<FeedbackPanelItem[]>([])
   const prevFeedbacksSignatureRef = useRef<string>('')
 
-  const feedbackItems = useMemo(() => {
+  const feedbackItems = useMemo<FeedbackPanelItem[]>(() => {
     // Only recreate if signature actually changed (content changed), not just reference
     const prevSignature = prevFeedbacksSignatureRef.current
 
@@ -237,12 +303,12 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
     }
 
     // Content changed, create new array
-    const items = feedbacks.map((feedback) => ({
+    const items = feedbacks.map<FeedbackPanelItem>((feedback) => ({
       id: feedback.id.toString(),
       timestamp: feedback.timestampSeconds * 1000, // Convert to milliseconds for UI
       text: feedback.message,
-      type: 'suggestion' as const, // Default type, could be enhanced based on category
-      category: feedback.category as 'voice' | 'posture' | 'grip' | 'movement',
+      type: 'suggestion', // Default type, could be enhanced based on category
+      category: normalizeFeedbackCategory(feedback.category),
       ssmlStatus: feedback.ssmlStatus,
       audioStatus: feedback.audioStatus,
       confidence: feedback.confidence,

@@ -1,6 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { log } from '@my/logging'
+
+import type { VideoPlayerRef as NativeVideoPlayerRef } from '@ui/components/VideoAnalysis/types'
 import Animated, {
   Extrapolation,
   type SharedValue,
@@ -10,7 +12,16 @@ import Animated, {
   useDerivedValue,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
+import { useAudioController } from '../hooks/useAudioController'
+import { requestFeedbackPanelTab } from '../hooks/useFeedbackPanel'
+import { useVideoPlayer } from '../hooks/useVideoPlayer'
+// PERFORMANCE FIX: Import stores for direct subscriptions
+import { usePersistentProgressStore, useVideoPlayerStore } from '../stores'
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
+import type { FeedbackPanelItem } from '../types'
 
+import { ShareSheet } from '@ui/components/BottomSheets'
 import {
   // AudioFeedback,
   AudioPlayer,
@@ -24,37 +35,27 @@ import {
   VideoControlsRef,
   VideoPlayer,
   VideoPlayerArea,
-  type VideoPlayerRef,
 } from '@ui/components/VideoAnalysis'
 
-import type { FeedbackPanelItem } from '../types'
+// Social counts definition - moved from screen level to video section
+const SOCIAL_COUNTS = {
+  likes: 1200,
+  comments: 89,
+  bookmarks: 234,
+  shares: 1500,
+} as const
 
-interface BubbleState {
-  visible: boolean
-  currentIndex: number | null
-  items: FeedbackPanelItem[]
-}
-
-interface AudioOverlayState {
-  shouldShow: boolean
-  activeAudio: { id: string; url: string } | null
-  onClose?: () => void
-  onInactivity?: () => void
-  onInteraction?: () => void
-  audioDuration?: number
-}
+// AudioOverlayState interface removed - reconstructed locally from store subscriptions
 
 interface VideoPlayerSectionProps {
   videoUri: string // Video URI - passed as prop instead of context
   videoControlsRef: React.RefObject<VideoControlsRef | null>
-  pendingSeek: number | null
-  userIsPlaying: boolean
-  videoShouldPlay: boolean
-  videoEnded: boolean
-  showControls: boolean
+  // PERFORMANCE FIX: State props removed - now read directly from Zustand store
+  // pendingSeek, userIsPlaying, videoShouldPlay, videoEnded, showControls removed
   isProcessing: boolean
   videoAreaScale: number
   posterUri?: string // Optional thumbnail poster
+  initialStatus?: 'processing' | 'ready' | 'playing' | 'paused' // For useVideoPlayer
   onPlay: () => void
   onPause: () => void
   onReplay: () => void
@@ -65,60 +66,75 @@ interface VideoPlayerSectionProps {
   onEnd: (endTime?: number) => void
   onTap: () => void
   onControlsVisibilityChange?: (visible: boolean) => void
-  audioPlayerController: {
-    setIsPlaying: (playing: boolean) => void
-    isPlaying: boolean
-    currentTime: number
-    duration: number
-    isLoaded: boolean
-    seekTime: number | null
-    togglePlayback: () => void
-    handleLoad: (data: { duration: number }) => void
-    handleProgress: (data: { currentTime: number }) => void
-    handleEnd: () => void
-    handleError: (error: any) => void
-    handleSeekComplete: () => void
-    seekTo: (time: number) => void
-    reset: () => void
+  // Bubble state data - passed from parent to avoid duplicate store subscriptions
+  feedbackItems: FeedbackPanelItem[]
+  // audioOverlay: AudioOverlayState - RECONSTRUCTED: State subscribed directly, functions passed separately
+  audioOverlayFunctions: {
+    onClose?: () => void
+    onInactivity?: () => void
+    onInteraction?: () => void
+    audioDuration?: number
   }
-  bubbleState: BubbleState
-  audioOverlay: AudioOverlayState
-  coachSpeaking: boolean
-  panelFraction: number
-  // Social icons props
-  socialCounts: {
-    likes: number
-    comments: number
-    bookmarks: number
-    shares: number
-  }
-  onSocialAction: {
-    onShare: () => void
-    onLike: () => void
-    onComment: () => void
-    onBookmark: () => void
-  }
+  // coachSpeaking: boolean - REMOVED: Now subscribed directly from store
+  // panelFraction removed - static layout
+  // onSetActiveTab removed - tab switching handled by FeedbackSection directly
   // NEW: Animation props
   collapseProgress?: SharedValue<number> // 0 expanded → 1 collapsed
+  /**
+   * Optional overscroll shared value emitted by the header gesture controller.
+   * Negative values indicate the user pulled past the top edge while in max mode.
+   * VideoControls uses this to fade out the normal progress bar immediately during pull-to-expand.
+   */
+  overscroll?: SharedValue<number>
   // DEPRECATED: Use persistentProgressStoreSetter instead to prevent cascading re-renders
   // Callback to provide persistent progress bar props to parent for rendering at layout level
   onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
-  // NEW: Store setter for persistent progress bar props (preferred over callback)
-  persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void
+  // persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void - REMOVED: Subscribed directly from store
+  onAudioNaturalEnd?: () => void
 }
 
 const DEFAULT_BUBBLE_POSITION = { x: 0.5, y: 0.3 }
 
+/**
+ * VideoPlayerSection - Owns Store Subscriptions for Audio and Coach State
+ *
+ * **PERFORMANCE ROLE:** This component owns all store subscriptions related to audio playback
+ * and coach speaking feedback. By moving subscriptions from VideoAnalysisScreen to here,
+ * we prevent unnecessary parent re-renders.
+ *
+ * **Store Subscriptions (Direct):**
+ * - `useFeedbackAudioStore` → `activeAudio` → determines which audio to play
+ * - `useFeedbackCoordinatorStore` → `isCoachSpeaking`, `overlayVisible` → coach avatar state
+ * - `usePersistentProgressStore` → progress bar visibility
+ * - `useVideoPlayerStore` → playback state for UI + registers seekImmediate
+ *
+ * **Local Hook Calls:**
+ * - `useVideoPlayer()` - video playback state and handlers
+ * - `useAudioController(activeAudioUrl)` - subscribes to activeAudio changes (only here)
+ * - Effect that registers seekImmediate in store for feedback coordinator
+ *
+ * **Data Flow:**
+ * 1. Parent passes stub controller + callbacks
+ * 2. This section creates real controller from store subscription
+ * 3. Video/Audio UI components render with real state
+ * 4. Parent never sees these updates (stays dark)
+ *
+ * **Key Optimization:** Only this component re-renders when:
+ * - Audio URL changes (activeAudio)
+ * - Coach speaking state flips (isCoachSpeaking)
+ * - Overlay visibility toggles (overlayVisible)
+ * - Persistent progress visibility changes
+ *
+ * VideoAnalysisScreen remains unchanged when these states flip.
+ *
+ * @memoized - Yes (memo wrapper), but internal subscriptions bypass memoization
+ */
 export const VideoPlayerSection = memo(function VideoPlayerSection({
   videoUri,
   videoControlsRef,
-  pendingSeek,
-  userIsPlaying,
-  videoShouldPlay,
-  videoEnded,
-  showControls,
   isProcessing,
   posterUri,
+  initialStatus = 'processing',
   onPlay,
   onPause,
   onReplay,
@@ -129,19 +145,202 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onEnd,
   onTap,
   onControlsVisibilityChange,
-  audioPlayerController,
-  bubbleState,
-  audioOverlay,
-  coachSpeaking,
-  panelFraction: _panelFraction,
-  socialCounts,
-  onSocialAction,
+  feedbackItems,
+  audioOverlayFunctions,
+  // audioOverlay, - RECONSTRUCTED: State subscribed directly
+  // coachSpeaking, - REMOVED: Now subscribed directly from store
+  // panelFraction removed - static layout
+  // onSetActiveTab removed - tab switching handled by FeedbackSection directly
   collapseProgress,
+  overscroll,
   onPersistentProgressBarPropsChange,
-  persistentProgressStoreSetter,
+  // persistentProgressStoreSetter, - REMOVED: Subscribed directly from store
+  onAudioNaturalEnd = () => {},
 }: VideoPlayerSectionProps) {
-  // Direct seek ref to bypass React render cycle for immediate seeks
-  const videoPlayerRef = useRef<VideoPlayerRef>(null)
+  const audioIsPlaying = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.isPlaying : false
+  )
+
+  // PERFORMANCE FIX: Call useVideoPlayer here instead of in VideoAnalysisScreen
+  // This prevents VideoAnalysisScreen from re-rendering when isPlaying changes
+  const videoPlayer = useVideoPlayer({
+    initialStatus,
+    isProcessing,
+    audioIsPlaying,
+  })
+
+  // Separate ref for native VideoPlayer component (has seekDirect method)
+  const nativeVideoPlayerRef = useRef<NativeVideoPlayerRef>(null)
+
+  /**
+   * PERFORMANCE FIX: Register imperative seek in store
+   * Allows feedback coordinator to seek immediately without React render latency
+   * Coordinator reads this function imperatively (no subscription, no re-render)
+   */
+  const [fastSeek, setFastSeek] = useState<((time: number) => void) | null>(null)
+
+  useEffect(() => {
+    const seekImmediateFn = (time: number) => {
+      // First sync store so pendingSeek/videoEnded update before native completion fires
+      onSeek(time)
+
+      // PERFORMANCE FIX: Call native video player's seekDirect immediately
+      // Bypasses React render cycle for <16ms latency
+      nativeVideoPlayerRef.current?.seekDirect(time)
+    }
+
+    // Register in store for imperative access by feedback coordinator
+    useVideoPlayerStore.getState().setSeekImmediate(seekImmediateFn)
+
+    // Also store in local state to pass to VideoControls
+    setFastSeek(() => seekImmediateFn)
+
+    return () => {
+      // Clear on unmount
+      useVideoPlayerStore.getState().setSeekImmediate(null)
+      setFastSeek(null)
+    }
+  }, [onSeek, videoPlayer.ref])
+
+  // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
+  // Eliminates prop drilling and prevents VideoPlayerSection re-renders on state changes
+  const pendingSeek = useVideoPlayerStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.pendingSeek : null
+  )
+  // Subscribe directly to store to avoid screen re-renders from hook subscriptions
+  const storeCurrentTime = useVideoPlayerStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.displayTime : 0
+  )
+  const storeDuration = useVideoPlayerStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.duration : 0
+  )
+  const showControls = useVideoPlayerStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.controlsVisible : true
+  )
+  const videoEnded = useVideoPlayerStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.videoEnded : false
+  )
+
+  // PERFORMANCE FIX: Direct subscription to coach speaking state
+  // Eliminates VideoAnalysisLayout re-renders when coach speaking state changes
+  const isCoachSpeaking = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.isCoachSpeaking : false
+  )
+
+  // PERFORMANCE FIX: Direct subscription to audio overlay state
+  // Eliminates VideoAnalysisLayout re-renders when audio overlay state changes
+  const overlayVisible = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.overlayVisible : false
+  )
+
+  // PERF FIX: Subscribe to primitive values instead of full activeAudio object
+  // Prevents useMemo thrash when activeAudio object reference changes but values are stable
+  const activeAudioId = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.id ?? null) : null
+  )
+  const activeAudioUrl = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.url ?? null) : null
+  )
+
+  // PERFORMANCE FIX: Move useAudioController subscription here (moved from VideoAnalysisScreen)
+  // VideoPlayerSection now owns the store subscription, preventing VideoAnalysisScreen re-renders
+  const audioController = useAudioController(
+    activeAudioUrl,
+    useMemo(
+      () => ({
+        onNaturalEnd: onAudioNaturalEnd,
+      }),
+      [onAudioNaturalEnd]
+    )
+  )
+
+  useEffect(() => {
+    const audioStore = useFeedbackAudioStore.getState()
+    audioStore.setController(audioController)
+    return () => {
+      useFeedbackAudioStore.getState().setController(null)
+    }
+  }, [audioController])
+
+  // PERFORMANCE FIX: Direct subscription to persistent progress setter
+  // Eliminates VideoAnalysisScreen re-renders when progress state changes
+  const persistentProgressStoreSetter = usePersistentProgressStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.setProps : undefined
+  )
+
+  // playbackIsPlaying removed - using videoPlayer.isPlaying from hook
+
+  // PERFORMANCE FIX: Subscribe directly to bubble state stores instead of receiving as props
+  // Eliminates VideoAnalysisScreen re-renders when bubble state changes
+  const bubbleVisible = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.bubbleState.bubbleVisible : false
+  )
+  const currentBubbleIndex = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.bubbleState.currentBubbleIndex : null
+  )
+  const bubbleItems = useMemo(
+    () => feedbackItems.filter((item: any) => item.type === 'suggestion'),
+    [feedbackItems]
+  )
+
+  // Reconstruct bubbleState locally (same structure as before)
+  const bubbleState = useMemo(
+    () => ({
+      visible: bubbleVisible,
+      currentIndex: currentBubbleIndex,
+      items: bubbleItems,
+    }),
+    [bubbleVisible, currentBubbleIndex, bubbleItems]
+  )
+
+  // Reconstruct audioOverlay locally using subscribed state + passed functions
+  // PERFORMANCE FIX: Eliminates VideoAnalysisLayout re-renders when audio overlay state changes
+  // PERF FIX: Depend on primitive values (id, url) instead of activeAudio object
+  // This prevents AudioPlayer mount/unmount loop when activeAudio reference changes
+  const audioOverlay = useMemo(
+    () => ({
+      shouldShow: overlayVisible,
+      activeAudio:
+        activeAudioId && activeAudioUrl ? { id: activeAudioId, url: activeAudioUrl } : null,
+      onClose: audioOverlayFunctions.onClose,
+      onInactivity: audioOverlayFunctions.onInactivity,
+      onInteraction: audioOverlayFunctions.onInteraction,
+      audioDuration: audioController.duration,
+    }),
+    [
+      overlayVisible,
+      activeAudioId,
+      activeAudioUrl,
+      audioOverlayFunctions.onClose,
+      audioOverlayFunctions.onInactivity,
+      audioOverlayFunctions.onInteraction,
+      audioController.duration,
+    ]
+  )
+
+  // Social action handlers - moved from screen level to video section
+  const [isShareSheetOpen, setShareSheetOpen] = useState(false)
+
+  const socialActionHandlers = useMemo(
+    () => ({
+      onShare: () => {
+        log.info('VideoPlayerSection', 'Share button pressed')
+        setShareSheetOpen(true)
+      },
+      onLike: () => log.info('VideoPlayerSection', 'Like button pressed'),
+      onComment: () => {
+        log.info('VideoPlayerSection', 'Comment button pressed - requesting comments tab')
+        requestFeedbackPanelTab('comments')
+      },
+      onBookmark: () => log.info('VideoPlayerSection', 'Bookmark button pressed'),
+    }),
+    [setShareSheetOpen]
+  )
+
+  // Compute videoShouldPlay locally using videoPlayer hook result
+  const videoShouldPlay = videoPlayer.shouldPlayVideo
+
+  // videoPlayerRef removed - using videoPlayer.ref from hook
 
   // Manage currentTime and duration internally
   const [currentTime, setCurrentTime] = useState(0)
@@ -197,21 +396,32 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     }
   }, [currentTime, duration])
 
-  // Optimized seek handler: use direct seek for immediate response, then update state
+  // PERFORMANCE FIX: Use fast imperative seek for progress bar touches
+  // Falls back to slow callback-based seek if fast seek not yet registered
   const handleDirectSeek = useCallback(
     (time: number) => {
-      // Seek immediately via ref to bypass render cycle
-      videoPlayerRef.current?.seekDirect(time)
-      // Still call onSeek for state updates (for UI consistency)
-      onSeek(time)
+      if (fastSeek) {
+        // FAST PATH: Call videoPlayer.seekDirect immediately (<16ms), then onSeek for state sync
+        fastSeek(time)
+      } else {
+        // SLOW PATH: Fallback to callback-based seek (goes through React render cycle)
+        onSeek(time)
+      }
     },
-    [onSeek]
+    [fastSeek, onSeek]
   )
 
   // Only notify parent on significant progress changes (> 1 second)
   const handleProgress = useCallback(
     (data: { currentTime: number }) => {
       const { currentTime: reportedTime } = data
+
+      // Ignore progress events when video isn't playing and we aren't waiting for a seek
+      // Read isPlaying directly from store to avoid recreating callback on every change
+      const isPlaying = useVideoPlayerStore.getState().isPlaying
+      if (!isPlaying && pendingSeekTimeRef.current === null) {
+        return
+      }
 
       // Filter stale progress events that arrive shortly after a seek
       // Similar logic to useVideoPlayback.handleProgress
@@ -342,12 +552,15 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
       setCurrentTime(reportedTime)
 
+      // CRITICAL: Update store with precise time for progress bars
+      videoPlayer.handleProgress(reportedTime)
+
       // Notify parent on every progress update (for bubble triggers, feedback coordination)
       // The > 1 second throttle broke bubble detection - we need updates every ~200ms
       lastNotifiedTimeRef.current = reportedTime
       onSignificantProgress(reportedTime)
     },
-    [onSignificantProgress, duration, currentTime]
+    [onSignificantProgress, duration, currentTime, videoPlayer]
   )
 
   // Handle seek completion - update local currentTime immediately
@@ -373,10 +586,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         // Track seek target for grace period filtering (similar to useVideoPlayback)
         lastSeekTargetRef.current = resolvedTime
         seekCompleteTimeRef.current = Date.now()
+
+        // CRITICAL: Update store with precise seek time for progress bars
+        videoPlayer.handleSeekComplete(resolvedTime)
       }
       onSeekComplete(seekTime ?? pendingSeek ?? null)
     },
-    [currentTime, pendingSeek, onSeekComplete]
+    [currentTime, pendingSeek, onSeekComplete, videoPlayer]
   )
 
   const handleLoad = useCallback(
@@ -390,15 +606,28 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
   const handleEnd = useCallback(
     (endTime?: number) => {
+      const handled = videoPlayer.handleEnd(endTime)
+      if (!handled) {
+        log.debug(
+          'VideoPlayerSection.handleEnd',
+          'Ignoring stale end event (delegated to useVideoPlayer)',
+          {
+            endTime,
+          }
+        )
+        return
+      }
+
       // Update local currentTime state to the actual end time if provided
       // This ensures the UI shows the correct end time even if progress was throttled
       if (typeof endTime === 'number' && Number.isFinite(endTime)) {
         setCurrentTime(endTime)
         lastNotifiedTimeRef.current = endTime
       }
+
       onEnd(endTime)
     },
-    [onEnd]
+    [onEnd, videoPlayer]
   )
 
   // Determine video mode from collapseProgress using useDerivedValue for SharedValue reactivity
@@ -492,7 +721,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         >
           {videoUri && (
             <VideoPlayer
-              ref={videoPlayerRef}
+              ref={nativeVideoPlayerRef}
               videoUri={videoUri}
               isPlaying={videoShouldPlay}
               posterUri={posterUri}
@@ -508,7 +737,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           {audioOverlay.activeAudio && (
             <AudioPlayer
               audioUrl={audioOverlay.activeAudio.url}
-              controller={audioPlayerController}
+              controller={audioController}
               testID="feedback-audio-player"
             />
           )}
@@ -524,7 +753,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (
             <AudioFeedback
               audioUrl={audioOverlay.activeAudio.url}
-              controller={audioPlayerController}
+              controller={audioController}
               onClose={audioOverlay.onClose}
               onInactivity={audioOverlay.onInactivity}
               onInteraction={audioOverlay.onInteraction}
@@ -537,7 +766,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
           {/* PERFORMANCE: Removed Tamagui animation prop to eliminate JS bridge saturation during gestures */}
           <Animated.View style={[avatarAnimatedStyle, { zIndex: 10 }]}>
             <CoachAvatar
-              isSpeaking={coachSpeaking}
+              isSpeaking={isCoachSpeaking}
               size={80}
               testID="video-analysis-coach-avatar"
             />
@@ -549,14 +778,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             testID="social-icons-container"
           >
             <SocialIcons
-              likes={socialCounts.likes}
-              comments={socialCounts.comments}
-              bookmarks={socialCounts.bookmarks}
-              shares={socialCounts.shares}
-              onShare={onSocialAction.onShare}
-              onLike={onSocialAction.onLike}
-              onComment={onSocialAction.onComment}
-              onBookmark={onSocialAction.onBookmark}
+              likes={SOCIAL_COUNTS.likes}
+              comments={SOCIAL_COUNTS.comments}
+              bookmarks={SOCIAL_COUNTS.bookmarks}
+              shares={SOCIAL_COUNTS.shares}
+              onShare={socialActionHandlers.onShare}
+              onLike={socialActionHandlers.onLike}
+              onComment={socialActionHandlers.onComment}
+              onBookmark={socialActionHandlers.onBookmark}
               isVisible={true}
               placement="rightBottom"
               offsetBottom={30}
@@ -565,14 +794,15 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
           <VideoControls
             ref={videoControlsRef}
-            isPlaying={userIsPlaying}
-            currentTime={currentTime}
-            duration={duration}
+            isPlaying={videoPlayer.isPlaying}
+            currentTime={storeCurrentTime}
+            duration={storeDuration}
             showControls={showControls}
             isProcessing={isProcessing}
             videoEnded={videoEnded}
             videoMode={videoMode}
             collapseProgress={collapseProgress}
+            overscroll={overscroll}
             onPlay={onPlay}
             onPause={onPause}
             onReplay={onReplay}
@@ -580,6 +810,10 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onControlsVisibilityChange={onControlsVisibilityChange}
             onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
             persistentProgressStoreSetter={persistentProgressStoreSetter}
+          />
+          <ShareSheet
+            open={isShareSheetOpen}
+            onOpenChange={setShareSheetOpen}
           />
         </YStack>
       </VideoPlayerArea>

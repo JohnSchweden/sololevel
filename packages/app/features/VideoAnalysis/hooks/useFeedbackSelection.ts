@@ -1,12 +1,13 @@
-//import { log } from '@my/logging'
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { log } from '@my/logging'
 
+import { useVideoPlayerStore } from '../stores'
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
-import type { FeedbackAudioSourceState } from './useFeedbackAudioSource'
-import type { VideoPlaybackState } from './useVideoPlayback'
+import type { VideoPlaybackState } from './useVideoPlayer.types'
 
 export interface FeedbackSelectionState {
   selectedFeedbackId: string | null
@@ -27,78 +28,97 @@ export interface FeedbackSelectionState {
     reason?: string
   }) => void
   clearSelection: () => void
-  triggerCoachSpeaking: (durationMs?: number) => void
+  triggerCoachSpeaking: (durationMs?: number, options?: { activate?: boolean }) => void
 }
 
+/**
+ * useFeedbackSelection - Thin Action Layer for Feedback Interactions
+ *
+ * **PERFORMANCE FIX:** This hook is NOT a React state container. It's an imperative
+ * action dispatcher that talks directly to `useFeedbackCoordinatorStore` via `getState()`.
+ *
+ * **Problem Solved:** Previously held `useState` for selection, highlight, and coach-speaking.
+ * Each state change forced parent re-renders (4-5 per tap). Now all state lives in Zustand.
+ *
+ * **Data Flow:**
+ * 1. User taps feedback item
+ * 2. `selectFeedback()` / `highlightAutoFeedback()` called
+ * 3. Hook calls `store.batchUpdate({ ... })` (writes to Zustand)
+ * 4. Zustand batches updates (single state transaction)
+ * 5. Subscribed components re-render (FeedbackSection, VideoPlayerSection)
+ * 6. Parent (VideoAnalysisScreen) stays dark (not subscribed)
+ *
+ * **Key Behaviors:**
+ * - All state reads/writes use `useFeedbackCoordinatorStore.getState()`
+ * - Timers and refs for side effects (coach-speaking duration, highlight clearing)
+ * - Callbacks are stable (no deps on internal state)
+ * - Returns stale values for backward compatibility with coordinators
+ *
+ * **Never Call This Directly in Components:**
+ * Components should:
+ * - Subscribe to store directly: `useFeedbackCoordinatorStore((state) => state.selectedFeedbackId)`
+ * - Call coordinator actions: `useFeedbackCoordinator.onUserTapFeedback(item)`
+ *
+ * This hook is internal to the coordinator layer.
+ *
+ * @param audioController - Stable reference to audio playback (legacy hooks expect signature)
+ * @param videoPlayback - Stable reference to video playback (for seek call)
+ * @returns Callbacks for feedback selection; state values are stale (read from store instead)
+ */
 export function useFeedbackSelection(
-  feedbackAudio: FeedbackAudioSourceState,
   audioController: AudioControllerState,
-  videoPlayback: VideoPlaybackState
+  videoPlayback: Omit<VideoPlaybackState, 'currentTime' | 'duration' | 'isPlaying'>
 ): FeedbackSelectionState {
-  const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
-  const [highlightedFeedback, setHighlightedFeedback] = useState<{
-    id: string
-    source: 'user' | 'auto'
-  } | null>(null)
-  const [isCoachSpeaking, setIsCoachSpeaking] = useState(false)
+  // PERFORMANCE FIX: Don't subscribe to store - read imperatively
+  // This prevents useFeedbackSelection from causing re-renders in parent components
+  // Components that need selection state subscribe directly to store (FeedbackSection, VideoPlayerSection)
+  // We only return values here for backward compatibility with useFeedbackCoordinator
   const coachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Track current speaking state to prevent redundant renders
-  const isCoachSpeakingRef = useRef(false)
-  isCoachSpeakingRef.current = isCoachSpeaking
-
-  // Extract setIsPlaying to avoid depending on entire audioController object
-  // audioController changes when isPlaying changes, but setIsPlaying is stable
-  const setIsPlaying = audioController.setIsPlaying
-
-  // Store feedbackAudio callbacks in refs to prevent callback recreation
-  // feedbackAudio object recreates when audioUrls changes, but callbacks are stable
-  const feedbackAudioRef = useRef(feedbackAudio)
-  feedbackAudioRef.current = feedbackAudio
+  // (selectAudio is invoked via useFeedbackAudioSource; no local subscription required)
 
   // Store videoPlayback.seek in ref to prevent callback recreation
   // videoPlayback object recreates when currentTime/duration change, but seek() is stable
   const videoPlaybackSeekRef = useRef(videoPlayback.seek)
   videoPlaybackSeekRef.current = videoPlayback.seek
 
-  const triggerCoachSpeaking = useCallback((durationMs = 3000) => {
-    // Always clear existing timer first
-    if (coachTimerRef.current) {
-      clearTimeout(coachTimerRef.current)
-      coachTimerRef.current = null
-    }
-
-    if (durationMs <= 0) {
-      // Only set state if not already false (prevent redundant re-renders)
-      // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
-      if (isCoachSpeakingRef.current) {
-        startTransition(() => {
-          setIsCoachSpeaking(false)
-        })
+  const triggerCoachSpeaking = useCallback(
+    (durationMs = 3000, options?: { activate?: boolean }) => {
+      const { activate = true } = options ?? {}
+      // Always clear existing timer first
+      if (coachTimerRef.current) {
+        clearTimeout(coachTimerRef.current)
+        coachTimerRef.current = null
       }
-      return
-    }
 
-    // Only set state if not already true (prevent redundant re-renders)
-    // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
-    if (!isCoachSpeakingRef.current) {
-      startTransition(() => {
-        setIsCoachSpeaking(true)
-      })
-    }
+      const store = useFeedbackCoordinatorStore.getState()
 
-    coachTimerRef.current = setTimeout(() => {
-      // Only set state if not already false (prevent redundant re-renders)
-      // PERFORMANCE FIX: Use startTransition for non-urgent UI updates
-      if (isCoachSpeakingRef.current) {
-        startTransition(() => {
-          setIsCoachSpeaking(false)
-        })
+      if (durationMs <= 0) {
+        // Only update store if not already false (prevent redundant updates)
+        if (store.isCoachSpeaking) {
+          store.batchUpdate({ isCoachSpeaking: false })
+        }
+        return
       }
-      coachTimerRef.current = null
-    }, durationMs)
-  }, [])
+
+      // Only update store if not already true (prevent redundant updates)
+      if (activate && !store.isCoachSpeaking) {
+        store.batchUpdate({ isCoachSpeaking: true })
+      }
+
+      coachTimerRef.current = setTimeout(() => {
+        // Read from store directly (not ref) to get latest state
+        const currentStore = useFeedbackCoordinatorStore.getState()
+        // Only update store if not already false (prevent redundant updates)
+        if (currentStore.isCoachSpeaking) {
+          currentStore.batchUpdate({ isCoachSpeaking: false })
+        }
+        coachTimerRef.current = null
+      }, durationMs)
+    },
+    []
+  )
 
   const clearHighlightTimer = useCallback(() => {
     if (highlightTimerRef.current) {
@@ -109,30 +129,27 @@ export function useFeedbackSelection(
 
   const clearHighlight = useCallback(
     (options?: { matchId?: string; sources?: Array<'user' | 'auto'>; reason?: string }) => {
-      //const { matchId, sources, reason } = options ?? {}
       const { matchId, sources } = options ?? {}
+      const store = useFeedbackCoordinatorStore.getState()
+      const currentHighlightId = store.highlightedFeedbackId
+      const currentHighlightSource = store.highlightSource
 
-      setHighlightedFeedback((previous) => {
-        if (!previous) {
-          return previous
-        }
+      if (!currentHighlightId || !currentHighlightSource) {
+        return
+      }
 
-        if (matchId && previous.id !== matchId) {
-          return previous
-        }
+      if (matchId && currentHighlightId !== matchId) {
+        return
+      }
 
-        if (sources && !sources.includes(previous.source)) {
-          return previous
-        }
+      if (sources && !sources.includes(currentHighlightSource)) {
+        return
+      }
 
-        // log.info('useFeedbackSelection', 'Clearing feedback highlight', {
-        //   id: previous.id,
-        //   source: previous.source,
-        //   reason: reason ?? null,
-        // })
-
-        clearHighlightTimer()
-        return null
+      clearHighlightTimer()
+      store.batchUpdate({
+        highlightedFeedbackId: null,
+        highlightSource: null,
       })
     },
     [clearHighlightTimer]
@@ -155,66 +172,82 @@ export function useFeedbackSelection(
     ) => {
       clearHighlightTimer()
 
-      // URGENT: Seek operation happens immediately (not batched)
-      // User expects instant video response
-      if (seek && item.timestamp) {
-        const seekTime = item.timestamp / 1000
-        videoPlaybackSeekRef.current(seekTime)
+      const store = useFeedbackCoordinatorStore.getState()
+
+      // Check if already highlighted (prevent redundant updates)
+      if (store.highlightedFeedbackId === item.id && store.highlightSource === source) {
+        return
       }
 
-      // NON-URGENT: UI feedback updates can be batched with startTransition
-      // Reduces cascading renders from 4 state updates to 1-2 renders
-      startTransition(() => {
-        setHighlightedFeedback((previous) => {
-          if (previous?.id === item.id && previous.source === source) {
-            return previous
-          }
+      // URGENT: Seek operation happens immediately (not batched)
+      // User expects instant video response
+      // PERFORMANCE FIX: Use seekImmediate from store if available (low-latency)
+      // Falls back to regular seek for backward compatibility
+      if (seek && item.timestamp) {
+        const seekTime = item.timestamp / 1000
+        const seekImmediateFn = useVideoPlayerStore.getState().seekImmediate
+        if (seekImmediateFn) {
+          // Use imperative seek for <16ms latency (no React render cycle)
+          seekImmediateFn(seekTime)
+        } else {
+          // Fallback to standard seek (200ms latency via store)
+          videoPlaybackSeekRef.current(seekTime)
+        }
+      }
 
-          // log.info('useFeedbackSelection', 'Feedback highlight updated', {
-          //   id: item.id,
-          //   source,
-          // })
+      // Batch all state updates in single store transaction
+      // Zustand automatically batches, so this is a single render
+      const shouldActivateCoachSpeaking = !store.isCoachSpeaking
 
-          return { id: item.id, source }
+      store.batchUpdate({
+        highlightedFeedbackId: item.id,
+        highlightSource: source,
+        selectedFeedbackId: item.id,
+        ...(shouldActivateCoachSpeaking ? { isCoachSpeaking: true } : {}),
+      })
+
+      const urlsMap = useFeedbackAudioStore.getState().audioUrls
+      if (playAudio && urlsMap[item.id]) {
+        const audioStore = useFeedbackAudioStore.getState()
+        const audioUrl = urlsMap[item.id]
+        const activeAudio = audioStore.activeAudio
+        const urlToUse = activeAudio?.id === item.id ? `${audioUrl}#replay=${Date.now()}` : audioUrl
+
+        log.debug('useFeedbackSelection.applyHighlight', '🎵 Playing audio for feedback', {
+          feedbackId: item.id,
+          hasAudioUrl: !!audioUrl,
+          currentActiveAudioId: activeAudio?.id ?? null,
+          willSetActiveAudio: true,
+          willSetIsPlaying: true,
         })
 
-        setSelectedFeedbackId(item.id)
+        audioStore.setActiveAudio({ id: item.id, url: urlToUse })
+        audioStore.setIsPlaying(true)
+      } else {
+        log.debug('useFeedbackSelection.applyHighlight', '⏸️ Audio NOT playing', {
+          feedbackId: item.id,
+          playAudio,
+          hasUrlsMap: !!urlsMap[item.id],
+          reason: !playAudio ? 'playAudio=false' : 'no URL in map',
+        })
+      }
 
-        if (playAudio && feedbackAudioRef.current.audioUrls[item.id]) {
-          const audioUrl = feedbackAudioRef.current.audioUrls[item.id]
-          log.debug('useFeedbackSelection.applyHighlight', '🎵 Playing audio for feedback', {
-            feedbackId: item.id,
-            hasAudioUrl: !!audioUrl,
-            currentActiveAudioId: feedbackAudioRef.current.activeAudio?.id ?? null,
+      // Only trigger coach speaking when audio is actually playing
+      if (playAudio) {
+        triggerCoachSpeaking(undefined, { activate: !shouldActivateCoachSpeaking })
+      }
+
+      if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
+        highlightTimerRef.current = setTimeout(() => {
+          clearHighlight({
+            matchId: item.id,
+            sources: ['auto'],
+            reason: 'auto-duration-elapsed',
           })
-          feedbackAudioRef.current.selectAudio(item.id)
-          // Note: setIsPlaying(true) is called immediately after selectAudio
-          // The audio controller will receive the URL in the next render cycle
-          // If audioUrl is null in controller, it means React hasn't re-rendered yet
-          setIsPlaying(true)
-        }
-
-        triggerCoachSpeaking()
-
-        if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
-          highlightTimerRef.current = setTimeout(() => {
-            clearHighlight({
-              matchId: item.id,
-              sources: ['auto'],
-              reason: 'auto-duration-elapsed',
-            })
-          }, autoDurationMs)
-        }
-      })
+        }, autoDurationMs)
+      }
     },
-    [
-      setIsPlaying,
-      clearHighlight,
-      clearHighlightTimer,
-      // Omit feedbackAudio.audioUrls and feedbackAudio.selectAudio - use refs instead
-      // Omit videoPlayback.seek - use ref instead
-      triggerCoachSpeaking,
-    ]
+    [clearHighlight, clearHighlightTimer, triggerCoachSpeaking]
   )
 
   const selectFeedback = useCallback(
@@ -249,21 +282,46 @@ export function useFeedbackSelection(
   )
 
   const clearSelection = useCallback(() => {
-    if (selectedFeedbackId) {
-      // log.info('useFeedbackSelection', 'Clearing feedback selection', { id: selectedFeedbackId })
+    const store = useFeedbackCoordinatorStore.getState()
+    const audioStore = useFeedbackAudioStore.getState()
+
+    // PERFORMANCE: Early exit if nothing to clear
+    // Prevents redundant store writes (null→null, false→false)
+    const hasSelection = store.selectedFeedbackId !== null
+    const hasActiveAudio = audioStore.isPlaying || audioStore.activeAudio !== null
+
+    if (!hasSelection && !hasActiveAudio) {
+      log.debug('useFeedbackSelection.clearSelection', '⏭️ Skipping clear - nothing selected', {
+        currentSelectedFeedbackId: store.selectedFeedbackId,
+        currentActiveAudioId: audioStore.activeAudio?.id ?? null,
+        currentIsPlaying: audioStore.isPlaying,
+      })
+      return
     }
 
-    // PERFORMANCE FIX: Batch all state updates together
-    // This reduces 5 separate setState calls to a single React update cycle
-    // Impact: Prevents 4 extra renders when clearing selection
-    startTransition(() => {
-      clearHighlight({ reason: 'manual-clear' })
-      setSelectedFeedbackId(null)
-      feedbackAudioRef.current.clearActiveAudio()
-      setIsPlaying(false)
-      triggerCoachSpeaking(0)
+    log.debug('useFeedbackSelection.clearSelection', '🧹 Clearing selection', {
+      currentSelectedFeedbackId: store.selectedFeedbackId,
+      currentActiveAudioId: audioStore.activeAudio?.id ?? null,
+      currentIsPlaying: audioStore.isPlaying,
+      willSetActiveAudio: null,
+      willSetIsPlaying: false,
     })
-  }, [setIsPlaying, clearHighlight, selectedFeedbackId, triggerCoachSpeaking])
+
+    // PERFORMANCE FIX: Batch all state updates in single store transaction
+    // Zustand automatically batches, so this is a single render
+    clearHighlight({ reason: 'manual-clear' })
+
+    if (hasSelection) {
+      store.batchUpdate({
+        selectedFeedbackId: null,
+      })
+    }
+    if (hasActiveAudio) {
+      audioStore.setActiveAudio(null)
+      audioStore.setIsPlaying(false)
+    }
+    triggerCoachSpeaking(0)
+  }, [clearHighlight, triggerCoachSpeaking])
 
   useEffect(() => {
     return () => {
@@ -280,103 +338,74 @@ export function useFeedbackSelection(
 
   // Pause highlight timer when video playback is paused
   // Similar to how useBubbleController pauses bubble timers when isPlaying becomes false
-  const prevIsPlayingRef = useRef(videoPlayback.isPlaying)
+  // Read isPlaying from store instead of videoPlayback to avoid re-renders
+  const prevIsPlayingRef = useRef(useVideoPlayerStore.getState().isPlaying)
   useEffect(() => {
-    const wasPlaying = prevIsPlayingRef.current
-    const nowPlaying = videoPlayback.isPlaying
-    prevIsPlayingRef.current = nowPlaying
+    const unsubscribe = useVideoPlayerStore.subscribe((state) => {
+      const wasPlaying = prevIsPlayingRef.current
+      const nowPlaying = state.isPlaying
+      prevIsPlayingRef.current = nowPlaying
 
-    // Clear highlight timer when transitioning from playing to paused
-    if (wasPlaying && !nowPlaying && highlightTimerRef.current) {
-      clearHighlightTimer()
+      // Clear highlight timer when transitioning from playing to paused
+      if (wasPlaying && !nowPlaying && highlightTimerRef.current) {
+        clearHighlightTimer()
+      }
+    })
+    return () => {
+      unsubscribe()
     }
-  }, [videoPlayback.isPlaying, clearHighlightTimer])
+  }, [clearHighlightTimer]) // isPlaying read from store, no need to depend on it
 
-  // Seek to start only when the active audio URL for the selected feedback changes.
-  // Avoid re-triggering on unrelated state updates.
-  const selectedAudioUrl = selectedFeedbackId
-    ? feedbackAudioRef.current.audioUrls[selectedFeedbackId]
-    : null
+  // PERFORMANCE FIX: Store selectedFeedbackId in ref, subscribe imperatively
+  // Previous pattern: const selectedFeedbackId = useFeedbackCoordinatorStore((state) => state.selectedFeedbackId)
+  // Problem: Hook selector triggers useSyncExternalStore re-renders → useFeedbackSelection re-renders → bubbles to parent
+  // Solution: Use ref + imperative subscription (no useSyncExternalStore)
+  const selectedFeedbackIdRef = useRef<string | null>(null)
+  const previousSelectedIdRef = useRef<string | null>(null)
 
   // Store seekTo in ref to avoid recreating effect when audioController object changes
   const seekToRef = useRef(audioController.seekTo)
   seekToRef.current = audioController.seekTo
 
   useEffect(() => {
-    if (!selectedFeedbackId) {
-      return
-    }
+    // Subscribe imperatively - updates ref without triggering React renders
+    // When selectedFeedbackId changes, manually trigger the seek side effect
+    const unsubscribe = useFeedbackCoordinatorStore.subscribe((state) => {
+      const newSelectedId = state.selectedFeedbackId
+      selectedFeedbackIdRef.current = newSelectedId
 
-    if (!selectedAudioUrl) {
-      return
-    }
+      // Detect changes and trigger seek (imperative, not via effect deps)
+      if (newSelectedId !== previousSelectedIdRef.current) {
+        previousSelectedIdRef.current = newSelectedId
 
-    // Feedback audio clips always start from the beginning (0s)
-    // Use ref to avoid depending on the entire audioController object
-    seekToRef.current(0)
-  }, [selectedFeedbackId, selectedAudioUrl])
+        if (!newSelectedId) {
+          return
+        }
+
+        const selectedAudioUrl = useFeedbackAudioStore.getState().audioUrls[newSelectedId]
+        if (!selectedAudioUrl) {
+          return
+        }
+
+        // Trigger seek imperatively - no effect re-run, no re-renders
+        seekToRef.current(0)
+      }
+    })
+    return unsubscribe
+  }, [])
 
   // Memoize return value to prevent recreation on every render
   // This is critical for preventing cascading re-renders in VideoAnalysisScreen
-  const prevDepsRef = useRef<{
-    selectedFeedbackId: string | null
-    isCoachSpeaking: boolean
-    highlightedFeedbackId: string | null
-    highlightSource: string | null
-  }>({
-    selectedFeedbackId: null,
-    isCoachSpeaking: false,
-    highlightedFeedbackId: null,
-    highlightSource: null,
-  })
-
-  const lastRecalcTimeRef = useRef<number>(Date.now())
-
+  // PERFORMANCE FIX: Read state imperatively from store (no subscriptions)
+  // Components that need selection state subscribe directly to store
   return useMemo(() => {
-    const now = Date.now()
-    const timeSinceLastRecalc = now - lastRecalcTimeRef.current
-    lastRecalcTimeRef.current = now
-
-    // Debug: track what's changing
-    const prev = prevDepsRef.current
-    if (prev) {
-      const changed: string[] = []
-      if (prev.selectedFeedbackId !== selectedFeedbackId) changed.push('selectedFeedbackId')
-      if (prev.isCoachSpeaking !== isCoachSpeaking) changed.push('isCoachSpeaking')
-      if (prev.highlightedFeedbackId !== (highlightedFeedback?.id ?? null))
-        changed.push('highlightedFeedbackId')
-      if (prev.highlightSource !== (highlightedFeedback?.source ?? null))
-        changed.push('highlightSource')
-
-      if (changed.length > 0) {
-        log.debug('useFeedbackSelection', '🔥 Selection recalculating', {
-          changed,
-          timeSinceLastRecalc,
-          isRapid: timeSinceLastRecalc < 16,
-          selectedFeedbackId,
-          highlightedFeedbackId: highlightedFeedback?.id,
-          isCoachSpeaking,
-          highlightSource: highlightedFeedback?.source,
-          stackTrace:
-            timeSinceLastRecalc < 16
-              ? new Error().stack?.split('\n').slice(1, 8).join('\n')
-              : undefined,
-        })
-      }
-    }
-
-    prevDepsRef.current = {
-      selectedFeedbackId,
-      isCoachSpeaking,
-      highlightedFeedbackId: highlightedFeedback?.id ?? null,
-      highlightSource: highlightedFeedback?.source ?? null,
-    }
-
+    // Read from store imperatively - no subscription, no re-renders
+    const storeState = useFeedbackCoordinatorStore.getState()
     return {
-      selectedFeedbackId,
-      isCoachSpeaking,
-      highlightedFeedbackId: highlightedFeedback?.id ?? null,
-      highlightSource: highlightedFeedback?.source ?? null,
+      selectedFeedbackId: storeState.selectedFeedbackId,
+      isCoachSpeaking: storeState.isCoachSpeaking,
+      highlightedFeedbackId: storeState.highlightedFeedbackId,
+      highlightSource: storeState.highlightSource,
       selectFeedback,
       highlightAutoFeedback,
       clearHighlight,
@@ -384,10 +413,7 @@ export function useFeedbackSelection(
       triggerCoachSpeaking,
     }
   }, [
-    selectedFeedbackId,
-    isCoachSpeaking,
-    highlightedFeedback?.id,
-    highlightedFeedback?.source,
+    // Only depend on callbacks - state is read imperatively
     selectFeedback,
     highlightAutoFeedback,
     clearHighlight,

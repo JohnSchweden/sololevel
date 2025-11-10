@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
+import { useVideoPlayerStore } from '../stores'
 import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
-import type { FeedbackAudioSourceState } from './useFeedbackAudioSource'
 import { useFeedbackCoordinator } from './useFeedbackCoordinator'
-import type { VideoPlaybackState } from './useVideoPlayback'
+import type { VideoPlaybackState } from './useVideoPlayer.types'
 
 jest.mock('./useFeedbackSelection', () => ({
   useFeedbackSelection: jest.fn(),
@@ -14,17 +14,258 @@ jest.mock('./useBubbleController', () => ({
   useBubbleController: jest.fn(),
 }))
 
+jest.mock('../stores/feedbackAudio', () => {
+  const storeState = {
+    audioUrls: {} as Record<string, string>,
+    activeAudio: null as { id: string; url: string } | null,
+    errors: {} as Record<string, string>,
+    controller: null as { duration?: number; setIsPlaying?: (value: boolean) => void } | null,
+    isPlaying: false,
+    setAudioUrls: jest.fn(),
+    setActiveAudio: jest.fn(),
+    setIsPlaying: jest.fn(),
+    setErrors: jest.fn(),
+    clearError: jest.fn(),
+  }
+
+  const subscribers = new Set<unknown>()
+
+  const notifySubscribers = () => {
+    subscribers.forEach((listener) => {
+      if (typeof listener === 'function') {
+        ;(listener as any)(storeState)
+      }
+    })
+  }
+
+  const resetStoreState = () => {
+    storeState.audioUrls = {}
+    storeState.activeAudio = null
+    storeState.errors = {}
+    storeState.controller = null
+    storeState.isPlaying = false
+
+    storeState.setAudioUrls.mockImplementation((urls: Record<string, string>) => {
+      storeState.audioUrls = urls
+      notifySubscribers()
+    })
+    storeState.setActiveAudio.mockImplementation((audio: { id: string; url: string } | null) => {
+      storeState.activeAudio = audio
+      if (!audio) {
+        storeState.isPlaying = false
+      }
+      notifySubscribers()
+    })
+    storeState.setIsPlaying.mockImplementation((value: boolean) => {
+      storeState.isPlaying = value
+      if (storeState.controller?.setIsPlaying) {
+        storeState.controller.setIsPlaying(value)
+      }
+      notifySubscribers()
+    })
+    storeState.setErrors.mockImplementation((errors: Record<string, string>) => {
+      storeState.errors = errors
+      notifySubscribers()
+    })
+    storeState.clearError.mockImplementation((feedbackId: string) => {
+      delete storeState.errors[feedbackId]
+      notifySubscribers()
+    })
+  }
+
+  resetStoreState()
+
+  const useFeedbackAudioStore = jest.fn(() => storeState) as jest.Mock & {
+    getState: jest.Mock
+    subscribe: jest.Mock
+    __reset: () => void
+  }
+
+  useFeedbackAudioStore.getState = jest.fn(() => storeState)
+  useFeedbackAudioStore.subscribe = jest.fn((listener: (state: any) => void) => {
+    subscribers.add(listener)
+    listener(storeState)
+    return () => {
+      subscribers.delete(listener)
+    }
+  })
+  useFeedbackAudioStore.__reset = () => {
+    resetStoreState()
+    subscribers.clear()
+  }
+
+  return {
+    useFeedbackAudioStore,
+  }
+})
+
+jest.mock('../stores/feedbackCoordinatorStore', () => {
+  const storeState = {
+    selectedFeedbackId: null as string | null,
+    highlightedFeedbackId: null as string | null,
+    highlightSource: null as 'user' | 'auto' | null,
+    isCoachSpeaking: false,
+    bubbleState: {
+      currentBubbleIndex: null as number | null,
+      bubbleVisible: false,
+    },
+    overlayVisible: false,
+    activeAudio: null as { id: string; url: string } | null,
+    setSelectedFeedbackId: jest.fn(),
+    setHighlightedFeedbackId: jest.fn(),
+    setHighlightSource: jest.fn(),
+    setIsCoachSpeaking: jest.fn(),
+    setBubbleState: jest.fn(),
+    setOverlayVisible: jest.fn(),
+    setActiveAudio: jest.fn(),
+    batchUpdate: jest.fn(),
+    reset: jest.fn(),
+  }
+
+  const resetStoreState = () => {
+    storeState.selectedFeedbackId = null
+    storeState.highlightedFeedbackId = null
+    storeState.highlightSource = null
+    storeState.isCoachSpeaking = false
+    storeState.bubbleState = { currentBubbleIndex: null, bubbleVisible: false }
+    storeState.overlayVisible = false
+    storeState.activeAudio = null
+
+    storeState.setSelectedFeedbackId.mockImplementation((id: string | null) => {
+      storeState.selectedFeedbackId = id
+    })
+    storeState.setHighlightedFeedbackId.mockImplementation((id: string | null) => {
+      storeState.highlightedFeedbackId = id
+    })
+    storeState.setHighlightSource.mockImplementation((source: 'user' | 'auto' | null) => {
+      storeState.highlightSource = source
+    })
+    storeState.setIsCoachSpeaking.mockImplementation((speaking: boolean) => {
+      storeState.isCoachSpeaking = speaking
+    })
+    storeState.setBubbleState.mockImplementation(
+      (state: { currentBubbleIndex: number | null; bubbleVisible: boolean }) => {
+        storeState.bubbleState = state
+      }
+    )
+    storeState.setOverlayVisible.mockImplementation((visible: boolean) => {
+      storeState.overlayVisible = visible
+    })
+    storeState.setActiveAudio.mockImplementation((audio: { id: string; url: string } | null) => {
+      storeState.activeAudio = audio
+    })
+    storeState.batchUpdate.mockImplementation((updates: any) => {
+      if ('selectedFeedbackId' in updates) {
+        storeState.selectedFeedbackId = updates.selectedFeedbackId ?? null
+      }
+      if ('highlightedFeedbackId' in updates) {
+        storeState.highlightedFeedbackId = updates.highlightedFeedbackId ?? null
+      }
+      if ('highlightSource' in updates) {
+        storeState.highlightSource = updates.highlightSource ?? null
+      }
+      if ('isCoachSpeaking' in updates) {
+        storeState.isCoachSpeaking = updates.isCoachSpeaking ?? false
+      }
+      if ('bubbleState' in updates && updates.bubbleState) {
+        storeState.bubbleState = updates.bubbleState
+      }
+      if ('overlayVisible' in updates) {
+        storeState.overlayVisible = updates.overlayVisible ?? false
+      }
+      if ('activeAudio' in updates) {
+        storeState.activeAudio = updates.activeAudio ?? null
+      }
+    })
+    storeState.reset.mockImplementation(() => {
+      resetStoreState()
+    })
+  }
+
+  resetStoreState()
+
+  const useFeedbackCoordinatorStore = jest.fn(() => storeState) as jest.Mock & {
+    getState: jest.Mock
+    __reset: () => void
+  }
+
+  useFeedbackCoordinatorStore.getState = jest.fn(() => storeState)
+  useFeedbackCoordinatorStore.__reset = () => {
+    resetStoreState()
+  }
+
+  return {
+    useFeedbackCoordinatorStore,
+  }
+})
+
 const { useFeedbackSelection } = jest.requireMock('./useFeedbackSelection') as {
   useFeedbackSelection: jest.Mock
 }
+
+// Note: store mocks registered via jest.mock above
 
 const { useBubbleController } = jest.requireMock('./useBubbleController') as {
   useBubbleController: jest.Mock
 }
 
+const { useFeedbackAudioStore } = jest.requireMock('../stores/feedbackAudio') as {
+  useFeedbackAudioStore: jest.Mock & {
+    getState: jest.Mock
+    subscribe: jest.Mock
+    __reset: () => void
+  }
+}
+
+const { useFeedbackCoordinatorStore } = jest.requireMock('../stores/feedbackCoordinatorStore') as {
+  useFeedbackCoordinatorStore: jest.Mock & {
+    getState: jest.Mock
+    __reset: () => void
+  }
+}
+
 describe('useFeedbackCoordinator', () => {
   const mockUseFeedbackSelection = useFeedbackSelection as jest.Mock
   const mockUseBubbleController = useBubbleController as jest.Mock
+  const mockUseFeedbackAudioStore = useFeedbackAudioStore
+  const mockUseFeedbackCoordinatorStore = useFeedbackCoordinatorStore
+
+  type SelectionMock = {
+    selectedFeedbackId: string | null
+    highlightedFeedbackId: string | null
+    highlightSource: 'user' | 'auto' | null
+    isCoachSpeaking: boolean
+    selectFeedback: jest.Mock
+    highlightAutoFeedback: jest.Mock
+    clearHighlight: jest.Mock
+    clearSelection: jest.Mock
+    triggerCoachSpeaking: jest.Mock
+  }
+
+  const setSelectionMock = (overrides: Partial<SelectionMock> = {}): SelectionMock => {
+    const selection: SelectionMock = {
+      selectedFeedbackId: null,
+      highlightedFeedbackId: null,
+      highlightSource: null,
+      isCoachSpeaking: false,
+      selectFeedback: jest.fn(),
+      highlightAutoFeedback: jest.fn(),
+      clearHighlight: jest.fn(),
+      clearSelection: jest.fn(),
+      triggerCoachSpeaking: jest.fn(),
+      ...overrides,
+    }
+
+    mockUseFeedbackSelection.mockReturnValue(selection)
+
+    const store = mockUseFeedbackCoordinatorStore.getState()
+    store.setSelectedFeedbackId(selection.selectedFeedbackId)
+    store.setHighlightedFeedbackId(selection.highlightedFeedbackId)
+    store.setHighlightSource(selection.highlightSource)
+    store.setIsCoachSpeaking(selection.isCoachSpeaking)
+
+    return selection
+  }
 
   const createFeedbackItem = (overrides: Partial<FeedbackPanelItem> = {}): FeedbackPanelItem => ({
     id: 'feedback-1',
@@ -40,7 +281,6 @@ describe('useFeedbackCoordinator', () => {
 
   const createDependencies = (overrides?: {
     feedbackItems?: FeedbackPanelItem[]
-    feedbackAudio?: Partial<FeedbackAudioSourceState>
     audioController?: Partial<AudioControllerState>
     videoPlayback?: Partial<VideoPlaybackState & { isPlaying?: boolean; videoEnded?: boolean }>
   }) => {
@@ -49,18 +289,7 @@ describe('useFeedbackCoordinator', () => {
       createFeedbackItem({ id: 'feedback-2', timestamp: 4_000 }),
     ]
 
-    const feedbackAudio: FeedbackAudioSourceState = {
-      audioUrls: {
-        'feedback-1': 'https://cdn.example.com/1.mp3',
-        'feedback-2': 'https://cdn.example.com/2.mp3',
-      },
-      selectAudio: jest.fn(),
-      clearActiveAudio: jest.fn(),
-      activeAudio: null,
-      errors: {},
-      clearError: jest.fn(),
-      ...overrides?.feedbackAudio,
-    }
+    // Note: Store mocks are set up at module level above
 
     const audioController: AudioControllerState = {
       isPlaying: false,
@@ -72,7 +301,7 @@ describe('useFeedbackCoordinator', () => {
       togglePlayback: jest.fn(),
       handleLoad: jest.fn(),
       handleProgress: jest.fn(),
-      handleEnd: jest.fn(),
+      handleEnd: jest.fn(() => true),
       handleError: jest.fn(),
       handleSeekComplete: jest.fn(),
       seekTo: jest.fn(),
@@ -82,71 +311,60 @@ describe('useFeedbackCoordinator', () => {
 
     const videoPlayback: VideoPlaybackState & { isPlaying?: boolean; videoEnded?: boolean } = {
       isPlaying: overrides?.videoPlayback?.isPlaying ?? false,
-      currentTime: overrides?.videoPlayback?.currentTime ?? 0,
+      // currentTime removed from VideoPlaybackState - consumers read from store directly
       duration: overrides?.videoPlayback?.duration ?? 0,
       pendingSeek: overrides?.videoPlayback?.pendingSeek ?? null,
       videoEnded: overrides?.videoPlayback?.videoEnded ?? false,
       // Ref-based access for performance
-      currentTimeRef: { current: overrides?.videoPlayback?.currentTime ?? 0 },
-      getPreciseCurrentTime: jest.fn(() => overrides?.videoPlayback?.currentTime ?? 0),
+      currentTimeRef: { current: 0 }, // currentTime removed from VideoPlaybackState
+      getPreciseCurrentTime: jest.fn(() => 0), // currentTime removed from VideoPlaybackState
       play: jest.fn(),
       pause: jest.fn(),
       replay: jest.fn(),
       seek: jest.fn(),
       handleProgress: jest.fn(),
       handleLoad: jest.fn(),
-      handleEnd: jest.fn(),
+      handleEnd: jest.fn(() => true),
       handleSeekComplete: jest.fn(),
       reset: jest.fn(),
       ...overrides?.videoPlayback,
     }
 
-    return { feedbackItems, feedbackAudio, audioController, videoPlayback }
+    return { feedbackItems, audioController, videoPlayback }
   }
 
   beforeEach(() => {
-    jest.resetAllMocks()
+    jest.clearAllMocks()
+
+    mockUseFeedbackAudioStore.__reset()
+    mockUseFeedbackCoordinatorStore.__reset()
+    useVideoPlayerStore.getState().reset()
 
     mockUseBubbleController.mockReturnValue({
       currentBubbleIndex: null,
       bubbleVisible: false,
       checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+      findTriggerCandidate: jest.fn(() => null),
       showBubble: jest.fn(),
       hideBubble: jest.fn(),
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
-    })
+    setSelectionMock()
   })
 
   it('exposes highlight state from selection', () => {
     const deps = createDependencies()
 
-    mockUseFeedbackSelection.mockReturnValue({
+    setSelectionMock({
       selectedFeedbackId: 'feedback-2',
       highlightedFeedbackId: 'feedback-2',
       highlightSource: 'auto',
       isCoachSpeaking: true,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -160,32 +378,30 @@ describe('useFeedbackCoordinator', () => {
     const deps = createDependencies({ videoPlayback: { isPlaying: true } })
 
     const highlightAutoFeedback = jest.fn()
-    const checkAndShowBubbleAtTime = jest.fn().mockReturnValue(1) // Return index 1 for second item
+    useVideoPlayerStore.getState().setIsPlaying(true)
+
+    const showBubble = jest.fn()
+    const findTriggerCandidate = jest.fn().mockReturnValue({
+      index: 1,
+      item: deps.feedbackItems[1],
+    })
 
     mockUseBubbleController.mockReturnValue({
       currentBubbleIndex: null,
       bubbleVisible: false,
-      checkAndShowBubbleAtTime,
-      showBubble: jest.fn(),
+      checkAndShowBubbleAtTime: jest.fn(),
+      findTriggerCandidate,
+      showBubble,
       hideBubble: jest.fn(),
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
-      selectFeedback: jest.fn(),
+    setSelectionMock({
       highlightAutoFeedback,
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -195,7 +411,8 @@ describe('useFeedbackCoordinator', () => {
       result.current.onProgressTrigger(4)
     })
 
-    expect(checkAndShowBubbleAtTime).toHaveBeenCalledWith(4000)
+    expect(findTriggerCandidate).toHaveBeenCalledWith(4000)
+    expect(showBubble).toHaveBeenCalledWith(1)
     expect(highlightAutoFeedback).not.toHaveBeenCalledWith(
       deps.feedbackItems[1],
       expect.objectContaining({ autoDurationMs: expect.anything() })
@@ -217,22 +434,13 @@ describe('useFeedbackCoordinator', () => {
       hideBubble,
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
+    setSelectionMock({
       selectFeedback,
-      highlightAutoFeedback: jest.fn(),
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -255,22 +463,13 @@ describe('useFeedbackCoordinator', () => {
       videoPlayback: { isPlaying: false, videoEnded: false },
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
+    setSelectionMock({
       selectFeedback,
-      highlightAutoFeedback: jest.fn(),
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const { result, rerender } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -312,16 +511,9 @@ describe('useFeedbackCoordinator', () => {
     const clearSelection = jest.fn()
     const clearHighlight = jest.fn()
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
+    setSelectionMock({
       clearHighlight,
       clearSelection,
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const deps = createDependencies()
@@ -329,7 +521,6 @@ describe('useFeedbackCoordinator', () => {
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -349,27 +540,33 @@ describe('useFeedbackCoordinator', () => {
     const setIsPlaying = jest.fn()
     const clearActiveAudio = jest.fn()
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
+    setSelectionMock({
+      selectedFeedbackId: 'feedback-1',
+      highlightedFeedbackId: 'feedback-1',
+      highlightSource: 'auto',
+      isCoachSpeaking: true,
       clearHighlight,
       clearSelection,
-      triggerCoachSpeaking: jest.fn(),
+    })
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.setActiveAudio = clearActiveAudio
+    audioStore.setIsPlaying = setIsPlaying
+    audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+    audioStore.isPlaying = true
+
+    mockUseFeedbackCoordinatorStore.getState().setBubbleState({
+      currentBubbleIndex: 0,
+      bubbleVisible: true,
     })
 
     const deps = createDependencies({
       audioController: { setIsPlaying },
-      feedbackAudio: { clearActiveAudio },
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -391,30 +588,33 @@ describe('useFeedbackCoordinator', () => {
     const setIsPlaying = jest.fn()
     const clearActiveAudio = jest.fn()
 
-    mockUseFeedbackSelection.mockReturnValue({
+    setSelectionMock({
       selectedFeedbackId: 'feedback-1',
       highlightedFeedbackId: 'feedback-1',
       highlightSource: 'auto',
       isCoachSpeaking: true,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
       clearHighlight,
       clearSelection,
-      triggerCoachSpeaking: jest.fn(),
+    })
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.setActiveAudio = clearActiveAudio
+    audioStore.setIsPlaying = setIsPlaying
+    audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+    audioStore.isPlaying = true
+
+    mockUseFeedbackCoordinatorStore.getState().setBubbleState({
+      currentBubbleIndex: 0,
+      bubbleVisible: true,
     })
 
     const deps = createDependencies({
       audioController: { setIsPlaying },
-      feedbackAudio: {
-        clearActiveAudio,
-        activeAudio: { id: 'feedback-1', url: 'https://cdn.example.com/1.mp3' },
-      },
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -433,15 +633,20 @@ describe('useFeedbackCoordinator', () => {
   it('exposes overlay visibility derived from audio controller and active audio', () => {
     const deps = createDependencies({
       audioController: { isPlaying: true },
-      feedbackAudio: {
-        activeAudio: { id: 'feedback-1', url: 'https://cdn.example.com/1.mp3' },
-      },
+    })
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+    audioStore.isPlaying = true
+
+    mockUseFeedbackCoordinatorStore.getState().setBubbleState({
+      currentBubbleIndex: 0,
+      bubbleVisible: true,
     })
 
     const { result } = renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -457,21 +662,22 @@ describe('useFeedbackCoordinator', () => {
       currentBubbleIndex: 0,
       bubbleVisible: true,
       checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+      findTriggerCandidate: jest.fn(() => null),
       showBubble: jest.fn(),
       hideBubble,
     })
 
     const deps = createDependencies({
       audioController: { isPlaying: false },
-      feedbackAudio: {
-        activeAudio: { id: 'feedback-1', url: 'https://cdn.example.com/1.mp3' },
-      },
     })
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+    audioStore.isPlaying = true
 
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -496,15 +702,11 @@ describe('useFeedbackCoordinator', () => {
 
     const deps = createDependencies({
       audioController: { isPlaying: false },
-      feedbackAudio: {
-        activeAudio: null, // Audio actually stopped
-      },
     })
 
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -526,29 +728,28 @@ describe('useFeedbackCoordinator', () => {
       hideBubble: jest.fn(),
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
+    setSelectionMock({
       selectedFeedbackId: 'feedback-2',
       highlightedFeedbackId: 'feedback-2',
       highlightSource: 'auto',
       isCoachSpeaking: true,
-      selectFeedback: jest.fn(),
-      highlightAutoFeedback: jest.fn(),
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const deps = createDependencies({
       audioController: { isPlaying: true },
-      feedbackAudio: {
-        activeAudio: { id: 'feedback-2', url: 'https://cdn.example.com/2.mp3' },
-      },
     })
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.activeAudio = { id: 'feedback-2', url: 'mock-url' }
+    audioStore.isPlaying = true
+
+    const coordinatorStore = mockUseFeedbackCoordinatorStore.getState()
+    coordinatorStore.setBubbleState({ currentBubbleIndex: null, bubbleVisible: false })
+    coordinatorStore.setOverlayVisible(true)
 
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -566,21 +767,18 @@ describe('useFeedbackCoordinator', () => {
       currentBubbleIndex: null,
       bubbleVisible: false,
       checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+      findTriggerCandidate: jest.fn(() => null),
       showBubble,
       hideBubble: jest.fn(),
     })
 
     const deps = createDependencies({
       audioController: { isPlaying: true },
-      feedbackAudio: {
-        activeAudio: { id: 'feedback-2', url: 'https://cdn.example.com/2.mp3' },
-      },
     })
 
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -602,20 +800,13 @@ describe('useFeedbackCoordinator', () => {
       currentBubbleIndex: 0,
       bubbleVisible: true,
       checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+      findTriggerCandidate: jest.fn(() => null),
       showBubble: jest.fn(),
       hideBubble: jest.fn(),
     })
 
-    mockUseFeedbackSelection.mockReturnValue({
-      selectedFeedbackId: null,
-      highlightedFeedbackId: null,
-      highlightSource: null,
-      isCoachSpeaking: false,
-      selectFeedback: jest.fn(),
+    setSelectionMock({
       highlightAutoFeedback,
-      clearHighlight: jest.fn(),
-      clearSelection: jest.fn(),
-      triggerCoachSpeaking: jest.fn(),
     })
 
     const optionsCapture: any[] = []
@@ -626,6 +817,7 @@ describe('useFeedbackCoordinator', () => {
         currentBubbleIndex: 0,
         bubbleVisible: true,
         checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+        findTriggerCandidate: jest.fn(() => null),
         showBubble: jest.fn(),
         hideBubble: jest.fn(),
       }
@@ -634,7 +826,6 @@ describe('useFeedbackCoordinator', () => {
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
@@ -647,7 +838,7 @@ describe('useFeedbackCoordinator', () => {
     expect(highlightAutoFeedback).toHaveBeenCalledWith(feedbackItem, {
       seek: false,
       playAudio: true,
-      autoDurationMs: undefined,
+      autoDurationMs: 3500,
     })
 
     bubbleOptions.onBubbleTimerUpdate?.({
@@ -664,15 +855,11 @@ describe('useFeedbackCoordinator', () => {
     })
   })
 
-  it('stops audio when bubble timer elapses', () => {
+  it('does not stop audio when bubble timer elapses', () => {
     const setIsPlaying = jest.fn()
     const clearActiveAudio = jest.fn()
     const deps = createDependencies({
       audioController: { isPlaying: true, setIsPlaying },
-      feedbackAudio: {
-        clearActiveAudio,
-        activeAudio: { id: 'feedback-1', url: 'https://example.com/1.mp3' },
-      },
     })
 
     let capturedOptions: any
@@ -683,6 +870,7 @@ describe('useFeedbackCoordinator', () => {
         currentBubbleIndex: 0,
         bubbleVisible: true,
         checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+        findTriggerCandidate: jest.fn(() => null),
         showBubble: jest.fn(),
         hideBubble: jest.fn(),
       }
@@ -691,11 +879,21 @@ describe('useFeedbackCoordinator', () => {
     renderHook(() =>
       useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })
     )
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.setIsPlaying = setIsPlaying
+    audioStore.setActiveAudio = clearActiveAudio
+    audioStore.isPlaying = true
+    audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+
+    mockUseFeedbackCoordinatorStore.getState().setBubbleState({
+      currentBubbleIndex: 0,
+      bubbleVisible: true,
+    })
 
     const feedbackItem = deps.feedbackItems[0]
     capturedOptions.onBubbleTimerElapsed?.({
@@ -705,8 +903,8 @@ describe('useFeedbackCoordinator', () => {
       reason: 'playback-start',
     })
 
-    expect(setIsPlaying).toHaveBeenCalledWith(false)
-    expect(clearActiveAudio).toHaveBeenCalled()
+    expect(setIsPlaying).not.toHaveBeenCalled()
+    expect(clearActiveAudio).not.toHaveBeenCalled()
   })
 
   /**
@@ -732,7 +930,6 @@ describe('useFeedbackCoordinator', () => {
       renderCount++
       const coordinator = useFeedbackCoordinator({
         feedbackItems: deps.feedbackItems,
-        feedbackAudio: deps.feedbackAudio,
         audioController: deps.audioController,
         videoPlayback: deps.videoPlayback,
       })

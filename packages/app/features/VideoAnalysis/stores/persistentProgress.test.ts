@@ -28,8 +28,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,
@@ -55,8 +56,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,
@@ -88,8 +90,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,
@@ -109,8 +112,10 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0, // Same
         isScrubbing: false, // Same
         controlsVisible: true, // Same
-        progressBarWidth: 400, // Same
+        // Same
         animatedStyle: { opacity: 1 }, // New object
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 99 }, // New gesture ID (Reanimated recreated)
         mainGesture: { gestureId: 100 }, // New gesture ID
         shouldRenderPersistent: true,
@@ -137,8 +142,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,
@@ -177,8 +183,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,
@@ -212,8 +219,9 @@ describe('usePersistentProgressStore', () => {
         duration: 10.0,
         isScrubbing: false,
         controlsVisible: true,
-        progressBarWidth: 400,
         animatedStyle: { opacity: 1 },
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
         combinedGesture: { gestureId: 1 },
         mainGesture: { gestureId: 2 },
         shouldRenderPersistent: true,

@@ -2,11 +2,22 @@
 
 ## IN PROGRESS
 
-_None_
+### Task 55: Rationalize Feedback Hooks → Cohesive Feedback System — 🟢 Planning Updated (2025-11-08)
+- Re-scoped the task to merge only audio concerns, keep panel/coordinator focused, and provide an optional facade instead of a monolithic hook.
+- Documentation updated in `docs/tasks/tasks.md` and `docs/tasks/task-55-useFeedbackSystem.md` to reflect the refined architecture targets and module plan.
+- Next: kick off Module 1 (shared types) once work begins; run hook test suites per module.
 
----
 
 ## COMPLETED
+
+### Task 54: Consolidate Video Hooks → useVideoPlayer — ✅ Complete (2025-11-07)
+- Consolidated `useVideoPlayback`, `useVideoControls`, `useVideoAudioSync`, and `useAutoPlayOnReady` into `useVideoPlayer` with imperative ref parity plus extensive JSDoc/usage guidance (normalized `initialStatus` semantics).
+- Updated `VideoAnalysisScreen` wiring + task docs, preserving legacy hooks temporarily (Module 8 TODO) while documenting the normalization contract; regression suite expanded (16 tests) covering initial states, controls, audio sync, and auto-play.
+- Validation: `yarn workspace @my/app test useVideoPlayer.test.ts`, `yarn workspace @my/app test VideoAnalysisScreen.test.tsx`, and `yarn workspace @my/app type-check` all green.
+
+### Ad-hoc: FeedbackPanel Tab Glow — ✅ Complete (2025-11-08)
+- Replaced the active tab underline with a glass-style glow wrapper so the navigation matches the GlassButton treatment while preserving accessibility attributes.
+- Styling now uses a dedicated glow stack with translucent background and border to communicate focus without relying on borders.
 
 ### Ad-hoc: AGENTS Quality Command Reference — ✅ Complete (2025-11-07)
 - Collapsed guidance into a minimal `Quality Scripts` list covering root and workspace `type-check`, `lint`, and `format` commands.

@@ -1,183 +1,237 @@
-import { useLayoutEffect, useState } from 'react'
+import { log } from '@my/logging'
+import { useCallback, useState } from 'react'
 import {
   type SharedValue,
   runOnJS,
-  useAnimatedReaction,
   useDerivedValue,
   useSharedValue,
+  withTiming,
 } from 'react-native-reanimated'
 
+/**
+ * Discrete display modes returned by the visibility hook.
+ * - `normal`: standard controls visible, persistent hidden
+ * - `persistent`: collapsed controls visible, normal hidden
+ * - `transition`: both hidden while an animation or overscroll is in progress
+ */
+export type ProgressBarDisplayMode = 'normal' | 'persistent' | 'transition'
+
 export interface UseProgressBarVisibilityReturn {
+  /** Snapshot of whether the normal (max-mode) controls should be rendered on the React tree */
   shouldRenderNormal: boolean
+  /** Snapshot of whether the persistent (collapsed) controls should be rendered on the React tree */
   shouldRenderPersistent: boolean
+  /** Derived display mode snapshot for consumers that need to branch logic */
+  mode: ProgressBarDisplayMode
+  /** Shared visibility (0-1) for the normal progress bar, driven entirely on the UI thread */
+  normalVisibility: SharedValue<number>
+  /** Shared visibility (0-1) for the persistent progress bar, driven entirely on the UI thread */
+  persistentVisibility: SharedValue<number>
+  /** Test-only helper for environments without full Reanimated runtime */
+  __applyProgressForTests?: (progress: number, overscroll?: number) => void
 }
 
+/** Collapse progress ≤ this threshold is considered max mode (normal bar visible). */
 const NORMAL_MODE_THRESHOLD = 0.03
+/** Collapse progress ≥ this threshold is considered min mode (persistent bar visible). */
 const PERSISTENT_MODE_THRESHOLD = 0.45
+// Overscroll threshold (in px) before we consider the user to be actively pulling beyond the top edge.
+// Negative values correspond to the sheet being dragged past the top edge.
+const OVERSCROLL_TRANSITION_THRESHOLD = -4
+/** Timing configuration for normal bar fade transitions. */
+const NORMAL_FADE = { duration: 120 }
+/** Timing configuration for persistent bar fade transitions. */
+const PERSISTENT_FADE = { duration: 580 }
 
-const clampProgress = (value: number): number => {
+const sanitizeProgress = (value: number): number => {
   'worklet'
   if (!Number.isFinite(value)) {
     return 0
   }
 
-  if (value < 0) {
-    return 0
-  }
-
-  if (value > 1) {
-    return 1
-  }
-
   return value
 }
 
-const shouldShowNormalBar = (progress: number): boolean => {
+/**
+ * Resolves the display mode based on collapse progress and optional overscroll distance.
+ * Overscroll takes priority: pulling past the threshold forces a transition state so both bars hide.
+ */
+const resolveDisplayMode = (progress: number, overscroll?: number): ProgressBarDisplayMode => {
   'worklet'
-  return progress <= NORMAL_MODE_THRESHOLD
-}
+  const normalized = sanitizeProgress(progress)
 
-const shouldShowPersistentBar = (progress: number): boolean => {
-  'worklet'
-  return progress >= PERSISTENT_MODE_THRESHOLD
-}
-
-const scheduleUpdate = (update: () => void) => {
-  if (typeof queueMicrotask === 'function') {
-    queueMicrotask(update)
-    return
+  if (typeof overscroll === 'number' && overscroll < OVERSCROLL_TRANSITION_THRESHOLD) {
+    return 'transition'
   }
 
-  setTimeout(update, 0)
+  if (normalized < -NORMAL_MODE_THRESHOLD) {
+    return 'transition'
+  }
+
+  if (normalized >= PERSISTENT_MODE_THRESHOLD) {
+    return 'persistent'
+  }
+
+  if (normalized <= NORMAL_MODE_THRESHOLD) {
+    return 'normal'
+  }
+
+  return 'transition'
 }
 
+const visibilityForMode = (mode: ProgressBarDisplayMode) => {
+  'worklet'
+  return {
+    normal: mode === 'normal' ? 1 : 0,
+    persistent: mode === 'persistent' ? 1 : 0,
+  }
+}
+
+/** Payload emitted when the mode or visibility changes. */
+interface ModeChangePayload {
+  source: 'worklet' | 'test'
+  progress: number
+  overscroll: number
+  previousMode: ProgressBarDisplayMode
+  nextMode: ProgressBarDisplayMode
+  normalVisible: boolean
+  persistentVisible: boolean
+}
+
+/**
+ * Derives progress bar visibility for the video controls overlay using collapse progress and optional
+ * overscroll distance. Collapse progress drives the standard max ⇄ normal ⇄ min transitions. When an
+ * overscroll shared value is provided, any pull beyond the top threshold (negative distance) forces
+ * a transition state so both progress bars fade out immediately during pull-to-expand gestures.
+ */
 export function useProgressBarVisibility(
-  collapseProgressShared: SharedValue<number>
+  collapseProgressShared: SharedValue<number>,
+  overscrollShared?: SharedValue<number>
 ): UseProgressBarVisibilityReturn {
-  const [shouldRenderNormal, setShouldRenderNormal] = useState(() => shouldShowNormalBar(0))
-  const [shouldRenderPersistent, setShouldRenderPersistent] = useState(() =>
-    shouldShowPersistentBar(0)
+  const initialOverscroll = overscrollShared?.value ?? 0
+  const initialMode = resolveDisplayMode(collapseProgressShared.value, initialOverscroll)
+  const initialVisibility = visibilityForMode(initialMode)
+
+  const normalVisibility = useSharedValue(initialVisibility.normal)
+  const persistentVisibility = useSharedValue(initialVisibility.persistent)
+  const modeShared = useSharedValue<ProgressBarDisplayMode>(initialMode)
+
+  const [modeSnapshot, setModeSnapshot] = useState<ProgressBarDisplayMode>(initialMode)
+
+  const emitModeChange = useCallback(
+    ({
+      source,
+      progress,
+      overscroll,
+      previousMode,
+      nextMode,
+      normalVisible,
+      persistentVisible,
+    }: ModeChangePayload) => {
+      log.debug('VideoControls', 'ProgressBar mode updated', {
+        source,
+        progress,
+        overscroll,
+        previousMode,
+        nextMode,
+        normalVisible,
+        persistentVisible,
+      })
+
+      setModeSnapshot((prev) => (prev === nextMode ? prev : nextMode))
+    },
+    []
   )
 
-  const canUseDerivedValue =
-    typeof useDerivedValue === 'function' &&
-    (typeof process === 'undefined' || process.env.NODE_ENV !== 'test')
+  const updateSnapshotFromJS = useCallback(
+    (progress: number, source: ModeChangePayload['source'], overscroll = 0) => {
+      const nextMode = resolveDisplayMode(progress, overscroll)
+      const { normal, persistent } = visibilityForMode(nextMode)
+      const previousMode = modeShared.value
+      const hasModeChanged = previousMode !== nextMode
+      const normalChanged = normalVisibility.value !== normal
+      const persistentChanged = persistentVisibility.value !== persistent
 
-  const updateNormal = (next: boolean) => {
-    scheduleUpdate(() => {
-      setShouldRenderNormal((prev) => (prev === next ? prev : next))
-    })
-  }
-
-  const updatePersistent = (next: boolean) => {
-    scheduleUpdate(() => {
-      setShouldRenderPersistent((prev) => (prev === next ? prev : next))
-    })
-  }
-
-  const normalVisibility = useSharedValue(shouldShowNormalBar(0))
-  const persistentVisibility = useSharedValue(shouldShowPersistentBar(0))
-
-  useLayoutEffect(() => {
-    const progress = clampProgress(collapseProgressShared.value)
-
-    const normal = shouldShowNormalBar(progress)
-    const persistent = shouldShowPersistentBar(progress)
-
-    if (normalVisibility.value !== normal) {
-      normalVisibility.value = normal
-    }
-
-    if (persistentVisibility.value !== persistent) {
-      persistentVisibility.value = persistent
-    }
-
-    setShouldRenderNormal(normal)
-    setShouldRenderPersistent(persistent)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collapseProgressShared])
-
-  if (canUseDerivedValue) {
-    useDerivedValue(() => {
-      'worklet'
-      const progress = clampProgress(collapseProgressShared.value)
-      const next = shouldShowNormalBar(progress)
-      if (normalVisibility.value !== next) {
-        normalVisibility.value = next
+      if (hasModeChanged) {
+        modeShared.value = nextMode
       }
-      return next
-    }, [collapseProgressShared])
 
-    useDerivedValue(() => {
-      'worklet'
-      const progress = clampProgress(collapseProgressShared.value)
-      const next = shouldShowPersistentBar(progress)
-      if (persistentVisibility.value !== next) {
-        persistentVisibility.value = next
+      if (normalChanged) {
+        normalVisibility.value = withTiming(normal, NORMAL_FADE)
       }
-      return next
-    }, [collapseProgressShared])
-  } else {
-    useAnimatedReaction(
-      () => collapseProgressShared.value,
-      (nextValue) => {
-        const progress = clampProgress(nextValue)
-        const nextNormal = shouldShowNormalBar(progress)
-        const nextPersistent = shouldShowPersistentBar(progress)
 
-        if (normalVisibility.value !== nextNormal) {
-          normalVisibility.value = nextNormal
-        }
+      if (persistentChanged) {
+        persistentVisibility.value = withTiming(persistent, PERSISTENT_FADE)
+      }
 
-        if (persistentVisibility.value !== nextPersistent) {
-          persistentVisibility.value = nextPersistent
-        }
-      },
-      [collapseProgressShared]
-    )
-  }
-
-  useAnimatedReaction(
-    () => normalVisibility.value,
-    (next, previous) => {
-      if (next !== previous) {
-        runOnJS(updateNormal)(next)
+      if (hasModeChanged || normalChanged || persistentChanged) {
+        emitModeChange({
+          source,
+          progress,
+          overscroll,
+          previousMode,
+          nextMode,
+          normalVisible: normal === 1,
+          persistentVisible: persistent === 1,
+        })
       }
     },
-    [normalVisibility]
+    [emitModeChange, modeShared, normalVisibility, persistentVisibility]
   )
 
-  useAnimatedReaction(
-    () => persistentVisibility.value,
-    (next, previous) => {
-      if (next !== previous) {
-        runOnJS(updatePersistent)(next)
-      }
-    },
-    [persistentVisibility]
-  )
+  useDerivedValue(() => {
+    'worklet'
+    const progress = collapseProgressShared.value
+    const overscroll = overscrollShared?.value ?? 0
+    const nextMode = resolveDisplayMode(progress, overscroll)
+    const { normal, persistent } = visibilityForMode(nextMode)
+    const previousMode = modeShared.value
+    const hasModeChanged = previousMode !== nextMode
+    const normalChanged = normalVisibility.value !== normal
+    const persistentChanged = persistentVisibility.value !== persistent
+
+    if (hasModeChanged) {
+      modeShared.value = nextMode
+    }
+
+    if (normalChanged) {
+      normalVisibility.value = withTiming(normal, NORMAL_FADE)
+    }
+
+    if (persistentChanged) {
+      persistentVisibility.value = withTiming(persistent, PERSISTENT_FADE)
+    }
+
+    if (hasModeChanged || normalChanged || persistentChanged) {
+      runOnJS(emitModeChange)({
+        source: 'worklet',
+        progress,
+        overscroll,
+        previousMode,
+        nextMode,
+        normalVisible: normal === 1,
+        persistentVisible: persistent === 1,
+      })
+    }
+  }, [
+    collapseProgressShared,
+    emitModeChange,
+    modeShared,
+    normalVisibility,
+    overscrollShared,
+    persistentVisibility,
+  ])
 
   const result: UseProgressBarVisibilityReturn = {
-    shouldRenderNormal,
-    shouldRenderPersistent,
+    shouldRenderNormal: modeSnapshot === 'normal',
+    shouldRenderPersistent: modeSnapshot === 'persistent',
+    mode: modeSnapshot,
+    normalVisibility,
+    persistentVisibility,
   }
 
-  if (!canUseDerivedValue) {
-    ;(
-      result as UseProgressBarVisibilityReturn & {
-        __applyProgressForTests?: (progress: number) => void
-      }
-    ).__applyProgressForTests = (progress: number) => {
-      const clamped = clampProgress(progress)
-      const nextNormal = shouldShowNormalBar(clamped)
-      const nextPersistent = shouldShowPersistentBar(clamped)
-
-      normalVisibility.value = nextNormal
-      persistentVisibility.value = nextPersistent
-
-      updateNormal(nextNormal)
-      updatePersistent(nextPersistent)
-    }
+  result.__applyProgressForTests = (progress: number, overscroll = 0) => {
+    updateSnapshotFromJS(progress, 'test', overscroll)
   }
 
   return result

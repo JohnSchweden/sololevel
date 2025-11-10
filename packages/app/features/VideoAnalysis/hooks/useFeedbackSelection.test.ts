@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
 
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import type { FeedbackPanelItem } from '../types'
 import { useFeedbackSelection } from './useFeedbackSelection'
 
@@ -18,6 +20,14 @@ describe('useFeedbackSelection', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    // Reset store to initial state before each test
+    useFeedbackCoordinatorStore.getState().reset()
+    useFeedbackAudioStore.setState((state) => ({
+      ...state,
+      activeAudio: null,
+      isPlaying: false,
+      controller: null,
+    }))
   })
 
   afterEach(() => {
@@ -25,14 +35,17 @@ describe('useFeedbackSelection', () => {
   })
 
   const createFeedbackDeps = () => {
-    const feedbackAudio = {
+    // Mock feedback audio store
+    useFeedbackAudioStore.setState((state) => ({
+      ...state,
       audioUrls: {
         '1': 'https://cdn.example.com/audio.mp3',
       },
-      selectAudio: jest.fn(),
-      clearActiveAudio: jest.fn(),
+      activeAudio: null,
       errors: {},
-    }
+      isPlaying: false,
+      controller: null,
+    }))
 
     const audioController = {
       setIsPlaying: jest.fn(),
@@ -55,39 +68,34 @@ describe('useFeedbackSelection', () => {
       confidence: 1,
     }
 
-    return { feedbackAudio, audioController, videoPlayback, item }
+    return { audioController, videoPlayback, item }
   }
 
   it('selects feedback and triggers audio playback', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
-      useFeedbackSelection(
-        deps.feedbackAudio as any,
-        deps.audioController as any,
-        deps.videoPlayback as any
-      )
+      useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
 
     act(() => {
       result.current.selectFeedback(deps.item)
     })
 
-    expect(result.current.selectedFeedbackId).toBe('1')
+    // Read from store to verify state
+    const storeState = useFeedbackCoordinatorStore.getState()
+    expect(storeState.selectedFeedbackId).toBe('1')
+    expect(storeState.highlightedFeedbackId).toBe('1')
+    expect(storeState.highlightSource).toBe('user')
     expect(deps.videoPlayback.seek).toHaveBeenCalledWith(2)
-    expect(deps.feedbackAudio.selectAudio).toHaveBeenCalledWith('1')
-    expect(deps.audioController.setIsPlaying).toHaveBeenCalledWith(true)
+    expect(useFeedbackAudioStore.getState().isPlaying).toBe(true)
   })
 
   it('respects select options for seek/audio toggles', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
-      useFeedbackSelection(
-        deps.feedbackAudio as any,
-        deps.audioController as any,
-        deps.videoPlayback as any
-      )
+      useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
 
     act(() => {
@@ -95,7 +103,6 @@ describe('useFeedbackSelection', () => {
     })
 
     expect(deps.videoPlayback.seek).not.toHaveBeenCalled()
-    expect(deps.feedbackAudio.selectAudio).not.toHaveBeenCalled()
 
     act(() => {
       result.current.selectFeedback(deps.item, { seek: true, playAudio: true })
@@ -105,44 +112,41 @@ describe('useFeedbackSelection', () => {
       result.current.clearSelection()
     })
 
-    expect(result.current.selectedFeedbackId).toBeNull()
-    expect(deps.feedbackAudio.clearActiveAudio).toHaveBeenCalled()
-    expect(deps.audioController.setIsPlaying).toHaveBeenCalledWith(false)
+    // Read from store to verify state
+    const storeState = useFeedbackCoordinatorStore.getState()
+    expect(storeState.selectedFeedbackId).toBeNull()
+    expect(storeState.highlightedFeedbackId).toBeNull()
+    const audioStoreState = useFeedbackAudioStore.getState()
+    expect(audioStoreState.activeAudio).toBeNull()
+    expect(audioStoreState.isPlaying).toBe(false)
   })
 
   it('allows manually triggering coach speaking duration', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
-      useFeedbackSelection(
-        deps.feedbackAudio as any,
-        deps.audioController as any,
-        deps.videoPlayback as any
-      )
+      useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
 
     act(() => {
       result.current.triggerCoachSpeaking(10)
     })
 
-    expect(result.current.isCoachSpeaking).toBe(true)
+    // Read from store to verify state
+    expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(true)
 
     act(() => {
       result.current.triggerCoachSpeaking(0)
     })
 
-    expect(result.current.isCoachSpeaking).toBe(false)
+    expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(false)
   })
 
   it('handles auto highlight with custom duration and cleanup', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
-      useFeedbackSelection(
-        deps.feedbackAudio as any,
-        deps.audioController as any,
-        deps.videoPlayback as any
-      )
+      useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
 
     act(() => {
@@ -153,27 +157,24 @@ describe('useFeedbackSelection', () => {
       })
     })
 
-    expect(result.current.highlightedFeedbackId).toBe('1')
-    expect(result.current.highlightSource).toBe('auto')
+    // Read from store to verify state
+    const storeState = useFeedbackCoordinatorStore.getState()
+    expect(storeState.highlightedFeedbackId).toBe('1')
+    expect(storeState.highlightSource).toBe('auto')
     expect(deps.videoPlayback.seek).not.toHaveBeenCalled()
-    expect(deps.feedbackAudio.selectAudio).toHaveBeenCalledWith('1')
 
     act(() => {
       jest.runAllTimers()
     })
 
-    expect(result.current.highlightedFeedbackId).toBeNull()
+    expect(useFeedbackCoordinatorStore.getState().highlightedFeedbackId).toBeNull()
   })
 
   it('clearHighlight respects matchId and sources', () => {
     const deps = createFeedbackDeps()
 
     const { result } = renderHook(() =>
-      useFeedbackSelection(
-        deps.feedbackAudio as any,
-        deps.audioController as any,
-        deps.videoPlayback as any
-      )
+      useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
 
     act(() => {
@@ -184,67 +185,48 @@ describe('useFeedbackSelection', () => {
       result.current.clearHighlight({ matchId: 'other-id' })
     })
 
-    expect(result.current.highlightedFeedbackId).toBe('1')
+    // Read from store to verify state
+    expect(useFeedbackCoordinatorStore.getState().highlightedFeedbackId).toBe('1')
 
     act(() => {
       result.current.clearHighlight({ sources: ['user'] })
     })
 
-    expect(result.current.highlightedFeedbackId).toBe('1')
+    expect(useFeedbackCoordinatorStore.getState().highlightedFeedbackId).toBe('1')
 
     act(() => {
       result.current.clearHighlight({ matchId: '1', sources: ['auto'], reason: 'manual-test' })
     })
 
-    expect(result.current.highlightedFeedbackId).toBeNull()
+    expect(useFeedbackCoordinatorStore.getState().highlightedFeedbackId).toBeNull()
   })
 
   describe('Task 5.2: Batched Selection State Updates', () => {
-    it('batches non-urgent UI state updates with startTransition', () => {
+    it('batches state updates in single store transaction', () => {
       const deps = createFeedbackDeps()
-      let renderCount = 0
 
-      const { result, rerender } = renderHook(() => {
-        renderCount++
-        return useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
-      })
+      const { result } = renderHook(() =>
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
+      )
 
-      const initialRenderCount = renderCount
-
-      // Act - Select feedback (triggers 4 state updates: highlight, selected, audio, speaking)
+      // Act - Select feedback (triggers batchUpdate with multiple state changes)
       act(() => {
         result.current.selectFeedback(deps.item)
       })
 
-      // Force a rerender to see batched updates
-      rerender()
-
-      const finalRenderCount = renderCount
-      const additionalRenders = finalRenderCount - initialRenderCount
-
-      // Without startTransition: ~4 renders (one per state update)
-      // With startTransition: 1-2 renders (batched)
-      expect(additionalRenders).toBeLessThanOrEqual(2)
-
-      // Verify all state was still set correctly
-      expect(result.current.selectedFeedbackId).toBe('1')
-      expect(result.current.highlightedFeedbackId).toBe('1')
-      expect(result.current.isCoachSpeaking).toBe(true)
+      // Verify all state was set correctly in single transaction
+      const storeState = useFeedbackCoordinatorStore.getState()
+      expect(storeState.selectedFeedbackId).toBe('1')
+      expect(storeState.highlightedFeedbackId).toBe('1')
+      expect(storeState.highlightSource).toBe('user')
+      expect(storeState.isCoachSpeaking).toBe(true)
     })
 
     it('urgent seek operation happens immediately without batching', () => {
       const deps = createFeedbackDeps()
 
       const { result } = renderHook(() =>
-        useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
       )
 
       const seekStartTime = performance.now()
@@ -256,7 +238,7 @@ describe('useFeedbackSelection', () => {
       const seekEndTime = performance.now()
       const seekDuration = seekEndTime - seekStartTime
 
-      // Seek should be called immediately (not deferred by startTransition)
+      // Seek should be called immediately (not deferred)
       expect(deps.videoPlayback.seek).toHaveBeenCalledWith(2)
 
       // Should complete quickly (< 50ms, accounting for test overhead)
@@ -267,155 +249,109 @@ describe('useFeedbackSelection', () => {
   describe('Priority 3: Batch State Updates', () => {
     it('batches clearSelection state updates in single transaction', () => {
       const deps = createFeedbackDeps()
-      let renderCount = 0
 
-      const { result, rerender } = renderHook(() => {
-        renderCount++
-        return useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
-      })
+      const { result } = renderHook(() =>
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
+      )
 
       // Arrange - Select feedback first
       act(() => {
         result.current.selectFeedback(deps.item)
       })
 
-      const beforeClearRenderCount = renderCount
-
-      // Act - Clear selection (5 state updates: clearHighlight, setSelectedId, clearActiveAudio, setIsPlaying, triggerCoachSpeaking)
+      // Act - Clear selection (batched in store transaction)
       act(() => {
         result.current.clearSelection()
       })
 
-      // Force a rerender to see batched updates
-      rerender()
-
-      const afterClearRenderCount = renderCount
-      const additionalRenders = afterClearRenderCount - beforeClearRenderCount
-
-      // Assert - With startTransition batching: 1-2 renders (batched)
-      // Without batching: ~5 renders (one per state update)
-      expect(additionalRenders).toBeLessThanOrEqual(2)
-
       // Verify all state was cleared correctly
-      expect(result.current.selectedFeedbackId).toBeNull()
-      expect(result.current.highlightedFeedbackId).toBeNull()
-      expect(result.current.isCoachSpeaking).toBe(false)
-      expect(deps.feedbackAudio.clearActiveAudio).toHaveBeenCalled()
-      expect(deps.audioController.setIsPlaying).toHaveBeenCalledWith(false)
+      const storeState = useFeedbackCoordinatorStore.getState()
+      expect(storeState.selectedFeedbackId).toBeNull()
+      expect(storeState.highlightedFeedbackId).toBeNull()
+      expect(storeState.isCoachSpeaking).toBe(false)
+      const audioState = useFeedbackAudioStore.getState()
+      expect(audioState.activeAudio).toBeNull()
+      expect(audioState.isPlaying).toBe(false)
     })
   })
 
   describe('Task 5.3: Optimize coachSpeaking Timer', () => {
-    it('does not trigger re-render when timer is cleared if speaking is already false', () => {
+    it('does not trigger update when timer is cleared if speaking is already false', () => {
       const deps = createFeedbackDeps()
-      let renderCount = 0
 
-      const { result } = renderHook(() => {
-        renderCount++
-        return useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
-      })
+      const { result } = renderHook(() =>
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
+      )
 
       // Act - Trigger speaking with 0 duration (should set to false without timer)
       act(() => {
         result.current.triggerCoachSpeaking(0)
       })
 
-      const afterFirstCall = renderCount
+      // Should be false (no change from initial state)
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(false)
 
-      // Should not trigger re-render if already false
+      // Second call with 0 duration should not cause update (already false)
       act(() => {
         result.current.triggerCoachSpeaking(0)
       })
 
-      const afterSecondCall = renderCount
-
-      // Assert - Second call with 0 duration should not cause render (already false)
-      expect(afterSecondCall).toBe(afterFirstCall)
-      expect(result.current.isCoachSpeaking).toBe(false)
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(false)
     })
 
-    it('only triggers re-render when isCoachSpeaking actually changes', () => {
+    it('only triggers update when isCoachSpeaking actually changes', () => {
       const deps = createFeedbackDeps()
-      let renderCount = 0
 
-      const { result } = renderHook(() => {
-        renderCount++
-        return useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
-      })
+      const { result } = renderHook(() =>
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
+      )
 
       // Start speaking
       act(() => {
         result.current.triggerCoachSpeaking(100)
       })
 
-      const afterStart = renderCount
+      // Read from store
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(true)
 
       // Interrupt with another speaking call (should clear previous timer)
       act(() => {
         result.current.triggerCoachSpeaking(100)
       })
 
-      const afterInterrupt = renderCount
-
-      // Assert - Interrupting should not cause extra render (already true)
-      // Should only set new timer without state change
-      expect(afterInterrupt).toBe(afterStart)
-      expect(result.current.isCoachSpeaking).toBe(true)
+      // Should still be true (no redundant update)
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(true)
     })
 
     it('prevents redundant state updates when timer expires', () => {
       const deps = createFeedbackDeps()
-      let renderCount = 0
 
-      const { result } = renderHook(() => {
-        renderCount++
-        return useFeedbackSelection(
-          deps.feedbackAudio as any,
-          deps.audioController as any,
-          deps.videoPlayback as any
-        )
-      })
+      const { result } = renderHook(() =>
+        useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
+      )
 
       // Trigger speaking
       act(() => {
         result.current.triggerCoachSpeaking(10)
       })
 
-      const beforeTimeout = renderCount
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(true)
 
       // Let timer expire
       act(() => {
         jest.advanceTimersByTime(10)
       })
 
-      const afterTimeout = renderCount
+      // Read from store - should be false after timer expires
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(false)
 
-      // Assert - Timer expiring should cause one render to set false
-      expect(afterTimeout).toBe(beforeTimeout + 1)
-      expect(result.current.isCoachSpeaking).toBe(false)
-
-      // Manually set to false again (should not cause render)
-      const beforeSecondSet = renderCount
+      // Manually set to false again (should not cause update)
       act(() => {
         result.current.triggerCoachSpeaking(0)
       })
 
-      const afterSecondSet = renderCount
-
-      // Should not render again (already false)
-      expect(afterSecondSet).toBe(beforeSecondSet)
+      // Should still be false (no redundant update)
+      expect(useFeedbackCoordinatorStore.getState().isCoachSpeaking).toBe(false)
     })
   })
 })

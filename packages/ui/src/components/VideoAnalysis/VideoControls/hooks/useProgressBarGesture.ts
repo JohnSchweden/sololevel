@@ -126,6 +126,8 @@ export interface UseProgressBarGestureConfig {
   showControlsAndResetTimer: () => void
   /** Optional: Shared scrubbing state across multiple progress bars to prevent simultaneous activation */
   globalScrubbingShared?: SharedValue<boolean>
+  /** Optional: Horizontal inset (px) from gesture view's left to visual track's left */
+  trackLeftInset?: number
 }
 
 export interface UseProgressBarGestureReturn {
@@ -155,6 +157,7 @@ export function useProgressBarGesture(
     onSeek,
     showControlsAndResetTimer,
     globalScrubbingShared,
+    trackLeftInset = 0,
   } = config
 
   // State management - consolidated from original component
@@ -248,9 +251,10 @@ export function useProgressBarGesture(
         .activateAfterLongPress(0) // Immediate activation
         .onBegin((event) => {
           // Early activation - more reliable than onStart
+          const relativeX = Math.max(0, event.x - trackLeftInset)
           const seekPercentage =
             progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
 
           lastScrubbedPositionShared.value = seekPercentage
@@ -258,35 +262,58 @@ export function useProgressBarGesture(
           controlsShownForThisGestureShared.value = false
           runOnJS(log.debug)('VideoControls', `${barType} progress bar touch begin`, {
             eventX: event.x,
-            eventY: event.y,
+            trackLeftInset,
+            relativeX,
             progressBarWidth: progressBarWidthShared.value,
             seekPercentage,
             duration,
           })
         })
         .onStart((event) => {
-          // Calculate seek percentage from touch position
-          const seekPercentage =
+          // Calculate seek percentage from touch position, accounting for track left inset
+          const relativeX = Math.max(0, event.x - trackLeftInset)
+          const correctedSeekPercentage =
             progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
 
+          // DEBUG: Log corrected calculation to validate fix
+          runOnJS(log.debug)(
+            'VideoControls',
+            `${barType} progress bar touch start - CORRECTED CALCULATION`,
+            {
+              eventX: event.x,
+              trackLeftInset,
+              relativeX,
+              progressBarWidth: progressBarWidthShared.value,
+              correctedSeekPercentage,
+              duration,
+              expectedSeekTimeCorrected:
+                duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
+            }
+          )
+
           // Store position for potential drag
-          lastScrubbedPositionShared.value = seekPercentage
+          lastScrubbedPositionShared.value = correctedSeekPercentage
           runOnJS(log.debug)('VideoControls', `${barType} progress bar touch start`, {
             eventX: event.x,
+            trackLeftInset,
+            relativeX,
             progressBarWidth: progressBarWidthShared.value,
-            seekPercentage,
+            seekPercentage: correctedSeekPercentage,
             duration,
           })
 
           // For immediate taps (no dragging), seek right away
-          if (duration > 0 && seekPercentage >= 0) {
-            const seekTime = (seekPercentage / 100) * duration
+          if (duration > 0 && correctedSeekPercentage >= 0) {
+            // Force seek to end if within 2% threshold (prevents off-by-frame issues)
+            const seekTime =
+              correctedSeekPercentage > 98 ? duration : (correctedSeekPercentage / 100) * duration
             runOnJS(log.debug)('VideoControls', `${barType} immediate seek`, {
-              seekPercentage,
+              seekPercentage: correctedSeekPercentage,
               seekTime,
               duration,
+              isEndSeek: correctedSeekPercentage > 98,
             })
             runOnJS(onSeek)(seekTime)
             // Show controls when user taps progress bar (consistent with drag behavior)
@@ -331,13 +358,30 @@ export function useProgressBarGesture(
               }
             }
 
-            const seekPercentage =
+            const relativeX = Math.max(0, event.x - trackLeftInset)
+            const correctedSeekPercentage =
               progressBarWidthShared.value > 0
-                ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+                ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
                 : 0
 
-            runOnJS(setScrubbingPosition)(seekPercentage)
-            lastScrubbedPositionShared.value = seekPercentage
+            // DEBUG: Log corrected calculation during drag to validate fix
+            runOnJS(log.debug)(
+              'VideoControls',
+              `${barType} progress bar drag update - CORRECTED CALCULATION`,
+              {
+                eventX: event.x,
+                trackLeftInset,
+                relativeX,
+                progressBarWidth: progressBarWidthShared.value,
+                correctedSeekPercentage,
+                duration,
+                expectedSeekTimeCorrected:
+                  duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
+              }
+            )
+
+            runOnJS(setScrubbingPosition)(correctedSeekPercentage)
+            lastScrubbedPositionShared.value = correctedSeekPercentage
             // Log only on first drag event to reduce log spam
             // Subsequent drag updates are frequent (60+ per second) and don't need logging
           }
@@ -360,10 +404,12 @@ export function useProgressBarGesture(
 
             if (duration > 0 && currentPosition >= 0) {
               const seekTime = (currentPosition / 100) * duration
-              runOnJS(log.debug)('VideoControls', `${barType} drag end seek`, {
-                seekPercentage: currentPosition,
-                seekTime,
+              runOnJS(log.debug)('VideoControls', `${barType} drag end seek - FINAL CALCULATION`, {
+                finalSeekPercentage: currentPosition,
+                finalSeekTime: seekTime,
                 duration,
+                trackLeftInset,
+                expectedProgressAtSeek: (seekTime / duration) * 100,
               })
               runOnJS(onSeek)(seekTime)
             }
@@ -386,6 +432,7 @@ export function useProgressBarGesture(
       showControlsAndResetTimer,
       progressBarWidthShared,
       globalScrubbingShared,
+      trackLeftInset,
     ]
     // Note: isScrubbing removed from deps - we use isScrubbingShared instead
     // This prevents gesture handler recreation on every scrubbing state toggle
@@ -402,15 +449,17 @@ export function useProgressBarGesture(
           // Don't call showControlsAndResetTimer here - combinedGesture.onStart handles taps
           // This gesture is for dragging only, controls will show when dragging starts (onUpdate)
 
+          const relativeX = Math.max(0, event.x - trackLeftInset)
           const seekPercentage =
             progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
 
           lastScrubbedPositionShared.value = seekPercentage
           runOnJS(log.debug)('VideoControls', `${barType} main gesture begin`, {
             eventX: event.x,
-            eventY: event.y,
+            trackLeftInset,
+            relativeX,
             progressBarWidth: progressBarWidthShared.value,
             seekPercentage,
           })
@@ -419,9 +468,10 @@ export function useProgressBarGesture(
           // Don't call showControlsAndResetTimer here - combinedGesture.onStart handles taps
           // This gesture is for dragging only, controls will show when dragging starts (onUpdate)
 
+          const relativeX = Math.max(0, event.x - trackLeftInset)
           const seekPercentage =
             progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
           runOnJS(setScrubbingPosition)(seekPercentage)
           lastScrubbedPositionShared.value = seekPercentage
@@ -436,9 +486,10 @@ export function useProgressBarGesture(
             return
           }
 
+          const relativeX = Math.max(0, event.x - trackLeftInset)
           const seekPercentage =
             progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (event.x / progressBarWidthShared.value) * 100))
+              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
           runOnJS(setScrubbingPosition)(seekPercentage)
           lastScrubbedPositionShared.value = seekPercentage
@@ -468,7 +519,7 @@ export function useProgressBarGesture(
           runOnJS(setScrubbingPosition)(null)
         })
         .simultaneousWithExternalGesture(),
-    [barType, duration, onSeek, showControlsAndResetTimer, progressBarWidthShared]
+    [barType, duration, onSeek, showControlsAndResetTimer, progressBarWidthShared, trackLeftInset]
   )
 
   return {

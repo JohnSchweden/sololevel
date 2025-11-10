@@ -1,5 +1,5 @@
 //import { log } from '@my/logging'
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 
 import { YStack } from 'tamagui'
 
@@ -7,19 +7,24 @@ import { FeedbackPanel } from '@ui/components/VideoAnalysis'
 
 import { mockComments } from '@app/mocks/comments'
 
+import {
+  getFeedbackPanelCommandState,
+  useFeedbackPanel,
+  useFeedbackPanelCommandStore,
+} from '../hooks/useFeedbackPanel'
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import type { FeedbackPanelItem } from '../types'
 
 interface FeedbackSectionProps {
-  panelFraction: number
-  activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackPanelItem[]
-  selectedFeedbackId: string | null
+  // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
   currentVideoTime: number
   videoDuration: number
-  errors: Record<string, string>
-  audioUrls: Record<string, string>
-  onTabChange: (tab: 'feedback' | 'insights' | 'comments') => void
-  onExpand: () => void
+  // errors: Record<string, string> - REMOVED: Subscribed directly from store
+  // audioUrls: Record<string, string> - REMOVED: Subscribed directly from store
+  // onTabChange removed - handled internally by feedbackPanel.setActiveTab
+  // onExpand removed - handled internally by feedbackPanel.expand
   onCollapse: () => void
   onItemPress: (item: FeedbackPanelItem) => void
   onSeek: (time: number) => void
@@ -33,17 +38,15 @@ interface FeedbackSectionProps {
 }
 
 export const FeedbackSection = memo(function FeedbackSection({
-  panelFraction,
-  activeTab,
   feedbackItems,
-  selectedFeedbackId,
+  // selectedFeedbackId, - REMOVED: Subscribed directly from store
   currentVideoTime,
   videoDuration,
-  errors,
-  audioUrls,
-  onTabChange,
+  // errors, - REMOVED: Subscribed directly from store
+  // audioUrls, - REMOVED: Subscribed directly from store
+  // onTabChange, - REMOVED: handled internally by feedbackPanel.setActiveTab
   // TEMP_DISABLED: Sheet expand/collapse for static layout
-  // onExpand,
+  // onExpand, - REMOVED: handled internally by feedbackPanel.expand
   // onCollapse,
   onItemPress,
   onSeek,
@@ -55,6 +58,30 @@ export const FeedbackSection = memo(function FeedbackSection({
   scrollEnabled,
   rootPanRef,
 }: FeedbackSectionProps) {
+  // PERFORMANCE FIX: Direct subscription to highlighted feedback state
+  // Eliminates VideoAnalysisScreen re-renders when feedback selection changes
+  const selectedFeedbackId = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.highlightedFeedbackId : null
+  )
+
+  // PERFORMANCE FIX: Direct subscription to feedback panel state
+  // Eliminates VideoAnalysisScreen re-renders when panel state changes
+  const feedbackPanel = useFeedbackPanel()
+  const setActiveTab = feedbackPanel.setActiveTab
+  // Subscribe only to command value (not the object with clear function)
+  // This prevents infinite loops from object reference changes
+  const command = useFeedbackPanelCommandStore((state) => state.command)
+  const processedTokenRef = useRef<number | null>(null)
+
+  // PERFORMANCE FIX: Direct subscription to feedback audio state
+  // Eliminates VideoAnalysisScreen re-renders when audio URLs/errors change
+  const errors = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.errors : {}
+  )
+  const audioUrls = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.audioUrls : {}
+  )
+
   const preparedItems = useMemo(
     () =>
       feedbackItems.map((item) => ({
@@ -65,13 +92,30 @@ export const FeedbackSection = memo(function FeedbackSection({
     [audioUrls, errors, feedbackItems]
   )
 
+  // Process command bus requests - use token to avoid reprocessing same command
+  useEffect(() => {
+    if (!command) {
+      // Reset processed token when command is cleared to allow reprocessing
+      processedTokenRef.current = null
+      return
+    }
+    // Skip if we've already processed this command token
+    if (processedTokenRef.current === command.token) {
+      return
+    }
+    processedTokenRef.current = command.token
+    setActiveTab(command.tab)
+    // Clear command after processing
+    getFeedbackPanelCommandState().clear()
+  }, [command, setActiveTab])
+
   useEffect(() => {
     // log.debug('FeedbackSection', 'selectedFeedbackId prop changed', {
     //   selectedFeedbackId,
-    //   panelFraction,
-    //   isExpanded: panelFraction > 0.1,
+    //   panelFraction: feedbackPanel.panelFraction,
+    //   isExpanded: feedbackPanel.panelFraction > 0.1,
     // })
-  }, [selectedFeedbackId, panelFraction])
+  }, [selectedFeedbackId, feedbackPanel.panelFraction])
 
   return (
     <YStack
@@ -82,13 +126,13 @@ export const FeedbackSection = memo(function FeedbackSection({
       <FeedbackPanel
         flex={1}
         isExpanded={true}
-        activeTab={activeTab}
+        activeTab={feedbackPanel.activeTab}
         feedbackItems={preparedItems}
         comments={mockComments}
         currentVideoTime={currentVideoTime}
         videoDuration={videoDuration}
         selectedFeedbackId={selectedFeedbackId}
-        onTabChange={onTabChange}
+        onTabChange={feedbackPanel.setActiveTab}
         // TEMP_DISABLED: Sheet expand/collapse for static layout
         // onSheetExpand={onExpand}
         // onSheetCollapse={onCollapse}
@@ -111,3 +155,8 @@ export const FeedbackSection = memo(function FeedbackSection({
 })
 
 FeedbackSection.displayName = 'FeedbackSection'
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(FeedbackSection as any).whyDidYouRender = true
+}

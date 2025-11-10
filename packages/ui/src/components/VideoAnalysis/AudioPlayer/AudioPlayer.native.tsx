@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import Video from 'react-native-video'
 
 import type { AudioPlayerProps } from '../types'
@@ -26,26 +26,42 @@ export const AudioPlayer = function AudioPlayer({
 }: AudioPlayerProps) {
   // Track if we've done initial seek for this audio URL
   const hasInitializedRef = useRef(false)
+  // Ref to video component for cleanup
+  const videoRef = useRef<Video>(null)
 
   // Reset initialization flag when audio URL changes
   useEffect(() => {
     hasInitializedRef.current = false
   }, [audioUrl])
 
+  // Cleanup video resources on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        // Note: react-native-video doesn't have an explicit unload method
+        // but we can reset the ref to help with garbage collection
+        videoRef.current = null
+      }
+    }
+  }, [])
+
   // Debug logging for AudioPlayer component mount only
-  // const hasLoggedMountRef = useRef(false)
-  // if (__DEV__ && !hasLoggedMountRef.current) {
-  //   hasLoggedMountRef.current = true
-  //   log.debug('AudioPlayer', 'Component mounted', {
-  //     audioUrl: audioUrl ? `${audioUrl.substring(0, 50)}...` : null,
-  //     testID,
-  //   })
-  // }
+  const hasLoggedMountRef = useRef(false)
+  if (!hasLoggedMountRef.current) {
+    hasLoggedMountRef.current = true
+    log.debug('AudioPlayer', 'Component mounted', {
+      hasAudioUrl: !!audioUrl,
+      audioUrlPreview: audioUrl ? `${audioUrl.substring(0, 50)}...` : null,
+      testID,
+      controllerExists: !!controller,
+      controllerHasSetIsPlaying: !!controller?.setIsPlaying,
+    })
+  }
 
   if (!audioUrl) {
-    // if (__DEV__) {
-    //   log.debug('AudioPlayer', 'No audio URL provided, not rendering')
-    // }
+    log.debug('AudioPlayer', 'No audio URL provided, not rendering', {
+      activeAudioId: controller?.isPlaying ? 'unknown' : null,
+    })
     return null
   }
 
@@ -68,22 +84,59 @@ export const AudioPlayer = function AudioPlayer({
   // Video component is expensive to re-render, so stable source reference is important
   const audioSource = useMemo(() => ({ uri: normalizedAudioUrl }), [normalizedAudioUrl])
 
+  // Subscribe to isPlaying using useSyncExternalStore
+  // This causes re-renders when controller.isPlaying changes (via getter)
+  // Without recreating the controller object
+  const isPlaying = useSyncExternalStore(
+    // subscribe: called on mount/dependency change
+    (callback) => {
+      // Poll controller.isPlaying every 50ms and trigger callback when it changes
+      let lastValue = controller.isPlaying
+      const interval = setInterval(() => {
+        const currentValue = controller.isPlaying
+        if (currentValue !== lastValue) {
+          lastValue = currentValue
+          callback() // Trigger re-render
+        }
+      }, 50)
+      return () => clearInterval(interval)
+    },
+    // getSnapshot: current value
+    () => controller.isPlaying,
+    // getServerSnapshot (not used on native)
+    () => false
+  )
+
+  // Log pause/resume state changes
+  const prevIsPlayingRef = useRef<boolean>(isPlaying)
+  useEffect(() => {
+    if (isPlaying !== prevIsPlayingRef.current) {
+      log.debug('AudioPlayer', 'Pause state changed', {
+        from: prevIsPlayingRef.current ? 'playing' : 'paused',
+        to: isPlaying ? 'playing' : 'paused',
+        timestamp: Date.now(),
+      })
+      prevIsPlayingRef.current = isPlaying
+    }
+  }, [isPlaying])
+
   return (
     <Video
+      ref={videoRef}
       testID={testID}
       source={audioSource}
-      paused={!controller.isPlaying}
+      paused={!isPlaying}
       seek={controller.seekTime ?? undefined}
       onLoad={(data) => {
-        // log.info('AudioPlayer', 'Video component onLoad', {
-        //   data,
-        //   controllerState: {
-        //     isPlaying: controller.isPlaying,
-        //     currentTime: controller.currentTime,
-        //     seekTime: controller.seekTime,
-        //     isLoaded: controller.isLoaded,
-        //   },
-        // })
+        log.debug('AudioPlayer', 'Video component onLoad', {
+          duration: data.duration,
+          controllerState: {
+            isPlaying: controller.isPlaying,
+            currentTime: controller.currentTime,
+            seekTime: controller.seekTime,
+            isLoaded: controller.isLoaded,
+          },
+        })
         controller.handleLoad(data)
 
         // Only do initial seek once per audio URL to prevent redundant seeks

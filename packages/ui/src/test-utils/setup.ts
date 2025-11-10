@@ -46,6 +46,32 @@ import React from 'react'
 // Setup jest-dom for additional matchers
 import '@testing-library/jest-dom'
 
+const suppressedErrorPatterns = [
+  /React does not recognize the `testID` prop/,
+  /React does not recognize the `accessibilityLabel` prop/,
+  /React does not recognize the `accessibilityRole` prop/,
+  /React does not recognize the `onLayout` prop/,
+  /React does not recognize the `animateOnly` prop/,
+  /React does not recognize the `disabledStyle` prop/,
+  /React does not recognize the `resizeMode` prop/,
+  /Unknown event handler property `onPress`/,
+  /Unknown event handler property `onLayout`/,
+  /<Link \/> is using incorrect casing/,
+]
+
+const originalConsoleError = console.error
+console.error = (...args: unknown[]) => {
+  const [message] = args
+  if (
+    typeof message === 'string' &&
+    suppressedErrorPatterns.some((pattern) => pattern.test(message))
+  ) {
+    return
+  }
+
+  originalConsoleError(...args)
+}
+
 // Note: Do not enable fake timers globally; enable per-suite when needed.
 afterEach(() => {
   if (jest.isMockFunction(setTimeout)) {
@@ -113,6 +139,7 @@ const MockPressable = React.forwardRef<any, MockPressableProps>((props, ref) => 
       onMouseUp: props.disabled ? undefined : onPressOut,
       onMouseLeave: onLongPress,
       style: { cursor: props.disabled ? 'not-allowed' : 'pointer', ...props.style },
+      testID: testID || 'Pressable',
       'data-testid': testID || 'Pressable',
       role: accessibilityRole || 'button',
       'aria-label': accessibilityLabel,
@@ -416,7 +443,7 @@ jest.mock('react-native-worklets-core', () => ({
   useSharedValue: jest.fn(),
 }))
 
-// Mock react-native-reanimated
+// Mock react-native-reanimated with simplified implementation
 jest.mock('react-native-reanimated', () => {
   const React = require('react')
   const Animated = {
@@ -432,70 +459,39 @@ jest.mock('react-native-reanimated', () => {
       ),
     createAnimatedComponent: (component: React.ComponentType<any>) => component,
   }
+
   return {
     __esModule: true,
     default: Animated,
-    useAnimatedStyle: () => ({}),
-    useAnimatedReaction: (predicate: any, effect: any) => {
-      // Mock implementation: call effect immediately with predicate result
-      try {
-        const result = predicate?.()
-        effect?.(result)
-      } catch {
-        // Silently catch any errors in test mocks
-      }
-    },
-    useSharedValue: (initialValue: any) => ({
-      value: initialValue,
+    useSharedValue: (initial: any) => ({ value: initial }),
+    useDerivedValue: (updater: () => any) => ({
+      value: typeof updater === 'function' ? updater() : undefined,
     }),
+    useAnimatedStyle: () => ({}),
+    useAnimatedReaction: () => undefined,
     useAnimatedRef: () => React.useRef(null),
     useAnimatedGestureHandler: (handler: any) => handler,
     useAnimatedScrollHandler: (handler: any) => handler,
-    withSpring: (targetValue: any) => targetValue,
-    withTiming: (targetValue: any) => targetValue,
-    interpolate: (value: any, inputRange: any, outputRange: any) => {
-      if (inputRange.length !== 2 || outputRange.length !== 2) return outputRange[0]
-      const [inMin, inMax] = inputRange
-      const [outMin, outMax] = outputRange
-      const ratio = (value - inMin) / (inMax - inMin)
-      return outMin + ratio * (outMax - outMin)
+    withSpring: (value: any) => value,
+    withTiming: (value: any) => value,
+    runOnJS: (fn: any) => fn,
+    runOnUI: (fn: any) => fn,
+    cancelAnimation: jest.fn(),
+    Easing: {
+      linear: (t: number) => t,
+      ease: (t: number) => t,
+      bezier: () => (t: number) => t,
+      out: (easingFn: (value: number) => number) => (value: number) => 1 - easingFn(1 - value),
+      in: (easingFn: (value: number) => number) => (value: number) => easingFn(value),
+      inOut: (easingFn: (value: number) => number) => (value: number) =>
+        value < 0.5 ? easingFn(value * 2) / 2 : 1 - easingFn((1 - value) * 2) / 2,
     },
     Extrapolation: {
       CLAMP: 'clamp',
       EXTEND: 'extend',
     },
-    runOnJS: (fn: any) => fn,
-    runOnUI: (fn: any) => fn,
-    createAnimatedStyle: () => ({}),
-    cancelAnimation: jest.fn(), // Add mock for cancelAnimation to prevent memory leaks
-    Easing: {
-      linear: (t: number) => t,
-      easeIn: (t: number) => t * t,
-      easeOut: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
-      ease: (t: number) => (1 - Math.cos(t * Math.PI)) / 2,
-      bezier: (_x1: number, _y1: number, _x2: number, _y2: number) => (t: number) => t,
-      inOut: (_easingFunction: (t: number) => number) => (t: number) => {
-        // Simplified cubic easing for tests
-        return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
-      },
-      out: (easingFunction: (t: number) => number) => (t: number) => {
-        // Reverse the easing function: out(ease) means ease reversed
-        return 1 - easingFunction(1 - t)
-      },
-      cubic: (t: number) => t * t * t,
-    },
-    Worklets: {
-      createRunInJsFn: jest.fn(),
-      createSharedValue: jest.fn(),
-      runOnUI: jest.fn(),
-    },
-    // Transition animations
-    FadeIn: {
-      duration: (ms: number) => ({ type: 'fadeIn', duration: ms }),
-    },
-    FadeOut: {
-      duration: (ms: number) => ({ type: 'fadeOut', duration: ms }),
-    },
+    FadeIn: { duration: () => ({}) },
+    FadeOut: { duration: () => ({}) },
   }
 })
 

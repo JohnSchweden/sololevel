@@ -25,7 +25,9 @@ import { create } from 'zustand'
 
 export interface FeedbackCoordinatorState {
   // Selection state
+  selectedFeedbackId: string | null
   highlightedFeedbackId: string | null
+  highlightSource: 'user' | 'auto' | null
   isCoachSpeaking: boolean
 
   // Bubble state
@@ -39,7 +41,9 @@ export interface FeedbackCoordinatorState {
   activeAudio: { id: string; url: string } | null
 
   // Actions for updating state
+  setSelectedFeedbackId: (id: string | null) => void
   setHighlightedFeedbackId: (id: string | null) => void
+  setHighlightSource: (source: 'user' | 'auto' | null) => void
   setIsCoachSpeaking: (speaking: boolean) => void
   setBubbleState: (state: { currentBubbleIndex: number | null; bubbleVisible: boolean }) => void
   setOverlayVisible: (visible: boolean) => void
@@ -58,7 +62,9 @@ export interface FeedbackCoordinatorState {
 // Extract action types for type safety
 type FeedbackCoordinatorActions = Pick<
   FeedbackCoordinatorState,
+  | 'setSelectedFeedbackId'
   | 'setHighlightedFeedbackId'
+  | 'setHighlightSource'
   | 'setIsCoachSpeaking'
   | 'setBubbleState'
   | 'setOverlayVisible'
@@ -68,7 +74,9 @@ type FeedbackCoordinatorActions = Pick<
 >
 
 const initialState = {
+  selectedFeedbackId: null,
   highlightedFeedbackId: null,
+  highlightSource: null,
   isCoachSpeaking: false,
   bubbleState: {
     currentBubbleIndex: null,
@@ -83,11 +91,25 @@ export const useFeedbackCoordinatorStore = create<FeedbackCoordinatorState>((set
   ...initialState,
 
   // Actions with logging
+  setSelectedFeedbackId: (id) => {
+    const prev = get().selectedFeedbackId
+    if (prev !== id) {
+      log.debug('FeedbackCoordinatorStore', '🔄 setSelectedFeedbackId', { prev, next: id })
+      set({ selectedFeedbackId: id })
+    }
+  },
   setHighlightedFeedbackId: (id) => {
     const prev = get().highlightedFeedbackId
     if (prev !== id) {
       log.debug('FeedbackCoordinatorStore', '🔄 setHighlightedFeedbackId', { prev, next: id })
       set({ highlightedFeedbackId: id })
+    }
+  },
+  setHighlightSource: (source) => {
+    const prev = get().highlightSource
+    if (prev !== source) {
+      log.debug('FeedbackCoordinatorStore', '🔄 setHighlightSource', { prev, next: source })
+      set({ highlightSource: source })
     }
   },
   setIsCoachSpeaking: (speaking) => {
@@ -137,12 +159,30 @@ export const useFeedbackCoordinatorStore = create<FeedbackCoordinatorState>((set
 
     // Track what's actually changing
     if (
+      updates.selectedFeedbackId !== undefined &&
+      updates.selectedFeedbackId !== prevState.selectedFeedbackId
+    ) {
+      changes.selectedFeedbackId = {
+        prev: prevState.selectedFeedbackId,
+        next: updates.selectedFeedbackId,
+      }
+    }
+    if (
       updates.highlightedFeedbackId !== undefined &&
       updates.highlightedFeedbackId !== prevState.highlightedFeedbackId
     ) {
       changes.highlightedFeedbackId = {
         prev: prevState.highlightedFeedbackId,
         next: updates.highlightedFeedbackId,
+      }
+    }
+    if (
+      updates.highlightSource !== undefined &&
+      updates.highlightSource !== prevState.highlightSource
+    ) {
+      changes.highlightSource = {
+        prev: prevState.highlightSource,
+        next: updates.highlightSource,
       }
     }
     if (

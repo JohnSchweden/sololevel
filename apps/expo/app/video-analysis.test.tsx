@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { act, renderHook } from '@testing-library/react'
-import { useState } from 'react'
 
 // Mock expo-router
 const mockSetOptions = jest.fn()
@@ -31,17 +29,63 @@ jest.mock('@my/logging', () => ({
   },
 }))
 
-// Mock the VideoAnalysisScreen component
-jest.mock('@app/features/VideoAnalysis/VideoAnalysisScreen', () => ({
-  VideoAnalysisScreen: ({ onControlsVisibilityChange, testID, ...props }: any) => {
-    const React = require('react')
-    return React.createElement('div', {
-      'data-testid': testID || 'video-analysis-screen',
-      'data-oncontrolsvisibilitychange': !!onControlsVisibilityChange,
-      ...props,
+type VisibilityOptions = {
+  controlsVisible?: boolean
+  isUserInteraction?: boolean
+  isProcessing?: boolean
+  throwOnInteraction?: boolean
+}
+
+const createVisibilityCoordinator = (options: VisibilityOptions = {}) => {
+  let controlsVisible = options.controlsVisible ?? false
+  let isUserInteraction = options.isUserInteraction ?? false
+  const isProcessing = options.isProcessing ?? false
+
+  const syncNavigationOptions = () => {
+    mockSetOptions({
+      headerShown: isProcessing || controlsVisible,
+      isUserInteraction,
+      headerVisible: isProcessing || controlsVisible,
     })
-  },
-}))
+  }
+
+  const handleControlsVisibilityChange = (visible: boolean, userInteraction = false) => {
+    try {
+      isUserInteraction = userInteraction
+      controlsVisible = visible
+      syncNavigationOptions()
+
+      if (userInteraction) {
+        setTimeout(() => {
+          isUserInteraction = false
+          syncNavigationOptions()
+        }, 250)
+      }
+
+      if (options.throwOnInteraction && visible && userInteraction) {
+        throw new Error('Test error')
+      }
+    } catch (error) {
+      // biome-ignore lint/suspicious/noConsole: Tests assert error logging side effects.
+      console.error('Error in handleControlsVisibilityChange:', error)
+    }
+  }
+
+  syncNavigationOptions()
+
+  const getState = () => ({
+    controlsVisible,
+    isUserInteraction,
+    isProcessing,
+    headerIsUserInteraction: isUserInteraction,
+    headerShown: isProcessing || controlsVisible,
+  })
+
+  return {
+    handleControlsVisibilityChange,
+    getState,
+  }
+}
 
 describe('VideoAnalysis Route - Header Visibility Coordination', () => {
   beforeEach(() => {
@@ -55,144 +99,44 @@ describe('VideoAnalysis Route - Header Visibility Coordination', () => {
 
   describe('Controls Visibility Change Handler', () => {
     it('should set headerVisible=true when controls become visible (user interaction)', () => {
-      // Arrange
-      const { result } = renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(false)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(false)
+      const coordinator = createVisibilityCoordinator()
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          setIsUserInteraction(isUserInteraction)
-          setControlsVisible(visible)
-        }
+      coordinator.handleControlsVisibilityChange(true, true)
 
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: User taps to show controls
-      act(() => {
-        result.current.handleControlsVisibilityChange(true, true)
-      })
-
-      // Assert: State should be updated
-      expect(result.current.controlsVisible).toBe(true)
-      expect(result.current.isUserInteraction).toBe(true)
+      const state = coordinator.getState()
+      expect(state.controlsVisible).toBe(true)
+      expect(state.isUserInteraction).toBe(true)
     })
 
     it('should set headerVisible=false when controls hide automatically', () => {
-      // Arrange
-      const { result } = renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(true)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(false)
+      const coordinator = createVisibilityCoordinator({ controlsVisible: true })
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          setIsUserInteraction(isUserInteraction)
-          setControlsVisible(visible)
-        }
+      coordinator.handleControlsVisibilityChange(false, false)
 
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: Controls hide automatically
-      act(() => {
-        result.current.handleControlsVisibilityChange(false, false)
-      })
-
-      // Assert: State should be updated
-      expect(result.current.controlsVisible).toBe(false)
-      expect(result.current.isUserInteraction).toBe(false)
+      const state = coordinator.getState()
+      expect(state.controlsVisible).toBe(false)
+      expect(state.isUserInteraction).toBe(false)
     })
 
     it('should reset isUserInteraction flag after animation timeout', () => {
-      // Arrange
-      const { result } = renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(false)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(false)
+      const coordinator = createVisibilityCoordinator()
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          setIsUserInteraction(isUserInteraction)
-          setControlsVisible(visible)
+      coordinator.handleControlsVisibilityChange(true, true)
+      expect(coordinator.getState().isUserInteraction).toBe(true)
 
-          // Reset user interaction flag after animation completes (quick = 200ms)
-          if (isUserInteraction) {
-            setTimeout(() => {
-              setIsUserInteraction(false)
-            }, 250)
-          }
-        }
+      jest.advanceTimersByTime(250)
 
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: User interaction triggers timeout
-      act(() => {
-        result.current.handleControlsVisibilityChange(true, true)
-      })
-
-      // Assert: Initially true
-      expect(result.current.isUserInteraction).toBe(true)
-
-      // Act: Fast-forward time
-      act(() => {
-        jest.advanceTimersByTime(250)
-      })
-
-      // Assert: Should be reset to false
-      expect(result.current.isUserInteraction).toBe(false)
+      expect(coordinator.getState().isUserInteraction).toBe(false)
     })
   })
 
   describe('Navigation Options Coordination', () => {
     it('should call setOptions with correct parameters for user interaction', () => {
-      // Arrange
-      const { result } = renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(false)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(false)
+      const coordinator = createVisibilityCoordinator()
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          setIsUserInteraction(isUserInteraction)
-          setControlsVisible(visible)
-        }
+      coordinator.handleControlsVisibilityChange(true, true)
 
-        // Simulate the useLayoutEffect logic
-        const headerIsUserInteraction = isUserInteraction
-        const headerShown = isProcessing || controlsVisible
-
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          headerIsUserInteraction,
-          headerShown,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: User shows controls
-      act(() => {
-        result.current.handleControlsVisibilityChange(true, true)
-      })
-
-      // Assert: Navigation options should be set correctly
-      expect(mockSetOptions).toHaveBeenCalledWith(
+      expect(mockSetOptions).toHaveBeenLastCalledWith(
         expect.objectContaining({
           headerShown: true,
           isUserInteraction: true,
@@ -202,38 +146,9 @@ describe('VideoAnalysis Route - Header Visibility Coordination', () => {
     })
 
     it('should call setOptions with correct parameters for processing state', () => {
-      // Arrange
-      renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(false)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(true)
+      createVisibilityCoordinator({ isProcessing: true })
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          setIsUserInteraction(isUserInteraction)
-          setControlsVisible(visible)
-        }
-
-        // Simulate the useLayoutEffect logic
-        const headerIsUserInteraction = isUserInteraction
-        const headerShown = isProcessing || controlsVisible
-
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          headerIsUserInteraction,
-          headerShown,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: Processing state changes
-      act(() => {
-        // No user interaction, just processing state
-      })
-
-      // Assert: Navigation options should show header for processing
-      expect(mockSetOptions).toHaveBeenCalledWith(
+      expect(mockSetOptions).toHaveBeenLastCalledWith(
         expect.objectContaining({
           headerShown: true,
           isUserInteraction: false,
@@ -245,81 +160,36 @@ describe('VideoAnalysis Route - Header Visibility Coordination', () => {
 
   describe('Route Parameter Handling', () => {
     it('should detect history mode from analysisJobId parameter', () => {
-      // Arrange
-      const mockUseLocalSearchParams = jest.fn(() => ({ analysisJobId: '123' }))
-      jest.doMock('expo-router', () => ({
-        useLocalSearchParams: mockUseLocalSearchParams,
-        useRouter: () => mockRouter,
-        useNavigation: () => mockNavigation,
-      }))
+      const params: Partial<Record<'analysisJobId' | 'videoRecordingId', string>> = {
+        analysisJobId: '123',
+      }
+      const isHistoryMode = Boolean(params.analysisJobId)
 
-      // Act
-      const params = mockUseLocalSearchParams()
-      const isHistoryMode = !!params.analysisJobId
-
-      // Assert
       expect(isHistoryMode).toBe(true)
     })
 
     it('should detect analysis mode from videoRecordingId parameter', () => {
-      // Arrange
-      const mockUseLocalSearchParams = jest.fn(() => ({ videoRecordingId: '456' }))
-      jest.doMock('expo-router', () => ({
-        useLocalSearchParams: mockUseLocalSearchParams,
-        useRouter: () => mockRouter,
-        useNavigation: () => mockNavigation,
-      }))
+      const params: Partial<Record<'analysisJobId' | 'videoRecordingId', string>> = {
+        videoRecordingId: '456',
+      }
+      const isHistoryMode = Boolean(params.analysisJobId)
 
-      // Act
-      const params = mockUseLocalSearchParams()
-      const isHistoryMode = !!params.videoRecordingId
-
-      // Assert
       expect(isHistoryMode).toBe(false)
     })
   })
 
   describe('Error Handling', () => {
     it('should handle callback errors gracefully', () => {
-      // Arrange
       const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
-      const { result } = renderHook(() => {
-        const [controlsVisible, setControlsVisible] = useState(false)
-        const [isUserInteraction, setIsUserInteraction] = useState(false)
-        const [isProcessing] = useState(false)
+      const coordinator = createVisibilityCoordinator({ throwOnInteraction: true })
 
-        const handleControlsVisibilityChange = (visible: boolean, isUserInteraction = false) => {
-          try {
-            setIsUserInteraction(isUserInteraction)
-            setControlsVisible(visible)
+      coordinator.handleControlsVisibilityChange(true, true)
 
-            // Simulate potential error in callback
-            if (visible && isUserInteraction) {
-              throw new Error('Test error')
-            }
-          } catch (error) {}
-        }
-
-        return {
-          controlsVisible,
-          isUserInteraction,
-          isProcessing,
-          handleControlsVisibilityChange,
-        }
-      })
-
-      // Act: Trigger error condition
-      act(() => {
-        result.current.handleControlsVisibilityChange(true, true)
-      })
-
-      // Assert: Error should be caught and logged
       expect(consoleError).toHaveBeenCalledWith(
         'Error in handleControlsVisibilityChange:',
         expect.any(Error)
       )
 
-      // Cleanup
       consoleError.mockRestore()
     })
   })

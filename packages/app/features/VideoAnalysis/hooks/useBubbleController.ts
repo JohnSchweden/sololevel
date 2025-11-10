@@ -1,5 +1,7 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+
+import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 
 export type BubbleTimerReason = 'initial' | 'playback-start' | 'duration-update'
 export type BubbleHideReason =
@@ -9,12 +11,22 @@ export type BubbleHideReason =
   | 'cleanup'
   | 'audio-stop'
 
-export interface BubbleControllerState {
+export interface BubbleControllerState<TItem extends BubbleFeedbackItem = BubbleFeedbackItem> {
+  /**
+   * @deprecated Read from FeedbackCoordinatorStore instead
+   * Use: `store(s => s.bubbleState.currentBubbleIndex)`
+   */
   currentBubbleIndex: number | null
+  /**
+   * @deprecated Read from FeedbackCoordinatorStore instead
+   * Use: `store(s => s.bubbleState.bubbleVisible)`
+   */
   bubbleVisible: boolean
   showBubble: (index: number) => void
   hideBubble: (reason?: BubbleHideReason) => void
   checkAndShowBubbleAtTime: (currentTimeMs: number) => number | null
+  // NEW: Pure detection without side effects
+  findTriggerCandidate: (currentTimeMs: number) => { index: number; item: TItem } | null
 }
 
 export interface BubbleControllerOptions<TItem extends BubbleFeedbackItem> {
@@ -93,8 +105,10 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
   audioDuration: number,
   options: BubbleControllerOptions<TItem> = {}
 ): BubbleControllerState {
-  const [currentBubbleIndex, setCurrentBubbleIndex] = useState<number | null>(null)
-  const [bubbleVisible, setBubbleVisible] = useState(false)
+  // PERF FIX: Move bubble state to Zustand store to prevent re-renders in VideoAnalysisScreen
+  // Read state imperatively; update store to broadcast to subscribers only
+  const getBubbleState = useCallback(() => useFeedbackCoordinatorStore.getState().bubbleState, [])
+  const setBubbleStateInStore = useFeedbackCoordinatorStore((state) => state.setBubbleState)
 
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastBubbleShowTimeRef = useRef<number>(0)
@@ -136,24 +150,59 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   const hideBubble = useCallback(
     (reason: BubbleHideReason = 'manual') => {
+      const currentState = getBubbleState()
+
+      // PERFORMANCE: Early exit if bubble already hidden
+      // Prevents redundant store writes and timer operations
+      if (!currentState.bubbleVisible && currentState.currentBubbleIndex === null) {
+        log.debug('useBubbleController.hideBubble', '⏭️ Skipping hide - bubble already hidden', {
+          reason,
+          currentBubbleIndex: currentState.currentBubbleIndex,
+          currentBubbleVisible: currentState.bubbleVisible,
+        })
+        return
+      }
+
       log.debug('useBubbleController.hideBubble', '💬 Hiding bubble', {
         reason,
-        currentBubbleIndex,
-        currentBubbleVisible: bubbleVisible,
+        currentBubbleIndex: currentState.currentBubbleIndex,
+        currentBubbleVisible: currentState.bubbleVisible,
         currentItemId:
-          currentBubbleIndex !== null ? feedbackItemsRef.current[currentBubbleIndex]?.id : null,
+          currentState.currentBubbleIndex !== null
+            ? feedbackItemsRef.current[currentState.currentBubbleIndex]?.id
+            : null,
       })
-      setBubbleVisible(false)
+
+      // Reset lastCheck tracking when hiding bubble
+      // Set to previous item's timestamp to prevent immediate re-trigger
+      // This ensures the next detection doesn't match this same item again
+      const previousItem =
+        currentState.currentBubbleIndex !== null
+          ? (feedbackItemsRef.current[currentState.currentBubbleIndex] ?? null)
+          : null
+      lastCheckTimestampRef.current = previousItem?.timestamp ?? null
+
+      log.debug('useBubbleController.hideBubble', '🔄 Reset lastCheck after hide', {
+        previousItemId: previousItem?.id,
+        previousItemTimestamp: previousItem?.timestamp,
+        lastCheckTimestampRef: lastCheckTimestampRef.current,
+      })
+
+      setBubbleStateInStore({ currentBubbleIndex: null, bubbleVisible: false })
       clearBubbleTimer()
       resetTimerState()
 
-      setCurrentBubbleIndex((prev) => {
-        const currentItem = prev !== null ? (feedbackItemsRef.current[prev] ?? null) : null
-        options.onBubbleHide?.({ index: prev, item: currentItem, reason })
-        return null
+      const currentItem =
+        currentState.currentBubbleIndex !== null
+          ? (feedbackItemsRef.current[currentState.currentBubbleIndex] ?? null)
+          : null
+      options.onBubbleHide?.({
+        index: currentState.currentBubbleIndex,
+        item: currentItem,
+        reason,
       })
     },
-    [clearBubbleTimer, options, resetTimerState]
+    [clearBubbleTimer, getBubbleState, options, resetTimerState, setBubbleStateInStore]
   )
 
   const scheduleBubbleHide = useCallback(
@@ -244,19 +293,23 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         return
       }
 
+      const currentState = getBubbleState()
       log.debug('useBubbleController.showBubble', '💬 Showing bubble', {
         index,
         itemId: item.id,
         timestamp: item.timestamp,
-        previousBubbleIndex: currentBubbleIndex,
-        previousBubbleVisible: bubbleVisible,
+        previousBubbleIndex: currentState.currentBubbleIndex,
+        previousBubbleVisible: currentState.bubbleVisible,
         totalFeedbacks: feedbackItemsRef.current.length,
       })
 
+      // Reset lastCheck tracking when showing a new bubble
+      // Prevents stale lastCheck from blocking future triggers after seek/manual selection
+      lastCheckTimestampRef.current = item.timestamp
+
       clearBubbleTimer()
 
-      setCurrentBubbleIndex(index)
-      setBubbleVisible(true)
+      setBubbleStateInStore({ currentBubbleIndex: index, bubbleVisible: true })
       lastBubbleShowTimeRef.current = Date.now()
 
       const hasAudioUrl = Boolean(audioUrls[item.id])
@@ -279,11 +332,20 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         scheduleBubbleHide({ index, item, reason: 'initial' })
       }
     },
-    [audioDuration, audioUrls, clearBubbleTimer, options, scheduleBubbleHide]
+    [
+      audioDuration,
+      audioUrls,
+      clearBubbleTimer,
+      getBubbleState,
+      options,
+      scheduleBubbleHide,
+      setBubbleStateInStore,
+    ]
   )
 
   useEffect(() => {
-    if (!bubbleVisible) {
+    const storeState = getBubbleState()
+    if (!storeState.bubbleVisible) {
       return
     }
 
@@ -344,11 +406,12 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         pausedAtMs: Date.now(),
       }
     }
-  }, [bubbleVisible, clearBubbleTimer, hideBubble, isPlaying, options, scheduleBubbleHide])
+  }, [getBubbleState, clearBubbleTimer, hideBubble, isPlaying, options, scheduleBubbleHide])
 
   useEffect(() => {
+    const storeState = getBubbleState()
     const currentState = timerStateRef.current
-    if (!bubbleVisible || !currentState.item || currentState.index === null) {
+    if (!storeState.bubbleVisible || !currentState.item || currentState.index === null) {
       return
     }
 
@@ -387,57 +450,76 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         reason: 'duration-update',
       })
     }
-  }, [audioDuration, audioUrls, bubbleVisible, isPlaying, options, scheduleBubbleHide])
+  }, [audioDuration, audioUrls, getBubbleState, isPlaying, options, scheduleBubbleHide])
 
-  const checkAndShowBubbleAtTime = useCallback(
+  // PURE: Find trigger candidate WITHOUT side effects
+  // Returns index and item if a bubble should trigger, or null if no trigger
+  // Does NOT call showBubble or update lastCheckTimestampRef
+  const findTriggerCandidate = useCallback(
     (currentTimeMs: number) => {
       const lastCheck = lastCheckTimestampRef.current
       if (lastCheck !== null && Math.abs(currentTimeMs - lastCheck) < CHECK_THROTTLE_MS) {
         return null
       }
 
-      // Check for ANY feedback in the range we just crossed (handles sparse progress events)
-      // Only trigger feedbacks ahead of lastCheck to prevent re-triggering already-shown items
-      const rangeEnd = currentTimeMs + TIMESTAMP_THRESHOLD_MS
+      const storeState = getBubbleState()
 
       for (let index = 0; index < feedbackItemsRef.current.length; index += 1) {
         const item = feedbackItemsRef.current[index]
 
-        // On first check or when seeking backwards, use point-in-time matching
-        // Otherwise, only trigger feedbacks ahead of the last check (prevents re-triggers)
+        // Exact timing: only trigger when current time crosses the timestamp
+        // On first check or when seeking backwards, trigger if within threshold
+        // Otherwise, only trigger feedbacks that we just passed (prevents re-triggers)
         const isInRange =
           lastCheck === null || currentTimeMs < lastCheck
             ? Math.abs(item.timestamp - currentTimeMs) < TIMESTAMP_THRESHOLD_MS
-            : item.timestamp > lastCheck && item.timestamp <= rangeEnd
+            : item.timestamp > lastCheck && item.timestamp <= currentTimeMs
 
-        const canShow = isInRange && (!bubbleVisible || currentBubbleIndex !== index)
+        const canShow =
+          isInRange && (!storeState.bubbleVisible || storeState.currentBubbleIndex !== index)
 
         if (canShow) {
-          // Update lastCheck to be at least the matched timestamp to prevent re-triggering
-          lastCheckTimestampRef.current = Math.max(currentTimeMs, item.timestamp)
-
-          showBubble(index)
-          return index
+          // Return candidate WITHOUT updating state or showing bubble
+          return { index, item }
         }
       }
 
-      // No match - update lastCheck to current time
-      lastCheckTimestampRef.current = currentTimeMs
       return null
     },
-    [bubbleVisible, currentBubbleIndex, showBubble]
+    [getBubbleState]
   )
 
-  // Memoize return value to prevent recreation on every render
-  // This is critical for preventing cascading re-renders in VideoAnalysisScreen
+  // SIDE EFFECT: Show bubble at index and update tracking
+  // Called AFTER coordinator approves the candidate
+  const checkAndShowBubbleAtTime = useCallback(
+    (currentTimeMs: number) => {
+      const candidate = findTriggerCandidate(currentTimeMs)
+      if (!candidate) {
+        // No match - update lastCheck to current time
+        lastCheckTimestampRef.current = currentTimeMs
+        return null
+      }
+
+      // Update lastCheck to be at least the matched timestamp to prevent re-triggering
+      lastCheckTimestampRef.current = Math.max(currentTimeMs, candidate.item.timestamp)
+
+      showBubble(candidate.index)
+      return candidate.index
+    },
+    [findTriggerCandidate, showBubble]
+  )
+
+  // Return callbacks only. State is stored in the Zustand store.
+  // Components that need bubble state subscribe to the store directly.
   return useMemo(
     () => ({
-      currentBubbleIndex,
-      bubbleVisible,
+      currentBubbleIndex: null, // Deprecated - read from store instead
+      bubbleVisible: false, // Deprecated - read from store instead
       showBubble,
       hideBubble,
       checkAndShowBubbleAtTime,
+      findTriggerCandidate, // NEW: Pure detection for coordinator use
     }),
-    [currentBubbleIndex, bubbleVisible, showBubble, hideBubble, checkAndShowBubbleAtTime]
+    [showBubble, hideBubble, checkAndShowBubbleAtTime, findTriggerCandidate]
   )
 }

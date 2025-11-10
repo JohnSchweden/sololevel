@@ -104,7 +104,7 @@ function RootLayoutNav() {
             <Stack.Screen
               name="video-analysis"
               options={{
-                title: 'Video Analysis',
+                title: '',
                 headerShown: true,
                 headerTransparent: true,
                 headerStyle: { backgroundColor: 'transparent' },
@@ -120,7 +120,7 @@ function RootLayoutNav() {
                   headerTransparent: true,
                   headerStyle: { backgroundColor: '$background' },
                   header: (props: any) => <NavigationAppHeader {...props} />,
-                  animation: 'slide_from_left',
+                  animation: 'fade', // Changed from 'slide_from_left' to reduce JS thread load during animation
                   appHeaderProps: {
                     mode: 'default',
                     leftAction: 'back',

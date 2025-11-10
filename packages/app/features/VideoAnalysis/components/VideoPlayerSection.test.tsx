@@ -1,7 +1,57 @@
+jest.mock('react-native-reanimated', () => {
+  const Reanimated = require('react-native-reanimated/mock')
+  Reanimated.default.call = () => undefined
+  return Reanimated
+})
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+
+  const identity = (value: any) => value
+
+  const animatedComponent = (Component: any) => {
+    if (typeof Component === 'string') {
+      return Component
+    }
+    return (props: any) => React.createElement(Component, props)
+  }
+
+  return {
+    default: {
+      View: (props: any) => React.createElement('View', props),
+      ScrollView: (props: any) => React.createElement('ScrollView', props),
+      call: () => {},
+      createAnimatedComponent: animatedComponent,
+    },
+    View: (props: any) => React.createElement('View', props),
+    ScrollView: (props: any) => React.createElement('ScrollView', props),
+    createAnimatedComponent: animatedComponent,
+    useSharedValue: (initial: any) => ({ value: initial }),
+    useAnimatedStyle: jest.fn(() => ({})),
+    useDerivedValue: jest.fn((compute: () => any) => ({ value: compute?.() })),
+    withTiming: jest.fn(identity),
+    withSpring: jest.fn(identity),
+    withDecay: jest.fn(identity),
+    interpolate: jest.fn(() => 0),
+    Extrapolation: { CLAMP: 'CLAMP' },
+    Easing: {
+      linear: jest.fn(identity),
+      inOut: jest.fn(() => identity),
+    },
+    runOnJS: jest.fn((fn) => fn),
+  }
+})
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __reanimatedWorkletInit: (() => void) | undefined
+}
+
+globalThis.__reanimatedWorkletInit = jest.fn()
 // react import not needed in React 17+ with automatic JSX runtime
 import { fireEvent, render } from '@testing-library/react-native'
 
-import { AudioFeedback } from '@ui/components/VideoAnalysis'
+import { AudioFeedback, SocialIcons } from '@ui/components/VideoAnalysis'
 
 import { VideoPlayerSection } from './VideoPlayerSection'
 
@@ -29,90 +79,166 @@ const createProps = () => ({
   onMenuPress: jest.fn(),
   onControlsVisibilityChange: jest.fn(),
   headerBackHandler: jest.fn(),
-  audioPlayerController: {
-    setIsPlaying: jest.fn(),
-    isPlaying: false,
-    currentTime: 0,
-    duration: 0,
-    isLoaded: false,
-    seekTime: null,
-    togglePlayback: jest.fn(),
-    handleLoad: jest.fn(),
-    handleProgress: jest.fn(),
-    handleEnd: jest.fn(),
-    handleError: jest.fn(),
-    handleSeekComplete: jest.fn(),
-    seekTo: jest.fn(),
-    reset: jest.fn(),
-  },
   bubbleState: {
     visible: false,
     currentIndex: null,
     items: [],
   },
-  audioOverlay: {
-    shouldShow: false,
-    activeAudio: null,
+  feedbackItems: [
+    {
+      id: 'test-feedback-1',
+      timestamp: 10,
+      text: 'Test feedback',
+      type: 'suggestion' as const,
+      category: 'voice' as const,
+      confidence: 0.8,
+    },
+  ],
+  audioOverlayFunctions: {
     onClose: jest.fn(),
     onInactivity: jest.fn(),
+    onInteraction: jest.fn(),
+    audioDuration: 0,
   },
-  coachSpeaking: false,
+  // coachSpeaking: false, - REMOVED: Now subscribed directly from store
   panelFraction: 0.05,
-  socialCounts: {
-    likes: 1200,
-    comments: 89,
-    bookmarks: 234,
-    shares: 1500,
-  },
-  onSocialAction: {
-    onShare: jest.fn(),
-    onLike: jest.fn(),
-    onComment: jest.fn(),
-    onBookmark: jest.fn(),
-  },
 })
 
 jest.mock('@my/ui', () => ({
   AppHeader: jest.fn(() => null),
 }))
 
+jest.mock('@ui/components/BottomSheets', () => ({
+  __esModule: true,
+  ShareSheet: jest.fn(() => null),
+}))
+
+jest.mock('../stores/feedbackCoordinatorStore', () => ({
+  useFeedbackCoordinatorStore: jest.fn((selector) => {
+    if (selector) {
+      return selector({
+        isCoachSpeaking: false,
+        bubbleState: {
+          bubbleVisible: false,
+          currentBubbleIndex: null,
+        },
+      })
+    }
+    return {
+      isCoachSpeaking: false,
+      bubbleState: {
+        bubbleVisible: false,
+        currentBubbleIndex: null,
+      },
+    }
+  }),
+}))
+
+jest.mock('../stores/feedbackAudio', () => ({
+  useFeedbackAudioStore: jest.fn((selector) => {
+    const state = {
+      activeAudio: null,
+    }
+    return selector ? selector(state) : state
+  }),
+}))
+
+const mockRequestTab = jest.fn()
+jest.mock('../hooks/useFeedbackPanel', () => {
+  const actual = jest.requireActual('../hooks/useFeedbackPanel')
+  return {
+    ...actual,
+    requestFeedbackPanelTab: mockRequestTab,
+  }
+})
+
 jest.mock('@ui/components/VideoAnalysis', () => {
   const React = require('react')
-  return {
-    AudioFeedback: jest.fn(() => null),
-    AudioPlayer: jest.fn(() => null),
-    CoachAvatar: jest.fn(() => null),
-    FeedbackBubbles: jest.fn(() => null),
-    MotionCaptureOverlay: jest.fn(() => null),
-    SocialIcons: jest.fn(() => null),
-    VideoContainer: jest.fn(({ children }) => children),
-    VideoControls: jest.fn(
-      ({ onPlay, onPause, onReplay, onSeek, onControlsVisibilityChange, children }: any) =>
-        React.createElement(
-          React.Fragment,
-          null,
-          React.createElement('button', { testID: 'play', onPress: onPlay }),
-          React.createElement('button', { testID: 'pause', onPress: onPause }),
-          React.createElement('button', { testID: 'replay', onPress: onReplay }),
-          React.createElement('button', { testID: 'seek', onPress: () => onSeek(10) }),
-          React.createElement('button', {
-            testID: 'show-controls',
-            onPress: () => onControlsVisibilityChange(true),
-          }),
-          children
-        )
-    ),
-    VideoControlsRef: jest.fn(),
-    VideoPlayer: jest.fn(({ onSeekComplete }: any) =>
-      React.createElement('button', {
-        testID: 'seek-complete',
-        onPress: () => onSeekComplete(15),
-      })
-    ),
-    VideoPlayerArea: jest.fn(({ children }: any) =>
-      React.createElement('div', { testID: 'video-player-container' }, children)
-    ),
+  const { Pressable, View } = require('react-native')
+
+  const components = new Map<string | symbol, jest.Mock>()
+
+  const ensureComponent = (name: string | symbol, factory: () => jest.Mock) => {
+    if (!components.has(name)) {
+      components.set(name, factory())
+    }
+    return components.get(name)!
   }
+
+  return new Proxy(
+    {},
+    {
+      get: (_target, prop: string | symbol) => {
+        if (prop === '__esModule') {
+          return true
+        }
+        if (prop === 'VideoControls') {
+          return ensureComponent(prop, () =>
+            jest.fn(
+              ({ onPlay, onPause, onReplay, onSeek, onControlsVisibilityChange, children }: any) =>
+                React.createElement(
+                  React.Fragment,
+                  null,
+                  React.createElement(Pressable, { testID: 'play', onPress: onPlay }),
+                  React.createElement(Pressable, { testID: 'pause', onPress: onPause }),
+                  React.createElement(Pressable, { testID: 'replay', onPress: onReplay }),
+                  React.createElement(Pressable, { testID: 'seek', onPress: () => onSeek(10) }),
+                  React.createElement(Pressable, {
+                    testID: 'show-controls',
+                    onPress: () => onControlsVisibilityChange(true),
+                  }),
+                  children
+                )
+            )
+          )
+        }
+        if (prop === 'VideoPlayer') {
+          return ensureComponent(prop, () =>
+            jest.fn(({ onSeekComplete }: any) =>
+              React.createElement(Pressable, {
+                testID: 'seek-complete',
+                onPress: () => onSeekComplete?.(15),
+              })
+            )
+          )
+        }
+        if (prop === 'VideoPlayerArea') {
+          return ensureComponent(prop, () =>
+            jest.fn(({ children }: any) =>
+              React.createElement(View, { testID: 'video-player-container' }, children)
+            )
+          )
+        }
+        if (prop === 'VideoContainer') {
+          return ensureComponent(prop, () =>
+            jest.fn(({ children }: any) => React.createElement(View, null, children))
+          )
+        }
+        if (prop === 'VideoControlsRef') {
+          return ensureComponent(prop, () => jest.fn())
+        }
+        if (prop === 'SocialIcons') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        if (prop === 'AudioFeedback') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        if (prop === 'AudioPlayer') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        if (prop === 'CoachAvatar') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        if (prop === 'FeedbackBubbles') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        if (prop === 'MotionCaptureOverlay') {
+          return ensureComponent(prop, () => jest.fn(() => null))
+        }
+        return ensureComponent(prop, () => jest.fn(() => null))
+      },
+    }
+  )
 })
 
 describe.skip('VideoPlayerSection', () => {
@@ -120,6 +246,10 @@ describe.skip('VideoPlayerSection', () => {
 
   beforeEach(() => {
     mockAudioFeedback.mockClear()
+    const { usePersistentProgressStore, useVideoPlayerStore } =
+      require('../stores') as typeof import('../stores')
+    usePersistentProgressStore.getState().reset()
+    useVideoPlayerStore.getState().reset()
   })
 
   it('renders without crashing', () => {
@@ -161,7 +291,7 @@ describe.skip('VideoPlayerSection', () => {
     expect(mockAudioFeedback).toHaveBeenCalledWith(
       expect.objectContaining({
         audioUrl: 'audio.mp3',
-        controller: props.audioPlayerController,
+        controller: expect.any(Object),
         onClose: props.audioOverlay.onClose,
         onInactivity: props.audioOverlay.onInactivity,
         isVisible: true,
@@ -178,5 +308,19 @@ describe.skip('VideoPlayerSection', () => {
     fireEvent.press(getByTestId('show-controls'))
 
     expect(props.onControlsVisibilityChange).toHaveBeenCalledWith(true)
+  })
+
+  it('switches to comments tab when comment action invoked', () => {
+    mockRequestTab.mockClear()
+    const props = createProps()
+    render(<VideoPlayerSection {...props} />)
+
+    const socialMock = SocialIcons as jest.Mock
+    const latestArgs = socialMock.mock.calls.at(-1)?.[0]
+    expect(latestArgs?.onComment).toBeDefined()
+
+    latestArgs.onComment()
+
+    expect(mockRequestTab).toHaveBeenCalledWith('comments')
   })
 })

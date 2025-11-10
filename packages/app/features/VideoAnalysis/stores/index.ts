@@ -67,3 +67,7 @@ export type {
   PersistentProgressState,
   PersistentProgressStore,
 } from './persistentProgress'
+
+// Video Player Playback Store
+export { useVideoPlayerStore } from './videoAnalysisPlaybackStore'
+export type { VideoPlayerStoreState } from './videoAnalysisPlaybackStore'

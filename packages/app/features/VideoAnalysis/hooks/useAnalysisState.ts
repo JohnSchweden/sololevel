@@ -23,6 +23,10 @@ export type AnalysisPhase =
   | 'ready'
   | 'error'
 
+/**
+ * Aggregates the current upload, analysis, and feedback pipeline state for a recording.
+ * Consumers rely on the stable references returned here to avoid unnecessary re-renders.
+ */
 export interface AnalysisStateResult {
   phase: AnalysisPhase
   isProcessing: boolean
@@ -42,7 +46,6 @@ export interface AnalysisStateResult {
   retry: () => Promise<void>
   feedback: FeedbackState
   firstPlayableReady: boolean
-  channelExhausted: boolean
 }
 
 type UploadProgressStatus = 'pending' | 'uploading' | 'completed' | 'failed'
@@ -233,13 +236,25 @@ const selectUploadTask = (recordingId: number | null) => {
   return useUploadProgressStore.getState().getTaskByRecordingId(recordingId)
 }
 
+/**
+ * Subscribes to upload progress, realtime analysis updates, and feedback status for a recording.
+ * Provides memoized state that powers the video analysis experience without triggering render storms.
+ *
+ * @param analysisJobId - Optional Supabase job identifier to track the active analysis run.
+ * @param videoRecordingId - Optional recording identifier used to resolve upload progress and subscriptions.
+ * @param _initialStatus - Reserved for legacy hydration flow; defaults to `'processing'`.
+ * @param isHistoryMode - Flag indicating whether data should be treated as read-only historical analysis.
+ * @returns Consolidated, memoized analysis state that stays stable between identical snapshots.
+ */
 export function useAnalysisState(
   analysisJobId?: number,
   videoRecordingId?: number,
   _initialStatus: 'processing' | 'ready' = 'processing',
   isHistoryMode = false
 ): AnalysisStateResult {
-  const latestUploadTask = useUploadProgressStore((state) => state.getLatestActiveTask())
+  const latestUploadTask = useUploadProgressStore((state) =>
+    isHistoryMode ? null : state.getLatestActiveTask()
+  )
 
   const derivedRecordingId = useMemo(() => {
     if (videoRecordingId) {
@@ -268,15 +283,17 @@ export function useAnalysisState(
     [analysisJobId, derivedRecordingId]
   )
 
+  const shouldSubscribeToRealtime = !isHistoryMode
+
   const subscribe = useAnalysisSubscriptionStore((state) => state.subscribe)
   const unsubscribe = useAnalysisSubscriptionStore((state) => state.unsubscribe)
   const retrySubscription = useAnalysisSubscriptionStore((state) => state.retry)
-  const subscriptions = useAnalysisSubscriptionStore((state) => state.subscriptions)
 
-  const subscriptionSnapshot = getSubscriptionEntry(subscriptions, subscriptionKey)
-
+  // PERF FIX: Use individual primitive selectors to eliminate object allocation
+  // Instead of returning an entry object, subscribe to individual primitives
+  // This eliminates the object hop and prevents "useSyncExternalStore result" churn
   useEffect(() => {
-    if (!subscriptionKey) {
+    if (!shouldSubscribeToRealtime || !subscriptionKey) {
       return undefined
     }
 
@@ -311,9 +328,23 @@ export function useAnalysisState(
       isMounted = false
       unsubscribe(subscriptionKey)
     }
-  }, [analysisJobId, derivedRecordingId, subscribe, unsubscribe, subscriptionKey])
+  }, [
+    analysisJobId,
+    derivedRecordingId,
+    subscribe,
+    unsubscribe,
+    subscriptionKey,
+    shouldSubscribeToRealtime,
+  ])
 
-  const analysisJob = subscriptionSnapshot?.job ?? null
+  // Get the analysis job from store, but only select it when we have a jobId to avoid churn
+  const analysisJob = useAnalysisSubscriptionStore((state) => {
+    if (!shouldSubscribeToRealtime || !subscriptionKey) {
+      return null
+    }
+    const job = getSubscriptionEntry(state.subscriptions, subscriptionKey)?.job
+    return job ?? null
+  })
   const queryClient = useQueryClient()
 
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
@@ -346,8 +377,6 @@ export function useAnalysisState(
     }
     return null
   })
-  const [channelExhausted, setChannelExhausted] = useState(false)
-
   useEffect(() => {
     const effectiveJobId = analysisJobId ?? analysisJob?.id ?? null
 
@@ -366,14 +395,16 @@ export function useAnalysisState(
       }
     }
     if (cachedUuid) {
-      log.debug('useAnalysisState', 'Using cached UUID from effect', {
-        analysisJobId: effectiveJobId,
-        uuid: cachedUuid,
-        source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
-          ? 'tanstack'
-          : 'persisted',
-      })
-      setAnalysisUuid(cachedUuid)
+      if (analysisUuid !== cachedUuid) {
+        log.debug('useAnalysisState', 'Using cached UUID from effect', {
+          analysisJobId: effectiveJobId,
+          uuid: cachedUuid,
+          source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
+            ? 'tanstack'
+            : 'persisted',
+        })
+        setAnalysisUuid(cachedUuid)
+      }
       return
     }
 
@@ -411,7 +442,7 @@ export function useAnalysisState(
     return () => {
       cancelled = true
     }
-  }, [analysisJobId, analysisJob?.id, queryClient])
+  }, [analysisJobId, analysisJob?.id, analysisUuid, queryClient])
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined)
 
@@ -500,22 +531,6 @@ export function useAnalysisState(
     return newFeedback
   }, [stableFeedbackItems, feedbackStatus, useMockData, isHistoryMode, analysisJobId, analysisUuid])
 
-  useEffect(() => {
-    if (!subscriptionKey) {
-      setChannelExhausted(false)
-      return
-    }
-
-    if (subscriptionSnapshot?.status === 'failed') {
-      setChannelExhausted(true)
-    } else if (
-      subscriptionSnapshot?.status === 'active' ||
-      subscriptionSnapshot?.status === 'pending'
-    ) {
-      setChannelExhausted(false)
-    }
-  }, [subscriptionKey, subscriptionSnapshot?.status])
-
   const firstPlayableReady = useMemo(() => {
     // Use real feedback items (not fallback) for playability detection
     if (!feedbackStatus.feedbackItems.length) {
@@ -589,12 +604,12 @@ export function useAnalysisState(
   )
 
   const retry = useCallback(async () => {
-    if (!subscriptionKey) {
+    if (!shouldSubscribeToRealtime || !subscriptionKey) {
       return
     }
 
     await retrySubscription(subscriptionKey)
-  }, [retrySubscription, subscriptionKey])
+  }, [retrySubscription, subscriptionKey, shouldSubscribeToRealtime])
 
   const lastPhaseRef = useRef<AnalysisPhase | null>(null)
 
@@ -634,7 +649,6 @@ export function useAnalysisState(
       retry,
       feedback: feedbackWithFallback, // Return feedback with mock fallback applied
       firstPlayableReady,
-      channelExhausted,
     }),
     [
       phase,
@@ -648,7 +662,6 @@ export function useAnalysisState(
       retry,
       feedbackWithFallback,
       firstPlayableReady,
-      channelExhausted,
     ]
   )
 }

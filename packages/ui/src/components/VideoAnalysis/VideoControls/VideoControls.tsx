@@ -8,15 +8,20 @@ import React, {
   useImperativeHandle,
   useMemo,
 } from 'react'
-import { Pressable } from 'react-native'
+
+// PERFORMANCE FIX: Props-based state to avoid ui->app dependency
+// VideoControls receives state as props to maintain UI/business logic separation
+import { Pressable, type ViewStyle } from 'react-native'
 import Animated, {
   useSharedValue,
   cancelAnimation,
   useAnimatedStyle,
+  useAnimatedReaction,
   withTiming,
   Easing,
   runOnJS,
   type SharedValue,
+  type AnimatedStyle,
 } from 'react-native-reanimated'
 import { XStack, YStack } from 'tamagui'
 
@@ -41,8 +46,10 @@ export interface PersistentProgressBarProps {
   duration: number
   isScrubbing: boolean
   controlsVisible: boolean
-  progressBarWidth: number
   shouldRenderPersistent: boolean
+  pointerEvents: 'auto' | 'none'
+  visibility: SharedValue<number>
+  animatedStyle: AnimatedStyle<ViewStyle>
   combinedGesture: any
   mainGesture: any
   onLayout: (event: any) => void
@@ -69,6 +76,8 @@ export interface VideoControlsProps {
   // NEW: Collapse progress for early fade-out animation (0 = max, 0.5 = normal, 1 = min)
   // Accept SharedValue directly to avoid JS re-renders during gestures
   collapseProgress?: SharedValue<number> | number
+  /** Optional shared overscroll offset (negative when pulling past top). Used to hide bars during pull-to-expand gestures. */
+  overscroll?: SharedValue<number>
   // DEPRECATED: Use persistentProgressStoreSetter instead to prevent cascading re-renders
   // Callback to provide persistent progress bar props to parent for rendering at layout level
   onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
@@ -95,6 +104,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       headerComponent,
       videoMode: _videoMode = 'max', // Reserved for future pointer events control
       collapseProgress = 0,
+      overscroll,
       onPersistentProgressBarPropsChange,
       persistentProgressStoreSetter,
     },
@@ -349,6 +359,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       onSeek,
       showControlsAndResetTimer,
       globalScrubbingShared,
+      trackLeftInset: 0, // Normal bar has no left inset
     })
 
     const persistentProgressBar = useProgressBarGesture({
@@ -359,6 +370,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       onSeek,
       showControlsAndResetTimer,
       globalScrubbingShared,
+      trackLeftInset: 0, // Persistent bar track starts at 0; handle padding handled separately
     })
 
     // Extract values from hooks for easier reference
@@ -417,9 +429,55 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // When collapseProgress is a SharedValue, reference is stable (no need to track in deps)
     // When collapseProgress is a number, it's synced to collapseProgressShared via useEffect
 
-    const { shouldRenderNormal, shouldRenderPersistent } = useProgressBarVisibility(
-      collapseProgressSharedValue
+    const { shouldRenderNormal, shouldRenderPersistent, normalVisibility, persistentVisibility } =
+      useProgressBarVisibility(collapseProgressSharedValue, overscroll)
+
+    const [normalBarPointerEvents, setNormalBarPointerEvents] = useState<'auto' | 'none'>(
+      shouldRenderNormal ? 'auto' : 'none'
     )
+    const [persistentBarPointerEvents, setPersistentBarPointerEvents] = useState<'auto' | 'none'>(
+      shouldRenderPersistent ? 'auto' : 'none'
+    )
+
+    const updateNormalPointerEvents = useCallback((visible: boolean) => {
+      setNormalBarPointerEvents(visible ? 'auto' : 'none')
+    }, [])
+
+    const updatePersistentPointerEvents = useCallback((visible: boolean) => {
+      setPersistentBarPointerEvents(visible ? 'auto' : 'none')
+    }, [])
+
+    useAnimatedReaction(
+      () => normalVisibility.value > 0.01,
+      (next, previous) => {
+        if (next === previous) {
+          return
+        }
+        runOnJS(updateNormalPointerEvents)(next)
+      },
+      [normalVisibility, updateNormalPointerEvents]
+    )
+
+    useAnimatedReaction(
+      () => persistentVisibility.value > 0.01,
+      (next, previous) => {
+        if (next === previous) {
+          return
+        }
+        runOnJS(updatePersistentPointerEvents)(next)
+      },
+      [persistentVisibility, updatePersistentPointerEvents]
+    )
+
+    const normalVisibilityAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: normalVisibility.value,
+    }))
+
+    const persistentVisibilityAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: persistentVisibility.value,
+    }))
+
+    const showNormalControls = shouldRenderNormal
 
     // Expose handleMenuPress to parent component via ref
     useImperativeHandle(
@@ -439,27 +497,37 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       [setPersistentProgressBarWidth]
     )
 
+    // PERF FIX: Use refs for callback dependencies to prevent recreation on every render
+    // This prevents the props object from changing when only width/duration change
+    const persistentProgressBarWidthRef = useRef(persistentProgressBarWidth)
+    const durationRef = useRef(duration)
+
+    // Update refs when values change (doesn't trigger callback recreation)
+    useEffect(() => {
+      persistentProgressBarWidthRef.current = persistentProgressBarWidth
+      durationRef.current = duration
+    }, [persistentProgressBarWidth, duration])
+
     const stableOnFallbackPress = useCallback(
       (locationX: number) => {
-        if (persistentProgressBarWidth > 0 && duration > 0) {
-          const seekPercentage = Math.max(
-            0,
-            Math.min(100, (locationX / persistentProgressBarWidth) * 100)
-          )
-          const seekTime = (seekPercentage / 100) * duration
-          log.debug('VideoControls', 'Persistent fallback press handler', {
+        const currentWidth = persistentProgressBarWidthRef.current
+        const currentDuration = durationRef.current
+        if (currentWidth > 0 && currentDuration > 0) {
+          const seekPercentage = Math.max(0, Math.min(100, (locationX / currentWidth) * 100))
+          const seekTime = (seekPercentage / 100) * currentDuration
+          log.debug('VideoControls', 'Persistent fallback press handler - RAW CALCULATION', {
             locationX,
-            persistentProgressBarWidth,
+            persistentProgressBarWidth: currentWidth,
             seekPercentage,
-            seekTime,
-            duration,
+            expectedSeekTime: seekTime,
+            duration: currentDuration,
           })
           onSeek(seekTime)
           // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
           // Fallback should only seek, not show controls (gesture handles that)
         }
       },
-      [persistentProgressBarWidth, duration, onSeek]
+      [onSeek] // Only onSeek in deps - width/duration accessed via refs
     )
 
     /**
@@ -484,6 +552,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const prevControlsVisibleRef = useRef<boolean | null>(null)
     const prevProgressBarWidthRef = useRef<number | null>(null)
     const prevShouldRenderPersistentRef = useRef<boolean | null>(null)
+    const prevPointerEventsRef = useRef<'auto' | 'none' | null>(null)
 
     /**
      * Store the stable props object to maintain reference equality when values haven't changed.
@@ -552,6 +621,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
      * @see stablePropsObjectRef - stores props object for reference stability
      * @see prevCurrentTimeRef, etc. - track previous values for comparison
      */
+    const mountTimeRef = useRef<number>(Date.now())
+
     useEffect(() => {
       // Prefer store setter over callback for better performance
       const setter = persistentProgressStoreSetter || onPersistentProgressBarPropsChange
@@ -566,13 +637,18 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
        * This ensures we only create new objects when data actually changes.
        * Use safe values to prevent NaN/Infinity from causing render loops.
        */
-      const currentTimeChanged = prevCurrentTimeRef.current !== safeCurrentTime
+      const now = Date.now()
+      const suppressInitial = now - mountTimeRef.current < 200
+      const effectiveCurrentTime = suppressInitial ? 0 : safeCurrentTime
+
+      const currentTimeChanged = prevCurrentTimeRef.current !== effectiveCurrentTime
       const durationChanged = prevDurationRef.current !== safeDuration
       const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
       const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
       const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
       const persistentVisibilityChanged =
         prevShouldRenderPersistentRef.current !== shouldRenderPersistent
+      const pointerEventsChanged = prevPointerEventsRef.current !== persistentBarPointerEvents
 
       /**
        * Only create and pass new props object when primitive values actually changed.
@@ -599,7 +675,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         scrubbingChanged ||
         controlsChanged ||
         widthChanged ||
-        persistentVisibilityChanged
+        persistentVisibilityChanged ||
+        pointerEventsChanged
       ) {
         // log.debug('VideoControls', '🎯 Calling setter with new props')
 
@@ -613,12 +690,14 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
          * When values are unchanged, we don't call the setter at all, so parent/store keeps existing reference.
          */
         const newPropsObject: PersistentProgressBarProps = {
-          currentTime: safeCurrentTime,
+          currentTime: effectiveCurrentTime,
           duration: safeDuration,
           isScrubbing: persistentProgressBar.isScrubbing,
           controlsVisible,
-          progressBarWidth: persistentProgressBarWidth,
           shouldRenderPersistent,
+          pointerEvents: persistentBarPointerEvents,
+          visibility: persistentVisibility,
+          animatedStyle: persistentVisibilityAnimatedStyle,
           combinedGesture: persistentProgressBarCombinedGestureRef.current,
           mainGesture: persistentProgressGestureRef.current,
           onLayout: stableOnLayout,
@@ -640,12 +719,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
          * Used for comparison in next render to detect value changes.
          * Note: We don't track gesture IDs since we ignore gesture-only changes.
          */
-        prevCurrentTimeRef.current = safeCurrentTime
+        prevCurrentTimeRef.current = effectiveCurrentTime
         prevDurationRef.current = safeDuration
         prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
         prevControlsVisibleRef.current = controlsVisible
         prevProgressBarWidthRef.current = persistentProgressBarWidth
         prevShouldRenderPersistentRef.current = shouldRenderPersistent
+        prevPointerEventsRef.current = persistentBarPointerEvents
       }
       /**
        * Values unchanged - don't call setter.
@@ -685,6 +765,9 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       controlsVisible,
       persistentProgressBarWidth,
       shouldRenderPersistent,
+      persistentBarPointerEvents,
+      persistentVisibility,
+      persistentVisibilityAnimatedStyle,
       persistentProgressStoreSetter,
       onPersistentProgressBarPropsChange,
     ])
@@ -761,8 +844,12 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
             />
 
             {/* Bottom Controls - Normal Bar */}
-            {shouldRenderNormal && (
-              <YStack accessibilityLabel="Video timeline and controls">
+            {showNormalControls && (
+              <Animated.View
+                pointerEvents={normalBarPointerEvents}
+                style={normalVisibilityAnimatedStyle}
+              >
+                {/* <YStack accessibilityLabel="Video timeline and controls"> */}
                 <XStack
                   justifyContent="space-between"
                   alignItems="center"
@@ -776,36 +863,41 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                     testID="time-display"
                   />
                 </XStack>
-              </YStack>
+                {/* </YStack> */}
+              </Animated.View>
             )}
 
             {/* Bottom Controls - Persistent Bar */}
-            {shouldRenderPersistent && (
-              <YStack accessibilityLabel="Video timeline and controls">
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-48}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={currentTime}
-                    duration={duration}
-                    testID="time-display-persistent"
-                  />
-                </XStack>
-              </YStack>
-            )}
+            <Animated.View
+              pointerEvents={persistentBarPointerEvents}
+              style={persistentVisibilityAnimatedStyle}
+            >
+              {/* <YStack accessibilityLabel="Video timeline and controls"> */}
+              <XStack
+                justifyContent="space-between"
+                alignItems="center"
+                bottom={0}
+                paddingBottom="$1.5"
+                accessibilityLabel="Video time and controls"
+              >
+                <TimeDisplay
+                  currentTime={currentTime}
+                  duration={duration}
+                  testID="time-display-persistent"
+                />
+              </XStack>
+              {/* </YStack> */}
+            </Animated.View>
 
             {/* Progress Bar - Normal variant (conditionally rendered) */}
-            {shouldRenderNormal && (
+            {showNormalControls && (
               <ProgressBar
                 variant="normal"
                 progress={progress}
                 isScrubbing={normalProgressBar.isScrubbing}
                 controlsVisible={controlsVisible}
-                progressBarWidth={progressBarWidth}
+                animatedStyle={normalVisibilityAnimatedStyle}
+                pointerEvents={normalBarPointerEvents}
                 combinedGesture={progressBarCombinedGesture}
                 mainGesture={mainProgressGesture}
                 onLayout={(event) => {
@@ -814,16 +906,18 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                 }}
                 onFallbackPress={(locationX) => {
                   if (progressBarWidth > 0 && duration > 0) {
-                    const seekPercentage = Math.max(
+                    // Normal bar has no left inset (0px)
+                    const relativeX = Math.max(0, locationX - 0)
+                    const correctedSeekPercentage = Math.max(
                       0,
-                      Math.min(100, (locationX / progressBarWidth) * 100)
+                      Math.min(100, (relativeX / progressBarWidth) * 100)
                     )
-                    const seekTime = (seekPercentage / 100) * duration
-                    log.debug('VideoControls', 'Fallback press handler', {
+                    const seekTime = (correctedSeekPercentage / 100) * duration
+                    log.debug('VideoControls', 'Normal fallback press handler - RAW CALCULATION', {
                       locationX,
                       progressBarWidth,
-                      seekPercentage,
-                      seekTime,
+                      seekPercentage: correctedSeekPercentage,
+                      expectedSeekTime: seekTime,
                       duration,
                     })
                     onSeek(seekTime)
@@ -843,7 +937,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
               progress={persistentProgress}
               isScrubbing={persistentProgressBar.isScrubbing}
               controlsVisible={controlsVisible}
-              progressBarWidth={persistentProgressBarWidth}
               animatedStyle={persistentBarAnimatedStyle}
               combinedGesture={persistentProgressBarCombinedGesture}
               mainGesture={persistentProgressGesture}
@@ -877,3 +970,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     )
   }
 )
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(VideoControls as any).whyDidYouRender = false
+}

@@ -2,7 +2,6 @@ import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/l
 import { useEffect, useState } from 'react'
 
 import { log } from '@my/logging'
-import { ShareSheet } from '@ui/components/BottomSheets'
 import { Button, Text, YStack } from 'tamagui'
 
 export interface SocialIconsProps {
@@ -41,9 +40,6 @@ export function SocialIcons({
 
   // Track bookmark count changes locally
   const [bookmarkCountOffset, setBookmarkCountOffset] = useState(0)
-
-  // Share sheet state
-  const [shareSheetOpen, setShareSheetOpen] = useState(false)
 
   // Log mount and visibility changes for debugging
   useEffect(() => {
@@ -124,7 +120,6 @@ export function SocialIcons({
 
   // Handle share - open sheet
   const handleShare = () => {
-    setShareSheetOpen(true)
     onShare()
   }
 
@@ -304,11 +299,11 @@ export function SocialIcons({
           </Text>
         </YStack>
       </YStack>
-
-      <ShareSheet
-        open={shareSheetOpen}
-        onOpenChange={setShareSheetOpen}
-      />
     </>
   )
+}
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(SocialIcons as any).whyDidYouRender = true
 }

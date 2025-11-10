@@ -43,6 +43,22 @@ describe('useAudioController', () => {
     })
   })
 
+  it('invokes onNaturalEnd callback when playback ends naturally', () => {
+    const onNaturalEnd = jest.fn()
+    const { result } = renderHook(() =>
+      useAudioController('https://example.com/audio.mp3', { onNaturalEnd })
+    )
+
+    act(() => {
+      result.current.setIsPlaying(true)
+      result.current.handleLoad({ duration: 4 })
+      result.current.handleProgress({ currentTime: 1 })
+      result.current.handleEnd()
+    })
+
+    expect(onNaturalEnd).toHaveBeenCalledTimes(1)
+  })
+
   describe('playback controls', () => {
     it('should allow setting isPlaying state', () => {
       const { result } = renderHook(() => useAudioController('https://example.com/audio.mp3'))

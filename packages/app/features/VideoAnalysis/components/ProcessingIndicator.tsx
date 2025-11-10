@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { BlurView } from 'expo-blur'
 import {
@@ -12,6 +12,7 @@ import Animated from 'react-native-reanimated'
 import { Spinner, Text, YStack } from 'tamagui'
 
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
+import { useAnalysisSubscriptionStore } from '../stores/analysisSubscription'
 
 interface ProcessingIndicatorProps {
   phase: AnalysisPhase
@@ -20,12 +21,44 @@ interface ProcessingIndicatorProps {
     analysis: number
     feedback: number
   }
-  channelExhausted: boolean
+  subscription: {
+    key: string | null
+    shouldSubscribe: boolean
+  }
 }
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
-export function ProcessingIndicator({ phase, channelExhausted }: ProcessingIndicatorProps) {
+export function ProcessingIndicator({ phase, subscription }: ProcessingIndicatorProps) {
+  const effectiveKey = useMemo(
+    () => (subscription.shouldSubscribe ? subscription.key : null),
+    [subscription.key, subscription.shouldSubscribe]
+  )
+
+  const selectChannelExhausted = useCallback(
+    (state: ReturnType<typeof useAnalysisSubscriptionStore.getState>) => {
+      if (!effectiveKey) {
+        return false
+      }
+
+      const entry = state.subscriptions.get(effectiveKey)
+      if (!entry) {
+        return false
+      }
+
+      const jobId =
+        entry.job && typeof (entry.job as { id?: unknown }).id === 'number'
+          ? (entry.job as { id: number }).id
+          : null
+      const isActive = entry.status === 'active'
+
+      return Boolean(jobId && !isActive)
+    },
+    [effectiveKey]
+  )
+
+  const channelExhausted = useAnalysisSubscriptionStore(selectChannelExhausted)
+
   const isProcessing = phase !== 'ready' && phase !== 'error'
   const blurIntensity = useSharedValue(isProcessing ? 40 : 0)
   const contentOpacity = useSharedValue(isProcessing ? 1 : 0)

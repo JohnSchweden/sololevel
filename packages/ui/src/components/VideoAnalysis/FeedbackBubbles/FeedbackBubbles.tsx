@@ -211,3 +211,8 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
     </Animated.View>
   )
 })
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(FeedbackBubbles as any).whyDidYouRender = true
+}

@@ -35,6 +35,28 @@ jest.mock('react-native', () => ({
   TextInput: 'TextInput',
 }))
 
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react')
+  return {
+    SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+    SafeAreaConsumer: ({
+      children,
+    }: {
+      children: (insets: {
+        top: number
+        right: number
+        bottom: number
+        left: number
+      }) => React.ReactNode
+    }) => children({ top: 0, right: 0, bottom: 0, left: 0 }),
+    useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+    initialWindowMetrics: {
+      frame: { x: 0, y: 0, width: 375, height: 667 },
+      insets: { top: 0, right: 0, bottom: 0, left: 0 },
+    },
+  }
+})
+
 const renderWithProviders = (ui: React.ReactElement) => {
   return renderWithProvider(ui)
 }

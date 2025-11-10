@@ -116,3 +116,24 @@ const audioOverlay = useMemo(() => {
 **Correct:** Child reads directly from store. Parent can pass setter (stable reference), but store values should be read at point of use.
 **Lesson:** When using Zustand to break render cascades, the CONSUMER component must read directly from the store. Don't pass store values as props through intermediary components.
 **When:** Using Zustand to break render cascades, store values used by child components, intermediary components don't need the value
+
+## Mistake: One-shot effect guards that block data refresh
+**Wrong:**
+```typescript
+const deferredInitRef = useRef(false)
+useEffect(() => {
+  if (deferredInitRef.current) return
+  deferredInitRef.current = true
+  const id = setTimeout(processItems, 100)
+  return () => clearTimeout(id)
+}, [items])
+```
+**Correct:**
+```typescript
+useEffect(() => {
+  if (!items.length) return
+  const id = setTimeout(processItems, 100)
+  return () => clearTimeout(id)
+}, [items])
+```
+**Lesson:** Ref-based guards that short-circuit `useEffect` prevent later dependency updates from running the effect. Use dependency-driven logic (with caches/in-flight guards per item) instead of a global “run once” flag when new data needs processing after mount.

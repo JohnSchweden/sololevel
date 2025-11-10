@@ -1,15 +1,17 @@
-import { screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, screen } from '@testing-library/react'
 import { renderWithProvider } from '../../../test-utils/TestProvider'
 import { VideoThumbnailCard } from './VideoThumbnailCard'
 
 describe('VideoThumbnailCard', () => {
   const mockOnPress = jest.fn()
-  let user: ReturnType<typeof userEvent.setup>
+  const originalImage = global.Image
 
   beforeEach(() => {
     jest.clearAllMocks()
-    user = userEvent.setup()
+  })
+
+  afterEach(() => {
+    global.Image = originalImage
   })
 
   // ARRANGE: Setup
@@ -75,7 +77,7 @@ describe('VideoThumbnailCard', () => {
       )
 
       // ACT: Click card
-      await user.click(screen.getByTestId('video-thumbnail-card'))
+      fireEvent.click(screen.getByTestId('video-thumbnail-card'))
 
       // ASSERT: Handler called
       expect(mockOnPress).toHaveBeenCalledTimes(1)

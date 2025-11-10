@@ -20,12 +20,14 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutAnimation, Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { runOnJS, useAnimatedScrollHandler } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   AnimatePresence,
   Button,
   Circle,
   Image,
   Input,
+  ScrollView,
   Text,
   XStack,
   YStack,
@@ -152,7 +154,7 @@ const CommentLikesContainer = styled(XStack, {
 const SortButtonContainer = styled(XStack, {
   name: 'SortButtonContainer',
   gap: '$2',
-  paddingHorizontal: '$0',
+  paddingHorizontal: '$4',
   paddingTop: '$3',
   paddingBottom: '$2',
 })
@@ -163,7 +165,7 @@ const SortButtonContainer = styled(XStack, {
 const FeedbackListContainer = styled(YStack, {
   name: 'FeedbackListContainer',
   gap: '$3',
-  paddingHorizontal: '$0',
+  paddingHorizontal: '$4',
   paddingTop: '$2',
 })
 
@@ -173,8 +175,46 @@ const FeedbackListContainer = styled(YStack, {
 const CommentsListContainer = styled(YStack, {
   name: 'CommentsListContainer',
   gap: '$3',
-  paddingHorizontal: '$0',
+  paddingHorizontal: '$4',
   paddingTop: '$2',
+})
+
+/**
+ * Comment composer container (sticky footer)
+ */
+const CommentComposerContainer = styled(YStack, {
+  name: 'CommentComposerContainer',
+  gap: '$3',
+  paddingHorizontal: '$4',
+  paddingTop: '$2',
+  paddingBottom: '$2',
+  borderTopWidth: 1,
+  borderColor: '$color8',
+  backgroundColor: '$color2',
+})
+
+const TabButtonWrapper = styled(YStack, {
+  name: 'TabButtonWrapper',
+  position: 'relative',
+  flex: 1,
+  borderRadius: '$6',
+  overflow: 'visible',
+  alignItems: 'stretch',
+  justifyContent: 'center',
+})
+
+const TabButtonGlow = styled(YStack, {
+  name: 'TabButtonGlow',
+  position: 'absolute',
+  top: -6,
+  bottom: -6,
+  left: -4,
+  right: -4,
+  borderRadius: '$6',
+  pointerEvents: 'none',
+  borderWidth: 0,
+  borderColor: 'rgba(255, 255, 255, 0.22)',
+  opacity: 0.85,
 })
 
 // Types imported from VideoPlayer.tsx
@@ -268,6 +308,8 @@ export const FeedbackPanel = memo(
     // Comment input state
     const [commentInput, setCommentInput] = useState('')
 
+    const { bottom: safeAreaBottom } = useSafeAreaInsets()
+
     // Feedback filter state
     const [feedbackFilter, setFeedbackFilter] = useState<
       'all' | 'voice' | 'posture' | 'grip' | 'movement'
@@ -309,6 +351,8 @@ export const FeedbackPanel = memo(
     })
 
     const isWeb = Platform.OS === 'web'
+    const shouldShowCommentComposer = activeTab === 'comments'
+    const scrollBottomPadding = shouldShowCommentComposer ? 16 : 30
 
     // Performance tracking: Track flex changes as animation triggers
     const [previousFlex, setPreviousFlex] = useState<number | undefined>(flex)
@@ -737,34 +781,42 @@ export const FeedbackPanel = memo(
           accessibilityLabel="Feedback content area"
         >
           {/* Filter buttons */}
-          <SortButtonContainer>
-            {(['all', 'voice', 'posture', 'grip', 'movement'] as const).map((filter) => (
-              <Button
-                key={filter}
-                chromeless
-                size="$2"
-                height={32}
-                backgroundColor={feedbackFilter === filter ? '$color12' : '$color3'}
-                borderRadius="$4"
-                paddingHorizontal="$3"
-                paddingVertical="$1"
-                onPress={() => setFeedbackFilter(filter)}
-                testID={`filter-${filter}`}
-                accessibilityLabel={`Filter by ${filter}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: feedbackFilter === filter }}
-              >
-                <Text
-                  fontSize="$3"
-                  fontWeight={feedbackFilter === filter ? '600' : '600'}
-                  color={feedbackFilter === filter ? '$color1' : '$color11'}
-                  textTransform="capitalize"
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            paddingHorizontal="$0"
+            testID="feedback-filter-scroll"
+          >
+            <SortButtonContainer>
+              {(['all', 'voice', 'posture', 'grip', 'movement'] as const).map((filter) => (
+                <Button
+                  key={filter}
+                  chromeless
+                  size="$2"
+                  height={32}
+                  backgroundColor={feedbackFilter === filter ? '$color12' : '$color3'}
+                  borderRadius="$4"
+                  paddingHorizontal="$3"
+                  paddingVertical="$1"
+                  flexShrink={0}
+                  onPress={() => setFeedbackFilter(filter)}
+                  testID={`filter-${filter}`}
+                  accessibilityLabel={`Filter by ${filter}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedbackFilter === filter }}
                 >
-                  {filter}
-                </Text>
-              </Button>
-            ))}
-          </SortButtonContainer>
+                  <Text
+                    fontSize="$3"
+                    fontWeight={feedbackFilter === filter ? '600' : '600'}
+                    color={feedbackFilter === filter ? '$color1' : '$color11'}
+                    textTransform="capitalize"
+                  >
+                    {filter}
+                  </Text>
+                </Button>
+              ))}
+            </SortButtonContainer>
+          </ScrollView>
 
           {/* Feedback list */}
           <FeedbackListContainer>
@@ -806,6 +858,7 @@ export const FeedbackPanel = memo(
           alignItems="center"
           paddingTop="$4"
           paddingBottom="$6"
+          paddingHorizontal="$4"
           testID="insights-content"
           accessibilityLabel="Insights content area"
         >
@@ -911,13 +964,22 @@ export const FeedbackPanel = memo(
               </YStack>
             )}
           </CommentsListContainer>
+        </YStack>
+      ),
+      [commentSort, sortedComments, renderCommentItem]
+    )
 
-          {/* Comment input field */}
+    const renderCommentComposer = useCallback(() => {
+      const bottomPadding = safeAreaBottom > 0 ? safeAreaBottom - 12 : 0
+
+      return (
+        <CommentComposerContainer
+          paddingBottom={bottomPadding}
+          accessibilityLabel="Comment composer"
+          testID="comment-composer"
+        >
           <XStack
             gap="$2"
-            paddingHorizontal="$0"
-            paddingTop="$4"
-            paddingBottom="$2"
             alignItems="center"
             testID="comment-input-container"
           >
@@ -928,9 +990,10 @@ export const FeedbackPanel = memo(
               onChangeText={setCommentInput}
               backgroundColor="$color3"
               borderColor="$color5"
-              borderRadius="$4"
+              borderRadius="$3"
               paddingHorizontal="$3"
               paddingVertical="$2"
+              height={40}
               fontSize="$4"
               color="$color12"
               placeholderTextColor="$color10"
@@ -940,12 +1003,22 @@ export const FeedbackPanel = memo(
             />
             <Button
               chromeless
-              size="$3"
+              size="$4"
               width={40}
               height={40}
-              backgroundColor="$purple10"
+              backgroundColor="transparent" // "$purple10"
               borderRadius="$4"
               padding="$0"
+              hoverStyle={{
+                backgroundColor: '$purple6',
+                opacity: 0.9,
+                scale: 1.06,
+              }}
+              pressStyle={{
+                backgroundColor: '$purple4',
+                opacity: 0.85,
+                scale: 0.93,
+              }}
               onPress={handleCommentSubmit}
               disabled={!commentInput.trim()}
               testID="comment-send-button"
@@ -954,14 +1027,13 @@ export const FeedbackPanel = memo(
             >
               <Send
                 size={18}
-                color="$color1"
+                color="$color11"
               />
             </Button>
           </XStack>
-        </YStack>
-      ),
-      [commentSort, sortedComments, renderCommentItem, commentInput, handleCommentSubmit]
-    )
+        </CommentComposerContainer>
+      )
+    }, [commentInput, handleCommentSubmit, safeAreaBottom, setCommentInput])
 
     // Render active tab content with conditional animation
     const renderTabContent = useCallback(() => {
@@ -1006,9 +1078,9 @@ export const FeedbackPanel = memo(
           <YStack
             alignItems="center"
             backgroundColor="transparent"
-            paddingTop="$5"
+            paddingTop="$4"
             paddingBottom="$4"
-            paddingHorizontal="$0"
+            paddingHorizontal="$4"
             testID="analysis-title"
             accessibilityLabel="Video Analysis title"
           >
@@ -1023,14 +1095,14 @@ export const FeedbackPanel = memo(
           </YStack>
 
           <YStack
-            paddingHorizontal="$0"
+            paddingHorizontal="$4"
             paddingBottom="$1"
             testID="sheet-header"
             accessibilityLabel="Sheet header with navigation tabs"
           >
             <XStack
-              width="100%"
               gap="$2"
+              width="100%"
               borderBottomWidth={0}
               borderBottomColor="$borderColor"
               testID="tab-navigation"
@@ -1038,51 +1110,55 @@ export const FeedbackPanel = memo(
               accessibilityRole="tablist"
               backgroundColor="transparent"
             >
-              {(['feedback', 'insights', 'comments'] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  chromeless
-                  flex={1}
-                  height={32}
-                  backgroundColor="transparent"
-                  borderRadius="$5"
-                  marginVertical="$-1"
-                  paddingVertical="$1"
-                  paddingHorizontal="$1"
-                  borderLeftWidth={0}
-                  borderRightWidth={0}
-                  borderTopWidth={0}
-                  borderBottomWidth={activeTab === tab ? 2 : 0}
-                  borderBottomColor={activeTab === tab ? '$color11' : 'transparent'}
-                  animation="quick"
-                  hoverStyle={{
-                    backgroundColor: 'transparent',
-                    opacity: 0.7,
-                  }}
-                  pressStyle={{
-                    backgroundColor: 'transparent',
-                    opacity: 0.6,
-                    scale: 0.98,
-                  }}
-                  onPress={() => onTabChange(tab)}
-                  testID={`tab-${tab}`}
-                  accessibilityLabel={`${tab} tab`}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: activeTab === tab }}
-                  accessibilityHint={`Switch to ${tab} view`}
-                  data-testid={`tab-${tab}`}
-                >
-                  <Text
-                    fontSize="$4"
-                    fontWeight={activeTab === tab ? '600' : '600'}
-                    color={activeTab === tab ? '$color12' : '$color11'}
-                    textTransform="capitalize"
-                    animation="quick"
+              {(['feedback', 'insights', 'comments'] as const).map((tab) => {
+                const isActive = activeTab === tab
+
+                return (
+                  <TabButtonWrapper
+                    key={tab}
+                    testID={isActive ? `tab-${tab}-wrapper-active` : undefined}
                   >
-                    {tab}
-                  </Text>
-                </Button>
-              ))}
+                    {isActive ? <TabButtonGlow testID={`tab-${tab}-glow`} /> : null}
+                    <Button
+                      chromeless
+                      flex={1}
+                      height={32}
+                      backgroundColor={isActive ? 'rgba(255, 255, 255, 0.08)' : 'transparent'}
+                      borderRadius="$6"
+                      marginVertical="$-1"
+                      paddingVertical="$1"
+                      paddingHorizontal="$1"
+                      animation="quick"
+                      hoverStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        opacity: 0.85,
+                      }}
+                      pressStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        opacity: 0.75,
+                        scale: 0.97,
+                      }}
+                      onPress={() => onTabChange(tab)}
+                      testID={`tab-${tab}`}
+                      accessibilityLabel={`${tab} tab`}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: isActive }}
+                      accessibilityHint={`Switch to ${tab} view`}
+                      data-testid={`tab-${tab}`}
+                    >
+                      <Text
+                        fontSize="$4"
+                        fontWeight={isActive ? '600' : '600'}
+                        color={isActive ? '$color12' : '$color11'}
+                        textTransform="capitalize"
+                        animation="quick"
+                      >
+                        {tab}
+                      </Text>
+                    </Button>
+                  </TabButtonWrapper>
+                )
+              })}
             </XStack>
           </YStack>
 
@@ -1147,48 +1223,53 @@ export const FeedbackPanel = memo(
 
           <YStack flex={1}>
             {/* Content with virtualized list - YouTube-style delegation */}
-            <GestureDetector gesture={nativeGesture}>
-              <YStack
-                flex={1}
-                testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
-                accessibilityLabel={activeTab === 'feedback' ? 'feedback content area' : undefined}
-                accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
-              >
-                {isWeb ? (
-                  <Animated.ScrollView
-                    style={{ paddingBottom: 30 }}
-                    testID="feedback-panel-scroll"
-                  >
-                    {renderListHeader()}
-                  </Animated.ScrollView>
-                ) : (
-                  <Animated.FlatList<FeedbackItem>
-                    data={[]}
-                    extraData={selectedFeedbackId}
-                    keyExtractor={keyExtractor}
-                    renderItem={renderFeedbackItem}
-                    ListHeaderComponent={renderListHeader}
-                    ItemSeparatorComponent={undefined}
-                    ListEmptyComponent={undefined}
-                    contentContainerStyle={{
-                      paddingHorizontal: 16,
-                      paddingBottom: 30,
-                    }}
-                    onScroll={scrollHandler}
-                    scrollEventThrottle={16}
-                    showsVerticalScrollIndicator
-                    indicatorStyle="white"
-                    scrollEnabled={scrollEnabled}
-                    bounces
-                    testID="feedback-panel-scroll"
-                    initialNumToRender={8}
-                    maxToRenderPerBatch={8}
-                    windowSize={5}
-                    removeClippedSubviews
-                  />
-                )}
-              </YStack>
-            </GestureDetector>
+            <YStack flex={1}>
+              <GestureDetector gesture={nativeGesture}>
+                <YStack
+                  flex={1}
+                  testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
+                  accessibilityLabel={
+                    activeTab === 'feedback' ? 'feedback content area' : undefined
+                  }
+                  accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
+                >
+                  {isWeb ? (
+                    <Animated.ScrollView
+                      style={{ paddingBottom: scrollBottomPadding }}
+                      testID="feedback-panel-scroll"
+                    >
+                      {renderListHeader()}
+                    </Animated.ScrollView>
+                  ) : (
+                    <Animated.FlatList<FeedbackItem>
+                      data={[]}
+                      extraData={selectedFeedbackId}
+                      keyExtractor={keyExtractor}
+                      renderItem={renderFeedbackItem}
+                      ListHeaderComponent={renderListHeader}
+                      ItemSeparatorComponent={undefined}
+                      ListEmptyComponent={undefined}
+                      contentContainerStyle={{
+                        paddingHorizontal: 0,
+                        paddingBottom: scrollBottomPadding,
+                      }}
+                      onScroll={scrollHandler}
+                      scrollEventThrottle={16}
+                      showsVerticalScrollIndicator
+                      indicatorStyle="white"
+                      scrollEnabled={scrollEnabled}
+                      bounces
+                      testID="feedback-panel-scroll"
+                      initialNumToRender={8}
+                      maxToRenderPerBatch={8}
+                      windowSize={5}
+                      removeClippedSubviews
+                    />
+                  )}
+                </YStack>
+              </GestureDetector>
+            </YStack>
+            {shouldShowCommentComposer ? renderCommentComposer() : null}
           </YStack>
 
           {/* Legacy ScrollView variant removed */}

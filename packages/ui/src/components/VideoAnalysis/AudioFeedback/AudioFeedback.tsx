@@ -257,3 +257,8 @@ export const AudioFeedback = memo(
     )
   }
 )
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(AudioFeedback as any).whyDidYouRender = true
+}

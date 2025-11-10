@@ -28,3 +28,8 @@ export const VideoPlayer = forwardRef<import('../types').VideoPlayerRef, VideoPl
 )
 
 VideoPlayer.displayName = 'VideoPlayer'
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(VideoPlayer as any).whyDidYouRender = false
+}

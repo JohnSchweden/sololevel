@@ -1,5 +1,5 @@
 import { log } from '@my/logging'
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Dimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
@@ -306,17 +306,30 @@ const calculateVideoHeight = (scrollValue: number): number => {
  * </GestureDetector>
  * ```
  */
+export interface FeedbackScrollSnapshot {
+  enabled: boolean
+  blockCompletely: boolean
+}
+
+export interface FeedbackScrollControl {
+  subscribe: (listener: () => void) => () => void
+  getSnapshot: () => FeedbackScrollSnapshot
+}
+
+export interface PullToRevealControl {
+  subscribe: (listener: () => void) => () => void
+  getSnapshot: () => boolean
+}
+
 export interface UseGestureControllerReturn {
   /** Pan gesture handler for root view */
   rootPan: GestureType
   /** Ref for the root pan gesture (must be passed to GestureDetector) */
   rootPanRef: React.MutableRefObject<GestureType | undefined>
-  /** Whether feedback ScrollView should accept scroll events */
-  feedbackScrollEnabled: boolean
-  /** Whether feedback ScrollView should be completely blocked (for fast swipes) */
-  blockFeedbackScrollCompletely: boolean
-  /** JavaScript-accessible pull-to-reveal state (for UI indicators) */
-  isPullingToRevealJS: boolean
+  /** Subscription interface for feedback scroll blocking state */
+  feedbackScroll: FeedbackScrollControl
+  /** Subscription interface for pull-to-reveal state (for UI indicators) */
+  pullToReveal: PullToRevealControl
   /** Callback to update feedback scroll position from ScrollView */
   onFeedbackScrollY: (scrollY: number) => void
   /** Callback when feedback scroll momentum ends */
@@ -331,9 +344,76 @@ export function useGestureController(
   // AI-powered gesture conflict detection
   const gestureDetector = useGestureConflictDetector()
 
-  // Scroll blocking state - track flags without forcing React to rerender every frame
-  const [feedbackScrollEnabled, setFeedbackScrollEnabled] = useState(true)
-  const [blockFeedbackScrollCompletely, setBlockFeedbackScrollCompletely] = useState(false)
+  // Scroll blocking state - custom subscription store to avoid parent re-renders
+  const feedbackScrollStateRef = useRef<FeedbackScrollSnapshot>({
+    enabled: true,
+    blockCompletely: false,
+  })
+  const feedbackScrollListenersRef = useRef(new Set<() => void>())
+
+  const getFeedbackScrollSnapshot = useCallback(
+    (): FeedbackScrollSnapshot => feedbackScrollStateRef.current,
+    []
+  )
+
+  const notifyFeedbackScrollSubscribers = useCallback(() => {
+    feedbackScrollListenersRef.current.forEach((listener) => {
+      try {
+        listener()
+      } catch (error) {
+        log.warn('useGestureController', '⚠️ Error notifying feedback scroll listener', {
+          error,
+        })
+      }
+    })
+  }, [])
+
+  const setFeedbackScrollEnabled = useCallback(
+    (value: boolean) => {
+      const current = feedbackScrollStateRef.current
+      if (current.enabled === value) {
+        return current.enabled
+      }
+
+      feedbackScrollStateRef.current = {
+        ...current,
+        enabled: value,
+      }
+      notifyFeedbackScrollSubscribers()
+      return value
+    },
+    [notifyFeedbackScrollSubscribers]
+  )
+
+  const setBlockFeedbackScrollCompletely = useCallback(
+    (value: boolean) => {
+      const current = feedbackScrollStateRef.current
+      if (current.blockCompletely === value) {
+        return current.blockCompletely
+      }
+
+      feedbackScrollStateRef.current = {
+        ...current,
+        blockCompletely: value,
+      }
+      notifyFeedbackScrollSubscribers()
+      return value
+    },
+    [notifyFeedbackScrollSubscribers]
+  )
+
+  const feedbackScrollControl = useMemo<FeedbackScrollControl>(
+    () => ({
+      subscribe: (listener: () => void) => {
+        feedbackScrollListenersRef.current.add(listener)
+        return () => {
+          feedbackScrollListenersRef.current.delete(listener)
+        }
+      },
+      getSnapshot: getFeedbackScrollSnapshot,
+    }),
+    [getFeedbackScrollSnapshot]
+  )
 
   // Gesture state tracking (shared values for worklet access)
   const gestureIsActive = useSharedValue(false)
@@ -353,7 +433,21 @@ export function useGestureController(
   const isLeftEdgeSwipe = useSharedValue(false)
 
   // Pull-to-reveal state (JavaScript-accessible for UI indicators)
-  const [isPullingToRevealJS, setIsPullingToRevealJS] = useState(false)
+  const isPullingToRevealRef = useRef(false)
+  const pullToRevealListenersRef = useRef(new Set<() => void>())
+
+  const subscribePullToReveal = useCallback((listener: () => void) => {
+    pullToRevealListenersRef.current.add(listener)
+    return () => {
+      pullToRevealListenersRef.current.delete(listener)
+    }
+  }, [])
+
+  const getPullToRevealSnapshot = useCallback(() => isPullingToRevealRef.current, [])
+
+  const notifyPullToRevealListeners = useCallback(() => {
+    pullToRevealListenersRef.current.forEach((listener) => listener())
+  }, [])
 
   // LAZY INITIALIZATION: Register listeners for internal tracking shared values
   // to prevent "onAnimatedValueUpdate with no listeners" warnings in development.
@@ -425,36 +519,37 @@ export function useGestureController(
     }
   )
 
-  const setFeedbackScrollEnabledTransition = useCallback((value: boolean) => {
-    setFeedbackScrollEnabled((prev) => {
-      if (prev === value) {
-        return prev
+  const setFeedbackScrollEnabledTransition = useCallback(
+    (value: boolean) => {
+      setFeedbackScrollEnabled(value)
+    },
+    [setFeedbackScrollEnabled]
+  )
+
+  const setBlockFeedbackScrollCompletelyTransition = useCallback(
+    (value: boolean) => {
+      const previous = feedbackScrollStateRef.current.blockCompletely
+      if (previous !== value) {
+        log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
+          prev: previous,
+          next: value,
+        })
       }
+      setBlockFeedbackScrollCompletely(value)
+    },
+    [setBlockFeedbackScrollCompletely]
+  )
 
-      return value
-    })
-  }, [])
-
-  const setBlockFeedbackScrollCompletelyTransition = useCallback((value: boolean) => {
-    setBlockFeedbackScrollCompletely((prev) => {
-      if (prev === value) {
-        return prev
+  const updatePullingToRevealJS = useCallback(
+    (value: boolean) => {
+      if (isPullingToRevealRef.current === value) {
+        return
       }
-
-      log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
-        prev,
-        next: value,
-      })
-
-      return value
-    })
-  }, [])
-
-  const updatePullingToRevealJS = useCallback((value: boolean) => {
-    startTransition(() => {
-      setIsPullingToRevealJS((prev) => (prev === value ? prev : value))
-    })
-  }, [])
+      isPullingToRevealRef.current = value
+      notifyPullToRevealListeners()
+    },
+    [notifyPullToRevealListeners]
+  )
 
   // Bridge UI-thread pull state to JS for context consumers
   useAnimatedReaction(
@@ -548,13 +643,22 @@ export function useGestureController(
     .failOffsetX([Number.NEGATIVE_INFINITY, 10])
     .onTouchesDown((event) => {
       'worklet'
+      const touch = event.allTouches[0]
+      const touchX = touch?.x ?? 0
+      const touchY = touch?.y ?? 0
+      const pointerCount = event.allTouches.length
+      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Touch down', {
+        touchX,
+        touchY,
+        pointerCount,
+      })
       // Track gesture event for AI analysis
       runOnJS(gestureDetector.trackGestureEvent)({
         gestureType: 'rootPan',
         phase: 'begin',
         location: {
-          x: event.allTouches[0]?.x ?? 0,
-          y: event.allTouches[0]?.y ?? 0,
+          x: touchX,
+          y: touchY,
         },
         translation: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
@@ -939,22 +1043,28 @@ export function useGestureController(
   // Memoize return value with PRIMITIVE deps (not rootPan which changes every render)
   // rootPan MUST be new every render (Reanimated), but we accept that and only memoize
   // based on the primitive state values and stable callbacks
+  const pullToRevealControl = useMemo<PullToRevealControl>(
+    () => ({
+      subscribe: subscribePullToReveal,
+      getSnapshot: getPullToRevealSnapshot,
+    }),
+    [getPullToRevealSnapshot, subscribePullToReveal]
+  )
+
   return useMemo(
     () => ({
       rootPan,
       rootPanRef,
-      feedbackScrollEnabled,
-      blockFeedbackScrollCompletely,
-      isPullingToRevealJS,
+      feedbackScroll: feedbackScrollControl,
+      pullToReveal: pullToRevealControl,
       onFeedbackScrollY,
       onFeedbackMomentumScrollEnd,
     }),
     [
       // Omit rootPan from deps - it changes every render by design
       rootPanRef,
-      feedbackScrollEnabled,
-      blockFeedbackScrollCompletely,
-      isPullingToRevealJS,
+      feedbackScrollControl,
+      pullToRevealControl,
       // Callbacks are stable (useCallback with empty deps + refs)
       onFeedbackScrollY,
       onFeedbackMomentumScrollEnd,

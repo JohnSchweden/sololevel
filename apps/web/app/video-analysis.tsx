@@ -1,6 +1,9 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
+import { useVideoPlayerStore } from '@my/app/features/VideoAnalysis/stores'
+import { useFeedbackCoordinatorStore } from '@my/app/features/VideoAnalysis/stores/feedbackCoordinatorStore'
 import { log } from '@my/logging'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect, useRef } from 'react'
 
 /**
  * Video Analysis Route (Web)
@@ -19,6 +22,20 @@ export default function VideoAnalysis() {
     videoRecordingId?: string
     analysisJobId?: string
   }>()
+
+  // Track which analysisJobId we've reset for to avoid duplicate resets
+  const lastResetAnalysisIdRef = useRef<string | undefined>(undefined)
+
+  // Reset feedback coordinator store synchronously if we haven't for this analysis
+  if (lastResetAnalysisIdRef.current !== analysisJobId) {
+    log.debug('VideoAnalysis', '🔄 Resetting feedback coordinator store for new video analysis', {
+      analysisJobId,
+      lastReset: lastResetAnalysisIdRef.current,
+    })
+    useFeedbackCoordinatorStore.getState().reset()
+    useVideoPlayerStore.getState().reset()
+    lastResetAnalysisIdRef.current = analysisJobId
+  }
 
   const handleBack = () => {
     log.info('VideoAnalysis', '🔙 Navigate back')

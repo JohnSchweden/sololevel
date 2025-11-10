@@ -1,5 +1,8 @@
-import type { ComponentProps } from 'react'
+import React, { type ComponentProps } from 'react'
 import { Image, YStack, type YStackProps } from 'tamagui'
+
+// Cache default image source to prevent require() on every render
+const DEFAULT_GLASS_GRADIENT = require('../../../../../apps/expo/assets/glass-gradient-square.png')
 
 export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
   /**
@@ -51,16 +54,16 @@ export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
  * </GlassBackground>
  * ```
  */
-export function GlassBackground({
+// Memoize to prevent re-renders during navigation animations
+export const GlassBackground = React.memo(function GlassBackground({
   children,
   source,
   resizeMode = 'stretch',
   testID = 'glass-background',
   ...stackProps
 }: GlassBackgroundProps): React.ReactElement {
-  // Default to glass gradient from expo assets if no source provided
-  const defaultSource = require('../../../../../apps/expo/assets/glass-gradient-square.png')
-  const imageSource = source || defaultSource
+  // Use cached default source - prevents require() call on every render
+  const imageSource = source || DEFAULT_GLASS_GRADIENT
 
   return (
     <YStack
@@ -85,4 +88,4 @@ export function GlassBackground({
       {children}
     </YStack>
   )
-}
+})

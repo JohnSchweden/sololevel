@@ -70,3 +70,8 @@ export function CoachAvatar({
     </View>
   )
 }
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(CoachAvatar as any).whyDidYouRender = true
+}

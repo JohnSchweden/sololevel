@@ -1,13 +1,14 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
+import { useVideoPlayerStore } from '../stores'
+import { useFeedbackAudioStore } from '../stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
 import { useBubbleController } from './useBubbleController'
-import type { FeedbackAudioSourceState } from './useFeedbackAudioSource'
 import { useFeedbackSelection } from './useFeedbackSelection'
-import type { VideoPlaybackState } from './useVideoPlayback'
+import type { VideoPlaybackState } from './useVideoPlayer.types'
 
 export interface FeedbackCoordinatorState {
   highlightedFeedbackId: string | null
@@ -31,25 +32,151 @@ export interface FeedbackCoordinatorState {
   onAudioOverlayInactivity: () => void
   onAudioOverlayInteraction: () => void
   onPlayPendingFeedback: (feedbackId: string) => void
+  onAudioNaturalEnd: () => void
 }
 
 export interface UseFeedbackCoordinatorParams {
   feedbackItems: FeedbackPanelItem[]
-  feedbackAudio: FeedbackAudioSourceState
   audioController: AudioControllerState
-  videoPlayback: VideoPlaybackState & {
-    isPlaying: boolean
+  videoPlayback: Omit<VideoPlaybackState, 'currentTime' | 'duration' | 'isPlaying'> & {
     videoEnded: boolean
   }
 }
 
+/**
+ * Orchestrates feedback selection, bubble timing, and audio playback for the video analysis
+ * screen.
+ *
+ * The hook intentionally keeps all mutable state inside refs or external stores so the
+ * parent screen never re-renders during high-frequency playback events. Recent test
+ * additions assert this contract explicitly:
+ *
+ * - `VideoAnalysisScreen.test.tsx` expects the returned callbacks to stay referentially
+ *   stable while reactive store data changes.
+ * - The same suite verifies that `onBubbleTimerElapsed` **must not** route through the
+ *   audio cleanup path; bubble expiry should hide UI while letting audio finish
+ *   naturally.
+ *
+ * @remarks
+ * Updates to this module should be accompanied by the regression tests under
+ * `VideoAnalysisScreen.test.tsx` and `VideoPlayerSection.test.tsx`, which encode the
+ * stability guarantees this coordinator must uphold.
+ *
+ * **Data Flow Diagram with Imperative Seek:**
+ * ```
+ *                            INPUT
+ *                              |
+ *        ┌─────────────────────┼─────────────────────┐
+ *        |                     |                     |
+ *   Progress Event      User Tap Feedback      Playback Event
+ *   (250ms intervals)        (onUserTapFeedback)   (play/pause)
+ *        |                     |                     |
+ *        └─────────────────────┼─────────────────────┘
+ *                              ↓
+ *                   COORDINATOR LOGIC LAYER
+ *                              |
+ *        ┌─────────────────────┼─────────────────────┐
+ *        |                     |                     |
+ *   Check Bubble         Select & Highlight    Resume/Pause Audio
+ *   Timing               Feedback Item         & Update Store
+ *        |                     |                     |
+ *        │          ┌──────────▼─────────────┐       |
+ *        │          │   Seek Handler Split   │       |
+ *        │          │  (< 1ms latency)       │       |
+ *        │          └──────────┬─────────────┘       |
+ *        │                     |                     |
+ *        │          ┌──────────▼─────────────┐       |
+ *        │          │ Immediate (ref-based)  │       │
+ *        │          │ videoPlayer.seekDirect │       │
+ *        │          │ ← Native seek <16ms    │       │
+ *        │          └──────────┬─────────────┘       |
+ *        │                     |                     |
+ *        │          ┌──────────▼─────────────┐       |
+ *        │          │ Async (store sync)     │       │
+ *        │          │ onSeek(time)           │       │
+ *        │          │ ← Progress bar sync    │       │
+ *        │          └──────────┬─────────────┘       |
+ *        └─────────────────────┼─────────────────────┘
+ *                              ↓
+ *                        ZUSTAND STORES
+ *                              |
+ *        ┌─────────────────────┼─────────────────────┐
+ *        |                     |                     |
+ *   FeedbackCoordinator    FeedbackAudio        VideoPlayer
+ *   Store                  Store                Store
+ *   (highlights, bubbles)  (activeAudio)        (isPlaying, seekImmediate)
+ *        |                     |                     |
+ *        └─────────────────────┼─────────────────────┘
+ *                              ↓
+ *                      SUBSCRIBED COMPONENTS
+ *                              |
+ *        ┌─────────────────────┼─────────────────────┐
+ *        |                     |                     |
+ *   FeedbackSection       VideoPlayerSection    Audio Overlay
+ *   (render bubbles)      (show highlights)     (render audio UI)
+ *        |                     |                     |
+ *        └─────────────────────┼─────────────────────┘
+ *                              ↓
+ *                            OUTPUT
+ * ```
+ *
+ * **PERFORMANCE OPTIMIZATION: Imperative Seek Bypass**
+ * ```ts
+ * // Old flow (200ms latency): Tap → setState → React render → prop update → native seek
+ * // New flow (<16ms latency): Tap → ref-based seek → done
+ * const seekImmediateFn = useVideoPlayerStore.getState().seekImmediate
+ * if (seekImmediateFn) seekImmediateFn(seekTime) // <16ms, bypasses React render
+ * ```
+ * VideoPlayerSection registers `seekImmediate` in store on mount. Coordinator reads it imperatively
+ * (no subscription) and calls it directly. This is split from store sync (`onSeek`) which happens async.
+ *
+ * **NO REACT STATE:** All state lives in Zustand stores. This hook:
+ * - Reads store values imperatively via `getState()` (no subscriptions, no re-renders)
+ * - Dispatches to store via action callbacks
+ * - Manages timers/refs for side effects
+ * - Uses internal refs for staging state (pendingFeedbackId)
+ *
+ * **Ref-Based State:**
+ * - `pendingFeedbackIdRef` - Stages feedback ID before dispatching to selection
+ * - `currentVideoTimeRef` - Tracks video position for bubble logic
+ * - `isPlayingRef` - Tracks playback state to avoid stale closures
+ * - `completedFeedbackRef` - Tracks completed feedback items to prevent re-triggering
+ *
+ * **Imperative Store Reads:**
+ * ```ts
+ * const activeAudioDuration = useFeedbackAudioStore.getState().activeAudio ? 0 : audioController.duration
+ * const seekImmediateFn = useVideoPlayerStore.getState().seekImmediate // No subscription
+ * useFeedbackCoordinatorStore.getState().batchUpdate({ ... })
+ * ```
+ *
+ * **Returns:** Stable object with callbacks + deprecated state values (for backward compat)
+ * - `onProgressTrigger` - Called on video progress event (250ms intervals)
+ * - `onUserTapFeedback` - Called when user taps feedback item (triggers seekImmediate if available)
+ * - `onAudioOverlayClose` - Called when audio overlay is dismissed
+ * - etc.
+ *
+ * **Parent Caller:** VideoAnalysisScreen (only calls it for callbacks, not state)
+ * **Subscribers:** FeedbackSection, VideoPlayerSection (subscribe to store directly)
+ * **Imperative Reads:** VideoPlayerStore.seekImmediate (for low-latency feedback seek)
+ *
+ * @param feedbackItems - Array of feedback items to coordinate
+ * @param audioController - Audio playback interface (mostly unused; duration read from store)
+ * @param videoPlayback - Video playback interface (seek, videoEnded)
+ * @returns Callbacks for feedback coordination and deprecated state values
+ */
 export function useFeedbackCoordinator({
   feedbackItems,
-  feedbackAudio,
   audioController,
   videoPlayback,
 }: UseFeedbackCoordinatorParams): FeedbackCoordinatorState {
-  const [pendingFeedbackId, setPendingFeedbackId] = useState<string | null>(null)
+  // PERFORMANCE FIX: Use ref instead of useState for pendingFeedbackId
+  // Problem: setState on selection caused useFeedbackCoordinator to re-render,
+  // which caused VideoAnalysisScreen to re-render (as seen in WDYR: "useState result changed").
+  // Solution: Use ref - coordinator can still read and write without triggering renders.
+  // Impact: Eliminates re-renders when user taps feedback item.
+  const pendingFeedbackIdRef = useRef<string | null>(null)
+
+  // Audio state is read imperatively with getState() to avoid parent re-renders
 
   /**
    * PERFORMANCE FIX: Use ref instead of state for currentVideoTime
@@ -64,15 +191,28 @@ export function useFeedbackCoordinator({
    */
   const currentVideoTimeRef = useRef(0)
 
-  const skipSuppressionRef = useRef(false)
+  // Track completed feedback items: Map<feedbackId, completedAtTimestampMs>
+  // Prevents re-triggering until video moves significantly past completion point
+  const completedFeedbackRef = useRef<Map<string, number>>(new Map())
+
+  // Track audioController in ref to avoid stale closures in handlePlay
+  const audioControllerRef = useRef(audioController)
+  useEffect(() => {
+    audioControllerRef.current = audioController
+  }, [audioController])
 
   // Track latest isPlaying value to avoid stale closures
-  const isPlayingRef = useRef(videoPlayback.isPlaying)
+  const isPlayingRef = useRef(useVideoPlayerStore.getState().isPlaying)
   useEffect(() => {
-    isPlayingRef.current = videoPlayback.isPlaying
-  }, [videoPlayback.isPlaying])
+    const unsubscribe = useVideoPlayerStore.subscribe((state) => {
+      isPlayingRef.current = state.isPlaying
+    })
+    return () => {
+      unsubscribe()
+    }
+  }, [])
 
-  const selection = useFeedbackSelection(feedbackAudio, audioController, videoPlayback)
+  const selection = useFeedbackSelection(audioController, videoPlayback)
 
   const bubbleFeedbackItems = useMemo(
     () => feedbackItems.filter((item) => item.type === 'suggestion'),
@@ -87,15 +227,21 @@ export function useFeedbackCoordinator({
     return map
   }, [bubbleFeedbackItems])
 
+  // PERF FIX: Read activeAudio duration directly from store to avoid screen-level subscription
+  const audioStoreSnapshot = useFeedbackAudioStore.getState()
+  const activeAudioDuration = audioStoreSnapshot.activeAudio
+    ? 0
+    : (audioStoreSnapshot.controller?.duration ?? 0)
+
   const bubbleController = useBubbleController(
     bubbleFeedbackItems,
     currentVideoTimeRef.current, // Read from ref - no subscription, no re-renders
-    videoPlayback.isPlaying,
-    feedbackAudio.audioUrls,
-    audioController.duration,
+    isPlayingRef.current, // Read from ref - no subscription, no re-renders
+    useFeedbackAudioStore.getState().audioUrls,
+    activeAudioDuration,
     {
       onBubbleShow: ({ item, displayDurationMs }) => {
-        const hasAudioUrl = Boolean(feedbackAudio.audioUrls[item.id])
+        const hasAudioUrl = Boolean(useFeedbackAudioStore.getState().audioUrls[item.id])
 
         // log.info('useFeedbackCoordinator', 'Bubble show event received', {
         //   index,
@@ -109,7 +255,7 @@ export function useFeedbackCoordinator({
           timestamp: item.timestamp,
           hasAudioUrl,
           displayDurationMs,
-          activeAudioId: feedbackAudio.activeAudio?.id ?? null,
+          activeAudioId: useFeedbackAudioStore.getState().activeAudio?.id ?? null,
         })
         selection.highlightAutoFeedback(item, {
           seek: false,
@@ -160,22 +306,25 @@ export function useFeedbackCoordinator({
           return false
         }
 
-        // log.info('useFeedbackCoordinator', 'Bubble timer elapsed — stopping audio for sync', {
-        //   feedbackId: item.id,
-        //   reason,
-        // })
-
-        handleAudioStop('bubble-timer-elapsed')
-        return true
+        // Bubble timer expired - let bubble controller hide the bubble automatically
+        // Audio will continue playing naturally until handleEnd is called
+        log.debug(
+          'useFeedbackCoordinator.onBubbleTimerElapsed',
+          '⏱️ Bubble timer elapsed - hiding bubble, audio continues',
+          {
+            feedbackId: item.id,
+          }
+        )
+        // Return false/undefined to let bubble controller handle hiding automatically
+        // Don't call handleAudioStop - audio should play to completion naturally
+        return false
       },
     }
   )
 
-  const { currentBubbleIndex, bubbleVisible, checkAndShowBubbleAtTime, showBubble, hideBubble } =
-    bubbleController
+  const { currentBubbleIndex, bubbleVisible, showBubble, hideBubble } = bubbleController
 
   const pendingItemRef = useRef<FeedbackPanelItem | null>(null)
-  const pendingFeedbackIdRef = useRef<string | null>(null)
   const cleanupPerformedRef = useRef(false)
 
   const bubbleControllerRef = useRef(bubbleController)
@@ -183,77 +332,153 @@ export function useFeedbackCoordinator({
     bubbleControllerRef.current = bubbleController
   }, [bubbleController])
 
-  const audioControllerRef = useRef(audioController)
-  useEffect(() => {
-    audioControllerRef.current = audioController
-  }, [audioController])
-
-  const feedbackAudioRef = useRef(feedbackAudio)
-  useEffect(() => {
-    feedbackAudioRef.current = feedbackAudio
-  }, [feedbackAudio])
-
   const handleProgressTrigger = useCallback(
     (timeSeconds: number) => {
       // PERFORMANCE: Update ref instead of state - no re-renders
+      const currentTimeMs = timeSeconds * 1000
+      const previousTimeMs = currentVideoTimeRef.current * 1000
+      const isSeeking = currentTimeMs < previousTimeMs
+
+      // SEEKING DETECTION: If we've seeked backwards, clear all completions
+      // This prevents stale completions from blocking triggers after seeks
+      if (isSeeking && completedFeedbackRef.current.size > 0) {
+        log.debug(
+          'useFeedbackCoordinator.handleProgressTrigger',
+          '⏪ Backwards seek detected - clearing all completions',
+          {
+            previousTimeMs,
+            currentTimeMs,
+            seekDistance: previousTimeMs - currentTimeMs,
+            completedMapSize: completedFeedbackRef.current.size,
+          }
+        )
+        completedFeedbackRef.current.clear()
+      }
+
       currentVideoTimeRef.current = timeSeconds
 
       // Use ref to get latest isPlaying value (avoids stale closure)
       const currentIsPlaying = isPlayingRef.current
 
       // Do not trigger bubbles/highlights while paused or when a pending tap exists
-      if (!currentIsPlaying || pendingFeedbackId) {
+      if (!currentIsPlaying || pendingFeedbackIdRef.current) {
         log.debug(
           'useFeedbackCoordinator.handleProgressTrigger',
           '⏸️ Skipping - paused or pending tap',
           {
             timeSeconds,
             isPlaying: currentIsPlaying,
-            videoPlaybackIsPlaying: videoPlayback.isPlaying,
-            pendingFeedbackId,
+            videoPlaybackIsPlaying: currentIsPlaying,
+            pendingFeedbackId: pendingFeedbackIdRef.current,
           }
         )
         return
       }
 
-      // Suppress bubble triggers immediately after a skip/seek operation
-      // This prevents bubbles from popping up when user manually skips forward
-      if (skipSuppressionRef.current) {
-        log.debug(
-          'useFeedbackCoordinator.handleProgressTrigger',
-          '🚫 Skipping - seek suppression active',
-          {
-            timeSeconds,
-          }
-        )
-        // Clear suppression after this check - allow bubbles on subsequent progress events
-        skipSuppressionRef.current = false
+      // Clean up old completed feedback entries (older than 10 seconds)
+      completedFeedbackRef.current.forEach((completedAt, feedbackId, map) => {
+        if (currentTimeMs > completedAt + 10000) {
+          map.delete(feedbackId)
+          log.debug(
+            'useFeedbackCoordinator.handleProgressTrigger',
+            '🗑️ Cleaned up old completed entry',
+            {
+              feedbackId,
+              completedAt,
+              currentTimeMs,
+              age: currentTimeMs - completedAt,
+            }
+          )
+        }
+      })
+
+      log.debug('useFeedbackCoordinator.handleProgressTrigger', '🔍 Checking for bubble trigger', {
+        timeSeconds,
+        currentTimeMs,
+        completedEntries: Array.from(completedFeedbackRef.current.entries()).map(([id, ts]) => ({
+          id,
+          completedAt: ts,
+          age: currentTimeMs - ts,
+        })),
+      })
+
+      // PURE: Find trigger candidate WITHOUT side effects
+      const candidate = bubbleController.findTriggerCandidate(timeSeconds * 1000)
+      if (!candidate) {
+        log.debug('useFeedbackCoordinator.handleProgressTrigger', '⏭️ No bubble triggered', {
+          timeSeconds,
+          currentTimeMs,
+        })
         return
       }
 
-      const triggeredIndex = checkAndShowBubbleAtTime(timeSeconds * 1000)
-      if (triggeredIndex === null) {
-        return
+      const { item } = candidate
+      log.debug(
+        'useFeedbackCoordinator.handleProgressTrigger',
+        '🎯 Candidate found - checking completion gate',
+        {
+          timeSeconds,
+          currentTimeMs,
+          feedbackId: item.id,
+          feedbackTimestamp: item.timestamp,
+          completedEntries: Array.from(completedFeedbackRef.current.entries()),
+        }
+      )
+
+      // GATE: Check if this feedback was recently completed
+      // Block re-triggering until completion window expires
+      const completedAt = completedFeedbackRef.current.get(item.id)
+      log.debug('useFeedbackCoordinator.handleProgressTrigger', '🔍 Completion gate check', {
+        feedbackId: item.id,
+        feedbackTimestamp: item.timestamp,
+        currentTimeMs,
+        completedAt,
+        hasCompletedEntry: completedAt !== undefined,
+        completedMapSize: completedFeedbackRef.current.size,
+      })
+
+      if (completedAt !== undefined) {
+        const timeSinceCompletion = currentTimeMs - completedAt
+        const completionWindowMs = 5000 // 5s window
+        const shouldBlock = timeSinceCompletion < completionWindowMs
+
+        log.debug('useFeedbackCoordinator.handleProgressTrigger', '📊 Completion window', {
+          feedbackId: item.id,
+          completedAt,
+          timeSinceCompletion,
+          completionWindowMs,
+          shouldBlock,
+          timeRemaining: completionWindowMs - timeSinceCompletion,
+        })
+
+        if (shouldBlock) {
+          log.debug(
+            'useFeedbackCoordinator.handleProgressTrigger',
+            '🚫 BLOCKED by completion gate',
+            {
+              feedbackId: item.id,
+              timeSinceCompletion,
+              timeRemaining: completionWindowMs - timeSinceCompletion,
+            }
+          )
+          return
+        }
       }
 
-      const item = bubbleFeedbackItems[triggeredIndex]
-      if (!item) {
-        return
-      }
-
-      log.debug('useFeedbackCoordinator.handleProgressTrigger', '✅ Bubble would be triggered', {
+      // APPROVED: Display the bubble
+      log.debug('useFeedbackCoordinator.handleProgressTrigger', '✅ APPROVED - displaying bubble', {
         timeSeconds,
         itemId: item.id,
         timestamp: item.timestamp,
-        triggeredIndex,
       })
+      bubbleController.showBubble(candidate.index)
     },
     [
       bubbleFeedbackItems,
       bubbleController,
-      checkAndShowBubbleAtTime,
+      // Note: checkAndShowBubbleAtTime removed - now handled via bubbleController.findTriggerCandidate + showBubble
       // currentVideoTime removed - now a ref, no need in deps
-      pendingFeedbackId,
+      // pendingFeedbackId removed - now a ref, no need in deps
       // Note: isPlaying is read via ref (isPlayingRef.current) to avoid stale closures
       // No need to include in deps - ref always has latest value
     ]
@@ -271,13 +496,26 @@ export function useFeedbackCoordinator({
 
       hideBubble('manual')
 
-      if (videoPlayback.isPlaying && !videoPlayback.videoEnded) {
+      // Clear old completion entries when user manually selects feedback
+      // This prevents stale completions from blocking triggers after seeks
+      log.debug(
+        'useFeedbackCoordinator.handleUserTapFeedback',
+        '🧹 Clearing old completion entries on manual tap',
+        {
+          feedbackId: item.id,
+          completedMapSizeBefore: completedFeedbackRef.current.size,
+        }
+      )
+      completedFeedbackRef.current.clear()
+
+      const currentIsPlaying = isPlayingRef.current
+      if (currentIsPlaying && !videoPlayback.videoEnded) {
         // Playing: seek, highlight, play, and show bubble immediately
         log.debug('useFeedbackCoordinator.onUserTapFeedback', '🎵 User tap - playing audio', {
           feedbackId: item.id,
           timestamp: item.timestamp,
-          videoIsPlaying: videoPlayback.isPlaying,
-          activeAudioId: feedbackAudio.activeAudio?.id ?? null,
+          videoIsPlaying: currentIsPlaying,
+          activeAudioId: useFeedbackAudioStore.getState().activeAudio?.id ?? null,
         })
         selection.selectFeedback(item, { seek: true, playAudio: true })
 
@@ -288,7 +526,7 @@ export function useFeedbackCoordinator({
 
         pendingItemRef.current = null
         pendingFeedbackIdRef.current = null
-        setPendingFeedbackId(null)
+        pendingFeedbackIdRef.current = null
         return
       }
 
@@ -296,15 +534,14 @@ export function useFeedbackCoordinator({
       selection.selectFeedback(item, { seek: true, playAudio: false })
       pendingItemRef.current = item
       pendingFeedbackIdRef.current = item.id
-      setPendingFeedbackId(item.id)
     },
     [
       bubbleIndexById,
       hideBubble,
       selection,
       showBubble,
-      videoPlayback.isPlaying,
-      videoPlayback.videoEnded,
+      useVideoPlayerStore,
+      // videoPlayback.videoEnded removed - read from ref via getter, no dependency needed
     ]
   )
 
@@ -320,7 +557,6 @@ export function useFeedbackCoordinator({
 
       pendingItemRef.current = null
       pendingFeedbackIdRef.current = null
-      setPendingFeedbackId(null)
 
       selection.selectFeedback(item, { seek: false, playAudio: true })
     },
@@ -335,43 +571,59 @@ export function useFeedbackCoordinator({
   }, [videoPlayback.play])
 
   const handlePlay = useCallback(() => {
-    // Resume audio ONLY if it was paused (has activeAudio but isPlaying is false)
-    // Do NOT resume if audio finished (audio finished sets isPlaying=false but activeAudio might still exist)
-    // Check if audio was paused vs finished by checking if audio is actually at a playable position
-    // If currentTime is > 0, audio was playing and paused; if currentTime is 0, audio likely finished or never started
-    // Duration may be 0 if not loaded yet, so we only check duration if it's > 0 to ensure we're not at the end
-    const currentController = audioControllerRef.current
-    const currentFeedbackAudio = feedbackAudioRef.current
-    const wasPaused =
-      currentFeedbackAudio.activeAudio &&
-      currentController &&
-      !currentController.isPlaying &&
-      currentController.currentTime > 0 &&
-      (currentController.duration === 0 ||
-        currentController.currentTime < currentController.duration)
+    const startTime = Date.now()
+    log.debug('useFeedbackCoordinator.handlePlay', '▶️ Play pressed', {
+      timestamp: startTime,
+    })
 
-    if (wasPaused) {
-      log.debug('useFeedbackCoordinator.handlePlay', '🎵 Resuming paused audio', {
-        activeAudioId: currentFeedbackAudio.activeAudio?.id ?? null,
-        currentTime: currentController.currentTime,
-        duration: currentController.duration,
-      })
-      audioController.setIsPlaying(true)
-    } else if (
-      currentFeedbackAudio.activeAudio &&
+    // Resume audio if it has activeAudio and is not currently playing
+    // This covers two cases:
+    // 1. Audio was paused mid-playback (currentTime > 0)
+    // 2. Audio is loading but was set to playing state (currentTime might still be 0)
+    const currentController = audioControllerRef.current
+    const currentFeedbackAudio = useFeedbackAudioStore.getState()
+    const hasActiveAudio = currentFeedbackAudio.activeAudio && currentController
+    const audioIsNotPlaying = !currentController?.isPlaying
+    const audioIsLoadingOrPaused =
       currentController &&
-      !currentController.isPlaying
-    ) {
-      log.debug('useFeedbackCoordinator.handlePlay', '⚠️ Audio not resumed - checking conditions', {
+      (currentController.currentTime > 0 || // Audio was playing
+        currentController.duration === 0 || // Audio still loading
+        currentController.currentTime < currentController.duration) // Audio not at end
+
+    const shouldResumeAudio = hasActiveAudio && audioIsNotPlaying && audioIsLoadingOrPaused
+
+    if (shouldResumeAudio) {
+      log.debug('useFeedbackCoordinator.handlePlay', '🎵 Resuming audio', {
         activeAudioId: currentFeedbackAudio.activeAudio?.id ?? null,
         currentTime: currentController.currentTime,
         duration: currentController.duration,
-        isPlaying: currentController.isPlaying,
+        wasLoading: currentController.duration === 0,
+        startTime,
       })
+      useFeedbackAudioStore.getState().setIsPlaying(true)
+      const endTime = Date.now()
+      log.debug('useFeedbackCoordinator.handlePlay', '✓ setIsPlaying called', {
+        duration: endTime - startTime,
+        elapsed: endTime - startTime,
+      })
+    } else if (currentFeedbackAudio.activeAudio && currentController) {
+      log.debug(
+        'useFeedbackCoordinator.handlePlay',
+        '⚠️ Audio not resumed - already playing or at end',
+        {
+          activeAudioId: currentFeedbackAudio.activeAudio?.id ?? null,
+          currentTime: currentController.currentTime,
+          duration: currentController.duration,
+          isPlaying: currentController.isPlaying,
+        }
+      )
     }
 
     if (!pendingFeedbackIdRef.current || !pendingItemRef.current) {
-      // log.info('useFeedbackCoordinator', 'Play pressed — no pending feedback, just play')
+      log.debug('useFeedbackCoordinator.handlePlay', '▶️ No pending feedback - resuming video', {
+        hasPendingFeedbackId: !!pendingFeedbackIdRef.current,
+        hasPendingItem: !!pendingItemRef.current,
+      })
       videoPlayRef.current()
       return
     }
@@ -394,31 +646,60 @@ export function useFeedbackCoordinator({
       showBubble(maybeIndex)
     }
 
-    setPendingFeedbackId(null)
     pendingFeedbackIdRef.current = null
     pendingItemRef.current = null
+    useFeedbackAudioStore.getState().setIsPlaying(true)
+    log.debug('useFeedbackCoordinator.handlePlay', '✓ Pending feedback handled - resuming video', {
+      feedbackId: item.id,
+      bubbleIndex: bubbleIndexById.get(item.id) ?? null,
+    })
     videoPlayRef.current()
-  }, [bubbleIndexById, selection, showBubble, audioController.setIsPlaying])
+  }, [bubbleIndexById, selection, showBubble])
 
   // Rule: After audio ends and video resumes playing, remove highlight and clear activeAudio
   useEffect(() => {
-    if (!audioController.isPlaying && selection.highlightedFeedbackId && videoPlayback.isPlaying) {
-      // log.info('useFeedbackCoordinator', 'Clearing highlight on audio end + video resume', {
-      //   highlightedId: selection.highlightedFeedbackId,
-      // })
+    const highlightedId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
+    const videoIsPlaying = isPlayingRef.current
+    const audioIsNotPlaying = !audioController.isPlaying
+
+    log.debug(
+      'useFeedbackCoordinator.audioEndVideoResume',
+      '🔍 Checking audio end + video resume condition',
+      {
+        audioIsNotPlaying,
+        highlightedFeedbackId: highlightedId,
+        videoIsPlaying,
+        audioCurrentTime: audioController.currentTime,
+        shouldClear: audioIsNotPlaying && highlightedId && videoIsPlaying,
+      }
+    )
+
+    if (audioIsNotPlaying && highlightedId && videoIsPlaying) {
+      log.debug(
+        'useFeedbackCoordinator.audioEndVideoResume',
+        '✓ Audio ended + video resumed - clearing highlight',
+        {
+          highlightedId,
+          audioCurrentTime: audioController.currentTime,
+        }
+      )
       selection.clearHighlight({ reason: 'audio-ended-video-resumed' })
       // Clear activeAudio when audio ends naturally and video resumes
       // This prevents handlePlay from trying to resume finished audio
-      if (feedbackAudioRef.current.activeAudio && audioController.currentTime === 0) {
-        feedbackAudioRef.current.clearActiveAudio()
+      const audioState = useFeedbackAudioStore.getState()
+      if (audioState.activeAudio && audioController.currentTime === 0) {
+        log.debug('useFeedbackCoordinator.audioEndVideoResume', '✓ Clearing activeAudio', {
+          activeAudioId: audioState.activeAudio?.id ?? null,
+        })
+        audioState.setActiveAudio(null)
       }
     }
   }, [
     audioController.isPlaying,
     audioController.currentTime,
     selection,
-    selection.highlightedFeedbackId,
-    videoPlayback.isPlaying,
+    // Read from store imperatively - no subscription needed
+    isPlayingRef, // Use ref instead of videoPlayback.isPlaying
   ])
 
   // Rule: Clear activeAudio when audio ends naturally (currentTime reset to 0)
@@ -444,12 +725,24 @@ export function useFeedbackCoordinator({
       wasAtNonZeroPosition &&
       nowNotPlaying &&
       nowAtZero &&
-      feedbackAudioRef.current.activeAudio &&
+      useFeedbackAudioStore.getState().activeAudio &&
       audioController.duration > 0
     ) {
       // Audio ended naturally (transitioned from playing to stopped with currentTime reset to 0)
       // Clear activeAudio to prevent handlePlay from trying to resume finished audio
-      feedbackAudioRef.current.clearActiveAudio()
+      log.debug(
+        'useFeedbackCoordinator.audioEndDetection',
+        '🎵 Audio ended naturally - clearing activeAudio',
+        {
+          wasPlaying,
+          wasAtNonZeroPosition,
+          nowNotPlaying,
+          nowAtZero,
+          activeAudioId: useFeedbackAudioStore.getState().activeAudio?.id ?? null,
+          duration: audioController.duration,
+        }
+      )
+      useFeedbackAudioStore.getState().setActiveAudio(null)
     }
   }, [audioController.isPlaying, audioController.currentTime, audioController.duration])
 
@@ -460,26 +753,77 @@ export function useFeedbackCoordinator({
     selection.clearSelection()
     pendingItemRef.current = null
     pendingFeedbackIdRef.current = null
-    setPendingFeedbackId(null)
-
-    // Enable skip suppression to prevent immediate bubble popup after seek
-    skipSuppressionRef.current = true
   }, [hideBubble, selection])
 
+  /**
+   * Performs cleanup for explicit audio termination events (overlay closed, inactivity,
+   * manual stop). The bubble timer path intentionally skips this logic so audio can play
+   * to completion – the tests assert that `onBubbleTimerElapsed` returns false and never
+   * routes through here.
+   */
   const handleAudioStop = useCallback(
     (reason: string) => {
+      // PERFORMANCE: Early exit if nothing to clean up
+      // Prevents redundant store writes (false→false, null→null)
+      const store = useFeedbackCoordinatorStore.getState()
+      const audioStore = useFeedbackAudioStore.getState()
+      const bubbleState = store.bubbleState
+
+      const hasActiveSelection = store.selectedFeedbackId || store.highlightedFeedbackId
+      const hasActiveAudio = audioStore.isPlaying || audioStore.activeAudio
+      const hasActiveBubble = bubbleState.bubbleVisible
+
+      if (!hasActiveSelection && !hasActiveAudio && !hasActiveBubble) {
+        log.debug('useFeedbackCoordinator.handleAudioStop', '⏭️ Skipping cleanup - nothing active', {
+          reason,
+          selectedFeedbackId: store.selectedFeedbackId,
+          highlightedFeedbackId: store.highlightedFeedbackId,
+          isPlaying: audioStore.isPlaying,
+          activeAudioId: audioStore.activeAudio?.id ?? null,
+          bubbleVisible: bubbleState.bubbleVisible,
+        })
+        return
+      }
+
+      log.debug('useFeedbackCoordinator.handleAudioStop', '🛑 Stopping audio and cleaning up', {
+        reason,
+        hasActiveBubble,
+        hasActiveSelection,
+        hasActiveAudio,
+        highlightedFeedbackId: store.highlightedFeedbackId,
+        bubbleVisible: bubbleState.bubbleVisible,
+        activeAudioId: audioStore.activeAudio?.id ?? null,
+      })
+
       // Use refs for all dependencies to make this callback completely stable
       // This prevents handleAudioOverlayClose/Inactivity from recreating
-      bubbleControllerRef.current.hideBubble('manual')
-      selection.clearHighlight({ reason })
-      audioController.setIsPlaying(false)
-      feedbackAudioRef.current.clearActiveAudio()
-      selection.clearSelection()
+      if (hasActiveBubble) {
+        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Hiding bubble', {
+          reason,
+          bubbleIndex: bubbleState.currentBubbleIndex,
+        })
+        bubbleControllerRef.current.hideBubble('manual')
+      }
+      if (hasActiveSelection) {
+        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Clearing highlight and selection', {
+          reason,
+          highlightedId: store.highlightedFeedbackId,
+        })
+        selection.clearHighlight({ reason })
+        selection.clearSelection()
+      }
+      if (hasActiveAudio) {
+        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Stopping audio playback', {
+          reason,
+          activeAudioId: audioStore.activeAudio?.id ?? null,
+        })
+        audioStore.setIsPlaying(false)
+        audioStore.setActiveAudio(null)
+      }
       pendingItemRef.current = null
       pendingFeedbackIdRef.current = null
-      setPendingFeedbackId(null)
     },
-    [selection, audioController.setIsPlaying]
+    [selection]
   )
 
   useEffect(() => {
@@ -491,61 +835,191 @@ export function useFeedbackCoordinator({
 
       const nextBubbleController = bubbleControllerRef.current
       const nextSelection = selection
-      const nextAudioController = audioControllerRef.current
-      const nextFeedbackAudio = feedbackAudioRef.current
+      const nextFeedbackAudio = useFeedbackAudioStore.getState()
 
       nextBubbleController.hideBubble('cleanup')
 
       nextSelection.clearHighlight({ reason: 'coordinator-unmount' })
       nextSelection.clearSelection()
 
-      nextAudioController.setIsPlaying(false)
-      nextFeedbackAudio.clearActiveAudio()
+      nextFeedbackAudio.setIsPlaying(false)
+      nextFeedbackAudio.setActiveAudio(null)
 
       pendingItemRef.current = null
       pendingFeedbackIdRef.current = null
-      setPendingFeedbackId(null)
     }
   }, [])
 
-  const overlayVisible = audioController.isPlaying && Boolean(feedbackAudio.activeAudio)
-  const activeAudio = feedbackAudio.activeAudio
-  const activeAudioId = activeAudio?.id ?? null
+  // Read activeAudio imperatively when needed (not at render time to avoid subscriptions)
+  const overlayVisible =
+    audioController.isPlaying && Boolean(useFeedbackAudioStore.getState().activeAudio)
 
-  // Synchronous hide: when overlay becomes invisible due to audio stopping (not pausing)
-  // Only hide if audio is actually stopped (no active audio), not just paused
-  // When paused, activeAudio still exists, so we keep the bubble visible
-  if (!feedbackAudio.activeAudio && bubbleVisible) {
+  // Ensure bubble hides if it remains visible without active audio after render
+  useEffect(() => {
+    if (!useFeedbackAudioStore.getState().activeAudio && bubbleVisible) {
+      hideBubble('audio-stop')
+    }
+  }, [bubbleVisible, hideBubble])
+
+  // Hide bubble when audio stops
+  useEffect(() => {
+    let prevActiveAudio = useFeedbackAudioStore.getState().activeAudio
+    return useFeedbackAudioStore.subscribe((state) => {
+      const currentActiveAudio = state.activeAudio
+      if (prevActiveAudio && !currentActiveAudio) {
+        // Audio was playing, now stopped
+        log.debug(
+          'useFeedbackCoordinator.audioStopBubbleHide',
+          '🎵 Audio stopped - checking bubble visibility',
+          {
+            prevActiveAudioId: prevActiveAudio?.id ?? null,
+            bubbleVisible: useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible,
+          }
+        )
+        if (useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible) {
+          log.debug('useFeedbackCoordinator.audioStopBubbleHide', '✓ Hiding bubble on audio stop', {
+            bubbleIndex: useFeedbackCoordinatorStore.getState().bubbleState.currentBubbleIndex,
+          })
+          hideBubble('audio-stop')
+        }
+      }
+      prevActiveAudio = currentActiveAudio
+    })
+  }, [hideBubble])
+
+  const handleAudioNaturalEnd = useCallback(() => {
+    const highlightedId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
+
+    if (!highlightedId) {
+      log.debug(
+        'useFeedbackCoordinator.audioEndCleanupGuard',
+        '⏭️ Natural end ignored - no highlighted feedback'
+      )
+      return
+    }
+
+    const audioState = useFeedbackAudioStore.getState()
+    const audioControllerState = audioState.controller
+    const audioDuration = audioControllerState?.duration ?? 0
+    const audioCurrentTime = audioControllerState?.currentTime ?? -1
+    const videoIsPlaying = isPlayingRef.current
+
+    log.debug('useFeedbackCoordinator.audioEndCleanupGuard', '🔚 Natural audio end received', {
+      highlightedId,
+      audioCurrentTime,
+      audioDuration,
+      videoIsPlaying,
+    })
+
+    const videoTimeMs = useVideoPlayerStore.getState().displayTime * 1000
+    const currentVideoTimeRefMs = currentVideoTimeRef.current * 1000
+    const feedbackItem = bubbleFeedbackItems.find((item) => item.id === highlightedId)
+    const completionTimestampMs = feedbackItem ? feedbackItem.timestamp : videoTimeMs
+
+    log.debug(
+      'useFeedbackCoordinator.audioEndCleanupGuard',
+      '📝 Marking feedback as completed - BEFORE',
+      {
+        feedbackId: highlightedId,
+        videoTimeMs,
+        currentVideoTimeRefMs,
+        feedbackItem: feedbackItem
+          ? {
+              id: feedbackItem.id,
+              timestamp: feedbackItem.timestamp,
+            }
+          : null,
+        completionTimestampMs,
+        completedMapBefore: Array.from(completedFeedbackRef.current.entries()),
+      }
+    )
+
+    completedFeedbackRef.current.set(highlightedId, completionTimestampMs)
+
+    log.debug(
+      'useFeedbackCoordinator.audioEndCleanupGuard',
+      '✓ Marked feedback as completed - AFTER',
+      {
+        feedbackId: highlightedId,
+        feedbackTimestamp: feedbackItem?.timestamp,
+        videoTimeMs,
+        currentVideoTimeRefMs,
+        completionTimestampMs,
+        completedMapAfter: Array.from(completedFeedbackRef.current.entries()),
+        completedMapSize: completedFeedbackRef.current.size,
+      }
+    )
+
+    selection.clearHighlight({ reason: 'audio-ended-cleanup-guard' })
+    if (audioState.activeAudio) {
+      log.debug('useFeedbackCoordinator.audioEndCleanupGuard', '✓ Force clearing activeAudio', {
+        activeAudioId: audioState.activeAudio?.id ?? null,
+      })
+      audioState.setActiveAudio(null)
+    }
+    audioState.setIsPlaying(false)
     hideBubble('audio-stop')
-  }
+
+    if (videoIsPlaying) {
+      log.debug(
+        'useFeedbackCoordinator.audioEndCleanupGuard',
+        '▶️ Video already playing - no resume needed'
+      )
+      return
+    }
+
+    log.debug(
+      'useFeedbackCoordinator.audioEndCleanupGuard',
+      '▶️ Scheduling video resume after audio cleanup',
+      {
+        currentTime: currentVideoTimeRef.current,
+      }
+    )
+
+    setTimeout(() => {
+      const stillNoHighlight = !useFeedbackCoordinatorStore.getState().highlightedFeedbackId
+      if (stillNoHighlight) {
+        log.debug('useFeedbackCoordinator.audioEndCleanupGuard', '▶️ Executing video resume')
+        videoPlayRef.current()
+      } else {
+        log.debug(
+          'useFeedbackCoordinator.audioEndCleanupGuard',
+          '⏭️ Skipping resume - new highlight appeared'
+        )
+      }
+    }, 100)
+  }, [bubbleFeedbackItems, hideBubble, selection])
 
   // **PERFORMANCE FIX: Sync state to Zustand store**
   // Updates store in batches when multiple values change together
   // This allows components to subscribe granularly to only the state they need
   // CRITICAL: Use getState() instead of hook selector to avoid subscribing
   // This prevents circular dependencies (hook updates store → store updates hook)
+  // PERFORMANCE FIX: Selection state (highlightedFeedbackId, isCoachSpeaking) is now
+  // written directly to store by useFeedbackSelection, so we only sync bubble/overlay state
   useEffect(() => {
     // Batch all state updates to prevent multiple re-renders
     // Using getState() means this hook doesn't subscribe to store changes
     useFeedbackCoordinatorStore.getState().batchUpdate({
-      highlightedFeedbackId: selection.highlightedFeedbackId,
-      isCoachSpeaking: selection.isCoachSpeaking,
+      // Selection state is already in store (written by useFeedbackSelection)
+      // Only sync bubble and overlay state here
       bubbleState: {
         currentBubbleIndex,
         bubbleVisible,
       },
       overlayVisible,
-      activeAudio:
-        activeAudioId && activeAudio?.url ? { id: activeAudioId, url: activeAudio.url } : null,
+      activeAudio: (() => {
+        const audioState = useFeedbackAudioStore.getState()
+        return audioState.activeAudio?.id && audioState.activeAudio?.url
+          ? { id: audioState.activeAudio.id, url: audioState.activeAudio.url }
+          : null
+      })(),
     })
   }, [
-    selection.highlightedFeedbackId,
-    selection.isCoachSpeaking,
+    // Selection state removed - already synced by useFeedbackSelection
     currentBubbleIndex,
     bubbleVisible,
     overlayVisible,
-    activeAudioId,
-    activeAudio?.url,
     // Don't include batchUpdate in deps - it's stable
   ])
 
@@ -554,7 +1028,9 @@ export function useFeedbackCoordinator({
       return
     }
 
-    const candidateId = selection.highlightedFeedbackId
+    // PERFORMANCE FIX: Read from store instead of selection object
+    // Selection state is now in store, written directly by useFeedbackSelection
+    const candidateId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
 
     if (!candidateId) {
       return
@@ -569,8 +1045,7 @@ export function useFeedbackCoordinator({
     showBubble(nextBubbleIndex)
   }, [
     overlayVisible,
-    activeAudioId,
-    selection.highlightedFeedbackId,
+    // Read from store imperatively - no subscription needed
     bubbleIndexById,
     hideBubble,
     showBubble,
@@ -590,10 +1065,9 @@ export function useFeedbackCoordinator({
   const handlePause = useCallback(() => {
     // When pause is pressed, pause audio feedback if playing (but don't stop/hide)
     // The bubble timer will be paused automatically when isPlaying becomes false
-    // Always call setIsPlaying(false) unconditionally to ensure audio stops
-    audioController.setIsPlaying(false)
+    useFeedbackAudioStore.getState().setIsPlaying(false)
     videoPlaybackPauseRef.current()
-  }, [audioController.setIsPlaying, videoPlayback.isPlaying])
+  }, [])
 
   // Memoize audio overlay handlers to prevent recreation
   const handleAudioOverlayClose = useCallback(() => {
@@ -638,53 +1112,6 @@ export function useFeedbackCoordinator({
     activeAudio: null,
   })
 
-  const lastRecalcTimeRef = useRef<number>(Date.now())
-
-  // Extract primitive values from activeAudio to prevent unnecessary recalculations
-  // activeAudio object reference changes even when values are the same
-  // activeAudioId is already declared above (line 388), reuse it
-  const activeAudioUrl = activeAudio?.url ?? null
-
-  // Normalize URL for comparison - remove cache-busting parameters (e.g., #replay=timestamp)
-  // When same audio is selected again, useFeedbackAudioSource adds #replay=timestamp to force reset
-  // We ignore this for comparison but keep original URL for actual playback
-  const normalizeUrlForComparison = (url: string | null): string | null => {
-    if (!url) return null
-    // Remove #replay= timestamp and other cache-busting fragments
-    return url.split('#')[0]
-  }
-
-  const normalizedActiveAudioUrl = normalizeUrlForComparison(activeAudioUrl)
-
-  // Memoize activeAudio object with content-based comparison to prevent unnecessary recreation
-  // This ensures the object only changes when id/url actually change, not when other dependencies change
-  // NOTE: URL comparison uses normalized URL (ignores cache-busting params) to prevent recreation for replays
-  const prevStableActiveAudioRef = useRef<{ id: string; url: string } | null>(null)
-  const prevActiveAudioIdRef = useRef<string | null>(null)
-  const prevNormalizedActiveAudioUrlRef = useRef<string | null>(null)
-
-  const stableActiveAudio = useMemo(() => {
-    // Compare by content (id/normalized-url) not reference
-    const idChanged = prevActiveAudioIdRef.current !== activeAudioId
-    const urlChanged = prevNormalizedActiveAudioUrlRef.current !== normalizedActiveAudioUrl
-
-    if (!idChanged && !urlChanged) {
-      // Content unchanged (including normalized URL) - return cached object to maintain stable reference
-      // Even if raw URL changed (e.g., replay timestamp), normalized URL is same, so keep same object
-      return prevStableActiveAudioRef.current
-    }
-
-    // Content changed - create new object
-    // Use original URL (with replay parameter if present) for actual playback
-    prevActiveAudioIdRef.current = activeAudioId
-    prevNormalizedActiveAudioUrlRef.current = normalizedActiveAudioUrl
-
-    const newActiveAudio =
-      activeAudioId && activeAudioUrl ? { id: activeAudioId, url: activeAudioUrl } : null
-    prevStableActiveAudioRef.current = newActiveAudio
-    return newActiveAudio
-  }, [activeAudioId, normalizedActiveAudioUrl, activeAudioUrl]) // Use normalized for comparison, actual URL for object
-
   // Store callbacks in refs to ensure stable references
   // These callbacks already use refs internally, so they're functionally stable
   const callbacksRef = useRef({
@@ -697,6 +1124,7 @@ export function useFeedbackCoordinator({
     onAudioOverlayInactivity: handleAudioOverlayInactivity,
     onAudioOverlayInteraction: handleAudioOverlayInteraction,
     onPlayPendingFeedback: handlePlayPendingFeedback,
+    onAudioNaturalEnd: handleAudioNaturalEnd,
   })
 
   // Update ref properties (not the ref itself) to maintain stable object identity
@@ -709,13 +1137,18 @@ export function useFeedbackCoordinator({
   callbacksRef.current.onAudioOverlayInactivity = handleAudioOverlayInactivity
   callbacksRef.current.onAudioOverlayInteraction = handleAudioOverlayInteraction
   callbacksRef.current.onPlayPendingFeedback = handlePlayPendingFeedback
+  callbacksRef.current.onAudioNaturalEnd = handleAudioNaturalEnd
 
   return useMemo(() => {
-    const now = Date.now()
-    lastRecalcTimeRef.current = now
+    // Reconstruct activeAudio from store imperatively to prevent subscriptions
+    const audioState = useFeedbackAudioStore.getState()
+    const reconstructedActiveAudio = audioState.activeAudio
 
-    // Use pre-memoized stableActiveAudio to prevent object recreation when other dependencies change
-    const reconstructedActiveAudio = stableActiveAudio
+    // PERFORMANCE FIX: Read selection state from store instead of selection object
+    // Selection state is now in store, written directly by useFeedbackSelection
+    const store = useFeedbackCoordinatorStore.getState()
+    const storeHighlightedFeedbackId = store.highlightedFeedbackId
+    const storeIsCoachSpeaking = store.isCoachSpeaking
 
     // Debug: track what's changing
     // Compare PRIMITIVE values, not object references, to match useMemo dependency array
@@ -723,14 +1156,14 @@ export function useFeedbackCoordinator({
 
     // Track which dependency triggered useMemo recalculation
     const dependencyChanges: string[] = []
-    if (prev.selectionHighlightId !== selection.highlightedFeedbackId) {
+    if (prev.selectionHighlightId !== storeHighlightedFeedbackId) {
       dependencyChanges.push(
-        `selection.highlightedFeedbackId: ${prev.selectionHighlightId} → ${selection.highlightedFeedbackId}`
+        `selection.highlightedFeedbackId: ${prev.selectionHighlightId} → ${storeHighlightedFeedbackId}`
       )
     }
-    if (prev.selectionCoachSpeaking !== selection.isCoachSpeaking) {
+    if (prev.selectionCoachSpeaking !== storeIsCoachSpeaking) {
       dependencyChanges.push(
-        `selection.isCoachSpeaking: ${prev.selectionCoachSpeaking} → ${selection.isCoachSpeaking}`
+        `selection.isCoachSpeaking: ${prev.selectionCoachSpeaking} → ${storeIsCoachSpeaking}`
       )
     }
     if (prev.currentBubbleIndex !== currentBubbleIndex) {
@@ -744,12 +1177,14 @@ export function useFeedbackCoordinator({
     if (prev.overlayVisible !== overlayVisible) {
       dependencyChanges.push(`overlayVisible: ${prev.overlayVisible} → ${overlayVisible}`)
     }
-    if (prev.activeAudioId !== activeAudioId) {
-      dependencyChanges.push(`activeAudioId: ${prev.activeAudioId} → ${activeAudioId}`)
+    const currentActiveAudioId = reconstructedActiveAudio?.id ?? null
+    const currentActiveAudioUrl = reconstructedActiveAudio?.url ?? null
+    if (prev.activeAudioId !== currentActiveAudioId) {
+      dependencyChanges.push(`activeAudioId: ${prev.activeAudioId} → ${currentActiveAudioId}`)
     }
-    if (prev.activeAudioUrl !== activeAudioUrl) {
+    if (prev.activeAudioUrl !== currentActiveAudioUrl) {
       dependencyChanges.push(
-        `activeAudioUrl: ${prev.activeAudioUrl !== null ? '...' : null} → ${activeAudioUrl !== null ? '...' : null}`
+        `activeAudioUrl: ${prev.activeAudioUrl !== null ? '...' : null} → ${currentActiveAudioUrl !== null ? '...' : null}`
       )
     }
 
@@ -757,20 +1192,21 @@ export function useFeedbackCoordinator({
       const changed: string[] = []
 
       // Compare selection primitives using stored values
-      if (prev.selectionHighlightId !== selection.highlightedFeedbackId) {
+      if (prev.selectionHighlightId !== storeHighlightedFeedbackId) {
         changed.push('selection.highlightedFeedbackId')
       }
-      if (prev.selectionCoachSpeaking !== selection.isCoachSpeaking) {
+      if (prev.selectionCoachSpeaking !== storeIsCoachSpeaking) {
         changed.push('selection.isCoachSpeaking')
       }
-      if (prev.selectionSelectedId !== selection.selectedFeedbackId) {
+      const storeSelectedFeedbackId = store.selectedFeedbackId
+      if (prev.selectionSelectedId !== storeSelectedFeedbackId) {
         changed.push('selection.selectedFeedbackId')
       }
       // Only log 'selection' if actual values changed (for backward compatibility)
       if (
-        prev.selectionHighlightId !== selection.highlightedFeedbackId ||
-        prev.selectionCoachSpeaking !== selection.isCoachSpeaking ||
-        prev.selectionSelectedId !== selection.selectedFeedbackId
+        prev.selectionHighlightId !== storeHighlightedFeedbackId ||
+        prev.selectionCoachSpeaking !== storeIsCoachSpeaking ||
+        prev.selectionSelectedId !== storeSelectedFeedbackId
       ) {
         changed.push('selection')
       }
@@ -779,7 +1215,9 @@ export function useFeedbackCoordinator({
       if (prev.bubbleVisible !== bubbleVisible) changed.push('bubbleVisible')
       if (prev.overlayVisible !== overlayVisible) changed.push('overlayVisible')
       // Compare primitive values (not object references)
-      if (prev.activeAudioId !== activeAudioId || prev.activeAudioUrl !== activeAudioUrl) {
+      const currAudioId = reconstructedActiveAudio?.id ?? null
+      const currAudioUrl = reconstructedActiveAudio?.url ?? null
+      if (prev.activeAudioId !== currAudioId || prev.activeAudioUrl !== currAudioUrl) {
         changed.push('activeAudio')
       }
 
@@ -788,22 +1226,22 @@ export function useFeedbackCoordinator({
 
     // Store primitive values for accurate comparison (not object references)
     prevDepsRef.current = {
-      selectionHighlightId: selection.highlightedFeedbackId,
-      selectionCoachSpeaking: selection.isCoachSpeaking,
-      selectionSelectedId: selection.selectedFeedbackId,
+      selectionHighlightId: storeHighlightedFeedbackId,
+      selectionCoachSpeaking: storeIsCoachSpeaking,
+      selectionSelectedId: store.selectedFeedbackId,
       currentBubbleIndex,
       bubbleVisible,
       overlayVisible,
-      activeAudioId,
-      activeAudioUrl,
+      activeAudioId: reconstructedActiveAudio?.id ?? null,
+      activeAudioUrl: reconstructedActiveAudio?.url ?? null,
       // Keep full objects for debug logging
       selection,
       activeAudio: reconstructedActiveAudio,
     }
 
     return {
-      highlightedFeedbackId: selection.highlightedFeedbackId,
-      isCoachSpeaking: selection.isCoachSpeaking,
+      highlightedFeedbackId: storeHighlightedFeedbackId,
+      isCoachSpeaking: storeIsCoachSpeaking,
       bubbleState: {
         currentBubbleIndex,
         bubbleVisible,
@@ -820,17 +1258,15 @@ export function useFeedbackCoordinator({
       onAudioOverlayInactivity: callbacksRef.current.onAudioOverlayInactivity,
       onAudioOverlayInteraction: callbacksRef.current.onAudioOverlayInteraction,
       onPlayPendingFeedback: callbacksRef.current.onPlayPendingFeedback,
+      onAudioNaturalEnd: callbacksRef.current.onAudioNaturalEnd,
     }
   }, [
-    // Only depend on PRIMITIVE values, not object references
-    selection.highlightedFeedbackId,
-    selection.isCoachSpeaking,
+    // PERFORMANCE FIX: Read selection state from store imperatively in useMemo
+    // Don't subscribe to selection object - it causes re-renders
+    // Store values are read imperatively via getState() inside useMemo
     currentBubbleIndex,
     bubbleVisible,
     overlayVisible,
-    // Use primitive values instead of activeAudio object reference
-    activeAudioId,
-    activeAudioUrl,
     // Omit callbacks from deps - they're stable via refs
   ])
 }

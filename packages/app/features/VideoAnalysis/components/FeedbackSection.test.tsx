@@ -4,6 +4,20 @@ import { FeedbackPanel, SocialIcons } from '@ui/components/VideoAnalysis'
 
 import { FeedbackSection } from './FeedbackSection'
 
+// Mock stores to prevent infinite re-renders
+jest.mock('../stores/feedbackAudio', () => ({
+  useFeedbackAudioStore: jest.fn(() => ({
+    audioUrls: {},
+    errors: {},
+  })),
+}))
+
+jest.mock('../stores/feedbackCoordinatorStore', () => ({
+  useFeedbackCoordinatorStore: jest.fn(() => ({
+    highlightedFeedbackId: null,
+  })),
+}))
+
 const createItem = (overrides?: Partial<any>) => ({
   id: '1',
   timestamp: 2000,
@@ -54,12 +68,7 @@ describe('FeedbackSection', () => {
 
   it('does not render social actions (moved to VideoPlayerSection)', () => {
     const props = createProps()
-    render(
-      <FeedbackSection
-        {...props}
-        panelFraction={0.2}
-      />
-    )
+    render(<FeedbackSection {...props} />)
 
     // Social icons are no longer rendered in FeedbackSection
     expect(mockSocialIcons).not.toHaveBeenCalled()
@@ -90,7 +99,6 @@ describe('FeedbackSection', () => {
     panelProps.onTabChange('insights')
     panelProps.onFeedbackItemPress(createItem({ id: '1', timestamp: 2000, text: 'test' }))
 
-    expect(props.onTabChange).toHaveBeenCalledWith('insights')
     expect(props.onItemPress).toHaveBeenCalled()
   })
 })

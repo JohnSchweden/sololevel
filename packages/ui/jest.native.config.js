@@ -7,6 +7,7 @@ module.exports = {
   ],
   testMatch: ['**/*.native*.test.(ts|tsx|js)', '**/VideoControls.test.native.tsx'],
   testEnvironment: 'jsdom',
+  maxWorkers: 1,
 
   // Module name mapping for native environment
   moduleNameMapper: {

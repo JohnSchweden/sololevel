@@ -12,7 +12,6 @@ import { YStack, useTheme } from 'tamagui'
  * @property progress - Current progress percentage (0-100)
  * @property isScrubbing - Whether user is currently scrubbing this progress bar
  * @property controlsVisible - Whether video controls are visible (affects styling)
- * @property progressBarWidth - Width of the progress bar in pixels (from onLayout)
  * @property animatedStyle - Reanimated style for fade in/out animations
  * @property combinedGesture - Combined gesture handler for track (tap + pan)
  * @property mainGesture - Main gesture handler for scrubber handle (pan)
@@ -30,8 +29,6 @@ export interface ProgressBarProps {
   isScrubbing: boolean
   /** Whether video controls are visible (affects styling) */
   controlsVisible: boolean
-  /** Width of the progress bar in pixels (from onLayout) */
-  progressBarWidth: number
   /** Optional animated style for backward compatibility */
   animatedStyle?: AnimatedStyle<ViewStyle>
   /** Combined gesture handler for track (tap + pan) */
@@ -44,6 +41,8 @@ export interface ProgressBarProps {
   onFallbackPress: (locationX: number) => void
   /** Optional test identifier for the progress bar container */
   testID?: string
+  /** Pointer events passthrough so callers can disable interactions while hidden */
+  pointerEvents?: 'auto' | 'none'
 }
 
 /**
@@ -61,7 +60,6 @@ export interface ProgressBarProps {
  *   progress={50}
  *   isScrubbing={false}
  *   controlsVisible={true}
- *   progressBarWidth={300}
  *   animatedStyle={normalBarAnimatedStyle}
  *   combinedGesture={normalGesture.combinedGesture}
  *   mainGesture={normalGesture.mainGesture}
@@ -76,13 +74,13 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     progress,
     isScrubbing,
     controlsVisible,
-    progressBarWidth: _progressBarWidth, // Received but not used internally (used by parent)
     animatedStyle,
     combinedGesture,
     mainGesture,
     onLayout,
     onFallbackPress,
     testID,
+    pointerEvents,
   }) => {
     // Get theme to resolve Tamagui color tokens for React Native Animated.View
     const theme = useTheme()
@@ -96,7 +94,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     const handleMarginLeft = isNormal ? -22 : -16 // Center the touch area
 
     // Variant-specific colors (Tamagui tokens)
-    const trackBackgroundColor = isNormal ? '$color3' : '$color8'
+    const trackBackgroundColor = isNormal ? '$color3' : '$color9'
     const fillColor = isNormal ? '$teal9' : controlsVisible ? '$teal9' : '$color11'
     const handleColorToken = isNormal
       ? isScrubbing
@@ -106,7 +104,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         ? isScrubbing
           ? '$teal10'
           : '$teal9'
-        : '$color8'
+        : 'transparent'
 
     // Resolve color token to actual color value for React Native Animated.View
     // Remove '$' prefix and access theme property
@@ -120,7 +118,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         : 0.7
       : isScrubbing
         ? 1
-        : 0.8 // Slightly dimmed but always visible for persistent bar
+        : 1 // Slightly dimmed but always visible for persistent bar
 
     const handleScale = isNormal ? (controlsVisible || isScrubbing ? 1 : 0.3) : 1
 
@@ -150,7 +148,6 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
         height: containerHeight,
         justifyContent: 'center',
         zIndex: isNormal ? 30 : undefined,
-        pointerEvents: 'auto',
       },
     ]
 
@@ -158,8 +155,13 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
       containerStyles.push(animatedStyle)
     }
 
+    const containerPointerEvents = pointerEvents ?? 'auto'
+
     return (
-      <Animated.View style={containerStyles}>
+      <Animated.View
+        style={containerStyles}
+        pointerEvents={containerPointerEvents}
+      >
         {isNormal ? (
           // Normal variant: Wrapped in YStack for container structure
           <YStack
@@ -268,12 +270,22 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                 accessibilityRole="progressbar"
                 justifyContent="center"
                 onLayout={onLayout}
+                elevation="$6"
+                shadowColor="$color1"
+                shadowOffset={{ width: 0, height: 0 }}
+                shadowOpacity={1}
+                shadowRadius={4}
               >
                 {/* Visual progress track */}
                 <YStack
                   height={trackHeight}
                   backgroundColor={trackBackgroundColor}
                   position="relative"
+                  elevation="$6"
+                  shadowColor="$color1"
+                  shadowOffset={{ width: 0, height: 0 }}
+                  shadowOpacity={0.8}
+                  shadowRadius={4}
                 >
                   {/* Progress fill */}
                   <YStack
@@ -330,3 +342,8 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
 )
 
 ProgressBar.displayName = 'ProgressBar'
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(ProgressBar as any).whyDidYouRender = false
+}

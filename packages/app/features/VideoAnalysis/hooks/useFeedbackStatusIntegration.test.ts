@@ -1,7 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals'
 import { renderHook } from '@testing-library/react'
 
-import { useFeedbackStatusIntegration } from './useFeedbackStatusIntegration'
+import {
+  normalizeFeedbackCategory,
+  useFeedbackStatusIntegration,
+} from './useFeedbackStatusIntegration'
 
 // Mock logging
 jest.mock('@my/logging', () => ({
@@ -31,5 +34,24 @@ describe('useFeedbackStatusIntegration', () => {
 
     expect(result.current.feedbacks).toEqual([])
     expect(result.current.isSubscribed).toBe(false)
+  })
+})
+
+describe('normalizeFeedbackCategory', () => {
+  it('normalizes posture and movement categories regardless of casing', () => {
+    expect(normalizeFeedbackCategory('Posture')).toBe('posture')
+    expect(normalizeFeedbackCategory('movement')).toBe('movement')
+    expect(normalizeFeedbackCategory('Posture & Movement')).toBe('posture')
+  })
+
+  it('maps speech-based categories to voice', () => {
+    expect(normalizeFeedbackCategory('Speech')).toBe('voice')
+    expect(normalizeFeedbackCategory('Vocal Variety')).toBe('voice')
+    expect(normalizeFeedbackCategory(' voice ')).toBe('voice')
+  })
+
+  it('defaults unknown categories to voice', () => {
+    expect(normalizeFeedbackCategory('Confidence')).toBe('voice')
+    expect(normalizeFeedbackCategory('')).toBe('voice')
   })
 })

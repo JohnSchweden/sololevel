@@ -391,6 +391,17 @@ export function useControlsVisibility(
     }
     lastShowControlsCallRef.current = now
 
+    // PERFORMANCE: Skip if controls already visible AND not playing (no timer to reset)
+    // This prevents unnecessary resetTrigger increments and effect runs when controls are
+    // already showing and the auto-hide timer wouldn't start anyway
+    if (controlsVisibleRef.current && !isPlaying) {
+      log.debug(
+        'useControlsVisibility',
+        'showControlsAndResetTimer - skipping, controls already visible and not playing'
+      )
+      return
+    }
+
     log.debug('useControlsVisibility', 'showControlsAndResetTimer called')
     const changed = updateVisibility(true, true, 'showControlsAndResetTimer')
     // Trigger the reset effect by incrementing the trigger counter regardless of visibility change
@@ -403,7 +414,7 @@ export function useControlsVisibility(
         'showControlsAndResetTimer - visibility unchanged, timer reset only'
       )
     }
-  }, [updateVisibility])
+  }, [updateVisibility, isPlaying])
 
   // Track if this is the initial mount
   const isInitialMount = useRef(true)
