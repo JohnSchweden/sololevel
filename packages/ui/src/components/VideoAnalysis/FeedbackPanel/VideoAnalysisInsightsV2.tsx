@@ -897,6 +897,14 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                   ? '$orange11'
                   : '$color11'
 
+              // Get trend icon component (same pattern as StatCard)
+              const TrendIcon =
+                skill.trend === 'up'
+                  ? TrendingUp
+                  : skill.trend === 'down'
+                    ? TrendingDown
+                    : BarChart3
+
               return (
                 <XStack
                   key={skill.id}
@@ -919,22 +927,16 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                       alignItems="center"
                       testID={`insights-v2-skill-trend-${skill.id}`}
                     >
-                      {skill.trend === 'up' ? (
-                        <TrendingUp
-                          size={16}
-                          color="$green11"
-                        />
-                      ) : skill.trend === 'down' ? (
-                        <TrendingDown
-                          size={16}
-                          color="$orange11"
-                        />
-                      ) : (
-                        <BarChart3
-                          size={16}
-                          color="$color11"
-                        />
-                      )}
+                      <TrendIcon
+                        size={16}
+                        color={
+                          skill.trend === 'up'
+                            ? '$green11'
+                            : skill.trend === 'down'
+                              ? '$orange11'
+                              : '$color11'
+                        }
+                      />
                       <Text
                         fontSize="$2"
                         color="$color11"
