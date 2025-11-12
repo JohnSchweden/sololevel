@@ -169,14 +169,21 @@ describe('useFeedbackSelection', () => {
       })
     })
 
+    // Advance timers to let setTimeout(0) complete
+    act(() => {
+      jest.runOnlyPendingTimers()
+    })
+
     // Read from store to verify state
     const storeState = useFeedbackCoordinatorStore.getState()
     expect(storeState.highlightedFeedbackId).toBe('1')
     expect(storeState.highlightSource).toBe('auto')
     expect(deps.videoPlayback.seek).not.toHaveBeenCalled()
 
+    // Advance to trigger cleanup timer (5ms) and run any pending timers
     act(() => {
-      jest.runAllTimers()
+      jest.advanceTimersByTime(5)
+      jest.runOnlyPendingTimers()
     })
 
     expect(useFeedbackCoordinatorStore.getState().highlightedFeedbackId).toBeNull()
@@ -191,6 +198,11 @@ describe('useFeedbackSelection', () => {
 
     act(() => {
       result.current.highlightAutoFeedback(deps.item, { seek: false, playAudio: false })
+    })
+
+    // Advance timers to let setTimeout(0) complete
+    act(() => {
+      jest.advanceTimersByTime(1)
     })
 
     act(() => {
@@ -224,6 +236,11 @@ describe('useFeedbackSelection', () => {
       // Act - Select feedback (triggers batchUpdate with multiple state changes)
       act(() => {
         result.current.selectFeedback(deps.item)
+      })
+
+      // Advance timers to let setTimeout(0) complete
+      act(() => {
+        jest.advanceTimersByTime(1)
       })
 
       // Verify all state was set correctly in single transaction

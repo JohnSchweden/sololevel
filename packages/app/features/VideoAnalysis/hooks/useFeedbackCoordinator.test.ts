@@ -535,7 +535,7 @@ describe('useFeedbackCoordinator', () => {
     expect(clearHighlight).toHaveBeenCalledWith({ reason: 'panel-collapsed' })
   })
 
-  it('clears highlight when audio overlay closes', () => {
+  it('clears highlight when audio overlay closes', async () => {
     const clearSelection = jest.fn()
     const clearHighlight = jest.fn()
     const setIsPlaying = jest.fn()
@@ -577,13 +577,15 @@ describe('useFeedbackCoordinator', () => {
       result.current.onAudioOverlayClose()
     })
 
-    expect(clearSelection).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(clearSelection).toHaveBeenCalled()
+    })
     expect(clearHighlight).toHaveBeenCalledWith({ reason: 'audio-overlay-close' })
     expect(setIsPlaying).toHaveBeenCalledWith(false)
     expect(clearActiveAudio).toHaveBeenCalled()
   })
 
-  it('handles audio overlay inactivity', () => {
+  it('handles audio overlay inactivity', async () => {
     const clearSelection = jest.fn()
     const clearHighlight = jest.fn()
     const setIsPlaying = jest.fn()
@@ -625,7 +627,9 @@ describe('useFeedbackCoordinator', () => {
       result.current.onAudioOverlayInactivity()
     })
 
-    expect(clearHighlight).toHaveBeenCalledWith({ reason: 'audio-overlay-inactivity' })
+    await waitFor(() => {
+      expect(clearHighlight).toHaveBeenCalledWith({ reason: 'audio-overlay-inactivity' })
+    })
     expect(clearSelection).toHaveBeenCalled()
     expect(setIsPlaying).toHaveBeenCalledWith(false)
     expect(clearActiveAudio).toHaveBeenCalled()

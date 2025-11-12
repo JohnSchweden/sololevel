@@ -239,16 +239,21 @@ export function useFeedbackSelection(
         }
       }
 
-      // Batch all state updates in single store transaction
-      // Zustand automatically batches, so this is a single render
+      // SOLUTION 2: Defer batch update to prevent blocking progress bar
+      // Progress bar shared value updates happen immediately on UI thread via runOnUI,
+      // but feedback coordinator batch updates can block JS thread. Defer them to next tick.
       const shouldActivateCoachSpeaking = !store.isCoachSpeaking
 
-      store.batchUpdate({
-        highlightedFeedbackId: item.id,
-        highlightSource: source,
-        selectedFeedbackId: item.id,
-        ...(shouldActivateCoachSpeaking ? { isCoachSpeaking: true } : {}),
-      })
+      setTimeout(() => {
+        // Batch all state updates in single store transaction
+        // Zustand automatically batches, so this is a single render
+        store.batchUpdate({
+          highlightedFeedbackId: item.id,
+          highlightSource: source,
+          selectedFeedbackId: item.id,
+          ...(shouldActivateCoachSpeaking ? { isCoachSpeaking: true } : {}),
+        })
+      }, 0)
 
       deferNonCriticalWork(() => {
         const storeSnapshot = useFeedbackCoordinatorStore.getState()

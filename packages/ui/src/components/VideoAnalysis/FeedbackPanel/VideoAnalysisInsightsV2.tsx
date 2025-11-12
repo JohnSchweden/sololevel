@@ -1,7 +1,15 @@
-import { Award, BarChart3, Lightbulb, Play, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
+import {
+  Award,
+  BarChart3,
+  Lightbulb,
+  Play,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from '@tamagui/lucide-icons'
 import { memo, useMemo } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
-import { AchievementCard } from '../../Insights/AchievementCard'
 import type { ActivityData } from '../../Insights/ActivityChart'
 import { ActivityChart } from '../../Insights/ActivityChart'
 import { Badge } from '../../Insights/Badge'
@@ -108,19 +116,19 @@ const DEFAULT_QUOTE: VideoAnalysisInsightsV2Quote = {
 const DEFAULT_FOCUS_AREAS: VideoAnalysisInsightsV2FocusArea[] = [
   {
     id: 'focus-story',
-    title: 'Story arc confidence',
+    title: 'Story Arc Confidence',
     progress: 82,
     priority: 'high',
   },
   {
     id: 'focus-pauses',
-    title: 'Strategic pauses',
+    title: 'Strategic Pauses',
     progress: 58,
     priority: 'medium',
   },
   {
     id: 'focus-filler',
-    title: 'Reduce filler words',
+    title: 'Reduce Filler Words',
     progress: 32,
     priority: 'high',
   },
@@ -146,7 +154,7 @@ const DEFAULT_TIMELINE: ActivityData[] = [
 const DEFAULT_HIGHLIGHTS: VideoAnalysisInsightsV2Highlight[] = [
   {
     id: 'highlight-storytelling',
-    title: 'Storytelling peak',
+    title: 'Storytelling Peak',
     tags: ['00:15 → 00:45'],
     duration: '00:15 → 00:45',
     score: 86,
@@ -154,7 +162,7 @@ const DEFAULT_HIGHLIGHTS: VideoAnalysisInsightsV2Highlight[] = [
   },
   {
     id: 'highlight-pauses',
-    title: 'Needs pauses',
+    title: 'Needs Pauses',
     tags: ['00:45 → 01:05'],
     duration: '00:45 → 01:05',
     score: 48,
@@ -162,7 +170,7 @@ const DEFAULT_HIGHLIGHTS: VideoAnalysisInsightsV2Highlight[] = [
   },
   {
     id: 'highlight-filler',
-    title: 'Filler words spike',
+    title: 'Filler Words Spike',
     tags: ['01:05 → 01:20'],
     duration: '01:05 → 01:20',
     score: 32,
@@ -173,21 +181,21 @@ const DEFAULT_HIGHLIGHTS: VideoAnalysisInsightsV2Highlight[] = [
 const DEFAULT_ACTIONS: VideoAnalysisInsightsV2Action[] = [
   {
     id: 'action-drill-filler',
-    title: 'Reduce filler words',
+    title: 'Reduce Filler Words',
     description: 'Launch a 60-second drill with live counters and timing prompts.',
     domains: ['Voice', 'Delivery'],
     ctaLabel: 'Start 60s drill',
   },
   {
     id: 'action-pauses',
-    title: 'Strategic pauses',
+    title: 'Strategic Pauses',
     description: 'Practice pacing with metronome-like prompts at key phrases.',
     domains: ['Pacing'],
     ctaLabel: '2-min pause exercise',
   },
   {
     id: 'action-posture',
-    title: 'Posture & gestures',
+    title: 'Posture & Gestures',
     description: 'Mirror practice with pose prompts to reduce nervous fidgeting.',
     domains: ['Body language'],
     ctaLabel: 'Open mirror mode',
@@ -197,21 +205,21 @@ const DEFAULT_ACTIONS: VideoAnalysisInsightsV2Action[] = [
 const DEFAULT_ACHIEVEMENTS: VideoAnalysisInsightsV2Achievement[] = [
   {
     id: 'achievement-evergreen',
-    title: 'Evergreen delivery',
-    date: 'Earned 2 days ago',
+    title: 'Master of "Ehm"',
+    date: '23 "ehms"',
     type: 'technique',
-    icon: '🌲',
+    icon: '🐄',
   },
   {
     id: 'achievement-excellent-story',
-    title: 'Excellent storytelling',
+    title: 'Excellent Storytelling',
     date: 'New badge',
     type: 'technique',
     icon: '🎤',
   },
   {
     id: 'achievement-streak',
-    title: '3-session streak',
+    title: '3-Session Streak',
     date: '23 wins',
     type: 'streak',
     icon: '⚡️',
@@ -221,13 +229,13 @@ const DEFAULT_ACHIEVEMENTS: VideoAnalysisInsightsV2Achievement[] = [
 const DEFAULT_REELS: VideoAnalysisInsightsV2Reel[] = [
   {
     id: 'reel-spikies',
-    title: 'Spikies fail compilation',
+    title: 'Your Outstanding Fail Compilation',
     description: 'Shows all fails and awkward moments you ever had.',
     ctaLabel: 'Play',
   },
   {
     id: 'reel-boss',
-    title: 'Boss compilation',
+    title: 'Boss Compilation',
     description: 'Shows where you were absolutely on fire.',
     ctaLabel: 'Play',
   },
@@ -235,11 +243,11 @@ const DEFAULT_REELS: VideoAnalysisInsightsV2Reel[] = [
 
 const statusTokenMap: Record<
   VideoAnalysisInsightsV2Highlight['status'],
-  { label: string; badgeVariant: 'primary' | 'secondary' | 'destructive' }
+  { label: string; backgroundColor: string; color: string }
 > = {
-  good: { label: 'Good', badgeVariant: 'primary' },
-  improve: { label: 'Needs attention', badgeVariant: 'secondary' },
-  critical: { label: 'Critical', badgeVariant: 'destructive' },
+  good: { label: 'Good', backgroundColor: '$green4', color: '$green11' },
+  improve: { label: 'Needs attention', backgroundColor: '$orange4', color: '$orange11' },
+  critical: { label: 'Critical', backgroundColor: '$red4', color: '$red11' },
 }
 
 const HighlightCard = ({
@@ -267,7 +275,7 @@ const HighlightCard = ({
         alignItems="center"
         gap="$3"
       >
-        <YStack gap="$1">
+        <YStack gap="$2">
           <Text
             fontSize="$4"
             fontWeight="600"
@@ -282,15 +290,26 @@ const HighlightCard = ({
             {highlight.duration}
           </Text>
         </YStack>
-        <Badge
-          variant={statusTokens.badgeVariant}
+        <XStack
+          paddingHorizontal="$2"
+          paddingVertical="$1"
+          borderRadius="$1"
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor={statusTokens.backgroundColor as any}
           testID={`insights-v2-highlight-score-${highlight.id}`}
         >
-          {highlight.score}
-        </Badge>
+          <Text
+            fontSize="$2"
+            color={statusTokens.color as any}
+            fontWeight="500"
+          >
+            {highlight.score}
+          </Text>
+        </XStack>
       </XStack>
 
-      <XStack
+      {/* <XStack
         gap="$2"
         flexWrap="wrap"
       >
@@ -303,14 +322,25 @@ const HighlightCard = ({
             {tag}
           </Badge>
         ))}
-      </XStack>
+      </XStack> */}
 
-      <Badge
-        variant={statusTokens.badgeVariant}
+      <XStack
+        paddingHorizontal="$2"
+        paddingVertical="$1"
+        borderRadius="$1"
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor={statusTokens.backgroundColor as any}
         testID={`insights-v2-highlight-status-${highlight.id}`}
       >
-        {statusTokens.label}
-      </Badge>
+        <Text
+          fontSize="$2"
+          color={statusTokens.color as any}
+          fontWeight="500"
+        >
+          {statusTokens.label}
+        </Text>
+      </XStack>
 
       {onPress ? (
         <Button
@@ -543,7 +573,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
       {overview ? (
         <YStack gap="$3">
           <SettingsSectionHeader
-            title="Performance summary"
+            title="Performance Summary"
             icon={BarChart3}
             testID="insights-v2-overview-header"
             borderBottomWidth={0}
@@ -563,11 +593,14 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
               alignItems="flex-start"
               gap="$3"
             >
-              <YStack gap="$1">
+              <YStack
+                gap="$1"
+                flexShrink={0}
+              >
                 <Text
                   fontSize="$10"
                   fontWeight="600"
-                  color="$color12"
+                  color="$green11"
                   testID="insights-v2-score-value"
                 >
                   {overview.score}
@@ -582,21 +615,25 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
               </YStack>
 
               <YStack
+                flex={1}
                 alignItems="flex-end"
                 gap="$2"
+                paddingLeft="$3"
               >
                 <XStack
                   gap="$2"
                   alignItems="center"
+                  justifyContent="flex-end"
                   testID="insights-v2-improvement-label"
+                  flexShrink={1}
                 >
                   <Sparkles
                     size={16}
-                    color="$color11"
+                    color="$green11"
                   />
                   <Text
                     fontSize="$2"
-                    color="$color11"
+                    color="$green11"
                     fontWeight="600"
                   >
                     +{overview.improvementDelta}% vs last video
@@ -617,7 +654,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                 fontSize="$2"
                 color="$color11"
               >
-                Key takeaways
+                Key Takeaways
               </Text>
               <Text
                 fontSize="$3"
@@ -640,8 +677,9 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                 value={`${overview.improvementDelta}%`}
                 label="Improvement"
                 variant="left"
+                trend="up"
               />
-              <YStack
+              {/* <YStack
                 flex={1}
                 minWidth={160}
                 gap="$2"
@@ -656,7 +694,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                   value={Math.min(overview.score, 100)}
                   size="md"
                 />
-              </YStack>
+              </YStack> */}
             </XStack>
           </YStack>
         </YStack>
@@ -665,7 +703,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
       {quote ? (
         <YStack gap="$3">
           <SettingsSectionHeader
-            title="Coach perspective"
+            title="Coach Perspective"
             icon={Sparkles}
             testID="insights-v2-quote-header"
             borderBottomWidth={0}
@@ -679,12 +717,12 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
             gap="$3"
             testID="insights-v2-quote-card"
           >
-            <Text
+            {/* <Text
               fontSize="$3"
               color="$color11"
             >
               {quote.author}
-            </Text>
+            </Text> */}
             <Text
               fontSize="$5"
               fontWeight="500"
@@ -713,7 +751,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                 fontSize="$2"
                 color="$color11"
               >
-                {quote.tone === 'celebrate' ? 'Celebrate the momentum' : 'Coaching focus'}
+                {quote.tone === 'celebrate' ? 'Celebrate the momentum' : 'Pace/Tempo'}
               </Text>
             </XStack>
           </YStack>
@@ -728,18 +766,70 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           borderBottomWidth={0}
         />
         {achievements.length > 0 ? (
-          <YStack gap="$3">
-            {achievements.map((achievement) => (
-              <AchievementCard
-                key={achievement.id}
-                title={achievement.title}
-                date={achievement.date}
-                type={achievement.type}
-                icon={achievement.icon}
-                testID={`insights-v2-achievement-${achievement.id}`}
-              />
-            ))}
-          </YStack>
+          <XStack
+            gap="$2"
+            flexWrap="wrap"
+          >
+            {achievements.map((achievement) => {
+              return (
+                <YStack
+                  key={achievement.id}
+                  flex={1}
+                  minWidth={100}
+                  padding="$2"
+                  backgroundColor="$backgroundHover"
+                  borderRadius="$4"
+                  borderWidth={1}
+                  borderColor="$borderColor"
+                  gap="$1"
+                  alignItems="center"
+                  testID={`insights-v2-achievement-${achievement.id}`}
+                >
+                  {/* Icon at top center */}
+                  <YStack
+                    width={48}
+                    height={40}
+                    borderRadius="$4"
+                    borderWidth={0}
+                    alignItems="center"
+                    justifyContent="center"
+                    testID={`insights-v2-achievement-icon-${achievement.id}`}
+                  >
+                    <Text
+                      fontSize="$6"
+                      lineHeight={0}
+                    >
+                      {achievement.icon}
+                    </Text>
+                  </YStack>
+
+                  {/* Title and date */}
+                  <YStack
+                    gap="$1"
+                    alignItems="center"
+                    width="100%"
+                  >
+                    <Text
+                      fontSize="$3"
+                      fontWeight="500"
+                      color="$color12"
+                      textAlign="center"
+                      numberOfLines={2}
+                    >
+                      {achievement.title}
+                    </Text>
+                    <Text
+                      fontSize="$2"
+                      color="$color11"
+                      textAlign="center"
+                    >
+                      {achievement.date}
+                    </Text>
+                  </YStack>
+                </YStack>
+              )
+            })}
+          </XStack>
         ) : (
           <StateDisplay
             type="empty"
@@ -753,7 +843,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Focus areas"
+          title="Focus Areas"
           icon={Target}
           testID="insights-v2-focus-header"
           borderBottomWidth={0}
@@ -783,7 +873,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Skill matrix"
+          title="Skill Matrix"
           icon={BarChart3}
           testID="insights-v2-skill-header"
           borderBottomWidth={0}
@@ -798,74 +888,96 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
             gap="$3"
             testID="insights-v2-skill-card"
           >
-            {skillMatrix.map((skill) => (
-              <XStack
-                key={skill.id}
-                gap="$3"
-                alignItems="center"
-              >
-                <YStack
-                  width={120}
-                  gap="$1"
+            {skillMatrix.map((skill) => {
+              const isTrendingUp = skill.trend === 'up'
+              const isTrendingDown = skill.trend === 'down'
+              const scoreColor = isTrendingUp
+                ? '$green11'
+                : isTrendingDown
+                  ? '$orange11'
+                  : '$color11'
+
+              return (
+                <XStack
+                  key={skill.id}
+                  gap="$3"
+                  alignItems="center"
                 >
-                  <Text
-                    fontSize="$3"
-                    fontWeight="500"
-                    color="$color12"
-                  >
-                    {skill.label}
-                  </Text>
-                  <XStack
+                  <YStack
+                    width={120}
                     gap="$1"
-                    alignItems="center"
-                    testID={`insights-v2-skill-trend-${skill.id}`}
                   >
-                    {skill.trend === 'up' ? (
-                      <Sparkles
-                        size={16}
-                        color="$color11"
-                      />
-                    ) : skill.trend === 'down' ? (
-                      <Zap
-                        size={16}
-                        color="$color11"
-                      />
-                    ) : (
-                      <BarChart3
-                        size={16}
-                        color="$color11"
-                      />
-                    )}
                     <Text
-                      fontSize="$2"
-                      color="$color11"
+                      fontSize="$3"
+                      fontWeight="500"
+                      color="$color12"
                     >
-                      {skill.trend === 'up'
-                        ? 'Trending up'
-                        : skill.trend === 'down'
-                          ? 'Needs attention'
-                          : 'Stable'}
+                      {skill.label}
                     </Text>
-                  </XStack>
-                </YStack>
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  <Progress
-                    value={skill.score}
-                    size="md"
-                    testID={`insights-v2-skill-progress-${skill.id}`}
-                  />
-                  <Text
-                    fontSize="$2"
-                    color="$color11"
+                    <XStack
+                      gap="$1"
+                      alignItems="center"
+                      testID={`insights-v2-skill-trend-${skill.id}`}
+                    >
+                      {skill.trend === 'up' ? (
+                        <TrendingUp
+                          size={16}
+                          color="$green11"
+                        />
+                      ) : skill.trend === 'down' ? (
+                        <TrendingDown
+                          size={16}
+                          color="$orange11"
+                        />
+                      ) : (
+                        <BarChart3
+                          size={16}
+                          color="$color11"
+                        />
+                      )}
+                      <Text
+                        fontSize="$2"
+                        color="$color11"
+                      >
+                        {skill.trend === 'up'
+                          ? 'Trending up'
+                          : skill.trend === 'down'
+                            ? 'Needs attention'
+                            : 'Stable'}
+                      </Text>
+                    </XStack>
+                  </YStack>
+                  <YStack
+                    flex={1}
+                    gap="$1"
                   >
-                    {skill.score} / 100
-                  </Text>
-                </YStack>
-              </XStack>
-            ))}
+                    <Progress
+                      value={skill.score}
+                      size="md"
+                      testID={`insights-v2-skill-progress-${skill.id}`}
+                    />
+                    <XStack
+                      gap="$1"
+                      alignItems="center"
+                    >
+                      <Text
+                        fontSize="$2"
+                        color={scoreColor}
+                        fontWeight="600"
+                      >
+                        {skill.score}
+                      </Text>
+                      <Text
+                        fontSize="$2"
+                        color="$color11"
+                      >
+                        / 100
+                      </Text>
+                    </XStack>
+                  </YStack>
+                </XStack>
+              )
+            })}
           </YStack>
         ) : (
           <StateDisplay
@@ -880,7 +992,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Performance through the video"
+          title="Performance Through The Video"
           icon={Sparkles}
           testID="insights-v2-timeline-header"
           borderBottomWidth={0}
@@ -888,6 +1000,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         {performanceTimeline.length > 0 ? (
           <YStack
             padding="$4"
+            paddingTop="$7"
             backgroundColor="$backgroundHover"
             borderRadius="$6"
             borderWidth={1}
@@ -947,7 +1060,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Your personalized action plan"
+          title="Your Personalized Action Plan"
           icon={Lightbulb}
           testID="insights-v2-actions-header"
           borderBottomWidth={0}
@@ -975,7 +1088,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="AI reels"
+          title="AI Reels"
           icon={Play}
           testID="insights-v2-reels-header"
           borderBottomWidth={0}

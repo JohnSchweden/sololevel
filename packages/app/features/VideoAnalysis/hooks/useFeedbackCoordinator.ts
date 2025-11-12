@@ -944,33 +944,42 @@ export function useFeedbackCoordinator({
         activeAudioId: audioStore.activeAudio?.id ?? null,
       })
 
-      // Use refs for all dependencies to make this callback completely stable
-      // This prevents handleAudioOverlayClose/Inactivity from recreating
-      if (hasActiveBubble) {
-        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Hiding bubble', {
-          reason,
-          bubbleIndex: bubbleState.currentBubbleIndex,
-        })
-        bubbleControllerRef.current.hideBubble('manual')
-      }
-      if (hasActiveSelection) {
-        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Clearing highlight and selection', {
-          reason,
-          highlightedId: store.highlightedFeedbackId,
-        })
-        selection.clearHighlight({ reason })
-        selection.clearSelection()
-      }
-      if (hasActiveAudio) {
-        log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Stopping audio playback', {
-          reason,
-          activeAudioId: audioStore.activeAudio?.id ?? null,
-        })
-        audioStore.setIsPlaying(false)
-        audioStore.setActiveAudio(null)
-      }
-      pendingItemRef.current = null
-      pendingFeedbackIdRef.current = null
+      // SOLUTION 2: Defer feedback coordinator updates to prevent blocking progress bar
+      // Progress bar shared value updates happen immediately on UI thread via runOnUI,
+      // but feedback coordinator batch updates can block JS thread. Defer them to next tick.
+      setTimeout(() => {
+        // Use refs for all dependencies to make this callback completely stable
+        // This prevents handleAudioOverlayClose/Inactivity from recreating
+        if (hasActiveBubble) {
+          log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Hiding bubble', {
+            reason,
+            bubbleIndex: bubbleState.currentBubbleIndex,
+          })
+          bubbleControllerRef.current.hideBubble('manual')
+        }
+        if (hasActiveSelection) {
+          log.debug(
+            'useFeedbackCoordinator.handleAudioStop',
+            '✓ Clearing highlight and selection',
+            {
+              reason,
+              highlightedId: store.highlightedFeedbackId,
+            }
+          )
+          selection.clearHighlight({ reason })
+          selection.clearSelection()
+        }
+        if (hasActiveAudio) {
+          log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Stopping audio playback', {
+            reason,
+            activeAudioId: audioStore.activeAudio?.id ?? null,
+          })
+          audioStore.setIsPlaying(false)
+          audioStore.setActiveAudio(null)
+        }
+        pendingItemRef.current = null
+        pendingFeedbackIdRef.current = null
+      }, 0)
     },
     [selection]
   )

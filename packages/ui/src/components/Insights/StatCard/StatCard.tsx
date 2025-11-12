@@ -100,7 +100,7 @@ export function StatCard({
         {icon}
         {TrendIcon && (
           <TrendIcon
-            size={16}
+            size={20}
             color="$green10"
           />
         )}
