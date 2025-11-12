@@ -2,10 +2,22 @@
 
 // Use manual mock from __mocks__/expo-file-system.ts per @testing-unified.mdc
 // No imports needed - jest-expo preset provides globals
+import type { DownloadResumable } from 'expo-file-system'
 import * as FileSystem from 'expo-file-system'
 import { VideoStorageService } from './videoStorageService'
 
 const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
+
+if (!mockFileSystem.createDownloadResumable) {
+  mockFileSystem.createDownloadResumable = jest.fn() as any
+}
+
+const mockDownloadAsync = mockFileSystem.downloadAsync as jest.MockedFunction<
+  typeof FileSystem.downloadAsync
+>
+const mockCreateDownloadResumable = mockFileSystem.createDownloadResumable as jest.MockedFunction<
+  typeof FileSystem.createDownloadResumable
+>
 
 describe('VideoStorageService', () => {
   beforeEach(() => {
@@ -69,6 +81,16 @@ describe('VideoStorageService', () => {
     })
     mockFileSystem.makeDirectoryAsync.mockResolvedValue(undefined)
     mockFileSystem.readDirectoryAsync.mockResolvedValue([])
+    mockDownloadAsync.mockResolvedValue({} as any)
+    mockCreateDownloadResumable.mockImplementation((url: string, fileUri: string) => {
+      const resumable = {
+        downloadAsync: jest.fn(() => mockDownloadAsync(url, fileUri)),
+        pauseAsync: jest.fn().mockResolvedValue({ url, fileUri }),
+        resumeAsync: jest.fn(),
+      }
+
+      return resumable as unknown as DownloadResumable
+    })
   })
 
   afterEach(() => {

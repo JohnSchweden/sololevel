@@ -1,4 +1,5 @@
 import type { MutableRefObject } from 'react'
+import type { SharedValue } from 'react-native-reanimated'
 
 /**
  * Imperative player surface exposed to consuming components.
@@ -54,6 +55,13 @@ export interface UseVideoPlayerOptions {
 
   /** Time before auto-hiding controls during playback (default 3000ms). */
   autoHideDurationMs?: number
+
+  /**
+   * Shared progress percentage (0-100) used by persistent progress UI.
+   * When provided, `useVideoPlayer` updates it directly on every playback tick,
+   * bypassing React render commits for UI-thread animations.
+   */
+  progressShared?: SharedValue<number>
 }
 
 /**

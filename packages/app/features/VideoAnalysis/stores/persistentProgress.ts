@@ -1,4 +1,6 @@
 import type { PersistentProgressBarProps } from '@ui/components/VideoAnalysis'
+import { runOnUI } from 'react-native-reanimated'
+import type { SharedValue } from 'react-native-reanimated'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 
@@ -56,10 +58,30 @@ export interface PersistentProgressState {
 
 export interface PersistentProgressActions {
   setProps: (props: PersistentProgressBarProps | null) => void
+  updateTime: (currentTime: number, duration?: number) => void
+  setStaticProps: (
+    props:
+      | Omit<PersistentProgressBarProps, 'currentTime' | 'duration'>
+      | (Partial<Pick<PersistentProgressBarProps, 'currentTime' | 'duration'>> &
+          Omit<PersistentProgressBarProps, 'currentTime' | 'duration'>)
+      | null
+  ) => void
   reset: () => void
 }
 
 export type PersistentProgressStore = PersistentProgressState & PersistentProgressActions
+
+type SetProgressSharedFn = (shared: SharedValue<number>, value: number) => void
+
+const setProgressSharedOnUI: SetProgressSharedFn =
+  typeof runOnUI === 'function'
+    ? (runOnUI((shared: SharedValue<number>, value: number) => {
+        'worklet'
+        shared.value = value
+      }) as SetProgressSharedFn)
+    : (shared: SharedValue<number>, value: number) => {
+        shared.value = value
+      }
 
 /**
  * Compare primitive values to determine if props object should be recreated.
@@ -90,6 +112,22 @@ function primitivesEqual(
   )
 }
 
+function syncProgressShared(
+  props: PersistentProgressBarProps | null,
+  currentTime: number,
+  duration: number
+) {
+  if (!props?.progressShared) {
+    return
+  }
+
+  const clampedDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
+  const percent =
+    clampedDuration > 0 ? Math.max(0, Math.min(100, (currentTime / clampedDuration) * 100)) : 0
+
+  setProgressSharedOnUI(props.progressShared, percent)
+}
+
 export const usePersistentProgressStore = create<PersistentProgressStore>()(
   subscribeWithSelector((set, get) => ({
     // State
@@ -110,6 +148,7 @@ export const usePersistentProgressStore = create<PersistentProgressStore>()(
       // Handle first update (null → value)
       if (currentProps === null) {
         set({ props: newProps })
+        syncProgressShared(newProps, newProps.currentTime, newProps.duration)
         return
       }
 
@@ -123,6 +162,93 @@ export const usePersistentProgressStore = create<PersistentProgressStore>()(
 
       // Primitives changed - update with new reference
       set({ props: newProps })
+      syncProgressShared(newProps, newProps.currentTime, newProps.duration)
+    },
+
+    updateTime: (nextCurrentTime, nextDuration) => {
+      const currentProps = get().props
+      if (!currentProps) {
+        return
+      }
+
+      const resolvedDuration =
+        typeof nextDuration === 'number' && Number.isFinite(nextDuration)
+          ? nextDuration
+          : currentProps.duration
+
+      if (
+        currentProps.currentTime === nextCurrentTime &&
+        currentProps.duration === resolvedDuration
+      ) {
+        return
+      }
+
+      const updatedProps: PersistentProgressBarProps = {
+        ...currentProps,
+        currentTime: nextCurrentTime,
+        duration: resolvedDuration,
+      }
+
+      set({ props: updatedProps })
+      syncProgressShared(updatedProps, nextCurrentTime, resolvedDuration)
+    },
+
+    setStaticProps: (staticProps) => {
+      if (staticProps === null) {
+        set({ props: null })
+        return
+      }
+
+      const currentProps = get().props
+      const currentTime =
+        (staticProps as Partial<PersistentProgressBarProps>).currentTime ??
+        currentProps?.currentTime ??
+        0
+      const currentDuration =
+        (staticProps as Partial<PersistentProgressBarProps>).duration ?? currentProps?.duration ?? 0
+
+      const merged: PersistentProgressBarProps = {
+        currentTime,
+        duration: currentDuration,
+        isScrubbing: staticProps.isScrubbing,
+        controlsVisible: staticProps.controlsVisible,
+        shouldRenderPersistent: staticProps.shouldRenderPersistent,
+        pointerEvents: staticProps.pointerEvents,
+        visibility: staticProps.visibility,
+        animatedStyle: staticProps.animatedStyle,
+        combinedGesture: staticProps.combinedGesture,
+        mainGesture: staticProps.mainGesture,
+        onLayout: staticProps.onLayout,
+        onFallbackPress: staticProps.onFallbackPress,
+        progressShared: staticProps.progressShared,
+        progressBarWidthShared: staticProps.progressBarWidthShared,
+      }
+
+      const prev = get().props
+      if (prev) {
+        const staticUnchanged =
+          prev.currentTime === merged.currentTime &&
+          prev.duration === merged.duration &&
+          prev.isScrubbing === merged.isScrubbing &&
+          prev.controlsVisible === merged.controlsVisible &&
+          prev.shouldRenderPersistent === merged.shouldRenderPersistent &&
+          prev.pointerEvents === merged.pointerEvents &&
+          prev.visibility === merged.visibility &&
+          prev.animatedStyle === merged.animatedStyle &&
+          prev.combinedGesture === merged.combinedGesture &&
+          prev.mainGesture === merged.mainGesture &&
+          prev.onLayout === merged.onLayout &&
+          prev.onFallbackPress === merged.onFallbackPress &&
+          prev.progressShared === merged.progressShared &&
+          prev.progressBarWidthShared === merged.progressBarWidthShared
+
+        if (staticUnchanged) {
+          return
+        }
+      }
+
+      set({ props: merged })
+      syncProgressShared(merged, currentTime, currentDuration)
     },
 
     reset: () => {

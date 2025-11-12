@@ -35,6 +35,7 @@ import {
 } from 'tamagui'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
+import { VideoAnalysisInsightsV2 } from './VideoAnalysisInsightsV2'
 
 // Use Animated.FlatList directly for virtualization
 
@@ -851,35 +852,10 @@ export const FeedbackPanel = memo(
     // Render insights tab content
     const renderInsightsContent = useCallback(
       () => (
-        <YStack
+        <VideoAnalysisInsightsV2
           key="insights-content"
-          flex={1}
-          justifyContent="center"
-          alignItems="center"
-          paddingTop="$4"
-          paddingBottom="$6"
-          paddingHorizontal="$4"
           testID="insights-content"
-          accessibilityLabel="Insights content area"
-        >
-          <Text
-            fontSize="$5"
-            color="$color11"
-            textAlign="center"
-            accessibilityLabel="Insights Coming Soon"
-          >
-            Insights Coming Soon
-          </Text>
-          <Text
-            fontSize="$4"
-            color="$color10"
-            textAlign="center"
-            marginTop="$2"
-            accessibilityLabel="Advanced analysis and performance metrics will be displayed here"
-          >
-            Advanced analysis and performance metrics will be displayed here.
-          </Text>
-        </YStack>
+        />
       ),
       []
     )

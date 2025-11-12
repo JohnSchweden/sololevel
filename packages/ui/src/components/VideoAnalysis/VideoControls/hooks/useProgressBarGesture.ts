@@ -1,10 +1,11 @@
 import { log } from '@my/logging'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Gesture } from 'react-native-gesture-handler'
 import {
   SharedValue,
   cancelAnimation,
   runOnJS,
+  runOnUI,
   useAnimatedReaction,
   useSharedValue,
 } from 'react-native-reanimated'
@@ -71,13 +72,20 @@ import {
  * - Persistent bar: Always visible; alternative scrubbing surface
  * - Both bars use identical gesture logic but maintain independent state
  *
+ * ### UI-thread progress sync
+ * When `progressSharedOverride` is supplied, the hook forwards scrubbing updates directly to the caller-provided
+ * shared value instead of mutating its internal shared value. This keeps persistent progress bars perfectly aligned
+ * with coordinator-driven highlights because Reanimated worklets can read the shared value on the UI thread without
+ * waiting for React commits. The internal shared value remains available for cases where no override is supplied
+ * (tests, storybook, legacy consumers).
+ *
  * @param config - Hook configuration object
  * @param config.barType - Which progress bar variant: 'normal' or 'persistent'
  * @param config.duration - Total video duration in seconds
  * @param config.currentTime - Current video playback time in seconds (for snapback prevention)
  * @param config.progressBarWidthShared - Reanimated shared value of progress bar width in pixels
  * @param config.onSeek - Callback invoked when user seeks (receives time in seconds)
- * @param config.showControlsAndResetTimer - Callback to show controls and reset auto-hide timer
+ * @param config.showControlsAndResetTimer - Combined callback to show controls and reset auto-hide timer
  *
  * @returns Object containing gesture state, handlers, and utilities
  * @returns .isScrubbing - Whether user is currently scrubbing (dragging) the progress bar
@@ -128,6 +136,17 @@ export interface UseProgressBarGestureConfig {
   globalScrubbingShared?: SharedValue<boolean>
   /** Optional: Horizontal inset (px) from gesture view's left to visual track's left */
   trackLeftInset?: number
+  /**
+   * When false, skips React-state scrubbing telemetry updates to avoid render spam.
+   * Shared values continue to update for gesture worklets.
+   */
+  enableScrubbingTelemetry?: boolean
+  /**
+   * Optional external shared value (0-100) controlled by caller. When provided,
+   * the hook writes scrubbing progress directly to this shared value instead of
+   * its internal one, allowing UI-thread animations to stay in sync with playback.
+   */
+  progressSharedOverride?: SharedValue<number>
 }
 
 export interface UseProgressBarGestureReturn {
@@ -135,6 +154,7 @@ export interface UseProgressBarGestureReturn {
   isScrubbing: boolean
   scrubbingPosition: number | null
   lastScrubbedPosition: number | null
+  progressShared: SharedValue<number>
 
   // Gestures
   combinedGesture: ReturnType<typeof Gesture.Pan>
@@ -145,6 +165,28 @@ export interface UseProgressBarGestureReturn {
   progressBarWidth: number
   setProgressBarWidth: (width: number) => void
 }
+
+type SharedValueSetter<T> = (shared: SharedValue<T>, value: T) => void
+
+function createSharedValueSetter<T>(): SharedValueSetter<T> {
+  if (typeof runOnUI !== 'function') {
+    return (shared: SharedValue<T>, value: T) => {
+      shared.value = value
+    }
+  }
+
+  const setter = runOnUI((shared: SharedValue<T>, value: T) => {
+    'worklet'
+    shared.value = value
+  }) as SharedValueSetter<T>
+
+  return (shared: SharedValue<T>, value: T) => {
+    setter(shared, value)
+  }
+}
+
+const setNumberSharedValueOnUI = createSharedValueSetter<number>()
+const setBooleanSharedValueOnUI = createSharedValueSetter<boolean>()
 
 export function useProgressBarGesture(
   config: UseProgressBarGestureConfig
@@ -158,6 +200,8 @@ export function useProgressBarGesture(
     showControlsAndResetTimer,
     globalScrubbingShared,
     trackLeftInset = 0,
+    enableScrubbingTelemetry = true,
+    progressSharedOverride,
   } = config
 
   // State management - consolidated from original component
@@ -171,20 +215,24 @@ export function useProgressBarGesture(
   // objects that have been passed to worklets
   const lastScrubbedPositionShared = useSharedValue<number>(0)
   const isScrubbingShared = useSharedValue<boolean>(isScrubbing)
+  const gestureStartPercentageShared = useSharedValue<number>(0)
   // Track if showControlsAndResetTimer was already called in onStart (tap-to-seek)
   // Prevents duplicate call in onUpdate when user just taps without dragging
   const controlsShownForThisGestureShared = useSharedValue<boolean>(false)
+  const isScrubbingFlagRef = useRef(false)
 
   // Keep shared value in sync with state
   // This ensures gesture handlers always have access to current scrubbing state
   // without needing to recreate the entire gesture handler
   useEffect(() => {
-    isScrubbingShared.value = isScrubbing
-    // Also update global scrubbing state if provided (for multi-bar coordination)
-    if (globalScrubbingShared) {
-      globalScrubbingShared.value = isScrubbing
+    if (enableScrubbingTelemetry) {
+      setBooleanSharedValueOnUI(isScrubbingShared, isScrubbing)
+      // Also update global scrubbing state if provided (for multi-bar coordination)
+      if (globalScrubbingShared) {
+        setBooleanSharedValueOnUI(globalScrubbingShared, isScrubbing)
+      }
     }
-  }, [isScrubbing, isScrubbingShared, globalScrubbingShared])
+  }, [enableScrubbingTelemetry, isScrubbing, isScrubbingShared, globalScrubbingShared])
 
   // Create listeners for shared values to prevent "no listeners" warnings
   // These shared values are updated in gesture handlers but need observers
@@ -222,6 +270,9 @@ export function useProgressBarGesture(
 
   // Snapback prevention: Clear lastScrubbedPosition when video catches up to the scrubbed position
   useEffect(() => {
+    if (!enableScrubbingTelemetry) {
+      return
+    }
     if (lastScrubbedPosition !== null && duration > 0) {
       const currentProgress = (currentTime / duration) * 100
       const tolerance = 1 // 1% tolerance
@@ -229,11 +280,11 @@ export function useProgressBarGesture(
         setLastScrubbedPosition(null)
       }
     }
-  }, [currentTime, duration, lastScrubbedPosition])
+  }, [enableScrubbingTelemetry, currentTime, duration, lastScrubbedPosition])
 
   // Sync progress bar width to shared value for worklet access
   useEffect(() => {
-    progressBarWidthShared.value = progressBarWidth
+    setNumberSharedValueOnUI(progressBarWidthShared, progressBarWidth)
   }, [progressBarWidth, progressBarWidthShared])
 
   // Progress calculation helper
@@ -242,45 +293,150 @@ export function useProgressBarGesture(
     return Math.min(100, Math.max(0, (currentTime / duration) * 100))
   }, [])
 
-  // Combined gesture handler (tap + drag) - minimal implementation for GREEN phase
-  const combinedGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .minDistance(0) // Allow immediate activation (for taps)
-        .maxPointers(1) // Single finger only for reliability
-        .activateAfterLongPress(0) // Immediate activation
-        .onBegin((event) => {
-          // Early activation - more reliable than onStart
-          const relativeX = Math.max(0, event.x - trackLeftInset)
-          const seekPercentage =
-            progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
-              : 0
+  const internalProgressShared = useSharedValue(calculateProgress(currentTime, duration))
+  const progressShared = progressSharedOverride ?? internalProgressShared
 
-          lastScrubbedPositionShared.value = seekPercentage
-          // Reset gesture-level flag on each new gesture
-          controlsShownForThisGestureShared.value = false
-          runOnJS(log.debug)('VideoControls', `${barType} progress bar touch begin`, {
+  useEffect(() => {
+    if (isScrubbingFlagRef.current) {
+      return
+    }
+    if (progressSharedOverride) {
+      return
+    }
+    const nextProgress = calculateProgress(currentTime, duration)
+    setNumberSharedValueOnUI(internalProgressShared, nextProgress)
+  }, [calculateProgress, currentTime, duration, internalProgressShared, progressSharedOverride])
+
+  // Tap + drag gesture builder shared by normal and persistent bars
+  const buildTapDragGesture = useCallback(() => {
+    return Gesture.Pan()
+      .minDistance(0) // Allow immediate activation (for taps)
+      .maxPointers(1) // Single finger only for reliability
+      .activateAfterLongPress(0) // Immediate activation
+      .onBegin((event) => {
+        // Early activation - more reliable than onStart
+        const relativeX = Math.max(0, event.x - trackLeftInset)
+        const seekPercentage =
+          progressBarWidthShared.value > 0
+            ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
+            : 0
+
+        lastScrubbedPositionShared.value = seekPercentage
+        progressShared.value = seekPercentage
+        // Reset gesture-level flag on each new gesture
+        controlsShownForThisGestureShared.value = false
+        runOnJS(log.debug)('VideoControls', `${barType} progress bar touch begin`, {
+          eventX: event.x,
+          trackLeftInset,
+          relativeX,
+          progressBarWidth: progressBarWidthShared.value,
+          seekPercentage,
+          duration,
+        })
+      })
+      .onStart((event) => {
+        // Calculate seek percentage from touch position, accounting for track left inset
+        const relativeX = Math.max(0, event.x - trackLeftInset)
+        const correctedSeekPercentage =
+          progressBarWidthShared.value > 0
+            ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
+            : 0
+
+        // DEBUG: Log corrected calculation to validate fix
+        runOnJS(log.debug)(
+          'VideoControls',
+          `${barType} progress bar touch start - CORRECTED CALCULATION`,
+          {
             eventX: event.x,
             trackLeftInset,
             relativeX,
             progressBarWidth: progressBarWidthShared.value,
-            seekPercentage,
+            correctedSeekPercentage,
             duration,
-          })
+            expectedSeekTimeCorrected:
+              duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
+          }
+        )
+
+        // Store position for potential drag
+        lastScrubbedPositionShared.value = correctedSeekPercentage
+        progressShared.value = correctedSeekPercentage
+        runOnJS(log.debug)('VideoControls', `${barType} progress bar touch start`, {
+          eventX: event.x,
+          trackLeftInset,
+          relativeX,
+          progressBarWidth: progressBarWidthShared.value,
+          seekPercentage: correctedSeekPercentage,
+          duration,
         })
-        .onStart((event) => {
-          // Calculate seek percentage from touch position, accounting for track left inset
+
+        // For immediate taps (no dragging), seek right away
+        if (duration > 0 && correctedSeekPercentage >= 0) {
+          // Force seek to end if within 2% threshold (prevents off-by-frame issues)
+          const seekTime =
+            correctedSeekPercentage > 98 ? duration : (correctedSeekPercentage / 100) * duration
+          runOnJS(log.debug)('VideoControls', `${barType} immediate seek`, {
+            seekPercentage: correctedSeekPercentage,
+            seekTime,
+            duration,
+            isEndSeek: correctedSeekPercentage > 98,
+          })
+          runOnJS(onSeek)(seekTime)
+          // Show controls when user taps progress bar (consistent with drag behavior)
+          // Only call once per tap (onStart fires once per gesture)
+          // Mark that controls were shown to prevent duplicate call in onUpdate
+          controlsShownForThisGestureShared.value = true
+          runOnJS(showControlsAndResetTimer)()
+        }
+      })
+      .onUpdate((event) => {
+        // Lower threshold for drag detection - more responsive
+        const dragThreshold = 3
+        if (
+          Math.abs(event.translationX) > dragThreshold ||
+          Math.abs(event.translationY) > dragThreshold
+        ) {
+          // Check if ANY progress bar is already scrubbing (prevents simultaneous activation)
+          const globalScrubbing = globalScrubbingShared?.value ?? false
+          const wasScrubbing = isScrubbingShared.value
+
+          // Only activate if this bar was already scrubbing OR no other bar is active
+          if (!wasScrubbing && globalScrubbing) {
+            // Another bar is already active - ignore this gesture
+            return
+          }
+
+          if (!wasScrubbing) {
+            // Set shared value FIRST before any runOnJS calls to ensure subsequent
+            // onUpdate calls see the updated value immediately (prevents duplicate calls)
+            isScrubbingShared.value = true
+            if (globalScrubbingShared) {
+              globalScrubbingShared.value = true
+            }
+            isScrubbingFlagRef.current = true
+            if (enableScrubbingTelemetry) {
+              runOnJS(setIsScrubbing)(true)
+            }
+
+            // Only call showControlsAndResetTimer if it wasn't already called in onStart
+            // This prevents duplicate calls when user taps and then slightly moves finger
+            const controlsAlreadyShown = controlsShownForThisGestureShared.value
+            if (!controlsAlreadyShown) {
+              controlsShownForThisGestureShared.value = true
+              runOnJS(showControlsAndResetTimer)()
+            }
+          }
+
           const relativeX = Math.max(0, event.x - trackLeftInset)
           const correctedSeekPercentage =
             progressBarWidthShared.value > 0
               ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
               : 0
 
-          // DEBUG: Log corrected calculation to validate fix
+          // DEBUG: Log corrected calculation during drag to validate fix
           runOnJS(log.debug)(
             'VideoControls',
-            `${barType} progress bar touch start - CORRECTED CALCULATION`,
+            `${barType} progress bar drag update - CORRECTED CALCULATION`,
             {
               eventX: event.x,
               trackLeftInset,
@@ -293,240 +449,283 @@ export function useProgressBarGesture(
             }
           )
 
-          // Store position for potential drag
+          if (enableScrubbingTelemetry) {
+            runOnJS(setScrubbingPosition)(correctedSeekPercentage)
+          }
           lastScrubbedPositionShared.value = correctedSeekPercentage
-          runOnJS(log.debug)('VideoControls', `${barType} progress bar touch start`, {
-            eventX: event.x,
-            trackLeftInset,
-            relativeX,
-            progressBarWidth: progressBarWidthShared.value,
-            seekPercentage: correctedSeekPercentage,
-            duration,
-          })
+          progressShared.value = correctedSeekPercentage
+          // Log only on first drag event to reduce log spam
+          // Subsequent drag updates are frequent (60+ per second) and don't need logging
+        }
+      })
+      .onEnd(() => {
+        // Only seek again if we were in scrubbing mode (dragging)
+        // Use shared value instead of state to avoid capturing stale closure
+        const wasScrubbing = isScrubbingShared.value
+        if (enableScrubbingTelemetry) {
+          runOnJS(setIsScrubbing)(false)
+        }
+        isScrubbingShared.value = false
 
-          // For immediate taps (no dragging), seek right away
-          if (duration > 0 && correctedSeekPercentage >= 0) {
-            // Force seek to end if within 2% threshold (prevents off-by-frame issues)
-            const seekTime =
-              correctedSeekPercentage > 98 ? duration : (correctedSeekPercentage / 100) * duration
-            runOnJS(log.debug)('VideoControls', `${barType} immediate seek`, {
-              seekPercentage: correctedSeekPercentage,
-              seekTime,
+        // Reset global scrubbing state if this bar was active
+        if (wasScrubbing && globalScrubbingShared) {
+          globalScrubbingShared.value = false
+        }
+
+        if (wasScrubbing) {
+          isScrubbingFlagRef.current = false
+          const currentPosition = lastScrubbedPositionShared.value
+          if (enableScrubbingTelemetry) {
+            runOnJS(setLastScrubbedPosition)(currentPosition)
+          }
+          if (enableScrubbingTelemetry) {
+            runOnJS(setScrubbingPosition)(null)
+          }
+          progressShared.value = currentPosition
+
+          if (duration > 0 && currentPosition >= 0) {
+            const seekTime = (currentPosition / 100) * duration
+            runOnJS(log.debug)('VideoControls', `${barType} drag end seek - FINAL CALCULATION`, {
+              finalSeekPercentage: currentPosition,
+              finalSeekTime: seekTime,
               duration,
-              isEndSeek: correctedSeekPercentage > 98,
+              trackLeftInset,
+              expectedProgressAtSeek: (seekTime / duration) * 100,
             })
             runOnJS(onSeek)(seekTime)
-            // Show controls when user taps progress bar (consistent with drag behavior)
-            // Only call once per tap (onStart fires once per gesture)
-            // Mark that controls were shown to prevent duplicate call in onUpdate
-            controlsShownForThisGestureShared.value = true
-            runOnJS(showControlsAndResetTimer)()
           }
-        })
-        .onUpdate((event) => {
-          // Lower threshold for drag detection - more responsive
-          const dragThreshold = 3
-          if (
-            Math.abs(event.translationX) > dragThreshold ||
-            Math.abs(event.translationY) > dragThreshold
-          ) {
-            // Check if ANY progress bar is already scrubbing (prevents simultaneous activation)
-            const globalScrubbing = globalScrubbingShared?.value ?? false
-            const wasScrubbing = isScrubbingShared.value
+        }
+      })
+      .onFinalize(() => {
+        // Ensure cleanup on gesture cancellation
+        if (enableScrubbingTelemetry) {
+          runOnJS(setIsScrubbing)(false)
+        }
+        isScrubbingShared.value = false
+        isScrubbingFlagRef.current = false
+        if (enableScrubbingTelemetry) {
+          runOnJS(setScrubbingPosition)(null)
+        }
+        progressShared.value = lastScrubbedPositionShared.value
+        // Reset global scrubbing state on cancellation
+        if (globalScrubbingShared) {
+          globalScrubbingShared.value = false
+        }
+      })
+      .simultaneousWithExternalGesture()
+  }, [
+    barType,
+    duration,
+    enableScrubbingTelemetry,
+    globalScrubbingShared,
+    onSeek,
+    progressBarWidthShared,
+    progressShared,
+    setIsScrubbing,
+    setLastScrubbedPosition,
+    setScrubbingPosition,
+    showControlsAndResetTimer,
+    trackLeftInset,
+  ])
 
-            // Only activate if this bar was already scrubbing OR no other bar is active
-            if (!wasScrubbing && globalScrubbing) {
-              // Another bar is already active - ignore this gesture
-              return
-            }
+  // Combined gesture handler (tap + drag)
+  const combinedGesture = useMemo(() => buildTapDragGesture(), [buildTapDragGesture])
 
-            if (!wasScrubbing) {
-              // Set shared value FIRST before any runOnJS calls to ensure subsequent
-              // onUpdate calls see the updated value immediately (prevents duplicate calls)
-              isScrubbingShared.value = true
-              if (globalScrubbingShared) {
-                globalScrubbingShared.value = true
-              }
-              runOnJS(setIsScrubbing)(true)
-
-              // Only call showControlsAndResetTimer if it wasn't already called in onStart
-              // This prevents duplicate calls when user taps and then slightly moves finger
-              const controlsAlreadyShown = controlsShownForThisGestureShared.value
-              if (!controlsAlreadyShown) {
-                controlsShownForThisGestureShared.value = true
-                runOnJS(showControlsAndResetTimer)()
-              }
-            }
-
+  // Main gesture handler (drag only) - persistent bar reuses tap+drag logic
+  const mainGesture = useMemo(() => {
+    if (barType === 'persistent') {
+      // Persistent progress bar now shares the same tap+drag gesture logic as the normal bar.
+      // Previous persistent-only gesture left here for reference (commented out per request).
+      /*
+        return Gesture.Pan()
+          .maxPointers(1)
+          .activateAfterLongPress(0)
+          .onBegin((event) => {
             const relativeX = Math.max(0, event.x - trackLeftInset)
-            const correctedSeekPercentage =
+            const seekPercentage =
               progressBarWidthShared.value > 0
                 ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
                 : 0
 
-            // DEBUG: Log corrected calculation during drag to validate fix
-            runOnJS(log.debug)(
-              'VideoControls',
-              `${barType} progress bar drag update - CORRECTED CALCULATION`,
-              {
-                eventX: event.x,
-                trackLeftInset,
-                relativeX,
-                progressBarWidth: progressBarWidthShared.value,
-                correctedSeekPercentage,
-                duration,
-                expectedSeekTimeCorrected:
-                  duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
-              }
-            )
+            lastScrubbedPositionShared.value = seekPercentage
+            runOnJS(log.debug)('VideoControls', `${barType} main gesture begin`, {
+              eventX: event.x,
+              trackLeftInset,
+              relativeX,
+              progressBarWidth: progressBarWidthShared.value,
+              seekPercentage,
+            })
+          })
+          .onStart((event) => {
+            const relativeX = Math.max(0, event.x - trackLeftInset)
+            const seekPercentage =
+              progressBarWidthShared.value > 0
+                ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
+                : 0
+            if (enableScrubbingTelemetry) {
+              runOnJS(setScrubbingPosition)(seekPercentage)
+            }
+            lastScrubbedPositionShared.value = seekPercentage
+          })
+          .onUpdate((event) => {
+            const horizontalThreshold = 3
+            if (
+              Math.abs(event.translationY) > Math.abs(event.translationX) &&
+              Math.abs(event.translationY) > horizontalThreshold
+            ) {
+              return
+            }
 
-            runOnJS(setScrubbingPosition)(correctedSeekPercentage)
-            lastScrubbedPositionShared.value = correctedSeekPercentage
-            // Log only on first drag event to reduce log spam
-            // Subsequent drag updates are frequent (60+ per second) and don't need logging
-          }
-        })
-        .onEnd(() => {
-          // Only seek again if we were in scrubbing mode (dragging)
-          // Use shared value instead of state to avoid capturing stale closure
-          const wasScrubbing = isScrubbingShared.value
-          runOnJS(setIsScrubbing)(false)
-
-          // Reset global scrubbing state if this bar was active
-          if (wasScrubbing && globalScrubbingShared) {
-            globalScrubbingShared.value = false
-          }
-
-          if (wasScrubbing) {
+            const relativeX = Math.max(0, event.x - trackLeftInset)
+            const seekPercentage =
+              progressBarWidthShared.value > 0
+                ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
+                : 0
+            if (enableScrubbingTelemetry) {
+              runOnJS(setScrubbingPosition)(seekPercentage)
+            }
+            lastScrubbedPositionShared.value = seekPercentage
+          })
+          .onEnd(() => {
             const currentPosition = lastScrubbedPositionShared.value
-            runOnJS(setLastScrubbedPosition)(currentPosition)
-            runOnJS(setScrubbingPosition)(null)
+            if (enableScrubbingTelemetry) {
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+            }
+            isScrubbingShared.value = false
+            if (enableScrubbingTelemetry) {
+              runOnJS(setScrubbingPosition)(null)
+            }
 
             if (duration > 0 && currentPosition >= 0) {
               const seekTime = (currentPosition / 100) * duration
-              runOnJS(log.debug)('VideoControls', `${barType} drag end seek - FINAL CALCULATION`, {
-                finalSeekPercentage: currentPosition,
-                finalSeekTime: seekTime,
+              runOnJS(log.debug)('VideoControls', `${barType} main gesture end - seeking`, {
+                seekPercentage: currentPosition,
+                seekTime,
                 duration,
-                trackLeftInset,
-                expectedProgressAtSeek: (seekTime / duration) * 100,
               })
               runOnJS(onSeek)(seekTime)
             }
-          }
-        })
-        .onFinalize(() => {
-          // Ensure cleanup on gesture cancellation
-          runOnJS(setIsScrubbing)(false)
-          runOnJS(setScrubbingPosition)(null)
-          // Reset global scrubbing state on cancellation
-          if (globalScrubbingShared) {
-            globalScrubbingShared.value = false
-          }
-        })
-        .simultaneousWithExternalGesture(),
-    [
-      barType,
-      duration,
-      onSeek,
-      showControlsAndResetTimer,
-      progressBarWidthShared,
-      globalScrubbingShared,
-      trackLeftInset,
-    ]
-    // Note: isScrubbing removed from deps - we use isScrubbingShared instead
-    // This prevents gesture handler recreation on every scrubbing state toggle
-  )
-
-  // Main gesture handler (drag only) - minimal implementation for GREEN phase
-  const mainGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .maxPointers(1) // Single finger only for reliability
-        .activateAfterLongPress(0) // Immediate activation
-        .onBegin((event) => {
-          // Early activation - more reliable
-          // Don't call showControlsAndResetTimer here - combinedGesture.onStart handles taps
-          // This gesture is for dragging only, controls will show when dragging starts (onUpdate)
-
-          const relativeX = Math.max(0, event.x - trackLeftInset)
-          const seekPercentage =
-            progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
-              : 0
-
-          lastScrubbedPositionShared.value = seekPercentage
-          runOnJS(log.debug)('VideoControls', `${barType} main gesture begin`, {
-            eventX: event.x,
-            trackLeftInset,
-            relativeX,
-            progressBarWidth: progressBarWidthShared.value,
-            seekPercentage,
           })
-        })
-        .onStart((event) => {
-          // Don't call showControlsAndResetTimer here - combinedGesture.onStart handles taps
-          // This gesture is for dragging only, controls will show when dragging starts (onUpdate)
+          .onFinalize(() => {
+            const currentPosition = lastScrubbedPositionShared.value
+            if (enableScrubbingTelemetry) {
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+            }
+            isScrubbingShared.value = false
+            if (enableScrubbingTelemetry) {
+              runOnJS(setScrubbingPosition)(null)
+            }
+          })
+          .simultaneousWithExternalGesture()
+        */
+      return buildTapDragGesture()
+    }
 
-          const relativeX = Math.max(0, event.x - trackLeftInset)
-          const seekPercentage =
-            progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
-              : 0
-          runOnJS(setScrubbingPosition)(seekPercentage)
-          lastScrubbedPositionShared.value = seekPercentage
-        })
-        .onUpdate((event) => {
-          // More lenient horizontal gesture detection - reduced threshold
-          const horizontalThreshold = 3
-          if (
-            Math.abs(event.translationY) > Math.abs(event.translationX) &&
-            Math.abs(event.translationY) > horizontalThreshold
-          ) {
-            return
-          }
+    return Gesture.Pan()
+      .maxPointers(1) // Single finger only for reliability
+      .activateAfterLongPress(0) // Immediate activation
+      .onBegin((event) => {
+        // Early activation - more reliable
+        // Don't call showControlsAndResetTimer here - combinedGesture.onStart handles taps
+        // This gesture is for dragging only, controls will show when dragging starts (onUpdate)
 
-          const relativeX = Math.max(0, event.x - trackLeftInset)
-          const seekPercentage =
-            progressBarWidthShared.value > 0
-              ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
-              : 0
-          runOnJS(setScrubbingPosition)(seekPercentage)
-          lastScrubbedPositionShared.value = seekPercentage
+        const currentProgress = Math.max(0, Math.min(100, progressShared.value))
+        isScrubbingShared.value = true
+        isScrubbingFlagRef.current = true
+        gestureStartPercentageShared.value = currentProgress
+        lastScrubbedPositionShared.value = currentProgress
+        progressShared.value = currentProgress
+        runOnJS(log.debug)('VideoControls', `${barType} main gesture begin`, {
+          eventX: event.x,
+          trackLeftInset,
+          progressBarWidth: progressBarWidthShared.value,
+          seekPercentage: currentProgress,
         })
-        .onEnd(() => {
-          // Seek ONLY on gesture end with the final scrubbed position
-          const currentPosition = lastScrubbedPositionShared.value
+      })
+      .onUpdate((event) => {
+        // More lenient horizontal gesture detection - reduced threshold
+        const horizontalThreshold = 3
+        if (
+          Math.abs(event.translationY) > Math.abs(event.translationX) &&
+          Math.abs(event.translationY) > horizontalThreshold
+        ) {
+          return
+        }
+
+        const width = progressBarWidthShared.value
+        const startPercent = gestureStartPercentageShared.value
+        const deltaPercent = width > 0 ? (event.translationX / width) * 100 : 0
+        const seekPercentage = Math.max(0, Math.min(100, startPercent + deltaPercent))
+        if (enableScrubbingTelemetry) {
+          runOnJS(setScrubbingPosition)(seekPercentage)
+        }
+        lastScrubbedPositionShared.value = seekPercentage
+        progressShared.value = seekPercentage
+      })
+      .onEnd(() => {
+        // Seek ONLY on gesture end with the final scrubbed position
+        const currentPosition = lastScrubbedPositionShared.value
+        if (enableScrubbingTelemetry) {
           runOnJS(setIsScrubbing)(false)
           runOnJS(setLastScrubbedPosition)(currentPosition)
+        }
+        isScrubbingShared.value = false
+        if (enableScrubbingTelemetry) {
           runOnJS(setScrubbingPosition)(null)
+        }
+        isScrubbingFlagRef.current = false
+        gestureStartPercentageShared.value = 0
+        progressShared.value = currentPosition
 
-          // SEEK ONLY ONCE AT END with final position - allow seeking to 0%
-          if (duration > 0 && currentPosition >= 0) {
-            const seekTime = (currentPosition / 100) * duration
-            runOnJS(log.debug)('VideoControls', `${barType} main gesture end - seeking`, {
-              seekPercentage: currentPosition,
-              seekTime,
-              duration,
-            })
-            runOnJS(onSeek)(seekTime)
-          }
-        })
-        .onFinalize(() => {
-          const currentPosition = lastScrubbedPositionShared.value
+        // SEEK ONLY ONCE AT END with final position - allow seeking to 0%
+        if (duration > 0 && currentPosition >= 0) {
+          const seekTime = (currentPosition / 100) * duration
+          runOnJS(log.debug)('VideoControls', `${barType} main gesture end - seeking`, {
+            seekPercentage: currentPosition,
+            seekTime,
+            duration,
+          })
+          runOnJS(onSeek)(seekTime)
+        }
+      })
+      .onFinalize(() => {
+        const currentPosition = lastScrubbedPositionShared.value
+        if (enableScrubbingTelemetry) {
           runOnJS(setIsScrubbing)(false)
           runOnJS(setLastScrubbedPosition)(currentPosition)
+        }
+        isScrubbingShared.value = false
+        if (enableScrubbingTelemetry) {
           runOnJS(setScrubbingPosition)(null)
-        })
-        .simultaneousWithExternalGesture(),
-    [barType, duration, onSeek, showControlsAndResetTimer, progressBarWidthShared, trackLeftInset]
-  )
+        }
+        isScrubbingFlagRef.current = false
+        gestureStartPercentageShared.value = 0
+        progressShared.value = currentPosition
+      })
+      .simultaneousWithExternalGesture()
+  }, [
+    barType,
+    buildTapDragGesture,
+    duration,
+    enableScrubbingTelemetry,
+    onSeek,
+    progressBarWidthShared,
+    progressShared,
+    setIsScrubbing,
+    setLastScrubbedPosition,
+    setScrubbingPosition,
+    showControlsAndResetTimer,
+    trackLeftInset,
+  ])
 
   return {
     // State
     isScrubbing,
     scrubbingPosition,
     lastScrubbedPosition,
+    progressShared,
 
     // Gestures
     combinedGesture,

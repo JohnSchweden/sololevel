@@ -74,6 +74,10 @@ describe('useFeedbackSelection', () => {
   it('selects feedback and triggers audio playback', () => {
     const deps = createFeedbackDeps()
 
+    // Mock requestAnimationFrame to use setTimeout for test compatibility
+    const originalRAF = global.requestAnimationFrame
+    global.requestAnimationFrame = jest.fn((cb: FrameRequestCallback) => setTimeout(cb, 0)) as any
+
     const { result } = renderHook(() =>
       useFeedbackSelection(deps.audioController as any, deps.videoPlayback as any)
     )
@@ -81,6 +85,14 @@ describe('useFeedbackSelection', () => {
     act(() => {
       result.current.selectFeedback(deps.item)
     })
+
+    // Advance timers to allow deferred work (requestAnimationFrame + setTimeout) to complete
+    act(() => {
+      jest.runAllTimers()
+    })
+
+    // Restore original requestAnimationFrame
+    global.requestAnimationFrame = originalRAF
 
     // Read from store to verify state
     const storeState = useFeedbackCoordinatorStore.getState()

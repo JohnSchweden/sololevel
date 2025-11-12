@@ -45,7 +45,9 @@ export interface VideosSectionProps {
   onRetry?: () => void
 
   /**
-   * Callback when visible items change (for prefetching)
+   * Callback when visible items change during scrolling (for prefetching).
+   * Called with 150ms debounce during active scroll to enable real-time prefetching
+   * without excessive parent re-renders. Also called on scroll end for final updates.
    */
   onVisibleItemsChange?: (items: VideosSectionProps['videos']) => void
 
@@ -62,6 +64,11 @@ export interface VideosSectionProps {
  * Shows horizontal scrollable row of video thumbnails.
  * Includes empty, loading, and error states.
  *
+ * Scroll Behavior:
+ * - Tracks visible items during scroll with 150ms debounced updates
+ * - Calls onVisibleItemsChange during active scrolling for prefetching
+ * - Optimized to prevent excessive parent re-renders while enabling real-time prefetch
+ *
  * Note: Caller should limit the videos array size (typically 10 or fewer).
  *
  * @example
@@ -70,6 +77,9 @@ export interface VideosSectionProps {
  *   videos={videos.slice(0, 10)}
  *   onVideoPress={(id) => router.push({ pathname: '/video-analysis', params: { analysisJobId: id } })}
  *   onSeeAllPress={() => router.push('/videos')}
+ *   onVisibleItemsChange={(visibleItems) => {
+ *     // Handle visible items changes for prefetching
+ *   }}
  * />
  * ```
  */
@@ -85,7 +95,7 @@ export function VideosSection({
 }: VideosSectionProps): React.ReactElement {
   // CRITICAL FIX: Track scroll position in ref instead of state
   // setState during scroll was triggering parent re-renders every 100ms
-  // Use ref to track indices, only notify parent on scroll END
+  // Use ref to track indices, notify parent during scroll (debounced) AND on scroll end
   const initialVisible = Math.min(3, videos.length)
   const visibleIndicesRef = React.useRef<number[]>(
     Array.from({ length: initialVisible }, (_, i) => i)
@@ -94,7 +104,7 @@ export function VideosSection({
   const hasInitializedRef = React.useRef(false)
 
   // Notify parent of visible items on mount only
-  // Do NOT re-run on scroll events - only on explicit scroll end
+  // Scroll events handled separately with debouncing for prefetch performance
   React.useEffect(() => {
     // On mount, immediately notify with initial visible items
     if (!hasInitializedRef.current && visibleIndicesRef.current.length > 0) {
@@ -267,9 +277,27 @@ export function VideosSection({
             )
             // Store in ref - no setState during scroll
             visibleIndicesRef.current = indices
+
+            // Debounced update for prefetch during active scroll (150ms delay)
+            // Enables real-time prefetching without excessive parent re-renders
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current)
+            }
+            debounceTimerRef.current = setTimeout(() => {
+              if (visibleIndicesRef.current.length > 0) {
+                const visibleItems = visibleIndicesRef.current
+                  .map((idx) => videos[idx])
+                  .filter(Boolean)
+                onVisibleItemsChange?.(visibleItems)
+              }
+            }, 150) // 150ms debounce - frequent enough for prefetch, not too chatty
           }}
           onScrollEndDrag={() => {
-            // Only notify parent AFTER scroll ends
+            // Final update after scroll ends (clears any pending debounced updates)
+            // Ensures parent has latest visible items for final positioning
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current)
+            }
             if (visibleIndicesRef.current.length > 0) {
               const visibleItems = visibleIndicesRef.current
                 .map((idx) => videos[idx])

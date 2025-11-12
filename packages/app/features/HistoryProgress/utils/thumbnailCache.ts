@@ -1,7 +1,8 @@
 import { log } from '@my/logging'
 import {
+  createDownloadResumable,
+  deleteAsync,
   documentDirectory,
-  downloadAsync,
   getInfoAsync,
   makeDirectoryAsync,
   readDirectoryAsync,
@@ -76,12 +77,68 @@ export function getCachedThumbnailPath(videoId: number): string {
  * @returns Path to persisted thumbnail file
  * @throws Error if download fails
  */
-export async function persistThumbnailFile(videoId: number, remoteUrl: string): Promise<string> {
+function createAbortError(): Error {
+  return typeof DOMException !== 'undefined'
+    ? new DOMException('Aborted', 'AbortError')
+    : Object.assign(new Error('Aborted'), { name: 'AbortError' as const })
+}
+
+export async function persistThumbnailFile(
+  videoId: number,
+  remoteUrl: string,
+  options?: {
+    signal?: AbortSignal
+  }
+): Promise<string> {
   try {
+    const { signal } = options ?? {}
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
+
     await ensureThumbnailDirectory()
     const target = getCachedThumbnailPath(videoId)
 
-    await downloadAsync(remoteUrl, target)
+    const downloadResumable = createDownloadResumable(remoteUrl, target)
+
+    const abortHandler = async () => {
+      try {
+        await downloadResumable.pauseAsync()
+      } catch (error) {
+        log.debug('thumbnailCache', 'Failed to pause thumbnail download on abort', {
+          videoId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      } finally {
+        await deleteAsync(target, { idempotent: true }).catch((deleteError) => {
+          log.debug('thumbnailCache', 'Failed to delete aborted thumbnail download', {
+            videoId,
+            error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+          })
+        })
+      }
+    }
+
+    if (signal) {
+      signal.addEventListener('abort', abortHandler, { once: true })
+    }
+
+    try {
+      await downloadResumable.downloadAsync()
+    } catch (error) {
+      if (signal?.aborted) {
+        throw createAbortError()
+      }
+      throw error
+    } finally {
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler)
+      }
+    }
+
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
 
     log.info('thumbnailCache', 'Thumbnail persisted to disk', {
       videoId,

@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import type { SharedValue } from 'react-native-reanimated'
 import { usePersistentProgressStore } from './persistentProgress'
 
 describe('usePersistentProgressStore', () => {
@@ -171,6 +172,42 @@ describe('usePersistentProgressStore', () => {
       // Assert - reference should be NEW because primitive changed
       expect(result.current.props).not.toBe(firstRef)
       expect(result.current.props?.currentTime).toBe(6.0)
+    })
+  })
+
+  describe('progress shared synchronization', () => {
+    it('updates shared progress value on setProps and updateTime', () => {
+      const sharedValue = { value: 0 } as SharedValue<number>
+
+      const { result } = renderHook(() => usePersistentProgressStore())
+
+      const baseProps = {
+        currentTime: 5,
+        duration: 10,
+        isScrubbing: false,
+        controlsVisible: true,
+        shouldRenderPersistent: true,
+        pointerEvents: 'auto' as const,
+        visibility: { value: 1 } as any,
+        animatedStyle: { opacity: 1 },
+        combinedGesture: { gestureId: 1 },
+        mainGesture: { gestureId: 2 },
+        onLayout: jest.fn(),
+        onFallbackPress: jest.fn(),
+        progressShared: sharedValue,
+      }
+
+      act(() => {
+        result.current.setProps(baseProps)
+      })
+
+      expect(sharedValue.value).toBeCloseTo(50, 5)
+
+      act(() => {
+        result.current.updateTime(7.5, 10)
+      })
+
+      expect(sharedValue.value).toBeCloseTo(75, 5)
     })
   })
 

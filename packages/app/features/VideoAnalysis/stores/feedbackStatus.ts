@@ -1,6 +1,7 @@
 import { supabase } from '@my/api'
 import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import type { Draft } from 'immer'
 import React from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
@@ -54,6 +55,7 @@ export interface FeedbackStatusStore {
   // Feedback tracking
   feedbacks: Map<number, FeedbackStatusState>
   feedbacksByAnalysisId: Map<string, number[]> // analysisId -> feedbackIds[]
+  analysisLastUpdated: Map<string, number>
 
   // Active subscriptions
   subscriptions: Map<string, () => void> // analysisId -> unsubscribe function
@@ -112,6 +114,10 @@ export interface FeedbackStatusStore {
   reset: () => void
 }
 
+const MAX_TRACKED_ANALYSES = 40
+const MAX_STORED_FEEDBACKS = 400
+const FEEDBACK_TTL_MS = 5 * 60 * 1000
+
 const createFeedbackState = (feedback: FeedbackStatusData): FeedbackStatusState => ({
   id: feedback.id,
   analysisId: feedback.analysis_id,
@@ -133,6 +139,106 @@ const createFeedbackState = (feedback: FeedbackStatusData): FeedbackStatusState 
   isSubscribed: false,
 })
 
+const markAnalysisTouched = (draft: Draft<FeedbackStatusStore>, analysisId: string): void => {
+  draft.analysisLastUpdated.set(analysisId, Date.now())
+}
+
+const removeAnalysisFeedback = (draft: Draft<FeedbackStatusStore>, analysisId: string): void => {
+  const feedbackIds = draft.feedbacksByAnalysisId.get(analysisId)
+  if (!feedbackIds || feedbackIds.length === 0) {
+    draft.analysisLastUpdated.delete(analysisId)
+    return
+  }
+
+  let removedCount = 0
+
+  feedbackIds.forEach((feedbackId) => {
+    const existing = draft.feedbacks.get(feedbackId)
+    if (!existing) {
+      return
+    }
+    removedCount += 1
+
+    if (existing.ssmlStatus === 'processing') {
+      draft.processingSSMLCount = Math.max(0, draft.processingSSMLCount - 1)
+    }
+    if (existing.audioStatus === 'processing') {
+      draft.processingAudioCount = Math.max(0, draft.processingAudioCount - 1)
+    }
+    if (existing.ssmlStatus === 'completed' && existing.audioStatus === 'completed') {
+      draft.completedCount = Math.max(0, draft.completedCount - 1)
+    }
+    if (existing.ssmlStatus === 'failed' || existing.audioStatus === 'failed') {
+      draft.failedCount = Math.max(0, draft.failedCount - 1)
+    }
+
+    draft.feedbacks.delete(feedbackId)
+  })
+
+  draft.totalFeedbacks = Math.max(0, draft.totalFeedbacks - removedCount)
+  draft.feedbacksByAnalysisId.delete(analysisId)
+  draft.analysisLastUpdated.delete(analysisId)
+  draft.lastGlobalUpdate = Date.now()
+}
+
+const pruneAnalyses = (draft: Draft<FeedbackStatusStore>): void => {
+  const now = Date.now()
+
+  const staleAnalysisIds: string[] = []
+  draft.analysisLastUpdated.forEach((lastUpdated, analysisId) => {
+    const isSubscribed = draft.subscriptions.has(analysisId)
+    const status = draft.subscriptionStatus.get(analysisId)
+    if (isSubscribed || status === 'pending' || status === 'active') {
+      return
+    }
+    if (now - lastUpdated > FEEDBACK_TTL_MS) {
+      staleAnalysisIds.push(analysisId)
+    }
+  })
+
+  staleAnalysisIds.forEach((analysisId) => {
+    removeAnalysisFeedback(draft, analysisId)
+    const retryState = draft.subscriptionRetries.get(analysisId)
+    if (retryState?.timeoutId) {
+      clearTimeout(retryState.timeoutId)
+    }
+    draft.subscriptionStatus.delete(analysisId)
+    draft.subscriptionRetries.delete(analysisId)
+  })
+
+  const exceedsFeedbackLimit = draft.feedbacks.size > MAX_STORED_FEEDBACKS
+  const exceedsAnalysisLimit = draft.feedbacksByAnalysisId.size > MAX_TRACKED_ANALYSES
+
+  if (!exceedsFeedbackLimit && !exceedsAnalysisLimit) {
+    return
+  }
+
+  const sortableAnalyses = Array.from(draft.analysisLastUpdated.entries())
+    .filter(([analysisId]) => {
+      const isSubscribed = draft.subscriptions.has(analysisId)
+      const status = draft.subscriptionStatus.get(analysisId)
+      return !isSubscribed && status !== 'pending' && status !== 'active'
+    })
+    .sort((a, b) => a[1] - b[1]) // oldest first
+
+  for (const [analysisId] of sortableAnalyses) {
+    if (
+      draft.feedbacks.size <= MAX_STORED_FEEDBACKS &&
+      draft.feedbacksByAnalysisId.size <= MAX_TRACKED_ANALYSES
+    ) {
+      break
+    }
+
+    removeAnalysisFeedback(draft, analysisId)
+    const retryState = draft.subscriptionRetries.get(analysisId)
+    if (retryState?.timeoutId) {
+      clearTimeout(retryState.timeoutId)
+    }
+    draft.subscriptionStatus.delete(analysisId)
+    draft.subscriptionRetries.delete(analysisId)
+  }
+}
+
 export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
   subscribeWithSelector(
     persist(
@@ -140,6 +246,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         // Initial state
         feedbacks: new Map(),
         feedbacksByAnalysisId: new Map(),
+        analysisLastUpdated: new Map(),
         subscriptions: new Map(),
         subscriptionStatus: new Map(),
         subscriptionRetries: new Map(),
@@ -177,6 +284,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               draft.failedCount++
             }
 
+            markAnalysisTouched(draft, feedback.analysis_id)
+            pruneAnalyses(draft)
             draft.lastGlobalUpdate = Date.now()
           }),
 
@@ -250,6 +359,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               lastUpdated: Date.now(),
             })
 
+            markAnalysisTouched(draft, existing.analysisId)
+            pruneAnalyses(draft)
             draft.lastGlobalUpdate = Date.now()
           }),
 
@@ -271,17 +382,28 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             }
 
             // Update counters
-            draft.totalFeedbacks--
-            if (existing.ssmlStatus === 'processing') draft.processingSSMLCount--
-            if (existing.audioStatus === 'processing') draft.processingAudioCount--
+            draft.totalFeedbacks = Math.max(0, draft.totalFeedbacks - 1)
+            if (existing.ssmlStatus === 'processing') {
+              draft.processingSSMLCount = Math.max(0, draft.processingSSMLCount - 1)
+            }
+            if (existing.audioStatus === 'processing') {
+              draft.processingAudioCount = Math.max(0, draft.processingAudioCount - 1)
+            }
             if (existing.ssmlStatus === 'completed' && existing.audioStatus === 'completed') {
-              draft.completedCount--
+              draft.completedCount = Math.max(0, draft.completedCount - 1)
             }
             if (existing.ssmlStatus === 'failed' || existing.audioStatus === 'failed') {
-              draft.failedCount--
+              draft.failedCount = Math.max(0, draft.failedCount - 1)
             }
 
             draft.feedbacks.delete(feedbackId)
+            if (draft.feedbacksByAnalysisId.has(existing.analysisId)) {
+              markAnalysisTouched(draft, existing.analysisId)
+            } else {
+              draft.analysisLastUpdated.delete(existing.analysisId)
+            }
+
+            pruneAnalyses(draft)
             draft.lastGlobalUpdate = Date.now()
           }),
 
@@ -557,13 +679,15 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             if (unsubscribe) {
               unsubscribe()
               draft.subscriptions.delete(analysisId)
-              draft.subscriptionStatus.delete(analysisId)
-              const retryState = draft.subscriptionRetries.get(analysisId)
-              if (retryState?.timeoutId) {
-                clearTimeout(retryState.timeoutId)
-              }
-              draft.subscriptionRetries.delete(analysisId)
             }
+            const retryState = draft.subscriptionRetries.get(analysisId)
+            if (retryState?.timeoutId) {
+              clearTimeout(retryState.timeoutId)
+            }
+            draft.subscriptionRetries.delete(analysisId)
+            draft.subscriptionStatus.delete(analysisId)
+
+            removeAnalysisFeedback(draft, analysisId)
           }),
 
         // Unsubscribe from all
@@ -578,6 +702,17 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               }
             })
             draft.subscriptionRetries.clear()
+
+            // Remove all feedback data to prevent unbounded growth
+            draft.feedbacks.clear()
+            draft.feedbacksByAnalysisId.clear()
+            draft.analysisLastUpdated.clear()
+            draft.totalFeedbacks = 0
+            draft.processingSSMLCount = 0
+            draft.processingAudioCount = 0
+            draft.completedCount = 0
+            draft.failedCount = 0
+            draft.lastGlobalUpdate = Date.now()
           }),
 
         // Get statistics
@@ -609,7 +744,15 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             // Reset all state
             draft.feedbacks.clear()
             draft.feedbacksByAnalysisId.clear()
+            draft.analysisLastUpdated.clear()
             draft.subscriptions.clear()
+            draft.subscriptionStatus.clear()
+            draft.subscriptionRetries.forEach((retryState) => {
+              if (retryState.timeoutId) {
+                clearTimeout(retryState.timeoutId)
+              }
+            })
+            draft.subscriptionRetries.clear()
             draft.totalFeedbacks = 0
             draft.processingSSMLCount = 0
             draft.processingAudioCount = 0
@@ -625,6 +768,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           // Persist feedbacks and mappings, but exclude subscriptions (functions can't be serialized)
           feedbacks: Array.from(state.feedbacks.entries()),
           feedbacksByAnalysisId: Array.from(state.feedbacksByAnalysisId.entries()),
+          analysisLastUpdated: Array.from(state.analysisLastUpdated.entries()),
           totalFeedbacks: state.totalFeedbacks,
           processingSSMLCount: state.processingSSMLCount,
           processingAudioCount: state.processingAudioCount,
@@ -639,6 +783,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             ...currentState,
             feedbacks: new Map(persistedState.feedbacks || []),
             feedbacksByAnalysisId: new Map(persistedState.feedbacksByAnalysisId || []),
+            analysisLastUpdated: new Map(persistedState.analysisLastUpdated || []),
             totalFeedbacks: persistedState.totalFeedbacks ?? currentState.totalFeedbacks,
             processingSSMLCount:
               persistedState.processingSSMLCount ?? currentState.processingSSMLCount,

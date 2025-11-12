@@ -2,6 +2,7 @@
 
 import { log } from '@my/logging'
 // Use manual mock from __mocks__/expo-file-system.ts per @testing-unified.mdc
+import type { DownloadResumable } from 'expo-file-system'
 import * as FileSystem from 'expo-file-system'
 import {
   ensureThumbnailDirectory,
@@ -10,6 +11,14 @@ import {
 } from './thumbnailCache'
 
 const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
+
+if (!mockFileSystem.createDownloadResumable) {
+  mockFileSystem.createDownloadResumable = jest.fn() as any
+}
+
+const mockCreateDownloadResumable = mockFileSystem.createDownloadResumable as jest.MockedFunction<
+  typeof FileSystem.createDownloadResumable
+>
 
 // Mock logger
 jest.mock('@my/logging', () => ({
@@ -47,9 +56,13 @@ describe('thumbnailCache', () => {
       })
     })
     mockFileSystem.makeDirectoryAsync.mockResolvedValue(undefined)
-    ;(
-      mockFileSystem.downloadAsync as jest.MockedFunction<typeof FileSystem.downloadAsync>
-    ).mockResolvedValue({} as any)
+    const createDownloadResumableMock = (url: string, fileUri: string): DownloadResumable =>
+      ({
+        downloadAsync: jest.fn().mockResolvedValue({ uri: fileUri, url }),
+        pauseAsync: jest.fn().mockResolvedValue({ url, fileUri }),
+        resumeAsync: jest.fn(),
+      }) as unknown as DownloadResumable
+    mockCreateDownloadResumable.mockImplementation(createDownloadResumableMock)
   })
 
   afterEach(() => {
@@ -156,11 +169,15 @@ describe('thumbnailCache', () => {
       const result = await persistThumbnailFile(videoId, remoteUrl)
 
       // Assert
-      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(1)
-      expect(mockFileSystem.downloadAsync).toHaveBeenCalledWith(
+      expect(mockCreateDownloadResumable).toHaveBeenCalledTimes(1)
+      expect(mockCreateDownloadResumable).toHaveBeenCalledWith(
         remoteUrl,
         'file:///documents/thumbnails/456.jpg'
       )
+      const resumableInstance = mockCreateDownloadResumable.mock.results[0].value as unknown as {
+        downloadAsync: jest.Mock
+      }
+      expect(resumableInstance.downloadAsync).toHaveBeenCalledTimes(1)
       expect(result).toBe('file:///documents/thumbnails/456.jpg')
       expect(log.info).toHaveBeenCalledWith('thumbnailCache', 'Thumbnail persisted to disk', {
         videoId: 456,
@@ -188,7 +205,7 @@ describe('thumbnailCache', () => {
 
       // Assert
       expect(mockFileSystem.makeDirectoryAsync).toHaveBeenCalledTimes(1)
-      expect(mockFileSystem.downloadAsync).toHaveBeenCalledTimes(1)
+      expect(mockCreateDownloadResumable).toHaveBeenCalledTimes(1)
     })
 
     // ARRANGE: Test error handling for download failures
@@ -204,7 +221,14 @@ describe('thumbnailCache', () => {
         isDirectory: true,
         modificationTime: 0,
       } as any)
-      mockFileSystem.downloadAsync.mockRejectedValueOnce(downloadError)
+      mockCreateDownloadResumable.mockImplementationOnce(
+        (url: string, fileUri: string): DownloadResumable =>
+          ({
+            downloadAsync: jest.fn().mockRejectedValue(downloadError),
+            pauseAsync: jest.fn().mockResolvedValue({ url, fileUri }),
+            resumeAsync: jest.fn(),
+          }) as unknown as DownloadResumable
+      )
 
       // Act & Assert
       await expect(persistThumbnailFile(videoId, remoteUrl)).rejects.toThrow('Network error')

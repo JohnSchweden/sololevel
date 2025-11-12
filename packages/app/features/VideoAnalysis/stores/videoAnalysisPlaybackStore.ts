@@ -61,6 +61,9 @@ export interface VideoPlayerStoreState {
   setManualControlsVisible: (visible: boolean | null) => void
   setSeekImmediate: (fn: ((time: number) => void) | null) => void
 
+  // Cleanup
+  releaseResources: () => void
+
   // Batch updates (for atomic state changes)
   batchUpdate: (
     updates: Partial<Omit<VideoPlayerStoreState, keyof VideoPlayerStoreActions>>
@@ -80,6 +83,7 @@ type VideoPlayerStoreActions = {
   setManualControlsVisible: VideoPlayerStoreState['setManualControlsVisible']
   setSeekImmediate: VideoPlayerStoreState['setSeekImmediate']
   batchUpdate: VideoPlayerStoreState['batchUpdate']
+  releaseResources: VideoPlayerStoreState['releaseResources']
   reset: VideoPlayerStoreState['reset']
 }
 
@@ -94,7 +98,7 @@ const initialState = {
   seekImmediate: null,
 }
 
-export const useVideoPlayerStore = create<VideoPlayerStoreState>((set) => ({
+export const useVideoPlayerStore = create<VideoPlayerStoreState>((set, get) => ({
   ...initialState,
 
   setIsPlaying: (isPlaying) => set({ isPlaying }),
@@ -107,6 +111,20 @@ export const useVideoPlayerStore = create<VideoPlayerStoreState>((set) => ({
   setSeekImmediate: (seekImmediate) => set({ seekImmediate }),
 
   batchUpdate: (updates) => set(updates),
+
+  releaseResources: () => {
+    const { seekImmediate } = get()
+
+    if (seekImmediate) {
+      try {
+        seekImmediate(0)
+      } catch {
+        // Swallow errors from stale native refs during teardown
+      }
+    }
+
+    set(initialState)
+  },
 
   reset: () => set(initialState),
 }))

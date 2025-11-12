@@ -54,40 +54,54 @@ export function useNetworkQuality(config?: NetworkQualityConfig): NetworkQuality
   const mediumThreshold = config?.mediumThreshold ?? 500_000 // 500 KB/s
 
   useEffect(() => {
+    let cancelled = false
+
     if (!enabled) {
       setQuality('unknown')
-      return
+      return () => {
+        cancelled = true
+      }
     }
 
-    async function checkNetworkQuality() {
-      // Check if online first
-      const online = await isOnline()
-      if (!online) {
-        setQuality('slow')
+    const updateQuality = (nextQuality: NetworkQuality) => {
+      if (cancelled) {
         return
       }
+      setQuality(nextQuality)
+    }
 
-      // Try to get network speed from upload progress store
-      // Note: This is a simple heuristic - could be enhanced with actual network speed tests
+    const checkNetworkQuality = async () => {
       try {
+        // Check if online first
+        const online = await isOnline()
+        if (!online) {
+          updateQuality('slow')
+          return
+        }
+
         // For now, default to 'medium' if online (conservative approach)
-        // In future, we could integrate with actual network speed measurements
-        setQuality('medium')
+        updateQuality('medium')
       } catch (error) {
         log.warn('useNetworkQuality', 'Failed to determine network quality', {
           error: error instanceof Error ? error.message : String(error),
         })
-        setQuality('unknown')
+        updateQuality('unknown')
       }
     }
 
-    checkNetworkQuality().catch((error) => {
-      // Handle async errors
+    void checkNetworkQuality().catch((error) => {
+      if (cancelled) {
+        return
+      }
       log.warn('useNetworkQuality', 'Network quality check failed', {
         error: error instanceof Error ? error.message : String(error),
       })
-      setQuality('unknown')
+      updateQuality('unknown')
     })
+
+    return () => {
+      cancelled = true
+    }
   }, [enabled, fastThreshold, mediumThreshold])
 
   return quality

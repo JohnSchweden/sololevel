@@ -50,7 +50,9 @@ describe('useProgressBarGesture', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(useSharedValue as jest.Mock).mockReturnValue({ value: 0 })
+    ;(useSharedValue as jest.Mock).mockImplementation((initialValue = 0) => ({
+      value: initialValue,
+    }))
   })
 
   describe('Basic functionality', () => {
@@ -68,6 +70,7 @@ describe('useProgressBarGesture', () => {
       expect(result.current).toHaveProperty('isScrubbing')
       expect(result.current).toHaveProperty('scrubbingPosition')
       expect(result.current).toHaveProperty('lastScrubbedPosition')
+      expect(result.current).toHaveProperty('progressShared')
       expect(result.current).toHaveProperty('combinedGesture')
       expect(result.current).toHaveProperty('mainGesture')
       expect(result.current).toHaveProperty('calculateProgress')
@@ -82,6 +85,7 @@ describe('useProgressBarGesture', () => {
       expect(result.current.scrubbingPosition).toBe(null)
       expect(result.current.lastScrubbedPosition).toBe(null)
       expect(result.current.progressBarWidth).toBe(300)
+      expect(result.current.progressShared.value).toBe(25)
     })
 
     it('should calculate progress correctly', () => {
@@ -104,6 +108,50 @@ describe('useProgressBarGesture', () => {
       // Both should have same interface but potentially different behavior
       expect(normalResult.current).toHaveProperty('combinedGesture')
       expect(persistentResult.current).toHaveProperty('combinedGesture')
+    })
+  })
+
+  describe('Shared progress value', () => {
+    it('should seed progressShared with current progress', () => {
+      const { result } = renderHook(() => useProgressBarGesture(mockConfig))
+      expect(result.current.progressShared.value).toBe(25)
+    })
+
+    it('should update progressShared when currentTime changes while idle', () => {
+      const initialConfig = { ...mockConfig }
+      const { result, rerender } = renderHook((config) => useProgressBarGesture(config), {
+        initialProps: initialConfig,
+      })
+
+      expect(result.current.progressShared.value).toBe(25)
+
+      rerender({ ...initialConfig, currentTime: 60 })
+
+      expect(result.current.progressShared.value).toBe(50)
+    })
+
+    it('should respect external progressSharedOverride across rerenders', () => {
+      const externalSharedValue = { value: 10 } as any
+      const configWithOverride = {
+        ...mockConfig,
+        progressSharedOverride: externalSharedValue,
+      }
+
+      const { result, rerender } = renderHook((config) => useProgressBarGesture(config), {
+        initialProps: configWithOverride,
+      })
+
+      // Hook should expose the exact override reference
+      expect(result.current.progressShared).toBe(externalSharedValue)
+      expect(result.current.progressShared.value).toBe(10)
+
+      // Mutate the external shared value (simulating UI-thread update)
+      externalSharedValue.value = 42
+      rerender(configWithOverride)
+
+      // Hook must continue reflecting the external shared value without clobbering it
+      expect(result.current.progressShared).toBe(externalSharedValue)
+      expect(result.current.progressShared.value).toBe(42)
     })
   })
 

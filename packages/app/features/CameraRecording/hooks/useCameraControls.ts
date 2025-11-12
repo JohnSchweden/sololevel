@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
 export interface CameraControlsState {
@@ -145,13 +145,13 @@ export function useCameraControls(config: UseCameraControlsConfig = {}): UseCame
       true) // Most mobile devices support both cameras
 
   // Cleanup on unmount
-  useState(() => {
+  useEffect(() => {
     return () => {
       if (swapTimeoutRef.current) {
         clearTimeout(swapTimeoutRef.current)
       }
     }
-  })
+  }, [])
 
   return {
     controls,

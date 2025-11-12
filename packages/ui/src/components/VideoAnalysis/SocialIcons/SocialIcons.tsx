@@ -1,7 +1,5 @@
 import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
-import { useEffect, useState } from 'react'
-
-import { log } from '@my/logging'
+import { useState } from 'react'
 import { Button, Text, YStack } from 'tamagui'
 
 export interface SocialIconsProps {
@@ -40,20 +38,6 @@ export function SocialIcons({
 
   // Track bookmark count changes locally
   const [bookmarkCountOffset, setBookmarkCountOffset] = useState(0)
-
-  // Log mount and visibility changes for debugging
-  useEffect(() => {
-    log.debug('SocialIcons', '📊 Component mounted/updated', {
-      isVisible,
-      likes,
-      comments,
-      bookmarks,
-      shares,
-      placement,
-      offsetBottom,
-      timestamp: Date.now(),
-    })
-  }, [isVisible, likes, comments, bookmarks, shares, placement, offsetBottom])
 
   if (!isVisible) {
     return null

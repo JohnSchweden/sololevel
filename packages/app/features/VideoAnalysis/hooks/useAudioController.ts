@@ -373,5 +373,11 @@ export function useAudioController(
     controllerRef.current = controller as AudioControllerState
   }
 
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.reset()
+    }
+  }, [])
+
   return controllerRef.current
 }

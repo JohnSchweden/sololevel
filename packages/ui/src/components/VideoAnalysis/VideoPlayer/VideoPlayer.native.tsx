@@ -29,6 +29,10 @@ export const VideoPlayerNative = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const isPlayingRef = useRef(isPlaying)
     const lastSeekTimeRef = useRef<number | null>(null)
 
+    // CRITICAL: Sync isPlayingRef immediately during render to unblock progress after replay
+    // Effect-based sync has latency; progress events can arrive before effect runs
+    isPlayingRef.current = isPlaying
+
     // Expose direct seek method via ref to bypass render cycle
     useImperativeHandle(
       ref,
@@ -44,11 +48,6 @@ export const VideoPlayerNative = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }),
       [onSeekComplete]
     )
-
-    // Keep ref in sync with prop value
-    useEffect(() => {
-      isPlayingRef.current = isPlaying
-    }, [isPlaying])
 
     // Handle video loading
     const handleLoad = (data: any) => {

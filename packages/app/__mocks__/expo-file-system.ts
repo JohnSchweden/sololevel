@@ -17,3 +17,24 @@ export const deleteAsync = jest.fn().mockResolvedValue(undefined)
 export const writeAsStringAsync = jest.fn().mockResolvedValue(undefined)
 export const readAsStringAsync = jest.fn().mockResolvedValue('')
 export const downloadAsync = jest.fn().mockResolvedValue({})
+export const createDownloadResumable = jest
+  .fn()
+  .mockImplementation((url: string, fileUri: string) => {
+    let aborted = false
+
+    return {
+      downloadAsync: jest.fn().mockImplementation(() => {
+        if (aborted) {
+          const abortError = new Error('Aborted')
+          abortError.name = 'AbortError'
+          return Promise.reject(abortError)
+        }
+        return Promise.resolve({ uri: fileUri, url })
+      }),
+      pauseAsync: jest.fn().mockImplementation(() => {
+        aborted = true
+        return Promise.resolve({ url, fileUri })
+      }),
+      resumeAsync: jest.fn(),
+    }
+  })

@@ -80,7 +80,6 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   // Prefetch video analysis data for all visible videos (10 shown in gallery)
   // Strategy: Immediate prefetch for top 3, deferred for remaining 7
   const videoIds = React.useMemo(() => displayedVideos.map((v) => v.id), [displayedVideos])
-  usePrefetchVideoAnalysis(videoIds)
 
   // Track visible videos for smart prefetch (next N items based on scroll position)
   const [visibleVideoItems, setVisibleVideoItems] = React.useState<typeof videos>([])
@@ -131,6 +130,20 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     // On mount before VideosSection reports visible items, use memoized initial slice
     return initialVisibleItems
   }, [visibleVideoItems, initialVisibleItems])
+
+  const lastVisibleAnalysisIndex = React.useMemo(() => {
+    if (visibleItemsForPrefetch.length === 0) {
+      return null
+    }
+
+    const lastItem = visibleItemsForPrefetch[visibleItemsForPrefetch.length - 1]
+    const index = displayedVideos.findIndex((video) => video.id === lastItem.id)
+    return index >= 0 ? index : null
+  }, [displayedVideos, visibleItemsForPrefetch])
+
+  usePrefetchVideoAnalysis(videoIds, {
+    lastVisibleIndex: lastVisibleAnalysisIndex,
+  })
 
   // Memoize prefetch config to prevent unnecessary recalculations
   const prefetchConfig = React.useMemo(

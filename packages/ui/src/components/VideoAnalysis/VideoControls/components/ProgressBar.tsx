@@ -1,8 +1,13 @@
 // import { log } from '@my/logging'
-import React from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated, { type AnimatedStyle } from 'react-native-reanimated'
+import Animated, {
+  type AnimatedStyle,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated'
 import { YStack, useTheme } from 'tamagui'
 
 /**
@@ -43,6 +48,17 @@ export interface ProgressBarProps {
   testID?: string
   /** Pointer events passthrough so callers can disable interactions while hidden */
   pointerEvents?: 'auto' | 'none'
+  /**
+   * Optional shared progress percentage (0-100). When provided, the progress bar visuals
+   * animate directly from this shared value instead of React props, eliminating React renders
+   * during scrubbing/playback and keeping the handle perfectly in sync with GPU-driven updates.
+   */
+  progressShared?: SharedValue<number>
+  /**
+   * Optional shared track width (in px). Typically provided by `useProgressBarGesture`.
+   * Required when using `progressShared` so the fill/handle can derive absolute width.
+   */
+  progressBarWidthShared?: SharedValue<number>
 }
 
 /**
@@ -52,6 +68,13 @@ export interface ProgressBarProps {
  * Supports two visual variants:
  * - **normal**: Larger progress bar (4px height, 14px handle) shown with main video controls
  * - **persistent**: Smaller progress bar (2px height, 10px handle) always visible at bottom
+ *
+ * ### Shared progress value contract
+ * When callers provide `progressShared`, the component reads the shared value inside Reanimated worklets
+ * (`useAnimatedStyle`) to keep the fill/handle perfectly aligned with UI-thread updates (e.g., during fast seeks
+ * or coordinator-driven highlights). The `progress` prop remains as a fallback for environments without shared
+ * values (e.g., tests, storybook) and should be considered secondary — it does **not** drive animations when
+ * `progressShared` exists.
  *
  * @example
  * ```tsx
@@ -81,17 +104,37 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     onFallbackPress,
     testID,
     pointerEvents,
+    progressShared,
+    progressBarWidthShared,
   }) => {
     // Get theme to resolve Tamagui color tokens for React Native Animated.View
     const theme = useTheme()
+
+    // Fallback shared values when caller doesn't supply shared progress/width.
+    const fallbackProgressShared = useSharedValue(progress)
+    useEffect(() => {
+      fallbackProgressShared.value = progress
+    }, [fallbackProgressShared, progress])
+
+    const fallbackWidthShared = useSharedValue(0)
+
+    const effectiveProgressShared = progressShared ?? fallbackProgressShared
+    const effectiveWidthShared = progressBarWidthShared ?? fallbackWidthShared
+    const handleTrackLayout = useCallback(
+      (event: LayoutChangeEvent) => {
+        fallbackWidthShared.value = event.nativeEvent.layout.width
+        onLayout(event)
+      },
+      [fallbackWidthShared, onLayout]
+    )
 
     // Variant-specific dimensions
     const isNormal = variant === 'normal'
     const trackHeight = isNormal ? 4 : 2
     const handleSize = 12 // Same size for both normal and persistent variants
     const handleTouchArea = 44 // Consistent 44px touch area for both variants
-    const handleTopOffset = isNormal ? -20 : -23 // Center within touch area
-    const handleMarginLeft = isNormal ? -22 : -16 // Center the touch area
+    const handleTopOffset = isNormal ? -20 : -21 // Center within touch area
+    const handleMarginLeft = isNormal ? -22 : -22 // Center the touch area
 
     // Variant-specific colors (Tamagui tokens)
     const trackBackgroundColor = isNormal ? '$color3' : '$color9'
@@ -108,7 +151,17 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
 
     // Resolve color token to actual color value for React Native Animated.View
     // Remove '$' prefix and access theme property
-    const handleColor = theme[handleColorToken.slice(1) as keyof typeof theme]?.val as string
+    const resolveThemeColor = (token: string, fallback: string): string => {
+      if (!token.startsWith('$')) {
+        return token
+      }
+      const key = token.slice(1) as keyof typeof theme
+      const value = theme[key]?.val
+      return typeof value === 'string' ? value : fallback
+    }
+
+    const fillColorValue = resolveThemeColor(fillColor, fillColor)
+    const handleColor = resolveThemeColor(handleColorToken, handleColorToken)
 
     // Calculate target opacity and scale based on state
     // Persistent bar visibility is independent of controlsVisible (only affected by scrubbing)
@@ -157,6 +210,34 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
 
     const containerPointerEvents = pointerEvents ?? 'auto'
 
+    // CRITICAL: Do NOT include effectiveProgressShared/effectiveWidthShared in deps.
+    // Reanimated worklets capture shared value references directly—adding them to deps
+    // forces React to recreate the worklet on every identity change, triggering commits.
+    // This defeats UI-thread synchronization and reintroduces 300ms lag.
+    const fillAnimatedStyle = useAnimatedStyle(() => {
+      const trackWidth = Math.max(0, effectiveWidthShared.value)
+      const progressPercent = Math.max(0, Math.min(100, effectiveProgressShared.value))
+      const width = trackWidth > 0 ? (trackWidth * progressPercent) / 100 : 0
+      return {
+        width: Math.max(0, Math.min(trackWidth, width)),
+      }
+    })
+
+    const handleContainerAnimatedStyle = useAnimatedStyle(() => {
+      const trackWidth = Math.max(0, effectiveWidthShared.value)
+      const progressPercent = Math.max(0, Math.min(100, effectiveProgressShared.value))
+      const handleRadius = handleSize / 2
+      const effectiveWidth = Math.max(trackWidth, handleRadius * 2)
+      const targetCenter = (effectiveWidth * progressPercent) / 100
+      const clampedCenter = Math.max(
+        handleRadius,
+        Math.min(effectiveWidth - handleRadius, targetCenter)
+      )
+      return {
+        transform: [{ translateX: clampedCenter }],
+      }
+    })
+
     return (
       <Animated.View
         style={containerStyles}
@@ -188,7 +269,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   testID={trackTestID}
                   data-testid={trackTestID}
                   justifyContent="center"
-                  onLayout={onLayout}
+                  onLayout={handleTrackLayout}
                 >
                   {/* Visual progress track */}
                   <YStack
@@ -198,32 +279,39 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                     position="relative"
                   >
                     {/* Completed progress fill */}
-                    <YStack
-                      height="100%"
-                      width={`${progress}%`}
-                      backgroundColor={fillColor}
-                      borderRadius={2}
+                    <Animated.View
+                      style={[
+                        {
+                          height: '100%',
+                          backgroundColor: fillColorValue,
+                          borderRadius: 2,
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                        } as ViewStyle,
+                        fillAnimatedStyle,
+                      ]}
                       testID={fillTestID}
                       data-testid={fillTestID}
-                      position="absolute"
-                      left={0}
-                      top={0}
                     />
 
                     {/* Scrubber handle */}
                     <GestureDetector gesture={mainGesture}>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: `${progress}%`,
-                          top: handleTopOffset,
-                          width: handleTouchArea,
-                          height: handleTouchArea,
-                          marginLeft: handleMarginLeft,
-                          zIndex: 10,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
+                      <Animated.View
+                        style={[
+                          {
+                            position: 'absolute',
+                            left: 0,
+                            top: handleTopOffset,
+                            width: handleTouchArea,
+                            height: handleTouchArea,
+                            marginLeft: handleMarginLeft,
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          } as ViewStyle,
+                          handleContainerAnimatedStyle,
+                        ]}
                       >
                         <View
                           style={{
@@ -241,7 +329,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           data-testid={handleTestID}
                           pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
                         />
-                      </View>
+                      </Animated.View>
                     </GestureDetector>
                   </YStack>
                 </YStack>
@@ -269,7 +357,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                 accessibilityLabel={`Video progress: ${progressPercentage}% complete`}
                 accessibilityRole="progressbar"
                 justifyContent="center"
-                onLayout={onLayout}
+                onLayout={handleTrackLayout}
                 elevation="$6"
                 shadowColor="$color1"
                 shadowOffset={{ width: 0, height: 0 }}
@@ -284,14 +372,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   elevation="$6"
                   shadowColor="$color1"
                   shadowOffset={{ width: 0, height: 0 }}
-                  shadowOpacity={0.8}
+                  shadowOpacity={0.5}
                   shadowRadius={4}
                 >
                   {/* Progress fill */}
-                  <YStack
-                    height="100%"
-                    width={`${progress}%`}
-                    backgroundColor={fillColor}
+                  <Animated.View
+                    style={[
+                      {
+                        height: '100%',
+                        backgroundColor: fillColorValue,
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                      } as ViewStyle,
+                      fillAnimatedStyle,
+                    ]}
                     testID={fillTestID}
                     data-testid={fillTestID}
                   />
@@ -299,18 +394,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   <YStack paddingLeft={12}>
                     {/* Scrubber handle */}
                     <GestureDetector gesture={mainGesture}>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: `${progress}%`,
-                          top: handleTopOffset,
-                          width: handleTouchArea,
-                          height: handleTouchArea,
-                          marginLeft: handleMarginLeft,
-                          zIndex: 10,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
+                      <Animated.View
+                        style={[
+                          {
+                            position: 'absolute',
+                            left: 0,
+                            top: handleTopOffset,
+                            width: handleTouchArea,
+                            height: handleTouchArea,
+                            marginLeft: handleMarginLeft,
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          } as ViewStyle,
+                          handleContainerAnimatedStyle,
+                        ]}
                       >
                         <View
                           style={{
@@ -328,7 +426,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                           data-testid={handleTestID}
                           pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
                         />
-                      </View>
+                      </Animated.View>
                     </GestureDetector>
                   </YStack>
                 </YStack>

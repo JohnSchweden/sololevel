@@ -54,6 +54,8 @@ export interface PersistentProgressBarProps {
   mainGesture: any
   onLayout: (event: any) => void
   onFallbackPress: (locationX: number) => void
+  progressShared?: SharedValue<number>
+  progressBarWidthShared?: SharedValue<number>
 }
 
 export interface VideoControlsProps {
@@ -84,6 +86,8 @@ export interface VideoControlsProps {
   // NEW: Store setter for persistent progress bar props (preferred over callback)
   // Prevents cascading re-renders by writing directly to Zustand store instead of parent state
   persistentProgressStoreSetter?: (props: PersistentProgressBarProps | null) => void
+  /** Shared progress percentage updated by `useVideoPlayer` for UI-thread sync */
+  persistentProgressShared?: SharedValue<number>
 }
 
 export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
@@ -107,6 +111,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       overscroll,
       onPersistentProgressBarPropsChange,
       persistentProgressStoreSetter,
+      persistentProgressShared,
     },
     ref
   ) => {
@@ -371,6 +376,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       showControlsAndResetTimer,
       globalScrubbingShared,
       trackLeftInset: 0, // Persistent bar track starts at 0; handle padding handled separately
+      enableScrubbingTelemetry: false,
+      progressSharedOverride: persistentProgressShared,
     })
 
     // Extract values from hooks for easier reference
@@ -489,90 +496,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     )
 
     // Stable callbacks for persistent progress bar to prevent recreation on every render
-    const stableOnLayout = useCallback(
-      (event: any) => {
-        const { width } = event.nativeEvent.layout
-        setPersistentProgressBarWidth(width)
-      },
-      [setPersistentProgressBarWidth]
-    )
-
-    // PERF FIX: Use refs for callback dependencies to prevent recreation on every render
-    // This prevents the props object from changing when only width/duration change
-    const persistentProgressBarWidthRef = useRef(persistentProgressBarWidth)
-    const durationRef = useRef(duration)
-
-    // Update refs when values change (doesn't trigger callback recreation)
-    useEffect(() => {
-      persistentProgressBarWidthRef.current = persistentProgressBarWidth
-      durationRef.current = duration
-    }, [persistentProgressBarWidth, duration])
-
-    const stableOnFallbackPress = useCallback(
-      (locationX: number) => {
-        const currentWidth = persistentProgressBarWidthRef.current
-        const currentDuration = durationRef.current
-        if (currentWidth > 0 && currentDuration > 0) {
-          const seekPercentage = Math.max(0, Math.min(100, (locationX / currentWidth) * 100))
-          const seekTime = (seekPercentage / 100) * currentDuration
-          log.debug('VideoControls', 'Persistent fallback press handler - RAW CALCULATION', {
-            locationX,
-            persistentProgressBarWidth: currentWidth,
-            seekPercentage,
-            expectedSeekTime: seekTime,
-            duration: currentDuration,
-          })
-          onSeek(seekTime)
-          // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-          // Fallback should only seek, not show controls (gesture handles that)
-        }
-      },
-      [onSeek] // Only onSeek in deps - width/duration accessed via refs
-    )
-
-    /**
-     * Track previous primitive values to detect when actual data changes.
-     *
-     * Used to compare incoming values with previous values before creating new props object.
-     * This prevents unnecessary object creation and callback invocations when values are unchanged.
-     *
-     * @see stablePropsObjectRef - stores the actual props object for reference stability
-     */
-    /**
-     * Refs to track previous primitive values for comparison (avoid React accessing .value in deps).
-     *
-     * Used to compare incoming values with previous values before creating new props object.
-     * This prevents unnecessary object creation and callback invocations when values are unchanged.
-     *
-     * @see stablePropsObjectRef - stores the actual props object for reference stability
-     */
-    const prevCurrentTimeRef = useRef<number | null>(null)
-    const prevDurationRef = useRef<number | null>(null)
-    const prevIsScrubbingRef = useRef<boolean | null>(null)
-    const prevControlsVisibleRef = useRef<boolean | null>(null)
-    const prevProgressBarWidthRef = useRef<number | null>(null)
-    const prevShouldRenderPersistentRef = useRef<boolean | null>(null)
-    const prevPointerEventsRef = useRef<'auto' | 'none' | null>(null)
-
-    /**
-     * Store the stable props object to maintain reference equality when values haven't changed.
-     *
-     * CRITICAL PERFORMANCE FIX: This prevents "MEMO BYPASSED" errors in VideoAnalysisLayout.
-     *
-     * Problem: Previously, a new object literal was created on every useEffect run, even when
-     * primitive values (progress, isScrubbing, controlsVisible, progressBarWidth) were unchanged.
-     * This caused VideoAnalysisLayout's arePropsEqual to return true (comparing old props) while
-     * React saw new props (from the new object), causing unnecessary re-renders.
-     *
-     * Solution: Store the props object in this ref. Only create a new object when primitive
-     * values actually change. When values are unchanged, don't call the callback at all
-     * (parent already has the stable reference). This ensures React.memo can properly detect
-     * unchanged props via reference equality.
-     *
-     * @see prevPersistentProgressRef - tracks primitive values for comparison
-     */
-    const stablePropsObjectRef = useRef<PersistentProgressBarProps | null>(null)
-
     /**
      * Store unstable objects in refs to prevent effect from running unnecessarily.
      *
@@ -592,185 +515,94 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     const persistentProgressGestureRef = useRef(persistentProgressGesture)
     persistentProgressGestureRef.current = persistentProgressGesture
 
-    /**
-     * Provide persistent progress bar props to parent/store for rendering at layout level.
-     *
-     * PERFORMANCE OPTIMIZATION: This effect ensures reference stability to prevent unnecessary
-     * re-renders in VideoAnalysisLayout (which uses React.memo with arePropsEqual).
-     *
-     * Strategy:
-     * 1. Prefer persistentProgressStoreSetter (Zustand store) over callback if provided
-     * 2. Compare primitive values (progress, isScrubbing, controlsVisible, progressBarWidth)
-     *    with previous values using refs
-     * 3. Only create new props object when primitive values actually change
-     * 4. Store the props object in stablePropsObjectRef for future reference stability
-     * 5. When values are unchanged, don't call setter/callback - parent already has stable reference
-     *
-     * Why this matters:
-     * - Creating new objects on every render causes React.memo to fail (reference inequality)
-     * - This triggers "MEMO BYPASSED" errors where arePropsEqual returns true but component renders
-     * - By maintaining reference stability at source, we prevent these race conditions
-     * - Using Zustand store eliminates parent re-renders entirely (no prop passing up the tree)
-     *
-     * Dependency strategy:
-     * - Only include PRIMITIVE dependencies (currentTime, duration, isScrubbing, controlsVisible, width)
-     * - Unstable objects (animatedStyle, gestures) accessed via refs, not in dependency array
-     * - Stable callbacks (onLayout, onFallbackPress) excluded from dependencies
-     * - persistentProgressStoreSetter and onPersistentProgressBarPropsChange included for cleanup
-     *
-     * @see stablePropsObjectRef - stores props object for reference stability
-     * @see prevCurrentTimeRef, etc. - track previous values for comparison
-     */
-    const mountTimeRef = useRef<number>(Date.now())
+    const persistentProgressBarWidthRef = useRef(persistentProgressBarWidth)
+    const persistentDurationRef = useRef(duration)
 
     useEffect(() => {
-      // Prefer store setter over callback for better performance
-      const setter = persistentProgressStoreSetter || onPersistentProgressBarPropsChange
-      if (!setter) {
+      persistentProgressBarWidthRef.current = persistentProgressBarWidth
+      persistentDurationRef.current = duration
+    }, [persistentProgressBarWidth, duration])
+
+    const stableOnLayout = useCallback(
+      (event: any) => {
+        const { width } = event.nativeEvent.layout
+        setPersistentProgressBarWidth(width)
+      },
+      [setPersistentProgressBarWidth]
+    )
+
+    const stableOnFallbackPress = useCallback(
+      (locationX: number) => {
+        const currentWidth = persistentProgressBarWidthRef.current
+        const currentDuration = persistentDurationRef.current
+        if (currentWidth > 0 && currentDuration > 0) {
+          const seekPercentage = Math.max(0, Math.min(100, (locationX / currentWidth) * 100))
+          const seekTime = (seekPercentage / 100) * currentDuration
+          log.debug('VideoControls', 'Persistent fallback press handler - RAW CALCULATION', {
+            locationX,
+            persistentProgressBarWidth: currentWidth,
+            seekPercentage,
+            expectedSeekTime: seekTime,
+            duration: currentDuration,
+          })
+          onSeek(seekTime)
+        }
+      },
+      [onSeek]
+    )
+
+    const combinedPersistentSetter = useMemo(() => {
+      return persistentProgressStoreSetter ?? onPersistentProgressBarPropsChange ?? null
+    }, [persistentProgressStoreSetter, onPersistentProgressBarPropsChange])
+
+    useEffect(() => {
+      if (!combinedPersistentSetter) {
         return
       }
 
-      /**
-       * Check if actual primitive values changed (not object references).
-       *
-       * Primitive comparison is faster and avoids object equality checks.
-       * This ensures we only create new objects when data actually changes.
-       * Use safe values to prevent NaN/Infinity from causing render loops.
-       */
-      const now = Date.now()
-      const suppressInitial = now - mountTimeRef.current < 200
-      const effectiveCurrentTime = suppressInitial ? 0 : safeCurrentTime
-
-      const currentTimeChanged = prevCurrentTimeRef.current !== effectiveCurrentTime
-      const durationChanged = prevDurationRef.current !== safeDuration
-      const scrubbingChanged = prevIsScrubbingRef.current !== persistentProgressBar.isScrubbing
-      const controlsChanged = prevControlsVisibleRef.current !== controlsVisible
-      const widthChanged = prevProgressBarWidthRef.current !== persistentProgressBarWidth
-      const persistentVisibilityChanged =
-        prevShouldRenderPersistentRef.current !== shouldRenderPersistent
-      const pointerEventsChanged = prevPointerEventsRef.current !== persistentBarPointerEvents
-
-      /**
-       * Only create and pass new props object when primitive values actually changed.
-       *
-       * First render always calls (all refs are null) to initialize parent state.
-       * Subsequent renders only create new object when PRIMITIVE values change.
-       *
-       * CRITICAL: We ignore gesture changes - gestures are pass-through objects that don't
-       * affect rendering logic. Even if gestures are recreated (new IDs), we don't update
-       * props if primitives are unchanged. This prevents cascading re-renders.
-       *
-       * Gestures are intentionally-unstable objects (Reanimated creates new instances),
-       * but they're functionally equivalent and don't need to trigger parent re-renders.
-       */
-      if (
-        prevCurrentTimeRef.current === null ||
-        prevDurationRef.current === null ||
-        prevIsScrubbingRef.current === null ||
-        prevControlsVisibleRef.current === null ||
-        prevProgressBarWidthRef.current === null ||
-        prevShouldRenderPersistentRef.current === null ||
-        currentTimeChanged ||
-        durationChanged ||
-        scrubbingChanged ||
-        controlsChanged ||
-        widthChanged ||
-        persistentVisibilityChanged ||
-        pointerEventsChanged
-      ) {
-        // log.debug('VideoControls', '🎯 Calling setter with new props')
-
-        /**
-         * Create new props object only when values change.
-         *
-         * CRITICAL: Pass raw currentTime and duration instead of calculated progress.
-         * This prevents redundant parent renders since parent already has these values.
-         *
-         * This maintains reference stability: same object reference = same props = no re-render.
-         * When values are unchanged, we don't call the setter at all, so parent/store keeps existing reference.
-         */
-        const newPropsObject: PersistentProgressBarProps = {
-          currentTime: effectiveCurrentTime,
-          duration: safeDuration,
-          isScrubbing: persistentProgressBar.isScrubbing,
-          controlsVisible,
-          shouldRenderPersistent,
-          pointerEvents: persistentBarPointerEvents,
-          visibility: persistentVisibility,
-          animatedStyle: persistentVisibilityAnimatedStyle,
-          combinedGesture: persistentProgressBarCombinedGestureRef.current,
-          mainGesture: persistentProgressGestureRef.current,
-          onLayout: stableOnLayout,
-          onFallbackPress: stableOnFallbackPress,
-        }
-
-        /**
-         * Store props object for reference stability.
-         *
-         * This ensures we can reuse the same reference in future renders when values
-         * haven't changed (though we don't call setter in that case).
-         */
-        stablePropsObjectRef.current = newPropsObject
-        setter(newPropsObject)
-
-        /**
-         * Update tracking refs with current primitive values.
-         *
-         * Used for comparison in next render to detect value changes.
-         * Note: We don't track gesture IDs since we ignore gesture-only changes.
-         */
-        prevCurrentTimeRef.current = effectiveCurrentTime
-        prevDurationRef.current = safeDuration
-        prevIsScrubbingRef.current = persistentProgressBar.isScrubbing
-        prevControlsVisibleRef.current = controlsVisible
-        prevProgressBarWidthRef.current = persistentProgressBarWidth
-        prevShouldRenderPersistentRef.current = shouldRenderPersistent
-        prevPointerEventsRef.current = persistentBarPointerEvents
-      }
-      /**
-       * Values unchanged - don't call setter.
-       *
-       * Parent (VideoAnalysisScreen) or store already has stable reference from previous call.
-       * Calling setter would create unnecessary re-render cycle even if we passed same object.
-       */
-
-      return () => {
-        /**
-         * Cleanup: notify parent/store that persistent progress bar should be removed.
-         *
-         * Called when component unmounts or when setter prop changes
-         * (e.g., parent re-renders with new callback reference).
-         */
-        setter(null)
-      }
+      combinedPersistentSetter({
+        currentTime: safeCurrentTime,
+        duration: safeDuration,
+        isScrubbing: persistentProgressBar.isScrubbing,
+        controlsVisible,
+        shouldRenderPersistent,
+        pointerEvents: persistentBarPointerEvents,
+        visibility: persistentVisibility,
+        animatedStyle: persistentVisibilityAnimatedStyle,
+        combinedGesture: persistentProgressBarCombinedGestureRef.current,
+        mainGesture: persistentProgressGestureRef.current,
+        onLayout: stableOnLayout,
+        onFallbackPress: stableOnFallbackPress,
+        progressShared: persistentProgressBar.progressShared,
+        progressBarWidthShared: persistentProgressBarWidthShared,
+      })
     }, [
-      /**
-       * Dependency array strategy:
-       *
-       * Only include PRIMITIVE dependencies - these are the actual values that determine
-       * whether props object should be recreated.
-       *
-       * Excluded from dependencies (accessed via refs or stable references):
-       * - persistentBarAnimatedStyle - changes frequently, accessed via persistentBarAnimatedStyleRef
-       * - persistentProgressBarCombinedGesture - changes frequently, accessed via ref
-       * - persistentProgressGesture - changes frequently, accessed via ref
-       * - currentInteractionType - changes frequently, accessed via currentInteractionTypeRef
-       * - stableOnLayout - stable callback reference
-       * - stableOnFallbackPress - stable callback reference
-       * - duration, onSeek, showControlsAndResetTimer - stable values
-       */
-      currentTime,
-      duration,
+      combinedPersistentSetter,
+      safeCurrentTime,
+      safeDuration,
       persistentProgressBar.isScrubbing,
       controlsVisible,
-      persistentProgressBarWidth,
       shouldRenderPersistent,
       persistentBarPointerEvents,
       persistentVisibility,
       persistentVisibilityAnimatedStyle,
-      persistentProgressStoreSetter,
-      onPersistentProgressBarPropsChange,
+      persistentProgressBar.progressShared,
+      persistentProgressBarWidthShared,
+      stableOnLayout,
+      stableOnFallbackPress,
+      persistentProgressBarCombinedGesture,
+      persistentProgressGesture,
     ])
+
+    useEffect(() => {
+      if (!combinedPersistentSetter) {
+        return
+      }
+
+      return () => {
+        combinedPersistentSetter(null)
+      }
+    }, [combinedPersistentSetter])
 
     return (
       <Pressable
@@ -898,6 +730,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                 controlsVisible={controlsVisible}
                 animatedStyle={normalVisibilityAnimatedStyle}
                 pointerEvents={normalBarPointerEvents}
+                progressShared={normalProgressBar.progressShared}
+                progressBarWidthShared={progressBarWidthShared}
                 combinedGesture={progressBarCombinedGesture}
                 mainGesture={mainProgressGesture}
                 onLayout={(event) => {
@@ -929,43 +763,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
             )}
           </YStack>
         </Animated.View>
-
-        {/* Persistent Progress Bar - Render inline if callback not provided (for testing) */}
-        {/* {!onPersistentProgressBarPropsChange && (
-            <ProgressBar
-              variant="persistent"
-              progress={persistentProgress}
-              isScrubbing={persistentProgressBar.isScrubbing}
-              controlsVisible={controlsVisible}
-              animatedStyle={persistentBarAnimatedStyle}
-              combinedGesture={persistentProgressBarCombinedGesture}
-              mainGesture={persistentProgressGesture}
-              animationName={getAnimationName(currentInteractionType)}
-              onLayout={(event) => {
-                const { width } = event.nativeEvent.layout
-                setPersistentProgressBarWidth(width)
-              }}
-              onFallbackPress={(locationX) => {
-                if (persistentProgressBarWidth > 0 && duration > 0) {
-                  const seekPercentage = Math.max(
-                    0,
-                    Math.min(100, (locationX / persistentProgressBarWidth) * 100)
-                  )
-                  const seekTime = (seekPercentage / 100) * duration
-                  log.debug('VideoControls', 'Persistent fallback press handler', {
-                    locationX,
-                    persistentProgressBarWidth,
-                    seekPercentage,
-                    seekTime,
-                    duration,
-                  })
-                  onSeek(seekTime)
-                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-                  // Fallback should only seek, not show controls (gesture handles that)
-                }
-              }}
-            />
-          )} */}
       </Pressable>
     )
   }
@@ -973,5 +770,5 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
 // Enable why-did-you-render tracking for performance debugging
 if (__DEV__) {
-  ;(VideoControls as any).whyDidYouRender = false
+  ;(VideoControls as any).whyDidYouRender = true
 }

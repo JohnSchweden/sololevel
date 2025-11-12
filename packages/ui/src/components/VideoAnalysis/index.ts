@@ -37,6 +37,27 @@ export type {
 
 export { FeedbackPanel } from './FeedbackPanel/FeedbackPanel'
 export type { FeedbackPanelProps, CommentItem } from './FeedbackPanel/FeedbackPanel'
+export { VideoAnalysisInsights } from './FeedbackPanel/VideoAnalysisInsights'
+export type {
+  VideoAnalysisInsightsProps,
+  VideoAnalysisInsightsOverview,
+  VideoAnalysisInsightsFocusArea,
+  VideoAnalysisInsightsHighlight,
+  VideoAnalysisInsightsAction,
+  VideoAnalysisInsightsAchievement,
+} from './FeedbackPanel/VideoAnalysisInsights'
+export { VideoAnalysisInsightsV2 } from './FeedbackPanel/VideoAnalysisInsightsV2'
+export type {
+  VideoAnalysisInsightsV2Props,
+  VideoAnalysisInsightsV2Overview,
+  VideoAnalysisInsightsV2Quote,
+  VideoAnalysisInsightsV2FocusArea,
+  VideoAnalysisInsightsV2SkillDimension,
+  VideoAnalysisInsightsV2Highlight,
+  VideoAnalysisInsightsV2Action,
+  VideoAnalysisInsightsV2Achievement,
+  VideoAnalysisInsightsV2Reel,
+} from './FeedbackPanel/VideoAnalysisInsightsV2'
 
 export { FeedbackStatusIndicator } from './FeedbackStatusIndicator/FeedbackStatusIndicator'
 export type { FeedbackStatusIndicatorProps } from './FeedbackStatusIndicator/FeedbackStatusIndicator'

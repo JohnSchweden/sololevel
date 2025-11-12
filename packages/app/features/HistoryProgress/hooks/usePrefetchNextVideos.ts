@@ -107,6 +107,7 @@ export function usePrefetchNextVideos(
 
   const getCached = useVideoHistoryStore((state) => state.getCached)
   const activeDownloadsRef = React.useRef<Set<number>>(new Set())
+  const abortControllersRef = React.useRef<Map<number, AbortController>>(new Map())
   const cancelledRef = React.useRef(false)
 
   /**
@@ -150,8 +151,12 @@ export function usePrefetchNextVideos(
    * Prefetch thumbnail for a video item
    */
   const prefetchThumbnail = React.useCallback(
-    async (item: VideoItem): Promise<boolean> => {
+    async (item: VideoItem, signal?: AbortSignal): Promise<boolean> => {
       if (Platform.OS === 'web') {
+        return false
+      }
+
+      if (signal?.aborted) {
         return false
       }
 
@@ -171,13 +176,23 @@ export function usePrefetchNextVideos(
       }
 
       try {
-        await persistThumbnailFile(item.videoId, item.thumbnailUri)
+        await persistThumbnailFile(item.videoId, item.thumbnailUri, { signal })
+        if (signal?.aborted) {
+          return false
+        }
         log.debug('usePrefetchNextVideos', 'Thumbnail prefetched', {
           analysisId: item.id,
           videoId: item.videoId,
         })
         return true
       } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          log.debug('usePrefetchNextVideos', 'Thumbnail prefetch aborted', {
+            analysisId: item.id,
+            videoId: item.videoId,
+          })
+          return false
+        }
         log.warn('usePrefetchNextVideos', 'Thumbnail prefetch failed', {
           analysisId: item.id,
           videoId: item.videoId,
@@ -193,8 +208,12 @@ export function usePrefetchNextVideos(
    * Prefetch video for a video item
    */
   const prefetchVideo = React.useCallback(
-    async (item: VideoItem): Promise<boolean> => {
+    async (item: VideoItem, signal?: AbortSignal): Promise<boolean> => {
       if (Platform.OS === 'web') {
+        return false
+      }
+
+      if (signal?.aborted) {
         return false
       }
 
@@ -222,6 +241,10 @@ export function usePrefetchNextVideos(
           localUriHint: cached.videoUri?.startsWith('file://') ? cached.videoUri : undefined,
         })
 
+        if (signal?.aborted) {
+          return false
+        }
+
         // If already a local file, skip download
         if (videoUri.startsWith('file://')) {
           return true
@@ -229,7 +252,10 @@ export function usePrefetchNextVideos(
 
         // If it's a signed URL (http/https), download it
         if (videoUri.startsWith('http')) {
-          await VideoStorageService.downloadVideo(videoUri, item.id)
+          await VideoStorageService.downloadVideo(videoUri, item.id, { signal })
+          if (signal?.aborted) {
+            return false
+          }
           log.debug('usePrefetchNextVideos', 'Video prefetched', {
             analysisId: item.id,
           })
@@ -238,6 +264,12 @@ export function usePrefetchNextVideos(
 
         return false
       } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          log.debug('usePrefetchNextVideos', 'Video prefetch aborted', {
+            analysisId: item.id,
+          })
+          return false
+        }
         log.warn('usePrefetchNextVideos', 'Video prefetch failed', {
           analysisId: item.id,
           error: error instanceof Error ? error.message : String(error),
@@ -257,39 +289,76 @@ export function usePrefetchNextVideos(
         return
       }
 
+      const controller = new AbortController()
+      abortControllersRef.current.set(item.id, controller)
+      let videoPrefetchPromise: Promise<boolean> | null = null
+
       // Mark as prefetching (update ref only, no parent re-render)
       stateRef.current = {
         ...stateRef.current,
-        prefetching: [...stateRef.current.prefetching, item.id],
+        prefetching: stateRef.current.prefetching.includes(item.id)
+          ? stateRef.current.prefetching
+          : [...stateRef.current.prefetching, item.id],
       }
 
       try {
         // Prefetch thumbnail first (priority 1)
-        await prefetchThumbnail(item)
+        await prefetchThumbnail(item, controller.signal)
+
+        if (controller.signal.aborted || cancelledRef.current) {
+          return
+        }
 
         // Prefetch video in background (priority 2)
         // Don't await - let it run in background
-        void prefetchVideo(item).catch((error) => {
-          log.warn('usePrefetchNextVideos', 'Background video prefetch failed', {
-            analysisId: item.id,
-            error: error instanceof Error ? error.message : String(error),
+        videoPrefetchPromise = prefetchVideo(item, controller.signal)
+        void videoPrefetchPromise
+          .catch((error) => {
+            if (controller.signal.aborted || cancelledRef.current) {
+              return
+            }
+            log.warn('usePrefetchNextVideos', 'Background video prefetch failed', {
+              analysisId: item.id,
+              error: error instanceof Error ? error.message : String(error),
+            })
           })
-        })
+          .finally(() => {
+            const trackedController = abortControllersRef.current.get(item.id)
+            if (trackedController === controller) {
+              abortControllersRef.current.delete(item.id)
+            }
+          })
 
         // Mark as prefetched (update ref only, no parent re-render)
         stateRef.current = {
           ...stateRef.current,
           prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
-          prefetched: [...stateRef.current.prefetched, item.id],
+          prefetched: stateRef.current.prefetched.includes(item.id)
+            ? stateRef.current.prefetched
+            : [...stateRef.current.prefetched, item.id],
+          failed: stateRef.current.failed.filter((id) => id !== item.id),
         }
       } catch (error) {
+        if (controller.signal.aborted || cancelledRef.current) {
+          stateRef.current = {
+            ...stateRef.current,
+            prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
+            failed: stateRef.current.failed.filter((id) => id !== item.id),
+          }
+          return
+        }
         // Mark as failed (update ref only, no parent re-render)
         stateRef.current = {
           ...stateRef.current,
           prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
-          failed: [...stateRef.current.failed, item.id],
+          failed: stateRef.current.failed.includes(item.id)
+            ? stateRef.current.failed
+            : [...stateRef.current.failed, item.id],
         }
       } finally {
+        if (!videoPrefetchPromise) {
+          abortControllersRef.current.delete(item.id)
+        }
         activeDownloadsRef.current.delete(item.id)
       }
     },
@@ -368,9 +437,14 @@ export function usePrefetchNextVideos(
         )
         if (alreadyPrefetched.length < newlyPrefetched.length) {
           // Only update if there are new items to add
+          const deduped = [
+            ...stateRef.current.prefetched,
+            ...newlyPrefetched.filter((id) => !stateRef.current.prefetched.includes(id)),
+          ]
           stateRef.current = {
             ...stateRef.current,
-            prefetched: [...stateRef.current.prefetched, ...newlyPrefetched],
+            prefetched: deduped,
+            failed: stateRef.current.failed.filter((id) => !newlyPrefetched.includes(id)),
           }
         }
       }
@@ -467,6 +541,8 @@ export function usePrefetchNextVideos(
 
     return () => {
       cancelledRef.current = true
+      abortControllersRef.current.forEach((controller) => controller.abort())
+      abortControllersRef.current.clear()
       activeDownloadsRef.current.clear()
     }
   }, [allItems, visibleItems, finalConfig.enabled, finalConfig.lookAhead, processPrefetchQueue])

@@ -1,7 +1,7 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { useVideoPlayerStore } from '../stores'
+import { usePersistentProgressStore, useVideoPlayerStore } from '../stores'
 import type {
   UseVideoPlayerOptions,
   UseVideoPlayerReturn,
@@ -55,11 +55,20 @@ import type {
  * - **DO NOT pass raw prop**: Passing un-normalized `initialStatus` breaks auto-play in history mode
  * - **Values `'playing'`/`'paused'`** supported but only for direct testing; screen uses normalized form
  *
+ * ## UI-thread progress synchronization
+ *
+ * When a `progressShared` Reanimated shared value is supplied (see {@link UseVideoPlayerOptions.progressShared}),
+ * the hook writes playback progress directly to that shared value on every tick. UI surfaces that read the shared
+ * value via Reanimated worklets (e.g., persistent progress bar) stay in perfect lockstep with the video without waiting
+ * for React commits. Consumers who do not care about UI-thread animation can omit the option and rely on store state.
+ *
  * @param options - Previous hook inputs merged into a single configuration object.
  * @param options.initialStatus - Normalized analysis state. Pass normalized readiness ('processing'→'ready' or 'ready' on start).
  * @param options.isProcessing - Whether analysis is in-flight (for transition detection).
  * @param options.audioIsPlaying - Whether feedback audio active (for video gating).
  * @param options.autoHideDurationMs - Controls auto-hide timeout (ms).
+ * @param options.progressShared - Optional Reanimated shared value (0-100). When provided the hook writes playback progress
+ * directly to the shared value so UI-thread animations can consume it without React involvement.
  * @returns All playback/control/sync fields plus the imperative ref used by `VideoPlayer`.
  */
 export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPlayerReturn {
@@ -68,6 +77,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     isProcessing = false,
     audioIsPlaying = false,
     autoHideDurationMs = 3000,
+    progressShared,
   } = options
 
   /**
@@ -84,6 +94,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   const setPendingSeek = useVideoPlayerStore((state) => state.setPendingSeek)
   const setVideoEnded = useVideoPlayerStore((state) => state.setVideoEnded)
   const setManualControlsVisible = useVideoPlayerStore((state) => state.setManualControlsVisible)
+  const setStoreControlsVisible = useVideoPlayerStore((state) => state.setControlsVisible)
 
   /**
    * Playback core (legacy `useVideoPlayback`)
@@ -114,6 +125,25 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   const progressBeforeSeekRef = useRef<number | null>(null)
   const videoEndedRef = useRef(false)
   const seekToEndRef = useRef(false)
+
+  const updateProgressShared = useCallback(
+    (time: number, durationOverride?: number) => {
+      if (!progressShared) {
+        return
+      }
+
+      const rawDuration =
+        typeof durationOverride === 'number' && Number.isFinite(durationOverride)
+          ? durationOverride
+          : durationRef.current
+      const clampedDuration = rawDuration > 0 ? rawDuration : 0
+      const percent =
+        clampedDuration > 0 ? Math.max(0, Math.min(100, (time / clampedDuration) * 100)) : 0
+
+      progressShared.value = percent
+    },
+    [progressShared]
+  )
 
   /**
    * Controls visibility (legacy `useVideoControls`)
@@ -197,9 +227,15 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   useEffect(() => {
     if (forcedVisible) {
       clearHideTimeout()
-      setManualControlsVisible(false)
+      setManualControlsVisible(true) // Force controls visible when video ends or processing
     }
   }, [forcedVisible, clearHideTimeout, setManualControlsVisible])
+
+  // Update computed controlsVisible whenever forced or manual visibility changes
+  useEffect(() => {
+    const computedVisible = forcedVisible || Boolean(storeManualVisible)
+    setStoreControlsVisible(computedVisible)
+  }, [forcedVisible, storeManualVisible, setStoreControlsVisible])
 
   useEffect(() => {
     if (storeManualVisible && isPlaying && !forcedVisibleRef.current) {
@@ -223,8 +259,10 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       log.debug('useVideoPlayer.syncDisplayTime', 'Updating store with precise time', { newTime })
       // Always update store with precise time for smooth progress
       setDisplayTime(newTime)
+      updateProgressShared(newTime)
+      usePersistentProgressStore.getState().updateTime(newTime, durationRef.current)
     },
-    [setDisplayTime]
+    [setDisplayTime, updateProgressShared]
   )
 
   /**
@@ -252,9 +290,10 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   }, [syncDisplayTime, clearHideTimeout, setIsPlaying, setVideoEnded])
 
   const replay = useCallback(() => {
-    progressBeforeSeekRef.current = lastReportedProgressRef.current
-    lastSeekTargetRef.current = 0
-    seekCompleteTimeRef.current = Date.now()
+    // Clear all seek tracking to allow fresh progress events
+    progressBeforeSeekRef.current = null
+    lastSeekTargetRef.current = null
+    seekCompleteTimeRef.current = 0
 
     syncDisplayTime(0)
     setPendingSeek(0)
@@ -294,11 +333,13 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       }
 
       setDuration(loadedDuration)
+      updateProgressShared(0, loadedDuration)
+      usePersistentProgressStore.getState().updateTime(0, loadedDuration)
       setVideoEnded(false)
       videoEndedRef.current = false
       seekToEndRef.current = false
     },
-    [setDuration, setVideoEnded]
+    [setDuration, setVideoEnded, updateProgressShared]
   )
 
   useEffect(() => {
@@ -450,13 +491,22 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   const reset = useCallback(() => {
     log.info('useVideoPlayer', 'Resetting playback state')
     syncDisplayTime(0)
+    updateProgressShared(0)
+    usePersistentProgressStore.getState().updateTime(0, durationRef.current)
     setIsPlaying(false)
     setDuration(0)
     setPendingSeek(null)
     setVideoEnded(false)
     videoEndedRef.current = false
     seekToEndRef.current = false
-  }, [setDuration, setIsPlaying, setPendingSeek, setVideoEnded, syncDisplayTime])
+  }, [
+    setDuration,
+    setIsPlaying,
+    setPendingSeek,
+    setVideoEnded,
+    syncDisplayTime,
+    updateProgressShared,
+  ])
 
   useEffect(() => {
     const wasProcessing = prevProcessingRef.current

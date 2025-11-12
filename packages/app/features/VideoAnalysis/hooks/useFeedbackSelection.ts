@@ -9,6 +9,30 @@ import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
 import type { VideoPlaybackState } from './useVideoPlayer.types'
 
+const deferNonCriticalWork = (callback: () => void) => {
+  const raf =
+    typeof globalThis !== 'undefined' ? (globalThis as any).requestAnimationFrame : undefined
+  const timeout = typeof globalThis !== 'undefined' ? globalThis.setTimeout : undefined
+
+  if (typeof raf === 'function') {
+    raf(() => {
+      if (typeof timeout === 'function') {
+        timeout(callback, 0)
+      } else {
+        callback()
+      }
+    })
+    return
+  }
+
+  if (typeof timeout === 'function') {
+    timeout(callback, 0)
+    return
+  }
+
+  callback()
+}
+
 export interface FeedbackSelectionState {
   selectedFeedbackId: string | null
   isCoachSpeaking: boolean
@@ -129,7 +153,7 @@ export function useFeedbackSelection(
 
   const clearHighlight = useCallback(
     (options?: { matchId?: string; sources?: Array<'user' | 'auto'>; reason?: string }) => {
-      const { matchId, sources } = options ?? {}
+      const { matchId, sources, reason } = options ?? {}
       const store = useFeedbackCoordinatorStore.getState()
       const currentHighlightId = store.highlightedFeedbackId
       const currentHighlightSource = store.highlightSource
@@ -147,6 +171,26 @@ export function useFeedbackSelection(
       }
 
       clearHighlightTimer()
+
+      // CRITICAL: Stop audio and clear activeAudio when highlight is cleared
+      // This prevents stale audio from playing when user presses play without selecting feedback
+      const audioStore = useFeedbackAudioStore.getState()
+      const activeAudioMatchesHighlight = audioStore.activeAudio?.id === currentHighlightId
+
+      if (activeAudioMatchesHighlight) {
+        log.debug(
+          'useFeedbackSelection.clearHighlight',
+          '🛑 Stopping audio for cleared highlight',
+          {
+            highlightedFeedbackId: currentHighlightId,
+            activeAudioId: audioStore.activeAudio?.id ?? null,
+            reason,
+          }
+        )
+        audioStore.setIsPlaying(false)
+        audioStore.setActiveAudio(null)
+      }
+
       store.batchUpdate({
         highlightedFeedbackId: null,
         highlightSource: null,
@@ -206,46 +250,74 @@ export function useFeedbackSelection(
         ...(shouldActivateCoachSpeaking ? { isCoachSpeaking: true } : {}),
       })
 
-      const urlsMap = useFeedbackAudioStore.getState().audioUrls
-      if (playAudio && urlsMap[item.id]) {
+      deferNonCriticalWork(() => {
+        const storeSnapshot = useFeedbackCoordinatorStore.getState()
+        const highlightStillMatches =
+          storeSnapshot.highlightedFeedbackId === item.id &&
+          storeSnapshot.highlightSource === source
+
+        if (!highlightStillMatches) {
+          log.debug(
+            'useFeedbackSelection.applyHighlight',
+            '⏭️ Skipping deferred audio start - highlight changed before playback',
+            {
+              feedbackId: item.id,
+              expectedHighlightId: item.id,
+              actualHighlightId: storeSnapshot.highlightedFeedbackId,
+              expectedSource: source,
+              actualSource: storeSnapshot.highlightSource,
+              playAudioRequested: playAudio,
+            }
+          )
+          return
+        }
+
         const audioStore = useFeedbackAudioStore.getState()
-        const audioUrl = urlsMap[item.id]
-        const activeAudio = audioStore.activeAudio
-        const urlToUse = activeAudio?.id === item.id ? `${audioUrl}#replay=${Date.now()}` : audioUrl
+        const urlsMap = audioStore.audioUrls
 
-        log.debug('useFeedbackSelection.applyHighlight', '🎵 Playing audio for feedback', {
-          feedbackId: item.id,
-          hasAudioUrl: !!audioUrl,
-          currentActiveAudioId: activeAudio?.id ?? null,
-          willSetActiveAudio: true,
-          willSetIsPlaying: true,
-        })
+        if (playAudio && urlsMap[item.id]) {
+          const audioUrl = urlsMap[item.id]
+          const activeAudio = audioStore.activeAudio
+          const urlToUse =
+            activeAudio?.id === item.id ? `${audioUrl}#replay=${Date.now()}` : audioUrl
 
-        audioStore.setActiveAudio({ id: item.id, url: urlToUse })
-        audioStore.setIsPlaying(true)
-      } else {
-        log.debug('useFeedbackSelection.applyHighlight', '⏸️ Audio NOT playing', {
-          feedbackId: item.id,
-          playAudio,
-          hasUrlsMap: !!urlsMap[item.id],
-          reason: !playAudio ? 'playAudio=false' : 'no URL in map',
-        })
-      }
+          log.debug(
+            'useFeedbackSelection.applyHighlight',
+            '🎵 Playing audio for feedback (deferred)',
+            {
+              feedbackId: item.id,
+              hasAudioUrl: !!audioUrl,
+              currentActiveAudioId: activeAudio?.id ?? null,
+              willSetActiveAudio: true,
+              willSetIsPlaying: true,
+            }
+          )
 
-      // Only trigger coach speaking when audio is actually playing
-      if (playAudio) {
-        triggerCoachSpeaking(undefined, { activate: !shouldActivateCoachSpeaking })
-      }
-
-      if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
-        highlightTimerRef.current = setTimeout(() => {
-          clearHighlight({
-            matchId: item.id,
-            sources: ['auto'],
-            reason: 'auto-duration-elapsed',
+          audioStore.setActiveAudio({ id: item.id, url: urlToUse })
+          audioStore.setIsPlaying(true)
+        } else {
+          log.debug('useFeedbackSelection.applyHighlight', '⏸️ Audio NOT playing (deferred)', {
+            feedbackId: item.id,
+            playAudio,
+            hasUrlsMap: urlsMap ? !!urlsMap[item.id] : false,
+            reason: !playAudio ? 'playAudio=false' : 'no URL in map',
           })
-        }, autoDurationMs)
-      }
+        }
+
+        if (playAudio) {
+          triggerCoachSpeaking(undefined, { activate: !shouldActivateCoachSpeaking })
+        }
+
+        if (source === 'auto' && autoDurationMs && autoDurationMs > 0) {
+          highlightTimerRef.current = setTimeout(() => {
+            clearHighlight({
+              matchId: item.id,
+              sources: ['auto'],
+              reason: 'auto-duration-elapsed',
+            })
+          }, autoDurationMs)
+        }
+      })
     },
     [clearHighlight, clearHighlightTimer, triggerCoachSpeaking]
   )

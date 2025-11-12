@@ -1,12 +1,31 @@
 import { VideoAnalysisScreen } from '@my/app/features/VideoAnalysis/VideoAnalysisScreen'
-import { useVideoPlayerStore } from '@my/app/features/VideoAnalysis/stores'
+import {
+  usePersistentProgressStore,
+  useVideoPlayerStore,
+} from '@my/app/features/VideoAnalysis/stores'
 import { useAnalysisJobStatus } from '@my/app/features/VideoAnalysis/stores/analysisStatus'
+import { useFeedbackAudioStore } from '@my/app/features/VideoAnalysis/stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from '@my/app/features/VideoAnalysis/stores/feedbackCoordinatorStore'
 import { log } from '@my/logging'
 //import { useHeaderHeight } from '@react-navigation/elements'
+import { useFocusEffect } from '@react-navigation/native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
+
+const resetPlaybackStores = ({
+  reason,
+  analysisJobId,
+}: {
+  reason: string
+  analysisJobId?: string
+}) => {
+  log.debug('VideoAnalysisRoute', '🧹 Resetting playback stores', { reason, analysisJobId })
+  useFeedbackCoordinatorStore.getState().reset()
+  useVideoPlayerStore.getState().reset()
+  useFeedbackAudioStore.getState().reset()
+  usePersistentProgressStore.getState().reset()
+}
 
 /**
  * Video Analysis Route (Native)
@@ -45,17 +64,32 @@ export default function VideoAnalysis() {
 
   // Reset feedback coordinator store synchronously if we haven't for this analysis
   if (lastResetAnalysisIdRef.current !== analysisJobId) {
-    log.debug('VideoAnalysis', '🔄 Resetting feedback coordinator store for new video analysis', {
+    log.debug('VideoAnalysis', '🔄 Initialising playback stores for new video analysis', {
       analysisJobId,
       lastReset: lastResetAnalysisIdRef.current,
     })
-    useFeedbackCoordinatorStore.getState().reset()
-    useVideoPlayerStore.getState().reset()
+    resetPlaybackStores({ reason: 'analysis-change', analysisJobId })
     lastResetAnalysisIdRef.current = analysisJobId
   }
   const pendingOptionsRef = useRef<any>(null)
   const pendingOptionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   //const headerHeight = useHeaderHeight()
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        resetPlaybackStores({ reason: 'focus-cleanup', analysisJobId })
+      }
+    }, [analysisJobId])
+  )
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      resetPlaybackStores({ reason: 'before-remove', analysisJobId })
+    })
+
+    return unsubscribe
+  }, [analysisJobId, navigation])
 
   const handleBack = useCallback(() => {
     if (analysisJobId) {

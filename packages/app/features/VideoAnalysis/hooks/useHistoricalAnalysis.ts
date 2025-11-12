@@ -25,11 +25,31 @@ interface SignedUrlCacheEntry {
 }
 
 const signedUrlCache = new Map<string, SignedUrlCacheEntry>()
+const MAX_SIGNED_URL_CACHE_ENTRIES = 64
+
+function pruneSignedUrlCache(): void {
+  const now = Date.now()
+
+  signedUrlCache.forEach((entry, storagePath) => {
+    if (now >= entry.expiresAt) {
+      signedUrlCache.delete(storagePath)
+    }
+  })
+
+  if (signedUrlCache.size > MAX_SIGNED_URL_CACHE_ENTRIES) {
+    const overflow = signedUrlCache.size - MAX_SIGNED_URL_CACHE_ENTRIES
+    Array.from(signedUrlCache.keys())
+      .slice(0, overflow)
+      .forEach((key) => signedUrlCache.delete(key))
+  }
+}
 
 /**
  * Get cached signed URL if still valid, otherwise return null
  */
 function getCachedSignedUrl(storagePath: string): string | null {
+  pruneSignedUrlCache()
+
   const cached = signedUrlCache.get(storagePath)
   if (!cached) {
     return null
@@ -51,6 +71,7 @@ function getCachedSignedUrl(storagePath: string): string | null {
 function cacheSignedUrl(storagePath: string, signedUrl: string, ttlSeconds: number): void {
   const expiresAt = Date.now() + (ttlSeconds - 60) * 1000 // Expire 60s before actual TTL
   signedUrlCache.set(storagePath, { signedUrl, expiresAt })
+  pruneSignedUrlCache()
 }
 
 async function tryResolveLocalUri(

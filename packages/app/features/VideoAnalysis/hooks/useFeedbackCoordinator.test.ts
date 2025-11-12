@@ -498,13 +498,14 @@ describe('useFeedbackCoordinator', () => {
       onPlayAfterUpdate()
     })
 
-    // Verify second call (from onPlay) - should have playAudio: true
+    // Verify second call (from onPlay) - should have playAudio: true, seek: false (already at position)
     expect(selectFeedback).toHaveBeenCalledTimes(2)
     expect(selectFeedback).toHaveBeenNthCalledWith(2, deps.feedbackItems[0], {
-      seek: true,
+      seek: false,
       playAudio: true,
     })
-    expect(deps.videoPlayback.play).toHaveBeenCalled()
+    // Note: Video no longer resumes immediately - it waits for audio to end naturally
+    // Video will resume via handleAudioNaturalEnd when audio completes
   })
 
   it('clears highlight when panel collapses', () => {
@@ -889,6 +890,8 @@ describe('useFeedbackCoordinator', () => {
     audioStore.setActiveAudio = clearActiveAudio
     audioStore.isPlaying = true
     audioStore.activeAudio = { id: 'feedback-1', url: 'mock-url' }
+    // Set up audioUrls so hasAudioForFeedback returns true
+    audioStore.audioUrls = { 'feedback-1': 'mock-url' }
 
     mockUseFeedbackCoordinatorStore.getState().setBubbleState({
       currentBubbleIndex: 0,
@@ -896,15 +899,57 @@ describe('useFeedbackCoordinator', () => {
     })
 
     const feedbackItem = deps.feedbackItems[0]
-    capturedOptions.onBubbleTimerElapsed?.({
+    const elapsedResult = capturedOptions.onBubbleTimerElapsed?.({
       index: 0,
       item: feedbackItem,
       displayDurationMs: 3200,
       reason: 'playback-start',
     })
 
+    expect(elapsedResult).toBe(true)
     expect(setIsPlaying).not.toHaveBeenCalled()
     expect(clearActiveAudio).not.toHaveBeenCalled()
+  })
+
+  it('allows bubble controller to hide when timer elapses without active audio', () => {
+    const deps = createDependencies({
+      audioController: { isPlaying: false },
+    })
+
+    let capturedOptions: any
+
+    mockUseBubbleController.mockImplementation((_, __, ___, ____, _____, options) => {
+      capturedOptions = options
+      return {
+        currentBubbleIndex: 0,
+        bubbleVisible: true,
+        checkAndShowBubbleAtTime: jest.fn().mockReturnValue(null),
+        findTriggerCandidate: jest.fn(() => null),
+        showBubble: jest.fn(),
+        hideBubble: jest.fn(),
+      }
+    })
+
+    renderHook(() =>
+      useFeedbackCoordinator({
+        feedbackItems: deps.feedbackItems,
+        audioController: deps.audioController,
+        videoPlayback: deps.videoPlayback,
+      })
+    )
+
+    const audioStore = mockUseFeedbackAudioStore.getState()
+    audioStore.isPlaying = false
+    audioStore.activeAudio = null
+
+    const result = capturedOptions.onBubbleTimerElapsed?.({
+      index: 0,
+      item: deps.feedbackItems[0],
+      displayDurationMs: 2000,
+      reason: 'initial',
+    })
+
+    expect(result).toBe(false)
   })
 
   /**

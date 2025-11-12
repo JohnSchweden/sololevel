@@ -6,8 +6,8 @@ import {
   type CameraPreviewRef,
   IdleControls,
   NavigationDialog,
-  PoseDetectionToggleCompact,
-  PoseOverlay,
+  // PoseDetectionToggleCompact,
+  // PoseOverlay,
   RecordingControls,
 } from '@ui/components/CameraRecording'
 
@@ -17,18 +17,18 @@ import { log } from '@my/logging'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { Dimensions } from 'react-native'
+// import { Dimensions } from 'react-native'
 import { Button, YStack } from 'tamagui'
-import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
+// import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
 import { useKeepAwake } from './hooks/useKeepAwake'
-import { useMVPPoseDetection } from './hooks/useMVPPoseDetection.minimal'
-log.debug('CameraRecordingScreen', '🔍 Importing useMVPPoseDetection', {
-  type: typeof useMVPPoseDetection,
-})
+// import { useMVPPoseDetection } from './hooks/useMVPPoseDetection.minimal'
+// log.debug('CameraRecordingScreen', '🔍 Importing useMVPPoseDetection', {
+//   type: typeof useMVPPoseDetection,
+// })
 
-import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
+// import { useMVPPoseToggle } from './hooks/useMVPPoseToggle'
 import { useTabPersistence } from './hooks/useTabPersistence'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
@@ -57,12 +57,12 @@ export function CameraRecordingScreen({
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
-  // Get screen dimensions for pose overlay
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
+  // Get screen dimensions for pose overlay (disabled while pose detection is off)
+  // const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
 
-  // MVP Pose Detection Integration - Test fixed hook
-  const { currentPose, isDetecting, startDetection, stopDetection } = useMVPPoseDetection()
-  const { isEnabled: poseEnabled, togglePoseDetection } = useMVPPoseToggle()
+  // MVP Pose Detection Integration - Disabled for P1 rollout
+  // const { currentPose, isDetecting, startDetection, stopDetection } = useMVPPoseDetection()
+  // const { isEnabled: poseEnabled, togglePoseDetection } = useMVPPoseToggle()
 
   // Central permission handling
   const { permission, requestPermissionWithRationale } = useCameraPermissions({
@@ -83,32 +83,32 @@ export function CameraRecordingScreen({
     }
   }, [permission?.granted, requestPermissionWithRationale, isRequestingPermission])
 
-  // MVP Pose Detection Lifecycle Management
-  useEffect(() => {
-    if (poseEnabled && permission?.granted && !isDetecting) {
-      startDetection().catch(() => {
-        // Handle pose detection start error silently for MVP
-      })
-    } else if (!poseEnabled && isDetecting) {
-      stopDetection()
-    }
-  }, [poseEnabled, permission?.granted, isDetecting, startDetection, stopDetection])
+  // MVP Pose Detection Lifecycle Management - Disabled for P1 rollout
+  // useEffect(() => {
+  //   if (poseEnabled && permission?.granted && !isDetecting) {
+  //     startDetection().catch(() => {
+  //       // Handle pose detection start error silently for MVP
+  //     })
+  //   } else if (!poseEnabled && isDetecting) {
+  //     stopDetection()
+  //   }
+  // }, [poseEnabled, permission?.granted, isDetecting, startDetection, stopDetection])
 
-  // Debug: Log pose detection state changes for integration testing
-  useEffect(() => {
-    const debugInfo = {
-      poseEnabled,
-      isDetecting,
-      hasPose: !!currentPose,
-      permissionGranted: permission?.granted,
-      currentPoseData: currentPose ? 'Present' : 'None',
-    }
-    // Reduced logging - only log state changes, not every frame
-    if (__DEV__ && Math.random() < 0.01) {
-      // Only log 1% of the time
-      log.debug('CameraRecordingScreen', '🎯 MVP Pose Detection State', debugInfo)
-    }
-  }, [poseEnabled, isDetecting, currentPose, permission?.granted])
+  // Debug: Log pose detection state changes for integration testing - Disabled for P1 rollout
+  // useEffect(() => {
+  //   const debugInfo = {
+  //     poseEnabled,
+  //     isDetecting,
+  //     hasPose: !!currentPose,
+  //     permissionGranted: permission?.granted,
+  //     currentPoseData: currentPose ? 'Present' : 'None',
+  //   }
+  //   // Reduced logging - only log state changes, not every frame
+  //   if (__DEV__ && Math.random() < 0.01) {
+  //     // Only log 1% of the time
+  //     log.debug('CameraRecordingScreen', '🎯 MVP Pose Detection State', debugInfo)
+  //   }
+  // }, [poseEnabled, isDetecting, currentPose, permission?.granted])
 
   // Get active tab from tabs layout persistence
   const { activeTab } = useTabPersistence()
@@ -281,8 +281,8 @@ export function CameraRecordingScreen({
             backgroundOpacity={1}
           />
 
-          {/* MVP Pose Detection Overlay */}
-          {poseEnabled && currentPose && (
+          {/* MVP Pose Detection Overlay - Disabled for P1 */}
+          {/* {poseEnabled && currentPose && (
             <PoseOverlay
               pose={currentPose}
               width={screenWidth}
@@ -294,17 +294,17 @@ export function CameraRecordingScreen({
                 zIndex: 5, // Above camera but below controls
               }}
             />
-          )}
+          )} */}
 
-          {/* MVP Debug Overlay - Development Only */}
-          <MVPPoseDebugOverlay
+          {/* MVP Debug Overlay - Disabled for P1 */}
+          {/* <MVPPoseDebugOverlay
             pose={currentPose}
             isDetecting={isDetecting}
             isEnabled={poseEnabled}
-          />
+          /> */}
 
-          {/* MVP Pose Detection Toggle - Below Debug Overlay */}
-          <YStack
+          {/* MVP Pose Detection Toggle - Disabled for P1 */}
+          {/* <YStack
             position="absolute"
             top={250}
             right={20}
@@ -322,7 +322,7 @@ export function CameraRecordingScreen({
               }}
               testID="camera-pose-toggle"
             />
-          </YStack>
+          </YStack> */}
         </CameraPreviewArea>
 
         {/* Camera Controls */}

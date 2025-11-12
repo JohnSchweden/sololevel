@@ -16,6 +16,12 @@ export class VideoStorageService {
   // Track in-flight downloads by analysisId for deduplication
   private static inFlightDownloads = new Map<number, Promise<string>>()
 
+  private static createAbortError(): Error {
+    return typeof DOMException !== 'undefined'
+      ? new DOMException('Aborted', 'AbortError')
+      : Object.assign(new Error('Aborted'), { name: 'AbortError' as const })
+  }
+
   /**
    * Initialize storage directories
    */
@@ -344,8 +350,19 @@ export class VideoStorageService {
    * @param analysisId - Analysis ID for filename generation
    * @returns Local file URI of downloaded video
    */
-  static async downloadVideo(signedUrl: string, analysisId: number): Promise<string> {
+  static async downloadVideo(
+    signedUrl: string,
+    analysisId: number,
+    options?: {
+      signal?: AbortSignal
+    }
+  ): Promise<string> {
     const persistentPath = `${VideoStorageService.VIDEOS_DIR}analysis_${analysisId}.mp4`
+    const signal = options?.signal
+
+    if (signal?.aborted) {
+      throw VideoStorageService.createAbortError()
+    }
 
     // 1. Check if download already in progress (deduplication)
     const existingDownload = VideoStorageService.inFlightDownloads.get(analysisId)
@@ -397,7 +414,48 @@ export class VideoStorageService {
         })
 
         // Download from signed URL to persistent path
-        await FileSystem.downloadAsync(signedUrl, persistentPath)
+        const downloadResumable = FileSystem.createDownloadResumable(signedUrl, persistentPath)
+
+        const abortHandler = async () => {
+          try {
+            await downloadResumable.pauseAsync()
+          } catch (error) {
+            log.debug('VideoStorageService', 'Failed to pause video download on abort', {
+              analysisId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          } finally {
+            await FileSystem.deleteAsync(persistentPath, { idempotent: true }).catch(
+              (deleteError) => {
+                log.debug('VideoStorageService', 'Failed to delete aborted video download', {
+                  analysisId,
+                  error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+                })
+              }
+            )
+          }
+        }
+
+        if (signal) {
+          signal.addEventListener('abort', abortHandler, { once: true })
+        }
+
+        try {
+          await downloadResumable.downloadAsync()
+        } catch (error) {
+          if (signal?.aborted) {
+            throw VideoStorageService.createAbortError()
+          }
+          throw error
+        } finally {
+          if (signal) {
+            signal.removeEventListener('abort', abortHandler)
+          }
+        }
+
+        if (signal?.aborted) {
+          throw VideoStorageService.createAbortError()
+        }
 
         // Validate downloaded file exists and has content
         const fileInfo = await FileSystem.getInfoAsync(persistentPath)
@@ -412,6 +470,18 @@ export class VideoStorageService {
           })
         }
 
+        if (signal?.aborted) {
+          await FileSystem.deleteAsync(persistentPath, { idempotent: true }).catch(
+            (deleteError) => {
+              log.debug('VideoStorageService', 'Failed to delete aborted video after download', {
+                analysisId,
+                error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+              })
+            }
+          )
+          throw VideoStorageService.createAbortError()
+        }
+
         log.info('VideoStorageService', 'Video downloaded successfully', {
           analysisId,
           persistentPath,
@@ -420,6 +490,9 @@ export class VideoStorageService {
 
         return persistentPath
       } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          throw VideoStorageService.createAbortError()
+        }
         log.error('VideoStorageService', 'Failed to download video', {
           signedUrl,
           analysisId,

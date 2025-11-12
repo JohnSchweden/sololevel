@@ -149,6 +149,8 @@ describe('FeedbackPanel', () => {
 
     // ✅ ASSERT: Component renders successfully with insights content
     expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('insights-content')).toBeInTheDocument()
+    expect(screen.getByTestId('insights-v2-overview-card')).toBeInTheDocument()
   })
 
   it('renders comments placeholder when active', () => {
@@ -326,7 +328,7 @@ describe('FeedbackPanel', () => {
 
         // Should show insights content
         expect(screen.queryByLabelText('00:01, Great posture!, feedback item')).toBeFalsy()
-        expect(screen.getByLabelText('Insights Coming Soon')).toBeTruthy()
+        expect(screen.getByTestId('insights-content')).toBeTruthy()
       })
     })
 

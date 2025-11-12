@@ -59,6 +59,7 @@ jest.mock('expo-file-system', () => ({
   copyAsync: jest.fn(),
   readDirectoryAsync: jest.fn(),
   deleteAsync: jest.fn(),
+  createDownloadResumable: jest.fn(),
 }))
 
 // Mock expo-blur for GlassBackground/GlassButton
@@ -100,6 +101,7 @@ jest.mock('expo-file-system', () => ({
   writeAsStringAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
   downloadAsync: jest.fn(),
+  createDownloadResumable: jest.fn(),
 }))
 
 // Mock expo-crypto for all tests

@@ -10,6 +10,7 @@ import Animated, {
   useAnimatedStyle,
   Easing,
   useDerivedValue,
+  useSharedValue,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 import { useAudioController } from '../hooks/useAudioController'
@@ -157,6 +158,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   // persistentProgressStoreSetter, - REMOVED: Subscribed directly from store
   onAudioNaturalEnd = () => {},
 }: VideoPlayerSectionProps) {
+  const playbackProgressShared = useSharedValue(0)
+
   const audioIsPlaying = useFeedbackAudioStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.isPlaying : false
   )
@@ -167,6 +170,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     initialStatus,
     isProcessing,
     audioIsPlaying,
+    progressShared: playbackProgressShared,
   })
 
   // Separate ref for native VideoPlayer component (has seekDirect method)
@@ -178,14 +182,20 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
    * Coordinator reads this function imperatively (no subscription, no re-render)
    */
   const [fastSeek, setFastSeek] = useState<((time: number) => void) | null>(null)
+  const handleSeekCompleteRef = useRef<(time?: number) => void>(() => {})
 
   useEffect(() => {
     const seekImmediateFn = (time: number) => {
       // First sync store so pendingSeek/videoEnded update before native completion fires
       onSeek(time)
 
+      log.debug('VideoPlayerSection.seekImmediate', 'Invoked fast seek', {
+        seekTime: time,
+      })
+
       // PERFORMANCE FIX: Call native video player's seekDirect immediately
       // Bypasses React render cycle for <16ms latency
+      // Note: seekDirect internally calls onSeekComplete, which triggers handleSeekComplete via VideoPlayer props
       nativeVideoPlayerRef.current?.seekDirect(time)
     }
 
@@ -265,7 +275,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   // PERFORMANCE FIX: Direct subscription to persistent progress setter
   // Eliminates VideoAnalysisScreen re-renders when progress state changes
   const persistentProgressStoreSetter = usePersistentProgressStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.setProps : undefined
+    process.env.NODE_ENV !== 'test' ? state.setStaticProps : undefined
   )
 
   // playbackIsPlaying removed - using videoPlayer.isPlaying from hook
@@ -363,6 +373,18 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     // If pendingSeek prop changes to a new value, reset our internal tracking
     // This handles cases like replay where we need to clear old seek state
     if (pendingSeek !== null && pendingSeek !== pendingSeekTimeRef.current) {
+      // CRITICAL: For replay (seek to 0), don't set pendingSeekTimeRef
+      // Let progress events flow immediately without filtering
+      // This makes replay behave like manual backward seek (instant, no delay)
+      if (pendingSeek === 0) {
+        // Clear tracking, don't set pending
+        timeBeforeSeekRef.current = null
+        persistedPreSeekProgressRef.current = null
+        lastSeekTargetRef.current = null
+        seekCompleteTimeRef.current = 0
+        return
+      }
+
       // Save current time if this is a backward seek
       if (pendingSeek < currentTime) {
         timeBeforeSeekRef.current = currentTime
@@ -428,7 +450,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
       const timeSinceSeekComplete = Date.now() - seekCompleteTimeRef.current
       const SEEK_STALE_EVENT_THRESHOLD_MS = 500
 
+      // CRITICAL: Skip stale-event guard for restart scenarios (seek to 0)
+      // After replay/restart, video starts from 0 and all progress > 0 is valid
+      const isRestartScenario = lastSeekTargetRef.current === 0
+      const shouldApplyStaleGuard = !isRestartScenario
+
       if (
+        shouldApplyStaleGuard &&
         lastSeekTargetRef.current !== null &&
         timeSinceSeekComplete < SEEK_STALE_EVENT_THRESHOLD_MS &&
         reportedTime > lastSeekTargetRef.current + 1.0 // Event is more than 1s ahead of seek target
@@ -448,35 +476,33 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         const timeBeforeSeek = timeBeforeSeekRef.current
         const timeDifference = Math.abs(reportedTime - targetTime)
 
+        // CRITICAL: For restart scenarios (seek to 0), accept ANY forward progress immediately
+        // Don't wait for proximity window - native player may have decode/buffer delay
+        const isRestartScenario = targetTime === 0
+        if (isRestartScenario && reportedTime > 0) {
+          pendingSeekTimeRef.current = null
+          timeBeforeSeekRef.current = null
+          // Fall through to normal progress update
+        }
         // Detect if this is a stale event from before a backward seek
         // If we seek backward and reported time is close to pre-seek time, it's stale
-        if (
+        else if (
           timeBeforeSeek !== null &&
           targetTime < timeBeforeSeek &&
           Math.abs(reportedTime - timeBeforeSeek) < 0.5 // Within 500ms of old position = stale
         ) {
           return
         }
-
         // If the reported time is very close to target (within 0.2s), accept it and clear pending seek
-        if (timeDifference < 0.2) {
-          const previousNotifiedTime = lastNotifiedTimeRef.current
+        else if (timeDifference < 0.2) {
           pendingSeekTimeRef.current = null
           timeBeforeSeekRef.current = null
-          setCurrentTime(reportedTime)
-          lastNotifiedTimeRef.current = reportedTime
-
-          // Notify parent on significant progress
-          if (Math.abs(reportedTime - previousNotifiedTime) > 1.0) {
-            onSignificantProgress(reportedTime)
-          }
-          return
+          // Fall through to normal progress update
         }
-
         // If reported time is moving forward from target (video is playing past seek point)
         // Accept it and clear pending seek - we've successfully moved past the seek
         // But only if we're not dealing with a stale backward-seek event
-        if (reportedTime > targetTime + 0.2) {
+        else if (reportedTime > targetTime + 0.2) {
           // Additional check: if we seeked backward, ignore events that are close to pre-seek time
           // This catches stale events from before the backward seek
           if (
@@ -487,23 +513,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             return
           }
 
-          const previousNotifiedTime = lastNotifiedTimeRef.current
           pendingSeekTimeRef.current = null
           timeBeforeSeekRef.current = null
-          setCurrentTime(reportedTime)
-          lastNotifiedTimeRef.current = reportedTime
-
-          // Notify parent on significant progress
-          if (Math.abs(reportedTime - previousNotifiedTime) > 1.0) {
-            onSignificantProgress(reportedTime)
-          }
-          return
+          // Fall through to normal progress update
         }
-
         // If reported time is approaching target from before (within 1s window), accept it
         // This handles the case where we seek forward and video catches up
         // BUT: Only if we didn't seek backward (would be stale event)
-        if (reportedTime >= targetTime - 1.0 && reportedTime < targetTime + 0.2) {
+        else if (reportedTime >= targetTime - 1.0 && reportedTime < targetTime + 0.2) {
           // Additional check: if we seeked backward, don't accept events that are close to pre-seek time
           const isStaleBackwardSeekEvent =
             timeBeforeSeek !== null &&
@@ -514,14 +531,11 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             return
           }
 
-          setCurrentTime(reportedTime)
-          lastNotifiedTimeRef.current = reportedTime
-          return
+          // Fall through to normal progress update
         }
-
         // Ignore stale progress events that are too far behind the target
         // This filters out old progress events from before the seek
-        if (reportedTime < targetTime - 1.0) {
+        else if (reportedTime < targetTime - 1.0) {
           return
         }
       }
@@ -569,6 +583,12 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     (seekTime?: number) => {
       const resolvedTime = seekTime ?? pendingSeek ?? currentTime
       if (typeof resolvedTime === 'number' && Number.isFinite(resolvedTime)) {
+        log.debug('VideoPlayerSection.handleSeekComplete', 'Synchronizing seek result', {
+          seekTime,
+          pendingSeek,
+          currentTime,
+          resolvedTime,
+        })
         // Track time before seek if this is a backward seek (to filter stale events)
         if (resolvedTime < currentTime) {
           timeBeforeSeekRef.current = currentTime
@@ -580,12 +600,18 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         }
         setCurrentTime(resolvedTime)
         lastNotifiedTimeRef.current = resolvedTime
-        // Track the target seek time so we can filter stale progress events
-        pendingSeekTimeRef.current = resolvedTime
 
-        // Track seek target for grace period filtering (similar to useVideoPlayback)
-        lastSeekTargetRef.current = resolvedTime
-        seekCompleteTimeRef.current = Date.now()
+        // CRITICAL: For restart scenarios (seek to 0), don't set pendingSeekTimeRef
+        // This prevents re-activating pending seek filtering that causes 2s delay
+        // Manual seek backward and replay should both be instant
+        const isRestartScenario = resolvedTime === 0
+        if (!isRestartScenario) {
+          // Track the target seek time so we can filter stale progress events
+          pendingSeekTimeRef.current = resolvedTime
+          // Track seek target for grace period filtering (similar to useVideoPlayback)
+          lastSeekTargetRef.current = resolvedTime
+          seekCompleteTimeRef.current = Date.now()
+        }
 
         // CRITICAL: Update store with precise seek time for progress bars
         videoPlayer.handleSeekComplete(resolvedTime)
@@ -594,6 +620,8 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     },
     [currentTime, pendingSeek, onSeekComplete, videoPlayer]
   )
+
+  handleSeekCompleteRef.current = handleSeekComplete
 
   const handleLoad = useCallback(
     (data: { duration: number }) => {
@@ -794,7 +822,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
           <VideoControls
             ref={videoControlsRef}
-            isPlaying={videoPlayer.isPlaying}
+            isPlaying={videoPlayer.isPlaying || audioIsPlaying}
             currentTime={storeCurrentTime}
             duration={storeDuration}
             showControls={showControls}
@@ -810,6 +838,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onControlsVisibilityChange={onControlsVisibilityChange}
             onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
             persistentProgressStoreSetter={persistentProgressStoreSetter}
+            persistentProgressShared={playbackProgressShared}
           />
           <ShareSheet
             open={isShareSheetOpen}

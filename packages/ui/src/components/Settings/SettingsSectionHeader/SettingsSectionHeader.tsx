@@ -18,6 +18,12 @@ export interface SettingsSectionHeaderProps extends Omit<XStackProps, 'children'
    * @default 'settings-section-header'
    */
   testID?: string
+
+  /**
+   * Border width applied to the bottom divider
+   * @default 1
+   */
+  borderBottomWidth?: number
 }
 
 /**
@@ -38,6 +44,7 @@ export function SettingsSectionHeader({
   title,
   icon: Icon,
   testID = 'settings-section-header',
+  borderBottomWidth = 1,
   ...props
 }: SettingsSectionHeaderProps): React.ReactElement {
   return (
@@ -45,8 +52,9 @@ export function SettingsSectionHeader({
       alignItems="center"
       gap="$2"
       paddingBottom="$2"
-      marginBottom="$6"
-      borderBottomWidth={1}
+      paddingTop="$2"
+      marginBottom="$2"
+      borderBottomWidth={borderBottomWidth}
       borderColor="$borderColor"
       testID={testID}
       {...props}

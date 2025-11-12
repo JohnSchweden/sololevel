@@ -567,9 +567,26 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     () => ({
       // Playback handlers - stable, invoke through refs and store setters
       onPlay: () => {
-        setIsPlaying(true)
+        // Only set video playing immediately if no pending feedback
+        // When pending feedback exists, let feedback coordinator decide (audio may need to load first)
+        const coordinator = feedbackCoordinatorRef.current
+
+        // CRITICAL: Read pendingFeedbackId directly from coordinator's internal state
+        // The coordinator returns a memoized object that doesn't update when refs change
+        // So we must call onPlay first, which reads the ref internally, then check the result
+        log.debug(
+          'VideoAnalysisScreen.handlers.onPlay',
+          '🎮 Play button pressed (BEFORE onPlay call)',
+          {
+            coordinatorExists: !!coordinator,
+          }
+        )
+
         setVideoEnded(false)
-        feedbackCoordinatorRef.current.onPlay()
+        coordinator?.onPlay()
+
+        // After onPlay is called, the coordinator has already handled pending feedback internally
+        // We don't need to check pendingFeedbackId here - just always let coordinator decide
       },
       onPause: () => {
         setIsPlaying(false)

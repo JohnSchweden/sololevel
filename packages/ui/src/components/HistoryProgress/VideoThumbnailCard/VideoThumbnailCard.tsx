@@ -84,6 +84,7 @@ export function VideoThumbnailCard({
     const isLocal = thumbnailUri?.startsWith('file://') ?? false
     isLoadingRef.current = !isLocal
     hasErrorRef.current = false
+    forceRender()
   }, [thumbnailUri])
 
   return (
