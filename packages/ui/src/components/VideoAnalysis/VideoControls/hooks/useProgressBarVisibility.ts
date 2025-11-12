@@ -1,4 +1,3 @@
-import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import {
   type SharedValue,
@@ -120,23 +119,23 @@ export function useProgressBarVisibility(
 
   const emitModeChange = useCallback(
     ({
-      source,
-      progress,
-      overscroll,
-      previousMode,
+      source: _source,
+      progress: _progress,
+      overscroll: _overscroll,
+      previousMode: _previousMode,
       nextMode,
-      normalVisible,
-      persistentVisible,
+      normalVisible: _normalVisible,
+      persistentVisible: _persistentVisible,
     }: ModeChangePayload) => {
-      log.debug('VideoControls', 'ProgressBar mode updated', {
-        source,
-        progress,
-        overscroll,
-        previousMode,
-        nextMode,
-        normalVisible,
-        persistentVisible,
-      })
+      // log.debug('VideoControls', 'ProgressBar mode updated', {
+      //   source,
+      //   progress,
+      //   overscroll,
+      //   previousMode,
+      //   nextMode,
+      //   normalVisible,
+      //   persistentVisible,
+      // })
 
       setModeSnapshot((prev) => (prev === nextMode ? prev : nextMode))
     },

@@ -345,9 +345,6 @@ export const FeedbackPanel = memo(
         if (onScrollEndDrag) {
           runOnJS(onScrollEndDrag)()
         }
-        runOnJS(log.debug)('FeedbackPanel.scrollHandler', 'FlatList onEndDrag fired', {
-          scrollEnabled,
-        })
       },
     })
 

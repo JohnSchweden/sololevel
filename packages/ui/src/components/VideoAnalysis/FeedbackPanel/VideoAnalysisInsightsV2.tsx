@@ -1,12 +1,12 @@
 import {
   Award,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
   Lightbulb,
   Play,
   Sparkles,
   Target,
-  TrendingDown,
-  TrendingUp,
 } from '@tamagui/lucide-icons'
 import { memo, useMemo } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
@@ -897,13 +897,12 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                   ? '$orange11'
                   : '$color11'
 
-              // Get trend icon component (same pattern as StatCard)
-              const TrendIcon =
+              const iconColor =
                 skill.trend === 'up'
-                  ? TrendingUp
+                  ? '$green11'
                   : skill.trend === 'down'
-                    ? TrendingDown
-                    : BarChart3
+                    ? '$orange11'
+                    : '$color11'
 
               return (
                 <XStack
@@ -927,16 +926,22 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                       alignItems="center"
                       testID={`insights-v2-skill-trend-${skill.id}`}
                     >
-                      <TrendIcon
-                        size={16}
-                        color={
-                          skill.trend === 'up'
-                            ? '$green11'
-                            : skill.trend === 'down'
-                              ? '$orange11'
-                              : '$color11'
-                        }
-                      />
+                      {skill.trend === 'up' ? (
+                        <ChevronUp
+                          size={16}
+                          color={iconColor}
+                        />
+                      ) : skill.trend === 'down' ? (
+                        <ChevronDown
+                          size={16}
+                          color={iconColor}
+                        />
+                      ) : (
+                        <BarChart3
+                          size={16}
+                          color={iconColor}
+                        />
+                      )}
                       <Text
                         fontSize="$2"
                         color="$color11"

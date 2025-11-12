@@ -270,7 +270,8 @@ export function useAnimationController(): UseAnimationControllerReturn {
         [0, PULL_EXPAND * 1.4], // Subtle expansion for lazy feel
         Extrapolation.CLAMP
       )
-      return VIDEO_HEIGHTS.max + easedPull
+      const result = VIDEO_HEIGHTS.max + easedPull
+      return result
     }
 
     // Mode-based transitions with smooth interpolation
@@ -285,12 +286,13 @@ export function useAnimationController(): UseAnimationControllerReturn {
       return result
     }
     // Phase 2: Normal → Min
-    return interpolate(
+    const result = interpolate(
       scrollValue,
       [MODE_SCROLL_POSITIONS.normal, MODE_SCROLL_POSITIONS.min],
       [VIDEO_HEIGHTS.normal, VIDEO_HEIGHTS.min],
       Extrapolation.CLAMP
     )
+    return result
   })
 
   // Collapse progress: 0 → max, 0.5 → normal, 1 → min
@@ -359,22 +361,26 @@ export function useAnimationController(): UseAnimationControllerReturn {
   // Previous: Two separate Animated.View with different transforms → expensive composite
   // Now: Single calculation with both height + transform
   const feedbackSectionStyle = useAnimatedStyle(() => {
+    const scrollValue = scrollY.value
+    const currentHeaderHeight = headerHeight.value
     const normalModeHeight = SCREEN_H - VIDEO_HEIGHTS.normal
     const minModeHeight = SCREEN_H - VIDEO_HEIGHTS.min
 
     // Interpolate height between normal and min mode
     const interpolatedHeight = interpolate(
-      scrollY.value,
+      scrollValue,
       [MODE_SCROLL_POSITIONS.normal, MODE_SCROLL_POSITIONS.min],
       [normalModeHeight, minModeHeight],
       Extrapolation.CLAMP
     )
 
-    return {
+    const result = {
       height: interpolatedHeight,
       // MERGED transform: eliminates redundant transform layer
-      transform: [{ translateY: headerHeight.value }],
+      transform: [{ translateY: currentHeaderHeight }],
     }
+
+    return result
   })
 
   return useMemo(

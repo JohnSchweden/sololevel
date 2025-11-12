@@ -18,8 +18,8 @@ import { YStack, useTheme } from 'tamagui'
  * @property isScrubbing - Whether user is currently scrubbing this progress bar
  * @property controlsVisible - Whether video controls are visible (affects styling)
  * @property animatedStyle - Reanimated style for fade in/out animations
- * @property combinedGesture - Combined gesture handler for track (tap + pan)
- * @property mainGesture - Main gesture handler for scrubber handle (pan)
+ * @property combinedGesture - Combined gesture handler for track (tap + pan) - handles entire 44px touch area
+ * @property mainGesture - DEPRECATED: No longer used, handle is visual only - gestures handled by track
  * @property onLayout - Layout event handler to measure progress bar width
  * @property onFallbackPress - Fallback press handler when gesture fails (receives locationX)
  * @property testID - Optional test identifier for the progress bar container
@@ -38,8 +38,8 @@ export interface ProgressBarProps {
   animatedStyle?: AnimatedStyle<ViewStyle>
   /** Combined gesture handler for track (tap + pan) */
   combinedGesture: GestureType
-  /** Main gesture handler for scrubber handle (pan) */
-  mainGesture: GestureType
+  /** Main gesture handler for scrubber handle (pan) - DEPRECATED: No longer used, handle is visual only */
+  mainGesture?: GestureType
   /** Layout event handler to measure progress bar width */
   onLayout: (event: LayoutChangeEvent) => void
   /** Fallback press handler when gesture fails (receives locationX) */
@@ -69,6 +69,19 @@ export interface ProgressBarProps {
  * - **normal**: Larger progress bar (4px height, 14px handle) shown with main video controls
  * - **persistent**: Smaller progress bar (2px height, 10px handle) always visible at bottom
  *
+ * ### Gesture Architecture (Single Gesture Handler)
+ * **CRITICAL:** Only ONE gesture handler (`combinedGesture`) handles ALL interactions:
+ * - The track's `combinedGesture` wraps the entire 44px touch area (track + handle)
+ * - The handle is visual ONLY (`pointerEvents="none"`) - no separate gesture handler
+ * - This eliminates duplicate gesture handlers that caused duplicate seeks
+ * - The handle position is animated but doesn't intercept touches
+ *
+ * **Previous design (DEPRECATED):** Had nested gesture handlers:
+ * - Track: `combinedGesture` (tap + drag)
+ * - Handle: `mainGesture` (drag-only for normal, tap+drag for persistent)
+ * - Problem: For persistent bars, both gestures used the same handler → duplicates
+ * - Solution: Removed handle GestureDetector → single gesture handles everything
+ *
  * ### Shared progress value contract
  * When callers provide `progressShared`, the component reads the shared value inside Reanimated worklets
  * (`useAnimatedStyle`) to keep the fill/handle perfectly aligned with UI-thread updates (e.g., during fast seeks
@@ -85,7 +98,6 @@ export interface ProgressBarProps {
  *   controlsVisible={true}
  *   animatedStyle={normalBarAnimatedStyle}
  *   combinedGesture={normalGesture.combinedGesture}
- *   mainGesture={normalGesture.mainGesture}
  *   onLayout={handleLayout}
  *   onFallbackPress={handlePress}
  * />
@@ -99,7 +111,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     controlsVisible,
     animatedStyle,
     combinedGesture,
-    mainGesture,
+    // mainGesture is no longer used - handle is visual only, gestures handled by track
     onLayout,
     onFallbackPress,
     testID,
@@ -295,42 +307,42 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                       data-testid={fillTestID}
                     />
 
-                    {/* Scrubber handle */}
-                    <GestureDetector gesture={mainGesture}>
-                      <Animated.View
-                        style={[
-                          {
-                            position: 'absolute',
-                            left: 0,
-                            top: handleTopOffset,
-                            width: handleTouchArea,
-                            height: handleTouchArea,
-                            marginLeft: handleMarginLeft,
-                            zIndex: 10,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          } as ViewStyle,
-                          handleContainerAnimatedStyle,
-                        ]}
-                      >
-                        <View
-                          style={{
-                            width: handleSize,
-                            height: handleSize,
-                            backgroundColor: handleColor,
-                            borderRadius: handleSize / 2,
-                            borderWidth: 0,
-                            borderColor: '$color12',
-                            elevation: isScrubbing ? 2 : 0,
-                            opacity: handleOpacity,
-                            transform: [{ scale: handleScale }],
-                          }}
-                          testID={handleTestID}
-                          data-testid={handleTestID}
-                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
-                        />
-                      </Animated.View>
-                    </GestureDetector>
+                    {/* Scrubber handle - NO separate GestureDetector needed */}
+                    {/* The track's combinedGesture already handles the entire 44px touch area */}
+                    {/* Handle is just a visual indicator - gestures handled by parent track */}
+                    <Animated.View
+                      style={[
+                        {
+                          position: 'absolute',
+                          left: 0,
+                          top: handleTopOffset,
+                          width: handleTouchArea,
+                          height: handleTouchArea,
+                          marginLeft: handleMarginLeft,
+                          zIndex: 10,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        } as ViewStyle,
+                        handleContainerAnimatedStyle,
+                      ]}
+                    >
+                      <View
+                        style={{
+                          width: handleSize,
+                          height: handleSize,
+                          backgroundColor: handleColor,
+                          borderRadius: handleSize / 2,
+                          borderWidth: 0,
+                          borderColor: '$color12',
+                          elevation: isScrubbing ? 2 : 0,
+                          opacity: handleOpacity,
+                          transform: [{ scale: handleScale }],
+                        }}
+                        testID={handleTestID}
+                        data-testid={handleTestID}
+                        pointerEvents="none"
+                      />
+                    </Animated.View>
                   </YStack>
                 </YStack>
               </Pressable>
@@ -391,44 +403,42 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                     data-testid={fillTestID}
                   />
 
-                  <YStack paddingLeft={12}>
-                    {/* Scrubber handle */}
-                    <GestureDetector gesture={mainGesture}>
-                      <Animated.View
-                        style={[
-                          {
-                            position: 'absolute',
-                            left: 0,
-                            top: handleTopOffset,
-                            width: handleTouchArea,
-                            height: handleTouchArea,
-                            marginLeft: handleMarginLeft,
-                            zIndex: 10,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          } as ViewStyle,
-                          handleContainerAnimatedStyle,
-                        ]}
-                      >
-                        <View
-                          style={{
-                            width: handleSize,
-                            height: handleSize,
-                            backgroundColor: handleColor,
-                            borderRadius: handleSize / 2,
-                            borderWidth: 0,
-                            borderColor: '$color12',
-                            elevation: isScrubbing ? 2 : 0,
-                            opacity: handleOpacity,
-                            transform: [{ scale: handleScale }],
-                          }}
-                          testID={handleTestID}
-                          data-testid={handleTestID}
-                          pointerEvents={handleOpacity > 0.01 ? 'auto' : 'none'}
-                        />
-                      </Animated.View>
-                    </GestureDetector>
-                  </YStack>
+                  {/* Scrubber handle - NO separate GestureDetector needed */}
+                  {/* The track's combinedGesture already handles the entire 44px touch area */}
+                  {/* Handle is just a visual indicator - gestures handled by parent track */}
+                  <Animated.View
+                    style={[
+                      {
+                        position: 'absolute',
+                        left: 0,
+                        top: handleTopOffset,
+                        width: handleTouchArea,
+                        height: handleTouchArea,
+                        marginLeft: handleMarginLeft,
+                        zIndex: 10,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      } as ViewStyle,
+                      handleContainerAnimatedStyle,
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: handleSize,
+                        height: handleSize,
+                        backgroundColor: handleColor,
+                        borderRadius: handleSize / 2,
+                        borderWidth: 0,
+                        borderColor: '$color12',
+                        elevation: isScrubbing ? 2 : 0,
+                        opacity: handleOpacity,
+                        transform: [{ scale: handleScale }],
+                      }}
+                      testID={handleTestID}
+                      data-testid={handleTestID}
+                      pointerEvents="none"
+                    />
+                  </Animated.View>
                 </YStack>
               </YStack>
             </Pressable>
