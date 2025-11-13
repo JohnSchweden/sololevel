@@ -131,7 +131,7 @@ export async function analyzeVideoWithGemini(
     }
 
     // Step 5: Parse the response (shared)
-    const { textReport, feedback, metrics, jsonData } = parseDualOutput(generationResult.text)
+    const { textReport, feedback, metrics, jsonData, title } = parseDualOutput(generationResult.text)
 
     // Step 6: Validate and normalize the response (shared)
     const result: GeminiVideoAnalysisResult = {
@@ -154,6 +154,7 @@ export async function analyzeVideoWithGemini(
       rawResponse: generationResult.rawResponse,
       promptUsed: generationResult.prompt,
       jsonData: jsonData,
+      title: title,
     }
 
     logger.info(`${config.mmModel} analysis completed: ${result.textReport.substring(0, 100)}...`)

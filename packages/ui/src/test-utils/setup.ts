@@ -1,3 +1,11 @@
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+  SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 375, height: 812 }),
+}))
+
 // Mock react-native-gesture-handler for cross-platform testing
 jest.mock('react-native-gesture-handler', () => ({
   GestureHandlerRootView: ({ children }: { children: React.ReactNode }) => children,

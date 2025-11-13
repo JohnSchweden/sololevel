@@ -2,18 +2,24 @@ import { useAuth } from '@app/hooks/useAuth'
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { log } from '@my/logging'
-import {
-  GlassBackground,
-  GlassButton,
-  H2,
-  Input,
-  Paragraph,
-  YStack,
-  useToastController,
-} from '@my/ui'
-import { useEffect, useState } from 'react'
+import { GlassBackground, GlassButton, H2, Input, Paragraph, Text, YStack } from '@my/ui'
+import { useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { SignInScreenProps } from './types'
+
+/**
+ * Validates email format using a battle-tested regex pattern
+ * Matches RFC 5322 compliant email addresses
+ */
+function isValidEmail(email: string): boolean {
+  if (!email || email.trim() === '') {
+    return false
+  }
+
+  // Battle-tested email regex pattern (RFC 5322 compliant)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email.trim())
+}
 
 /**
  * Sign In Screen - Framework-agnostic authentication screen
@@ -26,12 +32,15 @@ import type { SignInScreenProps } from './types'
 export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignInScreenProps = {}) {
   const authResult = useAuth()
   const { signIn, isAuthenticated } = authResult
-  const toast = useToastController()
   const insets = useSafeArea()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const passwordInputRef = useRef<any>(null)
 
   // Initialize test auth on mount if enabled
   useEffect(() => {
@@ -47,10 +56,29 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   }, [isAuthenticated, onAlreadyAuthenticated])
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      toast.show('Please enter email and password', {
-        type: 'error',
-      })
+    // Clear previous errors
+    setEmailError(null)
+    setPasswordError(null)
+    setAuthError(null)
+
+    // Validate fields
+    let hasErrors = false
+    const trimmedEmail = email.trim()
+
+    if (!trimmedEmail) {
+      setEmailError('Please enter your email')
+      hasErrors = true
+    } else if (!isValidEmail(trimmedEmail)) {
+      setEmailError('Please enter a valid email address')
+      hasErrors = true
+    }
+
+    if (!password || password.trim() === '') {
+      setPasswordError('Please enter your password')
+      hasErrors = true
+    }
+
+    if (hasErrors) {
       return
     }
 
@@ -61,6 +89,13 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
 
       if (result.success) {
         log.info('SignInScreen', 'Sign in successful')
+        // Clear any errors on success
+        setEmailError(null)
+        setPasswordError(null)
+        setAuthError(null)
+        // Clear fields on successful sign in
+        setEmail('')
+        setPassword('')
         onSignInSuccess?.()
       } else {
         log.warn('SignInScreen', 'Sign in failed', {
@@ -68,17 +103,61 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
           message: result.error.message,
         })
 
-        toast.show(result.error.message, {
-          type: 'error',
-        })
+        // Battle-tested pattern: Keep email, clear password for security
+        // This allows users to correct password without re-typing email
+        setPassword('')
+        setAuthError(result.error.message)
+
+        // Focus password field after clearing (better UX)
+        // Use setTimeout to ensure state update completes first
+        setTimeout(() => {
+          passwordInputRef.current?.focus?.()
+        }, 100)
       }
     } catch (error) {
       log.error('SignInScreen', 'Unexpected error during sign in', { error })
-      toast.show('An unexpected error occurred', {
-        type: 'error',
-      })
+      // Battle-tested pattern: Keep email, clear password for security
+      setPassword('')
+      setAuthError('An unexpected error occurred. Please try again.')
+
+      // Focus password field after clearing
+      setTimeout(() => {
+        passwordInputRef.current?.focus?.()
+      }, 100)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value)
+    // Clear email error when user starts typing
+    if (emailError) {
+      setEmailError(null)
+    }
+    // Clear auth error when user starts typing
+    if (authError) {
+      setAuthError(null)
+    }
+  }
+
+  const handleEmailBlur = () => {
+    // Validate email format when user leaves the field (if field is not empty)
+    const trimmedEmail = email.trim()
+    if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+      setEmailError('Please enter a valid email address')
+    }
+  }
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value)
+    // Clear password error when user starts typing
+    if (passwordError) {
+      setPasswordError(null)
+    }
+    // Clear auth error when user starts typing
+    if (authError) {
+      setAuthError(null)
     }
   }
 
@@ -128,21 +207,76 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
             gap="$3"
             paddingHorizontal="$4"
           >
-            <Input
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            {/* Auth Error Message */}
+            {authError && (
+              <YStack
+                backgroundColor="$red2"
+                borderColor="$red6"
+                borderWidth={1}
+                borderRadius="$3"
+                padding="$3"
+                gap="$1"
+              >
+                <Text
+                  fontSize="$3"
+                  fontWeight="500"
+                  color="$red11"
+                  testID="auth-error-message"
+                >
+                  {authError}
+                </Text>
+              </YStack>
+            )}
 
-            <Input
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            {/* Email Field */}
+            <YStack gap="$1">
+              <Input
+                placeholder="Email"
+                value={email}
+                onChangeText={handleEmailChange}
+                onBlur={handleEmailBlur}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                borderColor={emailError ? '$red8' : undefined}
+                testID="email-input"
+              />
+              {emailError && (
+                <Text
+                  fontSize="$2"
+                  color="$red10"
+                  paddingLeft="$2"
+                  testID="email-error-message"
+                >
+                  {emailError}
+                </Text>
+              )}
+            </YStack>
+
+            {/* Password Field */}
+            <YStack gap="$1">
+              <Input
+                ref={passwordInputRef}
+                placeholder="Password"
+                value={password}
+                onChangeText={handlePasswordChange}
+                secureTextEntry
+                onSubmitEditing={handleSignIn}
+                returnKeyType="done"
+                borderColor={passwordError ? '$red8' : undefined}
+                testID="password-input"
+              />
+              {passwordError && (
+                <Text
+                  fontSize="$2"
+                  color="$red10"
+                  paddingLeft="$2"
+                  testID="password-error-message"
+                >
+                  {passwordError}
+                </Text>
+              )}
+            </YStack>
 
             <GlassButton
               onPress={handleSignIn}

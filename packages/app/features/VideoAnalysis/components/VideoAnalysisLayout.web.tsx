@@ -118,6 +118,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             onTap={handleTap}
             onControlsVisibilityChange={controls.onControlsVisibilityChange}
             feedbackItems={feedback.items}
+            analysisTitle={feedback.analysisTitle}
             audioOverlayFunctions={{
               onClose: audioOverlay.onClose,
               onInactivity: audioOverlay.onInactivity,
@@ -133,6 +134,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           {/* Feedback section */}
           <FeedbackSection
             feedbackItems={feedback.items}
+            analysisTitle={feedback.analysisTitle}
             // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
             currentVideoTime={playbackCurrentTime}
             videoDuration={0}

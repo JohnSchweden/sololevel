@@ -83,13 +83,14 @@ Create two distinct outputs with clear separators:
 
 **=== TEXT FEEDBACK START ===
 **Title Start**
-[A concise roast title for the feedback based on the video content - max 60 characters]
+[A concise and humorous roast title for the feedback based on the video content - max 60 characters]
 **Title End**
-
-[Your detailed analysis here]
 
 **Big Picture**
 Provide a brief, overarching summary of the core theme to tie all the feedback together.
+
+**Analysis**
+[Your detailed analysis here]
 
 **Format: Table**
     * Timestamp: s.t (The estimated time of the observation, within 0-{duration}s)

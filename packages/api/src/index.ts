@@ -78,6 +78,7 @@ export {
   computeVideoTimingParams,
   // Realtime subscriptions
   subscribeToAnalysisJob,
+  subscribeToAnalysisTitle,
   subscribeToUserAnalysisJobs,
   subscribeToLatestAnalysisJobByRecordingId,
   // Query helpers

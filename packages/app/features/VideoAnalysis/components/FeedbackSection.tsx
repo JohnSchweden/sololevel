@@ -18,6 +18,7 @@ import type { FeedbackPanelItem } from '../types'
 
 interface FeedbackSectionProps {
   feedbackItems: FeedbackPanelItem[]
+  analysisTitle?: string // AI-generated analysis title
   // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
   currentVideoTime: number
   videoDuration: number
@@ -39,6 +40,7 @@ interface FeedbackSectionProps {
 
 export const FeedbackSection = memo(function FeedbackSection({
   feedbackItems,
+  analysisTitle,
   // selectedFeedbackId, - REMOVED: Subscribed directly from store
   currentVideoTime,
   videoDuration,
@@ -128,6 +130,7 @@ export const FeedbackSection = memo(function FeedbackSection({
         isExpanded={true}
         activeTab={feedbackPanel.activeTab}
         feedbackItems={preparedItems}
+        analysisTitle={analysisTitle}
         comments={mockComments}
         currentVideoTime={currentVideoTime}
         videoDuration={videoDuration}

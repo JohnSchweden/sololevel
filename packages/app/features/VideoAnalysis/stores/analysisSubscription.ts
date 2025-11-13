@@ -1,4 +1,8 @@
-import { subscribeToAnalysisJob, subscribeToLatestAnalysisJobByRecordingId } from '@my/api'
+import {
+  subscribeToAnalysisJob,
+  subscribeToAnalysisTitle,
+  subscribeToLatestAnalysisJobByRecordingId,
+} from '@my/api'
 import { log } from '@my/logging'
 import type { QueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
@@ -16,6 +20,7 @@ export interface SubscriptionState {
   lastStatus?: string | null
   health?: unknown
   subscription?: () => void
+  titleSubscription?: () => void
 }
 
 export interface AnalysisJob {
@@ -291,7 +296,7 @@ function createSubscription(
 ): Promise<() => void> {
   if (options.analysisJobId) {
     return new Promise((resolve, reject) => {
-      const unsubscribe = subscribeToAnalysisJob(
+      const unsubscribeJob = subscribeToAnalysisJob(
         options.analysisJobId!,
         (job) => handleJobUpdate(key, job, set, get),
         {
@@ -300,14 +305,24 @@ function createSubscription(
         }
       )
 
-      if (!unsubscribe) {
+      if (!unsubscribeJob) {
         reject(new Error('subscribeToAnalysisJob returned undefined unsubscribe'))
         return
       }
 
+      // Subscribe to analyses table to get title as soon as it's available
+      // This happens right after LLM analysis completes, before job status = 'completed'
+      const unsubscribeTitle = subscribeToAnalysisTitle(
+        options.analysisJobId!,
+        (title: string | null) => handleTitleUpdate(key, options.analysisJobId!, title, set, get)
+      )
+
       resolve(() => {
         try {
-          unsubscribe()
+          unsubscribeJob()
+          if (unsubscribeTitle) {
+            unsubscribeTitle()
+          }
         } catch (error) {
           log.error('AnalysisSubscriptionStore', 'Error during unsubscribe', {
             key,
@@ -342,6 +357,11 @@ function createSubscription(
       resolve(() => {
         try {
           unsubscribe()
+          // Also unsubscribe from title if it was set up
+          const subscription = get().subscriptions.get(key)
+          if (subscription?.titleSubscription) {
+            subscription.titleSubscription()
+          }
         } catch (error) {
           log.error('AnalysisSubscriptionStore', 'Error during unsubscribe', {
             key,
@@ -355,8 +375,133 @@ function createSubscription(
   return Promise.reject(new Error('Missing subscription parameters'))
 }
 
+function handleTitleUpdate(
+  key: string,
+  jobId: number,
+  title: string | null,
+  _set: StoreSetter,
+  get: StoreGetter
+): void {
+  log.info('AnalysisSubscriptionStore', 'Title update received', {
+    key,
+    jobId,
+    title,
+    hasTitle: !!title,
+  })
+
+  if (!title) {
+    log.debug('AnalysisSubscriptionStore', 'Skipping title update - title is null/empty', {
+      key,
+      jobId,
+    })
+    return
+  }
+
+  // Update cache with title immediately when it becomes available
+  setTimeout(async () => {
+    try {
+      const { useVideoHistoryStore } = await import('../../HistoryProgress/stores/videoHistory')
+      const historyStore = useVideoHistoryStore.getState()
+
+      // Update cache with title
+      const cached = historyStore.getCached(jobId)
+      if (cached) {
+        historyStore.updateCache(jobId, { title })
+        log.info(
+          'AnalysisSubscriptionStore',
+          'Updated cache with title from analyses subscription',
+          {
+            jobId,
+            title,
+          }
+        )
+      } else {
+        // Cache doesn't exist yet - try to get job data from subscription to create minimal entry
+        const subscription = get().subscriptions.get(key)
+        const job = subscription?.job
+
+        if (job) {
+          // Fetch thumbnail from video_recordings to include in minimal cache entry
+          // This ensures thumbnails are available even if setJobResults runs later
+          const { supabase } = await import('@my/api')
+          const { data: videoRecording } = await supabase
+            .from('video_recordings')
+            .select('thumbnail_url, storage_path, metadata')
+            .eq('id', job.video_recording_id ?? 0)
+            .single()
+
+          // Extract thumbnail: prefer cloud URL, fallback to metadata thumbnail
+          let thumbnailUri: string | undefined
+          if (videoRecording?.thumbnail_url) {
+            thumbnailUri = videoRecording.thumbnail_url
+          } else if (videoRecording?.metadata && typeof videoRecording.metadata === 'object') {
+            const metadata = videoRecording.metadata as Record<string, unknown>
+            if (typeof metadata.thumbnailUri === 'string') {
+              thumbnailUri = metadata.thumbnailUri
+            }
+          }
+
+          // Create minimal cache entry with title, thumbnail, and job data
+          // setJobResults will update it with full data later
+          const jobCreatedAt =
+            typeof job.created_at === 'string' ? job.created_at : new Date().toISOString()
+          const jobUserId = typeof (job as any).user_id === 'string' ? (job as any).user_id : ''
+          const jobResults = (job as any).results || {
+            feedback: [],
+            text_feedback: '',
+            summary_text: '',
+            processing_time: 0,
+            video_source: '',
+          }
+
+          historyStore.addToCache({
+            id: job.id,
+            videoId: job.video_recording_id ?? 0,
+            userId: jobUserId,
+            title, // Use the real title from database
+            createdAt: jobCreatedAt,
+            thumbnail: thumbnailUri,
+            storagePath: videoRecording?.storage_path ?? undefined,
+            results: jobResults,
+          })
+          log.info(
+            'AnalysisSubscriptionStore',
+            'Created minimal cache entry with title and thumbnail from analyses subscription',
+            {
+              jobId,
+              title,
+              hasThumbnail: !!thumbnailUri,
+              thumbnailSource: videoRecording?.thumbnail_url
+                ? 'cloud'
+                : videoRecording?.metadata
+                  ? 'metadata'
+                  : 'none',
+            }
+          )
+        } else {
+          // Job data not available yet - title will be set when setJobResults runs
+          log.debug(
+            'AnalysisSubscriptionStore',
+            'Cache and job data not found, title will be set when cache is created',
+            {
+              jobId,
+              title,
+            }
+          )
+        }
+      }
+    } catch (error) {
+      log.warn('AnalysisSubscriptionStore', 'Error updating cache with title', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }, 0)
+}
+
 function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: StoreGetter) {
   const previousStatus = get().subscriptions.get(key)?.job?.status
+  const previousJobId = get().subscriptions.get(key)?.job?.id
 
   set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
@@ -383,6 +528,150 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
     }
   })
 
+  // Subscribe to title when we first receive a jobId (for recording subscriptions)
+  // This happens when subscribing via recordingId - we get the jobId later
+  if (previousJobId !== job.id && job.id) {
+    const subscription = get().subscriptions.get(key)
+    if (subscription && !subscription.titleSubscription) {
+      log.info('AnalysisSubscriptionStore', 'Setting up title subscription for job', {
+        key,
+        jobId: job.id,
+      })
+      try {
+        const unsubscribeTitle = subscribeToAnalysisTitle(job.id, (title: string | null) =>
+          handleTitleUpdate(key, job.id, title, set, get)
+        )
+        if (unsubscribeTitle) {
+          set((draft: AnalysisSubscriptionStoreState) => {
+            const sub = draft.subscriptions.get(key)
+            if (sub) {
+              sub.titleSubscription = unsubscribeTitle
+            }
+          })
+          log.info('AnalysisSubscriptionStore', 'Title subscription set up successfully', {
+            key,
+            jobId: job.id,
+          })
+
+          // Also fetch title immediately in case it was already stored
+          // This is a fallback in case the subscription's immediate fetch doesn't work
+          // Retry with exponential backoff since title might not be stored yet
+          let retryCount = 0
+          const maxRetries = 5
+          const retryDelays = [500, 1000, 2000, 3000, 5000] // ms
+
+          const attemptFetch = async (): Promise<void> => {
+            try {
+              const { supabase } = await import('@my/api')
+              const { useVideoHistoryStore } = await import(
+                '../../HistoryProgress/stores/videoHistory'
+              )
+              const historyStore = useVideoHistoryStore.getState()
+
+              // Check if we already have the title
+              const cached = historyStore.getCached(job.id)
+              const jobCreatedAt =
+                typeof job.created_at === 'string'
+                  ? job.created_at
+                  : typeof job.created_at === 'object' && job.created_at !== null
+                    ? new Date(job.created_at as any).toISOString()
+                    : new Date().toISOString()
+              if (
+                cached?.title &&
+                cached.title !== `Analysis ${new Date(jobCreatedAt).toLocaleDateString()}`
+              ) {
+                log.debug('AnalysisSubscriptionStore', 'Title already in cache, skipping fetch', {
+                  key,
+                  jobId: job.id,
+                  title: cached.title,
+                })
+                return
+              }
+
+              // Use maybeSingle() to handle case where row doesn't exist yet
+              const result = (await supabase
+                .from('analyses')
+                .select('title')
+                .eq('job_id', job.id)
+                .maybeSingle()) as { data: { title: string | null } | null; error: any }
+
+              if (result.error) {
+                log.debug('AnalysisSubscriptionStore', 'Title fetch failed', {
+                  key,
+                  jobId: job.id,
+                  error: result.error.message,
+                  retryCount,
+                })
+                // Retry if we haven't exceeded max retries
+                if (retryCount < maxRetries) {
+                  const delay = retryDelays[retryCount] || 5000
+                  retryCount++
+                  setTimeout(() => attemptFetch(), delay)
+                }
+                return
+              }
+
+              if (result.data?.title) {
+                log.info(
+                  'AnalysisSubscriptionStore',
+                  'Fetched title immediately after subscription setup',
+                  {
+                    key,
+                    jobId: job.id,
+                    title: result.data.title,
+                    retryCount,
+                  }
+                )
+                handleTitleUpdate(key, job.id, result.data.title, set, get)
+              } else if (retryCount < maxRetries) {
+                // No title yet, retry
+                const delay = retryDelays[retryCount] || 5000
+                retryCount++
+                log.debug('AnalysisSubscriptionStore', 'Title not found yet, retrying', {
+                  key,
+                  jobId: job.id,
+                  retryCount,
+                  delay,
+                })
+                setTimeout(() => attemptFetch(), delay)
+              }
+            } catch (error) {
+              log.warn(
+                'AnalysisSubscriptionStore',
+                'Error fetching title after subscription setup',
+                {
+                  key,
+                  jobId: job.id,
+                  error: error instanceof Error ? error.message : String(error),
+                  retryCount,
+                }
+              )
+              // Retry on error if we haven't exceeded max retries
+              if (retryCount < maxRetries) {
+                const delay = retryDelays[retryCount] || 5000
+                retryCount++
+                setTimeout(() => attemptFetch(), delay)
+              }
+            }
+          }
+
+          setTimeout(() => attemptFetch(), retryDelays[0])
+        } else {
+          log.warn('AnalysisSubscriptionStore', 'Title subscription returned undefined', {
+            key,
+            jobId: job.id,
+          })
+        }
+      } catch (error) {
+        log.error('AnalysisSubscriptionStore', 'Failed to set up title subscription', {
+          key,
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+  }
+
   // Invalidate history cache when analysis completes
   if (previousStatus !== 'completed' && job.status === 'completed') {
     const queryClient = get().queryClient
@@ -396,6 +685,8 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
         jobId: job.id,
       })
     }
+    // Note: Title is already fetched via subscribeToAnalysisTitle subscription
+    // which fires earlier (right after LLM analysis, before job completion)
   }
 }
 

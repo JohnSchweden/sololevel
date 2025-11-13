@@ -353,6 +353,9 @@ export async function getUserAnalysisJobs(
         created_at,
         thumbnail_url,
         metadata
+      ),
+      analyses:analyses!analyses_job_id_fkey (
+        title
       )
     `)
     .eq('user_id', user.data.user.id)
@@ -844,6 +847,93 @@ export function subscribeToAnalysisJob(
     })
 
   // Return cleanup function (will be set after health check completes)
+  return () => {
+    unsubscribed = true
+  }
+}
+
+/**
+ * Subscribe to analysis title updates from analyses table
+ * This gets the title as soon as it's stored (right after LLM analysis, before job completion)
+ */
+export function subscribeToAnalysisTitle(
+  jobId: number,
+  onTitle: (title: string | null) => void
+): (() => void) | undefined {
+  let unsubscribed = false
+
+  performHealthCheck()
+    .then((health) => {
+      if (unsubscribed) return
+
+      if (!health.authenticated || !health.supabaseConnected) {
+        // Return undefined to indicate subscription failed
+        // The caller should handle this gracefully
+        return undefined
+      }
+
+      const channelConfig: ChannelConfig = {
+        channelName: `analysis_title_${jobId}`,
+        event: '*',
+        schema: 'public',
+        table: 'analyses',
+        filter: `job_id=eq.${jobId}`,
+        userId: health.userId,
+      }
+
+      const subscription = supabase
+        .channel(channelConfig.channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: channelConfig.event as any,
+            schema: channelConfig.schema,
+            table: channelConfig.table,
+            filter: channelConfig.filter,
+          },
+          (payload) => {
+            if (!unsubscribed) {
+              const analysis = payload.new as { title?: string | null } | null
+              // Note: log object is no-op in this file, but we call onTitle which will log in the store
+              if (analysis?.title !== undefined && analysis.title !== null) {
+                onTitle(analysis.title)
+              }
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // Fetch current title immediately in case it was already stored
+            // Use maybeSingle() to handle case where row doesn't exist yet
+            Promise.resolve(
+              supabase.from('analyses').select('title').eq('job_id', jobId).maybeSingle()
+            )
+              .then((result) => {
+                const { data, error } = result as {
+                  data: { title: string | null } | null
+                  error: any
+                }
+                if (!unsubscribed && !error && data?.title) {
+                  onTitle(data.title)
+                }
+              })
+              .catch(() => {
+                // Silent fail - title might not exist yet
+              })
+          }
+        })
+
+      return () => {
+        unsubscribed = true
+        subscription.unsubscribe()
+      }
+    })
+    .catch(() => {
+      // Silent fail - title subscription is optional
+      // Health check failure is handled gracefully
+      return undefined
+    })
+
   return () => {
     unsubscribed = true
   }

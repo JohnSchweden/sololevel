@@ -14,6 +14,15 @@ import Animated, {
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
 
+// Memoized BlurView style (static, reused across all bubbles)
+const BLUR_VIEW_STYLE = {
+  position: 'absolute' as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+}
+
 export interface FeedbackBubblesProps {
   messages: FeedbackMessage[]
 }
@@ -104,13 +113,7 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
       <BlurView
         intensity={15}
         tint="light"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
+        style={BLUR_VIEW_STYLE}
       />
       {/* Text content */}
       <YStack

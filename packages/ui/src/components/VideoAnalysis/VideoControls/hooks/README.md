@@ -36,7 +36,7 @@ export const VideoControls = ({ isPlaying, showControls, ... }) => {
     showControls,
     isPlaying,
     isScrubbing,
-    autoHideDelayMs: 2000, // Optional, default is 2000
+    autoHideDelayMs: 1500, // Optional, default is 1500
     onControlsVisibilityChange: (visible) => {
       console.log('Controls are now:', visible ? 'visible' : 'hidden')
     },
@@ -71,7 +71,7 @@ interface UseControlsVisibilityConfig {
 - `showControls` - External control forcing visibility (from parent component)
 - `isPlaying` - Current video playback state
 - `isScrubbing` - Whether user is currently dragging the progress bar
-- `autoHideDelayMs` - Milliseconds before auto-hiding (default: 2000)
+- `autoHideDelayMs` - Milliseconds before auto-hiding (default: 1500)
 - `onControlsVisibilityChange` - Callback triggered when visibility changes
 
 ### Output: `UseControlsVisibilityReturn`

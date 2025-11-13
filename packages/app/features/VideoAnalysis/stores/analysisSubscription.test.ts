@@ -22,11 +22,16 @@ type RecordingSubscriptionMock = (
 ) => () => void
 
 type LatestJobFetcher = (recordingId: number) => Promise<any>
+type TitleSubscriptionMock = (
+  jobId: number,
+  onTitle: (title: string | null) => void
+) => (() => void) | undefined
 
 const mockSubscribeToAnalysisJob = jest.fn() as jest.MockedFunction<SubscriptionMock>
 const mockSubscribeToLatestAnalysisJobByRecordingId =
   jest.fn() as jest.MockedFunction<RecordingSubscriptionMock>
 const mockGetLatestAnalysisJobForRecordingId = jest.fn() as jest.MockedFunction<LatestJobFetcher>
+const mockSubscribeToAnalysisTitle = jest.fn() as jest.MockedFunction<TitleSubscriptionMock>
 
 jest.mock('@my/api', () => ({
   __esModule: true,
@@ -36,6 +41,8 @@ jest.mock('@my/api', () => ({
     mockSubscribeToLatestAnalysisJobByRecordingId(...args),
   getLatestAnalysisJobForRecordingId: (...args: Parameters<LatestJobFetcher>) =>
     mockGetLatestAnalysisJobForRecordingId(...args),
+  subscribeToAnalysisTitle: (...args: Parameters<TitleSubscriptionMock>) =>
+    mockSubscribeToAnalysisTitle(...args),
 }))
 
 const flushMicrotasks = async () => {
@@ -49,6 +56,8 @@ describe('analysisSubscription store', () => {
     mockSubscribeToAnalysisJob.mockReset()
     mockSubscribeToLatestAnalysisJobByRecordingId.mockReset()
     mockGetLatestAnalysisJobForRecordingId.mockReset()
+    mockSubscribeToAnalysisTitle.mockReset()
+    mockSubscribeToAnalysisTitle.mockReturnValue(undefined) // Default: no title subscription
     useAnalysisSubscriptionStore.getState().reset()
   })
 

@@ -282,22 +282,71 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
             if (job) {
               const historyStore = useVideoHistoryStore.getState()
 
-              // Generate title from date (AnalysisResults doesn't have title field)
-              const title = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
-
               let thumbnailUri: string | undefined
               let storagePath: string | undefined
+              let analysisTitle: string | undefined
 
-              // Use dynamic import to avoid circular dependencies and fetch thumbnail
-              import('@my/api')
-                .then(({ supabase }) =>
+              // Use dynamic import to avoid circular dependencies
+              // Fetch both video recording and analysis title in parallel
+              // Try to fetch title once (non-blocking), but don't wait if not available
+              // Title subscription will update it later if needed
+              Promise.all([
+                import('@my/api').then(({ supabase }) =>
                   supabase
                     .from('video_recordings')
                     .select('thumbnail_url, metadata, storage_path')
                     .eq('id', job.video_recording_id)
                     .single()
-                )
-                .then(({ data: videoRecording }) => {
+                ),
+                import('@my/api').then(async ({ supabase }) => {
+                  // Try to fetch title once (non-blocking)
+                  // If not available, title subscription will update it later
+                  try {
+                    const result = (await supabase
+                      .from('analyses')
+                      .select('title')
+                      .eq('job_id', jobId)
+                      .single()) as { data: { title: string | null } | null; error: any }
+
+                    if (result.data?.title) {
+                      return result.data.title
+                    }
+                    return null
+                  } catch (error) {
+                    log.debug(
+                      'analysisStatus',
+                      'Title fetch failed (will be updated by subscription)',
+                      {
+                        jobId,
+                        error: error instanceof Error ? error.message : String(error),
+                      }
+                    )
+                    return null
+                  }
+                }),
+              ])
+                .then(([videoResult, fetchedTitle]) => {
+                  // Extract analysis title (may be null if not available yet)
+                  analysisTitle = fetchedTitle ?? undefined
+
+                  // Only use real title from database - don't cache dummy titles
+                  // Title subscription will update it later if it becomes available
+                  if (!analysisTitle) {
+                    log.debug(
+                      'analysisStatus',
+                      'Title not available yet, will be updated by subscription',
+                      {
+                        jobId,
+                      }
+                    )
+                  } else {
+                    log.debug('analysisStatus', 'Title fetched successfully', {
+                      jobId,
+                      title: analysisTitle,
+                    })
+                  }
+
+                  const { data: videoRecording } = videoResult
                   storagePath = videoRecording?.storage_path ?? undefined
 
                   // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
@@ -338,35 +387,50 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                       historyStore.updateCache(job.id, { videoUri: metadata.localUri })
                     }
                   }
-                })
-                .catch((thumbnailError: unknown) => {
-                  log.warn('analysisStatus', 'Failed to fetch thumbnail from video metadata', {
-                    error:
-                      thumbnailError instanceof Error
-                        ? thumbnailError.message
-                        : String(thumbnailError),
+
+                  // Look up persisted videoUri from localUriIndex if available
+                  const persistedVideoUri = storagePath
+                    ? historyStore.getLocalUri(storagePath)
+                    : undefined
+
+                  historyStore.addToCache({
+                    id: job.id,
                     videoId: job.video_recording_id,
+                    userId: job.user_id,
+                    title: analysisTitle ?? '', // Use empty string as placeholder - subscription will update it
+                    createdAt: job.created_at,
+                    thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
+                    videoUri: persistedVideoUri ?? undefined, // Use persisted path if available, convert null to undefined
+                    results,
+                    poseData,
+                    storagePath,
                   })
-                  // Non-blocking - continue without thumbnail
                 })
+                .catch((error: unknown) => {
+                  log.warn('analysisStatus', 'Failed to fetch video metadata or analysis title', {
+                    error: error instanceof Error ? error.message : String(error),
+                    videoId: job.video_recording_id,
+                    jobId,
+                  })
+                  // Non-blocking - continue without thumbnail/title
+                  // Don't cache dummy title - subscription will update it later
+                  const persistedVideoUri = storagePath
+                    ? historyStore.getLocalUri(storagePath)
+                    : undefined
 
-              // Look up persisted videoUri from localUriIndex if available
-              const persistedVideoUri = storagePath
-                ? historyStore.getLocalUri(storagePath)
-                : undefined
-
-              historyStore.addToCache({
-                id: job.id,
-                videoId: job.video_recording_id,
-                userId: job.user_id,
-                title,
-                createdAt: job.created_at,
-                thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
-                videoUri: persistedVideoUri ?? undefined, // Use persisted path if available, convert null to undefined
-                results,
-                poseData,
-                storagePath,
-              })
+                  historyStore.addToCache({
+                    id: job.id,
+                    videoId: job.video_recording_id,
+                    userId: job.user_id,
+                    title: '', // Use empty string as placeholder - subscription will update it
+                    createdAt: job.created_at,
+                    thumbnail: thumbnailUri,
+                    videoUri: persistedVideoUri ?? undefined,
+                    results,
+                    poseData,
+                    storagePath,
+                  })
+                })
 
               // Update last sync timestamp
               historyStore.updateLastSync()

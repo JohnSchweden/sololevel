@@ -34,6 +34,7 @@ export interface GeminiVideoAnalysisResult {
   rawText?: string // Raw text output from the LLM
   promptUsed?: string // The actual prompt string sent to the LLM
   jsonData?: any // Parsed JSON block from JSON DATA START/END
+  title?: string // Concise roast title for the analysis (max 60 characters)
 }
 
 /**

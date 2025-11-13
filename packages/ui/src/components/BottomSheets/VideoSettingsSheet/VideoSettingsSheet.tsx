@@ -4,6 +4,18 @@ import { BlurView } from 'expo-blur'
 import { Button } from '@ui/components/Button'
 import { Sheet, Text, XStack, YStack } from 'tamagui'
 
+// Shared BlurView style for bottom sheets (memoized at module level)
+// Reduced intensity from 50 to 35 for better performance while maintaining visual separation
+const BOTTOM_SHEET_BLUR_STYLE = {
+  position: 'absolute' as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  borderTopLeftRadius: 24,
+  borderTopRightRadius: 24,
+}
+
 export interface VideoSettingsSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -34,17 +46,9 @@ export function VideoSettingsSheet({
         borderTopRightRadius="$6"
       >
         <BlurView
-          intensity={50}
+          intensity={35}
           tint="dark"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-          }}
+          style={BOTTOM_SHEET_BLUR_STYLE}
         />
         <Sheet.ScrollView>
           <YStack

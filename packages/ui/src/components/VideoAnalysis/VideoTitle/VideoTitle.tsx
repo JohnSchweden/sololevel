@@ -1,5 +1,6 @@
 import { Check, Edit3, X } from '@tamagui/lucide-icons'
 import React from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Input, Text, XStack, YStack } from 'tamagui'
 
 export interface VideoTitleProps {
@@ -8,6 +9,10 @@ export interface VideoTitleProps {
   isEditable?: boolean
   onTitleEdit?: (newTitle: string) => void
   timestamp?: string
+  // Overlay mode: non-editable, prominent display for video overlay
+  overlayMode?: boolean
+  // Controls visibility: only show title when controls are visible (for overlay mode)
+  controlsVisible?: boolean
 }
 
 export function VideoTitle({
@@ -16,15 +21,23 @@ export function VideoTitle({
   isEditable = true,
   onTitleEdit,
   timestamp,
+  overlayMode = false,
+  controlsVisible = true,
 }: VideoTitleProps) {
   const [isEditing, setIsEditing] = React.useState(false)
   const [editValue, setEditValue] = React.useState(title || '')
+  const insets = useSafeAreaInsets()
 
   React.useEffect(() => {
     if (title) {
       setEditValue(title)
     }
   }, [title])
+
+  // Calculate header height: safe area top inset + AppHeader height (44px) + custom padding
+  const APP_HEADER_HEIGHT = 44
+  const CUSTOM_PADDING_TOP = 0 // Custom spacing below header
+  const headerOffset = insets.top + APP_HEADER_HEIGHT + CUSTOM_PADDING_TOP
 
   const handleStartEdit = () => {
     if (isEditable && !isGenerating) {
@@ -46,6 +59,33 @@ export function VideoTitle({
   }
 
   const displayTitle = title || (isGenerating ? 'Generating title...' : 'Video Analysis')
+
+  // Overlay mode: simplified, non-editable display
+  if (overlayMode) {
+    if (!title) return null // Don't render if no title
+    if (!controlsVisible) return null // Don't render when controls are hidden
+
+    return (
+      <YStack
+        alignItems="flex-start"
+        paddingTop={headerOffset}
+        paddingHorizontal="$4"
+        paddingBottom="$2"
+        testID="video-title-overlay"
+        pointerEvents="none" // Don't block video interactions
+      >
+        <Text
+          fontSize="$5"
+          fontWeight="600"
+          color="$color"
+          textAlign="left"
+          testID="video-title-overlay-text"
+        >
+          {displayTitle}
+        </Text>
+      </YStack>
+    )
+  }
 
   return (
     <YStack
@@ -71,8 +111,7 @@ export function VideoTitle({
             fontWeight="600"
             color="$color12"
             backgroundColor="$background"
-            borderWidth={1}
-            borderColor="$borderColor"
+            borderWidth={0}
             borderRadius="$2"
             padding="$2"
             testID="title-input"

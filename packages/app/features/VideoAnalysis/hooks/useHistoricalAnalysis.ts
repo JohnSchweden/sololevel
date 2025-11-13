@@ -333,6 +333,7 @@ interface HistoricalAnalysisData {
   analysis: CachedAnalysis | null
   pendingCacheUpdates?: {
     videoUri?: string
+    title?: string
     localUriMappings?: Array<{ storagePath: string; localUri: string }>
   }
 }
@@ -369,20 +370,35 @@ export async function fetchHistoricalAnalysisData(
       localUriHint,
     })
 
-    const updatedCached = { ...cached, videoUri: resolvedVideoUri }
+    // Also fetch title from database to update cache if it's missing or is a fallback
+    // This ensures we always have the latest title even when using cached data
+    const { data: analysis } = (await supabase
+      .from('analyses')
+      .select('title')
+      .eq('job_id', analysisId)
+      .single()) as { data: { title: string | null } | null; error: any }
+
+    // Use database title if available, otherwise keep cached title
+    const dbTitle = analysis?.title
+    const finalTitle = dbTitle || cached.title
+
+    const updatedCached = { ...cached, videoUri: resolvedVideoUri, title: finalTitle }
 
     log.info('useHistoricalAnalysis', 'Returning cached analysis', {
       analysisId,
       hasVideoUri: !!updatedCached.videoUri,
       videoUri: updatedCached.videoUri,
       cachedAt: new Date(updatedCached.cachedAt).toISOString(),
+      title: updatedCached.title,
     })
 
     // Return data with pending cache update (to be applied in useEffect)
     return {
       analysis: updatedCached,
       pendingCacheUpdates:
-        resolvedVideoUri !== cached.videoUri ? { videoUri: resolvedVideoUri } : undefined,
+        resolvedVideoUri !== cached.videoUri || finalTitle !== cached.title
+          ? { videoUri: resolvedVideoUri, title: finalTitle }
+          : undefined,
     }
   }
 
@@ -391,6 +407,21 @@ export async function fetchHistoricalAnalysisData(
 
   if (!job) {
     return { analysis: null }
+  }
+
+  // Fetch the analysis record to get the AI-generated title
+  // Type assertion needed until Supabase types are regenerated
+  const { data: analysis, error: analysisError } = (await supabase
+    .from('analyses')
+    .select('title')
+    .eq('job_id', analysisId)
+    .single()) as { data: { title: string | null } | null; error: any }
+
+  if (analysisError && analysisError.code !== 'PGRST116') {
+    log.warn('useHistoricalAnalysis', 'Failed to fetch analysis title', {
+      analysisId,
+      error: analysisError.message,
+    })
   }
 
   // Also fetch the video recording to get the video URI
@@ -438,11 +469,15 @@ export async function fetchHistoricalAnalysisData(
     })
   }
 
+  // Only use real title from database - don't cache dummy titles
+  // Title subscription will update it later if it becomes available
+  const dbTitle = analysis?.title
+
   const cachedAnalysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> = {
     id: job.id,
     videoId: job.video_recording_id,
     userId: job.user_id,
-    title: `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
+    title: dbTitle ?? '', // Use empty string as placeholder - subscription will update it
     createdAt: job.created_at,
     results: job.results as CachedAnalysis['results'],
     poseData: job.pose_data ? (job.pose_data as unknown as CachedAnalysis['poseData']) : undefined,
@@ -540,6 +575,11 @@ export function useHistoricalAnalysis(analysisId: number | null) {
         pendingCacheUpdates.videoUri !== existingCached.videoUri
       ) {
         updates.videoUri = pendingCacheUpdates.videoUri
+      }
+
+      // Update title if changed (e.g., fetched from database on cache hit)
+      if (pendingCacheUpdates?.title && pendingCacheUpdates.title !== existingCached.title) {
+        updates.title = pendingCacheUpdates.title
       }
 
       updateCache(analysisId, updates)

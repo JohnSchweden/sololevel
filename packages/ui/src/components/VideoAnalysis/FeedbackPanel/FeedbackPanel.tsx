@@ -256,6 +256,7 @@ export interface FeedbackPanelProps {
   activeTab: 'feedback' | 'insights' | 'comments'
   feedbackItems: FeedbackItem[]
   comments?: CommentItem[] // Comments for comments tab
+  analysisTitle?: string // AI-generated analysis title
   currentVideoTime?: number
   videoDuration?: number
   selectedFeedbackId?: string | null
@@ -285,6 +286,7 @@ export const FeedbackPanel = memo(
     activeTab,
     feedbackItems,
     comments = [],
+    analysisTitle,
     // currentVideoTime = 0, // DEPRECATED: auto-highlighting now controlled by coordinator
     selectedFeedbackId,
     //videoDuration = 0,
@@ -1045,8 +1047,8 @@ export const FeedbackPanel = memo(
       tabTransitionExitStyle,
     ])
 
-    const renderListHeader = useCallback(
-      () => (
+    const renderListHeader = useCallback(() => {
+      return (
         <YStack paddingHorizontal="$0">
           <YStack
             alignItems="center"
@@ -1063,7 +1065,7 @@ export const FeedbackPanel = memo(
               color="$color12"
               textAlign="left"
             >
-              Speech Analysis For Your Hand Flapping Seagull Performance
+              {analysisTitle || 's Analysis For Your Hand Flapping Seagull Performance'}
             </Text>
           </YStack>
 
@@ -1137,9 +1139,8 @@ export const FeedbackPanel = memo(
 
           {renderTabContent()}
         </YStack>
-      ),
-      [activeTab, onTabChange, renderTabContent]
-    )
+      )
+    }, [activeTab, onTabChange, renderTabContent, analysisTitle])
 
     const renderFeedbackItem = useCallback(
       ({ item, index }: { item: FeedbackItem; index: number }) =>

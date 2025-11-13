@@ -45,18 +45,35 @@ export function parseDualOutput(responseText: string): {
   feedback: FeedbackItem[]
   metrics: any
   jsonData: any
+  title?: string
 } {
   let textReport = ''
   let feedback: FeedbackItem[] = []
   let metrics: any
   let jsonData: any = {}
+  let title: string | undefined
 
   // Preferred format: === TEXT FEEDBACK START/END ===
   const reportMatchNew = responseText.match(
     /===\s*TEXT FEEDBACK START\s*===\s*([\s\S]*?)===\s*TEXT FEEDBACK END\s*===/i
   )
   if (reportMatchNew && reportMatchNew[1]) {
-    textReport = reportMatchNew[1].trim()
+    let rawTextReport = reportMatchNew[1].trim()
+    
+    // Extract title from within TEXT FEEDBACK START block
+    const titleMatch = rawTextReport.match(
+      /\*\*Title Start\*\*\s*([\s\S]*?)\s*\*\*Title End\*\*/i
+    )
+    if (titleMatch && titleMatch[1]) {
+      title = titleMatch[1].trim()
+      // Remove title block from textReport
+      rawTextReport = rawTextReport.replace(
+        /\*\*Title Start\*\*\s*[\s\S]*?\s*\*\*Title End\*\*\s*/i,
+        ''
+      ).trim()
+    }
+    
+    textReport = rawTextReport
   } else {
     // Legacy format: --- ANALYSIS REPORT: ... FEEDBACK JSON:
     const reportMatchLegacy = responseText.match(
@@ -124,5 +141,5 @@ export function parseDualOutput(responseText: string): {
     }
   }
 
-  return { textReport, feedback, metrics, jsonData }
+  return { textReport, feedback, metrics, jsonData, title }
 }

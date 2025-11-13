@@ -38,6 +38,7 @@ export type Database = {
           job_id: number
           raw_generated_text: string | null
           summary_text: string | null
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -49,6 +50,7 @@ export type Database = {
           job_id: number
           raw_generated_text?: string | null
           summary_text?: string | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -60,6 +62,7 @@ export type Database = {
           job_id?: number
           raw_generated_text?: string | null
           summary_text?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -36,6 +36,7 @@ import {
   VideoControlsRef,
   VideoPlayer,
   VideoPlayerArea,
+  VideoTitle,
 } from '@ui/components/VideoAnalysis'
 
 // Social counts definition - moved from screen level to video section
@@ -87,6 +88,8 @@ interface VideoPlayerSectionProps {
    * VideoControls uses this to fade out the normal progress bar immediately during pull-to-expand.
    */
   overscroll?: SharedValue<number>
+  // Analysis title for video overlay
+  analysisTitle?: string
   // DEPRECATED: Use persistentProgressStoreSetter instead to prevent cascading re-renders
   // Callback to provide persistent progress bar props to parent for rendering at layout level
   onPersistentProgressBarPropsChange?: (props: PersistentProgressBarProps | null) => void
@@ -157,6 +160,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   onPersistentProgressBarPropsChange,
   // persistentProgressStoreSetter, - REMOVED: Subscribed directly from store
   onAudioNaturalEnd = () => {},
+  analysisTitle,
 }: VideoPlayerSectionProps) {
   const playbackProgressShared = useSharedValue(0)
 
@@ -715,6 +719,36 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
       ],
     }
   })
+
+  // Shared value for title overlay opacity - synced with controls visibility
+  const titleOverlayOpacity = useSharedValue(showControls ? 1 : 0)
+
+  // Sync title overlay opacity with controls visibility
+  useEffect(() => {
+    titleOverlayOpacity.value = showControls ? 1 : 0
+  }, [showControls, titleOverlayOpacity])
+
+  // Animation style for video title overlay - only visible in max mode (collapseProgress = 0) and when controls are visible
+  const titleOverlayAnimatedStyle = useAnimatedStyle(() => {
+    if (!collapseProgress || !analysisTitle) return { opacity: 0 }
+    // Fade in when in max mode (collapseProgress 0-0.1), fade out when transitioning away
+    const collapseOpacity = interpolate(
+      collapseProgress.value,
+      [0, 0.1],
+      [1, 0],
+      Extrapolation.CLAMP
+    )
+    // Combine collapse opacity with controls visibility opacity
+    const opacity = collapseOpacity * titleOverlayOpacity.value
+    return {
+      opacity,
+      transform: [
+        {
+          translateY: interpolate(collapseProgress.value, [0, 0.1], [0, -20], Extrapolation.CLAMP),
+        },
+      ],
+    }
+  }, [analysisTitle])
   const activeBubbleMessages = useMemo(() => {
     if (!bubbleState.visible || bubbleState.currentIndex === null) {
       return []
@@ -760,6 +794,24 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
               seekToTime={pendingSeek}
               onSeekComplete={handleSeekComplete}
             />
+          )}
+
+          {/* Video Title Overlay - Only visible in max mode (collapseProgress = 0) */}
+          {analysisTitle && (
+            <Animated.View
+              style={[
+                titleOverlayAnimatedStyle,
+                { zIndex: 5, position: 'absolute', top: 0, left: 0, right: 0 },
+              ]}
+              testID="video-title-overlay-container"
+            >
+              <VideoTitle
+                title={analysisTitle}
+                overlayMode={true}
+                isEditable={false}
+                controlsVisible={showControls}
+              />
+            </Animated.View>
           )}
 
           {audioOverlay.activeAudio && (

@@ -1,7 +1,7 @@
 import MaskedView from '@react-native-masked-view/masked-view'
 import { LinearGradient } from '@tamagui/linear-gradient'
 import { BlurView } from 'expo-blur'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { YStack } from 'tamagui'
 
 // Platform-agnostic safe area hook for bottom navigation
@@ -26,6 +26,19 @@ export function BottomNavigationContainer({
 }) {
   const insets = useSafeAreaInsets()
 
+  // Memoize BlurView style to prevent re-creation on every render
+  // Reduced intensity from 50 to 30 for better performance (always visible component)
+  const blurViewStyle = useMemo(
+    () => ({
+      flex: 1,
+      paddingBottom: insets.bottom,
+      paddingHorizontal: 16, // equivalent to $4
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    }),
+    [insets.bottom]
+  )
+
   return (
     <YStack
       position="absolute"
@@ -47,15 +60,9 @@ export function BottomNavigationContainer({
         }
       >
         <BlurView
-          intensity={50}
+          intensity={30}
           tint="dark"
-          style={{
-            flex: 1,
-            paddingBottom: insets.bottom,
-            paddingHorizontal: 16, // equivalent to $4
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
+          style={blurViewStyle}
         />
       </MaskedView>
       <YStack

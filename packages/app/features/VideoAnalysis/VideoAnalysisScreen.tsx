@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useStatusBar } from '@app/hooks/useStatusBar'
 import { log } from '@my/logging'
 import type { VideoControlsRef } from '@ui/components/VideoAnalysis'
+// PERFORMANCE FIX: useVideoPlayer moved to VideoPlayerSection to prevent screen re-renders
+// import { useVideoPlayer } from './hooks/useVideoPlayer'
+import { useVideoHistoryStore } from '../HistoryProgress/stores/videoHistory'
 import { VideoAnalysisLayout } from './components/VideoAnalysisLayout.native'
 import { useAnalysisState } from './hooks/useAnalysisState'
 import { useAnimationController } from './hooks/useAnimationController'
@@ -10,8 +13,6 @@ import { useFeedbackAudioSource } from './hooks/useFeedbackAudioSource'
 import { useFeedbackCoordinator } from './hooks/useFeedbackCoordinator'
 import { useGestureController } from './hooks/useGestureController'
 import { useHistoricalAnalysis } from './hooks/useHistoricalAnalysis'
-// PERFORMANCE FIX: useVideoPlayer moved to VideoPlayerSection to prevent screen re-renders
-// import { useVideoPlayer } from './hooks/useVideoPlayer'
 import { useVideoPlayerStore } from './stores'
 import { useFeedbackAudioStore } from './stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from './stores/feedbackCoordinatorStore'
@@ -432,6 +433,18 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
    * PERFORMANCE FIX: selectedFeedbackId now from granular Zustand subscription
    * instead of coordinator object - prevents re-renders when other coordinator state changes
    */
+  // Extract analysis title from historical data (history mode) or cache (active analysis)
+  // useHistoricalAnalysis returns data: CachedAnalysis | null (not HistoricalAnalysisData)
+  let analysisTitle = historical.data?.title ?? undefined
+
+  // For active analyses (not in history mode), try to get title from cache
+  if (!isHistoryMode && analysisState.analysisJobId) {
+    const cached = useVideoHistoryStore.getState().getCached(analysisState.analysisJobId)
+    if (cached?.title) {
+      analysisTitle = cached.title
+    }
+  }
+
   const feedback = useMemo(
     () => ({
       items: analysisState.feedback.feedbackItems,
@@ -441,6 +454,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       // Handlers that need precise time use videoPlayer.getPreciseCurrentTime()
       phase: analysisState.phase,
       progress: analysisState.progress,
+      analysisTitle, // AI-generated analysis title
     }),
     [
       analysisState.feedback.feedbackItems,
@@ -448,6 +462,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       // feedbackPanel.activeTab, - MOVED: FeedbackSection subscribes directly
       // highlightedFeedbackId, - REMOVED: FeedbackSection subscribes directly
       // videoPlayer.currentTime REMOVED - was causing render cascades
+      analysisTitle,
       analysisState.phase,
       analysisState.progress,
     ]

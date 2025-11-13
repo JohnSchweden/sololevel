@@ -65,9 +65,15 @@ export function getMockTTSResult(format: AudioFormat = 'wav'): { bytes: Uint8Arr
  * Prepared mock response for MVP testing - maintains full pipeline flow
  */
 export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
-**Big Picture**: Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
 
-**Detailed Analysis**:
+**Title Start**
+Speech Analysis For Your Hand Flapping Seagull Performance
+**Title End**
+
+**Big Picture**
+Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
+
+**Detailed Analysis**
 
 **Posture & Movement (Score: 78/100)**:
 - Maintained upright posture throughout most of the presentation
@@ -89,7 +95,8 @@ export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
 - Work on maintaining consistent eye contact with camera
 - Practice transitioning between different presentation sections
 
-**Bonus Tip**: Great job with your introduction! The confident opening set a positive tone for your entire presentation.
+**Bonus Tip**
+Great job with your introduction! The confident opening set a positive tone for your entire presentation.
 === TEXT FEEDBACK END ===
 
 === JSON DATA START ===
@@ -118,9 +125,16 @@ export const PREPARED_GEMINI_MOCK_RESPONSE = `=== TEXT FEEDBACK START ===
  */
 export function getMockAnalysisResult(): GeminiVideoAnalysisResult {
   return {
-    textReport: `**Big Picture**: Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
+    textReport: `
+    
+**Title Start**
+Speech Analysis For Your Hand Flapping Seagull Performance
+**Title End** 
 
-**Detailed Analysis**:
+**Big Picture**
+Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
+
+**Detailed Analysis**
 
 **Posture & Movement (Score: 78/100)**:
 - Maintained upright posture throughout most of the presentation
@@ -142,7 +156,8 @@ export function getMockAnalysisResult(): GeminiVideoAnalysisResult {
 - Work on maintaining consistent eye contact with camera
 - Practice transitioning between different presentation sections
 
-**Bonus Tip**: Great job with your introduction! The confident opening set a positive tone for your entire presentation.`,
+**Bonus Tip**
+Great job with your introduction! The confident opening set a positive tone for your entire presentation.`,
     feedback: [
       {
         timestamp: 2.5,

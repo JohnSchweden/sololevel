@@ -7,38 +7,42 @@
 **Effort:** 8 hours | **Priority:** P1 (Feature Enhancement) | **Depends on:** None
 **User Story:** US-VA-02 (Video Analysis Feedback Enhancement)
 
-**STATUS:** **PENDING** - Ready for implementation
+**STATUS:** **IN PROGRESS** - Modules 1-4 completed, Modules 5-10 pending
 
 @step-by-step.md - Extend the Gemini analysis prompt to include a title block, parse it, store it in the database, and display it in the feedback panel.
 
-**OBJECTIVE:** Add a concise roast title to each feedback item from the AI analysis prompt, store it in the database, display it prominently in the feedback panel UI, and overlay it on the video in max mode.
+**OBJECTIVE:** Add a concise roast title to each analysis from the AI analysis prompt, store it in the database, display it prominently in the feedback panel UI, and overlay it on the video in max mode.
 
 **RATIONALE:**
-- **Current State:** Feedback items only show message text without context-setting titles
-  - ❌ No visual hierarchy or immediate feedback context
-  - ❌ Users must read entire message to understand feedback type
+- **Current State:** Analysis results only show feedback messages without context-setting titles
+  - ❌ No visual hierarchy or immediate analysis context
+  - ❌ Users must read entire messages to understand analysis theme
   - ❌ Missing the punchy, memorable titles from AI analysis
 
-- **Future Goal:** Each feedback item has a concise, roast-style title
-  - ✅ Instant visual recognition of feedback theme
-  - ✅ Improved UX with clear feedback categorization
+- **Future Goal:** Each analysis has a concise, roast-style title
+  - ✅ Instant visual recognition of analysis theme
+  - ✅ Improved UX with clear analysis categorization
   - ✅ Complete implementation of the designed prompt format
 
 **BENEFITS:**
-- 🎯 **Clear feedback hierarchy:** Titles provide instant context without reading full text
-- 💡 **Enhanced UX:** Users can quickly scan and understand feedback types
-- 🎬 **Video overlay:** Titles appear prominently on video in max mode for immersive feedback
+- 🎯 **Clear analysis hierarchy:** Title provides instant context without reading full text
+- 💡 **Enhanced UX:** Users can quickly understand analysis theme
+- 🎬 **Video overlay:** Title appears prominently on video in max mode for immersive feedback
 - 🚀 **Complete prompt integration:** Full utilization of the designed AI prompt format
 
 **ROOT CAUSE ANALYSIS:**
-The Gemini analysis prompt already generates titles in the format:
+The Gemini analysis prompt already generates a title in the format:
 ```
+**=== TEXT FEEDBACK START ===
 **Title Start**
 [A concise roast title for the feedback based on the video content - max 60 characters]
 **Title End**
+
+[Your detailed analysis here]
+...
 ```
 
-But the parser, database, and UI don't capture or display these titles.
+The title is located **inside the TEXT FEEDBACK START block**, appearing at the beginning before the detailed analysis text. But the parser, database, and UI don't capture or display this title.
 
 **SCOPE:**
 
@@ -52,110 +56,128 @@ But the parser, database, and UI don't capture or display these titles.
 #### Module 8: History Prefetch Updates
 #### Module 9: Test Suite Updates
 #### Module 10: Performance Validation
-**Summary:** Add title column to analysis_feedback table.
+**Summary:** Add title column to analyses table.
 
-**File:** `supabase/migrations/20250101120000_add_feedback_title.sql` (new)
+**File:** `supabase/migrations/20250101120000_add_analysis_title.sql` (new)
 
 **Tasks:**
-- [ ] Create migration to add `title TEXT` column to `analysis_feedback` table
-- [ ] Set nullable initially to allow gradual rollout
-- [ ] Run migration on development database
+- [x] Create migration to add `title TEXT` column to `analyses` table
+- [x] Set nullable initially to allow gradual rollout
+- [x] Run migration on development database
 
 **Acceptance Criteria:**
-- [ ] Migration file created and applied successfully
-- [ ] `analysis_feedback` table has `title` column
-- [ ] Supabase types regenerated to include new column
+- [x] Migration file created and applied successfully
+- [x] `analyses` table has `title` column
+- [x] Supabase types regenerated to include new column (manual update completed)
 
 #### Module 2: Parser Title Extraction
-**Summary:** Extend parseDualOutput to extract title from TEXT FEEDBACK START/END block.
+**Summary:** Extend parseDualOutput to extract single title from Title Start/End block within TEXT FEEDBACK START section.
 
 **File:** `supabase/functions/_shared/gemini/parse.ts` (modify)
 
 **Tasks:**
-- [ ] Add title extraction regex pattern for Title Start/End blocks
-- [ ] Extend parseDualOutput return type to include title array
-- [ ] Parse title from each feedback item in the JSON data
-- [ ] Validate title format (max 60 chars, concise)
+- [x] Extract title from within the TEXT FEEDBACK START block (after parsing that block)
+- [x] Add title extraction regex pattern for `**Title Start**` / `**Title End**` markers
+- [x] Extract title before processing the rest of the text report
+- [x] Extend parseDualOutput return type to include `title?: string` field
+- [x] Validate title format (max 60 chars, concise)
+- [x] Handle cases where title block is missing (optional field)
 
 **Acceptance Criteria:**
-- [ ] parseDualOutput returns title in result.feedback[].title
-- [ ] Titles extracted correctly from mock responses
-- [ ] Parser tests updated and passing
+- [x] parseDualOutput returns title in `result.title` (optional field)
+- [x] Title extracted from within TEXT FEEDBACK START block
+- [x] Title extracted correctly from mock responses
+- [x] Parser handles missing title gracefully (returns undefined)
+- [x] Parser tests updated and passing (5 new tests added, all 216 tests passing)
 
 #### Module 3: Type System Updates
-**Summary:** Add title field to all feedback-related type definitions.
+**Summary:** Add title field to all analysis-related type definitions.
 
 **Files:**
-- `supabase/functions/_shared/gemini/types.ts` (modify)
-- `packages/api/src/types/database.ts` (modify)
-- `packages/app/features/VideoAnalysis/stores/feedbackStatus.ts` (modify)
-- `packages/app/features/VideoAnalysis/types.ts` (modify)
+- `supabase/functions/_shared/gemini/types.ts` (modify - GeminiVideoAnalysisResult)
+- `packages/api/src/types/database.ts` (modify - Database['public']['Tables']['analyses'])
+- `packages/config/src/database.types.ts` (modify - Database['public']['Tables']['analyses'])
+- `packages/app/features/VideoAnalysis/stores/analysisStatus.ts` (modify - analysis state types)
+- `packages/app/features/VideoAnalysis/types.ts` (modify - analysis-related types)
+- `packages/app/features/HistoryProgress/stores/videoHistory.ts` (modify - CachedAnalysis type)
 
 **Tasks:**
-- [ ] Add `title?: string` to FeedbackItem interface
-- [ ] Update database Row/Insert/Update types
-- [ ] Update FeedbackStatusData and FeedbackStatusState
-- [ ] Update FeedbackPanelItem local mirror
+- [x] Add `title?: string` to `GeminiVideoAnalysisResult` interface
+- [x] Update database Row/Insert/Update types for `analyses` table (both api and config packages)
+- [x] Update analysis state interfaces in `analysisStatus` store (VideoAnalysisResult updated)
+- [x] Update `CachedAnalysis` type in `videoHistory` store (already has title field for different purpose)
+- [x] Update any other analysis-related type definitions (VideoAnalysisResult in VideoAnalysisService)
 
 **Acceptance Criteria:**
-- [ ] All TypeScript interfaces include optional title field
-- [ ] Type validation functions updated for title
-- [ ] No breaking changes to existing code
+- [x] All TypeScript interfaces include optional title field on analysis
+- [x] Database types match actual schema (after migration)
+- [x] Type validation functions updated for title (if any)
+- [x] No breaking changes to existing code (all optional fields)
 
 #### Module 4: Database Insertion Logic
 **Summary:** Update analysis results storage to include title field.
 
-**File:** `supabase/functions/_shared/db/analysis.ts` (modify)
+**Files:**
+- `supabase/functions/_shared/db/analysis.ts` (modify)
+- `supabase/migrations/20250928164400_normalize_store_analysis_results.sql` (modify - update RPC)
 
 **Tasks:**
-- [ ] Add title to feedbackInserts mapping in updateAnalysisResults
-- [ ] Handle optional title field (null when not provided)
-- [ ] Update store_analysis_results RPC if needed
+- [x] Add `p_title` parameter to `store_analysis_results` RPC function
+- [x] Update RPC to insert/update `title` column in `analyses` table
+- [x] Add title parameter to `updateAnalysisResults` function call
+- [x] Pass title from parsed result to `updateAnalysisResults` (via aiPipeline)
+- [x] Handle optional title field (null when not provided)
 
 **Acceptance Criteria:**
-- [ ] Titles stored in analysis_feedback.title column
-- [ ] Null values handled gracefully for backward compatibility
-- [ ] Database insertion tests pass
+- [x] `store_analysis_results` RPC accepts `p_title` parameter
+- [x] Title stored in analyses.title column
+- [x] Null values handled gracefully for backward compatibility
+- [x] Database insertion tests pass (type-check passes, all tests passing)
 
 #### Module 5: Subscription and Store Updates
-**Summary:** Update realtime subscription and feedback status store to handle title field.
+**Summary:** Update realtime subscription and analysis store to handle title field.
 
 **Files:**
-- `packages/app/features/VideoAnalysis/stores/feedbackStatus.ts` (modify)
+- `packages/app/features/VideoAnalysis/stores/analysisStatus.ts` (modify - analysis store, not feedbackStatus)
 - `packages/app/features/HistoryProgress/hooks/usePrefetchVideoAnalysis.ts` (modify)
+- `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.ts` (modify - fetchHistoricalAnalysisData)
+- `packages/app/hooks/useAnalysisRealtime.ts` (modify - if needed for analyses table subscription)
 
 **Tasks:**
-- [ ] Update FeedbackStatusData to include title field
-- [ ] Update subscription SELECT to include title column
-- [ ] Update prefetch SELECT to include title column
+- [ ] Update analysis state store to include title field
+- [ ] Query `analyses` table to fetch title (join with analysis_jobs or query separately)
+- [ ] Update `fetchHistoricalAnalysisData` to include title from analyses table
+- [ ] Update `prefetchFeedbackMetadata` or create separate prefetch for analysis title
 - [ ] Update store mapping and state interfaces
+- [ ] Consider realtime subscription to `analyses` table if title updates needed
 
 **Acceptance Criteria:**
-- [ ] Realtime updates include title field
+- [ ] Analysis store includes title field
+- [ ] Historical analysis queries include title from analyses table
 - [ ] Prefetch includes title in database queries
 - [ ] Store state correctly handles title propagation
 
 #### Module 6: UI Feedback Panel Integration
-**Summary:** Display feedback titles prominently in the feedback panel UI.
+**Summary:** Display analysis title prominently in the feedback panel UI.
 
 **Files:**
 - `packages/ui/src/components/VideoAnalysis/FeedbackPanel/FeedbackPanel.tsx` (modify)
 - `packages/app/features/VideoAnalysis/hooks/useFeedbackStatusIntegration.ts` (modify)
 
 **Tasks:**
-- [ ] Add title field to FeedbackItem interface in UI
-- [ ] Update feedbackItems mapping to include title
-- [ ] Add title display in feedback item rendering
+- [ ] Add title field to analysis state interface in UI
+- [ ] Update analysis data mapping to include title
+- [ ] Add title display in feedback panel header/above feedback items
 - [x] Style title prominently (bold, larger font, roast-style)
 
 **Acceptance Criteria:**
-- [x] Titles display above feedback text in panel
+- [x] Title displays above feedback items in panel
 - [x] Visual hierarchy improved with title prominence
 - [ ] Accessibility labels include title content
 - [ ] Cross-platform styling consistent
 
 #### Module 7: Video Title Overlay Component
-**Summary:** Add video title overlay that displays feedback titles prominently on video in max mode.
+**Summary:** Add video title overlay that displays analysis title prominently on video in max mode.
 
 **Files:**
 - `packages/ui/src/components/VideoAnalysis/VideoTitle/VideoTitle.tsx` (modify)
@@ -166,31 +188,37 @@ But the parser, database, and UI don't capture or display these titles.
 - [ ] Use existing VideoTitle component with prominent title display
 - [ ] Add title prop and conditional rendering based on video mode
 - [ ] Integrate VideoTitle into VideoPlayerSection
-- [ ] Connect to feedback coordinator for current title
+- [ ] Connect to analysis state for title
 - [ ] Style overlay to appear only in max video mode (collapseProgress = 0)
 - [ ] Position overlay appropriately on video surface below the AppHeader
-- [ ] Add smooth fade transitions for title changes
+- [ ] Add smooth fade transitions for title display
 
 **Acceptance Criteria:**
-- [ ] VideoTitle component renders feedback titles prominently
+- [ ] VideoTitle component renders analysis title prominently
 - [ ] Component only visible when video is in max mode (collapseProgress = 0)
-- [ ] Smooth transitions between different feedback titles
+- [ ] Title displays consistently throughout video playback
 - [ ] Overlay positioned appropriately without obstructing controls
 - [ ] Cross-platform styling consistent
 - [ ] Accessibility considerations for screen readers
 
 #### Module 8: History Prefetch Updates
-**Summary:** Ensure history prefetch includes title field in queries.
+**Summary:** Ensure history prefetch includes title field from analyses table in queries.
 
-**File:** `packages/app/features/HistoryProgress/hooks/usePrefetchVideoAnalysis.ts` (modify)
+**Files:**
+- `packages/app/features/HistoryProgress/hooks/usePrefetchVideoAnalysis.ts` (modify)
+- `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.ts` (modify - fetchHistoricalAnalysisData)
+- `packages/app/features/HistoryProgress/stores/videoHistory.ts` (modify - CachedAnalysis type)
 
 **Tasks:**
-- [ ] Update prefetchFeedbackMetadata SELECT to include title
-- [ ] Update feedback data mapping to include title
+- [ ] Update `fetchHistoricalAnalysisData` to query `analyses` table for title
+- [ ] Join `analysis_jobs` with `analyses` table in history queries
+- [ ] Update `CachedAnalysis` type to include title field
+- [ ] Update prefetch to include title in cached data
 - [ ] Verify title included in prefetched data
 
 **Acceptance Criteria:**
 - [ ] History screen loads with titles available
+- [ ] Title fetched efficiently (single query with join, not separate query)
 - [ ] No additional database queries needed for titles
 - [ ] Prefetch performance maintained
 
@@ -234,17 +262,21 @@ But the parser, database, and UI don't capture or display these titles.
 - [ ] Database queries optimized for title inclusion
 
 **FILES TO CREATE:**
-- `supabase/migrations/20250101120000_add_feedback_title.sql`
+- `supabase/migrations/20250101120000_add_analysis_title.sql`
 - `packages/ui/src/components/VideoAnalysis/VideoTitle/VideoTitle.tsx`
 
 **FILES TO MODIFY:**
 - `supabase/functions/_shared/gemini/parse.ts`
 - `supabase/functions/_shared/gemini/types.ts`
 - `packages/api/src/types/database.ts`
-- `packages/app/features/VideoAnalysis/stores/feedbackStatus.ts`
+- `packages/config/src/database.types.ts` (also needs updating)
+- `packages/app/features/VideoAnalysis/stores/analysisStatus.ts` (analysis store, not feedbackStatus)
 - `packages/app/features/VideoAnalysis/types.ts`
 - `supabase/functions/_shared/db/analysis.ts`
+- `supabase/migrations/20250928164400_normalize_store_analysis_results.sql` (update RPC)
 - `packages/app/features/HistoryProgress/hooks/usePrefetchVideoAnalysis.ts`
+- `packages/app/features/VideoAnalysis/hooks/useHistoricalAnalysis.ts` (fetchHistoricalAnalysisData)
+- `packages/app/features/HistoryProgress/stores/videoHistory.ts` (CachedAnalysis type)
 - `packages/ui/src/components/VideoAnalysis/FeedbackPanel/FeedbackPanel.tsx`
 - `packages/app/features/VideoAnalysis/hooks/useFeedbackStatusIntegration.ts`
 - `packages/app/features/VideoAnalysis/components/VideoPlayerSection.tsx`
@@ -255,9 +287,13 @@ But the parser, database, and UI don't capture or display these titles.
 **TECHNICAL NOTES:**
 - **Backward Compatibility:** Title field is optional to support existing data
 - **Performance:** Title is short text (max 60 chars), minimal storage/query impact
-- **UX Design:** Titles displayed prominently above feedback text for instant recognition
-- **Data Flow:** Title flows from AI prompt → parser → database → subscription → UI
+- **UX Design:** Title displayed prominently above feedback items for instant recognition
+- **Data Flow:** Title flows from AI prompt → parser → `updateAnalysisResults` → `store_analysis_results` RPC → `analyses` table → historical/prefetch queries → UI
 - **Validation:** Type-safe throughout with optional field handling
+- **Architecture:** One title per analysis (stored in analyses table), not per feedback
+- **Query Pattern:** Title accessed via join: `analysis_jobs` JOIN `analyses` ON `job_id`, or separate query using `analysis_id` (UUID from analyses table)
+- **Store Pattern:** Analysis title stored in `analysisStatus` store (not `feedbackStatus` store)
+- **RPC Update:** `store_analysis_results` RPC needs new `p_title` parameter added to function signature
 
 **BLOCKERS & RISKS:**
 - ⚠️ **Database Migration:** Must be applied before deploying parser changes
@@ -267,32 +303,32 @@ But the parser, database, and UI don't capture or display these titles.
 **ALTERNATIVE APPROACHES (considered):**
 1. **Store in JSON:** Embed title in existing message field (rejected: poor UX)
 2. **Computed Field:** Generate titles client-side (rejected: loses AI nuance)
-3. **Separate Table:** Title in analysis_feedback_titles (rejected: overkill for simple field)
+3. **Per Feedback Title:** Title in analysis_feedback table (rejected: one title per analysis, not per feedback)
 
 **RECOMMENDATION:**
 Full implementation across all layers provides the best UX and maintains data integrity.
 
 **NEXT STEPS:**
-1. Run database migration
-2. Regenerate Supabase types
-3. Deploy parser changes
-4. Test end-to-end title flow
-5. Validate performance metrics
+1. ✅ Run database migration (completed)
+2. ✅ Regenerate Supabase types (manual update completed)
+3. ✅ Deploy parser changes (completed)
+4. ⏳ Test end-to-end title flow (pending Modules 5-8)
+5. ⏳ Validate performance metrics (Module 10)
 
 **COMPLETION CRITERIA:**
-- [ ] Database schema extended with title column
-- [ ] Parser extracts titles from AI prompt responses
-- [ ] Type system updated across all layers
-- [ ] Database insertion includes title field
-- [ ] Realtime subscriptions fetch title
-- [ ] Feedback panel displays titles prominently
-- [ ] History prefetch includes titles
-- [ ] Video title overlay displays in max mode only
-- [ ] Test suite updated and passing
-- [ ] Performance validation completed
-- [ ] Manual QA: Titles display correctly in feedback panel
-- [ ] Manual QA: Video overlay shows titles in max mode
-- [ ] Manual QA: End-to-end flow from AI analysis to UI display
+- [x] Database schema extended with title column in analyses table ✅ Module 1
+- [x] Parser extracts title from AI prompt responses ✅ Module 2
+- [x] Type system updated across all layers ✅ Module 3
+- [x] Database insertion includes title field in analyses table ✅ Module 4
+- [ ] Realtime subscriptions fetch title from analyses (Module 5)
+- [ ] Feedback panel displays analysis title prominently (Module 6)
+- [ ] History prefetch includes title from analyses (Module 8)
+- [ ] Video title overlay displays in max mode only (Module 7)
+- [x] Test suite updated and passing (Module 2 tests, 216/216 passing)
+- [ ] Performance validation completed (Module 10)
+- [ ] Manual QA: Title displays correctly in feedback panel (Module 6)
+- [ ] Manual QA: Video overlay shows analysis title in max mode (Module 7)
+- [ ] Manual QA: End-to-end flow from AI analysis to UI display (Modules 5-8)
 
 ---
 

@@ -151,7 +151,10 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
           logger,
           rawGeneratedText,
           fullFeedbackJson,
-          feedbackPrompt
+          feedbackPrompt,
+          undefined, // _ssmlPrompt
+          undefined, // _audioPrompt
+          analysis.title // title
         )
       }
     }

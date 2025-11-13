@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur'
-import { type ComponentProps, type ReactNode, useState } from 'react'
+import { type ComponentProps, type ReactNode, useMemo, useState } from 'react'
 import { Button, Image, XStack, type XStackProps } from 'tamagui'
 
 // Import glass overlay assets
@@ -112,11 +112,11 @@ export const GlassButton = ({
   glassOverlaySource,
   borderWidth = 1,
   borderColor = 'rgba(255, 255, 255, 0.15)',
-  backgroundColor = 'rgba(255, 255, 255, 0.0)',
+  backgroundColor = 'rgba(2, 2, 2, 0.0)',
   variant = 'default',
   overlayOpacity = 0.8,
   edgeGlowIntensity = 0.9,
-  edgeGlowColor = 'rgba(255, 255, 255, 0.9)',
+  edgeGlowColor = 'rgba(255, 255, 255, 0.4)',
   animation = 'bouncy',
 }: GlassButtonProps) => {
   // Convert borderRadius token to number for BlurView
@@ -128,6 +128,17 @@ export const GlassButton = ({
 
   // Track press state for BlurView animation sync
   const [isPressed, setIsPressed] = useState(false)
+
+  // Memoize BlurView style to prevent re-creation on every render
+  const blurViewStyle = useMemo(
+    () => ({
+      borderRadius: numericRadius,
+      overflow: 'hidden' as const,
+      width: '100%' as const,
+      height: '100%' as const,
+    }),
+    [numericRadius]
+  )
 
   return (
     <XStack
@@ -169,12 +180,7 @@ export const GlassButton = ({
         <BlurView
           intensity={blurIntensity}
           tint={blurTint}
-          style={{
-            borderRadius: numericRadius,
-            overflow: 'hidden',
-            width: '100%',
-            height: '100%',
-          }}
+          style={blurViewStyle}
         />
 
         <Image

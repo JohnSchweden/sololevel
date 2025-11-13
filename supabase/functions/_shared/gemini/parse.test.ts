@@ -88,6 +88,86 @@ Test report
     expect(result.jsonData).toBeDefined()
     expect(result.jsonData.feedback).toHaveLength(2) // Full JSON includes invalid items
   })
+
+  it('should extract title from TEXT FEEDBACK START block', () => {
+    const responseWithTitle = `=== TEXT FEEDBACK START ===
+**Title Start**
+Confident Presenter Needs More Energy
+**Title End**
+
+**Big Picture**: Your presentation was well-structured.
+=== TEXT FEEDBACK END ===
+
+=== JSON DATA START ===
+{
+  "feedback": []
+}
+=== JSON DATA END ===`
+    const result = parseDualOutput(responseWithTitle)
+
+    expect(result.title).toBe('Confident Presenter Needs More Energy')
+    expect(result.textReport).not.toContain('**Title Start**')
+    expect(result.textReport).not.toContain('**Title End**')
+    expect(result.textReport).toContain('**Big Picture**')
+  })
+
+  it('should handle missing title gracefully', () => {
+    const responseWithoutTitle = `=== TEXT FEEDBACK START ===
+**Big Picture**: Your presentation was well-structured.
+=== TEXT FEEDBACK END ===
+
+=== JSON DATA START ===
+{
+  "feedback": []
+}
+=== JSON DATA END ===`
+    const result = parseDualOutput(responseWithoutTitle)
+
+    expect(result.title).toBeUndefined()
+    expect(result.textReport).toContain('**Big Picture**')
+  })
+
+  it('should extract title and remove it from textReport', () => {
+    const responseWithTitle = `=== TEXT FEEDBACK START ===
+**Title Start**
+Great Performance, Minor Tweaks Needed
+**Title End**
+
+**Big Picture**: Analysis content here.
+=== TEXT FEEDBACK END ===`
+    const result = parseDualOutput(responseWithTitle)
+
+    expect(result.title).toBe('Great Performance, Minor Tweaks Needed')
+    expect(result.textReport).not.toContain('Title Start')
+    expect(result.textReport).not.toContain('Title End')
+    expect(result.textReport).toContain('**Big Picture**')
+  })
+
+  it('should handle title with special characters', () => {
+    const responseWithSpecialChars = `=== TEXT FEEDBACK START ===
+**Title Start**
+You're Doing Great! Keep It Up!
+**Title End**
+
+Content here.
+=== TEXT FEEDBACK END ===`
+    const result = parseDualOutput(responseWithSpecialChars)
+
+    expect(result.title).toBe("You're Doing Great! Keep It Up!")
+  })
+
+  it('should trim whitespace from title', () => {
+    const responseWithWhitespace = `=== TEXT FEEDBACK START ===
+**Title Start**
+  Trimmed Title  
+**Title End**
+
+Content here.
+=== TEXT FEEDBACK END ===`
+    const result = parseDualOutput(responseWithWhitespace)
+
+    expect(result.title).toBe('Trimmed Title')
+  })
 })
 
 describe('extractMetricsFromText', () => {

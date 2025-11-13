@@ -125,7 +125,8 @@ export async function updateAnalysisResults(
   fullFeedbackJson?: any,
   feedbackPrompt?: string,
   _ssmlPrompt?: string,
-  _audioPrompt?: string
+  _audioPrompt?: string,
+  title?: string
 ): Promise<number[]> {
   if (!supabase) {
     _logger?.error('Database connection not available for results update')
@@ -146,7 +147,8 @@ export async function updateAnalysisResults(
       p_summary_text: summaryText,
       p_raw_generated_text: rawGeneratedText,
       p_full_feedback_json: fullFeedbackJson,
-      p_feedback_prompt: feedbackPrompt
+      p_feedback_prompt: feedbackPrompt,
+      p_title: title || null
     })
 
     if (analysisError) {
@@ -291,6 +293,7 @@ export async function getEnhancedAnalysis(
           rawGeneratedText: job.raw_generated_text,
           fullFeedbackJson: job.full_feedback_json,
           feedbackPrompt: job.feedback_prompt,
+          title: job.title || undefined,
           ssml: job.audio_segments?.[0]?.feedback_ssml,
           audioUrl: job.audio_segments?.[0]?.feedback_audio_url,
           ssmlPrompt: job.audio_segments?.[0]?.ssml_prompt,
@@ -352,6 +355,10 @@ export async function getEnhancedAnalysis(
 
   // Transform legacy enhanced data
   const analysis = analysisData[0]
+  // Extract title from analyses jsonb array (first element if exists)
+  const analysesArray = analysis.analyses as Array<{ title?: string | null }> | undefined
+  const title = analysesArray && analysesArray.length > 0 ? analysesArray[0]?.title : undefined
+
   return {
     data: {
       id: analysis.analysis_id,
@@ -362,6 +369,7 @@ export async function getEnhancedAnalysis(
       poseData: null,
       fullFeedback: analysis.full_feedback_text,
       summary: analysis.summary_text,
+      title: title || undefined,
       processingTimeMs: analysis.processing_time_ms,
       videoSourceType: analysis.video_source_type,
       timestamps: {
@@ -418,7 +426,7 @@ export async function getCompleteAnalysisByJobId(
   supabase: any,
   jobId: number,
   logger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
-): Promise<{ analysisId: string; feedback: any[]; fullFeedbackText: string; summaryText: string } | null> {
+): Promise<{ analysisId: string; feedback: any[]; fullFeedbackText: string; summaryText: string; title?: string | null } | null> {
   logger?.info('Getting complete analysis by job ID', { jobId })
 
   try {
@@ -459,7 +467,8 @@ export async function getCompleteAnalysisByJobId(
       analysisId: analysis.id,
       feedback: feedback || [],
       fullFeedbackText: analysis.full_feedback_text,
-      summaryText: analysis.summary_text
+      summaryText: analysis.summary_text,
+      title: analysis.title || undefined
     }
   } catch (error) {
     logger?.error('Error getting complete analysis', error)

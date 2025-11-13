@@ -34,8 +34,8 @@ export interface AuthEventContext {
  * Map Supabase authentication errors to user-friendly messages
  */
 export function mapAuthError(error: AuthError): MappedAuthError {
-  // Log the original error for debugging
-  log.error('Auth', 'authentication error', {
+  // Log the original error for debugging (warn level since these are expected user errors)
+  log.warn('Auth', 'authentication error', {
     error: error.message,
     errorCode: error.name,
     status: error.status,

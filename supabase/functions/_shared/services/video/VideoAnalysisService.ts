@@ -31,6 +31,7 @@ export interface VideoAnalysisResult {
   rawText?: string
   promptUsed?: string
   jsonData?: any
+  title?: string
 }
 
 /**
@@ -72,6 +73,7 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
         rawText: geminiResult.rawText,
         promptUsed: geminiResult.promptUsed,
         jsonData: geminiResult.jsonData,
+        title: geminiResult.title,
       }
 
       logger.info(`Video analysis completed: ${result.textReport.substring(0, 100)}...`)

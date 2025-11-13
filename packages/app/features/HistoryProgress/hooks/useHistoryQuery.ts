@@ -151,11 +151,19 @@ function transformToCache(
     videoUri = storagePath ?? job.video_recordings?.filename ?? null
   }
 
+  // Use AI-generated title from analyses table if available, otherwise fall back to generated title
+  // Note: analyses is a one-to-one relationship, so Supabase returns it as an object, not an array
+  const analysesData = (job as any).analyses
+  // Handle both object (one-to-one) and array (if it were one-to-many) cases
+  const analysesTitle = Array.isArray(analysesData) ? analysesData[0]?.title : analysesData?.title
+  const fallbackTitle = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
+  const analysisTitle = analysesTitle || fallbackTitle
+
   return {
     id: job.id,
     videoId: job.video_recording_id,
     userId: job.user_id,
-    title: `Analysis ${new Date(job.created_at).toLocaleDateString()}`,
+    title: analysisTitle,
     createdAt: job.created_at,
     thumbnail: thumbnail ?? undefined,
     videoUri: videoUri ?? undefined,
