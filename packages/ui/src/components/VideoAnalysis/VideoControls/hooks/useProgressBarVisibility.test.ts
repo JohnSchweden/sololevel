@@ -4,7 +4,7 @@ import { useSharedValue } from 'react-native-reanimated'
 import { useProgressBarVisibility } from './useProgressBarVisibility'
 
 describe('useProgressBarVisibility', () => {
-  it('should render normal bar while collapseProgress <= 0.03', async () => {
+  it('should render normal bar while collapseProgress <= 0.1', async () => {
     const collapseProgress = useSharedValue(0)
 
     const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
@@ -15,7 +15,7 @@ describe('useProgressBarVisibility', () => {
     })
 
     act(() => {
-      collapseProgress.value = 0.03
+      collapseProgress.value = 0.1
     })
 
     await waitFor(() => {
@@ -24,8 +24,8 @@ describe('useProgressBarVisibility', () => {
     })
   })
 
-  it('should hide normal bar when collapseProgress exceeds 0.03', async () => {
-    const collapseProgress = useSharedValue(0.031)
+  it('should hide normal bar when collapseProgress exceeds 0.1', async () => {
+    const collapseProgress = useSharedValue(0.101)
 
     const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
 
@@ -35,8 +35,8 @@ describe('useProgressBarVisibility', () => {
     })
   })
 
-  it('should render persistent bar when collapseProgress >= 0.45', async () => {
-    const collapseProgress = useSharedValue(0.45)
+  it('should render persistent bar when collapseProgress >= 0.4', async () => {
+    const collapseProgress = useSharedValue(0.4)
 
     const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
 
@@ -55,8 +55,8 @@ describe('useProgressBarVisibility', () => {
     })
   })
 
-  it('should hide persistent bar while collapseProgress < 0.45', async () => {
-    const collapseProgress = useSharedValue(0.449)
+  it('should hide persistent bar while collapseProgress < 0.4', async () => {
+    const collapseProgress = useSharedValue(0.399)
 
     const { result } = renderHook(() => useProgressBarVisibility(collapseProgress))
 

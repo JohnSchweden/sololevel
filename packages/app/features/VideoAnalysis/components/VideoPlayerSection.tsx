@@ -8,7 +8,6 @@ import Animated, {
   type SharedValue,
   interpolate,
   useAnimatedStyle,
-  Easing,
   useDerivedValue,
   useSharedValue,
 } from 'react-native-reanimated'
@@ -228,6 +227,19 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const storeDuration = useVideoPlayerStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.duration : 0
   )
+  // Track actual controls visibility (respects auto-hide, not forced visibility)
+  // This is different from store's controlsVisible which includes forced visibility (when paused)
+  const [actualControlsVisible, setActualControlsVisible] = useState(false)
+
+  // Update actual controls visibility from callback (tracks real visibility, not forced)
+  const handleControlsVisibilityChange = useCallback(
+    (visible: boolean) => {
+      setActualControlsVisible(visible)
+      onControlsVisibilityChange?.(visible)
+    },
+    [onControlsVisibilityChange]
+  )
+
   const showControls = useVideoPlayerStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.controlsVisible : true
   )
@@ -686,16 +698,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   // Pass videoMode SharedValue directly to VideoControls (like collapseProgress)
   // Eliminated state conversion to prevent 60fps re-renders during gestures/animations
 
-  // Animation styles for avatar and social icons
+  // Animation styles for avatar - visible in max mode [0, 0.1] regardless of controls visibility
   const avatarAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
-    // Apply cubic easing for smooth slow-start fast-end effect
-    //const easeFunction = Easing.inOut(Easing.cubic)
-    //const easedProgress = easeFunction(collapseProgress.value)
-
-    // Fade in when transitioning to max mode (collapseProgress 0-0.15), fade out otherwise
+    // Fade in when in max mode (collapseProgress 0-0.1), fade out when transitioning away
+    // Avatar remains visible in max mode even when controls are hidden
+    const opacity = interpolate(collapseProgress.value, [0, 0.1], [1, 0], Extrapolation.CLAMP)
     return {
-      opacity: interpolate(collapseProgress.value, [0, 0.02], [1, 0], Extrapolation.CLAMP),
+      opacity,
       transform: [
         { translateY: interpolate(collapseProgress.value, [0, 1], [0, -12], Extrapolation.CLAMP) },
         { scale: interpolate(collapseProgress.value, [0, 1], [1, 0.9], Extrapolation.CLAMP) },
@@ -703,30 +713,42 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     }
   })
 
+  // Shared value for social icons opacity - synced with controls visibility (matches title/avatar pattern)
+  const socialOverlayOpacity = useSharedValue(showControls ? 1 : 0)
+
+  // Sync social icons overlay opacity with controls visibility
+  useEffect(() => {
+    socialOverlayOpacity.value = showControls ? 1 : 0
+  }, [showControls, socialOverlayOpacity])
+
+  // Animation styles for social icons - matches title pattern with range [0.4, 0.5, 0.6]
+  // Fade in from 0.4 to 0.5, fade out from 0.5 to 0.6 (visible only at 0.5 normal mode)
   const socialAnimatedStyle = useAnimatedStyle(() => {
     if (!collapseProgress) return { opacity: 1 }
-    // Apply cubic easing for smooth slow-start fast-end effect
-    const easeFunction = Easing.inOut(Easing.cubic)
-    const easedProgress = easeFunction(collapseProgress.value)
-
-    // Fade out at max mode (0) and min mode (1), visible in normal mode (0.5)
-    const opacity = interpolate(easedProgress, [0, 0.5, 1], [0, 1, 0], Extrapolation.CLAMP)
-
+    // Fade in from 0.4 to 0.5, fade out from 0.5 to 0.6 (matches title pattern but narrower range)
+    const collapseOpacity = interpolate(
+      collapseProgress.value,
+      [0.4, 0.5, 0.6],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    )
+    // Combine collapse opacity with controls visibility opacity (matches title pattern - direct assignment, no easing)
+    const opacity = collapseOpacity * socialOverlayOpacity.value
     return {
       opacity,
       transform: [
         { translateY: interpolate(collapseProgress.value, [0, 1], [16, 0], Extrapolation.CLAMP) },
       ],
     }
-  })
+  }, [socialOverlayOpacity])
 
-  // Shared value for title overlay opacity - synced with controls visibility
-  const titleOverlayOpacity = useSharedValue(showControls ? 1 : 0)
+  // Shared value for title overlay opacity - synced with actual controls visibility (not forced visibility)
+  const titleOverlayOpacity = useSharedValue(actualControlsVisible ? 1 : 0)
 
-  // Sync title overlay opacity with controls visibility
+  // Sync title overlay opacity with actual controls visibility (respects auto-hide, not forced visibility)
   useEffect(() => {
-    titleOverlayOpacity.value = showControls ? 1 : 0
-  }, [showControls, titleOverlayOpacity])
+    titleOverlayOpacity.value = actualControlsVisible ? 1 : 0
+  }, [actualControlsVisible, titleOverlayOpacity])
 
   // Animation style for video title overlay - only visible in max mode (collapseProgress = 0) and when controls are visible
   const titleOverlayAnimatedStyle = useAnimatedStyle(() => {
@@ -887,7 +909,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             onPause={onPause}
             onReplay={onReplay}
             onSeek={handleDirectSeek}
-            onControlsVisibilityChange={onControlsVisibilityChange}
+            onControlsVisibilityChange={handleControlsVisibilityChange}
             onPersistentProgressBarPropsChange={onPersistentProgressBarPropsChange}
             persistentProgressStoreSetter={persistentProgressStoreSetter}
             persistentProgressShared={playbackProgressShared}

@@ -7,6 +7,8 @@ import { log } from '@my/logging'
 import type { QueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { useVideoHistoryStore } from '../../HistoryProgress/stores/videoHistory'
+import { resolveThumbnailUri } from '../../HistoryProgress/utils/thumbnailCache'
 
 export type SubscriptionStatus = 'idle' | 'pending' | 'active' | 'failed'
 
@@ -400,7 +402,6 @@ function handleTitleUpdate(
   // Update cache with title immediately when it becomes available
   setTimeout(async () => {
     try {
-      const { useVideoHistoryStore } = await import('../../HistoryProgress/stores/videoHistory')
       const historyStore = useVideoHistoryStore.getState()
 
       // Update cache with title
@@ -430,16 +431,26 @@ function handleTitleUpdate(
             .eq('id', job.video_recording_id ?? 0)
             .single()
 
-          // Extract thumbnail: prefer cloud URL, fallback to metadata thumbnail
-          let thumbnailUri: string | undefined
-          if (videoRecording?.thumbnail_url) {
-            thumbnailUri = videoRecording.thumbnail_url
-          } else if (videoRecording?.metadata && typeof videoRecording.metadata === 'object') {
-            const metadata = videoRecording.metadata as Record<string, unknown>
-            if (typeof metadata.thumbnailUri === 'string') {
-              thumbnailUri = metadata.thumbnailUri
+          // Resolve thumbnail using 3-tier caching strategy (shared utility)
+          const videoId = job.video_recording_id ?? 0
+          const thumbnailUri = await resolveThumbnailUri(
+            videoId,
+            {
+              thumbnail_url: videoRecording?.thumbnail_url,
+              metadata: videoRecording?.metadata as Record<string, unknown> | null,
+            },
+            {
+              onCacheUpdate: (uri) => {
+                const historyStore = useVideoHistoryStore.getState()
+                historyStore.updateCache(job.id, { thumbnail: uri })
+              },
+              onPersistedUpdate: (uri) => {
+                const historyStore = useVideoHistoryStore.getState()
+                historyStore.updateCache(job.id, { thumbnail: uri })
+              },
+              logContext: 'AnalysisSubscriptionStore',
             }
-          }
+          )
 
           // Create minimal cache entry with title, thumbnail, and job data
           // setJobResults will update it with full data later

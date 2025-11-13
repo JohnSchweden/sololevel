@@ -436,8 +436,14 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // When collapseProgress is a SharedValue, reference is stable (no need to track in deps)
     // When collapseProgress is a number, it's synced to collapseProgressShared via useEffect
 
-    const { shouldRenderNormal, shouldRenderPersistent, normalVisibility, persistentVisibility } =
-      useProgressBarVisibility(collapseProgressSharedValue, overscroll)
+    const {
+      shouldRenderNormal,
+      shouldRenderPersistent,
+      normalVisibility,
+      persistentVisibility,
+      normalVisibilityAnimatedStyle,
+      persistentVisibilityAnimatedStyle,
+    } = useProgressBarVisibility(collapseProgressSharedValue, overscroll, overlayOpacity)
 
     const [normalBarPointerEvents, setNormalBarPointerEvents] = useState<'auto' | 'none'>(
       shouldRenderNormal ? 'auto' : 'none'
@@ -476,13 +482,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       [persistentVisibility, updatePersistentPointerEvents]
     )
 
-    const normalVisibilityAnimatedStyle = useAnimatedStyle(() => ({
-      opacity: normalVisibility.value,
-    }))
-
-    const persistentVisibilityAnimatedStyle = useAnimatedStyle(() => ({
-      opacity: persistentVisibility.value,
-    }))
+    // Visibility animated styles are now computed in useProgressBarVisibility hook
+    // They combine collapse visibility (with timing animations) with overlay opacity
 
     const showNormalControls = shouldRenderNormal
 

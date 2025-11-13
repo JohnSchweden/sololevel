@@ -18,6 +18,8 @@ const createVisibilityMock = (
   mode: shouldRenderNormal ? 'normal' : shouldRenderPersistent ? 'persistent' : 'transition',
   normalVisibility: { value: shouldRenderNormal ? 1 : 0 } as any,
   persistentVisibility: { value: shouldRenderPersistent ? 1 : 0 } as any,
+  normalVisibilityAnimatedStyle: { opacity: shouldRenderNormal ? 1 : 0 } as any,
+  persistentVisibilityAnimatedStyle: { opacity: shouldRenderPersistent ? 1 : 0 } as any,
   __applyProgressForTests: jest.fn(),
 })
 

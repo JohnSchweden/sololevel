@@ -6,6 +6,7 @@ export interface FeatureFlags {
   enableDevMode: boolean
   showDebugInfo: boolean
   useMockData: boolean
+  simulateAnalysisFailure: boolean // Simulate failed analysis for testing retry UI
 
   // Camera implementation flags
   useVisionCamera: boolean // true = VisionCamera (dev build), false = Expo Camera (Expo Go)
@@ -43,6 +44,7 @@ const defaultFlags: FeatureFlags = {
   enableDevMode: process.env.NODE_ENV === 'development',
   showDebugInfo: false,
   useMockData: process.env.EXPO_PUBLIC_USE_MOCKS === 'true',
+  simulateAnalysisFailure: false, // Set to true to test retry UI
 
   // Camera implementation
   useVisionCamera: process.env.EXPO_PUBLIC_USE_VISION_CAMERA !== 'false', // Default true, override with env
@@ -131,5 +133,30 @@ export const useFeatureFlagsStore = create<FeatureFlagsStore>()(
     },
   }))
 )
+
+// Development helper: Expose feature flags to console for manual testing
+// Usage in browser console:
+//   window.__toggleSimulateAnalysisFailure() // Toggle the flag
+//   window.__getFeatureFlags() // View all flags
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const store = useFeatureFlagsStore.getState()
+  ;(window as any).__toggleSimulateAnalysisFailure = () => {
+    store.toggleFlag('simulateAnalysisFailure')
+    const current = store.flags.simulateAnalysisFailure
+    console.log(
+      `✅ simulateAnalysisFailure: ${current ? 'ENABLED' : 'DISABLED'}`,
+      current
+        ? '\n📝 Analysis will now appear as failed.\n\nTo test:\n1. Upload a video (or navigate to an existing analysis)\n2. You\'ll immediately see the error screen with "Try Again" button\n3. Click "Try Again" to test the retry functionality\n\nNote: The error is simulated - retry will create a real analysis job.'
+        : '\n📝 Analysis will work normally now.'
+    )
+  }
+  ;(window as any).__getFeatureFlags = () => {
+    return store.flags
+  }
+  ;(window as any).__setSimulateAnalysisFailure = (value: boolean) => {
+    store.setFlag('simulateAnalysisFailure', value)
+    console.log(`✅ simulateAnalysisFailure set to: ${value}`)
+  }
+}
 
 // Note: Load feature flags in the provider to avoid SSR issues

@@ -9,6 +9,7 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { useVideoHistoryStore } from '../../HistoryProgress/stores/videoHistory'
+import { resolveThumbnailUri } from '../../HistoryProgress/utils/thumbnailCache'
 
 export interface AnalysisJobState extends AnalysisJob {
   // Additional UI state
@@ -325,7 +326,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                   }
                 }),
               ])
-                .then(([videoResult, fetchedTitle]) => {
+                .then(async ([videoResult, fetchedTitle]) => {
                   // Extract analysis title (may be null if not available yet)
                   analysisTitle = fetchedTitle ?? undefined
 
@@ -348,41 +349,33 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
 
                   const { data: videoRecording } = videoResult
                   storagePath = videoRecording?.storage_path ?? undefined
+                  const videoId = job.video_recording_id
 
-                  // Prefer cloud URL (thumbnail_url) over local URI (metadata.thumbnailUri)
-                  if (videoRecording?.thumbnail_url) {
-                    thumbnailUri = videoRecording.thumbnail_url
+                  // Resolve thumbnail using 3-tier caching strategy (shared utility)
+                  thumbnailUri = await resolveThumbnailUri(
+                    videoId,
+                    {
+                      thumbnail_url: videoRecording?.thumbnail_url,
+                      metadata: videoRecording?.metadata as Record<string, unknown> | null,
+                    },
+                    {
+                      onCacheUpdate: (uri) => {
+                        historyStore.updateCache(job.id, { thumbnail: uri })
+                      },
+                      onPersistedUpdate: (uri) => {
+                        historyStore.updateCache(job.id, { thumbnail: uri })
+                      },
+                      logContext: 'analysisStatus',
+                    }
+                  )
 
-                    // Update cache with cloud thumbnail
-                    historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
-
-                    log.debug('analysisStatus', 'Retrieved and updated thumbnail from CDN', {
-                      videoId: job.video_recording_id,
-                      thumbnailUrl: thumbnailUri,
-                    })
-                  } else if (
+                  if (
+                    storagePath &&
                     videoRecording?.metadata &&
                     typeof videoRecording.metadata === 'object'
                   ) {
-                    // Fallback to local URI for backward compatibility
                     const metadata = videoRecording.metadata as Record<string, unknown>
-                    if (typeof metadata.thumbnailUri === 'string') {
-                      thumbnailUri = metadata.thumbnailUri
-
-                      // Update cache with local thumbnail
-                      historyStore.updateCache(job.id, { thumbnail: thumbnailUri })
-
-                      log.debug(
-                        'analysisStatus',
-                        'Retrieved and updated thumbnail from local metadata (fallback)',
-                        {
-                          videoId: job.video_recording_id,
-                          thumbnailLength: thumbnailUri.length,
-                        }
-                      )
-                    }
-
-                    if (storagePath && typeof metadata.localUri === 'string') {
+                    if (typeof metadata.localUri === 'string') {
                       historyStore.setLocalUri(storagePath, metadata.localUri)
                       historyStore.updateCache(job.id, { videoUri: metadata.localUri })
                     }

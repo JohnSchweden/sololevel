@@ -69,16 +69,21 @@ const mockUploadProgress = jest.fn<(recordingId: number) => UploadProgress | und
 const mockFeedbackStatusIntegration = jest.fn<(analysisId?: string) => FeedbackStatus>()
 const mockGetAnalysisIdForJobId = jest.fn<(jobId: number) => Promise<string | null>>()
 
-jest.mock('@my/api', () => {
-  const mockSupabase = {
-    auth: {
-      getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } }, error: null })),
-    },
-  }
+const mockFunctionsInvoke = jest.fn<() => Promise<{ data: any; error: any }>>()
 
+jest.mock('@my/api', () => {
   return {
     getAnalysisIdForJobId: (jobId: number) => mockGetAnalysisIdForJobId(jobId),
-    supabase: mockSupabase,
+    get supabase() {
+      return {
+        auth: {
+          getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } }, error: null })),
+        },
+        functions: {
+          invoke: mockFunctionsInvoke,
+        },
+      }
+    },
   }
 })
 
@@ -127,6 +132,7 @@ describe('useAnalysisState', () => {
     mockAnalysisStoreState.subscribe.mockResolvedValue(undefined)
     mockAnalysisStoreState.unsubscribe.mockImplementation(() => {})
     mockAnalysisStoreState.retry.mockResolvedValue(undefined)
+    mockFunctionsInvoke.mockReset()
     mockAnalysisStoreState.subscriptions = new Map()
     mockUploadProgress.mockReturnValue(undefined)
     mockFeedbackStatusIntegration.mockReturnValue(createFeedbackStatus())
@@ -355,25 +361,47 @@ describe('useAnalysisState', () => {
     expect(result.current.error).toEqual({ phase: 'analysis', message: 'Edge function error' })
   })
 
-  it('invokes retry on analysis subscription store when retry called', async () => {
-    mockAnalysisStoreState.retry.mockResolvedValue(undefined)
+  it('calls Edge Function to restart analysis when retry called', async () => {
+    // Arrange: Set up failed analysis state
     mockAnalysisStoreState.subscriptions = new Map([
       [
-        'job:77',
+        'recording:123',
         {
           job: { id: 77, status: 'failed', progress_percentage: 0, video_recording_id: 123 },
           status: 'failed',
         },
       ],
     ])
+    mockFunctionsInvoke.mockResolvedValue({
+      data: { analysisId: 78, status: 'queued' },
+      error: null,
+    })
 
-    const { result } = renderHook(() => useAnalysisState(77, undefined, 'processing'))
+    // Act: Call retry
+    const { result } = renderHook(() => useAnalysisState(undefined, 123, 'processing'))
 
+    // Wait for hook to initialize and set error state
+    await act(async () => {
+      // Advance timers to allow any pending async operations to complete
+      jest.advanceTimersByTime(0)
+    })
+
+    // Verify we're in error state
+    expect(result.current.phase).toBe('error')
+    expect(result.current.error?.phase).toBe('analysis')
+
+    // Call retry
     await act(async () => {
       await result.current.retry()
     })
 
-    expect(mockAnalysisStoreState.retry).toHaveBeenCalledWith('job:77')
+    // Assert: Edge Function was called with correct parameters
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('ai-analyze-video', {
+      body: {
+        videoRecordingId: 123,
+        videoSource: 'uploaded_video',
+      },
+    })
   })
 
   // Arrange-Act-Assert

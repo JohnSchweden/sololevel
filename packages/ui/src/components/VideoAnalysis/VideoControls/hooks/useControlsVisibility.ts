@@ -14,7 +14,7 @@ const performanceAvailable =
  * @property showControls - External control for forcing controls visibility
  * @property isPlaying - Current playback state
  * @property isScrubbing - Whether user is currently scrubbing the progress bar
- * @property autoHideDelayMs - Delay in milliseconds before auto-hiding controls (default: 1500ms)
+ * @property autoHideDelayMs - Delay in milliseconds before auto-hiding controls (default: 1750ms)
  * @property onControlsVisibilityChange - Callback when controls visibility changes
  */
 export interface UseControlsVisibilityConfig {
@@ -24,7 +24,7 @@ export interface UseControlsVisibilityConfig {
   isPlaying: boolean
   /** Whether user is currently scrubbing the progress bar */
   isScrubbing: boolean
-  /** Delay in milliseconds before auto-hiding controls (default: 1500ms) */
+  /** Delay in milliseconds before auto-hiding controls (default: 1750ms) */
   autoHideDelayMs?: number
   /** Callback when controls visibility changes */
   onControlsVisibilityChange?: (visible: boolean, isUserInteraction?: boolean) => void
@@ -198,7 +198,7 @@ export function useControlsVisibility(
     showControls,
     isPlaying,
     isScrubbing,
-    autoHideDelayMs = 1500,
+    autoHideDelayMs = 1750,
     onControlsVisibilityChange,
   } = config
 

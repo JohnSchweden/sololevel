@@ -27,13 +27,13 @@ if (process.env.NODE_ENV === 'development') {
     trackAllPureComponents: false,
 
     // Track hook changes to see setState cascades
-    trackHooks: false,
+    trackHooks: true,
 
     // Log ALL re-renders (not just wasteful ones) to measure frequency
     logOnDifferentValues: false,
 
     // Show parent component re-render chains
-    logOwnerReasons: false,
+    logOwnerReasons: true,
 
     // Keep log groups expanded for debugging
     collapseGroups: false,

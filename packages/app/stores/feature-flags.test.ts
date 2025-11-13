@@ -23,6 +23,7 @@ describe('FeatureFlagsStore', () => {
         enableDevMode: false,
         showDebugInfo: false,
         useMockData: false,
+        simulateAnalysisFailure: false,
         useVisionCamera: false,
         enableNewUi: false,
         enablePushNotifications: true,

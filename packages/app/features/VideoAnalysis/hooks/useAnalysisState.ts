@@ -8,7 +8,7 @@ import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploa
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import { mockFeedbackItems } from '@app/mocks/feedback'
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
-import { getAnalysisIdForJobId } from '@my/api'
+import { getAnalysisIdForJobId, supabase } from '@my/api'
 import { log } from '@my/logging'
 
 import { useFeedbackStatusIntegration } from './useFeedbackStatusIntegration'
@@ -123,12 +123,37 @@ const deriveUploadStatus = (uploadProgress?: UploadProgressData | null) => {
 }
 
 const deriveAnalysisStatus = (
-  job?: AnalysisJob | null
+  job?: AnalysisJob | null,
+  simulateFailure = false
 ): {
   status: AnalysisJob['status']
   progress: number
   error: string | null
 } => {
+  // Feature flag: Simulate analysis failure for testing retry UI
+  // This works even when no job exists yet (creates a mock failed job)
+  if (simulateFailure) {
+    if (!job) {
+      // Simulate a failed job even when no job exists (for immediate testing)
+      return {
+        status: 'failed' as AnalysisJob['status'],
+        progress: 50,
+        error:
+          'Simulated analysis failure for testing. Click "Try Again" to test retry functionality.',
+      }
+    }
+    // If job exists and is not already failed, simulate failure
+    if (job.status !== 'failed') {
+      return {
+        status: 'failed' as AnalysisJob['status'],
+        progress: coerceProgress(job.progress_percentage ?? 50),
+        error:
+          'Simulated analysis failure for testing. Click "Try Again" to test retry functionality.',
+      }
+    }
+    // If job is already failed, return the real error (allows testing retry on real failures)
+  }
+
   if (!job) {
     return {
       status: 'pending' as AnalysisJob['status'],
@@ -287,7 +312,6 @@ export function useAnalysisState(
 
   const subscribe = useAnalysisSubscriptionStore((state) => state.subscribe)
   const unsubscribe = useAnalysisSubscriptionStore((state) => state.unsubscribe)
-  const retrySubscription = useAnalysisSubscriptionStore((state) => state.retry)
 
   // PERF FIX: Use individual primitive selectors to eliminate object allocation
   // Instead of returning an entry object, subscribe to individual primitives
@@ -345,6 +369,10 @@ export function useAnalysisState(
     const job = getSubscriptionEntry(state.subscriptions, subscriptionKey)?.job
     return job ?? null
   })
+
+  // Derive analysis job ID early so it can be used in callbacks
+  const derivedAnalysisJobId = analysisJobId ?? analysisJob?.id ?? null
+
   const queryClient = useQueryClient()
 
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
@@ -446,8 +474,11 @@ export function useAnalysisState(
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined)
 
-  // Check feature flag for mock data control
+  // Check feature flags
   const useMockData = useFeatureFlagsStore((state) => state.flags.useMockData)
+  const simulateAnalysisFailure = useFeatureFlagsStore(
+    (state) => state.flags.simulateAnalysisFailure
+  )
 
   /**
    * Stabilize feedbackItems array reference to prevent mount/unmount thrashing.
@@ -497,6 +528,33 @@ export function useAnalysisState(
   const prevFeedbackFallbackSignatureRef = useRef<string>('')
 
   const feedbackWithFallback = useMemo(() => {
+    // Ensure feedbackStatus is always an object (defensive guard)
+    // This should never happen as useFeedbackStatusIntegration always returns an object,
+    // but we guard against it for safety
+    if (!feedbackStatus) {
+      const defaultFeedback: FeedbackState = {
+        feedbackItems: [],
+        feedbacks: [],
+        stats: {
+          total: 0,
+          ssmlCompleted: 0,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasFailures: false,
+          isProcessing: false,
+          completionPercentage: 0,
+        },
+        isSubscribed: false,
+        isProcessing: false,
+        hasFailures: false,
+        isFullyCompleted: false,
+        getFeedbackById: () => null,
+        retryFailedFeedback: () => {},
+        cleanup: () => {},
+      }
+      return feedbackWithFallbackRef.current || defaultFeedback
+    }
+
     let items = stableFeedbackItems
 
     // In history mode with analysisJobId, skip mock data while UUID is being resolved
@@ -517,7 +575,7 @@ export function useAnalysisState(
     const signature = `${currentSignature}:${feedbackStatus.hasFailures}:${feedbackStatus.isFullyCompleted}:${feedbackStatus.isProcessing}`
 
     // Only create new object if content actually changed
-    if (signature === prevFeedbackFallbackSignatureRef.current) {
+    if (signature === prevFeedbackFallbackSignatureRef.current && feedbackWithFallbackRef.current) {
       return feedbackWithFallbackRef.current
     }
 
@@ -554,7 +612,7 @@ export function useAnalysisState(
     )
   }, [feedbackStatus.feedbackItems])
 
-  const analysisStatus = deriveAnalysisStatus(analysisJob)
+  const analysisStatus = deriveAnalysisStatus(analysisJob, simulateAnalysisFailure)
   // Use real feedback items (not fallback) for progress calculation
   const feedbackProgress = deriveFeedbackProgress(feedbackStatus.feedbackItems)
 
@@ -604,12 +662,68 @@ export function useAnalysisState(
   )
 
   const retry = useCallback(async () => {
-    if (!shouldSubscribeToRealtime || !subscriptionKey) {
+    // Only allow retry for analysis errors (not upload errors)
+    if (phase !== 'error' || !error || error.phase !== 'analysis') {
+      log.warn('useAnalysisState', 'Retry called but not in analysis error state', {
+        phase,
+        errorPhase: error?.phase,
+      })
       return
     }
 
-    await retrySubscription(subscriptionKey)
-  }, [retrySubscription, subscriptionKey, shouldSubscribeToRealtime])
+    // Need videoRecordingId to restart analysis
+    if (!derivedRecordingId) {
+      log.error('useAnalysisState', 'Cannot retry analysis - missing videoRecordingId', {
+        analysisJobId: derivedAnalysisJobId,
+      })
+      return
+    }
+
+    try {
+      log.info('useAnalysisState', 'Retrying analysis', {
+        videoRecordingId: derivedRecordingId,
+        previousJobId: derivedAnalysisJobId,
+      })
+
+      // Call Edge Function to restart analysis with videoRecordingId
+      // The Edge Function will create a new analysis job and start processing
+      const { data, error: invokeError } = await supabase.functions.invoke('ai-analyze-video', {
+        body: {
+          videoRecordingId: derivedRecordingId,
+          videoSource: 'uploaded_video',
+        },
+      })
+
+      if (invokeError) {
+        log.error('useAnalysisState', 'Failed to restart analysis', {
+          videoRecordingId: derivedRecordingId,
+          error: invokeError.message,
+        })
+        throw new Error(`Failed to restart analysis: ${invokeError.message}`)
+      }
+
+      log.info('useAnalysisState', 'Analysis restart initiated', {
+        videoRecordingId: derivedRecordingId,
+        newAnalysisId: data?.analysisId,
+      })
+
+      // The subscription will automatically pick up the new job via recordingId
+      // No need to manually retry subscription - it's already subscribed to recordingId
+    } catch (error) {
+      log.error('useAnalysisState', 'Error during analysis retry', {
+        videoRecordingId: derivedRecordingId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+  }, [
+    phase,
+    error,
+    derivedRecordingId,
+    derivedAnalysisJobId,
+    shouldSubscribeToRealtime,
+    subscriptionKey,
+  ])
 
   const lastPhaseRef = useRef<AnalysisPhase | null>(null)
 
@@ -634,7 +748,6 @@ export function useAnalysisState(
   // Memoize return value to prevent cascading re-renders
   // This hook is called in performance-critical render paths
   const isProcessing = phase !== 'ready' && phase !== 'error'
-  const derivedAnalysisJobId = analysisJobId ?? analysisJob?.id ?? null
 
   return useMemo(
     () => ({
