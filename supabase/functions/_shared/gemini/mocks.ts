@@ -125,12 +125,9 @@ Great job with your introduction! The confident opening set a positive tone for 
  */
 export function getMockAnalysisResult(): GeminiVideoAnalysisResult {
   return {
+    title: 'Speech Analysis For Your Hand Flapping Seagull Performance',
     textReport: `
     
-**Title Start**
-Speech Analysis For Your Hand Flapping Seagull Performance
-**Title End** 
-
 **Big Picture**
 Your presentation was well-structured with good pacing and clear communication. You maintained good eye contact and used appropriate hand gestures to emphasize key points.
 

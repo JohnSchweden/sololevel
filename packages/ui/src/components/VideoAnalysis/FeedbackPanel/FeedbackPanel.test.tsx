@@ -57,6 +57,7 @@ const mockProps = {
   onSheetCollapse: jest.fn(),
   onFeedbackItemPress: jest.fn(),
   onVideoSeek: jest.fn(),
+  analysisTitle: undefined as string | undefined,
 }
 
 describe('FeedbackPanel', () => {
@@ -435,6 +436,60 @@ describe('FeedbackPanel', () => {
 
         // Should have title instead of sheet handle
         expect(screen.getByLabelText('Video Analysis title')).toBeTruthy()
+      })
+    })
+
+    describe('Analysis Title Display', () => {
+      it('displays analysis title when provided', () => {
+        // 🧪 ARRANGE: Set up component with analysis title
+        const propsWithTitle = { ...mockProps, analysisTitle: 'Test Analysis Title' }
+
+        // 🎬 ACT: Render the component
+        render(
+          <FeedbackPanel
+            {...propsWithTitle}
+            isExpanded={true}
+          />
+        )
+
+        // ✅ ASSERT: Title is displayed
+        expect(screen.getByTestId('analysis-title')).toBeInTheDocument()
+        expect(screen.getByText('Test Analysis Title')).toBeInTheDocument()
+      })
+
+      it('displays fallback text when title is not provided', () => {
+        // 🧪 ARRANGE: Set up component without analysis title
+        const propsWithoutTitle = { ...mockProps, analysisTitle: undefined }
+
+        // 🎬 ACT: Render the component
+        render(
+          <FeedbackPanel
+            {...propsWithoutTitle}
+            isExpanded={true}
+          />
+        )
+
+        // ✅ ASSERT: Fallback text is displayed (check for partial match since exact text may vary)
+        expect(screen.getByTestId('analysis-title')).toBeInTheDocument()
+        const titleElement = screen.getByTestId('analysis-title')
+        expect(titleElement).toBeInTheDocument()
+        // Title should contain fallback text or be empty
+        expect(titleElement.textContent).toBeTruthy()
+      })
+
+      it('displays title in collapsed state', () => {
+        // 🧪 ARRANGE: Set up component with title in collapsed state
+        const propsWithTitle = {
+          ...mockProps,
+          analysisTitle: 'Test Analysis Title',
+          isExpanded: false,
+        }
+
+        // 🎬 ACT: Render the component
+        render(<FeedbackPanel {...propsWithTitle} />)
+
+        // ✅ ASSERT: Title is displayed even when collapsed
+        expect(screen.getByText('Test Analysis Title')).toBeInTheDocument()
       })
     })
 

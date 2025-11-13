@@ -2,6 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 
 import { useAnalysisSubscriptionStore } from './analysisSubscription'
 
+const mockUpdateCache = jest.fn()
+const mockGetCached = jest.fn()
+
+jest.mock('../../HistoryProgress/stores/videoHistory', () => ({
+  useVideoHistoryStore: {
+    getState: () => ({
+      getCached: mockGetCached,
+      updateCache: mockUpdateCache,
+    }),
+  },
+}))
+
 type SubscriptionHandlers = {
   onStatus?: (status: string, details?: unknown) => void
   onError?: (error: string, details?: unknown) => void
@@ -58,6 +70,8 @@ describe('analysisSubscription store', () => {
     mockGetLatestAnalysisJobForRecordingId.mockReset()
     mockSubscribeToAnalysisTitle.mockReset()
     mockSubscribeToAnalysisTitle.mockReturnValue(undefined) // Default: no title subscription
+    mockUpdateCache.mockReset()
+    mockGetCached.mockReset()
     useAnalysisSubscriptionStore.getState().reset()
   })
 
@@ -216,5 +230,96 @@ describe('analysisSubscription store', () => {
 
     expect(unsubscribeMock).toHaveBeenCalled()
     expect(store.getStatus('job:55')).toBe('idle')
+  })
+
+  it('sets up title subscription when subscribing to analysis job', async () => {
+    const unsubscribeJobMock = jest.fn()
+    const unsubscribeTitleMock = jest.fn()
+
+    mockSubscribeToAnalysisJob.mockReturnValue(unsubscribeJobMock)
+    mockSubscribeToAnalysisTitle.mockReturnValue(unsubscribeTitleMock)
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:42', { analysisJobId: 42 })
+    await flushMicrotasks()
+
+    expect(mockSubscribeToAnalysisTitle).toHaveBeenCalledTimes(1)
+    expect(mockSubscribeToAnalysisTitle).toHaveBeenCalledWith(42, expect.any(Function))
+  })
+
+  it('updates cache when title is received via subscription', async () => {
+    const unsubscribeJobMock = jest.fn()
+    let titleHandler: ((title: string | null) => void) | undefined
+
+    mockSubscribeToAnalysisJob.mockReturnValue(unsubscribeJobMock)
+    mockSubscribeToAnalysisTitle.mockImplementation((_, onTitle) => {
+      titleHandler = onTitle
+      return jest.fn()
+    })
+
+    // Mock cached entry exists
+    mockGetCached.mockReturnValue({
+      id: 42,
+      videoId: 10,
+      userId: 'user-123',
+      title: undefined,
+      createdAt: '2025-01-01T00:00:00Z',
+      results: null,
+    })
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:42', { analysisJobId: 42 })
+    await flushMicrotasks()
+
+    // Simulate title update
+    titleHandler?.('Test Analysis Title')
+    jest.advanceTimersByTime(100)
+    await flushMicrotasks()
+
+    // Verify cache was updated (via setTimeout in handleTitleUpdate)
+    expect(mockUpdateCache).toHaveBeenCalledWith(42, { title: 'Test Analysis Title' })
+  })
+
+  it('cleans up title subscription on unsubscribe', async () => {
+    const unsubscribeJobMock = jest.fn()
+    const unsubscribeTitleMock = jest.fn()
+
+    mockSubscribeToAnalysisJob.mockReturnValue(unsubscribeJobMock)
+    mockSubscribeToAnalysisTitle.mockReturnValue(unsubscribeTitleMock)
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:42', { analysisJobId: 42 })
+    await flushMicrotasks()
+
+    expect(mockSubscribeToAnalysisTitle).toHaveBeenCalled()
+
+    store.unsubscribe('job:42')
+    await flushMicrotasks()
+
+    expect(unsubscribeTitleMock).toHaveBeenCalled()
+  })
+
+  it('handles title subscription returning undefined gracefully', async () => {
+    const unsubscribeJobMock = jest.fn()
+    let statusHandler: SubscriptionHandlers['onStatus']
+
+    mockSubscribeToAnalysisJob.mockImplementation((_, _onJob, handlers = {}) => {
+      statusHandler = handlers.onStatus
+      return unsubscribeJobMock
+    })
+    mockSubscribeToAnalysisTitle.mockReturnValue(undefined) // No title subscription available
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:42', { analysisJobId: 42 })
+    await flushMicrotasks()
+
+    // Should not throw error, just log warning
+    expect(mockSubscribeToAnalysisTitle).toHaveBeenCalled()
+
+    // Simulate subscription becoming active
+    statusHandler?.('SUBSCRIBED', { health: 'ok' })
+    await flushMicrotasks()
+
+    expect(store.getStatus('job:42')).toBe('active')
   })
 })

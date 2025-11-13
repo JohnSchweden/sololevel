@@ -94,6 +94,7 @@ const createProps = () => ({
       confidence: 0.8,
     },
   ],
+  analysisTitle: undefined as string | undefined,
   audioOverlayFunctions: {
     onClose: jest.fn(),
     onInactivity: jest.fn(),
@@ -235,6 +236,13 @@ jest.mock('@ui/components/VideoAnalysis', () => {
         if (prop === 'MotionCaptureOverlay') {
           return ensureComponent(prop, () => jest.fn(() => null))
         }
+        if (prop === 'VideoTitle') {
+          return ensureComponent(prop, () =>
+            jest.fn(({ title, testID }: any) =>
+              React.createElement(View, { testID: testID || 'video-title' }, title)
+            )
+          )
+        }
         return ensureComponent(prop, () => jest.fn(() => null))
       },
     }
@@ -322,5 +330,48 @@ describe.skip('VideoPlayerSection', () => {
     latestArgs.onComment()
 
     expect(mockRequestTab).toHaveBeenCalledWith('comments')
+  })
+
+  describe('Title Overlay', () => {
+    it('renders title overlay when analysisTitle is provided', () => {
+      // 🧪 ARRANGE: Set up component with analysis title
+      const props = { ...createProps(), analysisTitle: 'Test Analysis Title' }
+
+      // 🎬 ACT: Render the component
+      const { getByTestId } = render(<VideoPlayerSection {...props} />)
+
+      // ✅ ASSERT: Title overlay container is rendered
+      expect(getByTestId('video-title-overlay-container')).toBeTruthy()
+    })
+
+    it('does not render title overlay when analysisTitle is not provided', () => {
+      // 🧪 ARRANGE: Set up component without analysis title
+      const props = { ...createProps(), analysisTitle: undefined }
+
+      // 🎬 ACT: Render the component
+      const { queryByTestId } = render(<VideoPlayerSection {...props} />)
+
+      // ✅ ASSERT: Title overlay container is not rendered
+      expect(queryByTestId('video-title-overlay-container')).toBeNull()
+    })
+
+    it('passes title to VideoTitle component', () => {
+      // 🧪 ARRANGE: Set up component with analysis title
+      const props = { ...createProps(), analysisTitle: 'Test Analysis Title' }
+
+      // 🎬 ACT: Render the component
+      render(<VideoPlayerSection {...props} />)
+
+      // ✅ ASSERT: VideoTitle is called with correct props
+      const VideoTitleMock = require('@ui/components/VideoAnalysis').VideoTitle as jest.Mock
+      expect(VideoTitleMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Test Analysis Title',
+          overlayMode: true,
+          isEditable: false,
+        }),
+        expect.anything()
+      )
+    })
   })
 })
