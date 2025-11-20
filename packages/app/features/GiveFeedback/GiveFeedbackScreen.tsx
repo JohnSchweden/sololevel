@@ -52,8 +52,9 @@ export const GiveFeedbackScreen = ({
       {
         onSuccess: () => {
           setShowSuccessDialog(true)
-          // Don't call onSuccess here - it navigates away immediately
-          // Call it when user dismisses the dialog instead
+          // Call onSuccess immediately for programmatic handling
+          // Dialog dismissal also calls onSuccess for navigation
+          onSuccess?.()
         },
         onError: (error) => {
           log.error('GiveFeedbackScreen', 'Failed to submit feedback', {
@@ -130,7 +131,7 @@ export const GiveFeedbackScreen = ({
                   color="$color"
                   fontWeight="500"
                 >
-                  What type of gift is this?
+                  What type of feedback is this?
                 </Text>
                 <XStack
                   flexWrap="wrap"
@@ -215,12 +216,25 @@ export const GiveFeedbackScreen = ({
                     overlayOpacity={0.2}
                   >
                     {isPending ? (
-                      // @ts-ignore - Tamagui Spinner has overly strict color typing
-                      <Spinner
-                        size="small"
-                        color="$blue10"
-                        testID="send-feedback-spinner"
-                      />
+                      <XStack
+                        alignItems="center"
+                        justifyContent="center"
+                        gap="$2"
+                      >
+                        {/* @ts-ignore - Tamagui Spinner has overly strict color typing */}
+                        <Spinner
+                          size="small"
+                          color="$blue10"
+                          testID="send-feedback-spinner"
+                        />
+                        <Text
+                          fontSize="$3"
+                          fontWeight="400"
+                          color="$color12"
+                        >
+                          Sending...
+                        </Text>
+                      </XStack>
                     ) : (
                       <XStack
                         alignItems="center"
@@ -237,7 +251,7 @@ export const GiveFeedbackScreen = ({
                           color="$color12"
                           testID="send-feedback-text"
                         >
-                          Send Gift
+                          Send Feedback
                         </Text>
                       </XStack>
                     )}

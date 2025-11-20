@@ -46,6 +46,23 @@ jest.mock('@my/ui', () => ({
       maxLength={maxLength}
     />
   ),
+  ConfirmDialog: ({ open, title, description, children }: any) =>
+    open ? (
+      <div data-testid="confirm-dialog">
+        <div>{title}</div>
+        <div>{description}</div>
+        {children}
+      </div>
+    ) : null,
+  GlassButton: ({ children, onPress, disabled, ...props }: any) => (
+    <button
+      onClick={onPress}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </button>
+  ),
 }))
 
 // Mock tamagui components
@@ -55,6 +72,7 @@ jest.mock('tamagui', () => ({
   XStack: ({ children }: any) => <div>{children}</div>,
   Text: ({ children }: any) => <div>{children}</div>,
   Avatar: ({ children }: any) => <div role="img">{children}</div>,
+  Spinner: () => <div data-testid="spinner">Loading...</div>,
   Button: ({ children, onPress, disabled }: any) => (
     <button
       onClick={onPress}
