@@ -1,7 +1,6 @@
 import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
-import { BlurView } from 'expo-blur'
 import { memo, useMemo, useState } from 'react'
 import Animated, {
   FadeIn,
@@ -14,6 +13,7 @@ import Animated, {
   runOnJS,
   type SharedValue,
 } from 'react-native-reanimated'
+import { BlurView } from '../../BlurView/BlurView'
 
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'

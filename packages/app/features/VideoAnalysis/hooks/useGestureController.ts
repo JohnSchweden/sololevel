@@ -317,6 +317,7 @@ const calculateVideoHeight = (scrollValue: number): number => {
  * @param scrollY - Shared value tracking video scroll position (0 = max, positive = collapsed)
  * @param feedbackContentOffsetY - Shared value tracking feedback panel scroll position
  * @param scrollRef - Animated ref to the main scroll container
+ * @param isProcessing - Whether video analysis is in progress (disables gestures when true)
  * @returns Gesture controller interface with pan gesture, scroll state, and callbacks
  *
  * @example
@@ -326,7 +327,8 @@ const calculateVideoHeight = (scrollValue: number): number => {
  * const gesture = useGestureController(
  *   animation.scrollY,
  *   animation.feedbackContentOffsetY,
- *   animation.scrollRef
+ *   animation.scrollRef,
+ *   isProcessing
  * )
  *
  * // Pass to layout:
@@ -371,7 +373,8 @@ export interface UseGestureControllerReturn {
 export function useGestureController(
   scrollY: SharedValue<number>,
   feedbackContentOffsetY: SharedValue<number>,
-  scrollRef: AnimatedRef<Animated.ScrollView>
+  scrollRef: AnimatedRef<Animated.ScrollView>,
+  isProcessing = false
 ): UseGestureControllerReturn {
   // AI-powered gesture conflict detection
   const gestureDetector = useGestureConflictDetector()
@@ -683,6 +686,7 @@ export function useGestureController(
   // Use failOffsetX to fail immediately on any rightward horizontal swipe
   const rootPan = Gesture.Pan()
     .withRef(rootPanRef)
+    .enabled(!isProcessing) // Disable all gestures when video is processing
     .minDistance(5)
     // Only activate on vertical movement (up/down) - NOT horizontal
     // This prevents claiming rightward swipes used for back navigation

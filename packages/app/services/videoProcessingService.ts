@@ -48,6 +48,8 @@ export type ProgressCallback = (progress: VideoProcessingProgress) => void
 
 export class VideoProcessingService {
   private config: Required<VideoProcessingConfig>
+  // Post-MVP: Keep for API compatibility
+  // @ts-expect-error - unused private field, kept for future post-MVP implementation
   private progressCallback?: ProgressCallback
 
   constructor(config: VideoProcessingConfig = {}) {
@@ -59,134 +61,39 @@ export class VideoProcessingService {
     }
   }
 
-  onProgress(callback: ProgressCallback): void {
-    this.progressCallback = callback
-  }
-
-  private async getProcessingManager() {
-    // In test environment, use the mocked version
-    if (process.env.NODE_ENV === 'test') {
-      const { ProcessingManager } = require('react-native-video-processing')
-      return ProcessingManager
-    }
-
-    // In production, use dynamic import
-    const { ProcessingManager } = await import('react-native-video-processing')
-    return ProcessingManager
+  // Post-MVP: Keep method signature for API compatibility, but no-op
+  onProgress(_callback: ProgressCallback): void {
+    // No-op: pose detection is post-MVP
   }
 
   async processVideoForPoseDetection(videoPath: string): Promise<ProcessingResult> {
-    const startTime = Date.now()
+    log.info('videoProcessingService', 'Video processing requested', {
+      videoPath,
+      config: this.config,
+    })
 
-    try {
-      log.info('videoProcessingService', 'Starting video processing', {
-        videoPath,
-        config: this.config,
-      })
+    // Post-MVP: react-native-video-processing is excluded from build
+    // Pose detection will be implemented post-MVP
+    const error = new Error(
+      'Video processing for pose detection is not available. This is a post-MVP feature.'
+    )
 
-      // Import the processing library dynamically
-      const ProcessingManager = await this.getProcessingManager()
+    log.error('videoProcessingService', 'Video processing not available (post-MVP)', {
+      videoPath,
+      error: error.message,
+    })
 
-      // Get video frames
-      const allFrames = await ProcessingManager.getVideoFrames({
-        videoPath,
-        frameRate: this.config.frameRate,
-        quality: this.config.quality,
-      })
-
-      // Limit frames to maxFrames
-      const frames = allFrames.slice(0, this.config.maxFrames)
-      const poseData: PoseData[] = []
-      const totalFrames = frames.length
-      let processedFrames = 0
-      let totalConfidence = 0
-
-      // Process each frame
-      for (let i = 0; i < frames.length; i++) {
-        const frame = frames[i]
-
-        // Simulate pose detection (in real implementation, this would call the actual pose detection library)
-        const keypoints = this.simulatePoseDetection(frame)
-        const confidence = keypoints.reduce((sum, kp) => sum + kp.confidence, 0) / keypoints.length
-
-        poseData.push({
-          keypoints,
-          timestamp: (i / this.config.frameRate) * 1000,
-          frameIndex: i,
-        })
-
-        processedFrames++
-        totalConfidence += confidence
-
-        // Report progress
-        if (this.config.enableProgress && this.progressCallback) {
-          const currentTime = Date.now()
-          const elapsedTime = currentTime - startTime
-          const estimatedTimeRemaining =
-            (elapsedTime / processedFrames) * (totalFrames - processedFrames)
-          const currentFPS = processedFrames / (elapsedTime / 1000)
-
-          try {
-            this.progressCallback({
-              currentFrame: processedFrames,
-              totalFrames,
-              percentage: (processedFrames / totalFrames) * 100,
-              estimatedTimeRemaining,
-              currentFPS,
-              memoryUsage: this.getMemoryUsage(),
-            })
-          } catch (error) {
-            log.warn('videoProcessingService', 'Progress callback error', {
-              error: error instanceof Error ? error.message : String(error),
-            })
-          }
-        }
-      }
-
-      const processingTime = Date.now() - startTime
-      const averageConfidence = totalConfidence / processedFrames
-
-      const result: ProcessingResult = {
-        poseData,
-        metadata: {
-          totalFrames,
-          processedFrames,
-          averageConfidence,
-          processingTime,
-          frameRate: this.config.frameRate,
-        },
-      }
-
-      log.info('videoProcessingService', 'Video processing completed', {
-        videoPath,
-        totalFrames,
-        processingTime,
-        averageConfidence,
-      })
-
-      return result
-    } catch (error) {
-      log.error('videoProcessingService', 'Video processing failed', {
-        videoPath,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      throw new Error(
-        `Video processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
-    }
+    throw error
   }
 
-  private simulatePoseDetection(_frame: any): Array<{ x: number; y: number; confidence: number }> {
+  // Post-MVP: Method kept for future implementation
+  // @ts-expect-error - unused private method, kept for future post-MVP implementation
+  private simulatePoseDetection(
+    _frame: unknown
+  ): Array<{ x: number; y: number; confidence: number }> {
     // Simulate pose detection keypoints (17 keypoints for human pose)
-    const keypoints = []
-    for (let i = 0; i < 17; i++) {
-      keypoints.push({
-        x: Math.random() * 640,
-        y: Math.random() * 480,
-        confidence: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
-      })
-    }
-    return keypoints
+    // Will be implemented post-MVP
+    return []
   }
 
   getMemoryUsage(): number {

@@ -1,4 +1,4 @@
-import { BlurView } from 'expo-blur'
+import { BlurView } from '../../BlurView/BlurView'
 
 import { Image, View } from 'tamagui'
 

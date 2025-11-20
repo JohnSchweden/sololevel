@@ -1,5 +1,5 @@
 import { Camera, Grid3x3, Highlighter, Zap } from '@tamagui/lucide-icons'
-import { BlurView } from 'expo-blur'
+import { BlurView } from '../../BlurView/BlurView'
 
 import { Button } from '@ui/components/Button'
 import { Sheet, Text, XStack, YStack } from 'tamagui'

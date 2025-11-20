@@ -8,10 +8,10 @@ import {
   SuggestionChip,
   TypingIndicator,
 } from '@my/ui'
+import { BlurView } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
-import { BlurView } from 'expo-blur'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, type FlatListProps, type ListRenderItem } from 'react-native'
+import { FlatList, type FlatListProps, type ListRenderItem, Platform } from 'react-native'
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -177,7 +177,7 @@ export function CoachScreen({
   // Hooks
   const insetsRaw = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-  const BOTTOM_TAB_BAR_HEIGHT = 72 // Fixed height from BottomNavigationContainer
+  const BOTTOM_TAB_BAR_HEIGHT = Platform.OS === 'android' ? 52 : 62 // Fixed height from BottomNavigationContainer
 
   // ROOT CAUSE FIX #1: useSafeAreaInsets returns NEW object reference every render
   // Memoize insets based on content to prevent re-renders when values haven't changed
@@ -552,7 +552,8 @@ export function CoachScreen({
             gap="$0"
             paddingBottom={0}
             backgroundColor="$color3"
-            borderRadius="$9"
+            borderTopLeftRadius="$9"
+            borderTopRightRadius="$9"
             testID={`${testID}-input-area`}
           >
             {/* Suggestions */}

@@ -1,6 +1,6 @@
 import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-icons'
-import { BlurView } from 'expo-blur'
 import { type ComponentProps, useMemo, useState } from 'react'
+import { BlurView } from '../BlurView/BlurView'
 
 import { NotificationSheet } from '@ui/components/BottomSheets'
 import { VideoSettingsSheet } from '@ui/components/BottomSheets'
@@ -303,8 +303,8 @@ export function AppHeader({
               alignItems="center"
               justifyContent="center"
               position="absolute"
-              top={-2}
-              right={-2}
+              top={4}
+              right={4}
               minWidth={16}
               minHeight={16}
               paddingHorizontal={2}

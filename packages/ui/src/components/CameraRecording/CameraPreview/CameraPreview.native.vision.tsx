@@ -130,20 +130,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     }, [])
 
     // Frame processor for future pose detection integration
-    const frameProcessor = useFrameProcessor((frame) => {
+    const frameProcessor = useFrameProcessor((_frame) => {
       'worklet'
 
       // Future: This will be used for pose detection
-      // For now, just log frame info periodically
-      const shouldLog = Math.random() < 0.001 // Log ~0.1% of frames
-      if (shouldLog) {
-        // Note: runOnJS is not available in this version, using log for now
-        log.debug('VisionCamera', '🎬 Frame processed', {
-          width: frame.width,
-          height: frame.height,
-          timestamp: frame.timestamp,
-        })
-      }
+      // For now, frame processor is empty until pose detection is implemented
+      // Access frame properties: _frame.width, _frame.height, _frame.timestamp, _frame.pixelBuffer
     }, [])
 
     // Helper function to check if camera is ready

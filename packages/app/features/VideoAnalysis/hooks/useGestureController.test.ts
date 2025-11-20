@@ -4,6 +4,7 @@ import { useGestureController } from './useGestureController'
 // Mock Gesture.Pan to return a chainable mock
 const mockPanGesture = {
   withRef: jest.fn().mockReturnThis(),
+  enabled: jest.fn().mockReturnThis(),
   minDistance: jest.fn().mockReturnThis(),
   activeOffsetY: jest.fn().mockReturnThis(),
   activeOffsetX: jest.fn().mockReturnThis(),

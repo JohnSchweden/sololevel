@@ -4,6 +4,7 @@ import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import React from 'react'
+import { Platform } from 'react-native'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
 import { usePrefetchNextVideos } from './hooks/usePrefetchNextVideos'
@@ -30,6 +31,17 @@ export interface HistoryProgressScreenProps {
    */
   testID?: string
 }
+
+// Mock coaching sessions data - defined outside component to prevent re-allocation
+// Frozen to prevent mutations and signal immutability
+const MOCK_COACHING_SESSIONS: readonly SessionItem[] = Object.freeze([
+  { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
+  { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
+  { id: 3, date: 'Sunday, Jul 27', title: 'Posture correction techniques' },
+  { id: 4, date: 'Saturday, Jul 26', title: 'Injury prevention strategies' },
+  { id: 5, date: 'Friday, Jul 25', title: 'Nutrition timing for optimal performance' },
+  { id: 6, date: 'Thursday, Jul 24', title: 'Recovery techniques for athletes' },
+])
 
 /**
  * History & Progress Tracking Screen
@@ -84,11 +96,13 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   const videoIds = React.useMemo(() => displayedVideos.map((v) => v.id), [displayedVideos])
 
   // Track visible videos for smart prefetch (next N items based on scroll position)
-  const [visibleVideoItems, setVisibleVideoItems] = React.useState<typeof videos>([])
+  // CRITICAL FIX: Use ref instead of useState to prevent parent re-renders on scroll
+  // setState was triggering cascade re-renders every 150ms during scroll
+  const visibleVideoItemsRef = React.useRef<typeof videos>([])
 
   // Memoize visible items callback to prevent recreation on every render
   const handleVisibleItemsChange = React.useCallback((items: typeof videos) => {
-    setVisibleVideoItems(items)
+    visibleVideoItemsRef.current = items
   }, [])
 
   // Smart prefetch: prefetch video/thumbnail files to disk
@@ -110,28 +124,64 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
 
   // Determine visible items for prefetch: use actual visible items if available,
   // otherwise use first few videos as initial visible (VideosSection initializes with first 3)
-  // Stabilize by using content-based comparison to prevent unnecessary recalculations
-  // when visibleVideoItems array reference changes but content is identical
-  const visibleItemsForPrefetch = React.useMemo(() => {
-    if (visibleVideoItems.length > 0) {
-      // Create stable key from visible items IDs to detect actual content changes
-      const visibleIds = visibleVideoItems.map((v) => v.id).join(',')
+  // CRITICAL FIX: Use ref to store stable reference, state trigger only when content changes
+  // Prevents recalculation on every render - true on-demand pattern with stable references
+  const visibleItemsForPrefetchRef = React.useRef<typeof videos>(initialVisibleItems)
 
-      // Only return new array if IDs actually changed (not just reference)
-      if (visibleIds !== prevVisibleIdsRef.current) {
-        prevVisibleIdsRef.current = visibleIds
-        stableVisibleItemsRef.current = visibleVideoItems
-        return visibleVideoItems
+  // State trigger to force memo recalculation only when content actually changes
+  // Value is content hash (IDs), not the array itself - prevents unnecessary updates
+  const [visibleItemsContentHash, setVisibleItemsContentHash] = React.useState<string>(() => {
+    // Initialize with initial visible items hash
+    return initialVisibleItems.map((v) => v.id).join(',')
+  })
+
+  // Update computed value when visible items actually change (content-based comparison)
+  // Polls ref every 500ms to check for changes without blocking render
+  React.useEffect(() => {
+    const checkAndUpdate = () => {
+      const visibleVideoItems = visibleVideoItemsRef.current
+
+      if (visibleVideoItems.length > 0) {
+        // Create stable key from visible items IDs to detect actual content changes
+        const visibleIds = visibleVideoItems.map((v) => v.id).join(',')
+
+        // Only update if IDs actually changed (not just reference)
+        if (visibleIds !== prevVisibleIdsRef.current) {
+          prevVisibleIdsRef.current = visibleIds
+          stableVisibleItemsRef.current = visibleVideoItems
+          visibleItemsForPrefetchRef.current = visibleVideoItems
+          // Update state trigger only when content actually changes (forces memo recalculation)
+          setVisibleItemsContentHash(visibleIds)
+        } else {
+          // Use previous stable reference if content unchanged - no state update needed
+          if (stableVisibleItemsRef.current.length > 0) {
+            visibleItemsForPrefetchRef.current = stableVisibleItemsRef.current
+          }
+        }
+      } else {
+        // On mount before VideosSection reports visible items, use initial slice
+        const initialIds = initialVisibleItems.map((v) => v.id).join(',')
+        if (initialIds !== prevVisibleIdsRef.current) {
+          visibleItemsForPrefetchRef.current = initialVisibleItems
+          prevVisibleIdsRef.current = initialIds
+          setVisibleItemsContentHash(initialIds)
+        }
       }
-      // Return previous stable reference if content unchanged
-      // Use initialVisibleItems as fallback if ref is empty (first render)
-      return stableVisibleItemsRef.current.length > 0
-        ? stableVisibleItemsRef.current
-        : visibleVideoItems
     }
-    // On mount before VideosSection reports visible items, use memoized initial slice
-    return initialVisibleItems
-  }, [visibleVideoItems, initialVisibleItems])
+
+    // Check immediately on mount
+    checkAndUpdate()
+
+    // Poll every 500ms to detect changes from callback updates (non-blocking)
+    const intervalId = setInterval(checkAndUpdate, 500)
+    return () => clearInterval(intervalId)
+  }, [initialVisibleItems])
+
+  // Memoize visible items - stable reference, only recalculates when content hash changes
+  // Returns ref value directly to preserve stable reference across renders
+  const visibleItemsForPrefetch = React.useMemo(() => {
+    return visibleItemsForPrefetchRef.current
+  }, [visibleItemsContentHash]) // Only recalculates when content actually changes
 
   const lastVisibleAnalysisIndex = React.useMemo(() => {
     if (visibleItemsForPrefetch.length === 0) {
@@ -161,30 +211,47 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   // Strategy: Prefetch next N items beyond visible items for smooth scrolling
   // Note: Prefetch state logging is now handled inside usePrefetchNextVideos hook
   // to prevent triggering unnecessary re-renders in parent component
+  // visibleItemsForPrefetch is memoized above - stable reference prevents cascade
   usePrefetchNextVideos(videosToPrefetch, visibleItemsForPrefetch, prefetchConfig)
 
   // TanStack Query handles refetch-on-focus automatically via refetchOnFocus: true
   // It respects staleTime (5min), so fresh data won't trigger unnecessary refetches
   // No manual useFocusEffect needed - the library manages focus refetching
 
-  // Log data state changes
+  // Log data state changes - CRITICAL FIX: Use ref to track previous state
+  // Prevents logging same state repeatedly, reducing effect execution
+  const prevDataStateRef = React.useRef({ hasError: false, isEmpty: false, videoCount: 0 })
   React.useEffect(() => {
-    if (error) {
-      log.error('HistoryProgressScreen', 'Failed to load video history', {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    } else if (!isLoading && videos.length === 0) {
-      log.debug('HistoryProgressScreen', 'No videos available (empty state)')
-    } else if (!isLoading && videos.length > 0) {
-      log.debug('HistoryProgressScreen', 'Videos loaded successfully', {
-        count: videos.length,
-        videoSample: videos.slice(0, 3).map((v) => ({
-          id: v.id,
-          title: v.title,
-          hasThumbnail: !!v.thumbnailUri,
-          thumbnailPreview: v.thumbnailUri ? v.thumbnailUri.substring(0, 60) + '...' : 'none',
-        })),
-      })
+    const currentState = {
+      hasError: !!error,
+      isEmpty: !isLoading && videos.length === 0,
+      videoCount: videos.length,
+    }
+
+    // Only log if state actually changed
+    if (
+      currentState.hasError !== prevDataStateRef.current.hasError ||
+      currentState.isEmpty !== prevDataStateRef.current.isEmpty ||
+      currentState.videoCount !== prevDataStateRef.current.videoCount
+    ) {
+      if (error) {
+        log.error('HistoryProgressScreen', 'Failed to load video history', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      } else if (!isLoading && videos.length === 0) {
+        log.debug('HistoryProgressScreen', 'No videos available (empty state)')
+      } else if (!isLoading && videos.length > 0) {
+        log.debug('HistoryProgressScreen', 'Videos loaded successfully', {
+          count: videos.length,
+          videoSample: videos.slice(0, 3).map((v) => ({
+            id: v.id,
+            title: v.title,
+            hasThumbnail: !!v.thumbnailUri,
+            thumbnailPreview: v.thumbnailUri ? v.thumbnailUri.substring(0, 60) + '...' : 'none',
+          })),
+        })
+      }
+      prevDataStateRef.current = currentState
     }
   }, [videos, isLoading, error])
 
@@ -226,17 +293,8 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   }, [onNavigateToVideos])
 
   // Mock coaching sessions data (P0)
-  const mockCoachingSessions: SessionItem[] = React.useMemo(
-    () => [
-      { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
-      { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
-      { id: 3, date: 'Sunday, Jul 27', title: 'Posture correction techniques' },
-      { id: 4, date: 'Saturday, Jul 26', title: 'Injury prevention strategies' },
-      { id: 5, date: 'Friday, Jul 25', title: 'Nutrition timing for optimal performance' },
-      { id: 6, date: 'Thursday, Jul 24', title: 'Recovery techniques for athletes' },
-    ],
-    []
-  )
+  // CRITICAL FIX: Define outside component to prevent allocation on every render
+  // Even with useMemo, inline array literal defeats memoization
 
   const handleSessionPress = React.useCallback(
     (sessionId: number) => {
@@ -259,10 +317,14 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
         //marginBottom="$4"
         borderRadius="$10"
         overflow="hidden"
-        elevation={8}
+        {...(Platform.OS === 'ios' ? { elevation: 8 } : {})}
+        backgroundColor="transparent"
         testID={`${testID}-glass-container`}
       >
-        <YStack flex={1}>
+        <YStack
+          flex={1}
+          backgroundColor="transparent"
+        >
           {/* Videos Section - Full Width */}
           <VideosSection
             videos={displayedVideos}
@@ -277,7 +339,7 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
 
           {/* Coaching Sessions Section - With ScrollView */}
           <CoachingSessionsSection
-            sessions={mockCoachingSessions}
+            sessions={MOCK_COACHING_SESSIONS as SessionItem[]}
             onSessionPress={handleSessionPress}
             testID={`${testID}-coaching-sessions-section`}
           />

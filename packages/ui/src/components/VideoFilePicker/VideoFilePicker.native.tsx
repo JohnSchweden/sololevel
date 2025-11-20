@@ -2,6 +2,7 @@ import { useActionSheet } from '@expo/react-native-action-sheet'
 import { log } from '@my/logging'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
+import { useEffect, useRef } from 'react'
 import { Platform } from 'react-native'
 import type { VideoValidationResult } from '../../utils/videoValidation'
 import { validateVideoFile } from '../../utils/videoValidation'
@@ -32,6 +33,7 @@ export function VideoFilePicker({
   disabled = false,
 }: VideoFilePickerProps) {
   const { showActionSheetWithOptions } = useActionSheet()
+  const hasShownActionSheetRef = useRef(false)
 
   // Handle video selection from different sources
   const handleVideoSelection = async (source: 'gallery' | 'camera' | 'files') => {
@@ -193,32 +195,46 @@ export function VideoFilePicker({
     }
   }
 
-  // Show action sheet when opened
-  if (isOpen && !disabled && !showUploadProgress) {
-    const options = getActionSheetOptions(Platform.OS)
-    const cancelButtonIndex = options.length - 1
+  // Show action sheet when opened (use effect to avoid state updates during render)
+  useEffect(() => {
+    if (isOpen && !disabled && !showUploadProgress && !hasShownActionSheetRef.current) {
+      hasShownActionSheetRef.current = true
+      const options = getActionSheetOptions(Platform.OS)
+      const cancelButtonIndex = options.length - 1
 
-    showActionSheetWithOptions(
-      {
-        options: options.map((option) => option.label),
-        cancelButtonIndex,
-        destructiveButtonIndex: undefined,
-        title: 'Select Video Source',
-        message: 'Choose where to get your video from',
-      },
-      (buttonIndex) => {
-        if (buttonIndex === undefined || buttonIndex === cancelButtonIndex) {
-          onCancel()
-          return
-        }
+      showActionSheetWithOptions(
+        {
+          options: options.map((option) => option.label),
+          cancelButtonIndex,
+          destructiveButtonIndex: undefined,
+          title: 'Select Video Source',
+          message: 'Choose where to get your video from',
+        },
+        (buttonIndex) => {
+          hasShownActionSheetRef.current = false
+          if (buttonIndex === undefined || buttonIndex === cancelButtonIndex) {
+            onCancel()
+            return
+          }
 
-        const selectedOption = options[buttonIndex]
-        if (selectedOption) {
-          handleVideoSelection(selectedOption.source)
+          const selectedOption = options[buttonIndex]
+          if (selectedOption) {
+            handleVideoSelection(selectedOption.source)
+          }
         }
-      }
-    )
-  }
+      )
+    } else if (!isOpen) {
+      // Reset ref when picker is closed
+      hasShownActionSheetRef.current = false
+    }
+  }, [
+    isOpen,
+    disabled,
+    showUploadProgress,
+    showActionSheetWithOptions,
+    onCancel,
+    handleVideoSelection,
+  ])
 
   // This component doesn't render anything visible
   return null

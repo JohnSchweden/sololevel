@@ -351,6 +351,7 @@ export const FeedbackPanel = memo(
     })
 
     const isWeb = Platform.OS === 'web'
+    const isAndroid = Platform.OS === 'android'
     const shouldShowCommentComposer = activeTab === 'comments'
     const scrollBottomPadding = shouldShowCommentComposer ? 16 : 30
 
@@ -807,7 +808,7 @@ export const FeedbackPanel = memo(
                 >
                   <Text
                     fontSize="$3"
-                    fontWeight={feedbackFilter === filter ? '600' : '600'}
+                    fontWeight={feedbackFilter === filter ? '600' : '400'}
                     color={feedbackFilter === filter ? '$color1' : '$color11'}
                     textTransform="capitalize"
                   >
@@ -908,7 +909,7 @@ export const FeedbackPanel = memo(
             >
               <Text
                 fontSize="$3"
-                fontWeight={commentSort === 'new' ? '600' : '600'}
+                fontWeight={commentSort === 'new' ? '600' : '400'}
                 color={commentSort === 'new' ? '$color1' : '$color11'}
               >
                 New
@@ -945,7 +946,14 @@ export const FeedbackPanel = memo(
     )
 
     const renderCommentComposer = useCallback(() => {
-      const bottomPadding = safeAreaBottom > 0 ? safeAreaBottom - 12 : 0
+      // Android gesture navigation needs additional bottom padding
+      // safeAreaBottom may be 0 on Android with gesture navigation, so ensure minimum padding
+      const androidGesturePadding = Platform.OS === 'android' ? 20 : 0
+      const basePadding = safeAreaBottom > 0 ? safeAreaBottom - 12 : 0
+      const bottomPadding = Math.max(
+        basePadding + androidGesturePadding,
+        Platform.OS === 'android' ? 20 : 0
+      )
 
       return (
         <CommentComposerContainer
@@ -981,7 +989,7 @@ export const FeedbackPanel = memo(
               size="$4"
               width={40}
               height={40}
-              backgroundColor="transparent" // "$purple10"
+              backgroundColor={commentInput.trim().length > 0 ? '$purple6' : 'transparent'}
               borderRadius="$4"
               padding="$0"
               hoverStyle={{
@@ -1065,7 +1073,7 @@ export const FeedbackPanel = memo(
               color="$color12"
               textAlign="left"
             >
-              {analysisTitle || 's Analysis For Your Hand Flapping Seagull Performance'}
+              {analysisTitle || 'Speech Analysis For Your Hand Flapping Seagull Performance'}
             </Text>
           </YStack>
 
@@ -1123,7 +1131,7 @@ export const FeedbackPanel = memo(
                     >
                       <Text
                         fontSize="$4"
-                        fontWeight={isActive ? '600' : '600'}
+                        fontWeight={isActive ? '600' : '400'}
                         color={isActive ? '$color12' : '$color11'}
                         textTransform="capitalize"
                         animation="quick"
@@ -1198,23 +1206,58 @@ export const FeedbackPanel = memo(
           <YStack flex={1}>
             {/* Content with virtualized list - YouTube-style delegation */}
             <YStack flex={1}>
-              <GestureDetector gesture={nativeGesture}>
-                <YStack
-                  flex={1}
-                  testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
-                  accessibilityLabel={
-                    activeTab === 'feedback' ? 'feedback content area' : undefined
-                  }
-                  accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
+              {isWeb ? (
+                <Animated.ScrollView
+                  style={{ paddingBottom: scrollBottomPadding }}
+                  testID="feedback-panel-scroll"
                 >
-                  {isWeb ? (
-                    <Animated.ScrollView
-                      style={{ paddingBottom: scrollBottomPadding }}
-                      testID="feedback-panel-scroll"
-                    >
-                      {renderListHeader()}
-                    </Animated.ScrollView>
-                  ) : (
+                  {renderListHeader()}
+                </Animated.ScrollView>
+              ) : isAndroid ? (
+                // Android: Wrap FlatList in GestureDetector to coordinate with parent rootPan
+                <GestureDetector
+                  gesture={
+                    rootPanRef
+                      ? Gesture.Native().simultaneousWithExternalGesture(rootPanRef)
+                      : Gesture.Native()
+                  }
+                >
+                  <Animated.FlatList<FeedbackItem>
+                    data={[]}
+                    extraData={selectedFeedbackId}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderFeedbackItem}
+                    ListHeaderComponent={renderListHeader}
+                    ItemSeparatorComponent={undefined}
+                    ListEmptyComponent={undefined}
+                    contentContainerStyle={{
+                      paddingHorizontal: 0,
+                      paddingBottom: scrollBottomPadding,
+                    }}
+                    onScroll={scrollHandler}
+                    scrollEventThrottle={16}
+                    showsVerticalScrollIndicator
+                    indicatorStyle="white"
+                    scrollEnabled={scrollEnabled}
+                    nestedScrollEnabled={true}
+                    bounces
+                    testID="feedback-panel-scroll"
+                    initialNumToRender={8}
+                    maxToRenderPerBatch={8}
+                    windowSize={5}
+                    removeClippedSubviews
+                  />
+                </GestureDetector>
+              ) : (
+                <GestureDetector gesture={nativeGesture}>
+                  <YStack
+                    flex={1}
+                    testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
+                    accessibilityLabel={
+                      activeTab === 'feedback' ? 'feedback content area' : undefined
+                    }
+                    accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
+                  >
                     <Animated.FlatList<FeedbackItem>
                       data={[]}
                       extraData={selectedFeedbackId}
@@ -1232,6 +1275,7 @@ export const FeedbackPanel = memo(
                       showsVerticalScrollIndicator
                       indicatorStyle="white"
                       scrollEnabled={scrollEnabled}
+                      nestedScrollEnabled={true}
                       bounces
                       testID="feedback-panel-scroll"
                       initialNumToRender={8}
@@ -1239,9 +1283,9 @@ export const FeedbackPanel = memo(
                       windowSize={5}
                       removeClippedSubviews
                     />
-                  )}
-                </YStack>
-              </GestureDetector>
+                  </YStack>
+                </GestureDetector>
+              )}
             </YStack>
             {shouldShowCommentComposer ? renderCommentComposer() : null}
           </YStack>

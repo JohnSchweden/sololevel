@@ -144,6 +144,8 @@ jest.mock('@my/ui', () => {
       ),
     TypingIndicator: ({ testID }: any) =>
       React.createElement('div', { 'data-testid': testID || 'typing-indicator' }, 'Typing...'),
+    BlurView: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID || 'blur-view', ...props }, children),
   }
 })
 

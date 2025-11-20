@@ -14,6 +14,7 @@ import { NativeToast } from '@my/ui'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
+import { Platform, StatusBar } from 'react-native'
 import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
@@ -82,6 +83,14 @@ function RootLayoutNav() {
     <ErrorBoundary>
       <Provider>
         {/*<ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>*/}
+        {/* Android: Set transparent status bar globally */}
+        {Platform.OS === 'android' && (
+          <StatusBar
+            backgroundColor="transparent"
+            translucent
+            barStyle="light-content"
+          />
+        )}
         <AuthGate>
           <Stack>
             {/* Auth routes - public (not protected) */}
@@ -118,7 +127,8 @@ function RootLayoutNav() {
                   title: 'History & Progress',
                   headerShown: true,
                   headerTransparent: true,
-                  headerStyle: { backgroundColor: '$background' },
+                  headerStyle: { backgroundColor: 'transparent' },
+                  contentStyle: { backgroundColor: 'transparent' },
                   header: (props: any) => <NavigationAppHeader {...props} />,
                   animation: 'fade', // Changed from 'slide_from_left' to reduce JS thread load during animation
                   appHeaderProps: {

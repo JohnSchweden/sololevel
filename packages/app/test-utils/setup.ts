@@ -206,6 +206,9 @@ jest.mock('@my/ui', () => {
         { 'data-testid': testID || 'GlassButton', onClick: onPress, ...props },
         children
       ),
+    // Mock BlurView to avoid expo-blur issues in tests
+    BlurView: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID || 'blur-view', ...props }, children),
     // Mock ConfirmDialog to avoid Dialog component issues in tests
     ConfirmDialog: ({
       visible,

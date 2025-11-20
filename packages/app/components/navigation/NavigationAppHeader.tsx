@@ -278,11 +278,15 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
   }, [])
 
   /**
-   * Top inset for iOS (stable to prevent layout shifts)
-   * On iOS, we keep a stable top inset to avoid header jumping when status bar toggles.
-   * On Android, we rely on SafeAreaView's top edge behavior.
+   * Top inset (stable to prevent layout shifts)
+   * On iOS and Android, we keep a stable top inset to avoid header jumping when status bar toggles.
+   * We capture the initial top inset value and maintain it even when status bar is hidden.
    */
-  const topInset = Platform.OS === 'ios' ? Math.max(insets.top, 0) : insets.top
+  const topInsetRef = useRef<number | null>(null)
+  if (topInsetRef.current === null) {
+    topInsetRef.current = Math.max(insets.top, 0)
+  }
+  const topInset = topInsetRef.current
 
   /**
    * Extract options-derived values
@@ -433,12 +437,11 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
 
   /**
    * Stable style objects to prevent SafeAreaView re-renders
-   * - safeAreaEdges: Platform-specific edges (iOS excludes top to prevent layout shifts)
+   * - safeAreaEdges: Excludes top on both iOS and Android to prevent layout shifts when status bar toggles
    * - safeAreaStyle: Memoized to prevent re-creation when backgroundColor changes
-   * - topInsetStyle: Memoized for iOS top inset view
+   * - topInsetStyle: Memoized for top inset view (used on both iOS and Android)
    */
-  const safeAreaEdges =
-    Platform.OS === 'ios' ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const)
+  const safeAreaEdges = ['left', 'right'] as const
   const safeAreaStyle = useMemo(() => [styles.safeArea, { backgroundColor }], [backgroundColor])
   const topInsetStyle = useMemo(
     () => ({ height: topInset, backgroundColor }),
@@ -450,7 +453,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
       edges={safeAreaEdges}
       style={safeAreaStyle}
     >
-      {Platform.OS === 'ios' ? <View style={topInsetStyle} /> : null}
+      <View style={topInsetStyle} />
       <View style={styles.wrapper}>
         {isVideoAnalysisMode ? (
           <VideoAnalysisAnimatedHeader

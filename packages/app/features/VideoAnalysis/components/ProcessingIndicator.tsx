@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { BlurView } from 'expo-blur'
+import { BlurView } from '@my/ui'
 import {
   runOnJS,
   useAnimatedReaction,
@@ -29,6 +29,27 @@ interface ProcessingIndicatorProps {
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
+/**
+ * ProcessingIndicator - Fullscreen overlay that blocks all user interactions during video analysis
+ *
+ * **Interaction Blocking:**
+ * - When `isProcessing=true`: `pointerEvents="auto"` captures and blocks ALL touch events
+ * - When `isProcessing=false`: `pointerEvents="none"` allows touches to pass through
+ * - Positioned at `zIndex={1000}` to overlay above all screen content
+ * - Covers entire screen (`inset={0}`) to intercept gestures anywhere
+ *
+ * **Visual Feedback:**
+ * - Animated blur overlay (intensity 0 → 40) with dark tint
+ * - Spinner with "Analysing video..." message
+ * - Fade in/out animations (300ms in, 600ms out)
+ *
+ * **Processing States (from AnalysisPhase):**
+ * - 'uploading' | 'analyzing' | 'generating-feedback' → blocking enabled
+ * - 'ready' | 'error' → blocking disabled
+ *
+ * @param phase - Current analysis phase determines blocking state
+ * @param subscription - Subscription metadata for connection status
+ */
 export function ProcessingIndicator({ phase, subscription }: ProcessingIndicatorProps) {
   const effectiveKey = useMemo(
     () => (subscription.shouldSubscribe ? subscription.key : null),
@@ -105,14 +126,16 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
 
   return (
     <YStack
-      pointerEvents="none"
+      pointerEvents={isProcessing ? 'auto' : 'none'}
       position="absolute"
       inset={0}
       alignItems="center"
       justifyContent="center"
       zIndex={1000}
+      testID={isProcessing ? 'processing-blocker' : undefined}
+      accessibilityLabel={isProcessing ? 'Processing overlay - interactions blocked' : undefined}
     >
-      {/* Blur background overlay - always rendered, fades out */}
+      {/* Blur background overlay - blocks all interactions when processing */}
       {showContent && (
         <AnimatedBlurView
           intensity={currentIntensity}

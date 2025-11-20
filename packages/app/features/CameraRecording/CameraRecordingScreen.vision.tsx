@@ -17,7 +17,8 @@ import { log } from '@my/logging'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-// import { Dimensions } from 'react-native'
+import { Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, YStack } from 'tamagui'
 // import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
@@ -54,6 +55,8 @@ export function CameraRecordingScreen({
   useKeepAwake()
   //const insets = useSafeArea()
   //const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+  const insets = useSafeAreaInsets()
+  const BOTTOM_NAV_HEIGHT = 0 // Fixed height from BottomNavigationContainer
 
   const cameraRef = useRef<CameraPreviewRef>(null)
 
@@ -246,10 +249,14 @@ export function CameraRecordingScreen({
 
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
+  // Add bottom padding on Android to prevent BottomNavigation from being covered by system navigation
+  const bottomPadding = Platform.OS === 'android' ? BOTTOM_NAV_HEIGHT + insets.bottom : 0
+
   return (
     <YStack
       flex={1}
       //paddingTop={insets.top + APP_HEADER_HEIGHT}
+      paddingBottom={bottomPadding}
       backgroundColor="$background"
     >
       <CameraContainer

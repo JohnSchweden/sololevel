@@ -12,6 +12,8 @@ export { GlassButton } from './components/GlassButton'
 export { ToastProvider } from './components/ToastProvider'
 export { ToastViewport } from './components/ToastViewport'
 export { AppHeader } from './components/AppHeader'
+export { BlurView } from './components/BlurView/BlurView'
+export type { BlurViewProps } from './components/BlurView/BlurView'
 export {
   BottomNavigation,
   BottomNavigationContainer,

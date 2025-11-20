@@ -1,6 +1,6 @@
-import { BlurView } from 'expo-blur'
 import { type ComponentProps, type ReactNode, useMemo, useState } from 'react'
 import { Button, Image, XStack, type XStackProps } from 'tamagui'
+import { BlurView, type BlurViewProps } from '../BlurView/BlurView'
 
 // Import glass overlay assets
 const defaultGlassOverlay = require('../../../../../apps/expo/assets/glass-button.png')
@@ -28,7 +28,7 @@ export type GlassButtonProps = {
   /** Blur intensity (1-100, default 15) */
   blurIntensity?: number
   /** Blur tint ('light' | 'dark' | 'default', default 'light') */
-  blurTint?: ComponentProps<typeof BlurView>['tint']
+  blurTint?: BlurViewProps['tint']
   /** Minimum width (number or string like "100%") */
   minWidth?: number | string
   /** Minimum height (number only) */

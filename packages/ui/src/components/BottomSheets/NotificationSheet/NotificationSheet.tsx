@@ -1,5 +1,5 @@
 import { Dumbbell, Flame, TrendingUp, Trophy } from '@tamagui/lucide-icons'
-import { BlurView } from 'expo-blur'
+import { BlurView } from '../../BlurView/BlurView'
 
 import { Sheet, Text, XStack, YStack } from 'tamagui'
 

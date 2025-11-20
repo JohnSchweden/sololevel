@@ -14,7 +14,7 @@ import {
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
 import { LazySection } from '@ui/components/Performance'
 import { memo, useCallback, useMemo } from 'react'
-import { RefreshControl } from 'react-native'
+import { Platform, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 import { useInsightsData } from './hooks/useInsightsData'
@@ -414,7 +414,7 @@ export function InsightsScreen({
             paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
-            paddingBottom="$6"
+            paddingBottom={Platform.OS === 'android' ? '$10' : '$6'}
             marginBottom={insets.bottom}
           >
             {sectionsContent}

@@ -290,11 +290,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
   // NOTE: These hooks are native-only but must be called unconditionally (React rules)
   // They will be no-ops on web platforms
   const animation = useAnimationController()
-  const gesture = useGestureController(
-    animation.scrollY,
-    animation.feedbackContentOffsetY,
-    animation.scrollRef
-  )
+  // Note: gesture controller moved below videoState definition to access isProcessing
 
   // Notify parent of processing state changes (when using direct composition)
 
@@ -525,6 +521,14 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       initialStatus: normalizedInitialStatus as 'processing' | 'ready' | 'playing' | 'paused',
     }),
     [historical.data?.videoUri, props.videoUri, isProcessing, normalizedInitialStatus]
+  )
+
+  // 🆕 Gesture controller (after videoState to access isProcessing)
+  const gesture = useGestureController(
+    animation.scrollY,
+    animation.feedbackContentOffsetY,
+    animation.scrollRef,
+    videoState.isProcessing // Disable gestures during video processing
   )
 
   /**

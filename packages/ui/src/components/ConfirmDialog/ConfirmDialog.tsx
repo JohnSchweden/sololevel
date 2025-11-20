@@ -1,7 +1,7 @@
 import { X } from '@tamagui/lucide-icons'
-import { BlurView } from 'expo-blur'
 import type React from 'react'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
+import { BlurView } from '../BlurView/BlurView'
 
 export interface ConfirmDialogProps {
   /**

@@ -1,23 +1,17 @@
 import MaskedView from '@react-native-masked-view/masked-view'
 import { LinearGradient } from '@tamagui/linear-gradient'
-import { BlurView } from 'expo-blur'
 import React, { useMemo } from 'react'
+import { Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
-
-// Platform-agnostic safe area hook for bottom navigation
-const useSafeAreaInsets = () => {
-  // Default safe area values for cross-platform compatibility
-  return {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  }
-}
+import { BlurView } from '../BlurView/BlurView'
 
 /**
  * Native Bottom Navigation Container
- * Uses BlurView with MaskedView for native blur effect with gradient mask
+ *
+ * Platform-specific implementation:
+ * - iOS: Uses BlurView with MaskedView for native blur effect with gradient mask
+ * - Android: Uses BlurView with LinearGradient overlay (MaskedView doesn't work with BlurView on Android)
  */
 export function BottomNavigationContainer({
   children,
@@ -25,6 +19,12 @@ export function BottomNavigationContainer({
   children: React.ReactNode
 }) {
   const insets = useSafeAreaInsets()
+
+  // Platform-specific height: Android uses 52px, iOS uses 72px
+  const containerHeight = useMemo(
+    () => (Platform.OS === 'android' ? 52 : 22) + insets.bottom,
+    [insets.bottom]
+  )
 
   // Memoize BlurView style to prevent re-creation on every render
   // Reduced intensity from 50 to 30 for better performance (always visible component)
@@ -39,15 +39,10 @@ export function BottomNavigationContainer({
     [insets.bottom]
   )
 
-  return (
-    <YStack
-      position="absolute"
-      bottom={0}
-      left={0}
-      right={0}
-      height={72 + insets.bottom}
-      zIndex={10}
-    >
+  // iOS: Use MaskedView + BlurView (works correctly)
+  // Android: Use BlurView + LinearGradient overlay (MaskedView causes black screen)
+  const blurContent =
+    Platform.OS === 'ios' ? (
       <MaskedView
         style={{ flex: 1 }}
         maskElement={
@@ -65,13 +60,31 @@ export function BottomNavigationContainer({
           style={blurViewStyle}
         />
       </MaskedView>
+    ) : (
+      <BlurView
+        intensity={30}
+        tint="dark"
+        style={blurViewStyle}
+      />
+    )
+
+  return (
+    <YStack
+      position="absolute"
+      bottom={0}
+      left={0}
+      right={0}
+      height={containerHeight}
+      zIndex={10}
+    >
+      {blurContent}
       <YStack
         position="absolute"
         top={0}
         left={0}
         right={0}
         bottom={0}
-        paddingBottom={insets.bottom}
+        //paddingBottom={insets.bottom}
         paddingHorizontal="$4"
         alignItems="center"
         justifyContent="space-between"

@@ -1,5 +1,6 @@
 import { Pause, Play, RotateCcw, SkipBack, SkipForward } from '@tamagui/lucide-icons'
 import React from 'react'
+import { Platform } from 'react-native'
 import { XStack } from 'tamagui'
 import { GlassButton } from '../../../GlassButton'
 import { formatTime } from './TimeDisplay'
@@ -66,9 +67,15 @@ export const CenterControls = React.memo<CenterControlsProps>(
           }
           minWidth={40}
           minHeight={40}
-          blurTint="dark"
-          blurIntensity={5}
-          overlayOpacity={1}
+          {...(Platform.OS === 'android'
+            ? {
+                blurIntensity: 10,
+              }
+            : {
+                blurTint: 'dark',
+                blurIntensity: 5,
+                overlayOpacity: 1,
+              })}
           borderWidth={0}
           edgeGlowIntensity={0}
           animation={undefined}
@@ -98,9 +105,15 @@ export const CenterControls = React.memo<CenterControlsProps>(
           }
           minWidth={54}
           minHeight={54}
-          blurTint="dark"
-          blurIntensity={5}
-          overlayOpacity={0.7}
+          {...(Platform.OS === 'android'
+            ? {
+                blurIntensity: 10,
+              }
+            : {
+                blurTint: 'dark',
+                blurIntensity: 5,
+                overlayOpacity: 0.7,
+              })}
           borderWidth={0}
           edgeGlowIntensity={0}
           animation={undefined}
@@ -132,9 +145,15 @@ export const CenterControls = React.memo<CenterControlsProps>(
           }
           minWidth={40}
           minHeight={40}
-          blurTint="dark"
-          blurIntensity={5}
-          overlayOpacity={1}
+          {...(Platform.OS === 'android'
+            ? {
+                blurIntensity: 10,
+              }
+            : {
+                blurTint: 'dark',
+                blurIntensity: 5,
+                overlayOpacity: 1,
+              })}
           borderWidth={0}
           edgeGlowIntensity={0}
           animation={undefined}
