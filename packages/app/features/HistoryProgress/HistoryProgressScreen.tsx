@@ -65,9 +65,11 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   // Log screen mount
   React.useEffect(() => {
     log.debug('HistoryProgressScreen', 'Screen mounted')
-    return () => {
-      log.debug('HistoryProgressScreen', 'Screen unmounted')
-    }
+    // Note: No cleanup needed here - this screen doesn't subscribe to analyses directly.
+    // Subscriptions are managed by child components (e.g., VideoAnalysisScreen) which
+    // handle their own cleanup via useEffect cleanup functions.
+    // Global cleanup (reset/unsubscribeAll) is too aggressive and can break child screens
+    // that rely on these subscriptions.
   }, [])
 
   // Data fetching with TanStack Query + Zustand cache

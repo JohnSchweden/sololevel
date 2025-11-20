@@ -156,6 +156,67 @@ describe('useAnalysisState', () => {
     jest.useRealTimers()
   })
 
+  it('always unsubscribes on cleanup even if shouldSubscribeToRealtime becomes false', () => {
+    mockAnalysisStoreState.subscriptions = new Map()
+    mockAnalysisStoreState.unsubscribe.mockClear()
+
+    const { rerender, unmount } = renderHook(
+      ({ isHistoryMode }) => useAnalysisState(42, undefined, 'processing', isHistoryMode),
+      {
+        initialProps: { isHistoryMode: false },
+      }
+    )
+
+    // Subscribe should be called
+    expect(mockAnalysisStoreState.subscribe).toHaveBeenCalledWith(
+      'job:42',
+      expect.objectContaining({ analysisJobId: 42 })
+    )
+
+    // Change to history mode (shouldSubscribeToRealtime becomes false)
+    rerender({ isHistoryMode: true })
+
+    // Unsubscribe should have been called when dependency changed
+    expect(mockAnalysisStoreState.unsubscribe).toHaveBeenCalledWith('job:42')
+
+    // Clean up
+    unmount()
+
+    // Unsubscribe should be called again on unmount (defensive cleanup)
+    expect(mockAnalysisStoreState.unsubscribe).toHaveBeenCalledTimes(2)
+  })
+
+  it('unsubscribes on unmount even when subscription key changes', () => {
+    mockAnalysisStoreState.unsubscribe.mockClear()
+
+    const { rerender, unmount } = renderHook(
+      ({ analysisJobId }) => useAnalysisState(analysisJobId, undefined, 'processing'),
+      {
+        initialProps: { analysisJobId: 42 },
+      }
+    )
+
+    // First subscription
+    expect(mockAnalysisStoreState.subscribe).toHaveBeenCalledWith(
+      'job:42',
+      expect.objectContaining({ analysisJobId: 42 })
+    )
+
+    // Change to different job
+    rerender({ analysisJobId: 99 })
+
+    // Should unsubscribe from old and subscribe to new
+    expect(mockAnalysisStoreState.unsubscribe).toHaveBeenCalledWith('job:42')
+    expect(mockAnalysisStoreState.subscribe).toHaveBeenCalledWith(
+      'job:99',
+      expect.objectContaining({ analysisJobId: 99 })
+    )
+
+    // Unmount - should unsubscribe from current subscription
+    unmount()
+    expect(mockAnalysisStoreState.unsubscribe).toHaveBeenCalledWith('job:99')
+  })
+
   it('returns uploading phase when upload is in progress', () => {
     mockUploadProgress.mockReturnValueOnce({ status: 'uploading', percentage: 35 })
 

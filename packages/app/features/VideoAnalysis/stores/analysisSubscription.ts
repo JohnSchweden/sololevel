@@ -847,7 +847,11 @@ function handleSubscriptionError(
 function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
   const state = get()
   const subscription = state.subscriptions.get(key)
-  if (!subscription) return
+  // MEMORY LEAK FIX: Early exit if subscription doesn't exist
+  // Prevents orphaned timers from firing when subscription is deleted
+  if (!subscription) {
+    return
+  }
 
   if (subscription.retryAttempts >= MAX_RETRIES) {
     log.warn('AnalysisSubscriptionStore', 'Max retries reached before scheduling retry', {
@@ -870,13 +874,30 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
     attempts: subscription.retryAttempts,
   })
 
+  // MEMORY LEAK FIX: Check existence before scheduling timer
+  // This prevents orphaned timers when subscription is deleted between setTimeout and set()
   const timeoutId = setTimeout(() => {
+    // Re-check existence before retry to prevent calling retry on deleted subscription
+    const currentState = get()
+    const currentSubscription = currentState.subscriptions.get(key)
+    if (!currentSubscription) {
+      log.debug('AnalysisSubscriptionStore', 'Skipping retry - subscription was deleted', {
+        key,
+      })
+      return
+    }
     void get().retry(key)
   }, delay)
 
   set((draft: AnalysisSubscriptionStoreState) => {
     const current = draft.subscriptions.get(key)
-    if (!current) return
+    if (!current) {
+      // MEMORY LEAK FIX: Clean up orphaned timer if subscription was deleted
+      // This handles race condition where subscription is deleted between setTimeout and set()
+      clearTimeout(timeoutId)
+      log.debug('AnalysisSubscriptionStore', 'Cleaned up orphaned retry timer', { key })
+      return
+    }
     if (current.retryTimeoutId) {
       clearTimeout(current.retryTimeoutId)
     }
@@ -885,9 +906,26 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
 }
 
 function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) {
+  // MEMORY LEAK FIX: Check existence before scheduling timer
+  const state = get()
+  const subscription = state.subscriptions.get(key)
+  if (!subscription) {
+    return
+  }
+
   log.info('AnalysisSubscriptionStore', 'Scheduling backfill check', { key })
 
   const timeoutId = setTimeout(async () => {
+    // Re-check existence before backfill to prevent operating on deleted subscription
+    const currentState = get()
+    const currentSubscription = currentState.subscriptions.get(key)
+    if (!currentSubscription) {
+      log.debug('AnalysisSubscriptionStore', 'Skipping backfill - subscription was deleted', {
+        key,
+      })
+      return
+    }
+
     const options = parseSubscriptionKey(key)
     if (!options?.recordingId) {
       return
@@ -909,7 +947,13 @@ function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) 
 
   set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
-    if (!subscription) return
+    if (!subscription) {
+      // MEMORY LEAK FIX: Clean up orphaned timer if subscription was deleted
+      // This handles race condition where subscription is deleted between setTimeout and set()
+      clearTimeout(timeoutId)
+      log.debug('AnalysisSubscriptionStore', 'Cleaned up orphaned backfill timer', { key })
+      return
+    }
     if (subscription.backfillTimeoutId) {
       clearTimeout(subscription.backfillTimeoutId)
     }

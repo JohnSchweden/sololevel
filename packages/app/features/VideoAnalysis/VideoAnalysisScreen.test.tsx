@@ -21,6 +21,7 @@ const videoPlayerStoreState = {
   batchUpdate: jest.fn(),
   reset: jest.fn(),
   seekImmediate: jest.fn(),
+  releaseResources: jest.fn(),
 }
 
 type VideoPlayerStoreState = typeof videoPlayerStoreState
@@ -38,7 +39,10 @@ const mockUseVideoPlayerStore = jest.fn((selector?: VideoPlayerStoreSelector) =>
   selector ? selector(videoPlayerStoreState) : videoPlayerStoreState
 ) as UseVideoPlayerStoreMock
 
-mockUseVideoPlayerStore.getState = () => videoPlayerStoreState
+mockUseVideoPlayerStore.getState = () => ({
+  ...videoPlayerStoreState,
+  releaseResources: videoPlayerStoreState.releaseResources || jest.fn(),
+})
 mockUseVideoPlayerStore.subscribe = jest.fn((listener?: VideoPlayerStoreSelector) => {
   if (listener) {
     listener(videoPlayerStoreState)

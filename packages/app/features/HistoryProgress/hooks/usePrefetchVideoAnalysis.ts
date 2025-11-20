@@ -82,6 +82,7 @@ export function usePrefetchVideoAnalysis(
   const prefetchedRef = useRef<Set<number>>(new Set())
   const inFlightRef = useRef<Set<number>>(new Set())
   const scheduledMapRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+  const abortControllersRef = useRef<Map<number, AbortController>>(new Map())
   const highestRequestedIndexRef = useRef(-1)
   const getCached = useVideoHistoryStore((state) => state.getCached)
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
@@ -186,6 +187,11 @@ export function usePrefetchVideoAnalysis(
         return analysisUuid
       }
 
+      // Check if aborted before making network request
+      if (signal?.aborted) {
+        return null
+      }
+
       // Fetch existing feedbacks from database (same query as subscribeToAnalysisFeedbacks)
       type FeedbackSelectResult = Pick<
         Database['public']['Tables']['analysis_feedback']['Row'],
@@ -214,6 +220,11 @@ export function usePrefetchVideoAnalysis(
         .eq('analysis_id', analysisUuid)
         .order('created_at', { ascending: true })
         .returns<FeedbackSelectResult[]>()
+
+      // Check if aborted after query completes (before processing results)
+      if (signal?.aborted) {
+        return null
+      }
 
       if (fetchError) {
         log.warn('usePrefetchVideoAnalysis', 'Failed to prefetch feedback metadata', {
@@ -277,16 +288,18 @@ export function usePrefetchVideoAnalysis(
         return
       }
 
+      // Create abort controller for this prefetch operation
+      const controller = new AbortController()
+      abortControllersRef.current.set(analysisId, controller)
+
       const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
       if (cached) {
         prefetchedRef.current.add(analysisId)
         log.debug('usePrefetchVideoAnalysis', 'Query already cached, skipping', {
           analysisId,
         })
-        // Note: prefetchFeedbackMetadata called without abort signal here
-        // because it's called from prefetchVideo callback which is already
-        // managed by TanStack Query's cancellation
-        void prefetchFeedbackMetadata(analysisId)
+        // Pass abort signal to allow cancellation on unmount
+        void prefetchFeedbackMetadata(analysisId, controller.signal)
         return
       }
 
@@ -295,6 +308,7 @@ export function usePrefetchVideoAnalysis(
         log.debug('usePrefetchVideoAnalysis', 'Not in Zustand cache, skipping prefetch', {
           analysisId,
         })
+        abortControllersRef.current.delete(analysisId)
         return
       }
 
@@ -318,9 +332,11 @@ export function usePrefetchVideoAnalysis(
         })
         .finally(() => {
           inFlightRef.current.delete(analysisId)
+          abortControllersRef.current.delete(analysisId)
         })
 
-      void prefetchFeedbackMetadata(analysisId)
+      // Pass abort signal to allow cancellation on unmount
+      void prefetchFeedbackMetadata(analysisId, controller.signal)
     },
     [getCached, prefetchFeedbackMetadata, queryClient]
   )
@@ -347,12 +363,30 @@ export function usePrefetchVideoAnalysis(
       }
     })
 
+    // Clean up abort controllers for invalid IDs
+    abortControllersRef.current.forEach((controller, analysisId) => {
+      if (!validIds.has(analysisId)) {
+        controller.abort()
+        abortControllersRef.current.delete(analysisId)
+      }
+    })
+
     if (analysisIds.length === 0) {
       highestRequestedIndexRef.current = -1
     } else if (highestRequestedIndexRef.current >= analysisIds.length) {
       highestRequestedIndexRef.current = analysisIds.length - 1
     }
   }, [analysisIds])
+
+  // Cleanup: abort all pending operations on unmount
+  useEffect(() => {
+    return () => {
+      abortControllersRef.current.forEach((controller) => {
+        controller.abort()
+      })
+      abortControllersRef.current.clear()
+    }
+  }, [])
 
   useEffect(() => {
     if (analysisIds.length === 0) {
@@ -430,13 +464,12 @@ export function usePrefetchVideoAnalysis(
     })
 
     return () => {
-      scheduledIds.forEach((analysisId) => {
-        const timeoutId = scheduledMapRef.current.get(analysisId)
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-          scheduledMapRef.current.delete(analysisId)
-        }
+      // Fix: Clear ALL scheduled timeouts, not just the ones from this effect run
+      // This prevents orphaned timeouts if analysisIds changes rapidly or effect re-runs
+      scheduledMapRef.current.forEach((timeoutId) => {
+        clearTimeout(timeoutId)
       })
+      scheduledMapRef.current.clear()
     }
   }, [analysisIds, isPrefetchedOrPending, networkQuality, prefetchVideo])
 

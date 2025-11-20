@@ -192,7 +192,7 @@ async function tryResolveLocalUri(
  */
 export async function resolveHistoricalVideoUri(
   storagePath: string | null | undefined,
-  context: { analysisId: number; localUriHint?: string }
+  context: { analysisId: number; localUriHint?: string; signal?: AbortSignal }
 ): Promise<string> {
   if (!storagePath) {
     return FALLBACK_VIDEO_URI
@@ -302,9 +302,16 @@ export async function resolveHistoricalVideoUri(
   })
 
   // Trigger background download for future sessions (non-blocking)
-  if (signedResult.signedUrl && Platform.OS !== 'web') {
-    VideoStorageService.downloadVideo(signedResult.signedUrl, context.analysisId)
+  // Only start download if not aborted and signal is not provided (or not aborted)
+  if (signedResult.signedUrl && Platform.OS !== 'web' && !context.signal?.aborted) {
+    VideoStorageService.downloadVideo(signedResult.signedUrl, context.analysisId, {
+      signal: context.signal,
+    })
       .then((persistentPath) => {
+        // Check if aborted before updating store
+        if (context.signal?.aborted) {
+          return
+        }
         useVideoHistoryStore.getState().setLocalUri(storagePath, persistentPath)
         log.info('useHistoricalAnalysis', 'Video persisted to disk', {
           analysisId: context.analysisId,
@@ -313,6 +320,10 @@ export async function resolveHistoricalVideoUri(
         })
       })
       .catch(async (error) => {
+        // Don't log abort errors as warnings
+        if (context.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          return
+        }
         const errorMessage = await getNetworkErrorMessage('video', error)
         log.warn('useHistoricalAnalysis', 'Background video download failed', {
           analysisId: context.analysisId,

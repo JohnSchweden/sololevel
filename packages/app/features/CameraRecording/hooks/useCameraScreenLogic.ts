@@ -20,13 +20,20 @@ export const useCameraScreenLogic = ({
   // Camera swap visual feedback state
   const [isCameraSwapping, setIsCameraSwapping] = useState(false)
   const [isMounted, setIsMounted] = useState(true)
+  const isMountedRef = useRef(true)
+  const swapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const CAMERA_SWAP_TRANSITION_DURATION = 300 // 300ms for smooth transition
 
   // Track component mount state
   useEffect(() => {
     setIsMounted(true)
+    isMountedRef.current = true
     return () => {
       setIsMounted(false)
+      isMountedRef.current = false
+      if (swapTimeoutRef.current) {
+        clearTimeout(swapTimeoutRef.current)
+      }
     }
   }, [])
 
@@ -203,8 +210,10 @@ export const useCameraScreenLogic = ({
       })
 
       // Provide visual feedback duration for smooth transition
-      setTimeout(() => {
-        setIsCameraSwapping(false)
+      swapTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsCameraSwapping(false)
+        }
       }, CAMERA_SWAP_TRANSITION_DURATION)
     } catch (error) {
       log.error('useCameraScreenLogic', 'Failed to change camera facing', {

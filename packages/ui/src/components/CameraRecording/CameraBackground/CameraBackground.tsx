@@ -1,4 +1,4 @@
-import { log } from '@my/logging'
+import React from 'react'
 import { Image, Platform } from 'react-native'
 import { YStack } from 'tamagui'
 
@@ -19,13 +19,15 @@ export interface CameraBackgroundProps {
  * Camera Background Component
  * Provides background image overlay for camera recording
  * Useful for iOS simulator testing with static background images
+ *
+ * Memoized to prevent unnecessary re-renders from parent updates
  */
-export function CameraBackground({
+export const CameraBackground = React.memo(function CameraBackground({
   imageSource,
   opacity = 0.2,
   resizeMode = 'cover',
   simulatorOnly = true,
-  showOnError = false,
+  showOnError: _showOnError = false,
 }: CameraBackgroundProps) {
   // Don't render if no image source provided
   if (!imageSource) {
@@ -45,7 +47,7 @@ export function CameraBackground({
   // Note: showOnError parameter is used by parent components to control when to show background
   // Currently always shown when simulatorOnly is true on iOS
   // This parameter is available for future use when needed
-  log.debug('CameraBackground', 'Rendered', { showOnError, simulatorOnly })
+  // Removed per-render logging to reduce noise
 
   return (
     <YStack
@@ -67,4 +69,4 @@ export function CameraBackground({
       />
     </YStack>
   )
-}
+})

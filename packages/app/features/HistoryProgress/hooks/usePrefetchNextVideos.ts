@@ -239,6 +239,7 @@ export function usePrefetchNextVideos(
         const videoUri = await resolveHistoricalVideoUri(cached.storagePath, {
           analysisId: item.id,
           localUriHint: cached.videoUri?.startsWith('file://') ? cached.videoUri : undefined,
+          signal,
         })
 
         if (signal?.aborted) {
@@ -291,7 +292,6 @@ export function usePrefetchNextVideos(
 
       const controller = new AbortController()
       abortControllersRef.current.set(item.id, controller)
-      let videoPrefetchPromise: Promise<boolean> | null = null
 
       // Mark as prefetching (update ref only, no parent re-render)
       stateRef.current = {
@@ -309,25 +309,34 @@ export function usePrefetchNextVideos(
           return
         }
 
-        // Prefetch video in background (priority 2)
-        // Don't await - let it run in background
-        videoPrefetchPromise = prefetchVideo(item, controller.signal)
-        void videoPrefetchPromise
-          .catch((error) => {
-            if (controller.signal.aborted || cancelledRef.current) {
-              return
-            }
-            log.warn('usePrefetchNextVideos', 'Background video prefetch failed', {
-              analysisId: item.id,
-              error: error instanceof Error ? error.message : String(error),
-            })
+        // Prefetch video (priority 2)
+        // CRITICAL: Await video download to maintain concurrency limit
+        // The semaphore (activeDownloadsRef) must remain held until video completes
+        try {
+          await prefetchVideo(item, controller.signal)
+        } catch (error) {
+          // Check cancelledRef before logging to prevent side effects after unmount
+          if (controller.signal.aborted || cancelledRef.current) {
+            return
+          }
+          log.warn('usePrefetchNextVideos', 'Video prefetch failed', {
+            analysisId: item.id,
+            error: error instanceof Error ? error.message : String(error),
           })
-          .finally(() => {
-            const trackedController = abortControllersRef.current.get(item.id)
-            if (trackedController === controller) {
-              abortControllersRef.current.delete(item.id)
-            }
-          })
+          // Mark as failed instead of prefetched
+          stateRef.current = {
+            ...stateRef.current,
+            prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
+            failed: stateRef.current.failed.includes(item.id)
+              ? stateRef.current.failed
+              : [...stateRef.current.failed, item.id],
+          }
+          return
+        }
+
+        if (controller.signal.aborted || cancelledRef.current) {
+          return
+        }
 
         // Mark as prefetched (update ref only, no parent re-render)
         stateRef.current = {
@@ -339,6 +348,8 @@ export function usePrefetchNextVideos(
           failed: stateRef.current.failed.filter((id) => id !== item.id),
         }
       } catch (error) {
+        // Fix: Check cancelledRef before updating state in catch block
+        // Prevents state updates after component unmount
         if (controller.signal.aborted || cancelledRef.current) {
           stateRef.current = {
             ...stateRef.current,
@@ -348,17 +359,19 @@ export function usePrefetchNextVideos(
           return
         }
         // Mark as failed (update ref only, no parent re-render)
-        stateRef.current = {
-          ...stateRef.current,
-          prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
-          failed: stateRef.current.failed.includes(item.id)
-            ? stateRef.current.failed
-            : [...stateRef.current.failed, item.id],
+        // Only update if not cancelled to prevent leaks
+        if (!cancelledRef.current) {
+          stateRef.current = {
+            ...stateRef.current,
+            prefetching: stateRef.current.prefetching.filter((id) => id !== item.id),
+            failed: stateRef.current.failed.includes(item.id)
+              ? stateRef.current.failed
+              : [...stateRef.current.failed, item.id],
+          }
         }
       } finally {
-        if (!videoPrefetchPromise) {
-          abortControllersRef.current.delete(item.id)
-        }
+        // Cleanup: Remove abort controller and release semaphore
+        abortControllersRef.current.delete(item.id)
         activeDownloadsRef.current.delete(item.id)
       }
     },

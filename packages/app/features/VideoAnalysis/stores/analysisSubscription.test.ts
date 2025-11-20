@@ -342,4 +342,74 @@ describe('analysisSubscription store', () => {
 
     expect(store.getStatus('job:42')).toBe('active')
   })
+
+  it('does not schedule retry timer if subscription was deleted before setTimeout executes', async () => {
+    const unsubscribeMock = jest.fn()
+    let errorHandler: SubscriptionHandlers['onError']
+
+    mockSubscribeToAnalysisJob.mockImplementation((_, _onJob, handlers = {}) => {
+      errorHandler = handlers.onError
+      return unsubscribeMock
+    })
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:99', { analysisJobId: 99 })
+    await flushMicrotasks()
+
+    // Trigger error to schedule retry
+    errorHandler?.('Connection error', { details: 'test' })
+    jest.advanceTimersByTime(0) // Process immediate microtasks
+
+    // Delete subscription before timer executes
+    store.unsubscribe('job:99')
+
+    // Advance timer beyond retry delay (would normally trigger retry)
+    jest.advanceTimersByTime(10000)
+
+    // Verify subscription is gone and retry was not attempted
+    expect(store.getStatus('job:99')).toBe('idle')
+    // Retry should not be called since subscription was deleted
+    expect(mockSubscribeToAnalysisJob).toHaveBeenCalledTimes(1)
+  })
+
+  it('cleans up orphaned timer if subscription deleted between setTimeout and set()', async () => {
+    const unsubscribeMock = jest.fn()
+    let errorHandler: SubscriptionHandlers['onError']
+
+    mockSubscribeToAnalysisJob.mockImplementation((_, _onJob, handlers = {}) => {
+      errorHandler = handlers.onError
+      return unsubscribeMock
+    })
+
+    const store = useAnalysisSubscriptionStore.getState()
+    await store.subscribe('job:88', { analysisJobId: 88 })
+    await flushMicrotasks()
+
+    // Track timer calls
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout')
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout')
+
+    // Trigger error to schedule retry
+    errorHandler?.('Connection error', { details: 'test' })
+    jest.advanceTimersByTime(0) // Process immediate microtasks
+
+    // Verify timer was scheduled
+    const timerCalls = setTimeoutSpy.mock.calls.length
+    expect(timerCalls).toBeGreaterThan(0)
+
+    // Delete subscription immediately after error (simulating rapid navigation)
+    store.unsubscribe('job:88')
+
+    // Verify subscription is gone
+    expect(store.getStatus('job:88')).toBe('idle')
+
+    // Advance time - retry should not execute since subscription was deleted
+    jest.advanceTimersByTime(10000)
+
+    // Should not have attempted retry
+    expect(mockSubscribeToAnalysisJob).toHaveBeenCalledTimes(1)
+
+    setTimeoutSpy.mockRestore()
+    clearTimeoutSpy.mockRestore()
+  })
 })

@@ -334,6 +334,17 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     ]
   )
 
+  /**
+   * MEMORY LEAK FIX: Cleanup video player store resources on unmount
+   * This prevents state retention when navigating away from VideoAnalysisScreen
+   */
+  useEffect(() => {
+    return () => {
+      log.debug('VideoAnalysisScreen', '🧹 Cleaning up video player resources on unmount')
+      useVideoPlayerStore.getState().releaseResources()
+    }
+  }, [])
+
   // 🔧 Keep orchestrator for comparison (Phase 2 Task 2.1 - Batch 1)
   // NOTE: When USE_DIRECT_COMPOSITION is true, Batch 1 hooks are called directly above
   // AND via orchestrator (double call). This is acceptable for gradual migration.
@@ -582,6 +593,52 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     () => ({
       // Playback handlers - stable, invoke through refs and store setters
       onPlay: () => {
+        const storeVideoEnded = useVideoPlayerStore.getState().videoEnded
+        const refVideoEnded = videoEndedRef.current
+        const currentTime = useVideoPlayerStore.getState().displayTime
+        const duration = useVideoPlayerStore.getState().duration
+        const isPlaying = useVideoPlayerStore.getState().isPlaying
+
+        log.debug(
+          'VideoAnalysisScreen.handlers.onPlay',
+          '🎮 onPlay called - checking videoEnded state',
+          {
+            videoEndedRef: refVideoEnded,
+            videoEndedStore: storeVideoEnded,
+            currentTime,
+            duration,
+            isPlaying,
+            stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+          }
+        )
+
+        // CRITICAL: If video has ended, replay from beginning instead of trying to play from end
+        if (refVideoEnded || storeVideoEnded) {
+          log.debug(
+            'VideoAnalysisScreen.handlers.onPlay',
+            '🔄 Video ended detected - calling replay instead of play',
+            {
+              videoEndedRef: refVideoEnded,
+              videoEndedStore: storeVideoEnded,
+              currentTime,
+              duration,
+              willSeekTo: 0,
+            }
+          )
+          // Call onReplay to seek to 0 and start playing
+          setDisplayTime(0)
+          setPendingSeek(0)
+          setVideoEnded(false)
+          setIsPlaying(true)
+          log.debug('VideoAnalysisScreen.handlers.onPlay', '✓ Replay actions completed', {
+            displayTimeSet: 0,
+            pendingSeekSet: 0,
+            videoEndedSet: false,
+            isPlayingSet: true,
+          })
+          return
+        }
+
         // Only set video playing immediately if no pending feedback
         // When pending feedback exists, let feedback coordinator decide (audio may need to load first)
         const coordinator = feedbackCoordinatorRef.current
@@ -591,9 +648,13 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
         // So we must call onPlay first, which reads the ref internally, then check the result
         log.debug(
           'VideoAnalysisScreen.handlers.onPlay',
-          '🎮 Play button pressed (BEFORE onPlay call)',
+          '🎮 Video not ended - calling coordinator.onPlay',
           {
             coordinatorExists: !!coordinator,
+            videoEndedRef: refVideoEnded,
+            videoEndedStore: storeVideoEnded,
+            currentTime,
+            duration,
           }
         )
 
@@ -609,10 +670,34 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
         feedbackCoordinatorRef.current.onPause()
       },
       onReplay: () => {
+        const beforeState = {
+          displayTime: useVideoPlayerStore.getState().displayTime,
+          pendingSeek: useVideoPlayerStore.getState().pendingSeek,
+          videoEnded: useVideoPlayerStore.getState().videoEnded,
+          isPlaying: useVideoPlayerStore.getState().isPlaying,
+        }
+
+        log.debug('VideoAnalysisScreen.handlers.onReplay', '🔄 onReplay called', {
+          beforeState,
+          stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+        })
+
         setDisplayTime(0)
         setPendingSeek(0)
         setVideoEnded(false)
         setIsPlaying(true)
+
+        const afterState = {
+          displayTime: useVideoPlayerStore.getState().displayTime,
+          pendingSeek: useVideoPlayerStore.getState().pendingSeek,
+          videoEnded: useVideoPlayerStore.getState().videoEnded,
+          isPlaying: useVideoPlayerStore.getState().isPlaying,
+        }
+
+        log.debug('VideoAnalysisScreen.handlers.onReplay', '✓ onReplay actions completed', {
+          beforeState,
+          afterState,
+        })
       },
       onEnd: () => {
         setIsPlaying(false)

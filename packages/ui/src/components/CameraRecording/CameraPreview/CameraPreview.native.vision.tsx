@@ -40,7 +40,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     const [isInitialized, setIsInitialized] = useState(false)
     const [isCameraReady, setIsCameraReady] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
-    const [isMounted, setIsMounted] = useState(false)
+    const isMounted = useRef(false)
+    const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [sessionId, setSessionId] = useState<string>(Date.now().toString()) // Track camera session for reset
 
     const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
@@ -93,9 +94,13 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
     // Track component mount state to prevent operations when unmounted
     useEffect(() => {
-      setIsMounted(true)
+      isMounted.current = true
       return () => {
-        setIsMounted(false)
+        isMounted.current = false
+        // Clear any pending timeouts
+        if (readyTimeoutRef.current) {
+          clearTimeout(readyTimeoutRef.current)
+        }
       }
     }, [])
 
@@ -114,7 +119,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     // Cleanup camera session on unmount
     useEffect(() => {
       return () => {
-        if (cameraRef.current && isMounted) {
+        if (cameraRef.current && isMounted.current) {
           log.info('VisionCamera', 'Cleaning up camera session on unmount')
           // Reset states to prevent memory leaks
           setIsCameraReady(false)
@@ -122,7 +127,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           setCameraError(null)
         }
       }
-    }, [isMounted])
+    }, [])
 
     // Frame processor for future pose detection integration
     const frameProcessor = useFrameProcessor((frame) => {
@@ -143,7 +148,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
     // Helper function to check if camera is ready
     const checkCameraReady = (): boolean => {
-      if (!isMounted) {
+      if (!isMounted.current) {
         log.warn('VisionCamera', 'Component not mounted, skipping camera operations')
         return false
       }
@@ -199,6 +204,15 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
                 return
               }
 
+              // Check if mounted before proceeding with async operations
+              if (!isMounted.current) {
+                log.warn(
+                  'VisionCamera',
+                  'Component unmounted during recording finish, aborting save'
+                )
+                return
+              }
+
               // Save video to local storage using expo-file-system
               const filename = `recording_${Date.now()}.mp4`
               try {
@@ -206,6 +220,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
                   format: 'mp4',
                   duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
                 })
+
+                if (!isMounted.current) return
 
                 log.info('VisionCamera', 'Video saved to local storage', {
                   codec,
@@ -221,6 +237,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
                 // Video saved successfully - parent component will handle navigation to player
               } catch (saveError) {
+                if (!isMounted.current) return
+
                 log.error('VisionCamera', 'Failed to save video to local storage', {
                   codec,
                   videoPath: video.path,
@@ -232,6 +250,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
               }
             },
             onRecordingError: (error: Error) => {
+              if (!isMounted.current) return
               log.error('VisionCamera', 'Recording error', {
                 codec,
                 message: error.message,
@@ -395,16 +414,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           return currentZoomLevel
         },
       }),
-      [
-        device,
-        currentZoomLevel,
-        onZoomChange,
-        onError,
-        isInitialized,
-        isCameraReady,
-        sessionId,
-        isMounted,
-      ]
+      [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady, sessionId]
     )
 
     // Handle camera initialization
@@ -413,10 +423,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       setIsInitialized(true)
       setCameraError(null)
       // Wait a short moment to ensure native view is fully ready
-      setTimeout(() => {
-        setIsCameraReady(true)
-        log.info('VisionCamera', 'Camera fully ready for operations')
-        onCameraReady?.()
+      readyTimeoutRef.current = setTimeout(() => {
+        if (isMounted.current) {
+          setIsCameraReady(true)
+          log.info('VisionCamera', 'Camera fully ready for operations')
+          onCameraReady?.()
+        }
       }, 100)
     }
 

@@ -274,11 +274,15 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
         lastAnalysisId: lastAnalysisIdRef.current,
         wasSubscribing: isSubscribingRef.current,
       })
-      if (lastAnalysisIdRef.current === analysisId) {
-        // Access store directly to avoid dependency on function reference
-        useFeedbackStatusStore.getState().unsubscribeFromAnalysis(analysisId)
-        isSubscribingRef.current = false // Reset on cleanup
+      // MEMORY LEAK FIX: Always unsubscribe, using lastAnalysisIdRef if analysisId changed
+      // This prevents subscriptions from persisting when guards change or component unmounts
+      // The store handles idempotent unsubscribe calls safely
+      const idToUnsubscribe = analysisId ?? lastAnalysisIdRef.current
+      if (idToUnsubscribe) {
+        useFeedbackStatusStore.getState().unsubscribeFromAnalysis(idToUnsubscribe)
       }
+      isSubscribingRef.current = false // Reset on cleanup
+      lastAnalysisIdRef.current = undefined // Clear ref on cleanup
     }
   }, [analysisId, isHistoryMode])
 

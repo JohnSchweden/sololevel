@@ -288,8 +288,15 @@ export function useAnalysisState(
   // PERF FIX: Use individual primitive selectors to eliminate object allocation
   // Instead of returning an entry object, subscribe to individual primitives
   // This eliminates the object hop and prevents "useSyncExternalStore result" churn
+  // MEMORY LEAK FIX: Always unsubscribe in cleanup, regardless of guard state
+  // This prevents subscriptions from persisting when shouldSubscribeToRealtime changes
   useEffect(() => {
+    // If we shouldn't subscribe, ensure we're unsubscribed and return early
     if (!shouldSubscribeToRealtime || !subscriptionKey) {
+      // Unsubscribe if we have a subscription key (idempotent)
+      if (subscriptionKey) {
+        unsubscribe(subscriptionKey)
+      }
       return undefined
     }
 
@@ -322,7 +329,11 @@ export function useAnalysisState(
 
     return () => {
       isMounted = false
-      unsubscribe(subscriptionKey)
+      // MEMORY LEAK FIX: Always unsubscribe, even if guard conditions changed
+      // Store handles idempotent unsubscribe calls safely
+      if (subscriptionKey) {
+        unsubscribe(subscriptionKey)
+      }
     }
   }, [
     analysisJobId,
@@ -330,7 +341,7 @@ export function useAnalysisState(
     subscribe,
     unsubscribe,
     subscriptionKey,
-    shouldSubscribeToRealtime,
+    shouldSubscribeToRealtime, // Re-added: effect must re-run when this changes to trigger cleanup
   ])
 
   // Get the analysis job from TanStack Query (single source of truth)
