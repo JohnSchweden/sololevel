@@ -4,6 +4,15 @@ import { DataControlsScreen } from './DataControlsScreen'
 // Mock @my/ui components
 jest.mock('@my/ui', () => ({
   GlassBackground: ({ children, testID }: any) => <div data-testid={testID}>{children}</div>,
+  GlassButton: ({ children, onPress, testID, accessibilityLabel }: any) => (
+    <button
+      data-testid={testID}
+      onClick={onPress}
+      aria-label={accessibilityLabel}
+    >
+      {children}
+    </button>
+  ),
   SettingsSectionHeader: ({ title }: any) => <h3>{title}</h3>,
   SettingsToggleItem: ({ title, description, testID }: any) => (
     <div data-testid={testID}>
@@ -12,8 +21,8 @@ jest.mock('@my/ui', () => ({
       <input type="checkbox" />
     </div>
   ),
-  SettingsNavigationItem: ({ title, subtitle }: any) => (
-    <button>
+  SettingsNavigationItem: ({ title, subtitle, onPress }: any) => (
+    <button onClick={onPress}>
       <div>{title}</div>
       <div>{subtitle}</div>
     </button>
@@ -24,8 +33,19 @@ jest.mock('@my/ui', () => ({
 jest.mock('tamagui', () => ({
   ScrollView: ({ children }: any) => <div>{children}</div>,
   YStack: ({ children }: any) => <div>{children}</div>,
+  XStack: ({ children }: any) => <div>{children}</div>,
   Text: ({ children }: any) => <div>{children}</div>,
   Button: ({ children, testID }: any) => <button data-testid={testID}>{children}</button>,
+}))
+
+// Mock safe area hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: ({ children }: any) => <div>{children}</div>,
 }))
 
 // Mock navigation hooks
@@ -43,6 +63,15 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('@react-navigation/elements', () => ({}))
+
+// Mock tamagui lucide icons
+jest.mock('@tamagui/lucide-icons', () => ({
+  AlertTriangle: () => <div data-testid="icon-alert-triangle" />,
+  Database: () => <div data-testid="icon-database" />,
+  Download: () => <div data-testid="icon-download" />,
+  LineChart: () => <div data-testid="icon-line-chart" />,
+  Trash2: () => <div data-testid="icon-trash2" />,
+}))
 
 describe('DataControlsScreen', () => {
   beforeEach(() => {

@@ -68,6 +68,8 @@ const mockAnalysisStoreState = {
 const mockUploadProgress = jest.fn<(recordingId: number) => UploadProgress | undefined>()
 const mockFeedbackStatusIntegration = jest.fn<(analysisId?: string) => FeedbackStatus>()
 const mockGetAnalysisIdForJobId = jest.fn<(jobId: number) => Promise<string | null>>()
+const mockUseAnalysisJob = jest.fn<(jobId: number) => { data: AnalysisJob | null }>()
+const mockUseAnalysisJobByVideoId = jest.fn<(videoId: number) => { data: AnalysisJob | null }>()
 
 const mockFunctionsInvoke = jest.fn<() => Promise<{ data: any; error: any }>>()
 
@@ -124,6 +126,13 @@ jest.mock('./useFeedbackStatusIntegration', () => {
   }
 })
 
+jest.mock('@app/hooks/useAnalysis', () => {
+  return {
+    useAnalysisJob: (jobId: number) => mockUseAnalysisJob(jobId),
+    useAnalysisJobByVideoId: (videoId: number) => mockUseAnalysisJobByVideoId(videoId),
+  }
+})
+
 describe('useAnalysisState', () => {
   beforeEach(() => {
     jest.useFakeTimers()
@@ -137,6 +146,8 @@ describe('useAnalysisState', () => {
     mockUploadProgress.mockReturnValue(undefined)
     mockFeedbackStatusIntegration.mockReturnValue(createFeedbackStatus())
     mockGetAnalysisIdForJobId.mockResolvedValue(null)
+    mockUseAnalysisJob.mockReturnValue({ data: null })
+    mockUseAnalysisJobByVideoId.mockReturnValue({ data: null })
     ;(global as any).__DEV__ = true
   })
 
@@ -166,11 +177,18 @@ describe('useAnalysisState', () => {
 
   it('returns analyzing phase when analysis job is processing', () => {
     mockUploadProgress.mockReturnValueOnce({ status: 'completed', percentage: 100 })
+    const analysisJob = {
+      id: 55,
+      status: 'processing' as const,
+      progress_percentage: 42,
+      video_recording_id: 123,
+    }
+    mockUseAnalysisJobByVideoId.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'recording:123',
         {
-          job: { id: 55, status: 'processing', progress_percentage: 42, video_recording_id: 123 },
+          job: analysisJob,
           status: 'active',
         },
       ],
@@ -183,11 +201,18 @@ describe('useAnalysisState', () => {
   })
 
   it('returns generating-feedback when analysis completed but feedback not ready', () => {
+    const analysisJob = {
+      id: 77,
+      status: 'completed' as const,
+      progress_percentage: 100,
+      video_recording_id: 123,
+    }
+    mockUseAnalysisJob.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'job:77',
         {
-          job: { id: 77, status: 'completed', progress_percentage: 100, video_recording_id: 123 },
+          job: analysisJob,
           status: 'active',
         },
       ],
@@ -339,17 +364,19 @@ describe('useAnalysisState', () => {
   })
 
   it('returns error when analysis job fails', () => {
+    const analysisJob = {
+      id: 90,
+      status: 'failed' as const,
+      progress_percentage: 80,
+      video_recording_id: 500,
+      error_message: 'Edge function error',
+    }
+    mockUseAnalysisJob.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'job:90',
         {
-          job: {
-            id: 90,
-            status: 'failed',
-            progress_percentage: 80,
-            video_recording_id: 500,
-            error_message: 'Edge function error',
-          },
+          job: analysisJob,
           status: 'failed',
         },
       ],
@@ -363,11 +390,18 @@ describe('useAnalysisState', () => {
 
   it('calls Edge Function to restart analysis when retry called', async () => {
     // Arrange: Set up failed analysis state
+    const analysisJob = {
+      id: 77,
+      status: 'failed' as const,
+      progress_percentage: 0,
+      video_recording_id: 123,
+    }
+    mockUseAnalysisJobByVideoId.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'recording:123',
         {
-          job: { id: 77, status: 'failed', progress_percentage: 0, video_recording_id: 123 },
+          job: analysisJob,
           status: 'failed',
         },
       ],

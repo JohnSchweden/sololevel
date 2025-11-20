@@ -198,6 +198,12 @@ export function useFeedbackCoordinator({
   // Prevents re-triggering until video moves significantly past completion point
   const completedFeedbackRef = useRef<Map<string, number>>(new Map())
 
+  // Reset completed feedback when items change (e.g. new analysis loaded)
+  // This prevents memory leaks and ID collisions across different videos
+  useEffect(() => {
+    completedFeedbackRef.current.clear()
+  }, [feedbackItems])
+
   // Track audioController in ref to avoid stale closures in handlePlay
   const audioControllerRef = useRef(audioController)
   useEffect(() => {

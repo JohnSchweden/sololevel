@@ -117,6 +117,7 @@ export function SettingsNavigationItem({
           alignItems="center"
           gap="$4"
           flex={1}
+          testID={`${testID}-icon-container`}
         >
           {/* Icon */}
           <Icon

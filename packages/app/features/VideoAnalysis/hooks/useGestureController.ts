@@ -483,6 +483,14 @@ export function useGestureController(
     pullToRevealListenersRef.current.forEach((listener) => listener())
   }, [])
 
+  // Cleanup listeners on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      feedbackScrollListenersRef.current.clear()
+      pullToRevealListenersRef.current.clear()
+    }
+  }, [])
+
   // LAZY INITIALIZATION: Register listeners for internal tracking shared values
   // to prevent "onAnimatedValueUpdate with no listeners" warnings in development.
   // These values are read within worklets but need registered listeners to avoid warnings.
