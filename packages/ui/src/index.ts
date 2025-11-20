@@ -31,7 +31,10 @@ export type {
 export { SettingsNavigationItem } from './components/Settings/SettingsNavigationItem'
 export type { SettingsNavigationItemProps } from './components/Settings/SettingsNavigationItem'
 export { SettingsSectionHeader } from './components/Settings/SettingsSectionHeader'
-export type { SettingsSectionHeaderProps } from './components/Settings/SettingsSectionHeader'
+export type {
+  SettingsSectionHeaderProps,
+  SettingsSectionHeaderVariant,
+} from './components/Settings/SettingsSectionHeader'
 export { SettingsToggleItem } from './components/Settings/SettingsToggleItem'
 export type { SettingsToggleItemProps } from './components/Settings/SettingsToggleItem'
 export { SettingsSelectItem } from './components/Settings/SettingsSelectItem'

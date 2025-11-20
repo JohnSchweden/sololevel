@@ -16,12 +16,14 @@ export interface SettingsToggleItemProps extends Omit<XStackProps, 'children'> {
 
   /**
    * Icon container background color token or rgba color
+   * @deprecated No longer used - icons no longer have background
    * @example '$blue2' or 'rgba(59, 130, 246, 0.2)'
    */
-  iconBackground: string | any
+  iconBackground?: string | any
 
   /**
    * Icon container border color token or rgba color (optional)
+   * @deprecated No longer used - icons no longer have background
    * @example '$blue4' or 'rgba(96, 165, 250, 0.3)'
    */
   iconBorder?: string | any
@@ -82,8 +84,8 @@ export interface SettingsToggleItemProps extends Omit<XStackProps, 'children'> {
 export function SettingsToggleItem({
   icon: Icon,
   iconColor,
-  iconBackground,
-  iconBorder,
+  iconBackground: _iconBackground,
+  iconBorder: _iconBorder,
   title,
   description,
   value,
@@ -108,22 +110,11 @@ export function SettingsToggleItem({
         gap="$4"
         flex={1}
       >
-        {/* Icon Container */}
-        <YStack
-          width={40}
-          height={40}
-          backgroundColor={iconBackground}
-          borderRadius="$3"
-          borderWidth={iconBorder ? 1 : 0}
-          borderColor={iconBorder}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Icon
-            size={20}
-            color={iconColor}
-          />
-        </YStack>
+        {/* Icon */}
+        <Icon
+          size={28}
+          color={iconColor}
+        />
 
         {/* Text Labels */}
         <YStack

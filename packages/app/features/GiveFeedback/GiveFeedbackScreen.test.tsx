@@ -1,5 +1,28 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { GiveFeedbackScreen } from './GiveFeedbackScreen'
+
+// Mock useSubmitFeedback hook
+const mockMutate = jest.fn()
+const mockUseSubmitFeedback = jest.fn(() => ({
+  mutate: mockMutate,
+  isPending: false,
+  isError: false,
+  error: null,
+}))
+
+jest.mock('./hooks/useSubmitFeedback', () => ({
+  useSubmitFeedback: () => mockUseSubmitFeedback(),
+}))
+
+// Mock @my/logging
+jest.mock('@my/logging', () => ({
+  log: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}))
 
 // Mock @my/ui components
 jest.mock('@my/ui', () => ({
@@ -67,6 +90,12 @@ jest.mock('@react-navigation/elements', () => ({}))
 describe('GiveFeedbackScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseSubmitFeedback.mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+      isError: false,
+      error: null,
+    })
   })
 
   describe('Component Rendering', () => {
@@ -171,7 +200,7 @@ describe('GiveFeedbackScreen', () => {
       expect(submitButton?.disabled).toBe(false)
     })
 
-    it('should call onSuccess callback when feedback is submitted', async () => {
+    it('should call mutate with feedback data when submit button is clicked', () => {
       // Arrange
       const mockOnSuccess = jest.fn()
       render(<GiveFeedbackScreen onSuccess={mockOnSuccess} />)
@@ -183,16 +212,60 @@ describe('GiveFeedbackScreen', () => {
       fireEvent.click(submitButton!)
 
       // Assert
-      await waitFor(
-        () => {
-          expect(mockOnSuccess).toHaveBeenCalledTimes(1)
-        },
-        { timeout: 2000 }
+      expect(mockMutate).toHaveBeenCalledTimes(1)
+      expect(mockMutate).toHaveBeenCalledWith(
+        { type: 'suggestion', message: 'Great app!' },
+        expect.objectContaining({
+          onSuccess: expect.any(Function),
+          onError: expect.any(Function),
+        })
       )
     })
 
-    it('should show "Sending..." text while submitting', async () => {
+    it('should call onSuccess callback when feedback submission succeeds', () => {
       // Arrange
+      const mockOnSuccess = jest.fn()
+      render(<GiveFeedbackScreen onSuccess={mockOnSuccess} />)
+      const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
+      const submitButton = screen.getByText('Send Feedback').closest('button')
+
+      // Act
+      fireEvent.change(textarea, { target: { value: 'Great app!' } })
+      fireEvent.click(submitButton!)
+
+      // Assert - Get the onSuccess callback from the mutate call
+      const mutateCall = mockMutate.mock.calls[0]
+      const onSuccessCallback = mutateCall[1]?.onSuccess
+
+      // Simulate successful submission
+      onSuccessCallback?.()
+
+      expect(mockOnSuccess).toHaveBeenCalledTimes(1)
+    })
+
+    it('should show "Sending..." text while submitting', () => {
+      // Arrange
+      mockUseSubmitFeedback.mockReturnValue({
+        mutate: mockMutate,
+        isPending: true,
+        isError: false,
+        error: null,
+      })
+      render(<GiveFeedbackScreen />)
+      const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
+
+      // Act
+      fireEvent.change(textarea, { target: { value: 'My feedback' } })
+
+      // Assert
+      expect(screen.getByText('Sending...')).toBeInTheDocument()
+      const submitButton = screen.getByText('Sending...').closest('button')
+      expect(submitButton?.disabled).toBe(true)
+    })
+
+    it('should handle submission errors', () => {
+      // Arrange
+      const { log } = require('@my/logging')
       render(<GiveFeedbackScreen />)
       const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
       const submitButton = screen.getByText('Send Feedback').closest('button')
@@ -201,14 +274,21 @@ describe('GiveFeedbackScreen', () => {
       fireEvent.change(textarea, { target: { value: 'My feedback' } })
       fireEvent.click(submitButton!)
 
-      // Assert
-      expect(screen.getByText('Sending...')).toBeInTheDocument()
+      // Assert - Get the onError callback from the mutate call
+      const mutateCall = mockMutate.mock.calls[0]
+      const onErrorCallback = mutateCall[1]?.onError
 
-      await waitFor(
-        () => {
-          expect(screen.queryByText('Sending...')).not.toBeInTheDocument()
-        },
-        { timeout: 2000 }
+      // Simulate error
+      const testError = new Error('Submission failed')
+      onErrorCallback?.(testError)
+
+      expect(log.error).toHaveBeenCalledWith(
+        'GiveFeedbackScreen',
+        'Failed to submit feedback',
+        expect.objectContaining({
+          error: 'Submission failed',
+          feedbackType: 'suggestion',
+        })
       )
     })
   })

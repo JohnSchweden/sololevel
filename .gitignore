@@ -112,3 +112,12 @@ supabase/functions/**/node_modules/
 
 # Database backups
 backups/
+
+# Documentation directories
+docs/code-review/
+docs/debugging/
+docs/errors/
+docs/fixes/
+docs/performance/
+docs/migration/
+docs/refactoring/

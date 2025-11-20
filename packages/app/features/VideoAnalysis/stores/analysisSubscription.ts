@@ -1,3 +1,5 @@
+import { analysisKeys } from '@app/hooks/analysisKeys'
+import { safeUpdateJobCache } from '@app/utils/safeCacheUpdate'
 import {
   subscribeToAnalysisJob,
   subscribeToAnalysisTitle,
@@ -13,7 +15,8 @@ import { resolveThumbnailUri } from '../../HistoryProgress/utils/thumbnailCache'
 export type SubscriptionStatus = 'idle' | 'pending' | 'active' | 'failed'
 
 export interface SubscriptionState {
-  job?: AnalysisJob | null
+  // Job data removed - read from TanStack Query instead via getJob()
+  jobId?: number | null // Track job ID for subscription metadata (not full job object)
   status: SubscriptionStatus
   retryAttempts: number
   retryTimeoutId: ReturnType<typeof setTimeout> | null
@@ -23,6 +26,7 @@ export interface SubscriptionState {
   health?: unknown
   subscription?: () => void
   titleSubscription?: () => void
+  subscriptionPromise?: Promise<void>
 }
 
 export interface AnalysisJob {
@@ -92,12 +96,14 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
       const state = get()
       const existing = state.subscriptions.get(subscriptionKey)
 
+      // Guard: if already active/pending, return existing promise
       if (existing && (existing.status === 'pending' || existing.status === 'active')) {
         log.debug('AnalysisSubscriptionStore', 'Subscription already in progress/active', {
           subscriptionKey,
           status: existing.status,
         })
-        return
+        // Return existing promise if available to deduplicate concurrent calls
+        return existing.subscriptionPromise
       }
 
       if (existing?.status === 'failed') {
@@ -107,10 +113,46 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
         return
       }
 
+      // Create subscription promise and store it immediately to prevent concurrent calls
+      const subscriptionPromise = (async () => {
+        try {
+          const unsubscribe = await createSubscription(subscriptionKey, options, get, set)
+
+          set((draft) => {
+            const current = draft.subscriptions.get(subscriptionKey)
+            if (!current) return
+
+            current.status = 'active'
+            current.retryAttempts = 0
+            current.subscription = unsubscribe
+            // Clear promise after successful subscription
+            current.subscriptionPromise = undefined
+          })
+        } catch (error) {
+          log.error('AnalysisSubscriptionStore', 'Failed to create subscription', {
+            error,
+            subscriptionKey,
+          })
+
+          set((draft) => {
+            const current = draft.subscriptions.get(subscriptionKey)
+            if (current) {
+              current.status = 'failed'
+              current.lastError = error instanceof Error ? error.message : String(error)
+              // Clear promise on failure
+              current.subscriptionPromise = undefined
+            }
+          })
+          throw error
+        }
+      })()
+
+      // Store promise immediately to deduplicate concurrent calls
+      // This must happen synchronously before the promise resolves to prevent race conditions
       set((draft) => {
         const current = draft.subscriptions.get(subscriptionKey)
         draft.subscriptions.set(subscriptionKey, {
-          job: current?.job ?? null,
+          jobId: current?.jobId ?? null, // Track job ID only, not full job object
           status: 'pending',
           retryAttempts: current?.retryAttempts ?? 0,
           retryTimeoutId: current?.retryTimeoutId ?? null,
@@ -119,34 +161,11 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
           lastStatus: current?.lastStatus ?? null,
           health: current?.health ?? null,
           subscription: current?.subscription,
+          subscriptionPromise,
         })
       })
 
-      try {
-        const unsubscribe = await createSubscription(subscriptionKey, options, get, set)
-
-        set((draft) => {
-          const current = draft.subscriptions.get(subscriptionKey)
-          if (!current) return
-
-          current.status = 'pending'
-          current.retryAttempts = 0
-          current.subscription = unsubscribe
-        })
-      } catch (error) {
-        log.error('AnalysisSubscriptionStore', 'Failed to create subscription', {
-          error,
-          subscriptionKey,
-        })
-
-        set((draft) => {
-          const current = draft.subscriptions.get(subscriptionKey)
-          if (current) {
-            current.status = 'failed'
-            current.lastError = error instanceof Error ? error.message : String(error)
-          }
-        })
-      }
+      return subscriptionPromise
     },
 
     unsubscribe: (key) => {
@@ -180,7 +199,33 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
     },
 
     getJob: (key) => {
-      return get().subscriptions.get(key)?.job ?? null
+      // Read job data from TanStack Query (single source of truth)
+      const subscription = get().subscriptions.get(key)
+      if (!subscription?.jobId) {
+        return null
+      }
+
+      const queryClient = get().queryClient
+      if (!queryClient) {
+        return null
+      }
+
+      // Try to get job by ID first, then by video ID if available
+      const options = parseSubscriptionKey(key)
+      if (options?.analysisJobId) {
+        return (
+          queryClient.getQueryData<AnalysisJob>(analysisKeys.job(options.analysisJobId)) ?? null
+        )
+      }
+      if (options?.recordingId) {
+        return (
+          queryClient.getQueryData<AnalysisJob>(analysisKeys.jobByVideo(options.recordingId)) ??
+          null
+        )
+      }
+
+      // Fallback: try to get by stored jobId
+      return queryClient.getQueryData<AnalysisJob>(analysisKeys.job(subscription.jobId)) ?? null
     },
 
     getStatus: (key) => {
@@ -400,11 +445,13 @@ function handleTitleUpdate(
   }
 
   // Update cache with title immediately when it becomes available
-  setTimeout(async () => {
+  // Schedule for after render cycle using Promise.resolve().then() for true async deferral
+  Promise.resolve().then(async () => {
     try {
       const historyStore = useVideoHistoryStore.getState()
+      const queryClient = get().queryClient
 
-      // Update cache with title
+      // Update Zustand cache with title
       const cached = historyStore.getCached(jobId)
       if (cached) {
         historyStore.updateCache(jobId, { title })
@@ -416,10 +463,31 @@ function handleTitleUpdate(
             title,
           }
         )
-      } else {
-        // Cache doesn't exist yet - try to get job data from subscription to create minimal entry
+      }
+
+      // Also update TanStack Query cache if job exists
+      if (queryClient) {
+        const currentJob = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(jobId))
+        if (currentJob && currentJob.video_recording_id !== null) {
+          const updatedJob = { ...currentJob, title } as AnalysisJob & {
+            video_recording_id: number
+          }
+          safeUpdateJobCache(queryClient, updatedJob, analysisKeys, 'handleTitleUpdate')
+          log.debug('AnalysisSubscriptionStore', 'Updated TanStack Query cache with title', {
+            jobId,
+            title,
+          })
+        }
+      }
+
+      if (!cached) {
+        // Cache doesn't exist yet - try to get job data from TanStack Query to create minimal entry
         const subscription = get().subscriptions.get(key)
-        const job = subscription?.job
+        const subscriptionJobId = subscription?.jobId
+        const job =
+          subscriptionJobId && queryClient
+            ? (queryClient.getQueryData<AnalysisJob>(analysisKeys.job(subscriptionJobId)) ?? null)
+            : null
 
         if (job) {
           // Fetch thumbnail from video_recordings to include in minimal cache entry
@@ -507,12 +575,24 @@ function handleTitleUpdate(
         error: error instanceof Error ? error.message : String(error),
       })
     }
-  }, 0)
+  })
 }
 
 function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: StoreGetter) {
-  const previousStatus = get().subscriptions.get(key)?.job?.status
-  const previousJobId = get().subscriptions.get(key)?.job?.id
+  const subscription = get().subscriptions.get(key)
+  const previousStatus = subscription?.lastStatus
+  const previousJobId = subscription?.jobId
+
+  // Update TanStack Query cache (single source of truth for job data)
+  const queryClient = get().queryClient
+  if (queryClient && job.video_recording_id !== null) {
+    safeUpdateJobCache(
+      queryClient,
+      job as AnalysisJob & { video_recording_id: number },
+      analysisKeys,
+      'analysisSubscription.handleJobUpdate'
+    )
+  }
 
   set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)
@@ -531,7 +611,8 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
       progress: job.progress_percentage,
     })
 
-    subscription.job = job
+    // Update subscription metadata only (not job data - that's in TanStack Query)
+    subscription.jobId = job.id // Track job ID for metadata purposes
     subscription.lastStatus = job.status
 
     if (subscription.status !== 'active') {
@@ -690,7 +771,7 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
       log.info('AnalysisSubscriptionStore', 'Analysis completed - invalidating history cache', {
         jobId: job.id,
       })
-      queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
     } else {
       log.warn('AnalysisSubscriptionStore', 'QueryClient not set - cannot invalidate cache', {
         jobId: job.id,

@@ -32,7 +32,7 @@ export interface UseProgressBarVisibilityReturn {
   persistentVisibility: SharedValue<number>
   /** Animated style for normal progress bar opacity (combines collapse visibility with overlay opacity) */
   normalVisibilityAnimatedStyle: AnimatedStyle<ViewStyle>
-  /** Animated style for persistent progress bar opacity (combines collapse visibility with overlay opacity) */
+  /** Animated style for persistent progress bar opacity (based on collapse visibility only, independent of overlay opacity) */
   persistentVisibilityAnimatedStyle: AnimatedStyle<ViewStyle>
   /** Test-only helper for environments without full Reanimated runtime */
   __applyProgressForTests?: (progress: number, overscroll?: number) => void
@@ -117,7 +117,7 @@ interface ModeChangePayload {
  *
  * @param collapseProgressShared - Shared value for collapse progress (0 = max, 1 = min)
  * @param overscrollShared - Optional shared value for overscroll distance (negative when pulling past top)
- * @param overlayOpacity - Shared value for controls overlay opacity (0-1) to combine with collapse visibility
+ * @param overlayOpacity - Shared value for controls overlay opacity (0-1) to combine with collapse visibility. Only affects normal bar, not persistent bar.
  */
 export function useProgressBarVisibility(
   collapseProgressShared: SharedValue<number>,
@@ -266,16 +266,16 @@ export function useProgressBarVisibility(
 
   // Persistent bar: fade in from 0.4 to 0.5, then stay visible
   // Matches original: interpolate(collapseProgress, [0.4, 0.5], [0, 1])
+  // NOTE: Persistent bar is NOT affected by overlayOpacity - it should remain visible even when controls are hidden
   const persistentVisibilityAnimatedStyle = useAnimatedStyle(() => {
     const progress = collapseProgressShared.value
     // Smooth interpolation: fade from 0 to 1 as collapseProgress goes from 0.4 to 0.5
     const collapseOpacity = interpolate(progress, [0.4, 0.5], [0, 1], Extrapolation.CLAMP)
-    // Combine collapse opacity with controls visibility opacity
-    const overlay = overlayOpacity?.value ?? 1
+    // Persistent bar visibility is independent of controls visibility (overlayOpacity)
     return {
-      opacity: collapseOpacity * overlay,
+      opacity: collapseOpacity,
     }
-  }, [collapseProgressShared, overlayOpacity])
+  }, [collapseProgressShared])
 
   const result: UseProgressBarVisibilityReturn = {
     shouldRenderNormal: modeSnapshot === 'normal',

@@ -67,6 +67,14 @@ export interface FeedbackStatusStore {
       timeoutId: ReturnType<typeof setTimeout> | null
     }
   >
+  // Backfill tracking - prevents subscription events during backfill fetch
+  backfilling: Map<string, boolean> // analysisId -> isBackfilling
+  // Abort controllers for backfill fetches - allows cancellation on unmount
+  backfillAbortControllers: Map<string, AbortController> // analysisId -> AbortController
+  // Abort controllers for initial fetches - allows cancellation on unmount
+  initialFetchAbortControllers: Map<string, AbortController> // analysisId -> AbortController
+  // Event queue for subscription events during backfill - prevents race conditions
+  backfillEventQueues: Map<string, Array<{ payload: any; timestamp: number }>> // analysisId -> queued events
 
   // Global state
   totalFeedbacks: number
@@ -117,6 +125,42 @@ export interface FeedbackStatusStore {
 const MAX_TRACKED_ANALYSES = 40
 const MAX_STORED_FEEDBACKS = 400
 const FEEDBACK_TTL_MS = 5 * 60 * 1000
+
+/**
+ * Process a feedback subscription event (INSERT, UPDATE, DELETE)
+ * Extracted to a helper function so it can be called both immediately and from the event queue
+ */
+function processFeedbackEvent(payload: any, get: () => FeedbackStatusStore): void {
+  const feedbackId = payload.new?.id || payload.old?.id
+  log.info('FeedbackStatusStore', 'Processing feedback event', {
+    event: payload.eventType,
+    feedbackId,
+    newAudioStatus: payload.new?.audio_status,
+    newSSMLStatus: payload.new?.ssml_status,
+    oldAudioStatus: payload.old?.audio_status,
+    oldSSMLStatus: payload.old?.ssml_status,
+    hasNewData: !!payload.new,
+    hasOldData: !!payload.old,
+  })
+
+  switch (payload.eventType) {
+    case 'INSERT':
+      if (payload.new) {
+        get().addFeedback(payload.new as FeedbackStatusData)
+      }
+      break
+    case 'UPDATE':
+      if (payload.new) {
+        get().updateFeedback(payload.new.id, payload.new as Partial<FeedbackStatusData>)
+      }
+      break
+    case 'DELETE':
+      if (payload.old) {
+        get().removeFeedback(payload.old.id)
+      }
+      break
+  }
+}
 
 const createFeedbackState = (feedback: FeedbackStatusData): FeedbackStatusState => ({
   id: feedback.id,
@@ -250,6 +294,10 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         subscriptions: new Map(),
         subscriptionStatus: new Map(),
         subscriptionRetries: new Map(),
+        backfilling: new Map(),
+        backfillAbortControllers: new Map(),
+        initialFetchAbortControllers: new Map(),
+        backfillEventQueues: new Map(),
         totalFeedbacks: 0,
         processingSSMLCount: 0,
         processingAudioCount: 0,
@@ -531,21 +579,51 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               })) as any[]
             } else {
               // Fetch existing feedbacks from database
-              // Note: Using any type for now since analysis_feedback table may not be in current type definitions
-              const { data: fetchedFeedbacks, error: fetchError } = await (supabase as any)
-                .from('analysis_feedback')
-                .select(
-                  'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
-                )
-                .eq('analysis_id', analysisId)
-                .order('created_at', { ascending: true })
+              // Create abort controller for initial fetch to allow cancellation on unmount
+              const initialFetchAbortController = new AbortController()
+              set((draft) => {
+                draft.initialFetchAbortControllers.set(analysisId, initialFetchAbortController)
+              })
 
-              if (fetchError) {
-                log.error('FeedbackStatusStore', 'Failed to fetch existing feedbacks', fetchError)
-                throw fetchError
+              try {
+                // Check if aborted before starting fetch
+                if (initialFetchAbortController.signal.aborted) {
+                  log.debug('FeedbackStatusStore', 'Initial fetch aborted before start', {
+                    analysisId,
+                  })
+                  return
+                }
+
+                // Note: Using any type for now since analysis_feedback table may not be in current type definitions
+                const { data: fetchedFeedbacks, error: fetchError } = await (supabase as any)
+                  .from('analysis_feedback')
+                  .select(
+                    'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                  )
+                  .eq('analysis_id', analysisId)
+                  .order('created_at', { ascending: true })
+                  .abortSignal(initialFetchAbortController.signal)
+
+                // Check if aborted after fetch completes
+                if (initialFetchAbortController.signal.aborted) {
+                  log.debug('FeedbackStatusStore', 'Initial fetch aborted after completion', {
+                    analysisId,
+                  })
+                  return
+                }
+
+                if (fetchError) {
+                  log.error('FeedbackStatusStore', 'Failed to fetch existing feedbacks', fetchError)
+                  throw fetchError
+                }
+
+                existingFeedbacks = fetchedFeedbacks
+              } finally {
+                // Clean up abort controller after fetch completes
+                set((draft) => {
+                  draft.initialFetchAbortControllers.delete(analysisId)
+                })
               }
-
-              existingFeedbacks = fetchedFeedbacks
             }
 
             // Add existing feedbacks to store (idempotent - deduplicates if already present)
@@ -567,41 +645,45 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                   filter: `analysis_id=eq.${analysisId}`,
                 },
                 (payload: any) => {
-                  const feedbackId = payload.new?.id || payload.old?.id
-                  log.info('FeedbackStatusStore', 'Received feedback update', {
-                    event: payload.eventType,
-                    feedbackId,
-                    newAudioStatus: payload.new?.audio_status,
-                    newSSMLStatus: payload.new?.ssml_status,
-                    oldAudioStatus: payload.old?.audio_status,
-                    oldSSMLStatus: payload.old?.ssml_status,
-                    hasNewData: !!payload.new,
-                    hasOldData: !!payload.old,
-                  })
-
-                  switch (payload.eventType) {
-                    case 'INSERT':
-                      if (payload.new) {
-                        get().addFeedback(payload.new as FeedbackStatusData)
+                  // Queue subscription events during backfill to prevent race conditions
+                  if (get().backfilling.get(analysisId)) {
+                    log.debug(
+                      'FeedbackStatusStore',
+                      'Queueing subscription event during backfill',
+                      {
+                        analysisId,
+                        event: payload.eventType,
+                        feedbackId: payload.new?.id || payload.old?.id,
                       }
-                      break
-                    case 'UPDATE':
-                      if (payload.new) {
-                        get().updateFeedback(
-                          payload.new.id,
-                          payload.new as Partial<FeedbackStatusData>
+                    )
+                    // Queue the event for processing after backfill completes
+                    set((draft) => {
+                      const queue = draft.backfillEventQueues.get(analysisId) || []
+                      queue.push({ payload, timestamp: Date.now() })
+
+                      // Limit queue size to prevent memory growth (FIFO: drop oldest events)
+                      if (queue.length > 100) {
+                        queue.shift() // Drop oldest event
+                        log.warn(
+                          'FeedbackStatusStore',
+                          'Backfill event queue size limit reached, dropping oldest event',
+                          {
+                            analysisId,
+                            queueSize: queue.length,
+                          }
                         )
                       }
-                      break
-                    case 'DELETE':
-                      if (payload.old) {
-                        get().removeFeedback(payload.old.id)
-                      }
-                      break
+
+                      draft.backfillEventQueues.set(analysisId, queue)
+                    })
+                    return
                   }
+
+                  // Process event immediately if not backfilling
+                  processFeedbackEvent(payload, get)
                 }
               )
-              .subscribe((status) => {
+              .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                   set((draft) => {
                     draft.subscriptionStatus.set(analysisId, 'active')
@@ -614,6 +696,190 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                       retryState.attempts = 0
                     }
                   })
+
+                  // Backfill check: Re-fetch after subscription confirms to catch missed inserts
+                  // This handles the race condition where feedbacks are inserted between
+                  // the initial fetch and subscription setup
+                  // Set backfill flag to prevent subscription events during backfill
+                  // Create abort controller for backfill fetch to allow cancellation
+                  const backfillAbortController = new AbortController()
+                  set((draft) => {
+                    draft.backfilling.set(analysisId, true)
+                    draft.backfillAbortControllers.set(analysisId, backfillAbortController)
+                  })
+
+                  log.info(
+                    'FeedbackStatusStore',
+                    'Starting backfill fetch after subscription confirmed',
+                    {
+                      analysisId,
+                    }
+                  )
+
+                  try {
+                    // Check if aborted before starting fetch
+                    if (backfillAbortController.signal.aborted) {
+                      log.debug('FeedbackStatusStore', 'Backfill fetch aborted before start', {
+                        analysisId,
+                      })
+                      return
+                    }
+
+                    // Calculate cutoff timestamp: only fetch feedbacks created after the most recent one we have
+                    // Use 1s buffer to catch feedbacks inserted between initial fetch and subscription setup
+                    const existingFeedbacks = get().getFeedbacksByAnalysisId(analysisId)
+                    const mostRecentTimestamp =
+                      existingFeedbacks.length > 0
+                        ? Math.max(...existingFeedbacks.map((f) => new Date(f.createdAt).getTime()))
+                        : 0
+                    const initialFetchTimestamp = Date.now() - 1000 // 1s buffer from now
+                    const cutoffTimestamp = Math.max(mostRecentTimestamp, initialFetchTimestamp)
+
+                    // Only fetch feedbacks created after the cutoff timestamp
+                    const { data: missedFeedbacks, error: backfillError } = await (supabase as any)
+                      .from('analysis_feedback')
+                      .select(
+                        'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                      )
+                      .eq('analysis_id', analysisId)
+                      .gt('created_at', new Date(cutoffTimestamp).toISOString())
+                      .order('created_at', { ascending: true })
+                      .abortSignal(backfillAbortController.signal)
+
+                    // Check if aborted after fetch completes
+                    if (backfillAbortController.signal.aborted) {
+                      log.debug('FeedbackStatusStore', 'Backfill fetch aborted after completion', {
+                        analysisId,
+                      })
+                      return
+                    }
+
+                    if (backfillError) {
+                      log.warn('FeedbackStatusStore', 'Backfill fetch failed', {
+                        analysisId,
+                        error: backfillError,
+                      })
+                    } else if (missedFeedbacks && missedFeedbacks.length > 0) {
+                      log.info('FeedbackStatusStore', 'Backfill fetch found missed feedbacks', {
+                        analysisId,
+                        missedCount: missedFeedbacks.length,
+                      })
+
+                      // Add only missed feedbacks atomically using store action
+                      // Check existingIds INSIDE atomic update to prevent TOCTOU race condition
+                      set((draft) => {
+                        // Read existing IDs from draft state (atomic - includes any queued events already processed)
+                        const existingIdsInDraft = new Set(
+                          (draft.feedbacksByAnalysisId.get(analysisId) || [])
+                            .map((id) => draft.feedbacks.get(id)?.id)
+                            .filter((id): id is number => id !== undefined)
+                        )
+
+                        let addedCount = 0
+                        missedFeedbacks.forEach((feedback: any) => {
+                          if (!existingIdsInDraft.has(feedback.id)) {
+                            // Use store action, not direct get().addFeedback() to ensure atomicity
+                            const feedbackState = createFeedbackState(
+                              feedback as FeedbackStatusData
+                            )
+                            draft.feedbacks.set(feedback.id, feedbackState)
+
+                            // Add to analysis mapping
+                            const existingIdsForAnalysis = draft.feedbacksByAnalysisId.get(
+                              feedback.analysis_id
+                            )
+                            if (existingIdsForAnalysis) {
+                              if (!existingIdsForAnalysis.includes(feedback.id)) {
+                                existingIdsForAnalysis.push(feedback.id)
+                              }
+                            } else {
+                              draft.feedbacksByAnalysisId.set(feedback.analysis_id, [feedback.id])
+                            }
+
+                            // Update counters
+                            if (feedbackState.ssmlStatus === 'processing') {
+                              draft.processingSSMLCount += 1
+                            }
+                            if (feedbackState.audioStatus === 'processing') {
+                              draft.processingAudioCount += 1
+                            }
+                            if (
+                              feedbackState.ssmlStatus === 'completed' &&
+                              feedbackState.audioStatus === 'completed'
+                            ) {
+                              draft.completedCount += 1
+                            }
+                            if (
+                              feedbackState.ssmlStatus === 'failed' ||
+                              feedbackState.audioStatus === 'failed'
+                            ) {
+                              draft.failedCount += 1
+                            }
+
+                            draft.totalFeedbacks += 1
+                            markAnalysisTouched(draft, feedback.analysis_id)
+                            // Update set for next iteration to prevent duplicates in same batch
+                            existingIdsInDraft.add(feedback.id)
+                            addedCount++
+                          }
+                        })
+
+                        if (addedCount > 0) {
+                          log.info('FeedbackStatusStore', 'Backfill added missed feedbacks', {
+                            analysisId,
+                            addedCount,
+                            totalFeedbacks: missedFeedbacks.length,
+                          })
+                        }
+                      })
+                    } else {
+                      log.info(
+                        'FeedbackStatusStore',
+                        'Backfill fetch completed - no missed feedbacks',
+                        {
+                          analysisId,
+                        }
+                      )
+                    }
+                  } catch (error) {
+                    // Ignore AbortError - it's expected when component unmounts
+                    if (error instanceof Error && error.name === 'AbortError') {
+                      log.debug('FeedbackStatusStore', 'Backfill fetch aborted', {
+                        analysisId,
+                      })
+                      return
+                    }
+
+                    log.warn('FeedbackStatusStore', 'Backfill check error', {
+                      analysisId,
+                      error: error instanceof Error ? error.message : String(error),
+                    })
+                  } finally {
+                    // Clear backfill flag and abort controller after backfill completes (success or failure)
+                    set((draft) => {
+                      draft.backfilling.delete(analysisId)
+                      draft.backfillAbortControllers.delete(analysisId)
+                    })
+
+                    // Process queued events that arrived during backfill
+                    const queuedEvents = get().backfillEventQueues.get(analysisId) || []
+                    if (queuedEvents.length > 0) {
+                      log.info('FeedbackStatusStore', 'Processing queued events after backfill', {
+                        analysisId,
+                        queuedCount: queuedEvents.length,
+                      })
+
+                      // Process events in order (oldest first)
+                      queuedEvents.forEach(({ payload: queuedPayload }) => {
+                        processFeedbackEvent(queuedPayload, get)
+                      })
+
+                      // Clear the queue
+                      set((draft) => {
+                        draft.backfillEventQueues.delete(analysisId)
+                      })
+                    }
+                  }
                 } else if (status === 'CHANNEL_ERROR') {
                   log.error('FeedbackStatusStore', `Subscription error for analysis ${analysisId}`)
                   set((draft) => {
@@ -686,6 +952,22 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             }
             draft.subscriptionRetries.delete(analysisId)
             draft.subscriptionStatus.delete(analysisId)
+            draft.backfilling.delete(analysisId) // Clear backfill flag on unsubscribe
+            draft.backfillEventQueues.delete(analysisId) // Clear event queue on unsubscribe
+
+            // Abort any in-flight backfill fetch
+            const backfillController = draft.backfillAbortControllers.get(analysisId)
+            if (backfillController) {
+              backfillController.abort()
+              draft.backfillAbortControllers.delete(analysisId)
+            }
+
+            // Abort any in-flight initial fetch
+            const initialFetchController = draft.initialFetchAbortControllers.get(analysisId)
+            if (initialFetchController) {
+              initialFetchController.abort()
+              draft.initialFetchAbortControllers.delete(analysisId)
+            }
 
             removeAnalysisFeedback(draft, analysisId)
           }),
@@ -702,6 +984,19 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               }
             })
             draft.subscriptionRetries.clear()
+            draft.backfilling.clear() // Clear all backfill flags
+
+            // Abort all in-flight backfill fetches
+            draft.backfillAbortControllers.forEach((controller) => {
+              controller.abort()
+            })
+            draft.backfillAbortControllers.clear()
+            // Abort all in-flight initial fetches
+            draft.initialFetchAbortControllers.forEach((controller) => {
+              controller.abort()
+            })
+            draft.initialFetchAbortControllers.clear()
+            draft.backfillEventQueues.clear() // Clear all event queues
 
             // Remove all feedback data to prevent unbounded growth
             draft.feedbacks.clear()
@@ -753,6 +1048,20 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               }
             })
             draft.subscriptionRetries.clear()
+            draft.backfilling.clear() // Clear all backfill flags
+
+            // Abort all in-flight backfill fetches
+            draft.backfillAbortControllers.forEach((controller) => {
+              controller.abort()
+            })
+            draft.backfillAbortControllers.clear()
+            // Abort all in-flight initial fetches
+            draft.initialFetchAbortControllers.forEach((controller) => {
+              controller.abort()
+            })
+            draft.initialFetchAbortControllers.clear()
+            draft.backfillEventQueues.clear() // Clear all event queues
+
             draft.totalFeedbacks = 0
             draft.processingSSMLCount = 0
             draft.processingAudioCount = 0

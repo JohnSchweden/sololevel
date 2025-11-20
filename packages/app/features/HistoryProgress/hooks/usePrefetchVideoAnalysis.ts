@@ -1,3 +1,5 @@
+import { analysisKeys } from '@app/hooks/analysisKeys'
+import { safeSetQueryData } from '@app/utils/safeCacheUpdate'
 import { getAnalysisIdForJobId, supabase } from '@my/api'
 import type { Database } from '@my/api'
 import { log } from '@my/logging'
@@ -103,17 +105,29 @@ export function usePrefetchVideoAnalysis(
    * Lightweight: Only fetches feedback data, not audio URLs
    * @returns The resolved analysis UUID, or null if not found
    */
-  const prefetchFeedbackMetadata = async (analysisJobId: number): Promise<string | null> => {
+  const prefetchFeedbackMetadata = async (
+    analysisJobId: number,
+    signal?: AbortSignal
+  ): Promise<string | null> => {
     try {
+      if (signal?.aborted) {
+        return null
+      }
+
       // Check multiple cache layers (fastest first):
       // 1. TanStack Query cache (in-memory, from current session)
       // 2. Persisted videoHistory store (survives app restarts)
-      let cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', analysisJobId])
+      let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(analysisJobId))
       if (!cachedUuid) {
         cachedUuid = getUuid(analysisJobId) ?? undefined
         if (cachedUuid) {
           // Restore to TanStack Query cache for faster subsequent lookups
-          queryClient.setQueryData(['analysis', 'uuid', analysisJobId], cachedUuid)
+          safeSetQueryData(
+            queryClient,
+            analysisKeys.uuid(analysisJobId),
+            cachedUuid,
+            'usePrefetchVideoAnalysis.restore'
+          )
           log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
             analysisJobId,
             analysisUuid: cachedUuid,
@@ -121,17 +135,27 @@ export function usePrefetchVideoAnalysis(
         }
       }
 
+      if (signal?.aborted) {
+        return null
+      }
+
       // Resolve analysis UUID from job ID (only if not cached)
       const analysisUuid =
         cachedUuid ??
         (await getAnalysisIdForJobId(analysisJobId, {
+          signal,
           maxRetries: 2, // Fewer retries for prefetch (non-critical)
           baseDelay: 200,
         }))
 
       // Cache UUID in both TanStack Query (fast) and persisted store (survives restarts)
       if (analysisUuid && !cachedUuid) {
-        queryClient.setQueryData(['analysis', 'uuid', analysisJobId], analysisUuid)
+        safeSetQueryData(
+          queryClient,
+          analysisKeys.uuid(analysisJobId),
+          analysisUuid,
+          'usePrefetchVideoAnalysis.cache'
+        )
         setUuid(analysisJobId, analysisUuid)
         log.debug('usePrefetchVideoAnalysis', 'Cached UUID for future lookups', {
           analysisJobId,
@@ -253,12 +277,15 @@ export function usePrefetchVideoAnalysis(
         return
       }
 
-      const cached = queryClient.getQueryData(['analysis', 'historical', analysisId])
+      const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
       if (cached) {
         prefetchedRef.current.add(analysisId)
         log.debug('usePrefetchVideoAnalysis', 'Query already cached, skipping', {
           analysisId,
         })
+        // Note: prefetchFeedbackMetadata called without abort signal here
+        // because it's called from prefetchVideo callback which is already
+        // managed by TanStack Query's cancellation
         void prefetchFeedbackMetadata(analysisId)
         return
       }
@@ -275,7 +302,7 @@ export function usePrefetchVideoAnalysis(
 
       queryClient
         .prefetchQuery({
-          queryKey: ['analysis', 'historical', analysisId],
+          queryKey: analysisKeys.historical(analysisId),
           queryFn: () => fetchHistoricalAnalysisData(analysisId),
           staleTime: Number.POSITIVE_INFINITY,
           gcTime: 30 * 60 * 1000,

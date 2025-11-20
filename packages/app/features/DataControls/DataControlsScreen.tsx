@@ -1,14 +1,15 @@
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
+  GlassButton,
   SettingsNavigationItem,
   SettingsSectionHeader,
   SettingsToggleItem,
 } from '@my/ui'
-import { Database, Download, Trash2 } from '@tamagui/lucide-icons'
+import { AlertTriangle, Database, Download, LineChart, Trash2 } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, ScrollView, Text, YStack } from 'tamagui'
+import { ScrollView, Text, XStack, YStack } from 'tamagui'
 
 export interface DataControlsScreenProps {
   /**
@@ -74,7 +75,7 @@ export function DataControlsScreen({
               />
               <YStack gap="$4">
                 <SettingsToggleItem
-                  icon={Database}
+                  icon={LineChart}
                   iconColor="$blue10"
                   iconBackground="$blue3"
                   iconBorder="$blue5"
@@ -85,10 +86,10 @@ export function DataControlsScreen({
                   testID="settings-toggle-item-analytics"
                 />
                 <SettingsToggleItem
-                  icon={Database}
-                  iconColor="$blue10"
-                  iconBackground="$blue3"
-                  iconBorder="$blue5"
+                  icon={AlertTriangle}
+                  iconColor="$red10"
+                  iconBackground="$red3"
+                  iconBorder="$red5"
                   title="Crash Reports"
                   description="Automatically send crash reports"
                   value={crashReportsEnabled}
@@ -136,25 +137,39 @@ export function DataControlsScreen({
                   This will permanently delete all your app data including preferences, history, and
                   saved items.
                 </Text>
-                <Button
-                  backgroundColor="$red3"
-                  borderColor="$red6"
-                  borderWidth={1}
-                  color="$red11"
-                  icon={Trash2}
-                  size="$4"
+                <GlassButton
                   onPress={onClearAllData || (() => {})}
-                  pressStyle={{
-                    backgroundColor: '$red4',
-                    scale: 0.98,
-                  }}
-                  hoverStyle={{
-                    backgroundColor: '$red4',
-                  }}
                   testID="button-clear-all-data"
+                  accessibilityLabel="Clear all data"
+                  minHeight={44}
+                  minWidth="100%"
+                  borderRadius="$4"
+                  borderWidth={1.1}
+                  borderColor="$red10"
+                  blurIntensity={0}
+                  blurTint="light"
+                  variant="variant2"
+                  overlayOpacity={0.2}
                 >
-                  Clear All Data
-                </Button>
+                  <XStack
+                    alignItems="center"
+                    justifyContent="center"
+                    gap="$2"
+                  >
+                    <Trash2
+                      size={16}
+                      color="$red11"
+                    />
+                    <Text
+                      fontSize="$3"
+                      fontWeight="400"
+                      color="$red11"
+                      testID="clear-all-data-text"
+                    >
+                      Clear All Data
+                    </Text>
+                  </XStack>
+                </GlassButton>
               </YStack>
             </YStack>
           </YStack>

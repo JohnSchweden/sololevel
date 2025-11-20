@@ -1,3 +1,4 @@
+import { safeUpdateJobCache } from '@app/utils/safeCacheUpdate'
 import type { Tables } from '@my/api'
 import { type AnalysisResults, type PoseData } from '@my/api'
 import {
@@ -19,17 +20,13 @@ import {
 } from '@my/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { useAnalysisSubscriptionStore } from '../features/VideoAnalysis/stores/analysisSubscription'
+import { analysisKeys } from './analysisKeys'
 
 export type AnalysisJob = Tables<'analysis_jobs'>
 
-// Query keys for cache management
-export const analysisKeys = {
-  all: ['analysis'] as const,
-  jobs: () => [...analysisKeys.all, 'jobs'] as const,
-  job: (id: number) => [...analysisKeys.jobs(), id] as const,
-  jobByVideo: (videoId: number) => [...analysisKeys.all, 'by-video', videoId] as const,
-  stats: () => [...analysisKeys.all, 'stats'] as const,
-}
+// Re-export for backward compatibility
+export { analysisKeys }
 
 /**
  * Hook for creating analysis job
@@ -43,8 +40,7 @@ export function useCreateAnalysisJob() {
     },
     onSuccess: (job) => {
       // Add to cache
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useCreateAnalysisJob')
 
       // Invalidate jobs list and stats
       queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
@@ -106,8 +102,7 @@ export function useUpdateAnalysisJob() {
     },
     onSuccess: (job) => {
       // Update in cache
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useUpdateAnalysisJob')
 
       // Invalidate jobs list
       queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
@@ -126,8 +121,7 @@ export function useStartAnalysisProcessing() {
       return startAnalysisProcessing(id)
     },
     onSuccess: (job) => {
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useStartAnalysisProcessing')
       queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
     },
@@ -145,8 +139,7 @@ export function useUpdateAnalysisProgress() {
       return updateAnalysisProgress(id, progressPercentage)
     },
     onSuccess: (job) => {
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useUpdateAnalysisProgress')
     },
   })
 }
@@ -170,8 +163,7 @@ export function useCompleteAnalysisJob() {
       return completeAnalysisJob(id, results, poseData)
     },
     onSuccess: (job) => {
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useStartAnalysisProcessing')
       queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
     },
@@ -189,8 +181,7 @@ export function useFailAnalysisJob() {
       return failAnalysisJob(id, errorMessage)
     },
     onSuccess: (job) => {
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+      safeUpdateJobCache(queryClient, job, analysisKeys, 'useStartAnalysisProcessing')
       queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
     },
@@ -256,14 +247,15 @@ export function useAnalysisJobSubscription(id: number) {
 
     const unsubscribe = subscribeToAnalysisJob(id, (updatedJob) => {
       // Update cache with real-time data
-      queryClient.setQueryData(analysisKeys.job(id), updatedJob)
-      queryClient.setQueryData(analysisKeys.jobByVideo(updatedJob.video_recording_id), updatedJob)
+      safeUpdateJobCache(queryClient, updatedJob, analysisKeys, 'useAnalysisJobSubscription')
 
-      // Invalidate jobs list if status changed
+      // Invalidate jobs list if status changed (defer to avoid triggering refetches during render)
       const currentJob = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(id))
       if (currentJob?.status !== updatedJob.status) {
-        queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
-        queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
+        queueMicrotask(() => {
+          queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
+          queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
+        })
       }
     })
 
@@ -282,25 +274,55 @@ export function useAnalysisJobsSubscription() {
       switch (event) {
         case 'INSERT':
           // Add new job to cache
-          queryClient.setQueryData(analysisKeys.job(job.id), job)
-          queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+          safeUpdateJobCache(queryClient, job, analysisKeys, 'useAnalysisJobsSubscription.INSERT')
+          // New jobs always affect lists
+          queueMicrotask(() => {
+            queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
+            queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
+          })
           break
 
-        case 'UPDATE':
+        case 'UPDATE': {
           // Update existing job in cache
-          queryClient.setQueryData(analysisKeys.job(job.id), job)
-          queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+          const prevJob = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(job.id))
+          safeUpdateJobCache(queryClient, job, analysisKeys, 'useAnalysisJobsSubscription.UPDATE')
+
+          // Only invalidate if status changed or structural change (results, etc.)
+          const statusChanged = prevJob?.status !== job.status
+          const progressOnly =
+            prevJob?.status === job.status &&
+            prevJob?.progress_percentage !== job.progress_percentage &&
+            !job.results
+
+          if (statusChanged) {
+            // Status change - invalidate lists
+            queueMicrotask(() => {
+              queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
+              queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
+            })
+          } else if (!progressOnly) {
+            // Structural change (results, etc.) - use optimistic update for lists
+            queueMicrotask(() => {
+              queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] | undefined) => {
+                if (!old) return old
+                return old.map((j) => (j.id === job.id ? job : j))
+              })
+            })
+          }
+          // Progress-only updates don't need invalidation
           break
+        }
 
         case 'DELETE':
           // Remove job from cache
           queryClient.removeQueries({ queryKey: analysisKeys.job(job.id) })
+          // Deletions always affect lists
+          queueMicrotask(() => {
+            queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
+            queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
+          })
           break
       }
-
-      // Invalidate lists for all events
-      queryClient.invalidateQueries({ queryKey: analysisKeys.jobs() })
-      queryClient.invalidateQueries({ queryKey: analysisKeys.stats() })
     })
 
     return unsubscribe
@@ -309,13 +331,45 @@ export function useAnalysisJobsSubscription() {
 
 /**
  * Hook for polling analysis job status until completion
+ * Disables polling when an active subscription exists (Realtime handles updates)
  */
 export function useAnalysisJobPolling(id: number, enabled = true) {
+  const queryClient = useQueryClient()
+
   const { data: job } = useQuery({
     queryKey: analysisKeys.job(id),
-    queryFn: () => getAnalysisJob(id),
+    queryFn: async () => {
+      // Check if subscription already updated more recently
+      const cached = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(id))
+      const cachedUpdatedAt = cached?.updated_at
+
+      const fetchedJob = await getAnalysisJob(id)
+
+      // Only use poll result if it's newer than cache
+      if (cachedUpdatedAt && fetchedJob?.updated_at) {
+        const cachedTime = new Date(cachedUpdatedAt).getTime()
+        const pollTime = new Date(fetchedJob.updated_at).getTime()
+        if (pollTime <= cachedTime) {
+          // Subscription already has newer data, return cache
+          return cached
+        }
+      }
+
+      return fetchedJob
+    },
     enabled: enabled && !!id,
     refetchInterval: (query) => {
+      // Check if subscription is active - if so, disable polling
+      const subscriptionKey = `job:${id}`
+      const hasActiveSubscription =
+        useAnalysisSubscriptionStore.getState().subscriptions.get(subscriptionKey)?.status ===
+        'active'
+
+      if (hasActiveSubscription) {
+        // Let Realtime handle updates
+        return false
+      }
+
       const data = query.state.data
       // Stop polling when job is completed or failed
       if (!data || data.status === 'completed' || data.status === 'failed') {

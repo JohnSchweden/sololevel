@@ -16,13 +16,15 @@ export interface SettingsNavigationItemProps {
 
   /**
    * Background color for icon container
+   * @deprecated No longer used - icons no longer have background
    */
-  iconBackgroundColor: YStackProps['backgroundColor']
+  iconBackgroundColor?: YStackProps['backgroundColor']
 
   /**
    * Border color for icon container
+   * @deprecated No longer used - icons no longer have background
    */
-  iconBorderColor: YStackProps['borderColor']
+  iconBorderColor?: YStackProps['borderColor']
 
   /**
    * Primary label text
@@ -74,8 +76,8 @@ export interface SettingsNavigationItemProps {
 export function SettingsNavigationItem({
   icon: Icon,
   iconColor,
-  iconBackgroundColor,
-  iconBorderColor,
+  iconBackgroundColor: _iconBackgroundColor,
+  iconBorderColor: _iconBorderColor,
   title,
   subtitle,
   onPress,
@@ -116,23 +118,12 @@ export function SettingsNavigationItem({
           gap="$4"
           flex={1}
         >
-          {/* Icon Container */}
-          <YStack
-            width={40}
-            height={40}
-            backgroundColor={iconBackgroundColor}
-            borderRadius="$3"
-            borderWidth={1}
-            borderColor={iconBorderColor}
-            justifyContent="center"
-            alignItems="center"
-            testID={`${testID}-icon-container`}
-          >
-            <Icon
-              size={20}
-              color={iconColor as any}
-            />
-          </YStack>
+          {/* Icon */}
+          <Icon
+            size={28}
+            color={iconColor as any}
+            testID={`${testID}-icon`}
+          />
 
           {/* Text Labels */}
           <YStack

@@ -176,6 +176,7 @@ export const USER_SCOPED_TABLES = [
   'upload_sessions',
   'user_preferences',
   'profiles',
+  'user_feedback',
 ] as const
 
 export type UserScopedTable = (typeof USER_SCOPED_TABLES)[number]

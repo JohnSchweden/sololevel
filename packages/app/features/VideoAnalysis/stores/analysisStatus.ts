@@ -26,6 +26,9 @@ export interface AnalysisQueue {
 
 export interface AnalysisStatusStore {
   // Job tracking
+  // DEPRECATED: Job data is no longer written to this store (migrated to TanStack Query)
+  // These fields remain for backward compatibility but are not actively used
+  // TODO: Remove in future cleanup - nothing writes to jobs Map anymore
   jobs: Map<number, AnalysisJobState>
   jobsByVideoId: Map<number, number> // videoRecordingId -> jobId
   queue: AnalysisQueue
@@ -276,8 +279,8 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
         })
 
         // Write to video history cache (non-blocking)
-        // Defer to avoid updating store during render cycle
-        setTimeout(() => {
+        // Schedule for after render cycle using queueMicrotask
+        queueMicrotask(() => {
           try {
             const job = get().jobs.get(jobId)
             if (job) {
@@ -433,7 +436,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
             // Graceful degradation: cache miss will trigger DB fetch later
             log.error('analysisStatus', 'Failed to write to video history cache', { error })
           }
-        }, 0)
+        })
       },
 
       // Get jobs by status
@@ -606,7 +609,9 @@ export const useAnalysisStatusSelectors = () => {
   }
 }
 
-// Hook for monitoring specific job
+// DEPRECATED: This hook reads from Zustand store which is no longer updated
+// Use useAnalysisJob() from @app/hooks/useAnalysis instead (reads from TanStack Query)
+// TODO: Remove in future cleanup - only used in tests
 export const useAnalysisJobStatus = (jobId: number) => {
   const job = useAnalysisStatusStore((state) => state.jobs.get(jobId))
 
@@ -626,7 +631,9 @@ export const useAnalysisJobStatus = (jobId: number) => {
   }
 }
 
-// Hook for monitoring job by video ID
+// DEPRECATED: This hook reads from Zustand store which is no longer updated
+// Use useAnalysisJobByVideoId() from @app/hooks/useAnalysis instead (reads from TanStack Query)
+// TODO: Remove in future cleanup - only used in tests
 export const useAnalysisJobByVideo = (videoRecordingId: number) => {
   const getJobByVideoId = useAnalysisStatusStore((state) => state.getJobByVideoId)
   const job = getJobByVideoId(videoRecordingId)

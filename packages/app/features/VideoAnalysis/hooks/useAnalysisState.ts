@@ -2,12 +2,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
-import type { AnalysisJob } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import { useAnalysisSubscriptionStore } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
+import { analysisKeys } from '@app/hooks/analysisKeys'
+import type { AnalysisJob } from '@app/hooks/useAnalysis'
+import { useAnalysisJob, useAnalysisJobByVideoId } from '@app/hooks/useAnalysis'
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import { mockFeedbackItems } from '@app/mocks/feedback'
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
+import { safeSetQueryData } from '@app/utils/safeCacheUpdate'
 import { getAnalysisIdForJobId, supabase } from '@my/api'
 import { log } from '@my/logging'
 
@@ -55,38 +58,7 @@ interface UploadProgressData {
   percentage?: number
 }
 
-interface SubscriptionEntry {
-  job?: AnalysisJob | null
-  status?: 'idle' | 'pending' | 'active' | 'failed'
-}
-
-type SubscriptionMap = Map<string, SubscriptionEntry>
-
-interface SubscriptionStateSnapshot {
-  job?: AnalysisJob | null
-  status: 'idle' | 'pending' | 'active' | 'failed'
-}
-
 const COMPLETION_THRESHOLD = 100
-
-const getSubscriptionEntry = (
-  subscriptions: SubscriptionMap,
-  key: string | null
-): SubscriptionStateSnapshot | null => {
-  if (!key) {
-    return null
-  }
-
-  const entry = subscriptions.get(key)
-  if (!entry) {
-    return null
-  }
-
-  return {
-    job: entry.job ?? null,
-    status: entry.status ?? 'idle',
-  }
-}
 
 const resolveSubscriptionKey = (analysisJobId?: number, videoRecordingId?: number | null) => {
   if (analysisJobId) {
@@ -361,14 +333,13 @@ export function useAnalysisState(
     shouldSubscribeToRealtime,
   ])
 
-  // Get the analysis job from store, but only select it when we have a jobId to avoid churn
-  const analysisJob = useAnalysisSubscriptionStore((state) => {
-    if (!shouldSubscribeToRealtime || !subscriptionKey) {
-      return null
-    }
-    const job = getSubscriptionEntry(state.subscriptions, subscriptionKey)?.job
-    return job ?? null
-  })
+  // Get the analysis job from TanStack Query (single source of truth)
+  // Try to get job by analysisJobId first, then by videoRecordingId
+  const jobIdQuery = useAnalysisJob(analysisJobId ?? 0)
+  const jobByVideoQuery = useAnalysisJobByVideoId(derivedRecordingId ?? 0)
+
+  // Prefer analysisJobId result, fallback to videoRecordingId result
+  const analysisJob = jobIdQuery.data ?? jobByVideoQuery.data ?? null
 
   // Derive analysis job ID early so it can be used in callbacks
   const derivedAnalysisJobId = analysisJobId ?? analysisJob?.id ?? null
@@ -383,20 +354,25 @@ export function useAnalysisState(
     const effectiveJobId = analysisJobId ?? null
     if (effectiveJobId) {
       // Check TanStack Query cache first (in-memory, fastest)
-      let cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+      let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
       // Fallback to persisted store (survives app restarts)
       if (!cachedUuid) {
         cachedUuid = getUuid(effectiveJobId) ?? undefined
         if (cachedUuid) {
           // Restore to TanStack Query cache for faster subsequent lookups
-          queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], cachedUuid)
+          safeSetQueryData(
+            queryClient,
+            analysisKeys.uuid(effectiveJobId),
+            cachedUuid,
+            'useAnalysisState.initial'
+          )
         }
       }
       if (cachedUuid) {
         log.debug('useAnalysisState', 'Using cached UUID', {
           analysisJobId: effectiveJobId,
           uuid: cachedUuid,
-          source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
+          source: queryClient.getQueryData(analysisKeys.uuid(effectiveJobId))
             ? 'tanstack'
             : 'persisted',
         })
@@ -414,12 +390,17 @@ export function useAnalysisState(
     }
 
     // Check multiple cache layers (fastest first)
-    let cachedUuid = queryClient.getQueryData<string>(['analysis', 'uuid', effectiveJobId])
+    let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
     if (!cachedUuid) {
       cachedUuid = getUuid(effectiveJobId) ?? undefined
       if (cachedUuid) {
         // Restore to TanStack Query cache for faster subsequent lookups
-        queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], cachedUuid)
+        safeSetQueryData(
+          queryClient,
+          analysisKeys.uuid(effectiveJobId),
+          cachedUuid,
+          'useAnalysisState.effect'
+        )
       }
     }
     if (cachedUuid) {
@@ -427,7 +408,7 @@ export function useAnalysisState(
         log.debug('useAnalysisState', 'Using cached UUID from effect', {
           analysisJobId: effectiveJobId,
           uuid: cachedUuid,
-          source: queryClient.getQueryData(['analysis', 'uuid', effectiveJobId])
+          source: queryClient.getQueryData(analysisKeys.uuid(effectiveJobId))
             ? 'tanstack'
             : 'persisted',
         })
@@ -436,30 +417,40 @@ export function useAnalysisState(
       return
     }
 
-    let cancelled = false
+    const abortController = new AbortController()
 
     const resolveUuid = async () => {
       try {
-        const uuidPromise = getAnalysisIdForJobId(effectiveJobId)
-        const uuid = uuidPromise instanceof Promise ? await uuidPromise : uuidPromise
+        const uuid = await getAnalysisIdForJobId(effectiveJobId, {
+          signal: abortController.signal,
+        })
 
-        if (!cancelled && uuid) {
+        if (!abortController.signal.aborted && uuid) {
           // Cache UUID in both TanStack Query (fast) and persisted store (survives restarts)
-          queryClient.setQueryData(['analysis', 'uuid', effectiveJobId], uuid)
+          safeSetQueryData(
+            queryClient,
+            analysisKeys.uuid(effectiveJobId),
+            uuid,
+            'useAnalysisState.resolveUuid'
+          )
           setUuid(effectiveJobId, uuid)
           setAnalysisUuid(uuid)
-        } else if (!cancelled) {
+        } else if (!abortController.signal.aborted) {
           setAnalysisUuid(null)
         }
       } catch (error) {
-        if (__DEV__ && !cancelled) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          // Aborted, ignore
+          return
+        }
+        if (__DEV__ && !abortController.signal.aborted) {
           const message = error instanceof Error ? error.message : 'Unknown error'
           log.error('useAnalysisState', 'Failed to resolve analysis UUID', {
             jobId: effectiveJobId,
             error: message,
           })
         }
-        if (!cancelled) {
+        if (!abortController.signal.aborted) {
           setAnalysisUuid(null)
         }
       }
@@ -468,11 +459,11 @@ export function useAnalysisState(
     void resolveUuid()
 
     return () => {
-      cancelled = true
+      abortController.abort()
     }
-  }, [analysisJobId, analysisJob?.id, analysisUuid, queryClient])
+  }, [analysisJobId, analysisJob?.id, queryClient])
 
-  const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined)
+  const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined, isHistoryMode)
 
   // Check feature flags
   const useMockData = useFeatureFlagsStore((state) => state.flags.useMockData)

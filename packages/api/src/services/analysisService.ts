@@ -537,17 +537,36 @@ export async function getLatestAnalysisJobForRecordingId(
  */
 export async function getAnalysisIdForJobId(
   jobId: number,
-  options?: { maxRetries?: number; baseDelay?: number }
+  options?: { signal?: AbortSignal; maxRetries?: number; baseDelay?: number }
 ): Promise<string | null> {
   const maxRetries = options?.maxRetries ?? 5
   const baseDelay = options?.baseDelay ?? 300
+  const signal = options?.signal
+
+  // Create abort error that works in both web and React Native
+  const createAbortError = (): Error => {
+    if (typeof DOMException !== 'undefined') {
+      return new DOMException('Aborted', 'AbortError')
+    }
+    const error = new Error('Aborted')
+    error.name = 'AbortError'
+    return error
+  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
       throw new Error('User not authenticated')
+    }
+
+    if (signal?.aborted) {
+      throw createAbortError()
     }
 
     // Use any type since 'analyses' table may not be in current type definitions
@@ -571,7 +590,27 @@ export async function getAnalysisIdForJobId(
     // Retry with exponential backoff if analysis row doesn't exist yet
     if (attempt < maxRetries) {
       const delay = baseDelay * 2 ** (attempt - 1)
-      await new Promise((resolve) => setTimeout(resolve, delay))
+      await new Promise<void>((resolve, reject) => {
+        if (signal?.aborted) {
+          reject(createAbortError())
+          return
+        }
+        const timeoutId = setTimeout(() => {
+          if (signal?.aborted) {
+            reject(createAbortError())
+          } else {
+            resolve()
+          }
+        }, delay)
+        signal?.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timeoutId)
+            reject(createAbortError())
+          },
+          { once: true }
+        )
+      })
     }
   }
 

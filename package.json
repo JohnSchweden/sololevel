@@ -161,7 +161,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-worklets-core": "^1.6.2",
-    "supabase": "2.51.0",
+    "supabase": "2.58.5",
     "turbo": "^1.13.4",
     "typescript": "^5.9.2",
     "ultra-runner": "^3.10.5",

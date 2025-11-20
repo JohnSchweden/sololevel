@@ -46,10 +46,8 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
         return false
       }
 
-      const jobId =
-        entry.job && typeof (entry.job as { id?: unknown }).id === 'number'
-          ? (entry.job as { id: number }).id
-          : null
+      // Check if job exists (via jobId) but subscription is not active
+      const jobId = entry.jobId ?? null
       const isActive = entry.status === 'active'
 
       return Boolean(jobId && !isActive)

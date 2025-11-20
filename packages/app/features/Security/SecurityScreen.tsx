@@ -57,7 +57,7 @@ export function SecurityScreen({
           <YStack
             paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
-            gap="$6"
+            gap="$0"
             paddingBottom="$6"
           >
             <AuthenticationSection

@@ -1,3 +1,4 @@
+import { analysisKeys } from '@app/hooks/analysisKeys'
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -172,7 +173,7 @@ export const useCameraScreenLogic = ({
             recordingId,
           })
           // Invalidate history cache so new video appears immediately when user navigates to History
-          queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+          queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
         },
       })
     },
@@ -332,7 +333,7 @@ export const useCameraScreenLogic = ({
             recordingId,
           })
           // Invalidate history cache so new video appears immediately when user navigates to History
-          queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+          queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
         },
       })
     },

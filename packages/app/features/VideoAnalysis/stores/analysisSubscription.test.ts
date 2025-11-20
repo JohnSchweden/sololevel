@@ -84,6 +84,20 @@ describe('analysisSubscription store', () => {
   it('subscribes to job updates and stores job data', async () => {
     const unsubscribeMock = jest.fn()
 
+    // Set up mock queryClient with cache
+    const mockCache = new Map<string, unknown>()
+    const mockQueryClient = {
+      setQueryData: jest.fn((key: unknown[], data: unknown) => {
+        mockCache.set(JSON.stringify(key), data)
+      }),
+      getQueryData: jest.fn((key: unknown[]) => {
+        return mockCache.get(JSON.stringify(key)) ?? null
+      }),
+    } as any
+
+    // Set queryClient in store
+    useAnalysisSubscriptionStore.getState().setQueryClient(mockQueryClient)
+
     let statusHandler: SubscriptionHandlers['onStatus']
     let jobHandler: JobCallback | undefined
 
@@ -108,7 +122,13 @@ describe('analysisSubscription store', () => {
     const store = useAnalysisSubscriptionStore.getState()
     expect(store.getStatus('job:42')).toBe('active')
 
-    const mockJob = { id: 42, status: 'processing', progress_percentage: 75 }
+    // Mock job needs video_recording_id for handleJobUpdate to work
+    const mockJob = {
+      id: 42,
+      status: 'processing',
+      progress_percentage: 75,
+      video_recording_id: 100,
+    }
     jobHandler?.(mockJob)
 
     expect(store.getJob('job:42')).toEqual(mockJob)

@@ -8,6 +8,7 @@ import type { CachedAnalysis } from '@app/features/HistoryProgress/stores/videoH
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
 import { recordCacheHit, recordCacheMiss } from '@app/features/HistoryProgress/utils/cacheMetrics'
 import { getNetworkErrorMessage } from '@app/features/HistoryProgress/utils/networkDetection'
+import { analysisKeys } from '@app/hooks/analysisKeys'
 import { FALLBACK_VIDEO_URI } from '@app/mocks/feedback'
 import { createSignedDownloadUrl, getAnalysisJob, supabase } from '@my/api'
 import { log } from '@my/logging'
@@ -528,7 +529,7 @@ export function useHistoricalAnalysis(analysisId: number | null) {
   const setLocalUri = useVideoHistoryStore((state) => state.setLocalUri)
 
   const query = useQuery({
-    queryKey: ['analysis', 'historical', analysisId],
+    queryKey: analysisId ? analysisKeys.historical(analysisId) : ['analysis', 'historical', null],
     queryFn: async (): Promise<HistoricalAnalysisData> => {
       if (!analysisId) {
         return { analysis: null }

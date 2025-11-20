@@ -1,5 +1,6 @@
 import { X } from '@tamagui/lucide-icons'
 import { BlurView } from 'expo-blur'
+import type React from 'react'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
 
 export interface ConfirmDialogProps {
@@ -50,6 +51,12 @@ export interface ConfirmDialogProps {
    * Test ID for testing
    */
   testID?: string
+
+  /**
+   * Dialog variant
+   * @default "destructive"
+   */
+  variant?: 'destructive' | 'success'
 }
 
 /**
@@ -80,7 +87,10 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   testID = 'confirm-dialog',
+  variant = 'destructive',
 }: ConfirmDialogProps): React.ReactElement {
+  const confirmButtonColor = variant === 'success' ? '$blue9' : '$red8'
+  const confirmButtonPressColor = variant === 'success' ? '$blue10' : '$red9'
   return (
     <Dialog
       modal
@@ -117,7 +127,7 @@ export function ConfirmDialog({
           overflow="hidden"
           backgroundColor="transparent"
           borderRadius="$8"
-          borderWidth={0}
+          borderWidth={1}
           borderColor="rgba(255, 255, 255, 0.3)"
         >
           <BlurView
@@ -144,6 +154,7 @@ export function ConfirmDialog({
                 fontSize="$7"
                 fontWeight="600"
                 color="$color12"
+                letterSpacing={0}
               >
                 {title}
               </Text>
@@ -166,26 +177,28 @@ export function ConfirmDialog({
               justifyContent="flex-end"
               marginTop="$2"
             >
-              <Button
-                unstyled
-                onPress={onCancel}
-                disabled={isProcessing}
-                paddingHorizontal="$5"
-                paddingVertical="$3"
-                borderRadius="$4"
-                backgroundColor="$color3"
-                animation="quick"
-                pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
-                testID={`${testID}-cancel-button`}
-              >
-                <Text
-                  fontSize="$4"
-                  fontWeight="500"
-                  color="$color12"
+              {variant === 'destructive' && (
+                <Button
+                  unstyled
+                  onPress={onCancel}
+                  disabled={isProcessing}
+                  paddingHorizontal="$5"
+                  paddingVertical="$3"
+                  borderRadius="$4"
+                  backgroundColor="$color3"
+                  animation="quick"
+                  pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
+                  testID={`${testID}-cancel-button`}
                 >
-                  {cancelLabel}
-                </Text>
-              </Button>
+                  <Text
+                    fontSize="$4"
+                    fontWeight="500"
+                    color="$color12"
+                  >
+                    {cancelLabel}
+                  </Text>
+                </Button>
+              )}
 
               <Button
                 unstyled
@@ -194,9 +207,9 @@ export function ConfirmDialog({
                 paddingHorizontal="$5"
                 paddingVertical="$3"
                 borderRadius="$4"
-                backgroundColor="$red8"
+                backgroundColor={confirmButtonColor}
                 animation="quick"
-                pressStyle={{ backgroundColor: '$red9', scale: 0.98 }}
+                pressStyle={{ backgroundColor: confirmButtonPressColor, scale: 0.98 }}
                 testID={`${testID}-confirm-button`}
               >
                 {isProcessing ? (

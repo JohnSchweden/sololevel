@@ -43,10 +43,9 @@ function clearAllUserData(): void {
   }
 
   try {
-    // Video Analysis stores
-    const { useAnalysisStatusStore } = require('../features/VideoAnalysis/stores/analysisStatus')
-    useAnalysisStatusStore.getState().reset()
-    log.debug('auth.ts', 'Analysis status store reset')
+    // Video Analysis stores - REMOVED: useAnalysisStatusStore migrated to TanStack Query
+    // TanStack Query cache clears automatically on logout, no explicit reset needed
+    log.debug('auth.ts', 'Analysis status store reset (migrated to TanStack Query)')
   } catch (error) {
     log.warn('auth.ts', 'Failed to reset analysis status', { error })
   }

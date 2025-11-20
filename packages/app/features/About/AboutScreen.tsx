@@ -132,6 +132,7 @@ export function AboutScreen({
 
               <YStack
                 gap="$4"
+                paddingTop="$2"
                 marginBottom="$6"
               >
                 <SettingsListItem

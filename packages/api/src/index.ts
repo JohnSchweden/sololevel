@@ -90,6 +90,12 @@ export {
   __mockComputeVideoTimingParams,
 } from './services/analysisService'
 export { getFirstAudioUrlForFeedback } from './services/audioService'
+// Feedback service
+export {
+  submitUserFeedback,
+  type UserFeedback,
+  type UserFeedbackInsert,
+} from './services/feedbackService'
 
 // AI Analysis Edge service types
 export type {

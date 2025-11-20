@@ -54,8 +54,6 @@ export function SessionManagementSection({
         <SettingsNavigationItem
           icon={Smartphone}
           iconColor="#C4B5FD"
-          iconBackgroundColor="rgba(168, 85, 247, 0.2)"
-          iconBorderColor="rgba(192, 132, 252, 0.3)"
           title="Active Sessions"
           subtitle="Manage logged in devices"
           onPress={onActiveSessionsPress}
@@ -65,8 +63,6 @@ export function SessionManagementSection({
         <SettingsNavigationItem
           icon={Clock}
           iconColor="#FDB87F"
-          iconBackgroundColor="rgba(249, 115, 22, 0.2)"
-          iconBorderColor="rgba(251, 146, 60, 0.3)"
           title="Login History"
           subtitle="View recent login attempts"
           onPress={onLoginHistoryPress}

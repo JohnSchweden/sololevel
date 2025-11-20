@@ -65,7 +65,7 @@ const createFeedbackSignature = (items: FeedbackState): string =>
  * Hook to integrate feedback status tracking with VideoAnalysis components
  * Automatically subscribes to feedback status updates for a given analysis
  */
-export function useFeedbackStatusIntegration(analysisId?: string) {
+export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode = false) {
   // CRITICAL: Don't destructure these from the store - it causes rerenders
   // Access via getState() instead to stabilize function references
   const getFeedbackByIdFromStore = useFeedbackStatusStore((state) => state.getFeedbackById)
@@ -191,8 +191,15 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
   }, [analysisId, updateFeedbacksState])
 
   // Subscribe/unsubscribe based on analysis ID using a ref guard to prevent churn
+  // Skip subscription in history mode - data should be prefetched and in cache
   useEffect(() => {
-    if (!analysisId) {
+    if (!analysisId || isHistoryMode) {
+      if (isHistoryMode && analysisId) {
+        log.debug(
+          'useFeedbackStatusIntegration',
+          `Skipping subscription in history mode - using prefetched data for ${analysisId}`
+        )
+      }
       return undefined
     }
 
@@ -273,7 +280,7 @@ export function useFeedbackStatusIntegration(analysisId?: string) {
         isSubscribingRef.current = false // Reset on cleanup
       }
     }
-  }, [analysisId])
+  }, [analysisId, isHistoryMode])
 
   // Debug dependency changes (subscription status values now read from refs, no re-renders)
   useEffect(() => {}, [analysisId, isSubscribed])

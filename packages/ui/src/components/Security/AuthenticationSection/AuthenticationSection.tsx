@@ -68,8 +68,6 @@ export function AuthenticationSection({
         <SettingsToggleItem
           icon={Shield}
           iconColor="#93C5FD"
-          iconBackground="rgba(59, 130, 246, 0.2)"
-          iconBorder="rgba(96, 165, 250, 0.3)"
           title="App Lock"
           description="Require authentication to open app"
           value={appLock}
@@ -79,8 +77,6 @@ export function AuthenticationSection({
         <SettingsToggleItem
           icon={Fingerprint}
           iconColor="#86EFAC"
-          iconBackground="rgba(34, 197, 94, 0.2)"
-          iconBorder="rgba(74, 222, 128, 0.3)"
           title="Biometric Login"
           description="Use fingerprint or face recognition"
           value={biometricLogin}

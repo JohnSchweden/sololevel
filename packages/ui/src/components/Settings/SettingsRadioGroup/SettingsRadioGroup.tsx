@@ -17,11 +17,13 @@ export interface SettingsRadioGroupProps extends Omit<YStackProps, 'children'> {
 
   /**
    * Background color for icon container
+   * @deprecated No longer used - icons no longer have background
    */
-  iconBackground: YStackProps['backgroundColor']
+  iconBackground?: YStackProps['backgroundColor']
 
   /**
    * Border color for icon container (optional)
+   * @deprecated No longer used - icons no longer have background
    */
   iconBorder?: YStackProps['borderColor']
 
@@ -75,8 +77,8 @@ export interface SettingsRadioGroupProps extends Omit<YStackProps, 'children'> {
 export function SettingsRadioGroup({
   icon: Icon,
   iconColor,
-  iconBackground,
-  iconBorder,
+  iconBackground: _iconBackground,
+  iconBorder: _iconBorder,
   title,
   description,
   value,
@@ -146,22 +148,11 @@ export function SettingsRadioGroup({
         gap="$4"
         width="100%"
       >
-        {/* Icon Container */}
-        <YStack
-          width={40}
-          height={40}
-          backgroundColor={iconBackground}
-          borderRadius="$3"
-          borderWidth={iconBorder ? 1 : 0}
-          borderColor={iconBorder}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Icon
-            size={20}
-            color={iconColor as any}
-          />
-        </YStack>
+        {/* Icon */}
+        <Icon
+          size={28}
+          color={iconColor as any}
+        />
 
         {/* Text Labels */}
         <YStack

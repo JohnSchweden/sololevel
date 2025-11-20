@@ -86,8 +86,6 @@ export function PersonalisationScreen({
               <SettingsRadioGroup
                 icon={Palette}
                 iconColor="$purple10"
-                iconBackground="$purple2"
-                iconBorder="$purple4"
                 title="Theme"
                 description="Choose your preferred theme"
                 value={theme}
@@ -104,8 +102,6 @@ export function PersonalisationScreen({
               <SettingsSelectItem
                 icon={Globe}
                 iconColor="$blue10"
-                iconBackground="$blue2"
-                iconBorder="$blue4"
                 title="Language"
                 description="Select your preferred language"
                 options={languageOptions}
@@ -124,8 +120,6 @@ export function PersonalisationScreen({
                 <SettingsToggleItem
                   icon={AArrowUp}
                   iconColor="$blue10"
-                  iconBackground="$blue2"
-                  iconBorder="$blue4"
                   title="Large Text"
                   description="Increase text size for better readability"
                   value={largeText}
@@ -134,8 +128,6 @@ export function PersonalisationScreen({
                 <SettingsToggleItem
                   icon={Zap}
                   iconColor="$orange10"
-                  iconBackground="$orange2"
-                  iconBorder="$orange4"
                   title="Reduce Animations"
                   description="Minimize motion effects"
                   value={reduceAnimations}
@@ -154,8 +146,6 @@ export function PersonalisationScreen({
                 <SettingsToggleItem
                   icon={Volume2}
                   iconColor="$green10"
-                  iconBackground="$green2"
-                  iconBorder="$green4"
                   title="Sound Effects"
                   description="Play sounds for interactions"
                   value={soundEffects}
@@ -164,8 +154,6 @@ export function PersonalisationScreen({
                 <SettingsToggleItem
                   icon={Vibrate}
                   iconColor="$purple10"
-                  iconBackground="$purple2"
-                  iconBorder="$purple4"
                   title="Haptic Feedback"
                   description="Feel vibrations for actions"
                   value={hapticFeedback}

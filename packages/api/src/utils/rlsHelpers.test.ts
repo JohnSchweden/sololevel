@@ -304,7 +304,7 @@ describe('RLS Helper Functions', () => {
 
     it('should have consistent length', () => {
       // This test ensures we don't accidentally add/remove tables
-      expect(USER_SCOPED_TABLES).toHaveLength(7)
+      expect(USER_SCOPED_TABLES).toHaveLength(8)
     })
   })
 })

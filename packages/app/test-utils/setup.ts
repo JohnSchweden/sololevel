@@ -607,12 +607,10 @@ jest.mock('../stores/MVPposeStore', () => ({
   })),
 }))
 
+// useAnalysisStatusStore - REMOVED: Migrated to TanStack Query
+// Use QueryClient mocks instead
 jest.mock('../features/VideoAnalysis/stores/analysisStatus', () => ({
-  useAnalysisStatusStore: jest.fn(() => ({
-    updateJob: jest.fn(),
-    subscribeToJob: jest.fn(),
-    unsubscribeFromJob: jest.fn(),
-  })),
+  // Store removed - use TanStack Query hooks instead
   useAnalysisJobStatus: jest.fn(() => ({
     job: null,
     exists: false,
@@ -743,31 +741,7 @@ jest.mock('../components/ConnectionErrorBanner', () => ({
 
 // Second @my/ui mock removed - consolidated into single mock above
 
-// Mock useAnalysisRealtime hooks
-jest.mock('../hooks/useAnalysisRealtime', () => ({
-  useAnalysisRealtime: jest.fn(() => ({
-    isSubscribed: true,
-    analysisId: 123,
-  })),
-  usePoseDataStream: jest.fn(() => ({
-    isStreaming: false,
-    currentPose: null,
-    poseHistory: [],
-    processingQuality: 'medium',
-  })),
-  useVideoAnalysisRealtime: jest.fn(() => ({
-    analysisJob: null,
-    isAnalysisSubscribed: false,
-    currentPose: null,
-    poseHistory: [],
-    isPoseStreaming: false,
-    processingQuality: 'medium',
-    isConnected: true,
-    reconnectAttempts: 0,
-    connectionError: null,
-    isFullyConnected: false,
-  })),
-}))
+// Note: useAnalysisRealtime hooks removed - they were dead code (only used in tests)
 
 // Mock React Native StyleSheet (standalone path and global for @testing-library/react-native)
 const mockStyleSheet = {

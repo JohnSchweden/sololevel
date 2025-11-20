@@ -36,7 +36,7 @@ if (process.env.NODE_ENV === 'development') {
     logOwnerReasons: true,
 
     // Keep log groups expanded for debugging
-    collapseGroups: false,
+    collapseGroups: true,
 
     // Exclude Expo Router and system components
     exclude: [/^Screen$/, /^Stack$/, /^Group$/, /^WDYR.*$/, /^Suspense$/],

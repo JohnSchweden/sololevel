@@ -1,7 +1,7 @@
-import { useAnalysisStatusStore } from '@app/features/VideoAnalysis/stores/analysisStatus'
 import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
 import { analysisKeys } from '@app/hooks/useAnalysis'
 import { videoUploadKeys } from '@app/hooks/useVideoUpload'
+import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import type { Tables, TablesInsert, TablesUpdate } from '../../types/database'
@@ -65,15 +65,28 @@ export function createOptimisticVideoRecording(
   }
 
   // Add to recordings list
-  queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
-    return [optimisticRecording, ...old]
-  })
+  try {
+    queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
+      return [optimisticRecording, ...old]
+    })
+  } catch (error) {
+    log.error('OptimisticUpdatesService', 'Failed to create optimistic video recording in cache', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
 
   // Create rollback function
   const rollback = () => {
-    queryClient!.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
-      return old.filter((r) => r.id !== -1)
-    })
+    try {
+      queryClient!.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
+        return old.filter((r) => r.id !== -1)
+      })
+    } catch (error) {
+      log.error('OptimisticUpdatesService', 'Failed to rollback optimistic video recording', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   // Store pending update
@@ -118,19 +131,38 @@ export function updateOptimisticVideoRecording(
   }
 
   // Update query cache optimistically
-  queryClient.setQueryData(videoUploadKeys.recording(id), updatedRecording)
+  try {
+    queryClient.setQueryData(videoUploadKeys.recording(id), updatedRecording)
 
-  // Update in recordings list
-  queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
-    return old.map((r) => (r.id === id ? updatedRecording : r))
-  })
+    // Update in recordings list
+    queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
+      return old.map((r) => (r.id === id ? updatedRecording : r))
+    })
+  } catch (error) {
+    log.error('OptimisticUpdatesService', 'Failed to update optimistic video recording in cache', {
+      error: error instanceof Error ? error.message : String(error),
+      recordingId: id,
+    })
+    throw error
+  }
 
   // Create rollback function
   const rollback = () => {
-    queryClient!.setQueryData(videoUploadKeys.recording(id), currentRecording)
-    queryClient!.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
-      return old.map((r) => (r.id === id ? currentRecording : r))
-    })
+    try {
+      queryClient!.setQueryData(videoUploadKeys.recording(id), currentRecording)
+      queryClient!.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
+        return old.map((r) => (r.id === id ? currentRecording : r))
+      })
+    } catch (error) {
+      log.error(
+        'OptimisticUpdatesService',
+        'Failed to rollback optimistic video recording update',
+        {
+          error: error instanceof Error ? error.message : String(error),
+          recordingId: id,
+        }
+      )
+    }
   }
 
   // Store pending update
@@ -180,25 +212,37 @@ export function createOptimisticAnalysisJob(
   }
 
   // Add to analysis jobs list
-  queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
-    return [optimisticJob, ...old]
-  })
+  try {
+    queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
+      return [optimisticJob, ...old]
+    })
 
-  // Add to video-specific query
-  queryClient.setQueryData(analysisKeys.jobByVideo(data.video_recording_id), optimisticJob)
+    // Add to video-specific query
+    queryClient.setQueryData(analysisKeys.jobByVideo(data.video_recording_id), optimisticJob)
+  } catch (error) {
+    log.error('OptimisticUpdatesService', 'Failed to create optimistic analysis job in cache', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
 
-  // Update store
-  useAnalysisStatusStore.getState().addJob(optimisticJob)
+  // Note: Removed Zustand write - TanStack Query is single source of truth for server state
 
   // Create rollback function
   const rollback = () => {
-    queryClient!.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
-      return old.filter((j) => j.id !== -1)
-    })
-    queryClient!.removeQueries({
-      queryKey: analysisKeys.jobByVideo(data.video_recording_id),
-    })
-    useAnalysisStatusStore.getState().removeJob(-1)
+    try {
+      queryClient!.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
+        return old.filter((j) => j.id !== -1)
+      })
+      queryClient!.removeQueries({
+        queryKey: analysisKeys.jobByVideo(data.video_recording_id),
+      })
+    } catch (error) {
+      log.error('OptimisticUpdatesService', 'Failed to rollback optimistic analysis job', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    // Note: Removed Zustand write - TanStack Query is single source of truth
   }
 
   // Store pending update
@@ -246,34 +290,41 @@ function updateOptimisticAnalysisJob(id: number, updates: TablesUpdate<'analysis
     updated_at: new Date().toISOString(),
   }
 
-  // Update query cache optimistically
-  queryClient.setQueryData(analysisKeys.job(id), updatedJob)
-  queryClient.setQueryData(analysisKeys.jobByVideo(updatedJob.video_recording_id), updatedJob)
+  // Update query cache optimistically with error handling
+  try {
+    queryClient.setQueryData(analysisKeys.job(id), updatedJob)
+    queryClient.setQueryData(analysisKeys.jobByVideo(updatedJob.video_recording_id), updatedJob)
 
-  // Update in jobs list
-  queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
-    return old.map((j) => (j.id === id ? updatedJob : j))
-  })
+    // Update in jobs list
+    queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
+      return old.map((j) => (j.id === id ? updatedJob : j))
+    })
+  } catch (error) {
+    // Log error and re-throw to trigger rollback
+    log.error('OptimisticUpdatesService', 'Failed to update cache in optimistic update', {
+      error: error instanceof Error ? error.message : String(error),
+      jobId: id,
+    })
+    throw error // Re-throw to trigger rollback
+  }
 
-  // Update store
-  const storeUpdates: Partial<AnalysisJob> = {
-    ...updates,
-    status: updates.status
-      ? isValidAnalysisStatus(updates.status)
-        ? updates.status
-        : undefined
-      : undefined,
-  } as Partial<AnalysisJob>
-  useAnalysisStatusStore.getState().updateJob(id, storeUpdates)
+  // Note: Removed Zustand write - TanStack Query is single source of truth for server state
 
   // Create rollback function
   const rollback = () => {
-    queryClient!.setQueryData(analysisKeys.job(id), currentJob)
-    queryClient!.setQueryData(analysisKeys.jobByVideo(currentJob.video_recording_id), currentJob)
-    queryClient!.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
-      return old.map((j) => (j.id === id ? currentJob : j))
-    })
-    useAnalysisStatusStore.getState().updateJob(id, currentJob)
+    try {
+      queryClient!.setQueryData(analysisKeys.job(id), currentJob)
+      queryClient!.setQueryData(analysisKeys.jobByVideo(currentJob.video_recording_id), currentJob)
+      queryClient!.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
+        return old.map((j) => (j.id === id ? currentJob : j))
+      })
+    } catch (error) {
+      log.error('OptimisticUpdatesService', 'Failed to rollback optimistic update', {
+        error: error instanceof Error ? error.message : String(error),
+        jobId: id,
+      })
+    }
+    // Note: Removed Zustand write - TanStack Query is single source of truth
   }
 
   // Store pending update
@@ -415,21 +466,41 @@ function handleMutationSuccess<T>(updateId: string, serverData: T): void {
   switch (update.type) {
     case 'video_recording': {
       const recording = serverData as VideoRecording
-      queryClient.setQueryData(videoUploadKeys.recording(recording.id), recording)
-      queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
-        return old.map((r) => (r.id === recording.id || r.id === -1 ? recording : r))
-      })
+      try {
+        queryClient.setQueryData(videoUploadKeys.recording(recording.id), recording)
+        queryClient.setQueryData(videoUploadKeys.recordings(), (old: VideoRecording[] = []) => {
+          return old.map((r) => (r.id === recording.id || r.id === -1 ? recording : r))
+        })
+      } catch (error) {
+        log.error(
+          'OptimisticUpdatesService',
+          'Failed to update cache with server video recording data',
+          {
+            error: error instanceof Error ? error.message : String(error),
+            recordingId: recording.id,
+          }
+        )
+        // Don't throw - mutation already succeeded, just log the cache error
+      }
       break
     }
 
     case 'analysis_job': {
       const job = serverData as AnalysisJob
-      queryClient.setQueryData(analysisKeys.job(job.id), job)
-      queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
-      queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
-        return old.map((j) => (j.id === job.id || j.id === -1 ? job : j))
-      })
-      useAnalysisStatusStore.getState().updateJob(job.id, job)
+      try {
+        queryClient.setQueryData(analysisKeys.job(job.id), job)
+        queryClient.setQueryData(analysisKeys.jobByVideo(job.video_recording_id), job)
+        queryClient.setQueryData(analysisKeys.jobs(), (old: AnalysisJob[] = []) => {
+          return old.map((j) => (j.id === job.id || j.id === -1 ? job : j))
+        })
+      } catch (error) {
+        log.error('OptimisticUpdatesService', 'Failed to update cache with server data', {
+          error: error instanceof Error ? error.message : String(error),
+          jobId: job.id,
+        })
+        // Don't throw - mutation already succeeded, just log the cache error
+      }
+      // Note: Removed Zustand write - TanStack Query is single source of truth
       break
     }
   }

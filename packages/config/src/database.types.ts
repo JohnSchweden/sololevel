@@ -86,6 +86,7 @@ export type Database = {
           prompt: string | null
           provider: string | null
           segment_index: number | null
+          storage_path: string | null
           version: string | null
         }
         Insert: {
@@ -98,6 +99,7 @@ export type Database = {
           prompt?: string | null
           provider?: string | null
           segment_index?: number | null
+          storage_path?: string | null
           version?: string | null
         }
         Update: {
@@ -110,11 +112,12 @@ export type Database = {
           prompt?: string | null
           provider?: string | null
           segment_index?: number | null
+          storage_path?: string | null
           version?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'analysis_audio_segments_analysis_feedback_id_fkey'
+            foreignKeyName: 'analysis_audio_segments_feedback_id_fkey'
             columns: ['feedback_id']
             isOneToOne: false
             referencedRelation: 'analysis_feedback'
@@ -411,6 +414,33 @@ export type Database = {
           },
         ]
       }
+      user_feedback: {
+        Row: {
+          created_at: string
+          id: number
+          message: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          message: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          message?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       video_recordings: {
         Row: {
           created_at: string
@@ -422,6 +452,7 @@ export type Database = {
           metadata: Json | null
           original_filename: string | null
           storage_path: string
+          thumbnail_url: string | null
           updated_at: string
           upload_progress: number | null
           upload_status: string
@@ -437,6 +468,7 @@ export type Database = {
           metadata?: Json | null
           original_filename?: string | null
           storage_path: string
+          thumbnail_url?: string | null
           updated_at?: string
           upload_progress?: number | null
           upload_status?: string
@@ -452,6 +484,7 @@ export type Database = {
           metadata?: Json | null
           original_filename?: string | null
           storage_path?: string
+          thumbnail_url?: string | null
           updated_at?: string
           upload_progress?: number | null
           upload_status?: string
@@ -493,6 +526,7 @@ export type Database = {
           format: string
           id: number
           provider: string
+          storage_path: string
           version: string
         }[]
       }
@@ -508,6 +542,7 @@ export type Database = {
           job_status: string
           raw_generated_text: string
           summary_text: string
+          title: string
         }[]
       }
       get_enhanced_analysis_with_feedback: {
@@ -573,6 +608,7 @@ export type Database = {
           p_job_id: number
           p_raw_generated_text?: string
           p_summary_text?: string
+          p_title?: string
         }
         Returns: string
       }
