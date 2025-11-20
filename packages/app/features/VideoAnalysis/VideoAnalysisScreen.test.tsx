@@ -35,47 +35,119 @@ type UseVideoPlayerStoreMock = jest.Mock<
   subscribe: jest.Mock<() => void, [listener?: VideoPlayerStoreSelector]>
 }
 
+// Create mock inside factory to avoid hoisting issues
+jest.mock('./stores', () => {
+  const state = {
+    isPlaying: false,
+    displayTime: 0,
+    duration: 0,
+    pendingSeek: null,
+    videoEnded: false,
+    controlsVisible: true,
+    manualControlsVisible: null,
+    setIsPlaying: jest.fn(),
+    setPendingSeek: jest.fn(),
+    setVideoEnded: jest.fn(),
+    setDisplayTime: jest.fn(),
+    setDuration: jest.fn(),
+    setControlsVisible: jest.fn(),
+    setManualControlsVisible: jest.fn(),
+    setSeekImmediate: jest.fn(),
+    batchUpdate: jest.fn(),
+    reset: jest.fn(),
+    seekImmediate: jest.fn(),
+    releaseResources: jest.fn(),
+  }
+  const mockStore = jest.fn((selector?: (s: typeof state) => unknown) =>
+    selector ? selector(state) : state
+  ) as unknown as typeof state & { getState: () => typeof state; subscribe: jest.Mock }
+  ;(mockStore as { getState: () => typeof state }).getState = jest.fn(() => state)
+  ;(mockStore as { subscribe: jest.Mock }).subscribe = jest.fn(() => jest.fn())
+  return {
+    __esModule: true,
+    usePersistentProgressStore: jest.fn(() => ({
+      setProgress: jest.fn(),
+    })),
+    useVideoPlayerStore: mockStore,
+  }
+})
+jest.mock('./stores/videoAnalysisPlaybackStore', () => {
+  const state = {
+    isPlaying: false,
+    displayTime: 0,
+    duration: 0,
+    pendingSeek: null,
+    videoEnded: false,
+    controlsVisible: true,
+    manualControlsVisible: null,
+    setIsPlaying: jest.fn(),
+    setPendingSeek: jest.fn(),
+    setVideoEnded: jest.fn(),
+    setDisplayTime: jest.fn(),
+    setDuration: jest.fn(),
+    setControlsVisible: jest.fn(),
+    setManualControlsVisible: jest.fn(),
+    setSeekImmediate: jest.fn(),
+    batchUpdate: jest.fn(),
+    reset: jest.fn(),
+    seekImmediate: jest.fn(),
+    releaseResources: jest.fn(),
+  }
+  const mockStore = jest.fn((selector?: (s: typeof state) => unknown) =>
+    selector ? selector(state) : state
+  ) as unknown as typeof state & { getState: () => typeof state; subscribe: jest.Mock }
+  ;(mockStore as { getState: () => typeof state }).getState = jest.fn(() => state)
+  ;(mockStore as { subscribe: jest.Mock }).subscribe = jest.fn(() => jest.fn())
+  return {
+    __esModule: true,
+    useVideoPlayerStore: mockStore,
+  }
+})
+jest.mock('./stores/index', () => {
+  const state = {
+    isPlaying: false,
+    displayTime: 0,
+    duration: 0,
+    pendingSeek: null,
+    videoEnded: false,
+    controlsVisible: true,
+    manualControlsVisible: null,
+    setIsPlaying: jest.fn(),
+    setPendingSeek: jest.fn(),
+    setVideoEnded: jest.fn(),
+    setDisplayTime: jest.fn(),
+    setDuration: jest.fn(),
+    setControlsVisible: jest.fn(),
+    setManualControlsVisible: jest.fn(),
+    setSeekImmediate: jest.fn(),
+    batchUpdate: jest.fn(),
+    reset: jest.fn(),
+    seekImmediate: jest.fn(),
+    releaseResources: jest.fn(),
+  }
+  const mockStore = jest.fn((selector?: (s: typeof state) => unknown) =>
+    selector ? selector(state) : state
+  ) as unknown as typeof state & { getState: () => typeof state; subscribe: jest.Mock }
+  ;(mockStore as { getState: () => typeof state }).getState = jest.fn(() => state)
+  ;(mockStore as { subscribe: jest.Mock }).subscribe = jest.fn(() => jest.fn())
+  return {
+    __esModule: true,
+    usePersistentProgressStore: jest.fn(() => ({
+      setProgress: jest.fn(),
+    })),
+    useVideoPlayerStore: mockStore,
+  }
+})
+
 const mockUseVideoPlayerStore = jest.fn((selector?: VideoPlayerStoreSelector) =>
   selector ? selector(videoPlayerStoreState) : videoPlayerStoreState
 ) as UseVideoPlayerStoreMock
-
-mockUseVideoPlayerStore.getState = () => ({
-  ...videoPlayerStoreState,
-  releaseResources: videoPlayerStoreState.releaseResources || jest.fn(),
-})
+mockUseVideoPlayerStore.getState = jest.fn(() => videoPlayerStoreState)
 mockUseVideoPlayerStore.subscribe = jest.fn((listener?: VideoPlayerStoreSelector) => {
   if (listener) {
     listener(videoPlayerStoreState)
   }
   return jest.fn()
-})
-jest.mock('./stores', () => {
-  const storeModule: Record<string, unknown> = {
-    __esModule: true,
-    usePersistentProgressStore: jest.fn(() => ({
-      setProgress: jest.fn(),
-    })),
-  }
-  Object.defineProperty(storeModule, 'useVideoPlayerStore', {
-    get: () => mockUseVideoPlayerStore,
-  })
-  return storeModule
-})
-jest.mock('./stores/videoAnalysisPlaybackStore', () => ({
-  __esModule: true,
-  useVideoPlayerStore: mockUseVideoPlayerStore,
-}))
-jest.mock('./stores/index', () => {
-  const storeModule: Record<string, unknown> = {
-    __esModule: true,
-    usePersistentProgressStore: jest.fn(() => ({
-      setProgress: jest.fn(),
-    })),
-  }
-  Object.defineProperty(storeModule, 'useVideoPlayerStore', {
-    get: () => mockUseVideoPlayerStore,
-  })
-  return storeModule
 })
 jest.mock('./stores/persistentProgress', () => ({
   __esModule: true,
