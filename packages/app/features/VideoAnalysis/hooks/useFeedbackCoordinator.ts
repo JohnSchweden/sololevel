@@ -670,37 +670,15 @@ export function useFeedbackCoordinator({
 
   const handlePlay = useCallback(() => {
     const startTime = Date.now()
-    const videoEnded = videoPlayback.videoEnded
-    const currentTime = videoPlayback.getPreciseCurrentTime()
-    const duration = useVideoPlayerStore.getState().duration
-
     log.debug('useFeedbackCoordinator.handlePlay', '▶️ Play pressed', {
       timestamp: startTime,
-      videoEnded,
-      currentTime,
-      duration,
       activeAudioId: useFeedbackAudioStore.getState().activeAudio?.id ?? null,
       highlightedFeedbackId: useFeedbackCoordinatorStore.getState().highlightedFeedbackId,
       bubbleVisible: useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible,
       pendingFeedbackId: pendingFeedbackIdRef.current,
       pendingItemRef: pendingItemRef.current?.id ?? null,
       audioIsPlaying: audioControllerRef.current?.isPlaying ?? false,
-      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
     })
-
-    // CRITICAL: If video has ended, we should NOT be here - parent should have called replay instead
-    if (videoEnded) {
-      log.warn(
-        'useFeedbackCoordinator.handlePlay',
-        '⚠️ handlePlay called when videoEnded=true - this should not happen!',
-        {
-          videoEnded,
-          currentTime,
-          duration,
-          stackTrace: new Error().stack?.split('\n').slice(1, 10).join('\n'),
-        }
-      )
-    }
 
     // Resume audio if it has activeAudio, a highlighted feedback, and is not currently playing
     // This covers two cases:

@@ -849,7 +849,10 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             isVisible
           />
 
-          <FeedbackBubbles messages={activeBubbleMessages} />
+          <FeedbackBubbles
+            messages={activeBubbleMessages}
+            collapseProgress={collapseProgress}
+          />
 
           {/* Audio Feedback Controls - Commented out, is for P1 */}
           {/* {audioOverlay.shouldShow && audioOverlay.activeAudio && (

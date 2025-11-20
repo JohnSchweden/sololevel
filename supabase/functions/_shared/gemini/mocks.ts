@@ -105,7 +105,7 @@ Great job with your introduction! The confident opening set a positive tone for 
     {
       "timestamp": 2.5,
       "category": "Posture",
-      "message": "Great upright posture - keep that confident stance!",
+      "message": "Great upright posture - keep that confident stance! Great upright posture - keep that confident stance! Great upright posture - keep that confident stance!",
       "confidence": 0.92,
       "impact": 0.7
     },

@@ -2,13 +2,17 @@ import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { BlurView } from 'expo-blur'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import Animated, {
   FadeIn,
   FadeOut,
   useAnimatedStyle,
   withTiming,
   Easing,
+  useDerivedValue,
+  useAnimatedReaction,
+  runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated'
 
 import { Text, YStack } from 'tamagui'
@@ -25,6 +29,7 @@ const BLUR_VIEW_STYLE = {
 
 export interface FeedbackBubblesProps {
   messages: FeedbackMessage[]
+  collapseProgress?: SharedValue<number> // 0 = max mode, 1 = collapsed
 }
 
 /**
@@ -143,7 +148,10 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
  * entering/exiting animations. All animations now run on UI thread with no
  * JS bridge saturation.
  */
-export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: FeedbackBubblesProps) {
+export const FeedbackBubbles = memo(function FeedbackBubbles({
+  messages,
+  collapseProgress,
+}: FeedbackBubblesProps) {
   // Performance tracking: Render profile
   useRenderProfile({
     componentName: 'FeedbackBubbles',
@@ -155,6 +163,25 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
       highlightedCount: messages.filter((m) => m.isHighlighted).length,
     },
   })
+
+  // Compute bottom value based on max mode (collapseProgress <= 0.1)
+  const bottomValue = useDerivedValue(() => {
+    if (!collapseProgress) {
+      return 100 // Default to max mode bottom if collapseProgress not provided
+    }
+    return collapseProgress.value <= 0.1 ? 110 : 70
+  }, [collapseProgress])
+
+  // Sync bottom value to state for use in style
+  const [bottom, setBottom] = useState(80)
+
+  useAnimatedReaction(
+    () => bottomValue.value,
+    (value) => {
+      runOnJS(setBottom)(value)
+    },
+    [bottomValue]
+  )
 
   // Filter messages to show (limit to prevent overcrowding)
   // Prioritize highlighted and active messages, then show most recent
@@ -182,7 +209,7 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({ messages }: Feedb
       exiting={FadeOut.duration(200)}
       style={{
         position: 'absolute',
-        bottom: 120,
+        bottom,
         left: 20,
         right: 20,
         zIndex: 0,

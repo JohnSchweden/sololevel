@@ -270,20 +270,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
    * methods to mirror the legacy hook behaviour, including timer resets and ref updates.
    */
   const play = useCallback(() => {
-    const storeState = useVideoPlayerStore.getState()
-    const beforeState = {
-      displayTime: displayTimeRef.current,
-      actualCurrentTime: actualCurrentTimeRef.current,
-      videoEnded: videoEndedRef.current,
-      isPlaying: storeState.isPlaying,
-      duration: durationRef.current,
-    }
-
-    log.debug('useVideoPlayer.play', '▶️ play() called', {
-      beforeState,
-      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-    })
-
     setIsPlaying(true)
     setVideoEnded(false)
     videoEndedRef.current = false
@@ -292,19 +278,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     if (hasUserInteractedRef.current && !forcedVisibleRef.current) {
       scheduleHide()
     }
-
-    const afterStoreState = useVideoPlayerStore.getState()
-    const afterState = {
-      displayTime: displayTimeRef.current,
-      actualCurrentTime: actualCurrentTimeRef.current,
-      videoEnded: videoEndedRef.current,
-      isPlaying: afterStoreState.isPlaying,
-    }
-
-    log.debug('useVideoPlayer.play', '✓ play() actions completed', {
-      beforeState,
-      afterState,
-    })
   }, [scheduleHide, setIsPlaying, setVideoEnded])
 
   const pause = useCallback(() => {
@@ -317,20 +290,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
   }, [syncDisplayTime, clearHideTimeout, setIsPlaying, setVideoEnded])
 
   const replay = useCallback(() => {
-    const storeState = useVideoPlayerStore.getState()
-    const beforeState = {
-      displayTime: displayTimeRef.current,
-      actualCurrentTime: actualCurrentTimeRef.current,
-      videoEnded: videoEndedRef.current,
-      isPlaying: storeState.isPlaying,
-      duration: durationRef.current,
-    }
-
-    log.debug('useVideoPlayer.replay', '🔄 replay() called', {
-      beforeState,
-      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-    })
-
     // Clear all seek tracking to allow fresh progress events
     progressBeforeSeekRef.current = null
     lastSeekTargetRef.current = 0 // Mark that we expect seek to 0
@@ -348,21 +307,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     // Store that we're waiting for replay seek so handleSeekComplete knows to start playing.
 
     scheduleHide()
-
-    const afterStoreState = useVideoPlayerStore.getState()
-    const afterState = {
-      displayTime: displayTimeRef.current,
-      actualCurrentTime: actualCurrentTimeRef.current,
-      videoEnded: videoEndedRef.current,
-      isPlaying: afterStoreState.isPlaying,
-      duration: durationRef.current,
-    }
-
-    log.debug('useVideoPlayer.replay', '✓ replay() actions completed - seek in progress', {
-      beforeState,
-      afterState,
-      note: 'Will start playing when seek completes',
-    })
   }, [syncDisplayTime, scheduleHide, setPendingSeek, setVideoEnded])
 
   const seek = useCallback(
@@ -412,30 +356,12 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       const timeSinceSeekComplete = Date.now() - seekCompleteTimeRef.current
       const SEEK_STALE_EVENT_THRESHOLD_MS = 500
 
-      const storeState = useVideoPlayerStore.getState()
-      const beforeState = {
-        displayTime: displayTimeRef.current,
-        actualCurrentTime: actualCurrentTimeRef.current,
-        lastReportedProgress: lastReportedProgressRef.current,
-        videoEnded: videoEndedRef.current,
-        isPlaying: storeState.isPlaying,
-        duration: durationRef.current,
-        lastSeekTarget: lastSeekTargetRef.current,
-        timeSinceSeekComplete,
-      }
-
-      log.debug('useVideoPlayer.handleEnd', '🎬 Video end event received', {
-        endTime,
-        beforeState,
-        stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-      })
-
       if (
         lastSeekTargetRef.current !== null &&
         timeSinceSeekComplete < SEEK_STALE_EVENT_THRESHOLD_MS &&
         lastSeekTargetRef.current < durationRef.current - 0.1
       ) {
-        log.debug('useVideoPlayer.handleEnd', '⏭️ Ignoring stale end event after seek', {
+        log.debug('useVideoPlayer', 'Ignoring stale end event after seek', {
           endTime,
           seekTarget: lastSeekTargetRef.current,
           timeSinceSeekComplete,
@@ -447,12 +373,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       const actualEndTime =
         endTime ?? lastReportedProgressRef.current ?? actualCurrentTimeRef.current
 
-      log.info('useVideoPlayer.handleEnd', '✓ Processing video end event', {
-        actualEndTime,
-        endTime,
-        lastReportedProgress: lastReportedProgressRef.current,
-        actualCurrentTime: actualCurrentTimeRef.current,
-      })
+      log.info('useVideoPlayer', 'Video end event received')
 
       syncDisplayTime(actualEndTime)
       lastReportedProgressRef.current = actualEndTime
@@ -461,21 +382,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       videoEndedRef.current = true
       seekToEndRef.current = false
       clearHideTimeout()
-
-      const afterStoreState = useVideoPlayerStore.getState()
-      const afterState = {
-        displayTime: displayTimeRef.current,
-        actualCurrentTime: actualCurrentTimeRef.current,
-        videoEnded: videoEndedRef.current,
-        isPlaying: afterStoreState.isPlaying,
-      }
-
-      log.debug('useVideoPlayer.handleEnd', '✓ Video end state updated', {
-        beforeState,
-        afterState,
-        actualEndTime,
-      })
-
       return true
     },
     [clearHideTimeout, syncDisplayTime, setIsPlaying, setVideoEnded]
@@ -564,12 +470,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
       }
 
       const wasReplaySeek = lastSeekTargetRef.current === 0 && resolvedTime < 0.1
-
-      log.debug('useVideoPlayer.handleSeekComplete', '✓ Seek complete', {
-        resolvedTime,
-        lastSeekTarget: lastSeekTargetRef.current,
-        wasReplaySeek,
-      })
 
       lastReportedProgressRef.current = resolvedTime
       lastSeekTargetRef.current = resolvedTime

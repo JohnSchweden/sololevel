@@ -106,20 +106,8 @@ export const CenterControls = React.memo<CenterControlsProps>(
           animation={undefined}
           onPress={() => {
             if (videoEnded && onReplay) {
-              console.log('[CenterControls] 🔄 Replay button pressed - calling onReplay', {
-                videoEnded,
-                isPlaying,
-                hasOnReplay: !!onReplay,
-              })
               onReplay()
             } else {
-              console.log('[CenterControls] 🎮 Play/Pause button pressed', {
-                videoEnded,
-                isPlaying,
-                action: isPlaying ? 'pause' : 'play',
-                hasOnPlay: !!onPlay,
-                hasOnPause: !!onPause,
-              })
               isPlaying ? onPause() : onPlay()
             }
           }}
