@@ -26,6 +26,10 @@ jest.mock('react-native', () => ({
     create: jest.fn((styles) => styles),
     flatten: jest.fn((style) => style),
   },
+  Keyboard: {
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    dismiss: jest.fn(),
+  },
   View: 'View',
   Text: 'Text',
   TouchableOpacity: 'TouchableOpacity',

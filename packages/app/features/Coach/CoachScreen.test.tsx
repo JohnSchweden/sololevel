@@ -45,6 +45,18 @@ jest.mock('react-native', () => {
       OS: 'web',
       select: jest.fn((obj: any) => obj.web || obj.default),
     },
+    Keyboard: {
+      addListener: jest.fn(() => ({ remove: jest.fn() })),
+      dismiss: jest.fn(),
+    },
+    KeyboardAvoidingView: ({ children, ...props }: any) => {
+      const React = require('react')
+      return React.createElement('div', { ...props }, children)
+    },
+    Pressable: ({ children, onPress, ...props }: any) => {
+      const React = require('react')
+      return React.createElement('div', { onClick: onPress, role: 'button', ...props }, children)
+    },
   }
 })
 

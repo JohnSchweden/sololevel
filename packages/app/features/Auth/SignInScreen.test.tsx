@@ -61,6 +61,8 @@ jest.mock('@my/ui', () => {
       }),
     Paragraph: ({ children, testID, ...props }: any) =>
       React.createElement('p', { testID, ...props }, children),
+    Text: ({ children, testID, ...props }: any) =>
+      React.createElement('span', { testID, ...props }, children),
     YStack: ({ children, testID, ...props }: any) =>
       React.createElement(
         'div',
@@ -69,6 +71,27 @@ jest.mock('@my/ui', () => {
       ),
   }
 })
+
+// Mock safe area hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
+// Mock react-native
+jest.mock('react-native', () => ({
+  KeyboardAvoidingView: ({ children }: any) => {
+    const React = require('react')
+    return React.createElement('div', {}, children)
+  },
+  ScrollView: ({ children }: any) => {
+    const React = require('react')
+    return React.createElement('div', {}, children)
+  },
+  Platform: {
+    OS: 'web',
+    select: jest.fn(),
+  },
+}))
 
 // Mock SafeAreaView
 jest.mock('react-native-safe-area-context', () => ({

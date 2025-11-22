@@ -17,7 +17,8 @@ import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutAnimation, Platform } from 'react-native'
+import { Keyboard, LayoutAnimation, Platform } from 'react-native'
+import type { KeyboardEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { runOnJS, useAnimatedScrollHandler } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -312,6 +313,8 @@ export const FeedbackPanel = memo(
     const [commentInput, setCommentInput] = useState('')
 
     const { bottom: safeAreaBottom } = useSafeAreaInsets()
+    const scrollViewRef = useRef<any>(null)
+    const [keyboardHeight, setKeyboardHeight] = useState(0)
 
     // Feedback filter state
     const [feedbackFilter, setFeedbackFilter] = useState<
@@ -326,6 +329,27 @@ export const FeedbackPanel = memo(
     useEffect(() => {
       previousActiveTabRef.current = activeTab
     }, [activeTab])
+
+    // Listen to keyboard events to adjust comment composer position
+    useEffect(() => {
+      const keyboardWillShowListener = Keyboard.addListener(
+        Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+        (e: KeyboardEvent) => {
+          setKeyboardHeight(e.endCoordinates.height)
+        }
+      )
+      const keyboardWillHideListener = Keyboard.addListener(
+        Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+        () => {
+          setKeyboardHeight(0)
+        }
+      )
+
+      return () => {
+        keyboardWillShowListener.remove()
+        keyboardWillHideListener.remove()
+      }
+    }, [])
 
     // Memoize animation styles to prevent object recreation on every render
     const tabTransitionEnterStyle = useMemo(() => ({ opacity: 0, y: 10 }), [])
@@ -945,6 +969,24 @@ export const FeedbackPanel = memo(
       [commentSort, sortedComments, renderCommentItem]
     )
 
+    const handleCommentInputFocus = useCallback((): void => {
+      // Scroll to end when input is focused to ensure it's visible above keyboard
+      // KeyboardAvoidingView handles main positioning; this ensures composer is in view
+      if (scrollViewRef.current) {
+        setTimeout(() => {
+          const ref = scrollViewRef.current
+          // Try scrollToEnd first (works for both ScrollView and FlatList)
+          if (ref.scrollToEnd) {
+            ref.scrollToEnd({ animated: true })
+          }
+          // Fallback: scroll to large offset (effectively to end)
+          else if (ref.scrollTo) {
+            ref.scrollTo({ y: 999999, animated: true })
+          }
+        }, 150)
+      }
+    }, [])
+
     const renderCommentComposer = useCallback(() => {
       // Android gesture navigation needs additional bottom padding
       // safeAreaBottom may be 0 on Android with gesture navigation, so ensure minimum padding
@@ -952,12 +994,13 @@ export const FeedbackPanel = memo(
       const basePadding = safeAreaBottom > 0 ? safeAreaBottom - 12 : 0
       const bottomPadding = Math.max(
         basePadding + androidGesturePadding,
-        Platform.OS === 'android' ? 20 : 0
+        Platform.OS === 'android' ? 20 : 8
       )
 
       return (
         <CommentComposerContainer
           paddingBottom={bottomPadding}
+          marginBottom={keyboardHeight > 0 ? keyboardHeight - safeAreaBottom : 0}
           accessibilityLabel="Comment composer"
           testID="comment-composer"
         >
@@ -971,6 +1014,7 @@ export const FeedbackPanel = memo(
               placeholder="Share your thoughts"
               value={commentInput}
               onChangeText={setCommentInput}
+              onFocus={handleCommentInputFocus}
               backgroundColor="$color3"
               borderColor="$color5"
               borderRadius="$3"
@@ -1016,7 +1060,14 @@ export const FeedbackPanel = memo(
           </XStack>
         </CommentComposerContainer>
       )
-    }, [commentInput, handleCommentSubmit, safeAreaBottom, setCommentInput])
+    }, [
+      commentInput,
+      handleCommentSubmit,
+      handleCommentInputFocus,
+      keyboardHeight,
+      safeAreaBottom,
+      setCommentInput,
+    ])
 
     // Render active tab content with conditional animation
     const renderTabContent = useCallback(() => {
@@ -1208,8 +1259,11 @@ export const FeedbackPanel = memo(
             <YStack flex={1}>
               {isWeb ? (
                 <Animated.ScrollView
+                  ref={scrollViewRef}
                   style={{ paddingBottom: scrollBottomPadding }}
                   testID="feedback-panel-scroll"
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
                 >
                   {renderListHeader()}
                 </Animated.ScrollView>
@@ -1223,6 +1277,7 @@ export const FeedbackPanel = memo(
                   }
                 >
                   <Animated.FlatList<FeedbackItem>
+                    ref={scrollViewRef}
                     data={[]}
                     extraData={selectedFeedbackId}
                     keyExtractor={keyExtractor}
@@ -1246,6 +1301,8 @@ export const FeedbackPanel = memo(
                     maxToRenderPerBatch={8}
                     windowSize={5}
                     removeClippedSubviews
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
                   />
                 </GestureDetector>
               ) : (
@@ -1259,6 +1316,7 @@ export const FeedbackPanel = memo(
                     accessibilityRole={activeTab === 'feedback' ? 'list' : undefined}
                   >
                     <Animated.FlatList<FeedbackItem>
+                      ref={scrollViewRef}
                       data={[]}
                       extraData={selectedFeedbackId}
                       keyExtractor={keyExtractor}
@@ -1282,6 +1340,8 @@ export const FeedbackPanel = memo(
                       maxToRenderPerBatch={8}
                       windowSize={5}
                       removeClippedSubviews
+                      keyboardShouldPersistTaps="handled"
+                      keyboardDismissMode="interactive"
                     />
                   </YStack>
                 </GestureDetector>

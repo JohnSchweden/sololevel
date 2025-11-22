@@ -4,6 +4,7 @@ import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { log } from '@my/logging'
 import { GlassBackground, GlassButton, H2, Input, Paragraph, Text, YStack } from '@my/ui'
 import { useEffect, useRef, useState } from 'react'
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { SignInScreenProps } from './types'
 
@@ -41,6 +42,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const passwordInputRef = useRef<any>(null)
+  const scrollViewRef = useRef<ScrollView>(null)
 
   // Initialize test auth on mount if enabled
   useEffect(() => {
@@ -161,6 +163,15 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
     }
   }
 
+  const handleInputFocus = (): void => {
+    // Scroll to input when focused to ensure it's visible above keyboard
+    if (scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    }
+  }
+
   return (
     <GlassBackground
       backgroundColor="$color3"
@@ -170,160 +181,175 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
         edges={[]}
         style={{ flex: 1 }}
       >
-        <YStack
-          flex={1}
-          justifyContent="center"
-          alignItems="center"
-          gap="$6"
-          paddingHorizontal="$6"
-          paddingTop={insets.top}
-          paddingBottom={insets.bottom}
-          overflow="visible"
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Header Section */}
-          <YStack
-            gap="$3"
-            alignItems="center"
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
           >
-            <H2
-              fontSize={24}
-              fontWeight="600"
-              color="$color12"
-              textAlign="center"
-            >
-              Welcome Back
-            </H2>
-            <Paragraph
-              fontSize="$4"
-              color="$color11"
-              textAlign="center"
-              maxWidth={280}
-            >
-              Sign in to continue your journey with Solo:Level
-            </Paragraph>
-          </YStack>
-
-          <YStack
-            gap="$3"
-            paddingHorizontal="$4"
-          >
-            {/* Auth Error Message */}
-            {authError && (
-              <YStack
-                backgroundColor="$red2"
-                borderColor="$red6"
-                borderWidth={1}
-                borderRadius="$3"
-                padding="$3"
-                gap="$1"
-              >
-                <Text
-                  fontSize="$3"
-                  fontWeight="500"
-                  color="$red11"
-                  testID="auth-error-message"
-                >
-                  {authError}
-                </Text>
-              </YStack>
-            )}
-
-            {/* Email Field */}
-            <YStack gap="$1">
-              <Input
-                placeholder="Email"
-                value={email}
-                onChangeText={handleEmailChange}
-                onBlur={handleEmailBlur}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                borderColor={emailError ? '$red8' : undefined}
-                testID="email-input"
-              />
-              {emailError && (
-                <Text
-                  fontSize="$2"
-                  color="$red10"
-                  paddingLeft="$2"
-                  testID="email-error-message"
-                >
-                  {emailError}
-                </Text>
-              )}
-            </YStack>
-
-            {/* Password Field */}
-            <YStack gap="$1">
-              <Input
-                ref={passwordInputRef}
-                placeholder="Password"
-                value={password}
-                onChangeText={handlePasswordChange}
-                secureTextEntry
-                onSubmitEditing={handleSignIn}
-                returnKeyType="done"
-                borderColor={passwordError ? '$red8' : undefined}
-                testID="password-input"
-              />
-              {passwordError && (
-                <Text
-                  fontSize="$2"
-                  color="$red10"
-                  paddingLeft="$2"
-                  testID="password-error-message"
-                >
-                  {passwordError}
-                </Text>
-              )}
-            </YStack>
-
-            <GlassButton
-              onPress={handleSignIn}
-              disabled={loading}
-              testID="sign-in-button"
-              accessibilityLabel="Sign in"
-              minHeight={44}
-              minWidth="100%"
-              borderRadius="$4"
-              borderWidth={1.1}
-              borderColor="$color12"
-              blurIntensity={0}
-              blurTint="light"
-              variant="variant2"
-              overlayOpacity={0.2}
-            >
-              <Paragraph
-                fontSize="$3"
-                fontWeight="400"
-                color="$color12"
-              >
-                {loading ? 'Signing In...' : 'Sign In'}
-              </Paragraph>
-            </GlassButton>
-          </YStack>
-
-          {__DEV__ && (
             <YStack
-              gap="$2"
+              flex={1}
+              justifyContent="center"
               alignItems="center"
+              gap="$6"
+              paddingHorizontal="$6"
+              paddingTop={insets.top}
+              paddingBottom={insets.bottom}
+              overflow="visible"
             >
-              <Paragraph
-                fontSize="$3"
-                color="$color10"
+              {/* Header Section */}
+              <YStack
+                gap="$3"
+                alignItems="center"
               >
-                Development Mode
-              </Paragraph>
-              <Paragraph
-                fontSize="$1"
-                color="$color10"
-                textAlign="center"
+                <H2
+                  fontSize={24}
+                  fontWeight="600"
+                  color="$color12"
+                  textAlign="center"
+                >
+                  Welcome Back
+                </H2>
+                <Paragraph
+                  fontSize="$4"
+                  color="$color11"
+                  textAlign="center"
+                  maxWidth={280}
+                >
+                  Sign in to continue your journey with Solo:Level
+                </Paragraph>
+              </YStack>
+
+              <YStack
+                gap="$3"
+                paddingHorizontal="$4"
               >
-                Test auth will auto-sign you in if TEST_AUTH_ENABLED=true
-              </Paragraph>
+                {/* Auth Error Message */}
+                {authError && (
+                  <YStack
+                    backgroundColor="$red2"
+                    borderColor="$red6"
+                    borderWidth={1}
+                    borderRadius="$3"
+                    padding="$3"
+                    gap="$1"
+                  >
+                    <Text
+                      fontSize="$3"
+                      fontWeight="500"
+                      color="$red11"
+                      testID="auth-error-message"
+                    >
+                      {authError}
+                    </Text>
+                  </YStack>
+                )}
+
+                {/* Email Field */}
+                <YStack gap="$1">
+                  <Input
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    onBlur={handleEmailBlur}
+                    onFocus={handleInputFocus}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    borderColor={emailError ? '$red8' : undefined}
+                    testID="email-input"
+                  />
+                  {emailError && (
+                    <Text
+                      fontSize="$2"
+                      color="$red10"
+                      paddingLeft="$2"
+                      testID="email-error-message"
+                    >
+                      {emailError}
+                    </Text>
+                  )}
+                </YStack>
+
+                {/* Password Field */}
+                <YStack gap="$1">
+                  <Input
+                    ref={passwordInputRef}
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={handlePasswordChange}
+                    onFocus={handleInputFocus}
+                    secureTextEntry
+                    onSubmitEditing={handleSignIn}
+                    returnKeyType="done"
+                    borderColor={passwordError ? '$red8' : undefined}
+                    testID="password-input"
+                  />
+                  {passwordError && (
+                    <Text
+                      fontSize="$2"
+                      color="$red10"
+                      paddingLeft="$2"
+                      testID="password-error-message"
+                    >
+                      {passwordError}
+                    </Text>
+                  )}
+                </YStack>
+
+                <GlassButton
+                  onPress={handleSignIn}
+                  disabled={loading}
+                  testID="sign-in-button"
+                  accessibilityLabel="Sign in"
+                  minHeight={44}
+                  minWidth="100%"
+                  borderRadius="$4"
+                  borderWidth={1.1}
+                  borderColor="$color12"
+                  blurIntensity={0}
+                  blurTint="light"
+                  variant="variant2"
+                  overlayOpacity={0.2}
+                >
+                  <Paragraph
+                    fontSize="$3"
+                    fontWeight="400"
+                    color="$color12"
+                  >
+                    {loading ? 'Signing In...' : 'Sign In'}
+                  </Paragraph>
+                </GlassButton>
+              </YStack>
+
+              {__DEV__ && (
+                <YStack
+                  gap="$2"
+                  alignItems="center"
+                >
+                  <Paragraph
+                    fontSize="$3"
+                    color="$color10"
+                  >
+                    Development Mode
+                  </Paragraph>
+                  <Paragraph
+                    fontSize="$1"
+                    color="$color10"
+                    textAlign="center"
+                  >
+                    Test auth will auto-sign you in if TEST_AUTH_ENABLED=true
+                  </Paragraph>
+                </YStack>
+              )}
             </YStack>
-          )}
-        </YStack>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GlassBackground>
   )

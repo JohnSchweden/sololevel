@@ -14,22 +14,36 @@ try {
 
 /**
  * Adjusts Supabase URL for platform-specific localhost handling
- * - iOS/Web: 127.0.0.1 works as-is
+ * - iOS Simulator/Web: 127.0.0.1 works as-is
+ * - iOS Physical Device: Needs dev machine's local network IP (e.g., 192.168.1.100)
  * - Android Emulator: 10.0.2.2 maps to host's 127.0.0.1
- * - Physical Android: Use actual local network IP (e.g., 192.168.0.203)
+ * - Physical Android: Use actual local network IP (e.g., 192.168.1.100)
+ *
+ * To test on physical devices, set EXPO_PUBLIC_DEV_MACHINE_IP in .env.local:
+ * EXPO_PUBLIC_DEV_MACHINE_IP=192.168.1.100
  */
 function adjustUrlForPlatform(url: string): string {
   if (!Platform) {
     return url
   }
 
-  // Only adjust for Android platform
+  // Check if user provided dev machine IP for physical device testing
+  const devMachineIp = process.env.EXPO_PUBLIC_DEV_MACHINE_IP
+
+  // For physical devices, replace localhost with dev machine IP if provided
+  if (devMachineIp && (url.includes('127.0.0.1') || url.includes('localhost'))) {
+    // Replace localhost/127.0.0.1 with dev machine IP
+    return url.replace(/127\.0\.0\.1|localhost/, devMachineIp)
+  }
+
+  // Android emulator: replace localhost with special emulator IP
   if (Platform.OS === 'android') {
     // Replace localhost/127.0.0.1 with Android emulator's special IP
-    // This works for emulator; physical devices need actual local network IP
+    // This works for emulator; physical devices need EXPO_PUBLIC_DEV_MACHINE_IP
     return url.replace(/127\.0\.0\.1|localhost/, '10.0.2.2')
   }
 
+  // iOS simulator and web: 127.0.0.1 works as-is (no adjustment needed)
   return url
 }
 

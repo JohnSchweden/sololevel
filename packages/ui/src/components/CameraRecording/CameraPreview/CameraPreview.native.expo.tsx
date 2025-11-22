@@ -15,7 +15,6 @@ import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainerProps>(
   (
     {
-      isRecording,
       cameraType,
       zoomLevel = 0,
       onZoomChange,
@@ -511,15 +510,8 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
       >
         <CameraView {...cameraProps} />
 
-        {/* Background image overlay for simulator testing */}
-        <CameraBackground
-          imageSource={backgroundImage}
-          opacity={backgroundOpacity}
-          simulatorOnly={true}
-        />
-
         {/* Recording indicator overlay */}
-        {isRecording && (
+        {/* {isRecording && (
           <YStack
             position="absolute"
             top={16}
@@ -538,10 +530,10 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
               ● REC
             </SizableText>
           </YStack>
-        )}
+        )} */}
 
         {/* Orientation indicator overlay - always show when camera is mounted */}
-        <YStack
+        {/* <YStack
           position="absolute"
           top={16}
           left={16}
@@ -558,7 +550,7 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           >
             {orientation === 'landscape' ? '📱 LANDSCAPE' : '📱 PORTRAIT'}
           </SizableText>
-        </YStack>
+        </YStack> */}
 
         {/* Children overlay (controls, etc.) */}
         {children}

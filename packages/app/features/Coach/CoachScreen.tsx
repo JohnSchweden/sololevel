@@ -11,7 +11,15 @@ import {
 import { BlurView } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, type FlatListProps, type ListRenderItem, Platform } from 'react-native'
+import {
+  FlatList,
+  type FlatListProps,
+  Keyboard,
+  KeyboardAvoidingView,
+  type ListRenderItem,
+  Platform,
+  Pressable,
+} from 'react-native'
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -176,15 +184,19 @@ export function CoachScreen({
 
   // Hooks
   const insetsRaw = useSafeArea()
-  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-  const BOTTOM_TAB_BAR_HEIGHT = Platform.OS === 'android' ? 52 : 62 // Fixed height from BottomNavigationContainer
-
   // ROOT CAUSE FIX #1: useSafeAreaInsets returns NEW object reference every render
   // Memoize insets based on content to prevent re-renders when values haven't changed
   const insets = useMemo(
     () => insetsRaw,
     [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
   )
+
+  // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
+  // Matches BottomNavigationContainer.native.tsx reduction
+  const bottomInset = useMemo(() => Math.max(0, insets.bottom - 22), [insets.bottom])
+
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+  const BOTTOM_TAB_BAR_HEIGHT = (Platform.OS === 'android' ? 52 : 52) + bottomInset // Fixed height from BottomNavigationContainer
 
   // ROOT CAUSE FIX #2: Inline object literals in JSX create new references every render
   // Memoize style objects to prevent child component re-renders
@@ -219,10 +231,20 @@ export function CoachScreen({
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(!sessionId)
   const [isSuggestionsButtonPressed, setIsSuggestionsButtonPressed] = useState(false)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
   // Reanimated shared value for suggestions slide animation (1 = visible, 0 = hidden)
   // Initialize based on sessionId: expanded for new sessions, collapsed for existing sessions
   const suggestionsProgress = useSharedValue(!sessionId ? 1 : 0)
   const flatListRef = useRef<FlatList<Message>>(null)
+
+  const handleChatInputFocus = useCallback((): void => {
+    // Scroll to bottom when input is focused to ensure it's visible above keyboard
+    if (flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+      }, 100)
+    }
+  }, [])
 
   // Simple visibility check - show all sections when not loading/error
   const sectionsVisible = useMemo(() => {
@@ -311,6 +333,23 @@ export function CoachScreen({
       // Dummy listener - ensures suggestionsProgress is registered before useEffect writes to it
     }
   )
+
+  // Keyboard visibility tracking
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    )
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    )
+
+    return () => {
+      keyboardWillShow.remove()
+      keyboardWillHide.remove()
+    }
+  }, [])
 
   // Sync shared value with showSuggestions state
   // On mount: set synchronously without animation
@@ -426,225 +465,236 @@ export function CoachScreen({
         edges={[]}
         style={safeAreaViewStyle}
       >
-        <YStack
-          flex={1}
-          paddingBottom={
-            hasBottomNavigation
-              ? BOTTOM_TAB_BAR_HEIGHT // Tab context: tab bar height + safe area
-              : sessionId
-                ? insets.bottom // Coaching session: account for safe area only
-                : 0 // New session without tabs: no bottom padding needed
-          }
-          testID={`${testID}-content`}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Sticky Header Overlay */}
-          <YStack
-            position="absolute"
-            //top={insets.top + APP_HEADER_HEIGHT}
-            left={0}
-            right={0}
-            zIndex={10}
-            //paddingVertical="$2"
-            testID={`${testID}-sticky-header`}
-          >
-            <BlurView
-              intensity={10}
-              tint="regular"
-              style={blurViewStyle}
-            >
-              <XStack
-                alignItems="center"
-                padding="$4"
-                gap="$4"
-                paddingHorizontal="$6"
-                opacity={sectionsVisible[0] ? 1 : 0}
-                // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-                // Staggered animation already handles visibility timing
-                testID={`${testID}-avatar-section`}
-              >
-                {/* Avatar */}
-                <YStack
-                  width={64}
-                  height={64}
-                  borderRadius={32}
-                  backgroundColor="$color5"
-                  borderWidth={1}
-                  borderColor="rgba(255,255,255,0.3)"
-                  alignItems="center"
-                  justifyContent="center"
-                  overflow="hidden"
-                  testID={`${testID}-avatar`}
-                >
-                  <Image
-                    source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                    width={66}
-                    height={66}
-                    borderRadius={32}
-                  />
-                </YStack>
-
-                {/* Session Info */}
-                <YStack
-                  flex={1}
-                  gap="$2"
-                  testID={`${testID}-session-info`}
-                >
-                  <Text
-                    fontSize="$1"
-                    fontWeight="500"
-                    color="$color12"
-                    testID={`${testID}-session-date`}
-                  >
-                    {sessionDate || getTodayDate()}
-                  </Text>
-                  <Text
-                    fontSize="$4"
-                    fontWeight="500"
-                    color="$color12"
-                    numberOfLines={2}
-                    testID={`${testID}-session-title`}
-                  >
-                    {sessionTitle || 'New Coaching Session'}
-                  </Text>
-                </YStack>
-              </XStack>
-            </BlurView>
-          </YStack>
-
-          {/* Messages - Extended to top */}
           <YStack
             flex={1}
-            opacity={sectionsVisible[1] ? 1 : 0}
-            // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-            // Staggered animation already handles visibility timing
-            //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
-          >
-            <AnimatedFlatList
-              ref={flatListRef}
-              data={reversedMessages}
-              keyExtractor={keyExtractor}
-              renderItem={renderMessageItem}
-              ListHeaderComponent={
-                isTyping ? (
-                  <XStack
-                    justifyContent="flex-start"
-                    marginBottom="$4"
-                  >
-                    <TypingIndicator />
-                  </XStack>
-                ) : null
-              }
-              contentContainerStyle={{
-                paddingTop: 16, // $4 = 16px (bottom padding when inverted)
-                paddingHorizontal: 24, // $6 = 24px
-                paddingBottom: insets.top + APP_HEADER_HEIGHT + 116, // Top padding when inverted
-              }}
-              style={{ flex: 1 }}
-              testID={`${testID}-messages`}
-              inverted={true}
-            />
-          </YStack>
-
-          {/* Input Area */}
-          <YStack
-            marginHorizontal="$0.5"
-            paddingHorizontal="$4"
-            gap="$0"
             paddingBottom={0}
-            backgroundColor="$color3"
-            borderTopLeftRadius="$9"
-            borderTopRightRadius="$9"
-            testID={`${testID}-input-area`}
+            testID={`${testID}-content`}
           >
-            {/* Suggestions */}
-            <YStack
-              opacity={sectionsVisible[2] ? 1 : 0}
-              // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-              // Staggered animation already handles visibility timing
-              testID={`${testID}-suggestions`}
+            {/* Sticky Header Overlay */}
+            <Pressable
+              onPress={Keyboard.dismiss}
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                zIndex: 10,
+              }}
+              testID={`${testID}-sticky-header`}
             >
-              {/* Suggestions Header */}
-              <XStack
-                justifyContent="space-between"
-                alignItems="center"
+              <BlurView
+                intensity={10}
+                tint="regular"
+                style={blurViewStyle}
               >
-                <Button
-                  onPress={toggleSuggestions}
-                  onPressIn={() => setIsSuggestionsButtonPressed(true)}
-                  onPressOut={() => setIsSuggestionsButtonPressed(false)}
-                  chromeless
-                  size="$5"
-                  flex={1}
-                  justifyContent="space-between"
+                <XStack
                   alignItems="center"
-                  paddingHorizontal="$4"
-                  color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
-                  opacity={isSuggestionsButtonPressed ? 1 : 0.8}
-                  iconAfter={showSuggestions ? ChevronDown : ChevronUp}
-                  accessibilityLabel={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
-                  testID={`${testID}-toggle-suggestions`}
+                  padding="$4"
+                  gap="$4"
+                  paddingHorizontal="$6"
+                  opacity={sectionsVisible[0] ? 1 : 0}
                   // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-                  scale={1}
-                  hoverStyle={TOGGLE_BUTTON_HOVER_STYLE}
-                  pressStyle={TOGGLE_BUTTON_PRESS_STYLE}
+                  // Staggered animation already handles visibility timing
+                  testID={`${testID}-avatar-section`}
                 >
-                  <Text
-                    fontSize="$3"
-                    color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
+                  {/* Avatar */}
+                  <YStack
+                    width={64}
+                    height={64}
+                    borderRadius={32}
+                    backgroundColor="$color5"
+                    borderWidth={1}
+                    borderColor="rgba(255,255,255,0.3)"
+                    alignItems="center"
+                    justifyContent="center"
+                    overflow="hidden"
+                    testID={`${testID}-avatar`}
                   >
-                    Suggestions
-                  </Text>
-                </Button>
-              </XStack>
+                    <Image
+                      source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                      width={66}
+                      height={66}
+                      borderRadius={32}
+                    />
+                  </YStack>
 
-              {/* Suggestions List - Reanimated slide animation */}
-              <Animated.View style={suggestionsAnimatedStyle}>
-                <YStack
-                  overflow="hidden"
-                  paddingTop="$0"
-                  marginBottom="$2"
-                >
-                  <XStack
+                  {/* Session Info */}
+                  <YStack
+                    flex={1}
                     gap="$2"
-                    flexWrap="wrap"
+                    testID={`${testID}-session-info`}
                   >
-                    {SUGGESTIONS.map((suggestion, index) => (
-                      <SuggestionChip
-                        key={index}
-                        icon={suggestion.icon}
-                        text={suggestion.text}
-                        category={suggestion.category}
-                        onPress={() => handleSuggestionPress(suggestion.text)}
-                        disabled={isTyping}
-                      />
-                    ))}
-                  </XStack>
-                </YStack>
-              </Animated.View>
-            </YStack>
+                    <Text
+                      fontSize="$1"
+                      fontWeight="500"
+                      color="$color12"
+                      testID={`${testID}-session-date`}
+                    >
+                      {sessionDate || getTodayDate()}
+                    </Text>
+                    <Text
+                      fontSize="$4"
+                      fontWeight="500"
+                      color="$color12"
+                      numberOfLines={2}
+                      testID={`${testID}-session-title`}
+                    >
+                      {sessionTitle || 'New Coaching Session'}
+                    </Text>
+                  </YStack>
+                </XStack>
+              </BlurView>
+            </Pressable>
 
-            {/* Chat Input */}
+            {/* Messages - Extended to top */}
             <YStack
-              opacity={sectionsVisible[3] ? 1 : 0}
+              flex={1}
+              opacity={sectionsVisible[1] ? 1 : 0}
               // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
               // Staggered animation already handles visibility timing
+              //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
             >
-              <ChatInput
-                value={inputMessage}
-                onChange={setInputMessage}
-                onSend={sendMessage}
-                onAttachment={handleAttachment}
-                onVoiceToggle={handleVoiceToggle}
-                onVoiceMode={handleVoiceMode}
-                isListening={isListening}
-                disabled={isTyping}
-                placeholder="Message your coach"
-                testID={`${testID}-input`}
+              <AnimatedFlatList
+                ref={flatListRef}
+                data={reversedMessages}
+                keyExtractor={keyExtractor}
+                renderItem={renderMessageItem}
+                ListHeaderComponent={
+                  isTyping ? (
+                    <XStack
+                      justifyContent="flex-start"
+                      marginBottom="$4"
+                    >
+                      <TypingIndicator />
+                    </XStack>
+                  ) : null
+                }
+                contentContainerStyle={{
+                  paddingTop: 16, // $4 = 16px (bottom padding when inverted)
+                  paddingHorizontal: 24, // $6 = 24px
+                  paddingBottom: insets.top + APP_HEADER_HEIGHT + 116, // Top padding when inverted
+                }}
+                style={{ flex: 1 }}
+                testID={`${testID}-messages`}
+                inverted={true}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
               />
             </YStack>
 
-            {/* Helper Text */}
-            {/* <XStack justifyContent="center">
+            {/* Input Area */}
+            <YStack
+              marginHorizontal="$0.5"
+              paddingHorizontal="$4"
+              gap="$0"
+              paddingBottom={
+                isKeyboardVisible
+                  ? 0
+                  : hasBottomNavigation
+                    ? BOTTOM_TAB_BAR_HEIGHT
+                    : sessionId
+                      ? bottomInset
+                      : 0
+              }
+              backgroundColor="$color3"
+              borderTopLeftRadius="$9"
+              borderTopRightRadius="$9"
+              testID={`${testID}-input-area`}
+            >
+              {/* Suggestions */}
+              <YStack
+                opacity={sectionsVisible[2] ? 1 : 0}
+                // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                // Staggered animation already handles visibility timing
+                testID={`${testID}-suggestions`}
+              >
+                {/* Suggestions Header */}
+                <XStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Button
+                    onPress={toggleSuggestions}
+                    onPressIn={() => setIsSuggestionsButtonPressed(true)}
+                    onPressOut={() => setIsSuggestionsButtonPressed(false)}
+                    chromeless
+                    size="$5"
+                    flex={1}
+                    justifyContent="space-between"
+                    alignItems="center"
+                    paddingHorizontal="$4"
+                    color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
+                    opacity={isSuggestionsButtonPressed ? 1 : 0.8}
+                    iconAfter={showSuggestions ? ChevronDown : ChevronUp}
+                    accessibilityLabel={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
+                    testID={`${testID}-toggle-suggestions`}
+                    // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                    scale={1}
+                    hoverStyle={TOGGLE_BUTTON_HOVER_STYLE}
+                    pressStyle={TOGGLE_BUTTON_PRESS_STYLE}
+                  >
+                    <Text
+                      fontSize="$3"
+                      color={isSuggestionsButtonPressed ? '$color11' : '$color12'}
+                    >
+                      Suggestions
+                    </Text>
+                  </Button>
+                </XStack>
+
+                {/* Suggestions List - Reanimated slide animation */}
+                <Animated.View style={suggestionsAnimatedStyle}>
+                  <YStack
+                    overflow="hidden"
+                    paddingTop="$0"
+                    marginBottom="$2"
+                  >
+                    <XStack
+                      gap="$2"
+                      flexWrap="wrap"
+                    >
+                      {SUGGESTIONS.map((suggestion, index) => (
+                        <SuggestionChip
+                          key={index}
+                          icon={suggestion.icon}
+                          text={suggestion.text}
+                          category={suggestion.category}
+                          onPress={() => handleSuggestionPress(suggestion.text)}
+                          disabled={isTyping}
+                        />
+                      ))}
+                    </XStack>
+                  </YStack>
+                </Animated.View>
+              </YStack>
+
+              {/* Chat Input */}
+              <YStack
+                opacity={sectionsVisible[3] ? 1 : 0}
+                // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                // Staggered animation already handles visibility timing
+              >
+                <ChatInput
+                  value={inputMessage}
+                  onChange={setInputMessage}
+                  onSend={sendMessage}
+                  onAttachment={handleAttachment}
+                  onVoiceToggle={handleVoiceToggle}
+                  onVoiceMode={handleVoiceMode}
+                  isListening={isListening}
+                  disabled={isTyping}
+                  placeholder="Message your coach"
+                  onFocus={handleChatInputFocus}
+                  testID={`${testID}-input`}
+                />
+              </YStack>
+
+              {/* Helper Text */}
+              {/* <XStack justifyContent="center">
               <Text
                 fontSize="$2"
                 color="rgba(255,255,255,0.4)"
@@ -653,8 +703,9 @@ export function CoachScreen({
                 Press Enter to send • Shift+Enter for new line • Headphones for voice mode
               </Text>
             </XStack> */}
+            </YStack>
           </YStack>
-        </YStack>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GlassBackground>
   )

@@ -1,7 +1,6 @@
 import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { log } from '@my/logging'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { Dimensions } from 'react-native'
 import {
   Camera,
   useCameraDevice,
@@ -37,7 +36,6 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
   ) => {
     const cameraRef = useRef<Camera>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
-    const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
     const [isInitialized, setIsInitialized] = useState(false)
     const [isCameraReady, setIsCameraReady] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
@@ -439,18 +437,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     }
 
     // Handle device orientation changes
-    useEffect(() => {
-      const updateOrientation = ({ window }: { window: { width: number; height: number } }) => {
-        const { width, height } = window
-        const newOrientation = width > height ? 'landscape' : 'portrait'
-        setOrientation(newOrientation)
-      }
-
-      const subscription = Dimensions.addEventListener('change', updateOrientation)
-      updateOrientation({ window: Dimensions.get('window') })
-
-      return () => subscription?.remove()
-    }, [])
+    // Removed orientation tracking - only used in commented-out debug overlay
 
     // Handle permission changes
     useEffect(() => {
@@ -583,15 +570,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           onError={handleCameraError}
         />
 
-        {/* Background image overlay for simulator testing */}
-        <CameraBackground
-          imageSource={backgroundImage}
-          opacity={backgroundOpacity}
-          simulatorOnly={true}
-        />
-
         {/* Recording indicator overlay */}
-        {isRecording && (
+        {/* {isRecording && (
           <YStack
             position="absolute"
             top={16}
@@ -610,10 +590,10 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
               ● REC
             </SizableText>
           </YStack>
-        )}
+        )} */}
 
         {/* Camera info overlay */}
-        <YStack
+        {/* <YStack
           position="absolute"
           top={16}
           left={16}
@@ -630,7 +610,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           >
             {device.name} • {orientation.toUpperCase()}
           </SizableText>
-        </YStack>
+        </YStack> */}
 
         {/* Children overlay (controls, etc.) */}
         {children}

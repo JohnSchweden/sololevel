@@ -46,12 +46,13 @@ jest.mock('@my/ui', () => ({
       maxLength={maxLength}
     />
   ),
-  ConfirmDialog: ({ open, title, description, children }: any) =>
-    open ? (
-      <div data-testid="confirm-dialog">
+  ConfirmDialog: ({ visible, title, message, confirmLabel, onConfirm, onCancel, testID }: any) =>
+    visible ? (
+      <div data-testid={testID || 'confirm-dialog'}>
         <div>{title}</div>
-        <div>{description}</div>
-        {children}
+        <div>{message}</div>
+        <button onClick={onConfirm}>{confirmLabel || 'OK'}</button>
+        <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
   GlassButton: ({ children, onPress, disabled, ...props }: any) => (
@@ -89,9 +90,23 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Send: () => 'Send',
 }))
 
+// Mock safe area hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => <div>{children}</div>,
+}))
+
+// Mock react-native
+jest.mock('react-native', () => ({
+  KeyboardAvoidingView: ({ children }: any) => <div>{children}</div>,
+  Platform: {
+    OS: 'web',
+    select: jest.fn(),
+  },
 }))
 
 // Mock navigation hooks

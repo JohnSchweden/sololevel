@@ -18,7 +18,7 @@ export interface CameraBackgroundProps {
 /**
  * Camera Background Component
  * Provides background image overlay for camera recording
- * Useful for iOS simulator testing with static background images
+ * Only visible when camera is unavailable (showOnError=true) and on simulator
  *
  * Memoized to prevent unnecessary re-renders from parent updates
  */
@@ -27,27 +27,22 @@ export const CameraBackground = React.memo(function CameraBackground({
   opacity = 0.2,
   resizeMode = 'cover',
   simulatorOnly = true,
-  showOnError: _showOnError = false,
+  showOnError = false,
 }: CameraBackgroundProps) {
   // Don't render if no image source provided
   if (!imageSource) {
     return null
   }
 
-  // On simulator only mode, check if we're in a simulator environment
-  if (simulatorOnly && Platform.OS === 'ios') {
-    // In iOS simulator, we can detect this by checking if we have camera permissions
-    // or by checking the device model (simulators have specific device names)
-    // For now, we'll always show on iOS as it's most likely simulator usage
-  } else if (simulatorOnly && Platform.OS !== 'ios') {
-    // Don't show background on non-iOS platforms in simulator-only mode
+  // Only show background when showOnError is true (camera unavailable state)
+  if (!showOnError) {
     return null
   }
 
-  // Note: showOnError parameter is used by parent components to control when to show background
-  // Currently always shown when simulatorOnly is true on iOS
-  // This parameter is available for future use when needed
-  // Removed per-render logging to reduce noise
+  // On simulator only mode, only show in development (simulator) on iOS
+  if (simulatorOnly && (Platform.OS !== 'ios' || !__DEV__)) {
+    return null
+  }
 
   return (
     <YStack

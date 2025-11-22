@@ -18,6 +18,11 @@ const ANIMATION_DURATIONS = {
   lazy: 400,
 } as const
 
+// Module-level cache for the last valid top inset to prevent jumps on screen transitions
+// This ensures we can immediately render with the correct inset even if the new screen
+// receives a 0 inset initially (common during navigation on some devices)
+let globalLastValidTopInset: number | null = null
+
 /**
  * Custom header options extended onto React Navigation options
  */
@@ -281,12 +286,25 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
    * Top inset (stable to prevent layout shifts)
    * On iOS and Android, we keep a stable top inset to avoid header jumping when status bar toggles.
    * We capture the initial top inset value and maintain it even when status bar is hidden.
+   *
+   * FIX: Use global cache to prevent initial 0-inset overlap on new screens
    */
-  const topInsetRef = useRef<number | null>(null)
+  const topInsetRef = useRef<number | null>(globalLastValidTopInset)
+
+  // Update ref and global cache if we have a valid positive inset
+  // This handles initialization (0 -> 47) and rotation (47 -> 20)
+  // It effectively ignores 0 (status bar hidden) to prevent layout jumps
+  if (insets.top > 0 && topInsetRef.current !== insets.top) {
+    topInsetRef.current = insets.top
+    globalLastValidTopInset = insets.top
+  }
+
+  // Fallback for initialization if global cache is empty
   if (topInsetRef.current === null) {
     topInsetRef.current = Math.max(insets.top, 0)
   }
-  const topInset = topInsetRef.current
+
+  const topInset = topInsetRef.current ?? 0
 
   /**
    * Extract options-derived values

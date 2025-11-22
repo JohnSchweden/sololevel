@@ -20,10 +20,13 @@ export function BottomNavigationContainer({
 }) {
   const insets = useSafeAreaInsets()
 
+  // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
+  const bottomInset = useMemo(() => Math.max(0, insets.bottom - 12), [insets.bottom])
+
   // Platform-specific height: Android uses 52px, iOS uses 72px
   const containerHeight = useMemo(
-    () => (Platform.OS === 'android' ? 52 : 22) + insets.bottom,
-    [insets.bottom]
+    () => (Platform.OS === 'android' ? 52 : 52) + bottomInset,
+    [bottomInset]
   )
 
   // Memoize BlurView style to prevent re-creation on every render
@@ -31,12 +34,12 @@ export function BottomNavigationContainer({
   const blurViewStyle = useMemo(
     () => ({
       flex: 1,
-      paddingBottom: insets.bottom,
+      paddingBottom: bottomInset,
       paddingHorizontal: 16, // equivalent to $4
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
     }),
-    [insets.bottom]
+    [bottomInset]
   )
 
   // iOS: Use MaskedView + BlurView (works correctly)

@@ -245,6 +245,10 @@ jest.mock('react-native', () => {
       linear: jest.fn(() => jest.fn()),
       ease: jest.fn(() => jest.fn()),
     },
+    Keyboard: {
+      addListener: jest.fn(() => ({ remove: jest.fn() })),
+      dismiss: jest.fn(),
+    },
     View: MockView,
     Text: MockText,
     TouchableOpacity: 'button',

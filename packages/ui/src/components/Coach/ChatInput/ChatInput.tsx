@@ -12,6 +12,7 @@ export interface ChatInputProps {
   isListening?: boolean
   disabled?: boolean
   placeholder?: string
+  onFocus?: () => void
   testID?: string
 }
 
@@ -41,6 +42,7 @@ export const ChatInput = ({
   isListening = false,
   disabled = false,
   placeholder = 'Message your coach',
+  onFocus,
   testID = 'chat-input',
 }: ChatInputProps): React.JSX.Element => {
   const handleKeyPress = (e: any) => {
@@ -84,6 +86,7 @@ export const ChatInput = ({
           value={value}
           onChangeText={onChange}
           onKeyPress={handleKeyPress}
+          onFocus={onFocus}
           placeholder={placeholder}
           disabled={disabled}
           flex={1}
