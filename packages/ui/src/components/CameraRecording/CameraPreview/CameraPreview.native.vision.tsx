@@ -6,7 +6,8 @@ import {
   Camera,
   useCameraDevice,
   useCameraFormat,
-  useFrameProcessor,
+  // POST-MVP: useFrameProcessor removed (pose detection feature)
+  // useFrameProcessor,
 } from 'react-native-vision-camera'
 import { SizableText, YStack } from 'tamagui'
 import { CameraBackground } from '../CameraBackground/CameraBackground'
@@ -129,14 +130,14 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
       }
     }, [])
 
-    // Frame processor for future pose detection integration
-    const frameProcessor = useFrameProcessor((_frame) => {
-      'worklet'
-
-      // Future: This will be used for pose detection
-      // For now, frame processor is empty until pose detection is implemented
-      // Access frame properties: _frame.width, _frame.height, _frame.timestamp, _frame.pixelBuffer
-    }, [])
+    // POST-MVP: Frame processor for pose detection integration
+    // See: docs/migration/pose-detection-packages-restoration-checklist.md
+    // Note: react-native-worklets-core removed - frame processor disabled
+    // const frameProcessor = useFrameProcessor((_frame) => {
+    //   'worklet'
+    //   // Future: This will be used for pose detection
+    //   // Access frame properties: _frame.width, _frame.height, _frame.timestamp, _frame.pixelBuffer
+    // }, [])
 
     // Helper function to check if camera is ready
     const checkCameraReady = (): boolean => {
@@ -576,7 +577,8 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
           video={true}
           audio={true}
           zoom={currentZoomLevel}
-          frameProcessor={frameProcessor}
+          // POST-MVP: frameProcessor disabled (pose detection feature removed)
+          // frameProcessor={frameProcessor}
           onInitialized={handleCameraInitialized}
           onError={handleCameraError}
         />

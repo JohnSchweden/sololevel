@@ -36,7 +36,7 @@ module.exports = (api) => {
           disableExtraction: false,
         },
       ],
-      'react-native-worklets-core/plugin',
+      // POST-MVP: react-native-worklets-core/plugin removed (pose detection feature)
       'react-native-reanimated/plugin',
     ],
   }

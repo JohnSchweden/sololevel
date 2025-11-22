@@ -441,15 +441,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }))
 
-// Mock react-native-worklets-core BEFORE reanimated
-jest.mock('react-native-worklets-core', () => ({
-  Worklets: {
-    createRunInJsFn: jest.fn(),
-    createSharedValue: jest.fn(),
-    runOnUI: jest.fn(),
-  },
-  useSharedValue: jest.fn(),
-}))
+// POST-MVP: react-native-worklets-core mock removed (pose detection feature)
+// jest.mock('react-native-worklets-core', () => ({
+//   Worklets: {
+//     createRunInJsFn: jest.fn(),
+//     createSharedValue: jest.fn(),
+//     runOnUI: jest.fn(),
+//   },
+//   useSharedValue: jest.fn(),
+// }))
 
 // Mock react-native-reanimated with simplified implementation
 jest.mock('react-native-reanimated', () => {

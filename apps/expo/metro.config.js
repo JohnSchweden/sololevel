@@ -101,12 +101,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 }
 config.transformer.minifierPath = require.resolve('metro-minify-terser')
 
-// Add extra node modules resolution for TensorFlow.js and React 19 compatibility
+// Add extra node modules resolution for React 19 compatibility
+// POST-MVP: TensorFlow.js and @mediapipe/pose removed (pose detection feature)
 config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
-  '@mediapipe/pose': require.resolve('@mediapipe/pose', {
-    paths: [path.resolve(projectRoot, 'node_modules')],
-  }),
+  // POST-MVP: @mediapipe/pose removed (pose detection feature)
   // React 19 + Hermes compatibility
   react: path.resolve(workspaceRoot, 'node_modules/react'),
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),

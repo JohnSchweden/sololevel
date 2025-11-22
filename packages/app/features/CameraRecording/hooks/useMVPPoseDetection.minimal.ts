@@ -1,3 +1,8 @@
+/**
+ * POST-MVP: Pose detection hooks - see restoration checklist
+ * See: docs/migration/pose-detection-packages-restoration-checklist.md
+ */
+
 // Use logger instead of console
 import { log } from '@my/logging'
 

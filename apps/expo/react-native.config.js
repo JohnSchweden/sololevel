@@ -1,16 +1,19 @@
 /**
  * React Native configuration for Expo
  * Excludes post-MVP packages from autolinking
+ *
+ * POST-MVP: react-native-video-processing removed (pose detection feature)
+ * This exclusion is kept for reference but package is no longer in dependencies
  */
 module.exports = {
   dependencies: {
-    // Exclude react-native-video-processing from autolinking (post-MVP feature)
-    // It requires com.yqritc:android-scalablevideoview which is no longer available
-    'react-native-video-processing': {
-      platforms: {
-        android: null, // Disable Android autolinking
-        ios: null, // Disable iOS autolinking
-      },
-    },
+    // POST-MVP: react-native-video-processing removed (pose detection feature)
+    // Exclusion kept for reference - package no longer in dependencies
+    // 'react-native-video-processing': {
+    //   platforms: {
+    //     android: null,
+    //     ios: null,
+    //   },
+    // },
   },
 }

@@ -1,3 +1,7 @@
+/**
+ * POST-MVP: Type definitions preserved for future restoration
+ * See: docs/migration/pose-detection-packages-restoration-checklist.md
+ */
 declare module 'react-native-video-processing' {
   export interface VideoFrameOptions {
     source: string
