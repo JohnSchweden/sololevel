@@ -1,15 +1,18 @@
 import { LinearGradient } from '@tamagui/linear-gradient'
-import React from 'react'
+import React, { useMemo } from 'react'
 
 // Platform-agnostic safe area hook for bottom navigation
+// PERF FIX: Return stable constant object (defined outside component to prevent re-allocation)
+const WEB_SAFE_AREA_INSETS = Object.freeze({
+  top: 0,
+  bottom: 0,
+  left: 0,
+  right: 0,
+})
+
 const useSafeAreaInsets = () => {
   // Default safe area values for cross-platform compatibility
-  return {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  }
+  return WEB_SAFE_AREA_INSETS
 }
 
 /**
@@ -22,7 +25,10 @@ export function BottomNavigationContainer({
 }: {
   children: React.ReactNode
 }) {
+  // PERF FIX: useSafeAreaInsets returns stable constant, no memoization needed
+  // but memoize derived values to prevent recalculation
   const insets = useSafeAreaInsets()
+  const containerHeight = useMemo(() => 72 + insets.bottom, [insets.bottom])
 
   return (
     <LinearGradient
@@ -35,7 +41,7 @@ export function BottomNavigationContainer({
       left={0}
       right={0}
       paddingBottom={insets.bottom}
-      height={72 + insets.bottom}
+      height={containerHeight}
       paddingHorizontal="$4"
       alignItems="center"
       justifyContent="space-between"

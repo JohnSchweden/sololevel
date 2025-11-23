@@ -1,5 +1,6 @@
 import { Check, Edit3, X } from '@tamagui/lucide-icons'
 import React from 'react'
+import { Platform, StatusBar } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Input, Text, XStack, YStack } from 'tamagui'
 
@@ -34,10 +35,27 @@ export function VideoTitle({
     }
   }, [title])
 
-  // Calculate header height: safe area top inset + AppHeader height (44px) + custom padding
+  // Calculate header height: status bar + AppHeader height (44px) + spacing
+  // Match NavigationAppHeader logic: topInset (status bar) + AppHeader (44px)
+  // Use StatusBar.currentHeight as fallback when insets.top is 0 (older phones, initialization)
   const APP_HEADER_HEIGHT = 44
-  const CUSTOM_PADDING_TOP = 0 // Custom spacing below header
-  const headerOffset = insets.top + APP_HEADER_HEIGHT + CUSTOM_PADDING_TOP
+  const MIN_SPACING = 0 // Minimum spacing below header to prevent overlap
+
+  // Get status bar height: use insets.top (includes status bar on iOS), fallback to StatusBar API
+  // On older phones, insets.top might be 0 but status bar still exists (20px on iPhone SE/8)
+  const statusBarHeight = React.useMemo(() => {
+    if (insets.top > 0) {
+      return insets.top
+    }
+    // Fallback: use StatusBar.currentHeight (Android) or default iOS status bar height
+    if (Platform.OS === 'android' && StatusBar.currentHeight) {
+      return StatusBar.currentHeight
+    }
+    // Default iOS status bar height for older phones (iPhone SE, iPhone 8, etc.)
+    return Platform.OS === 'ios' ? 20 : 0
+  }, [insets.top])
+
+  const headerOffset = statusBarHeight + APP_HEADER_HEIGHT + MIN_SPACING
 
   const handleStartEdit = () => {
     if (isEditable && !isGenerating) {

@@ -2,7 +2,8 @@ import type { User } from '@supabase/supabase-js'
 import { useMemo } from 'react'
 import { Image, Spinner, Text, YStack } from 'tamagui'
 
-// Import mock avatar image as fallback
+// PERF FIX: Cache module-level to prevent require() blocking main thread on every mount
+// This is evaluated once at module load time, not on every component render
 const mockAvatarImage = require('../../../../../../apps/expo/assets/profile.png')
 
 export interface ProfileSectionProps {

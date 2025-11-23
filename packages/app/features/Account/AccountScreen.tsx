@@ -8,7 +8,8 @@ import {
 } from '@my/ui'
 import { Lock, Mail, Shield, Trash2, User as UserIcon } from '@tamagui/lucide-icons'
 import type { ReactElement } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useMemo } from 'react'
+import { View } from 'react-native'
 import { ScrollView, YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
 
@@ -94,8 +95,16 @@ export function AccountScreen({
   onToggle2FA,
   testID = 'account-screen',
 }: AccountScreenProps): ReactElement {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
 
   // Get auth state from store (fallback if props not provided)
   const { user: authUser, loading: authLoading } = useAuthStore()
@@ -122,16 +131,13 @@ export function AccountScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['bottom']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <ScrollView flex={1}>
           <YStack
             paddingTop={insets.top + APP_HEADER_HEIGHT}
             paddingHorizontal="$4"
             gap="$6"
-            paddingBottom="$6"
+            paddingBottom={insets.bottom + 24}
           >
             <YStack marginBottom="$4">
               <ProfileSection
@@ -228,7 +234,7 @@ export function AccountScreen({
             )}
           </YStack>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

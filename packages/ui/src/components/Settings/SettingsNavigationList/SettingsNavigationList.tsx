@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { YStack } from 'tamagui'
 import { SettingsListItem } from '../SettingsListItem'
 
@@ -63,6 +64,18 @@ export function SettingsNavigationList({
   onNavigate,
   testID = 'settings-navigation-list',
 }: SettingsNavigationListProps): React.ReactElement {
+  // PERF FIX: Memoize item handlers to prevent creating new functions on every render
+  // Create a map of handlers keyed by route so each item gets a stable handler reference
+  const itemHandlers = useMemo(() => {
+    const handlers = new Map<string, () => void>()
+    items.forEach((item) => {
+      handlers.set(item.route, () => {
+        onNavigate(item.route)
+      })
+    })
+    return handlers
+  }, [items, onNavigate])
+
   return (
     <YStack
       paddingHorizontal="$4"
@@ -73,7 +86,7 @@ export function SettingsNavigationList({
         <SettingsListItem
           key={item.id}
           label={item.label}
-          onPress={() => onNavigate(item.route)}
+          onPress={itemHandlers.get(item.route)!}
           disabled={item.disabled}
           testID={`${testID}-item-${item.id}`}
         />

@@ -1,4 +1,5 @@
 import { Download, FileDown, Gauge, Settings, Share } from '@tamagui/lucide-icons'
+import { memo } from 'react'
 import { BlurView } from '../../BlurView/BlurView'
 
 import { Button } from '@ui/components/Button'
@@ -21,7 +22,7 @@ export interface VideoSettingsSheetProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function VideoSettingsSheet({
+export const VideoSettingsSheet = memo(function VideoSettingsSheet({
   open,
   onOpenChange,
 }: VideoSettingsSheetProps): React.ReactElement {
@@ -46,7 +47,7 @@ export function VideoSettingsSheet({
         borderTopRightRadius="$6"
       >
         <BlurView
-          intensity={35}
+          intensity={30}
           tint="dark"
           style={BOTTOM_SHEET_BLUR_STYLE}
         />
@@ -336,4 +337,4 @@ export function VideoSettingsSheet({
       </Sheet.Frame>
     </Sheet>
   )
-}
+})

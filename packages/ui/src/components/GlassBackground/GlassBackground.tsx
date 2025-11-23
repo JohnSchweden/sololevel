@@ -1,8 +1,6 @@
+import { LinearGradient } from '@tamagui/linear-gradient'
 import React, { type ComponentProps } from 'react'
 import { Image, YStack, type YStackProps } from 'tamagui'
-
-// Cache default image source to prevent require() on every render
-const DEFAULT_GLASS_GRADIENT = require('../../../../../apps/expo/assets/glass-gradient-square.png')
 
 export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
   /**
@@ -12,12 +10,12 @@ export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
 
   /**
    * Background image source
-   * @default glass-gradient.png from expo assets
+   * @default undefined - uses code-generated gradient
    */
   source?: ComponentProps<typeof Image>['source']
 
   /**
-   * Resize mode for the background image
+   * Resize mode for the background image (only used if source is provided)
    * @default 'stretch'
    */
   resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center'
@@ -31,8 +29,8 @@ export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
 /**
  * Glass Background Component
  *
- * Provides a glassmorphic background effect using an image gradient.
- * Wraps content in an ImageBackground with configurable styling.
+ * Provides a glassmorphic background effect using a LinearGradient or Image.
+ * Wraps content in a YStack with configurable styling.
  *
  * @example
  * ```tsx
@@ -40,17 +38,6 @@ export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
  *   <YStack padding="$4">
  *     <Text>Content with glass effect</Text>
  *   </YStack>
- * </GlassBackground>
- * ```
- *
- * @example With custom source
- * ```tsx
- * <GlassBackground
- *   source={customGradient}
- *   resizeMode="cover"
- *   backgroundColor="$color3"
- * >
- *   <Content />
  * </GlassBackground>
  * ```
  */
@@ -62,20 +49,58 @@ export const GlassBackground = React.memo(function GlassBackground({
   testID = 'glass-background',
   ...stackProps
 }: GlassBackgroundProps): React.ReactElement {
-  // Use cached default source - prevents require() call on every render
-  const imageSource = source || DEFAULT_GLASS_GRADIENT
+  // If source is provided, use Image (legacy/custom behavior)
+  if (source) {
+    return (
+      <YStack
+        flex={1}
+        position="relative"
+        overflow="hidden"
+        testID={testID}
+        {...stackProps}
+      >
+        {/* <Image
+          source={source}
+          resizeMode={resizeMode}
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          width="100%"
+          height="100%"
+          testID={`${testID}-image`}
+        /> */}
+        {children}
+      </YStack>
+    )
+  }
 
+  // Default: Code-generated gradient matching glass-gradient-square.png
   return (
     <YStack
       flex={1}
       position="relative"
       overflow="hidden"
+      borderWidth={0}
+      borderColor="rgba(255, 255, 255, 0.35)"
+      borderTopColor="rgba(255, 255, 255, 0.35)"
+      borderBottomColor="rgba(255, 255, 255, 0.15)"
+      borderLeftColor="rgba(255, 255, 255, 0.25)"
+      borderRightColor="rgba(255, 255, 255, 0.25)"
+      // Strong shadow for depth
+      shadowColor="#000"
+      shadowOffset={{ width: 0, height: 8 }}
+      shadowOpacity={0.35}
+      shadowRadius={20}
       testID={testID}
       {...stackProps}
     >
-      <Image
-        source={imageSource}
-        resizeMode={resizeMode}
+      <LinearGradient
+        // Stronger top-to-bottom fade (22% -> 1%) to match the asset's contrast
+        colors={['rgba(255, 255, 255, 0.22)', 'rgba(4, 4, 4, 0.24)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         position="absolute"
         top={0}
         left={0}
@@ -83,7 +108,45 @@ export const GlassBackground = React.memo(function GlassBackground({
         bottom={0}
         width="100%"
         height="100%"
-        testID={`${testID}-image`}
+        testID={`${testID}-gradient`}
+      />
+
+      {/* Inner Glow: Left (Dark) -> Right (Light) */}
+      <LinearGradient
+        colors={[
+          'rgba(0, 0, 0, 0.1)', // Softer dark shadow left
+          'transparent',
+          'transparent',
+          'rgba(255, 255, 255, 0.035)', // Softer light shadow right
+        ]}
+        locations={[0, 0.1, 0.9, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        pointerEvents="none"
+      />
+
+      {/* Inner Glow: Top (Dark) -> Bottom (Light) */}
+      <LinearGradient
+        colors={[
+          'rgba(0, 0, 0, 0.1)', // Softer dark shadow top
+          'transparent',
+          'transparent',
+          'rgba(255, 255, 255, 0.025)', // Softer light shadow bottom
+        ]}
+        locations={[0, 0.08, 0.92, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        pointerEvents="none"
       />
       {children}
     </YStack>

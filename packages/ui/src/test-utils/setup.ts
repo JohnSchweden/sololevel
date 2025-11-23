@@ -215,6 +215,20 @@ jest.mock('react-native', () => {
   const MockText = (props: any) => React.createElement('span', props, props.children)
   const MockScrollView = (props: any) => React.createElement('div', props, props.children)
   const MockSafeAreaView = (props: any) => React.createElement('div', props, props.children)
+  const MockFlatList = (props: any) => {
+    const { data, renderItem, keyExtractor, testID, ...rest } = props
+    // In test environment, render all items (no virtualization)
+    const items = data || []
+    return React.createElement(
+      'div',
+      { ...rest, 'data-testid': testID },
+      items.map((item: any, index: number) => {
+        const key = keyExtractor ? keyExtractor(item, index) : index
+        const element = renderItem ? renderItem({ item, index }) : null
+        return React.createElement(React.Fragment, { key }, element)
+      })
+    )
+  }
   const MockImageBackground = (props: any) =>
     React.createElement(
       'div',
@@ -254,7 +268,7 @@ jest.mock('react-native', () => {
     TouchableOpacity: 'button',
     Pressable: MockPressable,
     ScrollView: MockScrollView,
-    FlatList: 'div',
+    FlatList: MockFlatList,
     Image: 'img',
     ImageBackground: MockImageBackground,
     TextInput: 'input',
@@ -528,6 +542,32 @@ jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn(),
 }))
 
+// Mock expo-image
+jest.mock('expo-image', () => {
+  const React = require('react')
+  return {
+    Image: React.forwardRef((props: any, ref: any) => {
+      const { source, onLoad, onError, testID, ...rest } = props
+      // Simulate image loading
+      React.useEffect(() => {
+        if (source && onLoad) {
+          // Simulate successful load after a tick
+          setTimeout(() => {
+            onLoad?.()
+          }, 0)
+        }
+      }, [source, onLoad])
+      return React.createElement('img', {
+        ...rest,
+        ref,
+        src: typeof source === 'string' ? source : source?.uri || '',
+        'data-testid': testID || 'expo-image',
+        alt: props.accessibilityLabel,
+      })
+    }),
+  }
+})
+
 // Mock expo-blur (manual mock in __mocks__/expo-blur.tsx)
 jest.mock('expo-blur')
 
@@ -706,6 +746,16 @@ jest.mock('@app/hooks', () => {
     ...(actual as Record<string, unknown>),
   }
 })
+
+// Mock @app/provider/safe-area/use-safe-area for UI component tests
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  }),
+}))
 
 // Global test configuration
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { GlassBackground } from '@my/ui'
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type { RefObject } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
@@ -212,6 +212,9 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
     videoUri,
   } = props
 
+  // PERF FIX: Memoize GestureHandlerRootView style to prevent inline object re-creation
+  const gestureRootStyle = useMemo(() => ({ flex: 1 as const }), [])
+
   // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
   // Eliminates prop drilling and prevents VideoAnalysisLayout re-renders on playback state changes
   // GATE: Only read displayTime after meaningful playback has started to avoid 0 → 6.133 flip
@@ -329,7 +332,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   // When feedback scroll is disabled, that indicates a gesture is active and animations are happening
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={gestureRootStyle}>
       <GlassBackground
         flex={1}
         backgroundColor="$color3"

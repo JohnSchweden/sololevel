@@ -272,6 +272,8 @@ jest.mock('tamagui', () => {
         { 'data-testid': testID, style: { display: 'flex', flexDirection: 'column' }, ...props },
         children
       ),
+    View: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID, ...props }, children),
     AnimatePresence: ({ children }: any) => React.createElement(React.Fragment, {}, children),
   }
 })

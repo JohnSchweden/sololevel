@@ -1,4 +1,5 @@
 import { Copy, Link, Mail } from '@tamagui/lucide-icons'
+import { memo } from 'react'
 import { BlurView } from '../../BlurView/BlurView'
 
 import { Button } from '@ui/components/Button'
@@ -21,7 +22,10 @@ export interface ShareSheetProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function ShareSheet({ open, onOpenChange }: ShareSheetProps): React.ReactElement {
+export const ShareSheet = memo(function ShareSheet({
+  open,
+  onOpenChange,
+}: ShareSheetProps): React.ReactElement {
   return (
     <Sheet
       modal
@@ -43,7 +47,7 @@ export function ShareSheet({ open, onOpenChange }: ShareSheetProps): React.React
         borderTopRightRadius="$6"
       >
         <BlurView
-          intensity={35}
+          intensity={30}
           tint="dark"
           style={BOTTOM_SHEET_BLUR_STYLE}
         />
@@ -229,4 +233,4 @@ export function ShareSheet({ open, onOpenChange }: ShareSheetProps): React.React
       </Sheet.Frame>
     </Sheet>
   )
-}
+})

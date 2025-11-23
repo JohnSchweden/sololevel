@@ -1,11 +1,11 @@
 import React from 'react'
-import { Button, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui'
+import { FlatList, type ViewToken } from 'react-native'
+import { Button, Spinner, Text, View, XStack, YStack } from 'tamagui'
 import { VideoThumbnailCard } from '../VideoThumbnailCard'
 
 // Stable style objects to prevent unnecessary re-renders
 const BUTTON_PRESS_STYLE = { opacity: 0.7 } as const
 const RETRY_BUTTON_PRESS_STYLE = { opacity: 0.7, scale: 0.95 } as const
-const SCROLL_CONTENT_STYLE = { paddingRight: 0 } as const
 
 export interface VideosSectionProps {
   /**
@@ -61,13 +61,15 @@ export interface VideosSectionProps {
  * Videos section component with header and horizontal thumbnail gallery
  *
  * Displays section header with "Videos" title and "See all" link button.
- * Shows horizontal scrollable row of video thumbnails.
+ * Shows horizontal scrollable row of video thumbnails with lazy loading.
  * Includes empty, loading, and error states.
  *
- * Scroll Behavior:
- * - Tracks visible items during scroll with 150ms debounced updates
- * - Calls onVisibleItemsChange during active scrolling for prefetching
- * - Optimized to prevent excessive parent re-renders while enabling real-time prefetch
+ * Performance Optimizations:
+ * - Uses FlatList for virtualization (only renders visible items + buffer)
+ * - Implements getItemLayout for O(1) scroll performance
+ * - Uses onViewableItemsChanged for optimized visibility tracking
+ * - Memoized renderItem and keyExtractor to prevent re-renders
+ * - Small windowSize (3) for memory efficiency with horizontal lists
  *
  * Note: Caller should limit the videos array size (typically 10 or fewer).
  *
@@ -93,31 +95,80 @@ export function VideosSection({
   onVisibleItemsChange,
   testID = 'videos-section',
 }: VideosSectionProps): React.ReactElement {
-  // CRITICAL FIX: Track scroll position in ref instead of state
-  // setState during scroll was triggering parent re-renders every 100ms
-  // Use ref to track indices, notify parent during scroll (debounced) AND on scroll end
-  const initialVisible = Math.min(3, videos.length)
-  const visibleIndicesRef = React.useRef<number[]>(
-    Array.from({ length: initialVisible }, (_, i) => i)
-  )
-  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const hasInitializedRef = React.useRef(false)
+  // Thumbnail dimensions (matches VideoThumbnailCard default)
+  const THUMBNAIL_WIDTH = 100
+  const THUMBNAIL_GAP = 8 // $2 = 8px
+  const ITEM_WIDTH = THUMBNAIL_WIDTH + THUMBNAIL_GAP
 
-  // Notify parent of visible items on mount only
-  // Scroll events handled separately with debouncing for prefetch performance
+  // Viewability config for FlatList
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50, // Item considered visible if 50% shown
+    minimumViewTime: 100, // Minimum time to be considered viewable (debouncing)
+  }).current
+
+  // Keep latest callback in ref to ensure stable onViewableItemsChanged can access it
+  const onVisibleItemsChangeRef = React.useRef(onVisibleItemsChange)
   React.useEffect(() => {
-    // On mount, immediately notify with initial visible items
-    if (!hasInitializedRef.current && visibleIndicesRef.current.length > 0) {
-      hasInitializedRef.current = true
-      const visibleItems = visibleIndicesRef.current.map((idx) => videos[idx]).filter(Boolean)
-      onVisibleItemsChange?.(visibleItems)
-    }
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
+    onVisibleItemsChangeRef.current = onVisibleItemsChange
+  }, [onVisibleItemsChange])
+
+  // Handle viewable items changed - MUST be a stable reference for FlatList
+  const onViewableItemsChanged = React.useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const callback = onVisibleItemsChangeRef.current
+      if (!callback) return
+
+      const visibleItems = viewableItems
+        .map((token) => token.item as VideosSectionProps['videos'][0])
+        .filter(Boolean)
+
+      if (visibleItems.length > 0) {
+        callback(visibleItems)
       }
     }
-  }, []) // Only run on mount, not on scroll
+  ).current
+
+  // Render item callback - memoized to prevent re-renders
+  const renderItem = React.useCallback(
+    ({ item }: { item: VideosSectionProps['videos'][0] }) => (
+      <VideoThumbnailCard
+        thumbnailUri={item.thumbnailUri}
+        onPress={() => onVideoPress(item.id)}
+        accessibilityLabel={`Video thumbnail, ${item.title}, recorded on ${new Date(
+          item.createdAt
+        ).toLocaleDateString()}`}
+        testID={`${testID}-thumbnail-${item.id}`}
+      />
+    ),
+    [onVideoPress, testID]
+  )
+
+  // Key extractor - memoized
+  const keyExtractor = React.useCallback(
+    (item: VideosSectionProps['videos'][0]) => String(item.id),
+    []
+  )
+
+  // Item separator (gap equivalent)
+  const ItemSeparator = React.useCallback(() => <View width={THUMBNAIL_GAP} />, [])
+
+  // Get item layout for optimization (O(1) scroll performance)
+  const getItemLayout = React.useCallback(
+    (_: any, index: number) => ({
+      length: ITEM_WIDTH,
+      offset: ITEM_WIDTH * index,
+      index,
+    }),
+    []
+  )
+
+  // Notify parent of initial visible items on mount
+  React.useEffect(() => {
+    if (videos.length > 0 && onVisibleItemsChangeRef.current) {
+      const initialVisible = videos.slice(0, Math.min(3, videos.length))
+      onVisibleItemsChangeRef.current(initialVisible)
+    }
+  }, [videos.length]) // Only run when videos array length changes (initial mount or data load)
 
   return (
     <YStack
@@ -259,73 +310,31 @@ export function VideosSection({
         </YStack>
       )}
 
-      {/* Videos Row - Horizontal Scroll */}
+      {/* Videos Row - Horizontal FlatList with Lazy Loading */}
       {!isLoading && !error && videos.length > 0 && (
-        <ScrollView
+        <FlatList
           horizontal
+          data={videos}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          ItemSeparatorComponent={ItemSeparator}
+          contentContainerStyle={{
+            paddingLeft: 60, // $10 = 40px
+            paddingRight: 16, // $4 = 16px
+          }}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={SCROLL_CONTENT_STYLE}
-          onScroll={(event) => {
-            // Update ref tracking visible items during scroll (no setState)
-            // Calculate visible item indices based on scroll position
-            const contentOffsetX = event.nativeEvent.contentOffset.x
-            const itemWidth = 150 // Approximate thumbnail width + gap
-            const startIdx = Math.floor(contentOffsetX / itemWidth)
-            const visibleCount = 3 // Approximate visible items
-            const indices = Array.from({ length: visibleCount }, (_, i) => startIdx + i).filter(
-              (idx) => idx >= 0 && idx < videos.length
-            )
-            // Store in ref - no setState during scroll
-            visibleIndicesRef.current = indices
-
-            // Debounced update for prefetch during active scroll (150ms delay)
-            // Enables real-time prefetching without excessive parent re-renders
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current)
-            }
-            debounceTimerRef.current = setTimeout(() => {
-              if (visibleIndicesRef.current.length > 0) {
-                const visibleItems = visibleIndicesRef.current
-                  .map((idx) => videos[idx])
-                  .filter(Boolean)
-                onVisibleItemsChange?.(visibleItems)
-              }
-            }, 150) // 150ms debounce - frequent enough for prefetch, not too chatty
-          }}
-          onScrollEndDrag={() => {
-            // Final update after scroll ends (clears any pending debounced updates)
-            // Ensures parent has latest visible items for final positioning
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current)
-            }
-            if (visibleIndicesRef.current.length > 0) {
-              const visibleItems = visibleIndicesRef.current
-                .map((idx) => videos[idx])
-                .filter(Boolean)
-              onVisibleItemsChange?.(visibleItems)
-            }
-          }}
-          scrollEventThrottle={100}
-          testID={`${testID}-scroll`}
-        >
-          <XStack
-            gap="$2"
-            paddingLeft="$10"
-            paddingRight="$4"
-          >
-            {videos.map((video) => (
-              <VideoThumbnailCard
-                key={video.id}
-                thumbnailUri={video.thumbnailUri}
-                onPress={() => onVideoPress(video.id)}
-                accessibilityLabel={`Video thumbnail, ${video.title}, recorded on ${new Date(
-                  video.createdAt
-                ).toLocaleDateString()}`}
-                testID={`${testID}-thumbnail-${video.id}`}
-              />
-            ))}
-          </XStack>
-        </ScrollView>
+          // Virtualization & Performance Props
+          initialNumToRender={3} // Render visible items + 1 buffer
+          maxToRenderPerBatch={2} // Small batch size for horizontal lists
+          windowSize={3} // Reduced window size for memory efficiency (default 21 is too large)
+          getItemLayout={getItemLayout} // O(1) scroll performance
+          // Viewability for Prefetching
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          // Remove clipping to ensure shadows/elevations are visible if any
+          removeClippedSubviews={false} // Horizontal lists on Android sometimes have issues with this true
+          testID={`${testID}-flatlist`}
+        />
       )}
     </YStack>
   )

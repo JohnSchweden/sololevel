@@ -43,10 +43,10 @@ export function SettingsFooter({
 
   return (
     <YStack
-      position="absolute"
-      bottom={0}
-      left={36}
-      right={36}
+      // position="absolute"
+      // bottom={0}
+      // left={36}
+      // right={36}
       paddingVertical="$2"
       paddingHorizontal="$4"
       testID={testID}

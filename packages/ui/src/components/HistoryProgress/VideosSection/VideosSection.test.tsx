@@ -124,7 +124,7 @@ describe('VideosSection', () => {
       expect(queryByTestId('videos-section-thumbnail-2')).toBeNull()
     })
 
-    it('should render horizontal ScrollView', () => {
+    it('should render horizontal FlatList', () => {
       // ARRANGE & ACT: Render with videos
       const { getByTestId } = renderWithProvider(
         <VideosSection
@@ -134,8 +134,8 @@ describe('VideosSection', () => {
         />
       )
 
-      // ASSERT: ScrollView exists
-      expect(getByTestId('videos-section-scroll')).toBeTruthy()
+      // ASSERT: FlatList exists
+      expect(getByTestId('videos-section-flatlist')).toBeTruthy()
     })
   })
 
@@ -168,7 +168,7 @@ describe('VideosSection', () => {
       )
 
       // ASSERT: No thumbnails rendered
-      expect(queryByTestId('videos-section-scroll')).toBeNull()
+      expect(queryByTestId('videos-section-flatlist')).toBeNull()
     })
   })
 

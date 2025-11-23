@@ -2,7 +2,7 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { log } from '@my/logging'
 import * as FileSystem from 'expo-file-system'
 import React from 'react'
-import { Platform } from 'react-native'
+import { InteractionManager, Platform } from 'react-native'
 import { resolveHistoricalVideoUri } from '../../VideoAnalysis/hooks/useHistoricalAnalysis'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 import { getCachedThumbnailPath, persistThumbnailFile } from '../utils/thumbnailCache'
@@ -112,6 +112,7 @@ export function usePrefetchNextVideos(
 
   /**
    * Check if thumbnail is already cached on disk
+   * CRITICAL FIX: Defer file I/O to background using InteractionManager
    */
   const isThumbnailCached = React.useCallback(async (videoId: number): Promise<boolean> => {
     if (Platform.OS === 'web') {
@@ -119,11 +120,24 @@ export function usePrefetchNextVideos(
     }
 
     try {
-      const cachedPath = getCachedThumbnailPath(videoId)
-      const fileInfo = await FileSystem.getInfoAsync(cachedPath)
-      return fileInfo.exists
+      // Defer file system checks to idle time (prevents blocking main thread)
+      return new Promise<boolean>((resolve) => {
+        InteractionManager.runAfterInteractions(async () => {
+          try {
+            const cachedPath = getCachedThumbnailPath(videoId)
+            const fileInfo = await FileSystem.getInfoAsync(cachedPath)
+            resolve(fileInfo.exists)
+          } catch (error) {
+            log.warn('usePrefetchNextVideos', 'Failed to check thumbnail cache', {
+              videoId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            resolve(false)
+          }
+        })
+      })
     } catch (error) {
-      log.warn('usePrefetchNextVideos', 'Failed to check thumbnail cache', {
+      log.warn('usePrefetchNextVideos', 'Failed to schedule thumbnail cache check', {
         videoId,
         error: error instanceof Error ? error.message : String(error),
       })

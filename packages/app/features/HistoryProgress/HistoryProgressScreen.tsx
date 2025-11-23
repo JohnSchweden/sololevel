@@ -71,7 +71,12 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   onNavigateToCoachingSession,
   testID = 'history-progress-screen',
 }: HistoryProgressScreenProps): React.ReactElement {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = React.useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Log screen mount
@@ -101,8 +106,17 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   const visibleVideoItemsRef = React.useRef<typeof videos>([])
 
   // Memoize visible items callback to prevent recreation on every render
+  // CRITICAL FIX: Update prefetch ref directly in callback (no polling needed)
   const handleVisibleItemsChange = React.useCallback((items: typeof videos) => {
+    // Store for scroll position tracking
     visibleVideoItemsRef.current = items
+
+    // Update prefetch ref if content actually changed (content-based comparison)
+    const newIds = items.map((v) => v.id).join(',')
+    if (newIds !== prevVisibleIdsRef.current) {
+      prevVisibleIdsRef.current = newIds
+      setVisibleItemsForPrefetch(items)
+    }
   }, [])
 
   // Smart prefetch: prefetch video/thumbnail files to disk
@@ -118,70 +132,13 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     [displayedVideos]
   )
 
-  // Store previous visible items IDs for content-based comparison
-  const prevVisibleIdsRef = React.useRef<string>('')
-  const stableVisibleItemsRef = React.useRef<typeof videos>(initialVisibleItems)
-
-  // Determine visible items for prefetch: use actual visible items if available,
-  // otherwise use first few videos as initial visible (VideosSection initializes with first 3)
-  // CRITICAL FIX: Use ref to store stable reference, state trigger only when content changes
-  // Prevents recalculation on every render - true on-demand pattern with stable references
-  const visibleItemsForPrefetchRef = React.useRef<typeof videos>(initialVisibleItems)
-
-  // State trigger to force memo recalculation only when content actually changes
-  // Value is content hash (IDs), not the array itself - prevents unnecessary updates
-  const [visibleItemsContentHash, setVisibleItemsContentHash] = React.useState<string>(() => {
-    // Initialize with initial visible items hash
-    return initialVisibleItems.map((v) => v.id).join(',')
-  })
-
-  // Update computed value when visible items actually change (content-based comparison)
-  // Polls ref every 500ms to check for changes without blocking render
-  React.useEffect(() => {
-    const checkAndUpdate = () => {
-      const visibleVideoItems = visibleVideoItemsRef.current
-
-      if (visibleVideoItems.length > 0) {
-        // Create stable key from visible items IDs to detect actual content changes
-        const visibleIds = visibleVideoItems.map((v) => v.id).join(',')
-
-        // Only update if IDs actually changed (not just reference)
-        if (visibleIds !== prevVisibleIdsRef.current) {
-          prevVisibleIdsRef.current = visibleIds
-          stableVisibleItemsRef.current = visibleVideoItems
-          visibleItemsForPrefetchRef.current = visibleVideoItems
-          // Update state trigger only when content actually changes (forces memo recalculation)
-          setVisibleItemsContentHash(visibleIds)
-        } else {
-          // Use previous stable reference if content unchanged - no state update needed
-          if (stableVisibleItemsRef.current.length > 0) {
-            visibleItemsForPrefetchRef.current = stableVisibleItemsRef.current
-          }
-        }
-      } else {
-        // On mount before VideosSection reports visible items, use initial slice
-        const initialIds = initialVisibleItems.map((v) => v.id).join(',')
-        if (initialIds !== prevVisibleIdsRef.current) {
-          visibleItemsForPrefetchRef.current = initialVisibleItems
-          prevVisibleIdsRef.current = initialIds
-          setVisibleItemsContentHash(initialIds)
-        }
-      }
-    }
-
-    // Check immediately on mount
-    checkAndUpdate()
-
-    // Poll every 500ms to detect changes from callback updates (non-blocking)
-    const intervalId = setInterval(checkAndUpdate, 500)
-    return () => clearInterval(intervalId)
-  }, [initialVisibleItems])
-
-  // Memoize visible items - stable reference, only recalculates when content hash changes
-  // Returns ref value directly to preserve stable reference across renders
-  const visibleItemsForPrefetch = React.useMemo(() => {
-    return visibleItemsForPrefetchRef.current
-  }, [visibleItemsContentHash]) // Only recalculates when content actually changes
+  // CRITICAL FIX: Removed 500ms polling interval that was causing cascade re-renders
+  // Use pure ref-based callback pattern instead - no setState, no intervals, zero overhead
+  const prevVisibleIdsRef = React.useRef<string>(initialVisibleItems.map((v) => v.id).join(','))
+  // Use state to trigger updates only when visible items actually change
+  // This prevents cascade re-renders from scroll events while ensuring hooks update
+  const [visibleItemsForPrefetch, setVisibleItemsForPrefetch] =
+    React.useState<typeof videos>(initialVisibleItems)
 
   const lastVisibleAnalysisIndex = React.useMemo(() => {
     if (visibleItemsForPrefetch.length === 0) {

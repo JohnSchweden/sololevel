@@ -7,8 +7,8 @@ import {
   SettingsToggleItem,
 } from '@my/ui'
 import { AlertTriangle, Database, Download, LineChart, Trash2 } from '@tamagui/lucide-icons'
-import { useState } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useMemo, useState } from 'react'
+import { View } from 'react-native'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 
 export interface DataControlsScreenProps {
@@ -44,8 +44,16 @@ export function DataControlsScreen({
   onClearAllData,
   testID = 'data-controls-screen',
 }: DataControlsScreenProps = {}): React.ReactElement {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
 
   // Local state for data controls (P1: Move to Zustand store)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
@@ -56,16 +64,13 @@ export function DataControlsScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['bottom']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <ScrollView flex={1}>
           <YStack
             paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
-            paddingBottom="$6"
+            paddingBottom={insets.bottom + 24}
           >
             {/* Data Sharing Section */}
             <YStack>
@@ -174,7 +179,7 @@ export function DataControlsScreen({
             </YStack>
           </YStack>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

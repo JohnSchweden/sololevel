@@ -1,8 +1,12 @@
 import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
 import { FileText } from '@tamagui/lucide-icons'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { ScrollView, Text, XStack, YStack } from 'tamagui'
+import { useMemo } from 'react'
+import { View } from 'react-native'
+import { Image, ScrollView, Text, XStack, YStack } from 'tamagui'
+
+// Import app icon
+const appIcon = require('../../../../apps/expo/assets/icon-transparent.png')
 
 // App metadata (from package.json)
 const APP_NAME = 'Solo:Level'
@@ -48,24 +52,29 @@ export function AboutScreen({
   onLicensesPress,
   testID = 'about-screen',
 }: AboutScreenProps = {}): React.ReactElement {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
 
   return (
     <GlassBackground
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['bottom']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <ScrollView flex={1}>
           <YStack
             paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
             paddingHorizontal="$4"
             gap="$6"
-            paddingBottom="$6"
+            paddingBottom={insets.bottom + 24}
           >
             {/* App Info Section - Custom */}
             <YStack
@@ -78,21 +87,22 @@ export function AboutScreen({
                 width={80}
                 height={80}
                 $md={{ width: 96, height: 96 }}
-                backgroundColor="$purple10"
+                //backgroundColor="$purple10"
                 borderRadius="$6"
-                borderWidth={1}
+                borderWidth={0}
                 borderColor="$borderColor"
                 alignItems="center"
                 justifyContent="center"
+                overflow="hidden"
                 testID={`${testID}-logo`}
               >
-                <Text
-                  fontSize="$9"
-                  color="$color"
-                  fontWeight="700"
-                >
-                  S
-                </Text>
+                <Image
+                  source={appIcon}
+                  width={80}
+                  height={80}
+                  $md={{ width: 96, height: 96 }}
+                  resizeMode="contain"
+                />
               </XStack>
 
               {/* App Name */}
@@ -133,7 +143,7 @@ export function AboutScreen({
               <YStack
                 gap="$4"
                 paddingTop="$2"
-                marginBottom="$6"
+                marginBottom="$4"
               >
                 <SettingsListItem
                   label="Privacy Policy"
@@ -166,7 +176,7 @@ export function AboutScreen({
             </YStack>
           </YStack>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

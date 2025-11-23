@@ -159,7 +159,7 @@ async function getCompressedVideoMetadata(
       }
     }
 
-    // Use expo-file-system or react-native-fs to get file info
+    // Use expo-file-system to get file info
     const { getInfoAsync } = await import('expo-file-system')
 
     const fileInfo = await getInfoAsync(compressedUri, { size: true })

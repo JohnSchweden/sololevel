@@ -102,7 +102,19 @@ jest.mock('react-native-safe-area-context', () => ({
 
 // Mock react-native
 jest.mock('react-native', () => ({
+  View: ({ children, testID, ...props }: any) => (
+    <div
+      data-testid={testID}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
   KeyboardAvoidingView: ({ children }: any) => <div>{children}</div>,
+  Keyboard: {
+    dismiss: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+  },
   Platform: {
     OS: 'web',
     select: jest.fn(),
@@ -255,24 +267,27 @@ describe('GiveFeedbackScreen', () => {
       )
     })
 
-    it('should call onSuccess callback when feedback submission succeeds', () => {
+    it('should call onSuccess callback when feedback submission succeeds', async () => {
       // Arrange
       const mockOnSuccess = jest.fn()
       render(<GiveFeedbackScreen onSuccess={mockOnSuccess} />)
       const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
       const submitButton = screen.getByText('Send Feedback').closest('button')
 
-      // Act
+      // Act - Submit feedback
       fireEvent.change(textarea, { target: { value: 'Great app!' } })
       fireEvent.click(submitButton!)
 
-      // Assert - Get the onSuccess callback from the mutate call
+      // Simulate successful submission by calling the mutation's onSuccess
       const mutateCall = mockMutate.mock.calls[0]
       const onSuccessCallback = mutateCall[1]?.onSuccess
-
-      // Simulate successful submission
       onSuccessCallback?.()
 
+      // Wait for dialog to appear and click confirm
+      const confirmButton = await screen.findByText('OK')
+      fireEvent.click(confirmButton)
+
+      // Assert
       expect(mockOnSuccess).toHaveBeenCalledTimes(1)
     })
 

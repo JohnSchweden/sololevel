@@ -213,11 +213,45 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  */
 export function useHistoryQuery(limit = 10) {
   const cache = useVideoHistoryStore()
+  const [isHydrating, setIsHydrating] = React.useState(false)
+
+  // Trigger lazy hydration on first access (deferred from app startup)
+  // CRITICAL FIX: Defer hydration to idle time to prevent blocking main thread
+  // AsyncStorage reads can block 200-500ms, causing JS thread drops to 2 FPS
+  React.useEffect(() => {
+    // Use requestIdleCallback if available (web), fallback to setTimeout with longer delay
+    const scheduleHydration = () => {
+      const state = useVideoHistoryStore.getState()
+      if (!state._isHydrated && !isHydrating) {
+        setIsHydrating(true)
+        state.ensureHydrated().finally(() => {
+          setIsHydrating(false)
+        })
+      }
+    }
+
+    // Defer to next idle period or after 100ms (whichever comes first)
+    if (typeof requestIdleCallback !== 'undefined') {
+      const handle = requestIdleCallback(scheduleHydration, { timeout: 100 })
+      return () => cancelIdleCallback(handle)
+    }
+    // Fallback for React Native (no requestIdleCallback)
+    const timeoutId = setTimeout(scheduleHydration, 100)
+    return () => clearTimeout(timeoutId)
+  }, [isHydrating])
 
   // Get cached data from Zustand store for initial display (persists across restarts)
   // Only use initialData when cache has data - empty array prevents query from running
+  // Defer reading until after hydration completes
+  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
   const initialData = React.useMemo(() => {
-    const allCached = useVideoHistoryStore.getState().getAllCached()
+    // Don't read from cache until hydrated
+    if (!isHydrated) {
+      return null
+    }
+
+    const state = useVideoHistoryStore.getState()
+    const allCached = state.getAllCached()
     if (allCached.length === 0) {
       return null
     }
@@ -227,7 +261,7 @@ export function useHistoryQuery(limit = 10) {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit)
     return sorted.map(transformToVideoItem)
-  }, [limit])
+  }, [limit, isHydrated]) // Include isHydrated in deps to re-compute when hydrated
 
   // Build query options conditionally - only include initialData if we have cached data
   const queryOptions = React.useMemo(() => {

@@ -666,6 +666,15 @@ jest.mock('react-native', () => {
         opacity: 'opacity',
       },
     },
+    InteractionManager: {
+      runAfterInteractions: jest.fn((callback) => {
+        // In tests, execute immediately
+        if (typeof callback === 'function') {
+          callback()
+        }
+        return { cancel: jest.fn() }
+      }),
+    },
   }
 })
 

@@ -26,8 +26,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, Image, Text, XStack, YStack } from 'tamagui'
+import { Button, Image, Text, View, XStack, YStack } from 'tamagui'
 
 // Create animated FlatList for Reanimated compatibility
 const AnimatedFlatList = Animated.createAnimatedComponent<FlatListProps<Message>>(FlatList)
@@ -198,9 +197,9 @@ export function CoachScreen({
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
   const BOTTOM_TAB_BAR_HEIGHT = (Platform.OS === 'android' ? 52 : 52) + bottomInset // Fixed height from BottomNavigationContainer
 
-  // ROOT CAUSE FIX #2: Inline object literals in JSX create new references every render
-  // Memoize style objects to prevent child component re-renders
-  const safeAreaViewStyle = useMemo(() => ({ flex: 1 }), [])
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  // Replaced SafeAreaView with View to eliminate synchronous native bridge calls
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
   const blurViewStyle = useMemo(
     () => ({
       borderRadius: 0,
@@ -461,12 +460,9 @@ export function CoachScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={[]}
-        style={safeAreaViewStyle}
-      >
+      <View style={containerStyle}>
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={containerStyle}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
@@ -706,7 +702,7 @@ export function CoachScreen({
             </YStack>
           </YStack>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

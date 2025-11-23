@@ -19,6 +19,23 @@ import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
 
+// Ensure keep-awake is deactivated on app start to clear any previous session state
+// expo-keep-awake uses reference counting, so we call deactivate multiple times to reset
+if (Platform.OS !== 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, deprecation/deprecation
+    const { deactivateKeepAwake } = require('expo-keep-awake')
+    // Call deactivate 5 times to ensure any lingering activations are cleared
+    // This is safe - extra deactivate calls are ignored once the counter hits 0
+    for (let i = 0; i < 5; i++) {
+      // eslint-disable-next-line deprecation/deprecation
+      deactivateKeepAwake()
+    }
+  } catch (error) {
+    // Ignore errors during deactivation
+  }
+}
+
 // React internals should not be accessed in app code
 
 // Removed unsafe React internals polyfills; rely on supported APIs only

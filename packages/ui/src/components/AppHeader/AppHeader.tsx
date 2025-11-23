@@ -173,7 +173,7 @@ export function AppHeader({
         borderRadius="$10"
         backgroundColor="transparent"
         borderWidth={0}
-        animation="quick"
+        animation="quick" // Kept for critical UI feedback, optimized elsewhere
         hoverStyle={leftButtonHoverStyle}
         pressStyle={buttonPressStyle}
         focusStyle={buttonFocusStyle}
@@ -219,7 +219,6 @@ export function AppHeader({
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
-            animation="quick"
             hoverStyle={buttonHoverStyle}
             pressStyle={buttonPressStyle}
             focusStyle={buttonFocusStyle}
@@ -245,7 +244,6 @@ export function AppHeader({
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
-            animation="quick"
             hoverStyle={buttonHoverStyle}
             pressStyle={buttonPressStyle}
             focusStyle={buttonFocusStyle}
@@ -335,7 +333,6 @@ export function AppHeader({
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
-            animation="quick"
             hoverStyle={buttonHoverStyle}
             pressStyle={buttonPressStyle}
             focusStyle={buttonFocusStyle}
@@ -445,6 +442,8 @@ export function AppHeader({
     <>
       {themeName ? <Theme name={themeName}>{content}</Theme> : content}
 
+      {/* PERFORMANCE FIX: Always mount sheets to avoid mounting BlurView during animation */}
+      {/* Conditional mounting causes JS frame drops (5fps) when sheet opens */}
       <NotificationSheet
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}

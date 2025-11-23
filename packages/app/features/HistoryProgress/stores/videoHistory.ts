@@ -98,6 +98,10 @@ export interface VideoHistoryActions {
 
   // Sync management
   updateLastSync: () => void
+
+  // Lazy hydration (for memory optimization)
+  ensureHydrated: () => Promise<void>
+  _isHydrated: boolean
 }
 
 /**
@@ -155,6 +159,24 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           version: CACHE_VERSION,
           localUriIndex: new Map<string, string>(),
           uuidMapping: new Map<number, UuidMappingEntry>(),
+          _isHydrated: false,
+
+          // Lazy hydration method - manually triggers hydration when needed
+          ensureHydrated: async () => {
+            const state = get()
+            if (state._isHydrated) {
+              return // Already hydrated
+            }
+            // With skipHydration: true, we need to manually trigger rehydration
+            // Access persist API via store instance
+            const persistApi = (useVideoHistoryStore as any).persist
+            if (persistApi && persistApi.rehydrate) {
+              await persistApi.rehydrate()
+            } else {
+              // Fallback: wait for hydration to complete (shouldn't happen with skipHydration)
+              await new Promise((resolve) => setTimeout(resolve, 100))
+            }
+          },
 
           // Add to cache
           addToCache: (analysis) => {
@@ -521,6 +543,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       {
         name: 'video-history-store',
         storage: createJSONStorage(() => AsyncStorage),
+        skipHydration: true, // Defer hydration until ensureHydrated() is called
         partialize: (state: VideoHistoryStore) => ({
           // Convert Maps to arrays for JSON serialization
           cache: Array.from(state.cache.entries()),
@@ -649,7 +672,16 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
                 : 'All index entries valid',
           })
 
+          // Mark as hydrated
+          merged._isHydrated = true
+
           return merged
+        },
+        onRehydrateStorage: () => (state) => {
+          // Mark store as hydrated when rehydration completes
+          if (state) {
+            state._isHydrated = true
+          }
         },
       }
     )

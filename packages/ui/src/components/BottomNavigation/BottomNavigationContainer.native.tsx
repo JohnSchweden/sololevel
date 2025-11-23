@@ -1,8 +1,8 @@
+import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 import MaskedView from '@react-native-masked-view/masked-view'
 import { LinearGradient } from '@tamagui/linear-gradient'
 import React, { useMemo } from 'react'
 import { Platform } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
 import { BlurView } from '../BlurView/BlurView'
 
@@ -18,7 +18,12 @@ export function BottomNavigationContainer({
 }: {
   children: React.ReactNode
 }) {
-  const insets = useSafeAreaInsets()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
 
   // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
   const bottomInset = useMemo(() => Math.max(0, insets.bottom - 12), [insets.bottom])
@@ -33,7 +38,7 @@ export function BottomNavigationContainer({
   // Reduced intensity from 50 to 30 for better performance (always visible component)
   const blurViewStyle = useMemo(
     () => ({
-      flex: 1,
+      flex: 1 as const,
       paddingBottom: bottomInset,
       paddingHorizontal: 16, // equivalent to $4
       alignItems: 'center' as const,
@@ -42,18 +47,22 @@ export function BottomNavigationContainer({
     [bottomInset]
   )
 
+  // PERF FIX: Memoize inline styles to prevent re-creation on every render
+  const maskedViewStyle = useMemo(() => ({ flex: 1 as const }), [])
+  const linearGradientStyle = useMemo(() => ({ flex: 1 as const }), [])
+
   // iOS: Use MaskedView + BlurView (works correctly)
   // Android: Use BlurView + LinearGradient overlay (MaskedView causes black screen)
   const blurContent =
     Platform.OS === 'ios' ? (
       <MaskedView
-        style={{ flex: 1 }}
+        style={maskedViewStyle}
         maskElement={
           <LinearGradient
             colors={['transparent', '$color1']} // mask from visible → blurred
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 0.3 }}
-            style={{ flex: 1 }}
+            style={linearGradientStyle}
           />
         }
       >

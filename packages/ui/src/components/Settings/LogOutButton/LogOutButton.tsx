@@ -40,10 +40,10 @@ export function LogOutButton({
 }: LogOutButtonProps): React.ReactElement {
   return (
     <YStack
-      position="absolute"
-      bottom={50}
-      left={36}
-      right={36}
+      // position="absolute"
+      // bottom={50}
+      // left={36}
+      // right={36}
       paddingHorizontal="$4"
       testID={`${testID}-container`}
       alignItems="stretch"

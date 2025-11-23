@@ -14,8 +14,7 @@ import {
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
 import { LazySection } from '@ui/components/Performance'
 import { memo, useCallback, useMemo } from 'react'
-import { Platform, RefreshControl } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { Platform, RefreshControl, View } from 'react-native'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 import { useInsightsData } from './hooks/useInsightsData'
 import type { InsightsData } from './hooks/useInsightsData'
@@ -240,8 +239,19 @@ const QuickStatsSection = memo(function QuickStatsSection({
 export function InsightsScreen({
   testID = 'insights-screen',
 }: InsightsScreenProps = {}): React.ReactElement {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  const containerStyle = useMemo(
+    () => ({ flex: 1 as const, paddingLeft: insets.left, paddingRight: insets.right }),
+    [insets.left, insets.right]
+  )
   const { data, isLoading, isError, refetch } = useInsightsData()
 
   // Lazy load sections to reduce initial render time
@@ -402,10 +412,7 @@ export function InsightsScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['left', 'right']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <ScrollView
           flex={1}
           refreshControl={refreshControl}
@@ -420,7 +427,7 @@ export function InsightsScreen({
             {sectionsContent}
           </YStack>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

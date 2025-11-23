@@ -10,7 +10,7 @@ import {
   SettingsNavigationList,
 } from '@my/ui'
 import { useCallback, useMemo } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View } from 'react-native'
 import { YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
 
@@ -69,8 +69,29 @@ export function SettingsScreen({
   // Use separate selectors to prevent infinite loops (object selectors create new references)
   const user = useAuthStore((state) => state.user)
   const isLoadingUser = useAuthStore((state) => state.loading)
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: useSafeAreaInsets returns NEW object reference every render
+  // Memoize insets based on content to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  // Inline object creation causes layout to diff styles every render
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
+
+  // PERF FIX: Memoize bottom section absolute positioning styles
+  const bottomSectionStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      bottom: insets.bottom,
+      left: 0,
+      right: 0,
+    }),
+    [insets.bottom]
+  )
 
   // Handlers - memoized to prevent child re-renders
   const handleNavigate = useCallback(
@@ -124,10 +145,7 @@ export function SettingsScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['bottom']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <YStack
           flex={1}
           paddingTop={insets.top + APP_HEADER_HEIGHT}
@@ -153,13 +171,12 @@ export function SettingsScreen({
           </YStack>
         </YStack>
 
-        {/* Bottom section positioned relative to SafeAreaView, not container */}
+        {/* Bottom section positioned relative to container */}
         <YStack
-          gap="$6"
-          position="absolute"
-          bottom={insets.bottom + 0} // paddingBottom="$6" = 24px + safe area bottom
-          left="$0"
-          right="$0"
+          gap="$4"
+          paddingHorizontal="$4"
+          marginHorizontal="$4"
+          style={bottomSectionStyle}
         >
           {/* Log Out Button */}
           <LogOutButton
@@ -170,7 +187,7 @@ export function SettingsScreen({
           {/* Footer Links */}
           <SettingsFooter onLinkPress={handleFooterLink} />
         </YStack>
-      </SafeAreaView>
+      </View>
     </GlassBackground>
   )
 }

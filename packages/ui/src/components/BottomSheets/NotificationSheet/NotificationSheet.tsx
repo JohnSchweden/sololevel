@@ -1,4 +1,5 @@
 import { Dumbbell, Flame, TrendingUp, Trophy } from '@tamagui/lucide-icons'
+import { memo } from 'react'
 import { BlurView } from '../../BlurView/BlurView'
 
 import { Sheet, Text, XStack, YStack } from 'tamagui'
@@ -21,7 +22,7 @@ export interface NotificationSheetProps {
   notificationBadgeCount?: number
 }
 
-export function NotificationSheet({
+export const NotificationSheet = memo(function NotificationSheet({
   open,
   onOpenChange,
   notificationBadgeCount = 0,
@@ -247,4 +248,4 @@ export function NotificationSheet({
       </Sheet.Frame>
     </Sheet>
   )
-}
+})

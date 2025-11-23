@@ -917,6 +917,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             persistentProgressStoreSetter={persistentProgressStoreSetter}
             persistentProgressShared={playbackProgressShared}
           />
+          {/* PERFORMANCE FIX: Always mount sheet to avoid mounting BlurView during animation */}
           <ShareSheet
             open={isShareSheetOpen}
             onOpenChange={setShareSheetOpen}

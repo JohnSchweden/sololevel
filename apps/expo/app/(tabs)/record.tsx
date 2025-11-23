@@ -1,6 +1,9 @@
 import { CameraRecordingScreen } from '@app/features/CameraRecording'
 import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
+import { useIsFocused } from '@react-navigation/native'
+// eslint-disable-next-line deprecation/deprecation
+import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef } from 'react'
 
@@ -20,6 +23,20 @@ export default function RecordTab() {
   const navigation = useNavigation()
   const { resetToIdle } = useLocalSearchParams<{ resetToIdle?: string }>()
   const backPressHandlerRef = useRef<(() => Promise<void>) | null>(null)
+  const isFocused = useIsFocused()
+
+  // Keep screen awake only when this tab is focused
+  useEffect(() => {
+    if (isFocused) {
+      // eslint-disable-next-line deprecation/deprecation
+      activateKeepAwake()
+      return () => {
+        // eslint-disable-next-line deprecation/deprecation
+        deactivateKeepAwake()
+      }
+    }
+    return undefined
+  }, [isFocused])
 
   const handleVideoProcessed = (videoUri: string) => {
     router.push({

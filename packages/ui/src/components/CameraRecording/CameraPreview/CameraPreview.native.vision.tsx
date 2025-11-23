@@ -36,6 +36,7 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
   ) => {
     const cameraRef = useRef<Camera>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
+    //const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
     const [isInitialized, setIsInitialized] = useState(false)
     const [isCameraReady, setIsCameraReady] = useState(false)
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(zoomLevel)
@@ -118,13 +119,31 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
     // Cleanup camera session on unmount
     useEffect(() => {
       return () => {
-        if (cameraRef.current && isMounted.current) {
-          log.info('VisionCamera', 'Cleaning up camera session on unmount')
-          // Reset states to prevent memory leaks
-          setIsCameraReady(false)
-          setIsInitialized(false)
-          setCameraError(null)
+        isMounted.current = false
+
+        // Clear any pending timeouts
+        if (readyTimeoutRef.current) {
+          clearTimeout(readyTimeoutRef.current)
+          readyTimeoutRef.current = null
         }
+
+        // Stop recording if active to release resources
+        if (cameraRef.current) {
+          try {
+            // Attempt to stop recording if it's active (non-blocking cleanup)
+            cameraRef.current.stopRecording().catch(() => {
+              // Ignore errors during cleanup - component is unmounting
+            })
+          } catch {
+            // Ignore errors during cleanup
+          }
+        }
+
+        log.info('VisionCamera', 'Cleaning up camera session on unmount')
+        // Reset states to prevent memory leaks
+        setIsCameraReady(false)
+        setIsInitialized(false)
+        setCameraError(null)
       }
     }, [])
 
@@ -173,6 +192,12 @@ export const VisionCameraPreview = forwardRef<CameraPreviewRef, CameraPreviewCon
 
           const createRecordingOptions = (codec: 'h264' | 'h265') => ({
             videoCodec: codec,
+            // Use fileType: 'mp4' to switch from Immediate (memory buffer) to delayed (disk write) mode
+            // This prevents "data volume too high" warnings and reduces memory usage
+            fileType: 'mp4' as const,
+            // Limit video bitrate to reduce data volume and prevent buffer overflow
+            // 4 Mbps is sufficient for 720p@30fps and prevents excessive memory allocation
+            videoBitRate: 4_000_000, // 4 Mbps
             onRecordingFinished: async (video: { path: string; duration?: number }) => {
               log.info('VisionCamera', 'Recording finished', {
                 codec,

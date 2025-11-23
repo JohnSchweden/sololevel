@@ -1,6 +1,7 @@
 import { Play } from '@tamagui/lucide-icons'
+import { Image } from 'expo-image'
 import React from 'react'
-import { Image, Spinner, Stack, YStack } from 'tamagui'
+import { Spinner, Stack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'
 
 // Stable style objects to prevent unnecessary re-renders
@@ -72,19 +73,22 @@ export function VideoThumbnailCard({
   const hasErrorRef = React.useRef(false)
   const [, forceRender] = React.useReducer((x) => x + 1, 0)
 
-  // Memoize image source to prevent unnecessary re-renders
-  const imageSource = React.useMemo(
-    () => (thumbnailUri ? { uri: thumbnailUri } : undefined),
-    [thumbnailUri]
-  )
+  // Expo Image handles caching automatically (memory + disk)
+  // For local files (file://), it reads directly without caching
+  // For remote URLs, it caches automatically
 
   // Reset loading state when thumbnail URI changes
   // Update refs only, no setState - prevents cascade
+  // CRITICAL FIX: Defer forceRender to RAF to batch with other updates
   React.useEffect(() => {
     const isLocal = thumbnailUri?.startsWith('file://') ?? false
     isLoadingRef.current = !isLocal
     hasErrorRef.current = false
-    forceRender()
+    // Defer to next frame to batch multiple thumbnail updates
+    const rafId = requestAnimationFrame(() => {
+      forceRender()
+    })
+    return () => cancelAnimationFrame(rafId)
   }, [thumbnailUri])
 
   return (
@@ -108,19 +112,28 @@ export function VideoThumbnailCard({
       testID={testID}
     >
       {/* Thumbnail Image or Placeholder */}
-      {thumbnailUri && !hasErrorRef.current && imageSource ? (
+      {thumbnailUri && !hasErrorRef.current ? (
         <Image
-          source={imageSource}
-          width={width}
-          height={height}
+          source={thumbnailUri}
+          style={{ width, height }}
+          contentFit="cover"
+          transition={200} // Smooth fade-in transition
+          cachePolicy="memory-disk" // Use both memory and disk cache for optimal performance
           onLoad={() => {
+            // CRITICAL FIX: Batch image load updates with RAF
+            // Prevents 10-20 individual renders when thumbnails load
+            // Expo Image handles loading state internally, but we track for spinner
             isLoadingRef.current = false
-            forceRender()
+            requestAnimationFrame(() => {
+              forceRender()
+            })
           }}
           onError={() => {
             isLoadingRef.current = false
             hasErrorRef.current = true
-            forceRender()
+            requestAnimationFrame(() => {
+              forceRender()
+            })
           }}
           testID={`${testID}-image`}
         />

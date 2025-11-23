@@ -87,25 +87,49 @@ export const AudioPlayer = function AudioPlayer({
   // Subscribe to isPlaying using useSyncExternalStore
   // This causes re-renders when controller.isPlaying changes (via getter)
   // Without recreating the controller object
+  // FIX: Store interval ref to ensure cleanup on unmount even if subscribe is called multiple times
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isPlaying = useSyncExternalStore(
     // subscribe: called on mount/dependency change
     (callback) => {
+      // Clear any existing interval before creating new one (defensive cleanup)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+
       // Poll controller.isPlaying every 50ms and trigger callback when it changes
       let lastValue = controller.isPlaying
-      const interval = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         const currentValue = controller.isPlaying
         if (currentValue !== lastValue) {
           lastValue = currentValue
           callback() // Trigger re-render
         }
       }, 50)
-      return () => clearInterval(interval)
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
+      }
     },
     // getSnapshot: current value
     () => controller.isPlaying,
     // getServerSnapshot (not used on native)
     () => false
   )
+
+  // Defensive cleanup on unmount to prevent CFRunLoopMode retain cycles
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [])
 
   // Log pause/resume state changes
   const prevIsPlayingRef = useRef<boolean>(isPlaying)

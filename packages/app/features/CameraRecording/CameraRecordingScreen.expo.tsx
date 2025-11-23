@@ -18,7 +18,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
-import { useKeepAwake } from './hooks/useKeepAwake'
 import { useTabPersistence } from './hooks/useTabPersistence'
 import { CameraRecordingScreenProps, RecordingState } from './types'
 
@@ -35,7 +34,6 @@ export function CameraRecordingScreen({
   // Hide status bar when this screen is focused
   useStatusBar(true, 'fade')
 
-  useKeepAwake()
   const insets = useSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 

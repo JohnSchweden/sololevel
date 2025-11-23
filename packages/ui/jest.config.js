@@ -41,6 +41,7 @@ module.exports = {
     '^@my/ui$': '<rootDir>/src/index.ts',
     '^@my/ui/(.*)$': '<rootDir>/src/$1',
     '^@ui/(.*)$': '<rootDir>/src/$1',
+    '^@app/provider/(.*)$': '<rootDir>/../app/provider/$1',
     '^@app/(.*)$': '<rootDir>/../app/src/$1',
     '^@api/(.*)$': '<rootDir>/../api/src/$1',
     '^@config/(.*)$': '<rootDir>/../config/src/$1',

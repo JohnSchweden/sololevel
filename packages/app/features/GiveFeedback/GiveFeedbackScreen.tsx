@@ -3,9 +3,8 @@ import { log } from '@my/logging'
 import { ConfirmDialog, FeedbackTypeButton, GlassBackground, GlassButton, TextArea } from '@my/ui'
 import { Gift, Send } from '@tamagui/lucide-icons'
 import type React from 'react'
-import { useRef, useState } from 'react'
-import { KeyboardAvoidingView, Platform } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useMemo, useRef, useState } from 'react'
+import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { Avatar, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui'
 import { useSubmitFeedback } from './hooks/useSubmitFeedback'
 import { FEEDBACK_TYPES, type FeedbackType } from './types'
@@ -37,8 +36,17 @@ export const GiveFeedbackScreen = ({
   onSuccess,
   testID = 'give-feedback-screen',
 }: GiveFeedbackScreenProps): React.JSX.Element => {
-  const insets = useSafeArea()
+  const insetsRaw = useSafeArea()
+  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
+  const insets = useMemo(
+    () => insetsRaw,
+    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
+  )
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
+  // PERF FIX: Memoize container style to prevent recalculating layout on every render
+  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
+  const keyboardAvoidingStyle = useMemo(() => ({ flex: 1 as const }), [])
 
   const [selectedType, setSelectedType] = useState<FeedbackType>('suggestion')
   const [message, setMessage] = useState('')
@@ -49,14 +57,15 @@ export const GiveFeedbackScreen = ({
   const handleSubmit = (): void => {
     if (!message.trim()) return
 
+    // Dismiss keyboard when submitting
+    Keyboard.dismiss()
+
     submitFeedback(
       { type: selectedType, message: message.trim() },
       {
         onSuccess: () => {
           setShowSuccessDialog(true)
-          // Call onSuccess immediately for programmatic handling
-          // Dialog dismissal also calls onSuccess for navigation
-          onSuccess?.()
+          // onSuccess is called when dialog is dismissed for navigation
         },
         onError: (error) => {
           log.error('GiveFeedbackScreen', 'Failed to submit feedback', {
@@ -84,12 +93,9 @@ export const GiveFeedbackScreen = ({
       backgroundColor="$color3"
       testID={testID}
     >
-      <SafeAreaView
-        edges={['bottom']}
-        style={{ flex: 1 }}
-      >
+      <View style={containerStyle}>
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={keyboardAvoidingStyle}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
@@ -103,7 +109,7 @@ export const GiveFeedbackScreen = ({
               paddingTop={insets.top + APP_HEADER_HEIGHT}
               paddingHorizontal="$4"
               gap="$6"
-              paddingBottom="$6"
+              paddingBottom={insets.bottom + 24}
             >
               {/* Introduction */}
               <YStack
@@ -216,6 +222,7 @@ export const GiveFeedbackScreen = ({
                 {/* Submit Button */}
                 <YStack
                   paddingTop="$0"
+                  marginTop="$-4"
                   borderTopWidth={1}
                   borderColor="$borderColor"
                   paddingBottom="$0"
@@ -300,13 +307,13 @@ export const GiveFeedbackScreen = ({
             </YStack>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
 
       {/* Success Dialog */}
       <ConfirmDialog
         visible={showSuccessDialog}
-        title="We have received your gift!"
-        message="Thank you, we'll read it in a peaceful moment ;)"
+        title="We've received your gift!"
+        message={"Thank you 🙏\nWe'll read it during a peaceful moment 😌"}
         variant="success"
         confirmLabel="OK"
         onConfirm={() => {

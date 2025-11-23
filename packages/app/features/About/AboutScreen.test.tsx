@@ -19,6 +19,72 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@react-navigation/elements', () => ({}))
 
+// Mock image assets
+jest.mock('../../../../apps/expo/assets/icon-transparent.png', () => 'icon-transparent.png')
+
+// Mock @my/ui components
+jest.mock('@my/ui', () => {
+  const React = require('react')
+  return {
+    GlassBackground: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID, ...props }, children),
+    SettingsListItem: ({ label, onPress, testID, ...props }: any) =>
+      React.createElement('button', { onClick: onPress, 'data-testid': testID, ...props }, label),
+    SettingsSectionHeader: ({ title, icon, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID, ...props }, title),
+  }
+})
+
+// Mock @tamagui/lucide-icons
+jest.mock('@tamagui/lucide-icons', () => ({
+  FileText: () => 'FileText',
+}))
+
+// Mock safe area hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
+// Mock react-native
+jest.mock('react-native', () => {
+  const React = require('react')
+  return {
+    View: ({ children, testID, style, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID, style, ...props }, children),
+  }
+})
+
+// Mock tamagui components
+jest.mock('tamagui', () => {
+  const React = require('react')
+  return {
+    Image: ({ source, testID, ...props }: any) =>
+      React.createElement('img', { src: source, 'data-testid': testID, ...props }),
+    ScrollView: ({ children, testID, ...props }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID, style: { overflow: 'auto' }, ...props },
+        children
+      ),
+    Text: ({ children, testID, ...props }: any) =>
+      React.createElement('span', { 'data-testid': testID, ...props }, children),
+    XStack: ({ children, testID, ...props }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID, style: { display: 'flex', flexDirection: 'row' }, ...props },
+        children
+      ),
+    YStack: ({ children, testID, ...props }: any) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID, style: { display: 'flex', flexDirection: 'column' }, ...props },
+        children
+      ),
+    View: ({ children, testID, ...props }: any) =>
+      React.createElement('div', { 'data-testid': testID, ...props }, children),
+  }
+})
+
 describe('AboutScreen', () => {
   // Arrange: Reset mocks before each test
   beforeEach(() => {
@@ -34,8 +100,8 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      // Logo renders "S" text inside the container
-      expect(screen.getByText('S')).toBeTruthy()
+      // Logo renders as an image
+      expect(screen.getByTestId('about-screen-logo')).toBeTruthy()
     })
 
     it('should render app name', () => {
