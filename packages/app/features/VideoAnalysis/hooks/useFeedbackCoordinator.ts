@@ -1028,12 +1028,19 @@ export function useFeedbackCoordinator({
   // Hide bubble when audio stops
   useEffect(() => {
     let prevActiveAudio = useFeedbackAudioStore.getState().activeAudio
+    // PERF FIX #3: Subscribe to store and manually check if activeAudio changed to prevent duplicate logs
     return useFeedbackAudioStore.subscribe((state) => {
       const currentActiveAudio = state.activeAudio
+      // PERF FIX #3: Early return if activeAudio hasn't actually changed (prevents duplicate logs)
+      // This prevents logging when other store properties change (e.g., audioUrls, errors)
+      if (prevActiveAudio?.id === currentActiveAudio?.id) {
+        return
+      }
+
       log.debug('useFeedbackCoordinator.audioStopBubbleHide', '🔍 Audio state change detected', {
         prevActiveAudioId: prevActiveAudio?.id ?? null,
         currentActiveAudioId: currentActiveAudio?.id ?? null,
-        prevIsPlaying: useFeedbackAudioStore.getState().isPlaying, // This might be stale
+        prevIsPlaying: state.isPlaying,
         bubbleVisible: useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible,
       })
 

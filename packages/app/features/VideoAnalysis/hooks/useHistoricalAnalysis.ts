@@ -347,6 +347,7 @@ interface HistoricalAnalysisData {
     videoUri?: string
     title?: string
     localUriMappings?: Array<{ storagePath: string; localUri: string }>
+    validateVideoUri?: boolean // Flag to trigger async file validation in useEffect
   }
 }
 
@@ -372,45 +373,32 @@ export async function fetchHistoricalAnalysisData(
   // Check cache first
   const cached = getCached(analysisId)
   if (cached) {
-    // CRITICAL: Always re-resolve video URI to check file existence, even for cached file:// URIs
-    // Temporary files in /tmp/ can be deleted, causing AVFoundation errors if we skip validation
-    // Unlike thumbnails which always check existence in transformToCache, videos need explicit re-validation
-    const localUriHint =
-      cached.videoUri?.startsWith('file://') && Platform.OS !== 'web' ? cached.videoUri : undefined
-    const resolvedVideoUri = await resolveHistoricalVideoUri(cached.storagePath ?? null, {
-      analysisId,
-      localUriHint,
-    })
+    // OPTIMISTIC CACHE RENDERING: Return cached data immediately for fast mount
+    // File validation is deferred to useEffect (async, non-blocking)
+    // This prevents blocking mount with FileSystem.getInfoAsync calls (~200-500ms)
+    // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
+    const optimisticVideoUri = cached.videoUri ?? FALLBACK_VIDEO_URI
 
-    // Also fetch title from database to update cache if it's missing or is a fallback
-    // This ensures we always have the latest title even when using cached data
-    const { data: analysis } = (await supabase
-      .from('analyses')
-      .select('title')
-      .eq('job_id', analysisId)
-      .single()) as { data: { title: string | null } | null; error: any }
+    // Use cached title immediately (already fresh from prefetch)
+    const updatedCached = { ...cached, videoUri: optimisticVideoUri }
 
-    // Use database title if available, otherwise keep cached title
-    const dbTitle = analysis?.title
-    const finalTitle = dbTitle || cached.title
-
-    const updatedCached = { ...cached, videoUri: resolvedVideoUri, title: finalTitle }
-
-    log.info('useHistoricalAnalysis', 'Returning cached analysis', {
+    log.info('useHistoricalAnalysis', 'Returning cached analysis (optimistic)', {
       analysisId,
       hasVideoUri: !!updatedCached.videoUri,
       videoUri: updatedCached.videoUri,
       cachedAt: new Date(updatedCached.cachedAt).toISOString(),
       title: updatedCached.title,
+      validationDeferred: true,
     })
 
-    // Return data with pending cache update (to be applied in useEffect)
+    // Return data with deferred validation flag
+    // File validation will happen in useEffect after mount (non-blocking)
+    // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
     return {
       analysis: updatedCached,
-      pendingCacheUpdates:
-        resolvedVideoUri !== cached.videoUri || finalTitle !== cached.title
-          ? { videoUri: resolvedVideoUri, title: finalTitle }
-          : undefined,
+      pendingCacheUpdates: {
+        validateVideoUri: true,
+      },
     }
   }
 
@@ -557,7 +545,7 @@ export function useHistoricalAnalysis(analysisId: number | null) {
   // Apply cache updates after query completes (outside render cycle)
   const { data: queryData } = query
 
-  // Effect to handle cache updates
+  // Effect to handle cache updates and deferred file validation
   React.useEffect(() => {
     if (!queryData?.analysis || !analysisId) {
       return
@@ -565,7 +553,7 @@ export function useHistoricalAnalysis(analysisId: number | null) {
 
     const { analysis, pendingCacheUpdates } = queryData
 
-    // Apply local URI mappings
+    // Apply local URI mappings (from database fetch)
     if (pendingCacheUpdates?.localUriMappings) {
       for (const { storagePath, localUri } of pendingCacheUpdates.localUriMappings) {
         setLocalUri(storagePath, localUri)
@@ -581,7 +569,7 @@ export function useHistoricalAnalysis(analysisId: number | null) {
         lastAccessed: Date.now(),
       }
 
-      // Update videoUri if changed
+      // Update videoUri if changed (from database fetch)
       if (
         pendingCacheUpdates?.videoUri &&
         pendingCacheUpdates.videoUri !== existingCached.videoUri
@@ -589,9 +577,56 @@ export function useHistoricalAnalysis(analysisId: number | null) {
         updates.videoUri = pendingCacheUpdates.videoUri
       }
 
-      // Update title if changed (e.g., fetched from database on cache hit)
+      // Update title if changed (from pendingCacheUpdates.title - set by database fetch path)
       if (pendingCacheUpdates?.title && pendingCacheUpdates.title !== existingCached.title) {
         updates.title = pendingCacheUpdates.title
+      }
+
+      // OPTIMISTIC CACHE: Defer file validation to async effect (non-blocking)
+      // This validates cached file:// URIs after mount to ensure they still exist
+      // If validation fails, we'll re-resolve the URI and update cache
+      if (pendingCacheUpdates?.validateVideoUri && existingCached.videoUri?.startsWith('file://')) {
+        // Validate file existence asynchronously (non-blocking)
+        void (async () => {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(existingCached.videoUri!)
+            if (!fileInfo.exists) {
+              // File missing - re-resolve URI and update cache
+              log.warn('useHistoricalAnalysis', 'Cached file URI missing, re-resolving', {
+                analysisId,
+                missingUri: existingCached.videoUri,
+                storagePath: existingCached.storagePath,
+              })
+
+              const localUriHint =
+                existingCached.videoUri?.startsWith('file://') && Platform.OS !== 'web'
+                  ? existingCached.videoUri
+                  : undefined
+              const resolvedVideoUri = await resolveHistoricalVideoUri(
+                existingCached.storagePath ?? null,
+                {
+                  analysisId,
+                  localUriHint,
+                }
+              )
+
+              // Update cache with resolved URI
+              updateCache(analysisId, { videoUri: resolvedVideoUri })
+              log.info('useHistoricalAnalysis', 'Re-resolved video URI after validation failure', {
+                analysisId,
+                oldUri: existingCached.videoUri,
+                newUri: resolvedVideoUri,
+              })
+            }
+          } catch (error) {
+            log.warn('useHistoricalAnalysis', 'File validation error (non-blocking)', {
+              analysisId,
+              videoUri: existingCached.videoUri,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            // Non-blocking: Continue with optimistic URI even if validation fails
+          }
+        })()
       }
 
       updateCache(analysisId, updates)

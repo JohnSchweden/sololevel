@@ -74,6 +74,47 @@ export function useAnalysisJobByVideoId(videoRecordingId: number) {
 }
 
 /**
+ * Batched hook for getting analysis job by ID or video recording ID
+ *
+ * Combines useAnalysisJob and useAnalysisJobByVideoId into a single query
+ * to reduce parallel query overhead and improve mount performance.
+ *
+ * Strategy:
+ * - If analysisJobId is provided, fetch by job ID (preferred)
+ * - If only videoRecordingId is provided, fetch by video ID
+ * - Only one query runs at a time (not both in parallel)
+ *
+ * @param analysisJobId - Optional analysis job ID (takes precedence)
+ * @param videoRecordingId - Optional video recording ID (fallback)
+ * @returns TanStack Query result with the analysis job
+ */
+export function useAnalysisJobBatched(analysisJobId?: number, videoRecordingId?: number) {
+  const hasJobId = !!analysisJobId
+  const hasVideoId = !!videoRecordingId
+  const shouldFetchByJobId = hasJobId
+  const shouldFetchByVideoId = !hasJobId && hasVideoId
+
+  return useQuery({
+    queryKey: shouldFetchByJobId
+      ? analysisKeys.job(analysisJobId!)
+      : shouldFetchByVideoId
+        ? analysisKeys.jobByVideo(videoRecordingId!)
+        : ['analysis', 'job', 'batched', null],
+    queryFn: async () => {
+      if (shouldFetchByJobId) {
+        return getAnalysisJob(analysisJobId!)
+      }
+      if (shouldFetchByVideoId) {
+        return getAnalysisJobByVideoId(videoRecordingId!)
+      }
+      return null
+    },
+    enabled: shouldFetchByJobId || shouldFetchByVideoId,
+    staleTime: 1000 * 30, // 30 seconds
+  })
+}
+
+/**
  * Hook for getting user's analysis jobs
  */
 export function useAnalysisJobs() {

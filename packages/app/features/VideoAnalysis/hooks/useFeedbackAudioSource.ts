@@ -27,11 +27,24 @@ export function useFeedbackAudioSource(
   feedbackItems: FeedbackAudioItem[]
 ): FeedbackAudioSourceState {
   const inFlightRef = useRef<Set<string>>(new Set())
+  // PERF FIX #4: Use ref comparison to prevent unnecessary re-runs when array reference changes but content is same
+  const previousItemsRef = useRef<string>('')
 
   useEffect(() => {
     if (!feedbackItems.length) {
       return undefined
     }
+
+    // PERF FIX #4: Compare feedbackItems by content (IDs + status) to avoid re-runs on reference changes
+    const itemsKey = feedbackItems
+      .map((item) => `${item.id}:${item.audioStatus ?? 'undefined'}`)
+      .sort()
+      .join(',')
+    if (previousItemsRef.current === itemsKey) {
+      // Content unchanged, skip re-processing
+      return undefined
+    }
+    previousItemsRef.current = itemsKey
 
     // Defer audio initialization to prevent blocking initial render
     // Move audio cache resolution off critical path (similar to prefetch deferral)
@@ -53,35 +66,41 @@ export function useFeedbackAudioSource(
       //   })),
       // })
 
-      feedbackItems.forEach((item) => {
+      // PERF FIX #1: Filter items to resolve first, then resolve in parallel
+      const itemsToResolve = feedbackItems.filter((item) => {
         if (!item || item.audioStatus !== 'completed') {
-          // log.debug(CONTEXT, 'useFeedbackAudioSource: Skipping item (not completed)', {
-          //   feedbackId: item.id,
-          //   audioStatus: item.audioStatus,
-          // })
-          return
+          return false
         }
 
         const feedbackId = item.id
         if (!feedbackId) {
-          return
+          return false
         }
 
         const audioUrls = useFeedbackAudioStore.getState().audioUrls
         if (audioUrls[feedbackId] || inFlightRef.current.has(feedbackId)) {
-          return
+          return false
         }
 
         // Handle both numeric and string feedback IDs
         const numericId = Number.parseInt(feedbackId, 10)
         if (Number.isNaN(numericId)) {
           // For non-numeric IDs (like mock data), skip audio fetch silently
-          // This is expected behavior for mock/seed data
-          // log.debug(CONTEXT, 'Skipping audio fetch for non-numeric feedback id (likely mock data)', {
-          //   feedbackId,
-          // })
-          return
+          return false
         }
+
+        return true
+      })
+
+      if (itemsToResolve.length === 0) {
+        return
+      }
+
+      // PERF FIX #1: Parallelize audio resolution with Promise.all
+      // This resolves all feedback items simultaneously instead of sequentially
+      const resolvePromises = itemsToResolve.map((item) => {
+        const feedbackId = item.id!
+        const numericId = Number.parseInt(feedbackId, 10)
 
         inFlightRef.current.add(feedbackId)
 
@@ -91,11 +110,11 @@ export function useFeedbackAudioSource(
         // 3. Generate signed URL from storage_path
         // 4. Download and persist to disk (background)
 
-        async function resolveAudioUri() {
+        async function resolveAudioUri(): Promise<string> {
           // Tier 1: Check feedbackAudio store first (indexed cache)
           const storedPath = useFeedbackAudioStore.getState().getAudioPath(feedbackId)
           if (storedPath && Platform.OS !== 'web') {
-            // Extract extension from stored path if available, otherwise check all formats
+            // PERF FIX #2: Extension already stored in path, use it directly
             const storedExt = storedPath.match(/\.([^.]+)$/)?.[1]
             const hasCached = await checkCachedAudio(feedbackId, storedExt)
             if (hasCached) {
@@ -110,26 +129,35 @@ export function useFeedbackAudioSource(
           if (Platform.OS !== 'web' && !storedPath) {
             const hasCached = await checkCachedAudio(feedbackId)
             if (hasCached) {
-              // Try to find the actual file by checking which extension exists
+              // PERF FIX #2: Check extensions in parallel instead of sequentially
               // Priority order: wav, mp3, aac, m4a
               const extensions = ['wav', 'mp3', 'aac', 'm4a']
-              for (const ext of extensions) {
-                const cachedPath = getCachedAudioPath(feedbackId, ext)
-                try {
-                  const info = await getInfoAsync(cachedPath)
-                  if (info.exists) {
-                    log.info(CONTEXT, 'Rebuilt cache from direct file check', {
-                      feedbackId,
-                      cachedPath,
-                      extension: ext,
-                    })
-                    // Rebuild index
-                    useFeedbackAudioStore.getState().setAudioPath(feedbackId, cachedPath)
-                    return cachedPath
+              const extensionChecks = await Promise.all(
+                extensions.map(async (ext) => {
+                  const cachedPath = getCachedAudioPath(feedbackId, ext)
+                  try {
+                    const info = await getInfoAsync(cachedPath)
+                    if (info.exists) {
+                      return { ext, path: cachedPath }
+                    }
+                  } catch {
+                    // Try next extension
                   }
-                } catch {
-                  // Try next extension
-                }
+                  return null
+                })
+              )
+
+              // Find first existing file
+              const found = extensionChecks.find((result) => result !== null)
+              if (found) {
+                log.info(CONTEXT, 'Rebuilt cache from direct file check', {
+                  feedbackId,
+                  cachedPath: found.path,
+                  extension: found.ext,
+                })
+                // PERF FIX #2: Store path with extension in cache for future lookups
+                useFeedbackAudioStore.getState().setAudioPath(feedbackId, found.path)
+                return found.path
               }
             }
           }
@@ -148,7 +176,7 @@ export function useFeedbackAudioSource(
                   feedbackId,
                   path: persistentPath,
                 })
-                // Update store with persistent path
+                // PERF FIX #2: Update store with persistent path (includes extension)
                 useFeedbackAudioStore.getState().setAudioPath(feedbackId, persistentPath)
               })
               .catch((error) => {
@@ -162,41 +190,62 @@ export function useFeedbackAudioSource(
           return result.url
         }
 
-        void resolveAudioUri()
+        return resolveAudioUri()
           .then((url) => {
-            // Update audio URLs in store
-            useFeedbackAudioStore.getState().setAudioUrls({
-              ...useFeedbackAudioStore.getState().audioUrls,
-              [feedbackId]: url,
-            })
-
-            // Clear any existing error for this feedback
-            const currentErrors = useFeedbackAudioStore.getState().errors
-            if (currentErrors[feedbackId]) {
-              useFeedbackAudioStore.getState().clearError(feedbackId)
-            }
-
-            // Note: Removed auto-select behavior - only select on user action
-
-            // log.info(CONTEXT, 'Audio url resolved for feedback', {
-            //   feedbackId,
-            // })
+            return { feedbackId, url }
           })
           .catch((error) => {
             const message = error instanceof Error ? error.message : 'Unknown error'
-            // Set error in store
-            useFeedbackAudioStore.getState().setErrors({
-              ...useFeedbackAudioStore.getState().errors,
-              [feedbackId]: message,
-            })
             log.error(CONTEXT, 'Audio url fetch threw unexpected error', {
               feedbackId,
               error: message,
             })
+            return { feedbackId, error: message }
           })
           .finally(() => {
             inFlightRef.current.delete(feedbackId)
           })
+      })
+
+      // PERF FIX #1: Wait for all resolutions in parallel
+      // This reduces total time from sum(serial) to max(parallel)
+      void Promise.all(resolvePromises).then((results) => {
+        // Batch update audio URLs once all resolutions complete
+        const updates: Record<string, string> = {}
+        const errors: Record<string, string> = {}
+
+        for (const result of results) {
+          if ('url' in result) {
+            updates[result.feedbackId] = result.url
+          } else if ('error' in result) {
+            errors[result.feedbackId] = result.error
+          }
+        }
+
+        // Apply batch updates
+        if (Object.keys(updates).length > 0) {
+          const currentUrls = useFeedbackAudioStore.getState().audioUrls
+          useFeedbackAudioStore.getState().setAudioUrls({
+            ...currentUrls,
+            ...updates,
+          })
+
+          // Clear errors for successfully resolved items
+          for (const feedbackId of Object.keys(updates)) {
+            const currentErrors = useFeedbackAudioStore.getState().errors
+            if (currentErrors[feedbackId]) {
+              useFeedbackAudioStore.getState().clearError(feedbackId)
+            }
+          }
+        }
+
+        if (Object.keys(errors).length > 0) {
+          const currentErrors = useFeedbackAudioStore.getState().errors
+          useFeedbackAudioStore.getState().setErrors({
+            ...currentErrors,
+            ...errors,
+          })
+        }
       })
     }, 100) // 100ms delay - same as prefetch deferral
 

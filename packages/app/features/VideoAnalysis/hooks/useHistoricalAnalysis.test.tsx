@@ -161,10 +161,11 @@ describe('useHistoricalAnalysis', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      // Should return cached data with cachedAt/lastAccessed added
+      // Should return cached data immediately (optimistic rendering)
+      // Returns cached videoUri immediately, file validation happens async
       expect(result.current.data).toMatchObject({
         ...mockCachedData,
-        videoUri: 'file:///cached/video.mp4',
+        videoUri: 'https://signed.example.com/videos/test-video.mp4', // Optimistic: returns cached URI
       })
       expect(result.current.data?.cachedAt).toBeDefined()
       expect(result.current.data?.lastAccessed).toBeDefined()
@@ -382,6 +383,154 @@ describe('useHistoricalAnalysis', () => {
       const { getCached } = useVideoHistoryStore.getState()
       expect(getCached(1)).toBeNull()
     })
+
+    it('should return cached URI immediately (optimistic) and defer file validation', async () => {
+      // Arrange - Add cached data with file:// URI
+      const cachedVideoUri = 'file:///cached/video.mp4'
+      const mockCachedData = {
+        id: 1,
+        videoId: 100,
+        userId: 'user-123',
+        title: 'Test Analysis',
+        createdAt: '2025-10-12T00:00:00Z',
+        results: {
+          pose_analysis: {
+            keypoints: [],
+            confidence_score: 0.85,
+            frame_count: 30,
+          },
+        },
+        storagePath: 'user-123/video.mp4',
+        videoUri: cachedVideoUri,
+      }
+
+      const { addToCache } = useVideoHistoryStore.getState()
+      addToCache(mockCachedData)
+
+      // Mock title fetch (lightweight, doesn't block)
+      const mockSingle = jest.fn().mockResolvedValue({
+        data: { title: 'Updated Title' },
+        error: null,
+      })
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+      mockSupabase.from = jest.fn().mockReturnValue({ select: mockSelect })
+
+      // File validation will happen async - initially return exists: true, then we'll test failure
+      mockFileSystem.getInfoAsync.mockResolvedValue({
+        exists: true,
+        uri: cachedVideoUri,
+        isDirectory: false,
+        size: 0,
+        modificationTime: Date.now(),
+      })
+
+      // Act
+      const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
+
+      // Assert - Should return immediately with cached URI (optimistic)
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      // Should return cached URI immediately (optimistic rendering)
+      expect(result.current.data?.videoUri).toBe(cachedVideoUri)
+      // PERF FIX: Title now comes from cache immediately (no blocking DB query)
+      // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
+      expect(result.current.data?.title).toBe('Test Analysis') // Cached title
+
+      // File validation should happen async (non-blocking)
+      // Wait a bit to ensure validation runs
+      await waitFor(
+        () => {
+          expect(mockFileSystem.getInfoAsync).toHaveBeenCalledWith(cachedVideoUri)
+        },
+        { timeout: 1000 }
+      )
+
+      // Note: Title refresh removed - title is already fresh from prefetch
+      // No need to refresh on mount since prefetch already fetches latest title
+      // Cache should still have original cached title (not updated from DB query)
+      const { getCached } = useVideoHistoryStore.getState()
+      const updatedCache = getCached(1)
+      expect(updatedCache?.title).toBe('Test Analysis') // Still cached title (no refresh)
+    })
+
+    it('should re-resolve URI if cached file validation fails', async () => {
+      // Arrange - Add cached data with missing file:// URI
+      const cachedVideoUri = 'file:///cached/missing-video.mp4'
+      const resolvedVideoUri = 'https://signed.example.com/videos/test-video.mp4'
+      const mockCachedData = {
+        id: 1,
+        videoId: 100,
+        userId: 'user-123',
+        title: 'Test Analysis',
+        createdAt: '2025-10-12T00:00:00Z',
+        results: {
+          pose_analysis: {
+            keypoints: [],
+            confidence_score: 0.85,
+            frame_count: 30,
+          },
+        },
+        storagePath: 'user-123/video.mp4',
+        videoUri: cachedVideoUri,
+      }
+
+      const { addToCache } = useVideoHistoryStore.getState()
+      addToCache(mockCachedData)
+
+      // Mock title fetch
+      const mockSingle = jest.fn().mockResolvedValue({
+        data: { title: 'Test Analysis' },
+        error: null,
+      })
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+      mockSupabase.from = jest.fn().mockReturnValue({ select: mockSelect })
+
+      // File validation fails (file doesn't exist)
+      mockFileSystem.getInfoAsync.mockResolvedValue({
+        exists: false,
+        uri: cachedVideoUri,
+        isDirectory: false,
+      })
+
+      // Mock signed URL generation for re-resolution
+      mockCreateSignedDownloadUrl.mockResolvedValue({
+        data: {
+          signedUrl: resolvedVideoUri,
+          path: 'user-123/video.mp4',
+        },
+        error: null,
+      })
+
+      // Act
+      const { result } = renderHook(() => useHistoricalAnalysis(1), { wrapper })
+
+      // Assert - Should return immediately with cached URI (optimistic)
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(result.current.data?.videoUri).toBe(cachedVideoUri) // Optimistic URI
+
+      // Wait for async validation and re-resolution
+      await waitFor(
+        () => {
+          const { getCached } = useVideoHistoryStore.getState()
+          const updatedCache = getCached(1)
+          // Cache should be updated with resolved URI after validation failure
+          expect(updatedCache?.videoUri).toBe(resolvedVideoUri)
+        },
+        { timeout: 2000 }
+      )
+
+      // Verify file validation was called
+      expect(mockFileSystem.getInfoAsync).toHaveBeenCalledWith(cachedVideoUri)
+      // Verify re-resolution was triggered
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalled()
+    })
   })
 
   describe('RLS filtering', () => {
@@ -443,6 +592,10 @@ describe('useHistoricalAnalysis', () => {
 
   describe('Signed URL session caching (Task 35 Module 2)', () => {
     it('should reuse signed URL within session instead of regenerating', async () => {
+      // Use unique storage path to avoid cache pollution from other tests
+      // The signed URL cache is module-level and persists across tests
+      const uniqueStoragePath = `user-123/session-cache-test-${Date.now()}.mp4`
+
       // Arrange - DB data with storage path (no local URI)
       const mockDbData: AnalysisJob = {
         id: 1,
@@ -465,7 +618,7 @@ describe('useHistoricalAnalysis', () => {
         data: {
           id: 100,
           filename: 'test-video.mp4',
-          storage_path: 'user-123/video.mp4',
+          storage_path: uniqueStoragePath,
           duration_seconds: 30,
           metadata: {},
         },
@@ -494,7 +647,7 @@ describe('useHistoricalAnalysis', () => {
       })
 
       expect(mockCreateSignedDownloadUrl).toHaveBeenCalledTimes(1)
-      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', 'user-123/video.mp4', 3600)
+      expect(mockCreateSignedDownloadUrl).toHaveBeenCalledWith('raw', uniqueStoragePath, 3600)
       expect(result.current.data?.videoUri).toBe(
         'https://signed.example.com/videos/test-video.mp4?token=abc123'
       )

@@ -6,7 +6,7 @@ import { useAnalysisSubscriptionStore } from '@app/features/VideoAnalysis/stores
 import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
 import { analysisKeys } from '@app/hooks/analysisKeys'
 import type { AnalysisJob } from '@app/hooks/useAnalysis'
-import { useAnalysisJob, useAnalysisJobByVideoId } from '@app/hooks/useAnalysis'
+import { useAnalysisJobBatched } from '@app/hooks/useAnalysis'
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import { mockFeedbackItems } from '@app/mocks/feedback'
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
@@ -348,12 +348,15 @@ export function useAnalysisState(
   ])
 
   // Get the analysis job from TanStack Query (single source of truth)
-  // Try to get job by analysisJobId first, then by videoRecordingId
-  const jobIdQuery = useAnalysisJob(analysisJobId ?? 0)
-  const jobByVideoQuery = useAnalysisJobByVideoId(derivedRecordingId ?? 0)
+  // Batched query: only one query runs (by analysisJobId if available, else by videoRecordingId)
+  // This reduces parallel query overhead and improves mount performance
+  const jobQuery = useAnalysisJobBatched(
+    analysisJobId ?? undefined,
+    derivedRecordingId ?? undefined
+  )
 
-  // Prefer analysisJobId result, fallback to videoRecordingId result
-  const analysisJob = jobIdQuery.data ?? jobByVideoQuery.data ?? null
+  // Get the job from the batched query result
+  const analysisJob = jobQuery.data ?? null
 
   // Derive analysis job ID early so it can be used in callbacks
   const derivedAnalysisJobId = analysisJobId ?? analysisJob?.id ?? null
