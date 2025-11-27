@@ -57,6 +57,17 @@ export interface ConfirmDialogProps {
    * @default "destructive"
    */
   variant?: 'destructive' | 'success'
+
+  /**
+   * Maximum width of the dialog
+   * @default 400
+   */
+  maxWidth?: number | string
+
+  /**
+   * Width of the dialog (overrides maxWidth for full-width dialogs)
+   */
+  width?: number | string
 }
 
 /**
@@ -88,6 +99,8 @@ export function ConfirmDialog({
   onCancel,
   testID = 'confirm-dialog',
   variant = 'destructive',
+  maxWidth = 400,
+  width,
 }: ConfirmDialogProps): React.ReactElement {
   const confirmButtonColor = variant === 'success' ? '$blue9' : '$red8'
   const confirmButtonPressColor = variant === 'success' ? '$blue10' : '$red9'
@@ -121,7 +134,12 @@ export function ConfirmDialog({
           ]}
           enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
-          maxWidth={400}
+          {...(width !== undefined
+            ? { width: typeof width === 'number' ? width : Number.parseInt(String(width), 10) }
+            : {
+                maxWidth:
+                  typeof maxWidth === 'number' ? maxWidth : Number.parseInt(String(maxWidth), 10),
+              })}
           testID={testID}
           position="relative"
           overflow="hidden"
@@ -151,7 +169,7 @@ export function ConfirmDialog({
             {/* Title */}
             <Dialog.Title>
               <Text
-                fontSize="$7"
+                fontSize="$6"
                 fontWeight="600"
                 color="$color12"
                 letterSpacing={0}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 
 // React 19 + Hermes: Ensure React is globally available for JSX
 if (typeof global !== 'undefined') {
@@ -44,17 +44,24 @@ export default function App() {
 
   // Network logging can be enabled via logger utils when needed
 
+  // Track when root background View is ready to prevent white flash
+  const rootViewReadyRef = useRef(false)
+  const splashHideAttemptedRef = useRef(false)
+
   // Ensure keep-awake is deactivated on app start (runs after React is ready)
   // Clean up any stale tagged activations from previous session
+  // CRITICAL: Call without tag to deactivate ALL keep-awake activations (including untagged)
+  // This prevents app from staying awake when starting on non-record tabs
   useEffect(() => {
     if (Platform.OS !== 'web') {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports, deprecation/deprecation
         const { deactivateKeepAwake } = require('expo-keep-awake')
-        // Deactivate known tags to ensure clean state on app start
-        // This prevents lingering activations from previous sessions
+        // Deactivate ALL keep-awake activations (untagged + all tags)
+        // This ensures clean state regardless of how keep-awake was activated
         // eslint-disable-next-line deprecation/deprecation
-        deactivateKeepAwake('camera-recording')
+        deactivateKeepAwake() // Deactivate all (no tag = deactivate everything)
+        // Also deactivate known tag explicitly for safety (redundant but harmless)
         // eslint-disable-next-line deprecation/deprecation
         deactivateKeepAwake('record-tab')
       } catch (error) {
@@ -63,20 +70,40 @@ export default function App() {
     }
   }, [])
 
-  // Hide splash screen immediately after first render - don't wait for fonts
-  // Fonts will load progressively, UI renders immediately with system fallbacks
+  // Hide splash screen only after root background View is confirmed rendered
+  // This prevents white flash between splash screen and app content
+  const handleRootViewReady = useCallback(() => {
+    rootViewReadyRef.current = true
+
+    // Hide splash screen now that background is confirmed rendered
+    if (!splashHideAttemptedRef.current) {
+      splashHideAttemptedRef.current = true
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore errors - splash may already be hidden
+      })
+    }
+  }, [])
+
+  // Fallback: Hide splash screen after timeout if root view doesn't report ready
+  // This ensures splash screen doesn't stay visible forever
   useEffect(() => {
-    // Hide immediately - UI renders with system fonts
-    SplashScreen.hideAsync().catch(() => {
-      // Ignore errors - splash may already be hidden
-    })
+    const timeout = setTimeout(() => {
+      if (!splashHideAttemptedRef.current) {
+        splashHideAttemptedRef.current = true
+        SplashScreen.hideAsync().catch(() => {
+          // Ignore errors
+        })
+      }
+    }, 1000) // 1 second timeout
+
+    return () => clearTimeout(timeout)
   }, [])
 
   // Render UI immediately - fonts load progressively in background
   // Tamagui will use system fallbacks until custom fonts are ready
 
   try {
-    return <RootLayoutNav />
+    return <RootLayoutNav onRootViewReady={handleRootViewReady} />
   } catch (error) {
     log.error('_layout.tsx', 'Error in JSX return:', {
       error: error instanceof Error ? error.message : String(error),
@@ -86,7 +113,7 @@ export default function App() {
   }
 }
 
-function RootLayoutNav() {
+function RootLayoutNav({ onRootViewReady }: { onRootViewReady?: () => void }) {
   //const colorScheme = useColorScheme()
 
   // // Auto-deeplink to Metro on simulator startup (prevents Expo Dev Launcher)
@@ -104,7 +131,7 @@ function RootLayoutNav() {
 
   return (
     <ErrorBoundary>
-      <Provider>
+      <Provider onRootViewReady={onRootViewReady}>
         {/*<ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>*/}
         {/* Android: Set transparent status bar globally */}
         {Platform.OS === 'android' && (

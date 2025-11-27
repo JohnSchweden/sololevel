@@ -12,8 +12,8 @@ const getActionSheetProvider = () => {
 import { log } from '@my/logging'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
 import { enableMapSet } from 'immer'
-import { useEffect, useRef, useState } from 'react'
-import { Platform, useColorScheme } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Platform, View, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { initializeTestAuth } from '../auth/testAuthBootstrap'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -30,10 +30,12 @@ export function Provider({
   children,
   defaultTheme = 'dark',
   locale,
+  onRootViewReady,
   ...rest
 }: Omit<TamaguiProviderProps, 'config'> & {
   defaultTheme?: string
   locale?: string
+  onRootViewReady?: () => void
 }) {
   // Initialize Immer MapSet plugin for Zustand stores that use Map/Set objects
   useEffect(() => {
@@ -143,6 +145,10 @@ export function Provider({
     // noop: native toast disabled by config
   }, [])
 
+  // Memoize root background style to prevent object recreation on each render
+  // Matches splash screen backgroundColor (#1a1a1a) for seamless transition
+  const rootBackgroundStyle = useMemo(() => ({ flex: 1, backgroundColor: '#1a1a1a' }), [])
+
   return (
     <SafeAreaProvider
       initialMetrics={
@@ -154,37 +160,46 @@ export function Provider({
           : undefined
       }
     >
-      <I18nProvider locale={locale}>
-        <QueryProvider>
-          <TamaguiProvider
-            config={config}
-            defaultTheme={theme}
-            {...rest}
-          >
-            <ErrorBoundary>
-              <ToastProvider
-                swipeDirection="horizontal"
-                duration={6000}
-                native={[]}
-              >
-                {mounted && ActionSheetProvider ? (
-                  <ActionSheetProvider>
+      {/* Root background wrapper to prevent white flash between splash screen and AuthGate fallback */}
+      <View
+        style={rootBackgroundStyle}
+        onLayout={() => {
+          // Notify parent that root view is ready - allows delaying splash screen hide
+          onRootViewReady?.()
+        }}
+      >
+        <I18nProvider locale={locale}>
+          <QueryProvider>
+            <TamaguiProvider
+              config={config}
+              defaultTheme={theme}
+              {...rest}
+            >
+              <ErrorBoundary>
+                <ToastProvider
+                  swipeDirection="horizontal"
+                  duration={6000}
+                  native={[]}
+                >
+                  {mounted && ActionSheetProvider ? (
+                    <ActionSheetProvider>
+                      <>
+                        {children}
+                        <ToastViewport />
+                      </>
+                    </ActionSheetProvider>
+                  ) : (
                     <>
                       {children}
                       <ToastViewport />
                     </>
-                  </ActionSheetProvider>
-                ) : (
-                  <>
-                    {children}
-                    <ToastViewport />
-                  </>
-                )}
-              </ToastProvider>
-            </ErrorBoundary>
-          </TamaguiProvider>
-        </QueryProvider>
-      </I18nProvider>
+                  )}
+                </ToastProvider>
+              </ErrorBoundary>
+            </TamaguiProvider>
+          </QueryProvider>
+        </I18nProvider>
+      </View>
     </SafeAreaProvider>
   )
 }

@@ -16,7 +16,7 @@ import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useFrameDropDetection } from '@ui/hooks/useFrameDropDetection'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, LayoutAnimation, Platform } from 'react-native'
 import type { KeyboardEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -29,6 +29,7 @@ import {
   Image,
   Input,
   ScrollView,
+  Spinner,
   Text,
   XStack,
   YStack,
@@ -36,7 +37,36 @@ import {
 } from 'tamagui'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
-import { VideoAnalysisInsightsV2 } from './VideoAnalysisInsightsV2'
+
+// Lazy load VideoAnalysisInsightsV2 to reduce initial bundle size
+// Loads only when insights tab is accessed
+const LazyVideoAnalysisInsightsV2 = React.lazy(() =>
+  import('./VideoAnalysisInsightsV2').then((module) => ({
+    default: module.VideoAnalysisInsightsV2,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded insights content
+ * Minimal spinner to avoid layout shift during code loading
+ */
+function InsightsLoadingFallback(): React.ReactElement {
+  return (
+    <YStack
+      flex={1}
+      alignItems="center"
+      justifyContent="center"
+      padding="$6"
+      testID="insights-loading-fallback"
+    >
+      {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
+      <Spinner
+        size="small"
+        color="$color12"
+      />
+    </YStack>
+  )
+}
 
 // Use Animated.FlatList directly for virtualization
 
@@ -873,13 +903,16 @@ export const FeedbackPanel = memo(
       [feedbackFilter, sortedFeedbackItems, renderFeedbackItemNode]
     )
 
-    // Render insights tab content
+    // Render insights tab content with lazy loading
+    // Only loads component code when tab is accessed
     const renderInsightsContent = useCallback(
       () => (
-        <VideoAnalysisInsightsV2
-          key="insights-content"
-          testID="insights-content"
-        />
+        <Suspense fallback={<InsightsLoadingFallback />}>
+          <LazyVideoAnalysisInsightsV2
+            key="insights-content"
+            testID="insights-content"
+          />
+        </Suspense>
       ),
       []
     )

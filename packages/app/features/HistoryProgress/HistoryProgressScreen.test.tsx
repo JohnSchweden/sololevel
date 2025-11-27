@@ -19,6 +19,25 @@ jest.mock('@my/ui', () => {
   return {
     GlassBackground: ({ children, testID }: any) =>
       React.createElement('div', { 'data-testid': testID, testID }, children),
+    ConfirmDialog: ({ visible, title, message, confirmLabel, onConfirm, onCancel, testID }: any) =>
+      visible
+        ? React.createElement(
+            'div',
+            { 'data-testid': testID, testID },
+            React.createElement('div', {}, title),
+            React.createElement('div', {}, message),
+            React.createElement(
+              'button',
+              { onClick: onConfirm, 'data-testid': `${testID}-confirm` },
+              confirmLabel
+            ),
+            React.createElement(
+              'button',
+              { onClick: onCancel, 'data-testid': `${testID}-cancel` },
+              'Cancel'
+            )
+          )
+        : null,
   }
 })
 
@@ -174,7 +193,7 @@ describe('HistoryProgressScreen', () => {
       expect(defaultProps.onNavigateToVideoAnalysis).toHaveBeenCalledTimes(1)
     })
 
-    it('should call onNavigateToVideos when "See All" is pressed', () => {
+    it('should show "Coming soon" dialog when "See All" is pressed', () => {
       // 🧪 ARRANGE: Mock data
       mockUseHistoryQuery.mockReturnValue({
         data: mockVideos,
@@ -189,8 +208,9 @@ describe('HistoryProgressScreen', () => {
       const seeAllButton = screen.getByTestId('see-all-button')
       fireEvent.press(seeAllButton)
 
-      // ✅ ASSERT: Navigation callback should be called
-      expect(defaultProps.onNavigateToVideos).toHaveBeenCalledTimes(1)
+      // ✅ ASSERT: "Coming soon" dialog should be shown
+      const dialog = screen.getByTestId('history-progress-screen-coming-soon-dialog')
+      expect(dialog).toBeTruthy()
     })
 
     it('should call onNavigateToCoachingSession when session is pressed', () => {

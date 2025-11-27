@@ -1,22 +1,27 @@
+import { useIsFocused } from '@react-navigation/native'
 // eslint-disable-next-line deprecation/deprecation
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
-import { usePathname } from 'expo-router'
 import { useEffect } from 'react'
 
 /**
- * Unique tag for camera recording keep-awake activation.
+ * Unique tag for record tab keep-awake activation.
  * Using tags allows proper reference counting - multiple activations with the same tag
  * are tracked separately from other keep-awake activations.
  */
-const KEEP_AWAKE_TAG = 'camera-recording'
+const KEEP_AWAKE_TAG = 'record-tab'
 
 /**
- * Hook to keep the screen awake only when on the CameraRecording (record) tab.
+ * Hook to keep the screen awake only when the record tab is focused.
  *
  * Uses tag-based activation for proper reference counting:
  * - Each activation with the same tag increments a counter for that tag
  * - Deactivation decrements only that tag's counter
  * - Screen stays awake if ANY tag's counter > 0
+ *
+ * Uses `useIsFocused()` from React Navigation instead of `usePathname()` because:
+ * - Expo Router keeps tabs mounted even when not focused
+ * - `useIsFocused()` accurately tracks actual tab focus state
+ * - Pathname alone doesn't reflect whether tab is actually visible/focused
  *
  * This prevents issues with mismatched activate/deactivate calls and allows
  * multiple components to manage keep-awake independently.
@@ -25,9 +30,9 @@ export const useKeepAwake = (): void => {
   // Check if we're in a test environment
   const isTestEnvironment = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined'
 
-  // Get current pathname to check if we're on the record tab
-  const pathname = usePathname()
-  const isOnRecordTab = pathname?.includes('/(tabs)/record') || pathname === '/record'
+  // Use React Navigation's focus state - more accurate than pathname for tab focus
+  // Expo Router keeps tabs mounted, so pathname doesn't reflect actual focus
+  const isFocused = useIsFocused()
 
   if (isTestEnvironment) {
     // In test environment, do nothing
@@ -35,22 +40,23 @@ export const useKeepAwake = (): void => {
   }
 
   useEffect(() => {
-    if (isOnRecordTab) {
-      // Activate with unique tag - won't interfere with other keep-awake activations
+    if (isFocused) {
+      // Tab is focused - activate keep-awake with unique tag
       // eslint-disable-next-line deprecation/deprecation
       activateKeepAwakeAsync(KEEP_AWAKE_TAG)
 
       return () => {
-        // Deactivate only our tag - doesn't affect other activations
+        // Cleanup: deactivate only our tag when tab loses focus
         // eslint-disable-next-line deprecation/deprecation
         deactivateKeepAwake(KEEP_AWAKE_TAG)
       }
     }
-    // If not on record tab, return cleanup that deactivates (in case it was previously active)
+    // Tab is NOT focused - return cleanup that deactivates (in case it was previously active)
     // This ensures deactivation only happens during cleanup, not on every render
+    // This is crucial because Expo Router keeps tabs mounted
     return () => {
       // eslint-disable-next-line deprecation/deprecation
       deactivateKeepAwake(KEEP_AWAKE_TAG)
     }
-  }, [isOnRecordTab])
+  }, [isFocused])
 }

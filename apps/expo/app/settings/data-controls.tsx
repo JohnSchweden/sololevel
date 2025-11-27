@@ -1,5 +1,32 @@
-import { DataControlsScreen } from '@my/app/features/DataControls'
 import { log } from '@my/logging'
+import { GlassBackground, StateDisplay } from '@my/ui'
+import React, { Suspense } from 'react'
+
+// Lazy load DataControlsScreen to reduce initial bundle size
+// This defers loading DataControlsScreen code until route is accessed
+const LazyDataControlsScreen = React.lazy(() =>
+  import('@my/app/features/DataControls').then((module) => ({
+    default: module.DataControlsScreen,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded Data Controls screen
+ */
+function DataControlsLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="data-controls-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="Loading..."
+        testID="data-controls-loading-state"
+      />
+    </GlassBackground>
+  )
+}
 
 /**
  * Data Controls Settings Route - Mobile App
@@ -8,6 +35,8 @@ import { log } from '@my/logging'
  *
  * Route: /settings/data-controls
  * Auth: Protected (requires authentication)
+ *
+ * Performance: Uses React.lazy() to defer code loading until route is accessed
  */
 export default function DataControlsRoute() {
   const handleDataExport = (): void => {
@@ -24,9 +53,11 @@ export default function DataControlsRoute() {
   }
 
   return (
-    <DataControlsScreen
-      onDataExport={handleDataExport}
-      onClearAllData={handleClearAllData}
-    />
+    <Suspense fallback={<DataControlsLoadingFallback />}>
+      <LazyDataControlsScreen
+        onDataExport={handleDataExport}
+        onClearAllData={handleClearAllData}
+      />
+    </Suspense>
   )
 }

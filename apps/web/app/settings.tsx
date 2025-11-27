@@ -1,9 +1,40 @@
-import { SettingsScreen } from '@my/app/features/Settings'
 import { useConfirmDialog } from '@my/app/hooks/useConfirmDialog'
 import { useAuthStore } from '@my/app/stores/auth'
-import { ConfirmDialog, type FooterLinkType, type SettingsNavItem } from '@my/ui'
+import {
+  ConfirmDialog,
+  type FooterLinkType,
+  GlassBackground,
+  type SettingsNavItem,
+  StateDisplay,
+} from '@my/ui'
 import { useRouter } from 'expo-router'
-import { useCallback, useRef } from 'react'
+import React, { Suspense, useCallback, useRef } from 'react'
+
+// Lazy load SettingsScreen to reduce initial bundle size
+// This defers loading SettingsScreen code until route is accessed
+const LazySettingsScreen = React.lazy(() =>
+  import('@my/app/features/Settings').then((module) => ({
+    default: module.SettingsScreen,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded Settings screen
+ */
+function SettingsLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="settings-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="Loading..."
+        testID="settings-loading-state"
+      />
+    </GlassBackground>
+  )
+}
 
 // Navigation items configuration for settings
 const NAVIGATION_ITEMS: SettingsNavItem[] = [
@@ -19,6 +50,8 @@ const NAVIGATION_ITEMS: SettingsNavItem[] = [
  * Settings Route - Web App
  *
  * Main settings screen with navigation to sub-pages and external links.
+ *
+ * Performance: Uses React.lazy() to defer code loading until route is accessed
  */
 export default function SettingsRoute() {
   const router = useRouter()
@@ -72,12 +105,14 @@ export default function SettingsRoute() {
 
   return (
     <>
-      <SettingsScreen
-        navigationItems={NAVIGATION_ITEMS}
-        onNavigate={handleNavigate}
-        onFooterLink={handleFooterLink}
-        onLogout={handleLogout}
-      />
+      <Suspense fallback={<SettingsLoadingFallback />}>
+        <LazySettingsScreen
+          navigationItems={NAVIGATION_ITEMS}
+          onNavigate={handleNavigate}
+          onFooterLink={handleFooterLink}
+          onLogout={handleLogout}
+        />
+      </Suspense>
 
       <ConfirmDialog
         visible={logoutDialog.isVisible}

@@ -17,6 +17,9 @@ jest.mock('@my/ui', () => ({
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios' },
   useColorScheme: () => 'light',
+  View: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+    <div {...props}>{children}</div>
+  ),
 }))
 
 jest.mock('react-native-safe-area-context', () => ({

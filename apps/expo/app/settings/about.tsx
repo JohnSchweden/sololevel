@@ -1,6 +1,33 @@
-import { AboutScreen } from '@my/app/features/About'
 import { log } from '@my/logging'
+import { GlassBackground, StateDisplay } from '@my/ui'
+import React, { Suspense } from 'react'
 import { Linking } from 'react-native'
+
+// Lazy load AboutScreen to reduce initial bundle size
+// This defers loading AboutScreen code until route is accessed
+const LazyAboutScreen = React.lazy(() =>
+  import('@my/app/features/About').then((module) => ({
+    default: module.AboutScreen,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded About screen
+ */
+function AboutLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="about-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="Loading..."
+        testID="about-loading-state"
+      />
+    </GlassBackground>
+  )
+}
 
 /**
  * About Route - Expo Native App
@@ -10,6 +37,8 @@ import { Linking } from 'react-native'
  *
  * Route: /settings/about
  * Auth: Protected (requires authentication)
+ *
+ * Performance: Uses React.lazy() to defer code loading until route is accessed
  */
 export default function AboutRoute() {
   const handlePrivacyPress = async (): Promise<void> => {
@@ -39,10 +68,12 @@ export default function AboutRoute() {
   }
 
   return (
-    <AboutScreen
-      onPrivacyPress={handlePrivacyPress}
-      onTermsPress={handleTermsPress}
-      onLicensesPress={handleLicensesPress}
-    />
+    <Suspense fallback={<AboutLoadingFallback />}>
+      <LazyAboutScreen
+        onPrivacyPress={handlePrivacyPress}
+        onTermsPress={handleTermsPress}
+        onLicensesPress={handleLicensesPress}
+      />
+    </Suspense>
   )
 }

@@ -1,13 +1,41 @@
-import { AccountScreen } from '@app/features/Account'
 import { useAuth } from '@app/hooks/useAuth'
+import { GlassBackground, StateDisplay } from '@my/ui'
 import { useNavigation, useRouter } from 'expo-router'
-import { useLayoutEffect } from 'react'
+import React, { Suspense, useLayoutEffect } from 'react'
+
+// Lazy load AccountScreen to reduce initial bundle size
+// This defers loading AccountScreen code until route is accessed
+const LazyAccountScreen = React.lazy(() =>
+  import('@app/features/Account').then((module) => ({
+    default: module.AccountScreen,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded Account screen
+ */
+function AccountLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="account-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="Loading..."
+        testID="account-loading-state"
+      />
+    </GlassBackground>
+  )
+}
 
 /**
  * Account Settings Route (Native)
  *
  * Handles navigation for Account screen with platform-specific routing.
  * Protected route - requires authentication via AuthGate in main layout.
+ *
+ * Performance: Uses React.lazy() to defer code loading until route is accessed
  */
 export default function AccountSettingsRoute() {
   const router = useRouter()
@@ -60,16 +88,18 @@ export default function AccountSettingsRoute() {
   }
 
   return (
-    <AccountScreen
-      user={user}
-      email={email}
-      isLoading={loading}
-      is2FAEnabled={is2FAEnabled}
-      onEditProfile={handleEditProfile}
-      onChangePassword={handleChangePassword}
-      onEmailPreferences={handleEmailPreferences}
-      onDeleteAccount={handleDeleteAccount}
-      onToggle2FA={handleToggle2FA}
-    />
+    <Suspense fallback={<AccountLoadingFallback />}>
+      <LazyAccountScreen
+        user={user}
+        email={email}
+        isLoading={loading}
+        is2FAEnabled={is2FAEnabled}
+        onEditProfile={handleEditProfile}
+        onChangePassword={handleChangePassword}
+        onEmailPreferences={handleEmailPreferences}
+        onDeleteAccount={handleDeleteAccount}
+        onToggle2FA={handleToggle2FA}
+      />
+    </Suspense>
   )
 }

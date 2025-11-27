@@ -1,19 +1,11 @@
 import { CameraRecordingScreen } from '@app/features/CameraRecording'
+import { useKeepAwake } from '@app/features/CameraRecording/hooks/useKeepAwake'
 import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
-import { useIsFocused } from '@react-navigation/native'
 import { Image } from 'expo-image'
-// eslint-disable-next-line deprecation/deprecation
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { YStack } from 'tamagui'
-
-/**
- * Unique tag for record tab keep-awake activation.
- * Using tags allows proper reference counting separate from other keep-awake activations.
- */
-const KEEP_AWAKE_TAG = 'record-tab'
 
 /**
  * Record Tab - Camera recording and video upload
@@ -31,30 +23,10 @@ export default function RecordTab() {
   const navigation = useNavigation()
   const { resetToIdle } = useLocalSearchParams<{ resetToIdle?: string }>()
   const backPressHandlerRef = useRef<(() => Promise<void>) | null>(null)
-  const isFocused = useIsFocused()
 
   // Keep screen awake only when this tab is focused
-  // Uses tag-based activation for proper reference counting
-  useEffect(() => {
-    if (isFocused) {
-      // Tab is focused - activate keep-awake with unique tag
-      // eslint-disable-next-line deprecation/deprecation
-      activateKeepAwakeAsync(KEEP_AWAKE_TAG)
-
-      return () => {
-        // Cleanup: deactivate only our tag when tab loses focus
-        // eslint-disable-next-line deprecation/deprecation
-        deactivateKeepAwake(KEEP_AWAKE_TAG)
-      }
-    }
-    // Tab is NOT focused - return cleanup that deactivates (in case it was previously active)
-    // This ensures deactivation only happens during cleanup, not on every render
-    // This is crucial because Expo Router keeps tabs mounted
-    return () => {
-      // eslint-disable-next-line deprecation/deprecation
-      deactivateKeepAwake(KEEP_AWAKE_TAG)
-    }
-  }, [isFocused])
+  // Uses hook for centralized keep-awake management
+  useKeepAwake()
 
   const handleVideoProcessed = (videoUri: string) => {
     router.push({
