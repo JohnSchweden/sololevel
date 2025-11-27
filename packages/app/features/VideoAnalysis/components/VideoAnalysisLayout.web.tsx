@@ -149,7 +149,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             onScrollYChange={handlers.onFeedbackScrollY}
             onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
             scrollEnabled={isFeedbackScrollEnabled && !isFeedbackScrollCompletelyBlocked}
-            rootPanRef={gesture.rootPanRef}
           />
 
           {/* Persistent Progress Bar - Rendered at layout level with high z-index to stay above feedback */}

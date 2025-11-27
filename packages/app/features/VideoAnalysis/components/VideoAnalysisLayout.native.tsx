@@ -1,5 +1,5 @@
 import { GlassBackground } from '@my/ui'
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { RefObject } from 'react'
 import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
@@ -228,13 +228,14 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   const controlsVisible =
     process.env.NODE_ENV !== 'test' ? useVideoPlayerStore((state) => state.controlsVisible) : true
 
-  const feedbackScrollSnapshot = useSyncExternalStore(
-    gesture.feedbackScroll.subscribe,
-    gesture.feedbackScroll.getSnapshot,
-    gesture.feedbackScroll.getSnapshot
-  )
-  const isFeedbackScrollEnabled = feedbackScrollSnapshot.enabled
-  const isFeedbackScrollCompletelyBlocked = feedbackScrollSnapshot.blockCompletely
+  // NOTE: feedbackScrollSnapshot no longer needed - blocksExternalGesture handles scroll blocking at gesture level
+  // const feedbackScrollSnapshot = useSyncExternalStore(
+  //   gesture.feedbackScroll.subscribe,
+  //   gesture.feedbackScroll.getSnapshot,
+  //   gesture.feedbackScroll.getSnapshot
+  // )
+  // const isFeedbackScrollEnabled = feedbackScrollSnapshot.enabled
+  // const isFeedbackScrollCompletelyBlocked = feedbackScrollSnapshot.blockCompletely
 
   /**
    * Read persistent progress bar props directly from Zustand store.
@@ -495,8 +496,9 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   onSelectAudio={handlers.onSelectAudio}
                   onScrollYChange={handlers.onFeedbackScrollY}
                   onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
-                  scrollEnabled={isFeedbackScrollEnabled && !isFeedbackScrollCompletelyBlocked}
-                  rootPanRef={gesture.rootPanRef}
+                  scrollEnabled={true} // Always true - blocksExternalGesture handles blocking at gesture level
+                  scrollEnabledShared={(gesture as any).feedbackScrollEnabledShared}
+                  scrollGestureRef={(gesture as any).feedbackScrollGestureRef}
                 />
               </Animated.View>
             </YStack>

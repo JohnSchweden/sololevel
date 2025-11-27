@@ -35,7 +35,8 @@ interface FeedbackSectionProps {
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
   scrollEnabled?: boolean
-  rootPanRef?: React.RefObject<any>
+  scrollEnabledShared?: any // SharedValue<boolean> from gesture controller
+  scrollGestureRef?: React.RefObject<any>
 }
 
 export const FeedbackSection = memo(function FeedbackSection({
@@ -58,7 +59,8 @@ export const FeedbackSection = memo(function FeedbackSection({
   onScrollYChange,
   onScrollEndDrag,
   scrollEnabled,
-  rootPanRef,
+  scrollEnabledShared,
+  scrollGestureRef,
 }: FeedbackSectionProps) {
   // PERFORMANCE FIX: Direct subscription to highlighted feedback state
   // Eliminates VideoAnalysisScreen re-renders when feedback selection changes
@@ -151,7 +153,8 @@ export const FeedbackSection = memo(function FeedbackSection({
         onScrollYChange={onScrollYChange}
         onScrollEndDrag={onScrollEndDrag}
         scrollEnabled={scrollEnabled}
-        rootPanRef={rootPanRef}
+        scrollEnabledShared={scrollEnabledShared}
+        scrollGestureRef={scrollGestureRef}
       />
     </YStack>
   )

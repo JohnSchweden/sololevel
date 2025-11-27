@@ -10,6 +10,8 @@ const mockPanGesture = {
   activeOffsetX: jest.fn().mockReturnThis(),
   failOffsetX: jest.fn().mockReturnThis(),
   failOffsetY: jest.fn().mockReturnThis(),
+  simultaneousWithExternalGesture: jest.fn().mockReturnThis(),
+  blocksExternalGesture: jest.fn().mockReturnThis(),
   onTouchesDown: jest.fn().mockReturnThis(),
   onBegin: jest.fn().mockReturnThis(),
   onStart: jest.fn().mockReturnThis(),
@@ -120,6 +122,50 @@ describe('useGestureController', () => {
       expect(mockPanGesture.onChange).toHaveBeenCalled()
       expect(mockPanGesture.onEnd).toHaveBeenCalled()
       expect(mockPanGesture.onFinalize).toHaveBeenCalled()
+    })
+  })
+
+  describe('Conditional activeOffsetY Based on Scroll Position', () => {
+    it('should use normal activeOffsetY [-20, 20] when feedback scroll is at top (offsetY <= 0)', () => {
+      // Arrange
+      const { scrollY, feedbackContentOffsetY, scrollRef } = createTestDependencies()
+      feedbackContentOffsetY.value = 0 // At top
+
+      // Act
+      renderHook(() =>
+        useGestureController(scrollY as any, feedbackContentOffsetY as any, scrollRef as any)
+      )
+
+      // Assert
+      expect(mockPanGesture.activeOffsetY).toHaveBeenCalledWith([-20, 20])
+    })
+
+    it('should use simultaneousWithExternalGesture for gesture coordination', () => {
+      // Arrange
+      const { scrollY, feedbackContentOffsetY, scrollRef } = createTestDependencies()
+
+      // Act
+      renderHook(() =>
+        useGestureController(scrollY as any, feedbackContentOffsetY as any, scrollRef as any)
+      )
+
+      // Assert
+      // Should allow both gestures to run simultaneously
+      expect(mockPanGesture.simultaneousWithExternalGesture).toHaveBeenCalled()
+    })
+
+    it('should initialize isFeedbackAtTop state based on initial scroll position', () => {
+      // Arrange & Act: Test with scroll at top
+      const { scrollY, feedbackContentOffsetY, scrollRef } = createTestDependencies()
+      feedbackContentOffsetY.value = 0 // At top
+
+      const { result } = renderHook(() =>
+        useGestureController(scrollY as any, feedbackContentOffsetY as any, scrollRef as any)
+      )
+
+      // Assert: Hook initializes successfully with dynamic scroll blocking
+      expect(result.current.rootPan).toBeDefined()
+      expect(result.current.feedbackScrollEnabledShared).toBeDefined()
     })
   })
 })

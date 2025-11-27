@@ -20,7 +20,12 @@ import React, { memo, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import { Keyboard, LayoutAnimation, Platform } from 'react-native'
 import type { KeyboardEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { runOnJS, useAnimatedScrollHandler } from 'react-native-reanimated'
+import Animated, {
+  runOnJS,
+  useAnimatedProps,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
+import type { SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   AnimatePresence,
@@ -306,8 +311,9 @@ export interface FeedbackPanelProps {
   // Nested scroll support
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
-  scrollEnabled?: boolean // Control scroll enabled state from parent
-  rootPanRef?: React.RefObject<any> // Ref to gesture handler for waitFor coordination
+  scrollEnabled?: boolean // Control scroll enabled state from parent (fallback for web/tests)
+  scrollEnabledShared?: SharedValue<boolean> // Shared value for UI-thread scroll control (native only)
+  scrollGestureRef?: React.RefObject<any> // Ref for this panel's scroll gesture (for blocksExternalGesture)
 }
 
 export const FeedbackPanel = memo(
@@ -333,8 +339,9 @@ export const FeedbackPanel = memo(
     onCommentSubmit,
     onScrollYChange,
     onScrollEndDrag,
-    scrollEnabled = true, // Default to enabled
-    rootPanRef,
+    scrollEnabled = true, // Default to enabled (fallback for web/tests)
+    scrollEnabledShared, // Shared value for UI-thread control (native only)
+    scrollGestureRef,
   }: FeedbackPanelProps) {
     // Comment sorting state
     const [commentSort, setCommentSort] = useState<'top' | 'new'>('top')
@@ -345,6 +352,29 @@ export const FeedbackPanel = memo(
     const { bottom: safeAreaBottom } = useSafeAreaInsets()
     const scrollViewRef = useRef<any>(null)
     const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+    // PERFORMANCE FIX: Use useAnimatedProps for zero-latency scroll control
+    // Eliminates 16-50ms JS-thread delay that caused scroll gesture to activate before blocking
+    // Only use on native when shared value is provided
+    const animatedScrollProps = scrollEnabledShared
+      ? useAnimatedProps(() => {
+          'worklet'
+          const enabled = scrollEnabledShared.value
+          runOnJS(log.debug)('FeedbackPanel', 'animatedProps scrollEnabled', { enabled })
+          return {
+            scrollEnabled: enabled,
+          }
+        }, [scrollEnabledShared])
+      : undefined
+
+    // Log scroll state changes
+    useEffect(() => {
+      log.debug('FeedbackPanel', 'Scroll state update', {
+        scrollEnabled,
+        hasSharedValue: !!scrollEnabledShared,
+        hasAnimatedProps: !!animatedScrollProps,
+      })
+    }, [scrollEnabled, scrollEnabledShared, animatedScrollProps])
 
     // Feedback filter state
     const [feedbackFilter, setFeedbackFilter] = useState<
@@ -384,11 +414,6 @@ export const FeedbackPanel = memo(
     // Memoize animation styles to prevent object recreation on every render
     const tabTransitionEnterStyle = useMemo(() => ({ opacity: 0, y: 10 }), [])
     const tabTransitionExitStyle = useMemo(() => ({ opacity: 0, y: -10 }), [])
-
-    // Create native gesture for ScrollView that works with root pan
-    const nativeGesture = rootPanRef
-      ? Gesture.Native().simultaneousWithExternalGesture(rootPanRef)
-      : Gesture.Native()
 
     // Scroll handler to track position
     const scrollHandler = useAnimatedScrollHandler({
@@ -1302,11 +1327,10 @@ export const FeedbackPanel = memo(
                 </Animated.ScrollView>
               ) : isAndroid ? (
                 // Android: Wrap FlatList in GestureDetector to coordinate with parent rootPan
+                // PERFORMANCE FIX: Use Gesture.Native().withRef() to enable blocksExternalGesture
                 <GestureDetector
                   gesture={
-                    rootPanRef
-                      ? Gesture.Native().simultaneousWithExternalGesture(rootPanRef)
-                      : Gesture.Native()
+                    scrollGestureRef ? Gesture.Native().withRef(scrollGestureRef) : Gesture.Native()
                   }
                 >
                   <Animated.FlatList<FeedbackItem>
@@ -1327,6 +1351,9 @@ export const FeedbackPanel = memo(
                     showsVerticalScrollIndicator
                     indicatorStyle="white"
                     scrollEnabled={scrollEnabled}
+                    // PERFORMANCE FIX: Use animatedProps for zero-latency scroll control when shared value provided
+                    // @ts-ignore - animatedProps not in FlatList types but supported by Reanimated
+                    animatedProps={animatedScrollProps}
                     nestedScrollEnabled={true}
                     bounces
                     testID="feedback-panel-scroll"
@@ -1339,7 +1366,12 @@ export const FeedbackPanel = memo(
                   />
                 </GestureDetector>
               ) : (
-                <GestureDetector gesture={nativeGesture}>
+                // iOS: Use Gesture.Native().withRef() to enable blocksExternalGesture
+                <GestureDetector
+                  gesture={
+                    scrollGestureRef ? Gesture.Native().withRef(scrollGestureRef) : Gesture.Native()
+                  }
+                >
                   <YStack
                     flex={1}
                     testID={activeTab === 'feedback' ? 'feedback-content' : undefined}
@@ -1366,6 +1398,9 @@ export const FeedbackPanel = memo(
                       showsVerticalScrollIndicator
                       indicatorStyle="white"
                       scrollEnabled={scrollEnabled}
+                      // PERFORMANCE FIX: Use animatedProps for zero-latency scroll control when shared value provided
+                      // @ts-ignore - animatedProps not in FlatList types but supported by Reanimated
+                      animatedProps={animatedScrollProps}
                       nestedScrollEnabled={true}
                       bounces
                       testID="feedback-panel-scroll"
@@ -1409,7 +1444,8 @@ export const FeedbackPanel = memo(
       prevProps.onScrollYChange === nextProps.onScrollYChange &&
       prevProps.onScrollEndDrag === nextProps.onScrollEndDrag &&
       prevProps.scrollEnabled === nextProps.scrollEnabled &&
-      prevProps.rootPanRef === nextProps.rootPanRef
+      prevProps.scrollEnabledShared === nextProps.scrollEnabledShared &&
+      prevProps.scrollGestureRef === nextProps.scrollGestureRef
     )
   }
 )
