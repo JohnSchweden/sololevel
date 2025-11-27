@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
   type FooterLinkType,
@@ -69,13 +69,8 @@ export function SettingsScreen({
   // Use separate selectors to prevent infinite loops (object selectors create new references)
   const user = useAuthStore((state) => state.user)
   const isLoadingUser = useAuthStore((state) => state.loading)
-  const insetsRaw = useSafeArea()
-  // PERF FIX: useSafeAreaInsets returns NEW object reference every render
-  // Memoize insets based on content to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render

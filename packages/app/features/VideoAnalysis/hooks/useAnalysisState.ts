@@ -214,12 +214,15 @@ const determinePhase = (params: {
   }
 
   if (isHistoryMode) {
-    // In history mode, if we have feedback items, we're ready (data is prefetched)
-    // Only return 'generating-feedback' if we truly don't have feedback yet
-    if (feedback.feedbackItems.length > 0) {
-      return { phase: 'ready', error: null }
-    }
-    return { phase: 'generating-feedback', error: null }
+    // CRITICAL FIX: In history mode, always return 'ready' immediately.
+    // Historical videos are already complete - the video is playable, only feedback is loading.
+    // Previous bug: Returning 'generating-feedback' when feedback.feedbackItems.length === 0
+    // caused processing overlay to show for videos 5-7 due to prefetch race condition:
+    // - Videos 1-4: Immediate prefetch, feedback loads before user taps
+    // - Videos 5-7: 10-30ms delayed prefetch, user can tap before feedback metadata arrives
+    // - Videos 8-10: Already cached from previous session or scroll-prefetched
+    // Feedback items will populate lazily via useFeedbackStatusIntegration subscription.
+    return { phase: 'ready', error: null }
   }
 
   return { phase: 'uploading', error: null }
@@ -359,6 +362,8 @@ export function useAnalysisState(
 
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
   const setUuid = useVideoHistoryStore((state) => state.setUuid)
+  // Subscribe to hydration state to re-check cache after store hydrates
+  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
 
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
     // Try to get UUID from cache synchronously (check multiple cache layers)
@@ -367,6 +372,8 @@ export function useAnalysisState(
       // Check TanStack Query cache first (in-memory, fastest)
       let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
       // Fallback to persisted store (survives app restarts)
+      // Note: Store may not be hydrated yet, so getUuid() may return null
+      // This is fine - useEffect will re-check after hydration completes
       if (!cachedUuid) {
         cachedUuid = getUuid(effectiveJobId) ?? undefined
         if (cachedUuid) {
@@ -403,6 +410,7 @@ export function useAnalysisState(
     // Check multiple cache layers (fastest first)
     let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
     if (!cachedUuid) {
+      // Re-check persisted store (may have hydrated since last check)
       cachedUuid = getUuid(effectiveJobId) ?? undefined
       if (cachedUuid) {
         // Restore to TanStack Query cache for faster subsequent lookups
@@ -422,6 +430,7 @@ export function useAnalysisState(
           source: queryClient.getQueryData(analysisKeys.uuid(effectiveJobId))
             ? 'tanstack'
             : 'persisted',
+          wasHydrated: isHydrated,
         })
         setAnalysisUuid(cachedUuid)
       }
@@ -472,7 +481,10 @@ export function useAnalysisState(
     return () => {
       abortController.abort()
     }
-  }, [analysisJobId, analysisJob?.id, queryClient])
+    // Include isHydrated and getUuid in deps to re-check cache after hydration completes
+    // This prevents unnecessary API calls when UUID is already in persisted cache
+    // Note: getUuid is stable from Zustand, but included for completeness
+  }, [analysisJobId, analysisJob?.id, queryClient, isHydrated, getUuid])
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined, isHistoryMode)
 

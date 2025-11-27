@@ -14,7 +14,8 @@ import Animated, {
   type AnimatedRef,
   type SharedValue,
 } from 'react-native-reanimated'
-import { useGestureConflictDetector } from './useGestureConflictDetector'
+// MEMORY LEAK FIX: Commented out gesture conflict detector (dormant AI analysis feature)
+// import { useGestureConflictDetector } from './useGestureConflictDetector'
 
 // Animation constants - Mode-based system
 const { height: SCREEN_H } = Dimensions.get('window')
@@ -78,50 +79,50 @@ const scrollToMode = (scrollValue: number): VideoMode => {
   'worklet'
   // Pull-to-reveal gesture - snap back to normal
   if (scrollValue < -PULL_THRESHOLD) {
-    runOnJS(log.debug)(
-      'useGestureController.scrollToMode',
-      'Pull-to-reveal detected - snapping to normal',
-      {
-        scrollValue: Math.round(scrollValue * 100) / 100,
-        threshold: -PULL_THRESHOLD,
-      }
-    )
+    // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+    // runOnJS(log.debug)(
+    //   'useGestureController.scrollToMode',
+    //   'Pull-to-reveal detected - snapping to normal',
+    //   {
+    //     scrollValue: Math.round(scrollValue * 100) / 100,
+    //     threshold: -PULL_THRESHOLD,
+    //   }
+    // )
     return 'normal'
   }
 
-  // Find closest mode based on scroll position
-  const modes: VideoMode[] = ['max', 'normal', 'min']
+  // Find closest mode based on scroll position - unrolled loop to avoid array allocation per frame
   let nearestMode: VideoMode = 'max'
   let minDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.max)
-  const distances: Record<VideoMode, number> = {
-    max: Math.abs(scrollValue - MODE_SCROLL_POSITIONS.max),
-    normal: Math.abs(scrollValue - MODE_SCROLL_POSITIONS.normal),
-    min: Math.abs(scrollValue - MODE_SCROLL_POSITIONS.min),
+
+  const normalDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.normal)
+  if (normalDistance < minDistance) {
+    minDistance = normalDistance
+    nearestMode = 'normal'
   }
 
-  for (const mode of modes) {
-    const distance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS[mode])
-    if (distance < minDistance) {
-      minDistance = distance
-      nearestMode = mode
-    }
+  const minModeDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.min)
+  if (minModeDistance < minDistance) {
+    minDistance = minModeDistance
+    nearestMode = 'min'
   }
 
-  runOnJS(log.debug)('useGestureController.scrollToMode', 'Nearest mode calculated', {
-    scrollValue: Math.round(scrollValue * 100) / 100,
-    distances: {
-      max: Math.round(distances.max * 100) / 100,
-      normal: Math.round(distances.normal * 100) / 100,
-      min: Math.round(distances.min * 100) / 100,
-    },
-    nearestMode,
-    minDistance: Math.round(minDistance * 100) / 100,
-    modePositions: {
-      max: MODE_SCROLL_POSITIONS.max,
-      normal: MODE_SCROLL_POSITIONS.normal,
-      min: MODE_SCROLL_POSITIONS.min,
-    },
-  })
+  // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+  // runOnJS(log.debug)('useGestureController.scrollToMode', 'Nearest mode calculated', {
+  //   scrollValue: Math.round(scrollValue * 100) / 100,
+  //   distances: {
+  //     max: Math.round(distances.max * 100) / 100,
+  //     normal: Math.round(distances.normal * 100) / 100,
+  //     min: Math.round(distances.min * 100) / 100,
+  //   },
+  //   nearestMode,
+  //   minDistance: Math.round(minDistance * 100) / 100,
+  //   modePositions: {
+  //     max: MODE_SCROLL_POSITIONS.max,
+  //     normal: MODE_SCROLL_POSITIONS.normal,
+  //     min: MODE_SCROLL_POSITIONS.min,
+  //   },
+  // })
 
   return nearestMode
 }
@@ -376,8 +377,8 @@ export function useGestureController(
   scrollRef: AnimatedRef<Animated.ScrollView>,
   isProcessing = false
 ): UseGestureControllerReturn {
-  // AI-powered gesture conflict detection
-  const gestureDetector = useGestureConflictDetector()
+  // MEMORY LEAK FIX: Commented out gesture conflict detection (dormant AI analysis feature)
+  // const gestureDetector = useGestureConflictDetector()
 
   // Scroll blocking state - custom subscription store to avoid parent re-renders
   const feedbackScrollStateRef = useRef<FeedbackScrollSnapshot>({
@@ -494,79 +495,33 @@ export function useGestureController(
     }
   }, [])
 
-  // LAZY INITIALIZATION: Register listeners for internal tracking shared values
-  // to prevent "onAnimatedValueUpdate with no listeners" warnings in development.
+  // OPTIMIZATION: Single consolidated reaction to observe all internal tracking shared values
+  // Prevents "onAnimatedValueUpdate with no listeners" warnings while minimizing overhead.
+  // Consolidates 12 separate reactions into 1 worklet registration (12x reduction).
   // These values are read within worklets but need registered listeners to avoid warnings.
   useAnimatedReaction(
-    () => gestureIsActive.value,
     () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => gestureDirection.value,
+      'worklet'
+      // Read all values to register them as observed (prevents warnings)
+      // Values are intentionally unused - this is just for observation registration
+      return {
+        gestureIsActive: gestureIsActive.value,
+        gestureDirection: gestureDirection.value,
+        gestureVelocity: gestureVelocity.value,
+        gestureStartTime: gestureStartTime.value,
+        initialTouchY: initialTouchY.value,
+        initialTouchX: initialTouchX.value,
+        initialIsInVideoArea: initialIsInVideoArea.value,
+        isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
+        committedToVideoControl: committedToVideoControl.value,
+        initialScrollY: initialScrollY.value,
+        isLeftEdgeSwipe: isLeftEdgeSwipe.value,
+        totalTranslationY: totalTranslationY.value,
+      }
+    },
     () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => gestureVelocity.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => gestureStartTime.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => initialTouchY.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => initialTouchX.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => initialIsInVideoArea.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => isFastSwipeVideoModeChange.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => committedToVideoControl.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => initialScrollY.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => isLeftEdgeSwipe.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
-    }
-  )
-  useAnimatedReaction(
-    () => totalTranslationY.value,
-    () => {
-      // Listener intentionally empty - ensures value is observed by UI runtime
+      // Listener intentionally empty - ensures values are observed by UI runtime
+      // This single reaction replaces 12 separate ones, reducing initialization overhead
     }
   )
 
@@ -577,18 +532,27 @@ export function useGestureController(
     [setFeedbackScrollEnabled]
   )
 
-  const setBlockFeedbackScrollCompletelyTransition = useCallback(
-    (value: boolean) => {
+  // Removed: setBlockFeedbackScrollCompletelyTransition - unused
+  // Now handled by batchScrollStateUpdate for better performance
+
+  // MEMORY LEAK FIX: Batched function to reduce runOnJS closure allocations
+  // Combines setFeedbackScrollEnabledTransition + setBlockFeedbackScrollCompletelyTransition
+  // into a single closure instead of two separate ones
+  const batchScrollStateUpdate = useCallback(
+    (updates: { scrollEnabled: boolean; blockCompletely: boolean }) => {
+      setFeedbackScrollEnabled(updates.scrollEnabled)
       const previous = feedbackScrollStateRef.current.blockCompletely
-      if (previous !== value) {
-        log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
-          prev: previous,
-          next: value,
-        })
+      if (previous !== updates.blockCompletely) {
+        if (__DEV__) {
+          log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
+            prev: previous,
+            next: updates.blockCompletely,
+          })
+        }
       }
-      setBlockFeedbackScrollCompletely(value)
+      setBlockFeedbackScrollCompletely(updates.blockCompletely)
     },
-    [setBlockFeedbackScrollCompletely]
+    [setFeedbackScrollEnabled, setBlockFeedbackScrollCompletely]
   )
 
   const updatePullingToRevealJS = useCallback(
@@ -695,28 +659,24 @@ export function useGestureController(
     // Fail immediately on rightward horizontal swipes (back navigation area)
     // This fails BEFORE activation can occur, allowing system back gesture
     .failOffsetX([Number.NEGATIVE_INFINITY, 10])
-    .onTouchesDown((event) => {
+    .onTouchesDown(() => {
       'worklet'
-      const touch = event.allTouches[0]
-      const touchX = touch?.x ?? 0
-      const touchY = touch?.y ?? 0
-      const pointerCount = event.allTouches.length
-      runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Touch down', {
-        touchX,
-        touchY,
-        pointerCount,
-      })
-      // Track gesture event for AI analysis
-      runOnJS(gestureDetector.trackGestureEvent)({
-        gestureType: 'rootPan',
-        phase: 'begin',
-        location: {
-          x: touchX,
-          y: touchY,
-        },
-        translation: { x: 0, y: 0 },
-        velocity: { x: 0, y: 0 },
-      })
+      // MEMORY LEAK FIX: Removed unused touchX/touchY (only used in commented-out tracking/logging)
+      // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+      // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Touch down', {
+      //   pointerCount,
+      // })
+      // MEMORY LEAK FIX: Commented out gesture tracking (dormant AI analysis feature)
+      // runOnJS(gestureDetector.trackGestureEvent)({
+      //   gestureType: 'rootPan',
+      //   phase: 'begin',
+      //   location: {
+      //     x: touch?.x ?? 0,
+      //     y: touch?.y ?? 0,
+      //   },
+      //   translation: { x: 0, y: 0 },
+      //   velocity: { x: 0, y: 0 },
+      // })
     })
     .onBegin((event) => {
       'worklet'
@@ -762,18 +722,18 @@ export function useGestureController(
       }
       // Left-edge touches and feedback area touches wait for direction in onChange
     })
-    .onStart((event) => {
+    .onStart(() => {
       'worklet'
       if (!gestureIsActive.value) return
 
-      // Track gesture start for AI analysis
-      runOnJS(gestureDetector.trackGestureEvent)({
-        gestureType: 'rootPan',
-        phase: 'start',
-        location: { x: event.x, y: event.y },
-        translation: { x: event.translationX, y: event.translationY },
-        velocity: { x: event.velocityX, y: event.velocityY },
-      })
+      // MEMORY LEAK FIX: Commented out gesture tracking (dormant AI analysis feature)
+      // runOnJS(gestureDetector.trackGestureEvent)({
+      //   gestureType: 'rootPan',
+      //   phase: 'start',
+      //   location: { x: event.x, y: event.y },
+      //   translation: { x: event.translationX, y: event.translationY },
+      //   velocity: { x: event.velocityX, y: event.velocityY },
+      // })
 
       isPullingToReveal.value = false
     })
@@ -853,45 +813,50 @@ export function useGestureController(
             // Fast swipe OR long swipe UP in normal mode → Change to min mode (don't scroll feedback)
             isFastSwipeVideoModeChange.value = true
             committedToVideoControl.value = true
-            runOnJS(setFeedbackScrollEnabledTransition)(false)
-            runOnJS(setBlockFeedbackScrollCompletelyTransition)(true)
-            runOnJS(log.debug)(
-              'useGestureController.rootPan',
-              'Mode change triggered (fast or long swipe)',
-              {
-                direction: gestureDirection.value,
-                velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-                translationDistance: Math.round(totalTranslationY.value * 100) / 100,
-                isNormalMode,
-                isFastSwipe,
-                isLongSwipe,
-                fastThreshold: FAST_SWIPE_THRESHOLD,
-                longThreshold: LONG_SWIPE_THRESHOLD,
-                scrollValue,
-                initialScrollY: initialScrollY.value,
-              }
-            )
+            // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
+            runOnJS(batchScrollStateUpdate)({
+              scrollEnabled: false,
+              blockCompletely: true,
+            })
+            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+            // runOnJS(log.debug)(
+            //   'useGestureController.rootPan',
+            //   'Mode change triggered (fast or long swipe)',
+            //   {
+            //     direction: gestureDirection.value,
+            //     velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+            //     translationDistance: Math.round(totalTranslationY.value * 100) / 100,
+            //     isNormalMode,
+            //     isFastSwipe,
+            //     isLongSwipe,
+            //     fastThreshold: FAST_SWIPE_THRESHOLD,
+            //     longThreshold: LONG_SWIPE_THRESHOLD,
+            //     scrollValue,
+            //     initialScrollY: initialScrollY.value,
+            //   }
+            // )
           } else if (!committedToVideoControl.value) {
             // Slow AND short swipe UP → Hand off to ScrollView for feedback scrolling
             gestureIsActive.value = false
             runOnJS(setFeedbackScrollEnabledTransition)(true)
-            runOnJS(log.debug)(
-              'useGestureController.rootPan',
-              'Slow/short swipe - handed off to ScrollView (NOT COMMITTED)',
-              {
-                direction: gestureDirection.value,
-                velocity: Math.round(gestureVelocity.value * 1000) / 1000,
-                translationDistance: Math.round(totalTranslationY.value * 100) / 100,
-                isNormalMode,
-                isFastSwipe,
-                isLongSwipe,
-                fastThreshold: FAST_SWIPE_THRESHOLD,
-                longThreshold: LONG_SWIPE_THRESHOLD,
-                scrollValue,
-                initialScrollY: initialScrollY.value,
-                committedToVideoControl: committedToVideoControl.value,
-              }
-            )
+            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+            // runOnJS(log.debug)(
+            //   'useGestureController.rootPan',
+            //   'Slow/short swipe - handed off to ScrollView (NOT COMMITTED)',
+            //   {
+            //     direction: gestureDirection.value,
+            //     velocity: Math.round(gestureVelocity.value * 1000) / 1000,
+            //     translationDistance: Math.round(totalTranslationY.value * 100) / 100,
+            //     isNormalMode,
+            //     isFastSwipe,
+            //     isLongSwipe,
+            //     fastThreshold: FAST_SWIPE_THRESHOLD,
+            //     longThreshold: LONG_SWIPE_THRESHOLD,
+            //     scrollValue,
+            //     initialScrollY: initialScrollY.value,
+            //     committedToVideoControl: committedToVideoControl.value,
+            //   }
+            // )
             return
           }
           // If committed, continue with gesture processing
@@ -903,19 +868,20 @@ export function useGestureController(
           // const wasActive = gestureIsActive.value
           gestureIsActive.value = false
           runOnJS(setFeedbackScrollEnabledTransition)(true)
-          runOnJS(log.debug)(
-            'useGestureController.rootPan',
-            'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
-            {
-              isInVideoArea,
-              isAtTop,
-              feedbackOffset: feedbackContentOffsetY.value,
-              scrollValue,
-              initialScrollY: initialScrollY.value,
-              committedToVideoControl: committedToVideoControl.value,
-              reason: 'feedback-already-scrolled',
-            }
-          )
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+          // runOnJS(log.debug)(
+          //   'useGestureController.rootPan',
+          //   'Feedback area scrolled - handed off to ScrollView (NOT COMMITTED)',
+          //   {
+          //     isInVideoArea,
+          //     isAtTop,
+          //     feedbackOffset: feedbackContentOffsetY.value,
+          //     scrollValue,
+          //     initialScrollY: initialScrollY.value,
+          //     committedToVideoControl: committedToVideoControl.value,
+          //     reason: 'feedback-already-scrolled',
+          //   }
+          // )
           return
         } else {
           // All other cases: Commit to gesture control
@@ -956,17 +922,21 @@ export function useGestureController(
           // Long swipe detected during gesture → commit to mode change
           isFastSwipeVideoModeChange.value = true
           committedToVideoControl.value = true
-          runOnJS(setFeedbackScrollEnabledTransition)(false)
-          runOnJS(setBlockFeedbackScrollCompletelyTransition)(true)
-          runOnJS(log.debug)(
-            'useGestureController.rootPan',
-            'Long swipe detected during gesture - committing to mode change',
-            {
-              translationDistance: Math.round(totalTranslationY.value * 100) / 100,
-              threshold: LONG_SWIPE_THRESHOLD,
-              scrollValue,
-            }
-          )
+          // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
+          runOnJS(batchScrollStateUpdate)({
+            scrollEnabled: false,
+            blockCompletely: true,
+          })
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+          // runOnJS(log.debug)(
+          //   'useGestureController.rootPan',
+          //   'Long swipe detected during gesture - committing to mode change',
+          //   {
+          //     translationDistance: Math.round(totalTranslationY.value * 100) / 100,
+          //     threshold: LONG_SWIPE_THRESHOLD,
+          //     scrollValue,
+          //   }
+          // )
         }
       }
 
@@ -991,96 +961,102 @@ export function useGestureController(
         }
       }
 
-      // Track gesture change for AI analysis
-      runOnJS(gestureDetector.trackGestureEvent)({
-        gestureType: 'rootPan',
-        phase: 'change',
-        location: { x: e.x, y: e.y },
-        translation: { x: e.translationX, y: e.translationY },
-        velocity: { x: e.velocityX, y: e.velocityY },
-      })
+      // MEMORY LEAK FIX: Commented out gesture tracking (dormant AI analysis feature)
+      // runOnJS(gestureDetector.trackGestureEvent)({
+      //   gestureType: 'rootPan',
+      //   phase: 'change',
+      //   location: { x: e.x, y: e.y },
+      //   translation: { x: e.translationX, y: e.translationY },
+      //   velocity: { x: e.velocityX, y: e.velocityY },
+      // })
     })
-    .onEnd((event) => {
+    .onEnd(() => {
       'worklet'
       const currentScrollY = scrollY.value
-      const scrollYDelta = currentScrollY - initialScrollY.value
-
-      runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - evaluating snap', {
-        gestureIsActive: gestureIsActive.value,
-        committedToVideoControl: committedToVideoControl.value,
-        isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
-        isPullingToReveal: isPullingToReveal.value,
-        initialScrollY: Math.round(initialScrollY.value * 100) / 100,
-        currentScrollY: Math.round(currentScrollY * 100) / 100,
-        scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-        feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-        gestureDirection: gestureDirection.value,
-        translation: {
-          x: Math.round(event.translationX * 100) / 100,
-          y: Math.round(event.translationY * 100) / 100,
-        },
-        velocity: {
-          x: Math.round(event.velocityX * 100) / 100,
-          y: Math.round(event.velocityY * 100) / 100,
-        },
-      })
+      // MEMORY LEAK FIX: Removed unused scrollYDelta (was only used in commented-out log)
+      // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+      // runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - evaluating snap', {
+      //   gestureIsActive: gestureIsActive.value,
+      //   committedToVideoControl: committedToVideoControl.value,
+      //   isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
+      //   isPullingToReveal: isPullingToReveal.value,
+      //   initialScrollY: Math.round(initialScrollY.value * 100) / 100,
+      //   currentScrollY: Math.round(currentScrollY * 100) / 100,
+      //   scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+      //   feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+      //   gestureDirection: gestureDirection.value,
+      //   translation: {
+      //     x: Math.round(event.translationX * 100) / 100,
+      //     y: Math.round(event.translationY * 100) / 100,
+      //   },
+      //   velocity: {
+      //     x: Math.round(event.velocityX * 100) / 100,
+      //     y: Math.round(event.velocityY * 100) / 100,
+      //   },
+      // })
 
       if (!gestureIsActive.value) {
-        runOnJS(log.debug)(
-          'useGestureController.rootPan',
-          'Gesture end - SKIPPED (gesture not active, no snap)',
-          {
-            scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-            committedToVideoControl: committedToVideoControl.value,
-            currentScrollY: Math.round(currentScrollY * 100) / 100,
-          }
-        )
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+        // runOnJS(log.debug)(
+        //   'useGestureController.rootPan',
+        //   'Gesture end - SKIPPED (gesture not active, no snap)',
+        //   {
+        //     scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+        //     committedToVideoControl: committedToVideoControl.value,
+        //     currentScrollY: Math.round(currentScrollY * 100) / 100,
+        //   }
+        // )
         return
       }
 
-      // Track gesture end for AI analysis
-      runOnJS(gestureDetector.trackGestureEvent)({
-        gestureType: 'rootPan',
-        phase: 'end',
-        location: { x: event.x, y: event.y },
-        translation: { x: event.translationX, y: event.translationY },
-        velocity: { x: event.velocityX, y: event.velocityY },
-      })
+      // MEMORY LEAK FIX: Commented out gesture tracking (dormant AI analysis feature)
+      // runOnJS(gestureDetector.trackGestureEvent)({
+      //   gestureType: 'rootPan',
+      //   phase: 'end',
+      //   location: { x: event.x, y: event.y },
+      //   translation: { x: event.translationX, y: event.translationY },
+      //   velocity: { x: event.velocityX, y: event.velocityY },
+      // })
 
       // ← CRITICAL: Re-enable ScrollView when gesture ends
-      runOnJS(setFeedbackScrollEnabledTransition)(true)
-      runOnJS(setBlockFeedbackScrollCompletelyTransition)(false)
-      runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - re-enabled scroll', {
-        feedbackScrollEnabled: true,
-        blockFeedbackScrollCompletely: false,
-        feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-        scrollY: Math.round(scrollY.value * 100) / 100,
-        gestureWasActive: gestureIsActive.value,
-        committedToVideoControl: committedToVideoControl.value,
+      // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
+      runOnJS(batchScrollStateUpdate)({
+        scrollEnabled: true,
+        blockCompletely: false,
       })
+      // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+      // runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - re-enabled scroll', {
+      //   feedbackScrollEnabled: true,
+      //   blockFeedbackScrollCompletely: false,
+      //   feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+      //   scrollY: Math.round(scrollY.value * 100) / 100,
+      //   gestureWasActive: gestureIsActive.value,
+      //   committedToVideoControl: committedToVideoControl.value,
+      // })
 
       const targetMode = scrollToMode(currentScrollY)
       const targetScrollPos = modeToScroll(targetMode)
 
-      runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - SNAPPING to mode', {
-        targetMode,
-        targetScrollPos,
-        fromScrollY: Math.round(currentScrollY * 100) / 100,
-        snapDistance: Math.round((targetScrollPos - currentScrollY) * 100) / 100,
-        committedToVideoControl: committedToVideoControl.value,
-        isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
-        isPullingToReveal: isPullingToReveal.value,
-        scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-        feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-        reason: committedToVideoControl.value
-          ? 'committed to video control'
-          : isFastSwipeVideoModeChange.value
-            ? 'fast swipe mode change'
-            : isPullingToReveal.value
-              ? 'pull-to-reveal'
-              : 'gesture active but not committed (possible bug)',
-        snapDuration: SNAP_DURATION_MS,
-      })
+      // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+      // runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - SNAPPING to mode', {
+      //   targetMode,
+      //   targetScrollPos,
+      //   fromScrollY: Math.round(currentScrollY * 100) / 100,
+      //   snapDistance: Math.round((targetScrollPos - currentScrollY) * 100) / 100,
+      //   committedToVideoControl: committedToVideoControl.value,
+      //   isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
+      //   isPullingToReveal: isPullingToReveal.value,
+      //   scrollYDelta: Math.round(scrollYDelta * 100) / 100,
+      //   feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+      //   reason: committedToVideoControl.value
+      //     ? 'committed to video control'
+      //     : isFastSwipeVideoModeChange.value
+      //       ? 'fast swipe mode change'
+      //       : isPullingToReveal.value
+      //         ? 'pull-to-reveal'
+      //         : 'gesture active but not committed (possible bug)',
+      //   snapDuration: SNAP_DURATION_MS,
+      // })
 
       scrollY.value = withTiming(targetScrollPos, {
         duration: SNAP_DURATION_MS,
@@ -1088,30 +1064,31 @@ export function useGestureController(
       })
       scrollTo(scrollRef, 0, targetScrollPos, true)
 
+      // MEMORY LEAK FIX: Commented out runOnJS(log.warn) to prevent closure accumulation
       // Log if feedback offset is non-zero when snapping - this might indicate an issue
-      if (feedbackContentOffsetY.value > 0) {
-        runOnJS(log.warn)(
-          'useGestureController.rootPan',
-          'Feedback panel has non-zero offset during mode snap - may cause scroll issues',
-          {
-            feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-            targetMode,
-            fromScrollY: Math.round(currentScrollY * 100) / 100,
-            targetScrollPos,
-          }
-        )
-      }
+      // if (feedbackContentOffsetY.value > 0) {
+      //   runOnJS(log.warn)(
+      //     'useGestureController.rootPan',
+      //     'Feedback panel has non-zero offset during mode snap - may cause scroll issues',
+      //     {
+      //       feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+      //       targetMode,
+      //       fromScrollY: Math.round(currentScrollY * 100) / 100,
+      //       targetScrollPos,
+      //     }
+      //   )
+      // }
     })
-    .onFinalize((event) => {
+    .onFinalize(() => {
       'worklet'
-      // Track gesture finalize for AI analysis
-      runOnJS(gestureDetector.trackGestureEvent)({
-        gestureType: 'rootPan',
-        phase: 'finalize',
-        location: { x: event.x, y: event.y },
-        translation: { x: event.translationX, y: event.translationY },
-        velocity: { x: event.velocityX, y: event.velocityY },
-      })
+      // MEMORY LEAK FIX: Commented out gesture tracking (dormant AI analysis feature)
+      // runOnJS(gestureDetector.trackGestureEvent)({
+      //   gestureType: 'rootPan',
+      //   phase: 'finalize',
+      //   location: { x: event.x, y: event.y },
+      //   translation: { x: event.translationX, y: event.translationY },
+      //   velocity: { x: event.velocityX, y: event.velocityY },
+      // })
 
       // Gesture finalize - resetting state
       gestureIsActive.value = false

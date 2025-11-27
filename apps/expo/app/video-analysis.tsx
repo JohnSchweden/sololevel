@@ -7,11 +7,39 @@ import { useAnalysisJobStatus } from '@my/app/features/VideoAnalysis/stores/anal
 import { useFeedbackAudioStore } from '@my/app/features/VideoAnalysis/stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from '@my/app/features/VideoAnalysis/stores/feedbackCoordinatorStore'
 import { log } from '@my/logging'
+// import { GlassBackground, StateDisplay } from '@my/ui'
 //import { useHeaderHeight } from '@react-navigation/elements'
 import { useFocusEffect } from '@react-navigation/native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+// import React, { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { YStack } from 'tamagui'
+
+// Lazy load VideoAnalysisScreen - heaviest screen with video player
+// This defers loading VideoAnalysisScreen code until route is accessed
+// const LazyVideoAnalysisScreen = React.lazy(() =>
+//   import('@my/app/features/VideoAnalysis/VideoAnalysisScreen').then((module) => ({
+//     default: module.VideoAnalysisScreen,
+//   }))
+// )
+
+/**
+ * Loading fallback for lazy-loaded Video Analysis screen
+ */
+// function VideoAnalysisLoadingFallback() {
+//   return (
+//     <GlassBackground
+//       backgroundColor="$color3"
+//       testID="video-analysis-loading-fallback"
+//     >
+//       <StateDisplay
+//         type="loading"
+//         title="Loading..."
+//         testID="video-analysis-loading-state"
+//       />
+//     </GlassBackground>
+//   )
+// }
 
 const resetPlaybackStores = ({
   reason,
@@ -159,6 +187,7 @@ export default function VideoAnalysis() {
             mode: 'videoSettings',
             onBackPress: handleBack,
             onMenuPress: handleMenuPress,
+            disableBlur: true,
           },
           headerShown: true, // Always keep header mounted, control visibility via opacity
           // @ts-ignore: custom isUserInteraction not in base type
@@ -258,6 +287,7 @@ export default function VideoAnalysis() {
         mode: 'videoSettings',
         onBackPress: handleBack,
         onMenuPress: handleMenuPress,
+        disableBlur: true,
       },
       headerShown: true, // Always keep header mounted, control visibility via opacity
       // @ts-ignore: custom isUserInteraction not in base type
@@ -301,6 +331,7 @@ export default function VideoAnalysis() {
       //paddingTop={headerHeight-60}
       backgroundColor="$background"
     >
+      {/* <Suspense fallback={<VideoAnalysisLoadingFallback />}> */}
       <VideoAnalysisScreen
         analysisJobId={analysisJobId ? Number.parseInt(analysisJobId, 10) : undefined}
         videoRecordingId={videoRecordingId ? Number.parseInt(videoRecordingId, 10) : undefined}
@@ -308,6 +339,7 @@ export default function VideoAnalysis() {
         onBack={handleBack}
         onControlsVisibilityChange={handleControlsVisibilityChange}
       />
+      {/* </Suspense> */}
     </YStack>
   )
 }

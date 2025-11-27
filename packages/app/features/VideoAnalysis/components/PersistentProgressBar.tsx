@@ -21,10 +21,35 @@ import { usePersistentProgressStore } from '../stores'
  * - Only this component re-renders when store props change
  * - UI-thread worklets read `progressShared` directly (no React lag)
  * - Fallback progress keeps stories/tests functional without shared values
+ * - PERF FIX: Renders visual-only bar immediately when props is null (no gestures)
+ *   This eliminates the 500ms delay - bar track shows on first frame, gestures added later
  */
 export function PersistentProgressBar() {
   const props = usePersistentProgressStore((state) => state.props)
-  if (!props) return null
+
+  // CRITICAL: Hooks must be called unconditionally (Rules of Hooks)
+  // This runs even when props is null to maintain stable hook order
+  const fallbackAnimatedStyle = useAnimatedStyle(() => {
+    if (!props?.visibility) return { opacity: 1 }
+    return { opacity: props.visibility.value }
+  })
+
+  // PERF FIX: Render visual-only bar immediately when props is null
+  // This shows the progress track on first frame (no gestures yet)
+  // When VideoControls mounts and sets props, gestures become active
+  if (!props) {
+    return (
+      <ProgressBar
+        variant="persistent"
+        progress={0}
+        isScrubbing={false}
+        controlsVisible={false}
+        animatedStyle={fallbackAnimatedStyle}
+        pointerEvents="none"
+        testID="persistent-progress-bar-visual-only"
+      />
+    )
+  }
 
   // CRITICAL: Do NOT compute progress from props.currentTime/duration in React render.
   // That would defeat the entire purpose of using progressShared for UI-thread updates.
@@ -32,17 +57,13 @@ export function PersistentProgressBar() {
   // The progress prop is only used as a fallback when progressShared is absent.
   const fallbackProgress = props.duration > 0 ? (props.currentTime / props.duration) * 100 : 0
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: props.visibility.value,
-  }))
-
   return (
     <ProgressBar
       variant="persistent"
       progress={fallbackProgress}
       isScrubbing={props.isScrubbing}
       controlsVisible={props.controlsVisible}
-      animatedStyle={props.animatedStyle ?? animatedStyle}
+      animatedStyle={props.animatedStyle ?? fallbackAnimatedStyle}
       pointerEvents={props.pointerEvents}
       progressShared={props.progressShared}
       progressBarWidthShared={props.progressBarWidthShared}

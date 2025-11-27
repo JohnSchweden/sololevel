@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import MaskedView from '@react-native-masked-view/masked-view'
 import { LinearGradient } from '@tamagui/linear-gradient'
 import React, { useMemo } from 'react'
@@ -15,15 +15,13 @@ import { BlurView } from '../BlurView/BlurView'
  */
 export function BottomNavigationContainer({
   children,
+  disableBlur = false,
 }: {
   children: React.ReactNode
+  disableBlur?: boolean
 }) {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
 
   // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
   const bottomInset = useMemo(() => Math.max(0, insets.bottom - 12), [insets.bottom])
@@ -53,32 +51,31 @@ export function BottomNavigationContainer({
 
   // iOS: Use MaskedView + BlurView (works correctly)
   // Android: Use BlurView + LinearGradient overlay (MaskedView causes black screen)
-  const blurContent =
-    Platform.OS === 'ios' ? (
-      <MaskedView
-        style={maskedViewStyle}
-        maskElement={
-          <LinearGradient
-            colors={['transparent', '$color1']} // mask from visible → blurred
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 0.3 }}
-            style={linearGradientStyle}
-          />
-        }
-      >
-        <BlurView
-          intensity={30}
-          tint="dark"
-          style={blurViewStyle}
+  const blurContent = disableBlur ? null : Platform.OS === 'ios' ? (
+    <MaskedView
+      style={maskedViewStyle}
+      maskElement={
+        <LinearGradient
+          colors={['transparent', '$color1']} // mask from visible → blurred
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.7 }}
+          style={linearGradientStyle}
         />
-      </MaskedView>
-    ) : (
+      }
+    >
       <BlurView
         intensity={30}
         tint="dark"
         style={blurViewStyle}
       />
-    )
+    </MaskedView>
+  ) : (
+    <BlurView
+      intensity={30}
+      tint="dark"
+      style={blurViewStyle}
+    />
+  )
 
   return (
     <YStack
@@ -88,6 +85,7 @@ export function BottomNavigationContainer({
       right={0}
       height={containerHeight}
       zIndex={10}
+      backgroundColor={disableBlur ? 'transparent' : undefined}
     >
       {blurContent}
       <YStack

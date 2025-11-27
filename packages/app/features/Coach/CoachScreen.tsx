@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
   ChatInput,
@@ -10,6 +10,7 @@ import {
 } from '@my/ui'
 import { BlurView } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
+import { Image } from 'expo-image'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FlatList,
@@ -26,7 +27,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
-import { Button, Image, Text, View, XStack, YStack } from 'tamagui'
+import { Button, Text, View, XStack, YStack } from 'tamagui'
 
 // Create animated FlatList for Reanimated compatibility
 const AnimatedFlatList = Animated.createAnimatedComponent<FlatListProps<Message>>(FlatList)
@@ -182,13 +183,8 @@ export function CoachScreen({
   // const renderStartTime = __DEV__ ? performance.now() : 0
 
   // Hooks
-  const insetsRaw = useSafeArea()
-  // ROOT CAUSE FIX #1: useSafeAreaInsets returns NEW object reference every render
-  // Memoize insets based on content to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook to prevent layout jumps during navigation
+  const insets = useStableSafeArea()
 
   // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
   // Matches BottomNavigationContainer.native.tsx reduction
@@ -290,8 +286,15 @@ export function CoachScreen({
   const handleSuggestionPress = useCallback(
     (suggestion: string): void => {
       sendMessage(suggestion)
+      // Close suggestions list after selection
+      setShowSuggestions(false)
+      setTimeout(() => {
+        suggestionsProgress.value = withTiming(0, {
+          duration: 300,
+        })
+      }, 0)
     },
-    [sendMessage]
+    [sendMessage, suggestionsProgress]
   )
 
   const handleVoiceToggle = useCallback((): void => {
@@ -512,9 +515,14 @@ export function CoachScreen({
                   >
                     <Image
                       source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                      width={66}
-                      height={66}
-                      borderRadius={32}
+                      contentFit="cover"
+                      style={{
+                        width: 66,
+                        height: 66,
+                        borderRadius: 32,
+                      }}
+                      cachePolicy="memory-disk"
+                      transition={200}
                     />
                   </YStack>
 
@@ -584,7 +592,7 @@ export function CoachScreen({
 
             {/* Input Area */}
             <YStack
-              marginHorizontal="$0.5"
+              //marginHorizontal="$0.5"
               paddingHorizontal="$4"
               gap="$0"
               paddingBottom={
@@ -593,7 +601,7 @@ export function CoachScreen({
                   : hasBottomNavigation
                     ? BOTTOM_TAB_BAR_HEIGHT
                     : sessionId
-                      ? bottomInset
+                      ? bottomInset + 8
                       : 0
               }
               backgroundColor="$color3"
@@ -647,10 +655,10 @@ export function CoachScreen({
                   <YStack
                     overflow="hidden"
                     paddingTop="$0"
-                    marginBottom="$2"
+                    marginBottom="$1"
                   >
                     <XStack
-                      gap="$2"
+                      gap="$0"
                       flexWrap="wrap"
                     >
                       {SUGGESTIONS.map((suggestion, index) => (

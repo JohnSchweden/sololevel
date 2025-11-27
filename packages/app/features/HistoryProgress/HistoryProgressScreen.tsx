@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import { GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
@@ -71,12 +71,8 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   onNavigateToCoachingSession,
   testID = 'history-progress-screen',
 }: HistoryProgressScreenProps): React.ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = React.useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook to prevent layout jumps during navigation
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Log screen mount
@@ -90,14 +86,16 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   }, [])
 
   // Data fetching with TanStack Query + Zustand cache
-  const { data: videos = [], isLoading, error, refetch } = useHistoryQuery()
+  // CRITICAL: Use isPending (not isLoading) to handle disabled query state
+  // When enabled:false (during hydration), isPending=true but isLoading=false
+  // This prevents showing "empty state" during the ~265ms hydration window
+  const { data: videos = [], isPending, isLoading, error, refetch } = useHistoryQuery()
 
   // Memoize displayed videos array to prevent creating new array reference every render
   // This is critical for preventing unnecessary VideosSection re-renders
   const displayedVideos = React.useMemo(() => videos.slice(0, 10), [videos])
 
-  // Prefetch video analysis data for all visible videos (10 shown in gallery)
-  // Strategy: Immediate prefetch for top 3, deferred for remaining 7
+  // Extract video IDs for prefetch hooks (used by both thumbnail and analysis prefetch)
   const videoIds = React.useMemo(() => displayedVideos.map((v) => v.id), [displayedVideos])
 
   // Track visible videos for smart prefetch (next N items based on scroll position)
@@ -119,16 +117,17 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     }
   }, [])
 
-  // Smart prefetch: prefetch video/thumbnail files to disk
-  // Note: usePrefetchVideoAnalysis above only prefetches analysis data (not thumbnails)
-  // This hook handles thumbnail/video file downloads to disk
-  // Use displayedVideos instead of recalculating slice - stable reference prevents cascade
+  // Prepare videos for thumbnail/video file prefetch
+  // Use displayedVideos directly - stable reference prevents cascade re-renders
   const videosToPrefetch = React.useMemo(() => displayedVideos, [displayedVideos])
   const hasMoreVideos = videos.length > 10
 
   // Memoize initial visible items slice to prevent creating new array reference
+  // CRITICAL FIX: Use 4 items (not 3) to match actual viewport on most devices
+  // The 4th thumbnail was delayed ~900ms because it was treated as "next to prefetch"
+  // instead of "already visible", waiting for FlatList's onViewableItemsChanged
   const initialVisibleItems = React.useMemo(
-    () => displayedVideos.slice(0, Math.min(3, displayedVideos.length)),
+    () => displayedVideos.slice(0, Math.min(4, displayedVideos.length)),
     [displayedVideos]
   )
 
@@ -140,6 +139,25 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   const [visibleItemsForPrefetch, setVisibleItemsForPrefetch] =
     React.useState<typeof videos>(initialVisibleItems)
 
+  // Memoize prefetch config to prevent unnecessary recalculations
+  const prefetchConfig = React.useMemo(
+    () => ({
+      lookAhead: hasMoreVideos ? 3 : videosToPrefetch.length, // Prefetch all if ≤10, next 3 if >10
+      concurrency: 2,
+      enabled: true, // Always enabled - thumbnails need to be prefetched
+    }),
+    [hasMoreVideos, videosToPrefetch.length]
+  )
+
+  // PRIORITY 1: Prefetch thumbnails FIRST - these are what users see immediately
+  // Strategy: Prefetch next N items beyond visible items for smooth scrolling
+  // Note: Prefetch state logging is now handled inside usePrefetchNextVideos hook
+  // to prevent triggering unnecessary re-renders in parent component
+  // visibleItemsForPrefetch is memoized above - stable reference prevents cascade
+  usePrefetchNextVideos(videosToPrefetch, visibleItemsForPrefetch, prefetchConfig)
+
+  // PRIORITY 2: Prefetch analysis data SECOND - only needed when user taps a video
+  // Strategy: Immediate prefetch for top 3, deferred for remaining 7
   const lastVisibleAnalysisIndex = React.useMemo(() => {
     if (visibleItemsForPrefetch.length === 0) {
       return null
@@ -154,23 +172,6 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     lastVisibleIndex: lastVisibleAnalysisIndex,
   })
 
-  // Memoize prefetch config to prevent unnecessary recalculations
-  const prefetchConfig = React.useMemo(
-    () => ({
-      lookAhead: hasMoreVideos ? 3 : videosToPrefetch.length, // Prefetch all if ≤10, next 3 if >10
-      concurrency: 2,
-      enabled: true, // Always enabled - thumbnails need to be prefetched
-    }),
-    [hasMoreVideos, videosToPrefetch.length]
-  )
-
-  // Prefetch videos based on visible items
-  // Strategy: Prefetch next N items beyond visible items for smooth scrolling
-  // Note: Prefetch state logging is now handled inside usePrefetchNextVideos hook
-  // to prevent triggering unnecessary re-renders in parent component
-  // visibleItemsForPrefetch is memoized above - stable reference prevents cascade
-  usePrefetchNextVideos(videosToPrefetch, visibleItemsForPrefetch, prefetchConfig)
-
   // TanStack Query handles refetch-on-focus automatically via refetchOnFocus: true
   // It respects staleTime (5min), so fresh data won't trigger unnecessary refetches
   // No manual useFocusEffect needed - the library manages focus refetching
@@ -179,9 +180,12 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   // Prevents logging same state repeatedly, reducing effect execution
   const prevDataStateRef = React.useRef({ hasError: false, isEmpty: false, videoCount: 0 })
   React.useEffect(() => {
+    // Use isPending to distinguish "waiting for data" from "truly empty"
+    // isPending=true when enabled:false (during hydration) OR when no data yet
+    // This prevents logging "empty state" during the ~265ms hydration window
     const currentState = {
       hasError: !!error,
-      isEmpty: !isLoading && videos.length === 0,
+      isEmpty: !isPending && videos.length === 0,
       videoCount: videos.length,
     }
 
@@ -195,9 +199,9 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
         log.error('HistoryProgressScreen', 'Failed to load video history', {
           error: error instanceof Error ? error.message : String(error),
         })
-      } else if (!isLoading && videos.length === 0) {
+      } else if (!isPending && videos.length === 0) {
         log.debug('HistoryProgressScreen', 'No videos available (empty state)')
-      } else if (!isLoading && videos.length > 0) {
+      } else if (!isPending && videos.length > 0) {
         log.debug('HistoryProgressScreen', 'Videos loaded successfully', {
           count: videos.length,
           videoSample: videos.slice(0, 3).map((v) => ({
@@ -283,11 +287,14 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
           backgroundColor="transparent"
         >
           {/* Videos Section - Full Width */}
+          {/* CRITICAL: Pass isPending (not just isLoading) to handle disabled query state
+              isPending=true when enabled:false (during hydration) OR status=pending
+              This prevents showing "No videos yet" during ~265ms hydration window */}
           <VideosSection
             videos={displayedVideos}
             onVideoPress={handleVideoPress}
             onSeeAllPress={handleSeeAllPress}
-            isLoading={isLoading}
+            isLoading={isPending || isLoading}
             error={error}
             onRetry={refetch}
             onVisibleItemsChange={handleVisibleItemsChange}

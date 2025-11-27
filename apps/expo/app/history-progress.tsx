@@ -1,6 +1,15 @@
-import { HistoryProgressScreen } from '@app/features/HistoryProgress/HistoryProgressScreen'
 import { log } from '@my/logging'
+import { GlassBackground, StateDisplay } from '@my/ui'
 import { useRouter } from 'expo-router'
+import React, { Suspense } from 'react'
+
+// Lazy load HistoryProgressScreen to reduce initial bundle size
+// History screen loads video data and thumbnails - defer loading until route is accessed
+const LazyHistoryProgressScreen = React.lazy(() =>
+  import('@app/features/HistoryProgress/HistoryProgressScreen').then((module) => ({
+    default: module.HistoryProgressScreen,
+  }))
+)
 
 /**
  * History & Progress Tracking Route (Native)
@@ -41,10 +50,30 @@ export default function HistoryProgressRoute() {
   }
 
   return (
-    <HistoryProgressScreen
-      onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
-      onNavigateToVideos={handleNavigateToVideos}
-      onNavigateToCoachingSession={handleNavigateToCoachingSession}
-    />
+    <Suspense fallback={<HistoryLoadingFallback />}>
+      <LazyHistoryProgressScreen
+        onNavigateToVideoAnalysis={handleNavigateToVideoAnalysis}
+        onNavigateToVideos={handleNavigateToVideos}
+        onNavigateToCoachingSession={handleNavigateToCoachingSession}
+      />
+    </Suspense>
+  )
+}
+
+/**
+ * Loading fallback for lazy-loaded History screen
+ */
+function HistoryLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="history-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="This too shall pass..."
+        testID="history-loading-state"
+      />
+    </GlassBackground>
   )
 }

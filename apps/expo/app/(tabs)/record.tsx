@@ -2,10 +2,18 @@ import { CameraRecordingScreen } from '@app/features/CameraRecording'
 import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
 import { useIsFocused } from '@react-navigation/native'
+import { Image } from 'expo-image'
 // eslint-disable-next-line deprecation/deprecation
-import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake'
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { YStack } from 'tamagui'
+
+/**
+ * Unique tag for record tab keep-awake activation.
+ * Using tags allows proper reference counting separate from other keep-awake activations.
+ */
+const KEEP_AWAKE_TAG = 'record-tab'
 
 /**
  * Record Tab - Camera recording and video upload
@@ -26,16 +34,26 @@ export default function RecordTab() {
   const isFocused = useIsFocused()
 
   // Keep screen awake only when this tab is focused
+  // Uses tag-based activation for proper reference counting
   useEffect(() => {
     if (isFocused) {
+      // Tab is focused - activate keep-awake with unique tag
       // eslint-disable-next-line deprecation/deprecation
-      activateKeepAwake()
+      activateKeepAwakeAsync(KEEP_AWAKE_TAG)
+
       return () => {
+        // Cleanup: deactivate only our tag when tab loses focus
         // eslint-disable-next-line deprecation/deprecation
-        deactivateKeepAwake()
+        deactivateKeepAwake(KEEP_AWAKE_TAG)
       }
     }
-    return undefined
+    // Tab is NOT focused - return cleanup that deactivates (in case it was previously active)
+    // This ensures deactivation only happens during cleanup, not on every render
+    // This is crucial because Expo Router keeps tabs mounted
+    return () => {
+      // eslint-disable-next-line deprecation/deprecation
+      deactivateKeepAwake(KEEP_AWAKE_TAG)
+    }
   }, [isFocused])
 
   const handleVideoProcessed = (videoUri: string) => {
@@ -48,6 +66,33 @@ export default function RecordTab() {
   const handleNavigateToHistory = () => {
     router.push('/history-progress')
   }
+
+  // Logo image for header (only shown when not recording)
+  // Used for dynamic updates when recording state changes
+  // Initial logo is set statically in _layout.tsx for immediate visibility
+  const headerLogo = useMemo(
+    () => (
+      <YStack
+        paddingBottom={4}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Image
+          source={require('../../assets/icon_sololevel_header.png')}
+          contentFit="contain"
+          style={{
+            height: 44,
+            width: 220,
+          }}
+          cachePolicy="memory-disk"
+          transition={200}
+          accessibilityLabel="Solo:Level"
+          testID="header-logo"
+        />
+      </YStack>
+    ),
+    []
+  )
 
   // Handle dynamic header updates from screen
   const handleHeaderStateChange = useCallback(
@@ -68,14 +113,17 @@ export default function RecordTab() {
           mode: getHeaderMode(),
           showTimer: isInRecordingState,
           timerValue: state.time,
+          // Show logo when not recording, otherwise show timer
+          titleSlot: isInRecordingState ? undefined : headerLogo,
           leftAction: isInRecordingState ? 'back' : 'sidesheet',
           onBackPress: () => backPressHandlerRef.current?.(),
           onMenuPress: handleNavigateToHistory,
           cameraProps: { isRecording: state.isRecording },
+          disableBlur: true,
         },
       })
     },
-    [navigation, handleNavigateToHistory]
+    [navigation, handleNavigateToHistory, headerLogo]
   )
 
   // Reset to idle state when navigating back from video analysis

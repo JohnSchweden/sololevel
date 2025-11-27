@@ -401,6 +401,45 @@ describe('useAnalysisState', () => {
     expect(result.current.isProcessing).toBe(false)
   })
 
+  it('history mode returns ready even when no feedback loaded yet (race condition fix)', () => {
+    // This tests the fix for videos 5-7 showing processing overlay
+    // In history mode, video is playable immediately; feedback loads lazily
+    mockAnalysisStoreState.subscriptions = new Map([
+      [
+        'job:130',
+        {
+          job: { id: 130, status: 'completed', progress_percentage: 100, video_recording_id: 1001 },
+          status: 'active',
+        },
+      ],
+    ])
+
+    // Simulate no feedback loaded yet (prefetch race condition)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [], // Empty - feedback hasn't loaded yet
+        stats: {
+          total: 0,
+          ssmlCompleted: 0,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasFailures: false,
+          isProcessing: false,
+          completionPercentage: 0,
+        },
+        isProcessing: false,
+        isFullyCompleted: false, // Not complete because no feedback yet
+      })
+    )
+
+    const { result } = renderHook(() => useAnalysisState(130, undefined, 'processing', true))
+
+    // CRITICAL: Should be 'ready' NOT 'generating-feedback'
+    // Video is playable in history mode even without feedback items
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.isProcessing).toBe(false)
+  })
+
   it('returns error when upload failed with message', () => {
     mockUploadProgress.mockReturnValueOnce({ status: 'failed', percentage: 20 })
     mockUploadStoreState.getTaskByRecordingId.mockReturnValue({

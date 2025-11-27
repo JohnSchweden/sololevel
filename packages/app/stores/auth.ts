@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthStore>()(
     // State
     user: null,
     session: null,
-    loading: true,
+    loading: true, // Start as true - we haven't checked auth yet, show loading until initialized
     initialized: false,
 
     // Actions
@@ -142,7 +142,66 @@ export const useAuthStore = create<AuthStore>()(
         return
       }
 
+      // CRITICAL FIX: Check cached session first (synchronous, <100ms)
+      // This prevents 2.07s blocking delay before UI becomes interactive
+      // Fast path: Use cached session immediately, validate in background
+      try {
+        const {
+          data: { session: cachedSession },
+        } = await supabase.auth.getSession()
+
+        if (cachedSession) {
+          // Fast path: Use cached session immediately
+          set({
+            session: cachedSession,
+            user: cachedSession.user,
+            loading: false,
+            initialized: true,
+          })
+
+          log.info('auth.ts', 'Using cached session (fast path)', {
+            userId: cachedSession.user.id,
+          })
+
+          // Validate session in background (non-blocking)
+          supabase.auth
+            .getSession()
+            .then(({ data: { session }, error }) => {
+              if (error || !session) {
+                // Session invalid - clear and force re-auth
+                log.warn('auth.ts', 'Cached session invalid, clearing', { error })
+                set({ session: null, user: null })
+              } else if (session.access_token !== cachedSession.access_token) {
+                // Session refreshed - update
+                log.info('auth.ts', 'Session refreshed in background')
+                set({ session, user: session.user })
+              }
+            })
+            .catch((err) => {
+              log.error('auth.ts', 'Background session validation failed', { error: err })
+            })
+
+          // Setup auth listener in background
+          setTimeout(() => {
+            if (!authSubscription) {
+              authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+                log.debug('auth.ts', 'Auth state changed', { event, hasSession: !!session })
+                set({ user: session?.user ?? null, session })
+              })
+            }
+          }, 500)
+
+          return // Exit early - UI is already interactive
+        }
+      } catch (cacheError) {
+        log.warn('auth.ts', 'Failed to get cached session, proceeding with full initialization', {
+          error: cacheError,
+        })
+      }
+
+      // Slow path: No cached session, do full initialization
       set({ loading: true })
+      log.info('auth.ts', 'No cached session, full initialization required')
 
       try {
         const {

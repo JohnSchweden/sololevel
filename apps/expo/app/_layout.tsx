@@ -19,23 +19,6 @@ import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
 
-// Ensure keep-awake is deactivated on app start to clear any previous session state
-// expo-keep-awake uses reference counting, so we call deactivate multiple times to reset
-if (Platform.OS !== 'web') {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, deprecation/deprecation
-    const { deactivateKeepAwake } = require('expo-keep-awake')
-    // Call deactivate 5 times to ensure any lingering activations are cleared
-    // This is safe - extra deactivate calls are ignored once the counter hits 0
-    for (let i = 0; i < 5; i++) {
-      // eslint-disable-next-line deprecation/deprecation
-      deactivateKeepAwake()
-    }
-  } catch (error) {
-    // Ignore errors during deactivation
-  }
-}
-
 // React internals should not be accessed in app code
 
 // Removed unsafe React internals polyfills; rely on supported APIs only
@@ -47,7 +30,10 @@ SplashScreen.preventAutoHideAsync()
 const profileImage = require('../assets/profile.png')
 
 export default function App() {
-  const [interLoaded, interError] = useFonts({
+  // Fonts load progressively - UI renders immediately with system fallbacks
+  // Tamagui will use system fonts until custom fonts are ready
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_fontsLoaded] = useFonts({
     InterRegular: require('@tamagui/font-inter/otf/Inter-Regular.otf'),
     Inter: require('@tamagui/font-inter/otf/Inter-Medium.otf'),
     InterSemiBold: require('@tamagui/font-inter/otf/Inter-SemiBold.otf'),
@@ -58,16 +44,36 @@ export default function App() {
 
   // Network logging can be enabled via logger utils when needed
 
+  // Ensure keep-awake is deactivated on app start (runs after React is ready)
+  // Clean up any stale tagged activations from previous session
   useEffect(() => {
-    if (interLoaded || interError) {
-      // Hide the splash screen after the fonts have loaded (or an error was returned) and the UI is ready.
-      SplashScreen.hideAsync()
+    if (Platform.OS !== 'web') {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, deprecation/deprecation
+        const { deactivateKeepAwake } = require('expo-keep-awake')
+        // Deactivate known tags to ensure clean state on app start
+        // This prevents lingering activations from previous sessions
+        // eslint-disable-next-line deprecation/deprecation
+        deactivateKeepAwake('camera-recording')
+        // eslint-disable-next-line deprecation/deprecation
+        deactivateKeepAwake('record-tab')
+      } catch (error) {
+        // Ignore errors during deactivation
+      }
     }
-  }, [interLoaded, interError])
+  }, [])
 
-  if (!interLoaded && !interError) {
-    return null
-  }
+  // Hide splash screen immediately after first render - don't wait for fonts
+  // Fonts will load progressively, UI renders immediately with system fallbacks
+  useEffect(() => {
+    // Hide immediately - UI renders with system fonts
+    SplashScreen.hideAsync().catch(() => {
+      // Ignore errors - splash may already be hidden
+    })
+  }, [])
+
+  // Render UI immediately - fonts load progressively in background
+  // Tamagui will use system fallbacks until custom fonts are ready
 
   try {
     return <RootLayoutNav />
@@ -109,12 +115,19 @@ function RootLayoutNav() {
           />
         )}
         <AuthGate>
-          <Stack>
+          <Stack
+            screenOptions={{
+              // Set dark background to prevent white flash during navigation transitions
+              // Matches GlassBackground backgroundColor="$color3" (#313131 in dark theme)
+              contentStyle: { backgroundColor: '#363636' },
+            }}
+          >
             {/* Auth routes - public (not protected) */}
             <Stack.Screen
               name="auth"
               options={{
                 headerShown: false,
+                animation: 'fade', // Fade transition from splash screen
               }}
             />
 
@@ -123,6 +136,7 @@ function RootLayoutNav() {
               name="(tabs)"
               options={{
                 headerShown: false,
+                animation: 'fade', // Fade transition - smooth without sliding
               }}
             />
 
@@ -132,6 +146,7 @@ function RootLayoutNav() {
               options={{
                 title: '',
                 headerShown: true,
+                animation: 'fade', // Fade transition - smooth without sliding
                 headerTransparent: true,
                 headerStyle: { backgroundColor: 'transparent' },
                 header: (props) => <NavigationAppHeader {...props} />,
@@ -153,6 +168,7 @@ function RootLayoutNav() {
                     leftAction: 'back',
                     rightAction: 'profile',
                     profileImageUri: profileImage,
+                    disableBlur: true, // Disable blur for cleaner look with GlassBackground
                     onProfilePress: () => {
                       log.info('_layout', 'Navigate to settings from history-progress')
                       navigation.navigate('settings' as any)
@@ -175,6 +191,7 @@ function RootLayoutNav() {
                   mode: 'default',
                   leftAction: 'back',
                   rightAction: 'none',
+                  disableBlur: true, // CoachScreen has its own BlurView covering the header area
                 },
               }}
             />
@@ -191,6 +208,7 @@ function RootLayoutNav() {
                     mode: 'default',
                     leftAction: 'back',
                     rightAction: 'none',
+                    disableBlur: true, // Disable blur for cleaner look with GlassBackground
                   },
                 } as any
               }

@@ -8,7 +8,7 @@ if (__DEV__) {
 }
 
 // why-did-you-render setup - must be imported after Reanimated config
-import './wdyr'
+//import './wdyr'
 
 // Minimal safe boot guard for Hermes + React 19 in dev
 import React from 'react'

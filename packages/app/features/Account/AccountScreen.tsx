@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
   ProfileSection,
@@ -95,12 +95,8 @@ export function AccountScreen({
   onToggle2FA,
   testID = 'account-screen',
 }: AccountScreenProps): ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render

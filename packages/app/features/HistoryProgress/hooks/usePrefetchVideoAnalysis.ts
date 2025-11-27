@@ -84,6 +84,14 @@ export function usePrefetchVideoAnalysis(
   const scheduledMapRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const abortControllersRef = useRef<Map<number, AbortController>>(new Map())
   const highestRequestedIndexRef = useRef(-1)
+  const feedbackPrefetchedRef = useRef<Set<number>>(new Set()) // Track feedback prefetch attempts
+  // CRITICAL FIX: Use ref for prefetchFeedbackMetadata to avoid dependency chain issue.
+  // Without this, prefetchFeedbackMetadata (defined without useCallback) gets new reference
+  // on every render, causing prefetchVideo to change, triggering the effect to re-run,
+  // which cancels all scheduled Priority 2 timeouts (videos 5-7).
+  const prefetchFeedbackMetadataRef = useRef<
+    ((analysisJobId: number, signal?: AbortSignal) => Promise<string | null>) | null
+  >(null)
   const getCached = useVideoHistoryStore((state) => state.getCached)
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
   const setUuid = useVideoHistoryStore((state) => state.setUuid)
@@ -111,6 +119,11 @@ export function usePrefetchVideoAnalysis(
     signal?: AbortSignal
   ): Promise<string | null> => {
     try {
+      // CRITICAL: Skip if already attempted to prevent duplicate prefetch on re-render
+      if (feedbackPrefetchedRef.current.has(analysisJobId)) {
+        return null
+      }
+
       if (signal?.aborted) {
         return null
       }
@@ -129,10 +142,12 @@ export function usePrefetchVideoAnalysis(
             cachedUuid,
             'usePrefetchVideoAnalysis.restore'
           )
-          log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
-            analysisJobId,
-            analysisUuid: cachedUuid,
-          })
+          if (__DEV__) {
+            log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
+              analysisJobId,
+              analysisUuid: cachedUuid,
+            })
+          }
         }
       }
 
@@ -158,34 +173,45 @@ export function usePrefetchVideoAnalysis(
           'usePrefetchVideoAnalysis.cache'
         )
         setUuid(analysisJobId, analysisUuid)
-        log.debug('usePrefetchVideoAnalysis', 'Cached UUID for future lookups', {
-          analysisJobId,
-          analysisUuid,
-        })
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'Cached UUID for future lookups', {
+            analysisJobId,
+            analysisUuid,
+          })
+        }
       }
 
       if (!analysisUuid) {
-        log.debug(
-          'usePrefetchVideoAnalysis',
-          'Analysis UUID not found, skipping feedback prefetch',
-          {
-            analysisJobId,
-          }
-        )
+        if (__DEV__) {
+          log.debug(
+            'usePrefetchVideoAnalysis',
+            'Analysis UUID not found, skipping feedback prefetch',
+            {
+              analysisJobId,
+            }
+          )
+        }
+        feedbackPrefetchedRef.current.add(analysisJobId) // Mark as attempted
         return null
       }
 
       // Check if feedbacks already exist in store (may be from persisted cache)
       const cachedFeedbacks = getFeedbacksByAnalysisId(analysisUuid)
       if (cachedFeedbacks.length > 0) {
-        log.debug('usePrefetchVideoAnalysis', 'Feedbacks already cached, skipping prefetch', {
-          analysisJobId,
-          analysisUuid,
-          count: cachedFeedbacks.length,
-          source: 'persisted-or-memory',
-        })
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'Feedbacks already cached, skipping prefetch', {
+            analysisJobId,
+            analysisUuid,
+            count: cachedFeedbacks.length,
+            source: 'persisted-or-memory',
+          })
+        }
+        feedbackPrefetchedRef.current.add(analysisJobId) // Mark as attempted
         return analysisUuid
       }
+
+      // Mark as attempted before network request
+      feedbackPrefetchedRef.current.add(analysisJobId)
 
       // Check if aborted before making network request
       if (signal?.aborted) {
@@ -259,11 +285,13 @@ export function usePrefetchVideoAnalysis(
           })
         })
 
-        log.debug('usePrefetchVideoAnalysis', 'Prefetched feedback metadata', {
-          analysisJobId,
-          analysisUuid,
-          count: feedbacksData.length,
-        })
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'Prefetched feedback metadata', {
+            analysisJobId,
+            analysisUuid,
+            count: feedbacksData.length,
+          })
+        }
       }
 
       return analysisUuid
@@ -275,6 +303,9 @@ export function usePrefetchVideoAnalysis(
       return null
     }
   }
+
+  // Store latest version in ref (updates on each render, but ref is stable)
+  prefetchFeedbackMetadataRef.current = prefetchFeedbackMetadata
 
   const prefetchVideo = useCallback(
     (analysisId: number): void => {
@@ -295,19 +326,24 @@ export function usePrefetchVideoAnalysis(
       const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
       if (cached) {
         prefetchedRef.current.add(analysisId)
-        log.debug('usePrefetchVideoAnalysis', 'Query already cached, skipping', {
-          analysisId,
-        })
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'Query already cached, skipping', {
+            analysisId,
+          })
+        }
         // Pass abort signal to allow cancellation on unmount
-        void prefetchFeedbackMetadata(analysisId, controller.signal)
+        // Use ref to avoid dependency issues that cancel Priority 2 prefetches
+        void prefetchFeedbackMetadataRef.current?.(analysisId, controller.signal)
         return
       }
 
       const zustandCached = getCached(analysisId)
       if (!zustandCached) {
-        log.debug('usePrefetchVideoAnalysis', 'Not in Zustand cache, skipping prefetch', {
-          analysisId,
-        })
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'Not in Zustand cache, skipping prefetch', {
+            analysisId,
+          })
+        }
         abortControllersRef.current.delete(analysisId)
         return
       }
@@ -336,9 +372,10 @@ export function usePrefetchVideoAnalysis(
         })
 
       // Pass abort signal to allow cancellation on unmount
-      void prefetchFeedbackMetadata(analysisId, controller.signal)
+      // Use ref to avoid dependency issues that cancel Priority 2 prefetches
+      void prefetchFeedbackMetadataRef.current?.(analysisId, controller.signal)
     },
-    [getCached, prefetchFeedbackMetadata, queryClient]
+    [getCached, queryClient]
   )
 
   useEffect(() => {
@@ -371,6 +408,13 @@ export function usePrefetchVideoAnalysis(
       }
     })
 
+    // Clean up feedback prefetch tracking for invalid IDs
+    feedbackPrefetchedRef.current.forEach((analysisId) => {
+      if (!validIds.has(analysisId)) {
+        feedbackPrefetchedRef.current.delete(analysisId)
+      }
+    })
+
     if (analysisIds.length === 0) {
       highestRequestedIndexRef.current = -1
     } else if (highestRequestedIndexRef.current >= analysisIds.length) {
@@ -388,55 +432,77 @@ export function usePrefetchVideoAnalysis(
     }
   }, [])
 
+  // Track last prefetch run to prevent duplicate execution
+  const lastPrefetchRunRef = useRef<string>('')
+
   useEffect(() => {
     if (analysisIds.length === 0) {
       return undefined
     }
 
+    // CRITICAL: Skip entire effect if already run for this exact set of IDs + network quality
+    // Prevents duplicate execution when parent re-renders with same props
+    const runSignature = `${analysisIds.join(',')}-${networkQuality}`
+    if (runSignature === lastPrefetchRunRef.current) {
+      return undefined
+    }
+    lastPrefetchRunRef.current = runSignature
+
+    // CRITICAL FIX: Use 4 items (not 3) for immediateCount to match viewport
+    // Most devices show 4 thumbnails visible initially, not 3
+    // This eliminates the ~900ms delay on the 4th thumbnail
     const getPrefetchConfig = () => {
       switch (networkQuality) {
         case 'fast':
           return {
-            immediateCount: 3,
-            deferredCount: analysisIds.length - 3,
+            immediateCount: 4,
+            deferredCount: analysisIds.length - 4,
             staggerMs: 10,
           }
         case 'medium':
           return {
-            immediateCount: 3,
-            deferredCount: Math.min(2, analysisIds.length - 3), // Top 5 total
+            immediateCount: 4,
+            deferredCount: Math.min(2, analysisIds.length - 4), // Top 6 total
             staggerMs: 50,
           }
         case 'slow':
           return {
-            immediateCount: 3,
-            deferredCount: 0, // Only top 3
+            immediateCount: 4,
+            deferredCount: 0, // Only top 4
             staggerMs: 200,
           }
         default:
           return {
-            immediateCount: 3,
-            deferredCount: Math.min(2, analysisIds.length - 3),
+            immediateCount: 4,
+            deferredCount: Math.min(2, analysisIds.length - 4),
             staggerMs: 100,
           }
       }
     }
 
     const { immediateCount, deferredCount, staggerMs } = getPrefetchConfig()
-    const immediatePrefetch = analysisIds.slice(0, immediateCount)
-    const deferredPrefetch = analysisIds.slice(immediateCount, immediateCount + deferredCount)
 
-    log.debug('usePrefetchVideoAnalysis', 'Prefetching video analysis data', {
-      networkQuality,
-      immediate: immediatePrefetch.length,
-      deferred: deferredPrefetch.length,
-      total: analysisIds.length,
-      staggerMs,
-    })
+    // BATTLE-TESTED FIX #4: 3-Tier Priority Queue (matches iOS/Android native app patterns)
+    // Priority 1: Visible items (instant, no delay)
+    // Priority 2: Next 3 items (10ms delay, cancelable on scroll)
+    // Priority 3: Rest (100ms delay, cancelable on scroll)
+    const priority1 = analysisIds.slice(0, immediateCount) // Visible items
+    const priority2 = analysisIds.slice(immediateCount, immediateCount + 3) // Next 3
+    const priority3 = analysisIds.slice(immediateCount + 3, immediateCount + deferredCount) // Rest
 
-    const scheduledIds: number[] = []
+    if (__DEV__) {
+      log.debug('usePrefetchVideoAnalysis', 'Prefetching video analysis data', {
+        networkQuality,
+        priority1: priority1.length,
+        priority2: priority2.length,
+        priority3: priority3.length,
+        total: analysisIds.length,
+        staggerMs,
+      })
+    }
 
-    immediatePrefetch.forEach((analysisId, localIndex) => {
+    // Priority 1: Immediate (visible items)
+    priority1.forEach((analysisId, localIndex) => {
       const globalIndex = localIndex
       if (globalIndex > highestRequestedIndexRef.current) {
         highestRequestedIndexRef.current = globalIndex
@@ -444,7 +510,8 @@ export function usePrefetchVideoAnalysis(
       prefetchVideo(analysisId)
     })
 
-    deferredPrefetch.forEach((analysisId, localIndex) => {
+    // Priority 2: Next 3 items (10ms stagger, cancelable)
+    priority2.forEach((analysisId, localIndex) => {
       const globalIndex = immediateCount + localIndex
       if (globalIndex > highestRequestedIndexRef.current) {
         highestRequestedIndexRef.current = globalIndex
@@ -454,13 +521,37 @@ export function usePrefetchVideoAnalysis(
         return
       }
 
-      const timeoutId = setTimeout(() => {
-        scheduledMapRef.current.delete(analysisId)
-        prefetchVideo(analysisId)
-      }, localIndex * staggerMs)
+      const timeoutId = setTimeout(
+        () => {
+          scheduledMapRef.current.delete(analysisId)
+          prefetchVideo(analysisId)
+        },
+        10 * (localIndex + 1)
+      ) // 10ms, 20ms, 30ms
 
       scheduledMapRef.current.set(analysisId, timeoutId)
-      scheduledIds.push(analysisId)
+    })
+
+    // Priority 3: Remaining items (100ms stagger, cancelable)
+    priority3.forEach((analysisId, localIndex) => {
+      const globalIndex = immediateCount + 3 + localIndex
+      if (globalIndex > highestRequestedIndexRef.current) {
+        highestRequestedIndexRef.current = globalIndex
+      }
+
+      if (isPrefetchedOrPending(analysisId)) {
+        return
+      }
+
+      const timeoutId = setTimeout(
+        () => {
+          scheduledMapRef.current.delete(analysisId)
+          prefetchVideo(analysisId)
+        },
+        100 + localIndex * staggerMs
+      ) // 100ms base + stagger
+
+      scheduledMapRef.current.set(analysisId, timeoutId)
     })
 
     return () => {
@@ -492,22 +583,19 @@ export function usePrefetchVideoAnalysis(
     )
 
     if (clampedIndex < 0) {
-      log.debug('usePrefetchVideoAnalysis', 'Scroll prefetch skipped (invalid index)', {
-        lastVisibleIndex,
-        clampedIndex,
-        total: analysisIds.length,
-      })
+      if (__DEV__) {
+        log.debug('usePrefetchVideoAnalysis', 'Scroll prefetch skipped (invalid index)', {
+          lastVisibleIndex,
+          clampedIndex,
+          total: analysisIds.length,
+        })
+      }
       return
     }
 
     const remaining = analysisIds.length - (clampedIndex + 1)
     if (remaining <= 0 || remaining > normalizedLookAhead) {
-      log.debug('usePrefetchVideoAnalysis', 'Scroll prefetch guard triggered', {
-        lastVisibleIndex: clampedIndex,
-        remaining,
-        normalizedLookAhead,
-        highestRequested: highestRequestedIndexRef.current,
-      })
+      // Guard triggered - skip logging (too verbose)
       return
     }
 
@@ -516,22 +604,20 @@ export function usePrefetchVideoAnalysis(
     const idsToPrefetch = analysisIds.slice(frontierStartIndex)
 
     if (idsToPrefetch.length === 0) {
-      log.debug('usePrefetchVideoAnalysis', 'Scroll prefetch produced no new ids', {
-        lastVisibleIndex: clampedIndex,
-        frontierStartIndex,
-        highestRequested: highestRequestedIndexRef.current,
-      })
+      // No new IDs to prefetch - skip logging (too verbose)
       return
     }
 
-    log.debug('usePrefetchVideoAnalysis', 'Prefetching trailing analyses after scroll', {
-      lastVisibleIndex: clampedIndex,
-      startIndex,
-      frontierStartIndex,
-      count: idsToPrefetch.length,
-      lookAhead: normalizedLookAhead,
-      highestRequested: highestRequestedIndexRef.current,
-    })
+    if (__DEV__) {
+      log.debug('usePrefetchVideoAnalysis', 'Prefetching trailing analyses after scroll', {
+        lastVisibleIndex: clampedIndex,
+        startIndex,
+        frontierStartIndex,
+        count: idsToPrefetch.length,
+        lookAhead: normalizedLookAhead,
+        highestRequested: highestRequestedIndexRef.current,
+      })
+    }
 
     idsToPrefetch.forEach((analysisId, offset) => {
       const globalIndex = frontierStartIndex + offset
@@ -540,17 +626,10 @@ export function usePrefetchVideoAnalysis(
       }
 
       if (isPrefetchedOrPending(analysisId)) {
-        log.debug('usePrefetchVideoAnalysis', 'Skipping trailing prefetch (already handled)', {
-          analysisId,
-          globalIndex,
-        })
+        // Already handled - skip logging to reduce spam
         return
       }
 
-      log.debug('usePrefetchVideoAnalysis', 'Triggering trailing prefetch for analysis', {
-        analysisId,
-        globalIndex,
-      })
       prefetchVideo(analysisId)
     })
   }, [analysisIds, isPrefetchedOrPending, lastVisibleIndex, normalizedLookAhead, prefetchVideo])

@@ -29,4 +29,6 @@ export interface CameraPreviewRef {
   toggleFacing: () => Promise<void>
   setZoom: (zoom: number) => Promise<void>
   getZoom: () => Promise<number>
+  pausePreview: () => void
+  resumePreview: () => void
 }

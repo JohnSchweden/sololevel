@@ -13,14 +13,20 @@ jest.mock('@app/hooks/useStaggeredAnimation', () => ({
   }),
 }))
 
-jest.mock('@app/provider/safe-area/use-safe-area', () => ({
-  useSafeArea: () => ({
+jest.mock('@app/provider/safe-area/use-safe-area', () => {
+  const insets = {
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-  }),
-}))
+  }
+  return {
+    __esModule: true,
+    useSafeArea: () => insets,
+    useStableTopInset: () => insets.top,
+    useStableSafeArea: () => insets,
+  }
+})
 
 // Mock react-native (needed for FlatList)
 jest.mock('react-native', () => {

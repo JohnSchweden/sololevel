@@ -65,6 +65,7 @@ vi.mock('@my/app/stores/auth', () => ({
 // Mock @my/logging
 vi.mock('@my/logging', () => ({
   log: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
@@ -74,14 +75,48 @@ vi.mock('@my/logging', () => ({
 // Mock @my/ui components with React-compatible mocks
 vi.mock('@my/ui', () => {
   const React = require('react')
+
+  const createMockComponent = (defaultTestId?: string) =>
+    React.forwardRef(
+      (
+        {
+          children,
+          testID,
+          backgroundColor,
+          minHeight,
+          style,
+          ...rest
+        }: {
+          children?: React.ReactNode
+          testID?: string
+          backgroundColor?: string
+          minHeight?: string
+          style?: React.CSSProperties
+        },
+        ref: any
+      ) =>
+        React.createElement(
+          'div',
+          {
+            ...rest,
+            ref,
+            style: {
+              ...style,
+              backgroundColor,
+              minHeight,
+            },
+            'data-testid': testID ?? defaultTestId,
+          },
+          children
+        )
+    )
+
   return {
-    YStack: React.forwardRef((props: any, ref: any) =>
-      React.createElement('div', { ...props, ref, 'data-testid': 'YStack' })
-    ),
-    Spinner: React.forwardRef((props: any, ref: any) =>
-      React.createElement('div', { ...props, ref, 'data-testid': 'Spinner' }, 'Loading...')
-    ),
+    YStack: createMockComponent('YStack'),
+    Spinner: createMockComponent('Spinner'),
     H3: React.forwardRef((props: any, ref: any) => React.createElement('h3', { ...props, ref })),
+    GlassBackground: createMockComponent('GlassBackground'),
+    StateDisplay: createMockComponent('StateDisplay'),
   }
 })
 

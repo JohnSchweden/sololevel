@@ -7,6 +7,7 @@
 // after all, safe area code is few-and-far-between, so if you have to write some platform-speciifc code for it,
 // that is probably better than a massive bundle size for little benefit
 
+import { useMemo } from 'react'
 import type { useSafeArea as nativeHook } from './use-safe-area'
 
 const area = {
@@ -28,4 +29,14 @@ const area = {
 
 export function useSafeArea(): ReturnType<typeof nativeHook> {
   return area
+}
+
+// Web: Always return 0 for stable top inset (no status bar on web)
+export function useStableTopInset(_insetsRaw: ReturnType<typeof nativeHook>): number {
+  return 0
+}
+
+// Web: Return stable insets (all zeros on web)
+export function useStableSafeArea(): ReturnType<typeof nativeHook> {
+  return useMemo(() => area, [])
 }

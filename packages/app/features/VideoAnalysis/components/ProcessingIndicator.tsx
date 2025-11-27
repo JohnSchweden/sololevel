@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
-import { BlurView } from '@my/ui'
-import {
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated'
+import { BlurView, StateDisplay } from '@my/ui'
+import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import Animated from 'react-native-reanimated'
-import { Spinner, Text, YStack } from 'tamagui'
+import { Text, YStack } from 'tamagui'
 
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import { useAnalysisSubscriptionStore } from '../stores/analysisSubscription'
@@ -27,8 +21,6 @@ interface ProcessingIndicatorProps {
   }
 }
 
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
-
 /**
  * ProcessingIndicator - Fullscreen overlay that blocks all user interactions during video analysis
  *
@@ -39,7 +31,7 @@ const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
  * - Covers entire screen (`inset={0}`) to intercept gestures anywhere
  *
  * **Visual Feedback:**
- * - Animated blur overlay (intensity 0 → 40) with dark tint
+ * - Blur overlay (static intensity 40) with dark tint, animated opacity
  * - Spinner with "Analysing video..." message
  * - Fade in/out animations (300ms in, 600ms out)
  *
@@ -79,48 +71,31 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
   const channelExhausted = useAnalysisSubscriptionStore(selectChannelExhausted)
 
   const isProcessing = phase !== 'ready' && phase !== 'error'
-  const blurIntensity = useSharedValue(isProcessing ? 40 : 0)
-  const contentOpacity = useSharedValue(isProcessing ? 1 : 0)
-  const [currentIntensity, setCurrentIntensity] = useState(isProcessing ? 40 : 0)
-  const [showContent, setShowContent] = useState(isProcessing)
+  // FIX: expo-blur doesn't support animated props - use static intensity with animated opacity
+  const overlayOpacity = useSharedValue(isProcessing ? 1 : 0)
 
-  // Animate blur intensity and content opacity when processing state changes
+  // Animate overlay opacity when processing state changes
   useEffect(() => {
     if (isProcessing) {
       // Fade in blur and content when processing starts
-      blurIntensity.value = withTiming(40, { duration: 300 })
-      contentOpacity.value = withTiming(1, { duration: 300 })
-      setShowContent(true)
+      overlayOpacity.value = withTiming(1, { duration: 300 })
     } else {
       // Fade out blur and content when processing completes
-      blurIntensity.value = withTiming(0, { duration: 600 })
-      contentOpacity.value = withTiming(0, { duration: 600 })
+      overlayOpacity.value = withTiming(0, { duration: 600 })
     }
-  }, [isProcessing, blurIntensity, contentOpacity])
+  }, [isProcessing, overlayOpacity])
 
-  // Sync SharedValue to state for BlurView intensity prop
-  useAnimatedReaction(
-    () => blurIntensity.value,
-    (intensity) => {
-      runOnJS(setCurrentIntensity)(intensity)
-      // Hide content after blur has faded out
-      if (intensity <= 0) {
-        runOnJS(setShowContent)(false)
-      }
-    }
-  )
-
-  // Animated style for blur opacity
+  // Animated style for blur overlay opacity
   const blurAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: blurIntensity.value > 0 ? 1 : 0,
+      opacity: overlayOpacity.value,
     }
   })
 
   // Animated style for content (spinner + text) opacity
   const contentAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: contentOpacity.value,
+      opacity: overlayOpacity.value,
     }
   })
 
@@ -136,68 +111,88 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
       accessibilityLabel={isProcessing ? 'Processing overlay - interactions blocked' : undefined}
     >
       {/* Blur background overlay - blocks all interactions when processing */}
-      {showContent && (
-        <AnimatedBlurView
-          intensity={currentIntensity}
+      {/* FIX: expo-blur doesn't support animated intensity - use static intensity with animated opacity */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          },
+          blurAnimatedStyle,
+        ]}
+      >
+        <BlurView
+          intensity={40}
           tint="dark"
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            },
-            blurAnimatedStyle,
-          ]}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
         />
-      )}
+      </Animated.View>
 
-      {showContent && (
-        <Animated.View style={contentAnimatedStyle}>
+      {/* MEMORY LEAK FIX: Use opacity animation instead of conditional rendering */}
+      <Animated.View
+        style={[contentAnimatedStyle, { pointerEvents: isProcessing ? 'auto' : 'none' }]}
+      >
+        {/* <YStack
+          testID="processing-indicator"
+          alignItems="center"
+          justifyContent="center"
+          gap="$6"
+          pointerEvents="none"
+        >
           <YStack
-            testID="processing-indicator"
+            width={40}
+            height={40}
             alignItems="center"
             justifyContent="center"
-            gap="$4"
-            pointerEvents="none"
+            testID="processing-spinner"
+            accessibilityLabel="Processing spinner"
+            accessibilityRole="progressbar"
+            accessibilityState={{ busy: true }}
           >
-            <YStack
-              width={60}
-              height={60}
-              alignItems="center"
-              justifyContent="center"
-              testID="processing-spinner"
-              accessibilityLabel="Processing spinner"
-              accessibilityRole="progressbar"
-              accessibilityState={{ busy: true }}
-            >
-              {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
-              <Spinner
-                size="large"
-                color="$color12"
-              />
-            </YStack>
-            <Text
-              fontSize="$4"
-              fontWeight="600"
-              color="white"
-              textAlign="center"
-              accessibilityLabel="Processing video analysis"
-            >
-              Analysing video...
-            </Text>
-            <Text
-              fontSize="$4"
-              fontWeight="600"
-              color="white"
-              textAlign="center"
-            >
-              This too shall pass.
-            </Text>
+            {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
+        {/* <Spinner
+              size="small"
+              color="$color12"
+            />
           </YStack>
-        </Animated.View>
-      )}
+          <Text
+            fontSize="$4"
+            fontWeight="400"
+            color="$color12"
+            textAlign="center"
+            accessibilityLabel="Processing video analysis"
+          >
+            Wait a sec, will ya.
+          </Text>
+          <Text
+            fontSize="$4"
+            fontWeight="400"
+            color="$color12"
+            textAlign="center"
+          >
+            I'm checking your choreography...
+          </Text>
+        </YStack> */}
+        <StateDisplay
+          type="loading"
+          title="Wait a sec, will ya."
+          //description="I'm checking your choreography..."
+          testID="processing-indicator"
+          // containerProps={{
+          //   pointerEvents: 'none',
+          //   gap: '$6',
+          // }}
+        />
+      </Animated.View>
 
       {channelExhausted && (
         <YStack

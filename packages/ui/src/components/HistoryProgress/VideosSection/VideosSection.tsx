@@ -1,6 +1,7 @@
 import React from 'react'
 import { FlatList, type ViewToken } from 'react-native'
 import { Button, Spinner, Text, View, XStack, YStack } from 'tamagui'
+
 import { VideoThumbnailCard } from '../VideoThumbnailCard'
 
 // Stable style objects to prevent unnecessary re-renders
@@ -69,7 +70,7 @@ export interface VideosSectionProps {
  * - Implements getItemLayout for O(1) scroll performance
  * - Uses onViewableItemsChanged for optimized visibility tracking
  * - Memoized renderItem and keyExtractor to prevent re-renders
- * - Small windowSize (3) for memory efficiency with horizontal lists
+ * - Small windowSize (5) for memory efficiency with horizontal lists
  *
  * Note: Caller should limit the videos array size (typically 10 or fewer).
  *
@@ -226,7 +227,7 @@ export function VideosSection({
         >
           {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
-            size="large"
+            size="small"
             color="$color11"
           />
           <Text
@@ -324,9 +325,11 @@ export function VideosSection({
           }}
           showsHorizontalScrollIndicator={false}
           // Virtualization & Performance Props
-          initialNumToRender={3} // Render visible items + 1 buffer
-          maxToRenderPerBatch={2} // Small batch size for horizontal lists
-          windowSize={3} // Reduced window size for memory efficiency (default 21 is too large)
+          // CRITICAL FIX: Use 5 to match actual viewport (4 visible + 1 buffer)
+          // Previous value of 3 caused 900ms delay on 4th thumbnail
+          initialNumToRender={5}
+          maxToRenderPerBatch={3} // Slightly larger batch for smoother scroll
+          windowSize={5} // Keep 5 items in memory for smooth scrolling
           getItemLayout={getItemLayout} // O(1) scroll performance
           // Viewability for Prefetching
           onViewableItemsChanged={onViewableItemsChanged}

@@ -36,14 +36,14 @@ export interface ProgressBarProps {
   controlsVisible: boolean
   /** Optional animated style for backward compatibility */
   animatedStyle?: AnimatedStyle<ViewStyle>
-  /** Combined gesture handler for track (tap + pan) */
-  combinedGesture: GestureType
+  /** Combined gesture handler for track (tap + pan). Optional for visual-only mode. */
+  combinedGesture?: GestureType
   /** Main gesture handler for scrubber handle (pan) - DEPRECATED: No longer used, handle is visual only */
   mainGesture?: GestureType
-  /** Layout event handler to measure progress bar width */
-  onLayout: (event: LayoutChangeEvent) => void
-  /** Fallback press handler when gesture fails (receives locationX) */
-  onFallbackPress: (locationX: number) => void
+  /** Layout event handler to measure progress bar width. Optional for visual-only mode. */
+  onLayout?: (event: LayoutChangeEvent) => void
+  /** Fallback press handler when gesture fails (receives locationX). Optional for visual-only mode. */
+  onFallbackPress?: (locationX: number) => void
   /** Optional test identifier for the progress bar container */
   testID?: string
   /** Pointer events passthrough so callers can disable interactions while hidden */
@@ -135,7 +135,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     const handleTrackLayout = useCallback(
       (event: LayoutChangeEvent) => {
         fallbackWidthShared.value = event.nativeEvent.layout.width
-        onLayout(event)
+        onLayout?.(event)
       },
       [fallbackWidthShared, onLayout]
     )
@@ -250,6 +250,15 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
       }
     })
 
+    // Helper to conditionally wrap with GestureDetector (for visual-only mode when no gesture)
+    const MaybeGestureDetector = useCallback(
+      ({ children }: { children: React.ReactElement }) => {
+        if (!combinedGesture) return children
+        return <GestureDetector gesture={combinedGesture}>{children}</GestureDetector>
+      },
+      [combinedGesture]
+    )
+
     return (
       <Animated.View
         style={containerStyles}
@@ -263,11 +272,11 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
             testID={containerTestID}
             data-testid={containerTestID}
           >
-            <GestureDetector gesture={combinedGesture}>
+            <MaybeGestureDetector>
               <Pressable
                 onPress={(event) => {
                   const { locationX } = event.nativeEvent
-                  onFallbackPress(locationX)
+                  onFallbackPress?.(locationX)
                 }}
                 style={{ flex: 1 }}
                 testID={pressableTestID}
@@ -346,15 +355,15 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   </YStack>
                 </YStack>
               </Pressable>
-            </GestureDetector>
+            </MaybeGestureDetector>
           </YStack>
         ) : (
           // Persistent variant: Direct pressable wrapper
-          <GestureDetector gesture={combinedGesture}>
+          <MaybeGestureDetector>
             <Pressable
               onPress={(event) => {
                 const { locationX } = event.nativeEvent
-                onFallbackPress(locationX)
+                onFallbackPress?.(locationX)
               }}
               style={{ flex: 1 }}
               testID={pressableTestID}
@@ -442,7 +451,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                 </YStack>
               </YStack>
             </Pressable>
-          </GestureDetector>
+          </MaybeGestureDetector>
         )}
       </Animated.View>
     )

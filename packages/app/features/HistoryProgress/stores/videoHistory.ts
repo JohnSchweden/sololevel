@@ -1,6 +1,7 @@
 import type { AnalysisResults, PoseData } from '@my/api'
 import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import React from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -11,7 +12,7 @@ import { recordEviction } from '../utils/cacheMetrics'
 const MAX_CACHE_ENTRIES = 50
 const TTL_DAYS = 7
 const MAX_AGE_DAYS = 30
-const CACHE_VERSION = 4 // Incremented to regenerate cache with public URLs from storage_path
+const CACHE_VERSION = 5 // Incremented: Added cloudThumbnailUrl for stale path recovery
 
 /**
  * Cached analysis entry with metadata for cache management
@@ -23,6 +24,12 @@ export interface CachedAnalysis {
   title: string
   createdAt: string
   thumbnail?: string
+  /**
+   * Original cloud thumbnail URL for recovery when local paths are stale.
+   * Stored separately from `thumbnail` because temp file:// paths get cleared
+   * on app restart but we still need the cloud URL to re-download.
+   */
+  cloudThumbnailUrl?: string
   videoUri?: string
   storagePath?: string
   results: AnalysisResults
@@ -146,11 +153,14 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
   subscribeWithSelector(
     persist<VideoHistoryStore, [], [['zustand/immer', never]], PersistedVideoHistoryState>(
       immer((set, get) => {
-        log.debug('VideoHistoryStore', 'Initializing store', {
-          CACHE_VERSION,
-          initialLastSync: 0,
-          timestamp: Date.now(),
-        })
+        // Only log when actually hydrated (not at module load)
+        // This prevents 507k allocations before first paint
+        // Store creation is lightweight; hydration happens on-demand via ensureHydrated()
+        if (__DEV__) {
+          log.debug('VideoHistoryStore', 'Store created (not yet hydrated)', {
+            CACHE_VERSION,
+          })
+        }
 
         return {
           // Initial state
@@ -728,4 +738,62 @@ export function setupVideoHistoryCacheCleanup(authStore: {
 
     previousUserId = currentUserId
   })
+}
+
+/**
+ * Hook that ensures store is hydrated before returning.
+ * Automatically triggers hydration on first access if not already hydrated.
+ *
+ * Returns store with safe getters that return empty data until hydrated.
+ * This prevents race conditions where components read store before hydration completes.
+ *
+ * @returns VideoHistoryStore with hydration guard
+ */
+export function useHydratedVideoHistory(): VideoHistoryStore {
+  const store = useVideoHistoryStore()
+  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
+
+  // Trigger hydration on first access if not already hydrated
+  React.useEffect(() => {
+    if (!isHydrated) {
+      store.ensureHydrated()
+    }
+  }, [isHydrated, store])
+
+  // Return store with safe getters if not hydrated
+  if (!isHydrated) {
+    return {
+      ...store,
+      // Override getters to return empty until hydrated
+      getAllCached: () => [],
+      getCached: () => null,
+      getUuid: () => null,
+      getLocalUri: () => null,
+    }
+  }
+
+  return store
+}
+
+/**
+ * Selector hook that only returns data when store is hydrated.
+ * Returns null until hydration completes, then returns selected data.
+ *
+ * Useful for components that need to show loading state until data is ready.
+ *
+ * @param selector - Zustand selector function
+ * @returns Selected data or null if not hydrated
+ */
+export function useVideoHistoryWhenReady<T>(selector: (state: VideoHistoryStore) => T): T | null {
+  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
+  const data = useVideoHistoryStore(selector)
+
+  // Trigger hydration if not already hydrated
+  React.useEffect(() => {
+    if (!isHydrated) {
+      useVideoHistoryStore.getState().ensureHydrated()
+    }
+  }, [isHydrated])
+
+  return isHydrated ? data : null
 }

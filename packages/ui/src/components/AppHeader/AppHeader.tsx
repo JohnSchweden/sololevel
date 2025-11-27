@@ -1,10 +1,17 @@
+import MaskedView from '@react-native-masked-view/masked-view'
+import { LinearGradient } from '@tamagui/linear-gradient'
 import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-icons'
 import { type ComponentProps, useMemo, useState } from 'react'
+import { Platform } from 'react-native'
 import { BlurView } from '../BlurView/BlurView'
+
+// PERF: Extract platform check to module-level constant
+const IS_IOS = Platform.OS === 'ios'
 
 import { NotificationSheet } from '@ui/components/BottomSheets'
 import { VideoSettingsSheet } from '@ui/components/BottomSheets'
-import { Circle, Image, Text, Theme, XStack, YStack } from 'tamagui'
+import { Image } from 'expo-image'
+import { Circle, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'
 
@@ -33,6 +40,8 @@ export function AppHeader({
   titleSlot,
   themeName,
   profileImageUri,
+  topInset = 0,
+  disableBlur = false,
 }: AppHeaderProps) {
   // Notification sheet state
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false)
@@ -149,10 +158,16 @@ export function AppHeader({
   )
 
   // Memoize Image source object (depends on profileImageUri)
-  const profileImageSource = useMemo(
-    () => (profileImageUri ? { uri: profileImageUri } : null),
-    [profileImageUri]
-  )
+  // Handle both local assets (require()) and remote URIs (strings)
+  const profileImageSource = useMemo(() => {
+    if (!profileImageUri) return null
+    // If it's a string, treat as remote URI
+    if (typeof profileImageUri === 'string') {
+      return { uri: profileImageUri }
+    }
+    // Otherwise, it's a local asset from require() - use directly
+    return profileImageUri
+  }, [profileImageUri])
 
   const renderLeft = () => {
     if (leftSlot) {
@@ -168,8 +183,8 @@ export function AppHeader({
     return (
       <Button
         chromeless
-        width="$4"
-        height="$4"
+        minWidth={44}
+        minHeight={44}
         borderRadius="$10"
         backgroundColor="transparent"
         borderWidth={0}
@@ -214,8 +229,8 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            width="$4"
-            height="$4"
+            minWidth={44}
+            minHeight={44}
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
@@ -239,8 +254,8 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            width="$4"
-            height="$4"
+            minWidth={44}
+            minHeight={44}
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
@@ -268,8 +283,8 @@ export function AppHeader({
           <YStack position="relative">
             <Button
               chromeless
-              width="$4"
-              height="$4"
+              minWidth={44}
+              minHeight={44}
               borderRadius="$10"
               backgroundColor="transparent"
               borderWidth={0}
@@ -328,8 +343,8 @@ export function AppHeader({
         return (
           <Button
             chromeless
-            width="$4"
-            height="$4"
+            minWidth={44}
+            minHeight={44}
             borderRadius="$10"
             backgroundColor="transparent"
             borderWidth={0}
@@ -340,21 +355,26 @@ export function AppHeader({
             cursor="pointer"
             accessibilityRole="button"
             accessibilityLabel="Open profile"
-            icon={
-              profileImageSource ? (
-                <Image
-                  source={profileImageSource}
-                  width={36}
-                  height={36}
-                />
-              ) : (
-                <User
-                  size="$1.5"
-                  color={iconColor}
-                />
-              )
-            }
-          />
+          >
+            {profileImageSource ? (
+              <Image
+                source={profileImageSource}
+                contentFit="cover"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                }}
+                cachePolicy="memory-disk"
+                transition={200}
+              />
+            ) : (
+              <User
+                size="$1.5"
+                color={iconColor}
+              />
+            )}
+          </Button>
         )
 
       default:
@@ -405,42 +425,159 @@ export function AppHeader({
     )
   })()
 
-  const content = (
-    <XStack
-      alignItems="center"
-      height={44}
-      paddingHorizontal="$2"
-      gap="$2"
-      flexDirection="row"
-    >
-      <XStack
-        width={44}
-        alignItems="center"
-        justifyContent="center"
-      >
-        {renderLeft()}
-      </XStack>
+  // Calculate total height: status bar area + header content (44px)
+  const totalHeight = useMemo(() => topInset + 44, [topInset])
 
-      <YStack
-        flex={1}
-        alignItems={titleAlignment === 'center' ? 'center' : 'flex-start'}
-      >
-        {titleContent}
-      </YStack>
-
-      <XStack
-        width={44}
-        alignItems="center"
-        justifyContent="center"
-      >
-        {renderRight()}
-      </XStack>
-    </XStack>
+  // Memoize header background styles for iOS 16 Photos-style blur effect
+  const headerBlurViewStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      pointerEvents: 'none' as const,
+    }),
+    []
   )
+
+  // Memoize MaskedView styles for blur gradient transition
+  const maskedViewStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      pointerEvents: 'none' as const,
+    }),
+    []
+  )
+
+  const linearGradientStyle = useMemo(() => ({ flex: 1 as const }), [])
+
+  // PERF: Memoize headerContent - depends on computed values, not render functions
+  // renderLeft/Right are called inline, React handles their re-renders efficiently
+  const headerContent = useMemo(
+    () => (
+      <XStack
+        alignItems="center"
+        height={44}
+        paddingHorizontal="$2"
+        gap="$2"
+        flexDirection="row"
+      >
+        <XStack
+          width={44}
+          alignItems="center"
+          justifyContent="center"
+        >
+          {renderLeft()}
+        </XStack>
+
+        <YStack
+          flex={1}
+          alignItems={titleAlignment === 'center' ? 'center' : 'flex-start'}
+        >
+          {titleContent}
+        </YStack>
+
+        <XStack
+          width={44}
+          alignItems="center"
+          justifyContent="center"
+        >
+          {renderRight()}
+        </XStack>
+      </XStack>
+    ),
+    // Dependencies: values that affect what renderLeft/Right/titleContent return
+    [
+      leftSlot,
+      rightSlot,
+      titleSlot,
+      computedLeftAction,
+      computedRightAction,
+      isRecording,
+      titleContent,
+      titleAlignment,
+      onBackPress,
+      onMenuPress,
+      onNotificationPress,
+      onProfilePress,
+      notificationBadgeCount,
+      profileImageSource,
+    ]
+  )
+
+  // PERF: Memoize blur content to prevent re-creation
+  const blurContent = useMemo(() => {
+    if (disableBlur) return null
+
+    return IS_IOS ? (
+      <MaskedView
+        style={maskedViewStyle}
+        maskElement={
+          <LinearGradient
+            colors={['$color1', 'transparent']} // mask from blurred → visible
+            start={{ x: 0.5, y: 0.6 }}
+            end={{ x: 0.5, y: 1 }}
+            style={linearGradientStyle}
+          />
+        }
+      >
+        <BlurView
+          intensity={15}
+          tint="dark"
+          style={headerBlurViewStyle}
+        />
+      </MaskedView>
+    ) : (
+      <BlurView
+        intensity={10}
+        tint="dark"
+        style={headerBlurViewStyle}
+      />
+    )
+  }, [disableBlur, maskedViewStyle, linearGradientStyle, headerBlurViewStyle])
+
+  // iOS 16 Photos-style header: BlurView + dark gradient overlay
+  // Extends to top edge (status bar area) when topInset is provided
+  // BlurView transitions from full blur at top to no blur at bottom
+  // Can be disabled when parent already provides blur (e.g., CoachScreen)
+  // PERF: Memoize headerWithBlur to prevent re-creation on every render
+  const headerWithBlur = useMemo(
+    () => (
+      <YStack
+        position="relative"
+        height={totalHeight}
+        marginTop={topInset > 0 ? -topInset : 0}
+        overflow="visible"
+      >
+        {/* BlurView background with gradient transition - full blur at top, no blur at bottom */}
+        {blurContent}
+
+        {/* Content positioned at bottom (44px header area) */}
+        <YStack
+          position="absolute"
+          top={topInset}
+          left={0}
+          right={0}
+          height={44}
+          pointerEvents="box-none"
+        >
+          {headerContent}
+        </YStack>
+      </YStack>
+    ),
+    [totalHeight, topInset, blurContent, headerContent]
+  )
+
+  const content = themeName ? <Theme name={themeName}>{headerWithBlur}</Theme> : headerWithBlur
 
   return (
     <>
-      {themeName ? <Theme name={themeName}>{content}</Theme> : content}
+      {content}
 
       {/* PERFORMANCE FIX: Always mount sheets to avoid mounting BlurView during animation */}
       {/* Conditional mounting causes JS frame drops (5fps) when sheet opens */}

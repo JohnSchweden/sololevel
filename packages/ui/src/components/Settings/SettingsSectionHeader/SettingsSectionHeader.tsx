@@ -5,6 +5,7 @@ import { Text, XStack, type XStackProps, YStack } from 'tamagui'
 export type SettingsSectionHeaderVariant =
   | 'line'
   | 'spacing'
+  | 'minSpacing'
   | 'pill'
   | 'accent'
   | 'icon-bg'
@@ -66,7 +67,7 @@ export function SettingsSectionHeader({
   icon: Icon,
   testID = 'settings-section-header',
   variant = 'line',
-  borderBottomWidth = 0.5,
+  borderBottomWidth = 0,
   ...props
 }: SettingsSectionHeaderProps): React.ReactElement {
   const baseStyles: Partial<XStackProps> = {
@@ -92,6 +93,29 @@ export function SettingsSectionHeader({
             size={16}
             color="$color11"
           /> */}
+          <Text
+            color="$color11"
+            fontSize="$4"
+          >
+            {title}
+          </Text>
+        </XStack>
+      )
+    }
+
+    case 'minSpacing': {
+      return (
+        <XStack
+          {...baseStyles}
+          paddingBottom="$1"
+          marginBottom="$1"
+          testID={testID}
+          {...props}
+        >
+          <Icon
+            size={16}
+            color="$color11"
+          />
           <Text
             color="$color11"
             fontSize="$4"

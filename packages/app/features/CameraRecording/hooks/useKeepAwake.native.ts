@@ -1,20 +1,29 @@
 // eslint-disable-next-line deprecation/deprecation
-import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake'
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import { usePathname } from 'expo-router'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
 /**
- * Hook to keep the screen awake only when on the CameraRecording (record) tab
- *
- * Properly handles Expo Router tabs that stay mounted by using reference tracking
- * to ensure each activate has exactly one matching deactivate.
+ * Unique tag for camera recording keep-awake activation.
+ * Using tags allows proper reference counting - multiple activations with the same tag
+ * are tracked separately from other keep-awake activations.
  */
-export const useKeepAwake = () => {
+const KEEP_AWAKE_TAG = 'camera-recording'
+
+/**
+ * Hook to keep the screen awake only when on the CameraRecording (record) tab.
+ *
+ * Uses tag-based activation for proper reference counting:
+ * - Each activation with the same tag increments a counter for that tag
+ * - Deactivation decrements only that tag's counter
+ * - Screen stays awake if ANY tag's counter > 0
+ *
+ * This prevents issues with mismatched activate/deactivate calls and allows
+ * multiple components to manage keep-awake independently.
+ */
+export const useKeepAwake = (): void => {
   // Check if we're in a test environment
   const isTestEnvironment = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined'
-
-  // Track if we've activated keep-awake to ensure proper cleanup
-  const isActivatedRef = useRef(false)
 
   // Get current pathname to check if we're on the record tab
   const pathname = usePathname()
@@ -27,28 +36,21 @@ export const useKeepAwake = () => {
 
   useEffect(() => {
     if (isOnRecordTab) {
-      // We're on the record tab - activate keep-awake if not already activated
-      if (!isActivatedRef.current) {
+      // Activate with unique tag - won't interfere with other keep-awake activations
+      // eslint-disable-next-line deprecation/deprecation
+      activateKeepAwakeAsync(KEEP_AWAKE_TAG)
+
+      return () => {
+        // Deactivate only our tag - doesn't affect other activations
         // eslint-disable-next-line deprecation/deprecation
-        activateKeepAwake()
-        isActivatedRef.current = true
-      }
-    } else {
-      // We're NOT on the record tab - deactivate keep-awake if currently activated
-      if (isActivatedRef.current) {
-        // eslint-disable-next-line deprecation/deprecation
-        deactivateKeepAwake()
-        isActivatedRef.current = false
+        deactivateKeepAwake(KEEP_AWAKE_TAG)
       }
     }
-
-    // Cleanup on unmount: ensure keep-awake is deactivated
+    // If not on record tab, return cleanup that deactivates (in case it was previously active)
+    // This ensures deactivation only happens during cleanup, not on every render
     return () => {
-      if (isActivatedRef.current) {
-        // eslint-disable-next-line deprecation/deprecation
-        deactivateKeepAwake()
-        isActivatedRef.current = false
-      }
+      // eslint-disable-next-line deprecation/deprecation
+      deactivateKeepAwake(KEEP_AWAKE_TAG)
     }
   }, [isOnRecordTab])
 }

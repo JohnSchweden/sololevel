@@ -1,3 +1,4 @@
+import { safeSetQueryData } from '@app/utils/safeCacheUpdate'
 import {
   type AnalysisJobWithVideo,
   type AnalysisResults,
@@ -5,7 +6,7 @@ import {
   getUserAnalysisJobs,
 } from '@my/api'
 import { log } from '@my/logging'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as FileSystem from 'expo-file-system'
 import React from 'react'
 import { Platform } from 'react-native'
@@ -24,6 +25,11 @@ export interface VideoItem {
   title: string
   createdAt: string
   thumbnailUri?: string
+  /**
+   * Original cloud thumbnail URL for recovery when thumbnailUri is a stale file:// path.
+   * Used by prefetch hooks to download thumbnails when local paths no longer exist.
+   */
+  cloudThumbnailUrl?: string
 }
 
 /**
@@ -81,50 +87,73 @@ function transformToCache(
                 // Update store with persistent path
                 const { updateCache } = useVideoHistoryStore.getState()
                 updateCache(analysisId, { thumbnail: persistentPath })
-                log.debug('useHistoryQuery', 'Updated thumbnail to persistent cache', {
-                  videoId,
-                  path: persistentPath,
-                })
+                if (__DEV__) {
+                  log.debug('useHistoryQuery', 'Updated thumbnail to persistent cache', {
+                    videoId,
+                    path: persistentPath,
+                  })
+                }
               }
             })
             .catch((error) => {
-              log.debug('useHistoryQuery', 'Persistent cache check failed', {
-                error: error instanceof Error ? error.message : String(error),
-                videoId,
-              })
+              if (__DEV__) {
+                log.debug('useHistoryQuery', 'Persistent cache check failed', {
+                  error: error instanceof Error ? error.message : String(error),
+                  videoId,
+                })
+              }
             })
         }
         return undefined
       })
       .catch((error) => {
-        log.debug('useHistoryQuery', 'Metadata thumbnail existence check failed', {
-          error: error instanceof Error ? error.message : String(error),
-          videoId,
-        })
+        if (__DEV__) {
+          log.debug('useHistoryQuery', 'Metadata thumbnail existence check failed', {
+            error: error instanceof Error ? error.message : String(error),
+            videoId,
+          })
+        }
       })
   }
 
-  // Background: Persist cloud thumbnail to disk (non-blocking)
+  // Background: ALWAYS persist cloud thumbnail to disk (non-blocking)
+  // This ensures thumbnails are available even when metadata.thumbnailUri is a stale temp path
+  // The persistent cache path will be used on subsequent loads
   if (
     cloudThumbnail &&
     typeof cloudThumbnail === 'string' &&
     cloudThumbnail.startsWith('http') &&
-    job.video_recordings &&
-    !metadataThumbnail // Only persist if not using metadata thumbnail
+    job.video_recordings
+    // REMOVED: !metadataThumbnail condition - always persist for recovery from stale paths
   ) {
     const videoId = job.video_recordings.id
     const analysisId = job.id
+    const persistentCachePath = getCachedThumbnailPath(videoId)
 
-    // Fire and forget - don't await
-    void persistThumbnailFile(videoId, cloudThumbnail)
-      .then((persistentPath) => {
-        log.info('useHistoryQuery', 'Thumbnail persisted to disk', {
-          videoId,
-          path: persistentPath,
+    // Check if already persisted before downloading
+    void FileSystem.getInfoAsync(persistentCachePath)
+      .then((info) => {
+        if (info.exists) {
+          // Already persisted - just update cache with persistent path
+          const { updateCache } = useVideoHistoryStore.getState()
+          updateCache(analysisId, { thumbnail: persistentCachePath })
+          log.debug('useHistoryQuery', 'Using existing persistent thumbnail', {
+            videoId,
+            path: persistentCachePath,
+          })
+          return
+        }
+
+        // Not persisted yet - download and persist
+        return persistThumbnailFile(videoId, cloudThumbnail).then((persistedPath) => {
+          log.info('useHistoryQuery', 'Thumbnail persisted to disk', {
+            videoId,
+            path: persistedPath,
+          })
+          // Update cache entry with persistent path
+          const { updateCache } = useVideoHistoryStore.getState()
+          updateCache(analysisId, { thumbnail: persistedPath })
         })
-        // Update cache entry with persistent path
-        const { updateCache } = useVideoHistoryStore.getState()
-        updateCache(analysisId, { thumbnail: persistentPath })
       })
       .catch(async (error) => {
         const errorMessage = await getNetworkErrorMessage('thumbnail', error)
@@ -166,6 +195,8 @@ function transformToCache(
     title: analysisTitle,
     createdAt: job.created_at,
     thumbnail: thumbnail ?? undefined,
+    // Store cloud URL for recovery when local file:// paths become stale (cleared on app restart)
+    cloudThumbnailUrl: cloudThumbnail ?? undefined,
     videoUri: videoUri ?? undefined,
     storagePath: storagePath ?? undefined,
     results: job.results as AnalysisResults,
@@ -183,6 +214,91 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
     title: cached.title,
     createdAt: cached.createdAt,
     thumbnailUri: cached.thumbnail,
+    cloudThumbnailUrl: cached.cloudThumbnailUrl,
+  }
+}
+
+/**
+ * Resolve stale thumbnails from cached data (background, non-blocking)
+ *
+ * When loading from Zustand cache, thumbnailUri may be a stale file:// path
+ * from a previous session (temp paths get cleared on app restart).
+ *
+ * This function:
+ * 1. Checks each cached item's thumbnailUri
+ * 2. If it's a stale file:// path, checks persistent cache at Documents/thumbnails/{videoId}.jpg
+ * 3. If persistent cache exists, updates Zustand and TanStack Query caches
+ * 4. If not, downloads from cloudThumbnailUrl and persists
+ */
+async function resolveStaleThumbailsFromCache(
+  cachedItems: CachedAnalysis[],
+  queryClient: ReturnType<typeof useQueryClient>,
+  limit: number
+): Promise<void> {
+  const { updateCache } = useVideoHistoryStore.getState()
+
+  for (const item of cachedItems) {
+    // Skip if no thumbnail or already using persistent path
+    if (!item.thumbnail) continue
+    if (item.thumbnail.includes('Documents/thumbnails/')) continue
+
+    // Check if thumbnail is a stale file:// path (not persistent cache)
+    const isStaleFilePath =
+      item.thumbnail.startsWith('file://') &&
+      (item.thumbnail.includes('Library/Caches/') ||
+        item.thumbnail.includes('VideoThumbnails/') ||
+        item.thumbnail.includes('tmp/'))
+
+    if (!isStaleFilePath && !item.thumbnail.startsWith('http')) {
+      // Not a stale path and not a cloud URL - might be valid persistent path
+      continue
+    }
+
+    const persistentPath = getCachedThumbnailPath(item.videoId)
+
+    try {
+      // Check if persistent cache exists
+      const info = await FileSystem.getInfoAsync(persistentPath)
+
+      if (info.exists) {
+        // Persistent cache exists - update caches
+        updateCache(item.id, { thumbnail: persistentPath })
+        queryClient.setQueryData<VideoItem[]>(['history', 'completed', limit], (old) => {
+          if (!old) return old
+          return old.map((v) => (v.id === item.id ? { ...v, thumbnailUri: persistentPath } : v))
+        })
+        log.debug('useHistoryQuery', 'Resolved stale thumbnail from persistent cache', {
+          analysisId: item.id,
+          videoId: item.videoId,
+          persistentPath,
+        })
+      } else if (item.cloudThumbnailUrl?.startsWith('http')) {
+        // No persistent cache - download from cloud URL
+        const downloadedPath = await persistThumbnailFile(item.videoId, item.cloudThumbnailUrl)
+        updateCache(item.id, { thumbnail: downloadedPath })
+        queryClient.setQueryData<VideoItem[]>(['history', 'completed', limit], (old) => {
+          if (!old) return old
+          return old.map((v) => (v.id === item.id ? { ...v, thumbnailUri: downloadedPath } : v))
+        })
+        log.info('useHistoryQuery', 'Downloaded thumbnail for stale cached item', {
+          analysisId: item.id,
+          videoId: item.videoId,
+          downloadedPath,
+        })
+      } else {
+        log.debug('useHistoryQuery', 'Cannot resolve stale thumbnail - no cloud URL', {
+          analysisId: item.id,
+          videoId: item.videoId,
+          thumbnail: item.thumbnail.substring(0, 60),
+        })
+      }
+    } catch (error) {
+      log.warn('useHistoryQuery', 'Failed to resolve stale thumbnail', {
+        analysisId: item.id,
+        videoId: item.videoId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 }
 
@@ -190,9 +306,17 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  * Hook for fetching user's analysis history with cache-first strategy
  *
  * Strategy:
- * 1. Initialize with persisted Zustand cache data (instant display, no loading spinner)
- * 2. Background refetch from database to update cache
- * 3. Apply stale-while-revalidate (5 min stale time)
+ * 1. Display persisted Zustand cache data instantly (no loading spinner, no network)
+ * 2. Skip database refetch on mount if cache exists (refetchOnMount: false)
+ * 3. Refetch only when:
+ *    - App comes to foreground AND data is stale (>5 minutes old)
+ *    - Cache explicitly invalidated (new analysis completed via useCameraScreenLogic)
+ *    - First app launch (no cache exists)
+ *
+ * Cache Invalidation Triggers:
+ * - New recording started: `queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })`
+ *   (handled in useCameraScreenLogic.ts line 183)
+ * - App foreground: Respects 5min staleTime (only refetches if data older than 5min)
  *
  * Thumbnail Resolution Flow (3-Tier Caching):
  * ```
@@ -213,70 +337,111 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
  */
 export function useHistoryQuery(limit = 10) {
   const cache = useVideoHistoryStore()
-  const [isHydrating, setIsHydrating] = React.useState(false)
+  const queryClient = useQueryClient()
+
+  // Store manages its own hydration state - just wait for it
+  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
 
   // Trigger lazy hydration on first access (deferred from app startup)
   // CRITICAL FIX: Defer hydration to idle time to prevent blocking main thread
   // AsyncStorage reads can block 200-500ms, causing JS thread drops to 2 FPS
   React.useEffect(() => {
-    // Use requestIdleCallback if available (web), fallback to setTimeout with longer delay
-    const scheduleHydration = () => {
-      const state = useVideoHistoryStore.getState()
-      if (!state._isHydrated && !isHydrating) {
-        setIsHydrating(true)
-        state.ensureHydrated().finally(() => {
-          setIsHydrating(false)
-        })
-      }
-    }
+    // Trigger hydration once on mount - store handles its own state
+    useVideoHistoryStore.getState().ensureHydrated()
+  }, [])
 
-    // Defer to next idle period or after 100ms (whichever comes first)
-    if (typeof requestIdleCallback !== 'undefined') {
-      const handle = requestIdleCallback(scheduleHydration, { timeout: 100 })
-      return () => cancelIdleCallback(handle)
-    }
-    // Fallback for React Native (no requestIdleCallback)
-    const timeoutId = setTimeout(scheduleHydration, 100)
-    return () => clearTimeout(timeoutId)
-  }, [isHydrating])
-
-  // Get cached data from Zustand store for initial display (persists across restarts)
-  // Only use initialData when cache has data - empty array prevents query from running
-  // Defer reading until after hydration completes
-  const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
-  const initialData = React.useMemo(() => {
-    // Don't read from cache until hydrated
+  // BATTLE-TESTED FIX #1: Pre-populate TanStack Query cache with Zustand data
+  // This is better than initialData because it populates the actual cache,
+  // eliminating duplication and making refetch logic simpler
+  React.useEffect(() => {
     if (!isHydrated) {
-      return null
+      if (__DEV__) {
+        log.debug('useHistoryQuery', 'Skipping cache population - store not hydrated yet')
+      }
+      return
     }
 
     const state = useVideoHistoryStore.getState()
     const allCached = state.getAllCached()
     if (allCached.length === 0) {
-      return null
+      if (__DEV__) {
+        log.debug('useHistoryQuery', 'Skipping cache population - no cached data')
+      }
+      return
     }
 
     // Sort by newest first and limit
     const sorted = [...allCached]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit)
-    return sorted.map(transformToVideoItem)
-  }, [limit, isHydrated]) // Include isHydrated in deps to re-compute when hydrated
 
-  // Build query options conditionally - only include initialData if we have cached data
+    const mostRecentTimestamp = sorted[0]?.cachedAt ?? Date.now()
+    const videoItems = sorted.map(transformToVideoItem)
+
+    // Pre-populate TanStack Query cache with Zustand data
+    // This makes the cache the single source of truth
+    // Note: TanStack Query will set dataUpdatedAt to current time, which is fine
+    // The staleTime check will still work correctly for refetchOnWindowFocus
+    safeSetQueryData(
+      queryClient,
+      ['history', 'completed', limit],
+      videoItems,
+      'useHistoryQuery.hydrate'
+    )
+
+    if (__DEV__) {
+      log.debug('useHistoryQuery', 'Pre-populated TanStack Query cache', {
+        count: videoItems.length,
+        updatedAt: new Date(mostRecentTimestamp).toISOString(),
+        ageMinutes: ((Date.now() - mostRecentTimestamp) / 60000).toFixed(2),
+      })
+    }
+
+    // CRITICAL FIX: Resolve stale thumbnails from cached data
+    // Cached thumbnailUri may be stale file:// paths from previous sessions
+    // Check persistent cache and download from cloud URL if needed
+    if (Platform.OS !== 'web') {
+      void resolveStaleThumbailsFromCache(sorted, queryClient, limit)
+    }
+  }, [isHydrated, queryClient, limit])
+
+  // Build query options - cache already populated via setQueryData above
   const queryOptions = React.useMemo(() => {
+    // Check Zustand store directly (source of truth) to determine if cache is incomplete
+    // This is more reliable than checking TanStack Query cache which may not be populated yet
+    const state = useVideoHistoryStore.getState()
+    const allCached = isHydrated ? state.getAllCached() : []
+    const cachedCount = allCached.length
+    const shouldRefetchOnMount = cachedCount < limit
+
+    if (__DEV__ && isHydrated) {
+      log.debug('useHistoryQuery', 'Query options - checking Zustand store', {
+        cachedCount,
+        limit,
+        shouldRefetchOnMount,
+        isHydrated,
+      })
+    }
+
     const baseOptions = {
       queryKey: ['history', 'completed', limit] as const,
-      refetchOnMount: true, // Still refetch in background even with initialData
+      // CRITICAL: Wait for store to hydrate before enabling query
+      enabled: isHydrated,
+      // Refetch if cache is incomplete (fewer items than limit)
+      // Otherwise, skip refetch since cache is already populated
+      refetchOnMount: shouldRefetchOnMount,
+      refetchOnWindowFocus: true, // Refetch when app comes to foreground (staleTime respects this)
       queryFn: async (): Promise<VideoItem[]> => {
         const startTime = Date.now()
 
         // TanStack Query handles caching with staleTime (5 minutes)
         // Zustand store is used for persistence and data transformation only
-        log.debug('useHistoryQuery', 'Fetching history data', {
-          limit,
-          cacheVersion: cache.version,
-        })
+        if (__DEV__) {
+          log.debug('useHistoryQuery', 'Fetching history data', {
+            limit,
+            cacheVersion: cache.version,
+          })
+        }
 
         try {
           // Fetch only completed jobs from database (more efficient than filtering in JS)
@@ -292,19 +457,21 @@ export function useHistoryQuery(limit = 10) {
             {} as Record<string, number>
           )
 
-          log.debug('useHistoryQuery', 'Raw jobs from API', {
-            totalJobs: jobs.length,
-            limit,
-            statusDistribution,
-            sampleJob: jobs[0]
-              ? {
-                  id: jobs[0].id,
-                  status: jobs[0].status,
-                  hasVideoRecordings: !!jobs[0].video_recordings,
-                  videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
-                }
-              : 'no jobs',
-          })
+          if (__DEV__) {
+            log.debug('useHistoryQuery', 'Raw jobs from API', {
+              totalJobs: jobs.length,
+              limit,
+              statusDistribution,
+              sampleJob: jobs[0]
+                ? {
+                    id: jobs[0].id,
+                    status: jobs[0].status,
+                    hasVideoRecordings: !!jobs[0].video_recordings,
+                    videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+                  }
+                : 'no jobs',
+            })
+          }
 
           // All jobs should be completed (filtered at DB level), but keep as safety check
           const completedJobs = jobs.filter((job: any) => job.status === 'completed')
@@ -379,17 +546,43 @@ export function useHistoryQuery(limit = 10) {
           throw error
         }
       },
-      staleTime: Number.POSITIVE_INFINITY, // Historical data doesn't change, cache indefinitely
+      staleTime: 5 * 60 * 1000, // 5 minutes - refetch on window focus if data older than this
       gcTime: 24 * 60 * 60 * 1000, // Keep in memory for 24 hours
     }
 
-    // Only include initialData if we have cached data (non-null)
-    if (initialData !== null) {
-      return { ...baseOptions, initialData }
+    return baseOptions
+  }, [limit, cache, isHydrated])
+
+  const queryResult = useQuery(queryOptions)
+
+  // CRITICAL FIX: Manually trigger refetch if cache is incomplete after hydration completes
+  // TanStack Query's refetchOnMount is evaluated on mount, not when query becomes enabled
+  // So we need to manually check and refetch if needed when hydration completes
+  const hasTriggeredRefetchRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!isHydrated || hasTriggeredRefetchRef.current) {
+      return
     }
 
-    return baseOptions
-  }, [limit, cache, initialData])
+    const state = useVideoHistoryStore.getState()
+    const allCached = state.getAllCached()
+    const cachedCount = allCached.length
 
-  return useQuery(queryOptions)
+    // If cache has fewer items than limit, trigger a refetch
+    if (cachedCount < limit) {
+      hasTriggeredRefetchRef.current = true
+      if (__DEV__) {
+        log.debug('useHistoryQuery', 'Cache incomplete, triggering refetch', {
+          cachedCount,
+          limit,
+        })
+      }
+      // Use setTimeout to avoid calling refetch during render
+      setTimeout(() => {
+        queryResult.refetch()
+      }, 100) // Small delay to ensure query is ready
+    }
+  }, [isHydrated, limit, queryResult])
+
+  return queryResult
 }

@@ -18,7 +18,7 @@ export function CameraContainer({ children, testID }: CameraContainerProps) {
   return (
     <YStack
       flex={1}
-      backgroundColor="$background"
+      backgroundColor="transparent"
       position="relative"
       testID={testID}
     >
@@ -54,7 +54,7 @@ export function CameraPreviewArea({
     <YStack
       flex={1}
       position="relative"
-      backgroundColor="transparent" // TEMPORARY: Remove background to test
+      backgroundColor="#1a1a1a"
       // REMOVED: justifyContent="center" and alignItems="center" - these were compressing the camera
       // Add subtle border when recording for visual feedback
       // REMOVED: Red border when recording - no longer needed

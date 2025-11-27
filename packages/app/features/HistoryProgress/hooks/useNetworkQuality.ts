@@ -7,6 +7,10 @@ import { isOnline } from '../utils/networkDetection'
  */
 export type NetworkQuality = 'fast' | 'medium' | 'slow' | 'unknown'
 
+// Module-level cache for last known network quality
+// Prevents "unknown" flash on component remount (e.g., tab navigation)
+let cachedNetworkQuality: NetworkQuality = 'unknown'
+
 /**
  * Configuration for network quality detection
  */
@@ -48,7 +52,8 @@ export interface NetworkQualityConfig {
  * ```
  */
 export function useNetworkQuality(config?: NetworkQualityConfig): NetworkQuality {
-  const [quality, setQuality] = useState<NetworkQuality>('unknown')
+  // Use cached value on mount to prevent "unknown" flash on remount
+  const [quality, setQuality] = useState<NetworkQuality>(cachedNetworkQuality)
   const enabled = config?.enabled !== false
   const fastThreshold = config?.fastThreshold ?? 1_000_000 // 1 MB/s
   const mediumThreshold = config?.mediumThreshold ?? 500_000 // 500 KB/s
@@ -67,6 +72,8 @@ export function useNetworkQuality(config?: NetworkQualityConfig): NetworkQuality
       if (cancelled) {
         return
       }
+      // Update both state and module-level cache
+      cachedNetworkQuality = nextQuality
       setQuality(nextQuality)
     }
 

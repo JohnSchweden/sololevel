@@ -1,5 +1,6 @@
+import { Image } from 'expo-image'
 import { type ComponentProps, type ReactNode, useMemo, useState } from 'react'
-import { Button, Image, XStack, type XStackProps } from 'tamagui'
+import { Button, XStack, type XStackProps } from 'tamagui'
 import { BlurView, type BlurViewProps } from '../BlurView/BlurView'
 
 // Import glass overlay assets
@@ -185,15 +186,19 @@ export const GlassButton = ({
 
         <Image
           source={overlaySource}
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          width="100%"
-          height="100%"
-          opacity={overlayOpacity}
-          resizeMode="cover"
+          contentFit="cover"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: overlayOpacity,
+          }}
+          // Performance optimizations
+          cachePolicy="memory-disk" // Use both memory and disk cache
+          transition={200} // Smooth fade-in transition
+          priority="normal" // Button overlay images don't need high priority
         />
       </XStack>
 

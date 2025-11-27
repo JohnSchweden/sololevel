@@ -17,23 +17,38 @@ export type TabParamList = {
 const TAB_STORAGE_KEY = 'activeTab'
 const DEFAULT_TAB: TabType = 'record'
 
+// Module-level cache to prevent redundant AsyncStorage reads on remount
+// When component remounts (e.g., due to shouldRender toggle), we use cached value
+let cachedTab: TabType | null = null
+let hasLoadedFromStorage = false
+
 /**
  * Custom hook for persisting tab state across app sessions
  * Uses AsyncStorage to save and restore the active tab
+ *
+ * Note: Uses module-level cache to prevent double-loading on component remount
  */
 export function useTabPersistence() {
-  const [activeTab, setActiveTabState] = useState<TabType>(DEFAULT_TAB)
-  const [isLoading, setIsLoading] = useState(true)
+  // Use cached value if already loaded (prevents double AsyncStorage read)
+  const [activeTab, setActiveTabState] = useState<TabType>(cachedTab ?? DEFAULT_TAB)
+  const [isLoading, setIsLoading] = useState(!hasLoadedFromStorage)
 
   const loadSavedTab = useCallback(async () => {
+    // Skip if already loaded from storage (module-level guard)
+    if (hasLoadedFromStorage) {
+      return
+    }
+
     try {
       const savedTab = await AsyncStorage.getItem(TAB_STORAGE_KEY)
 
       if (savedTab && isValidTab(savedTab)) {
-        setActiveTabState(savedTab as TabType)
+        cachedTab = savedTab as TabType
+        setActiveTabState(cachedTab)
         log.info('useTabPersistence', 'Loaded saved tab state', { tab: savedTab })
       } else {
         // Use default tab if no valid saved state
+        cachedTab = DEFAULT_TAB
         setActiveTabState(DEFAULT_TAB)
         log.info('useTabPersistence', 'Using default tab state', { tab: DEFAULT_TAB })
       }
@@ -42,8 +57,10 @@ export function useTabPersistence() {
         error: error instanceof Error ? error.message : String(error),
       })
       // Fallback to default tab on error
+      cachedTab = DEFAULT_TAB
       setActiveTabState(DEFAULT_TAB)
     } finally {
+      hasLoadedFromStorage = true
       setIsLoading(false)
     }
   }, [])
@@ -77,6 +94,8 @@ export function useTabPersistence() {
         return
       }
 
+      // Update module-level cache so remounts don't reset state
+      cachedTab = tab
       setActiveTabState(tab)
       saveTabRef.current(tab)
     },

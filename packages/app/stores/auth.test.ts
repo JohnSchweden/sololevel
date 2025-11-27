@@ -148,6 +148,8 @@ describe('AuthStore', () => {
       const mockUser = { id: 'user-1', email: 'test@example.com' } as User
       const mockSession = { user: mockUser, access_token: 'token' } as Session
 
+      jest.useFakeTimers()
+
       // Use static import instead of dynamic import
       const mockGetSession = jest.mocked(supabase.auth.getSession)
       const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
@@ -162,16 +164,24 @@ describe('AuthStore', () => {
         },
       })
 
-      await useAuthStore.getState().initialize()
+      try {
+        await useAuthStore.getState().initialize()
 
-      expect(supabase.auth.getSession).toHaveBeenCalledTimes(1)
-      expect(supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1)
+        expect(supabase.auth.getSession).toHaveBeenCalledTimes(2)
+        expect(supabase.auth.onAuthStateChange).not.toHaveBeenCalled()
 
-      const state = useAuthStore.getState()
-      expect(state.user).toBe(mockUser)
-      expect(state.session).toBe(mockSession)
-      expect(state.loading).toBe(false)
-      expect(state.initialized).toBe(true)
+        jest.runOnlyPendingTimers()
+
+        expect(supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1)
+
+        const state = useAuthStore.getState()
+        expect(state.user).toBe(mockUser)
+        expect(state.session).toBe(mockSession)
+        expect(state.loading).toBe(false)
+        expect(state.initialized).toBe(true)
+      } finally {
+        jest.useRealTimers()
+      }
     })
 
     it('initializes auth with no session', async () => {

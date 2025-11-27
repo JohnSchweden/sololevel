@@ -50,14 +50,14 @@ describe('GlassBackground', () => {
     expect(container).toBeTruthy()
   })
 
-  it('should render with custom source and resizeMode', () => {
+  it('should render with custom source and contentFit', () => {
     // Arrange
     const customSource = { uri: 'https://example.com/custom-gradient.png' }
 
     // Act
     const { getByTestId } = renderComponent({
       source: customSource,
-      resizeMode: 'cover',
+      contentFit: 'cover',
     })
 
     // Assert

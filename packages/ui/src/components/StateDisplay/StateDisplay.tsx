@@ -94,7 +94,7 @@ export function StateDisplay({
         <Text
           fontSize="$8"
           textAlign="center"
-          color="$color12"
+          color="$color11"
           testID={`${testID}-icon`}
         >
           {icon}
@@ -110,25 +110,34 @@ export function StateDisplay({
         >
           {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
-            size="large"
+            size="small"
             color="$color12"
           />
         </YStack>
       )}
 
-      {/* Title */}
-      <Text
-        fontSize={isLoading ? '$4' : '$5'}
-        fontWeight={isLoading ? '400' : '500'}
-        textAlign="center"
-        color="$color12"
-        testID={`${testID}-title`}
-      >
-        {title}
-      </Text>
+      {/* Title - commented out for loading state */}
+      {!isLoading && (
+        <YStack
+          paddingHorizontal="$4"
+          maxWidth="90%"
+          width="100%"
+          alignItems="center"
+        >
+          <Text
+            fontSize="$5"
+            fontWeight="500"
+            textAlign="center"
+            color="$color12"
+            testID={`${testID}-title`}
+          >
+            {title}
+          </Text>
+        </YStack>
+      )}
 
-      {/* Description */}
-      {description && (
+      {/* Description - commented out for loading state */}
+      {!isLoading && description && (
         <Text
           fontSize="$3"
           textAlign="center"

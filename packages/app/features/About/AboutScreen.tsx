@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
 import { FileText } from '@tamagui/lucide-icons'
 import { useMemo } from 'react'
@@ -52,12 +52,8 @@ export function AboutScreen({
   onLicensesPress,
   testID = 'about-screen',
 }: AboutScreenProps = {}): React.ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render
@@ -71,7 +67,7 @@ export function AboutScreen({
       <View style={containerStyle}>
         <ScrollView flex={1}>
           <YStack
-            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom={insets.bottom + 24}
@@ -81,6 +77,7 @@ export function AboutScreen({
               alignItems="center"
               gap="$4"
               marginBottom="$4"
+              paddingTop="$8"
             >
               {/* Logo Container */}
               <XStack
@@ -162,14 +159,14 @@ export function AboutScreen({
 
             {/* Copyright - Custom */}
             <YStack
-              paddingTop="$6"
-              borderTopWidth={1}
+              paddingTop="$4"
+              borderTopWidth={0}
               borderTopColor="$borderColor"
               alignItems="center"
             >
               <Text
                 fontSize="$2"
-                color="$color9"
+                color="$color10"
               >
                 © 2025 {APP_NAME}. All rights reserved.
               </Text>

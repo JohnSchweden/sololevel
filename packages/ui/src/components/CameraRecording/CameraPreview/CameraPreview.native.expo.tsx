@@ -213,6 +213,44 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         getCamera: (): CameraView | null => {
           return cameraRef.current
         },
+        pausePreview: (): void => {
+          if (!cameraRef.current) {
+            log.warn('CameraPreview', 'pausePreview called but camera ref is null')
+            return
+          }
+
+          const maybePause = (
+            cameraRef.current as unknown as {
+              pausePreview?: () => void
+            }
+          ).pausePreview
+
+          if (typeof maybePause === 'function') {
+            maybePause()
+            log.info('CameraPreview', 'Preview paused')
+          } else if (__DEV__) {
+            log.warn('CameraPreview', 'pausePreview not supported on this platform')
+          }
+        },
+        resumePreview: (): void => {
+          if (!cameraRef.current) {
+            log.warn('CameraPreview', 'resumePreview called but camera ref is null')
+            return
+          }
+
+          const maybeResume = (
+            cameraRef.current as unknown as {
+              resumePreview?: () => void
+            }
+          ).resumePreview
+
+          if (typeof maybeResume === 'function') {
+            maybeResume()
+            log.info('CameraPreview', 'Preview resumed')
+          } else if (__DEV__) {
+            log.warn('CameraPreview', 'resumePreview not supported on this platform')
+          }
+        },
         toggleFacing: async (): Promise<void> => {
           // This method is kept for backward compatibility
           // But we now recommend controlling camera facing via the 'facing' prop

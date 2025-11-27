@@ -11,11 +11,12 @@ import {
 } from '@ui/components/CameraRecording'
 
 import { useStatusBar } from '@app/hooks/useStatusBar'
-import { log } from '@my/logging'
+import { useIsFocused } from '@react-navigation/native'
 //import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { VisionCameraPreview } from '@ui/components/CameraRecording/CameraPreview/CameraPreview.native.vision'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, YStack } from 'tamagui'
@@ -34,23 +35,6 @@ import { CameraRecordingScreenProps, RecordingState } from './types'
 // Import golf background image for iOS simulator
 const golfBackgroundImage = require('../../../../apps/expo/assets/golf.png')
 // import { adaptMVPPoseToProduction } from './utils/MVPTypeAdapter'
-
-// Lazy load CameraPreview to defer react-native-vision-camera initialization
-// This reduces startup memory by ~30-50 MB by only loading camera module when screen mounts
-const LazyCameraPreview = lazy(() =>
-  import('@ui/components/CameraRecording/CameraPreview/CameraPreview.native.vision').then(
-    (module) => ({
-      default: module.VisionCameraPreview,
-    })
-  )
-)
-
-// Loading fallback component for lazy-loaded camera
-const CameraPreviewLoadingFallback = () => (
-  <CameraPreviewArea isRecording={false}>
-    {/* Minimal loading state - camera will render when loaded */}
-  </CameraPreviewArea>
-)
 
 export function CameraRecordingScreen({
   onVideoProcessed,
@@ -73,6 +57,19 @@ export function CameraRecordingScreen({
   const BOTTOM_NAV_HEIGHT = 0 // Fixed height from BottomNavigationContainer
 
   const cameraRef = useRef<CameraPreviewRef>(null)
+  const isFocused = useIsFocused()
+
+  // PERF FIX: Pause/resume preview based on tab focus
+  // Camera stays mounted but inactive when paused (no re-init on resume)
+  useEffect(() => {
+    if (!cameraRef.current) return
+
+    if (isFocused) {
+      cameraRef.current.resumePreview()
+    } else {
+      cameraRef.current.pausePreview()
+    }
+  }, [isFocused])
 
   // Get screen dimensions for pose overlay (disabled while pose detection is off)
   // const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
@@ -168,10 +165,15 @@ export function CameraRecordingScreen({
     resetRecording,
   } = cameraScreenLogicResult
 
+  // PERF: Stable callback for VisionCameraPreview memo
+  // Using useCallback ensures the camera component doesn't re-render when parent re-renders
+  const handleCameraError = useCallback((_error: string) => {
+    // TODO: Handle camera errors with user feedback
+  }, [])
+
   // Handle reset to idle state when navigating back from video analysis
   useEffect(() => {
     if (resetToIdle && recordingState !== RecordingState.IDLE) {
-      log.info('CameraRecordingScreen', '🔄 Resetting to idle state due to navigation')
       resetRecording()
     }
   }, [resetToIdle, recordingState, resetRecording])
@@ -271,7 +273,7 @@ export function CameraRecordingScreen({
       flex={1}
       //paddingTop={insets.top + APP_HEADER_HEIGHT}
       paddingBottom={bottomPadding}
-      backgroundColor="$background"
+      backgroundColor="transparent"
     >
       <CameraContainer
         testID="camera-container"
@@ -280,29 +282,24 @@ export function CameraRecordingScreen({
             activeTab={activeTab}
             onTabChange={() => {
               // Tab changes handled by tabs layout - this is a no-op
-              log.debug('CameraRecordingScreen', 'Tab change ignored - handled by tabs layout')
             }}
           />
         }
       >
         <CameraPreviewArea isRecording={isRecording}>
-          {/* Camera Preview Mode - Lazy loaded to defer react-native-vision-camera initialization */}
-          <Suspense fallback={<CameraPreviewLoadingFallback />}>
-            <LazyCameraPreview
-              ref={cameraRef}
-              cameraType={cameraType}
-              isRecording={isRecording}
-              zoomLevel={zoomLevel} // Pass current zoom level for display purposes
-              permissionGranted={permission?.granted ?? false}
-              onCameraReady={handleCameraReady}
-              onVideoRecorded={handleVideoRecorded}
-              onError={(_error: string) => {
-                // TODO: Handle camera errors with user feedback
-              }}
-              backgroundImage={golfBackgroundImage}
-              backgroundOpacity={1}
-            />
-          </Suspense>
+          {/* Camera Preview Mode */}
+          <VisionCameraPreview
+            ref={cameraRef}
+            cameraType={cameraType}
+            isRecording={isRecording}
+            zoomLevel={zoomLevel} // Pass current zoom level for display purposes
+            permissionGranted={permission?.granted ?? false}
+            onCameraReady={handleCameraReady}
+            onVideoRecorded={handleVideoRecorded}
+            onError={handleCameraError}
+            backgroundImage={golfBackgroundImage}
+            backgroundOpacity={1}
+          />
 
           {/* MVP Pose Detection Overlay - Disabled for P1 */}
           {/* {poseEnabled && currentPose && (
@@ -336,11 +333,6 @@ export function CameraRecordingScreen({
             <PoseDetectionToggleCompact
               isEnabled={poseEnabled}
               onToggle={() => {
-                if (__DEV__) {
-                  log.debug('CameraRecordingScreen', '🎯 Toggle button pressed, poseEnabled:', {
-                    poseEnabled: poseEnabled,
-                  })
-                }
                 togglePoseDetection()
               }}
               testID="camera-pose-toggle"

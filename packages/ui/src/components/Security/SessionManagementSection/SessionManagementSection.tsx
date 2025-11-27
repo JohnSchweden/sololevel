@@ -1,4 +1,5 @@
 import { Clock, Smartphone } from '@tamagui/lucide-icons'
+import React from 'react'
 import { YStack } from 'tamagui'
 import { SettingsNavigationItem } from '../../Settings/SettingsNavigationItem'
 import { SettingsSectionHeader } from '../../Settings/SettingsSectionHeader'
@@ -35,7 +36,7 @@ export interface SessionManagementSectionProps {
  * />
  * ```
  */
-export function SessionManagementSection({
+export const SessionManagementSection = React.memo(function SessionManagementSection({
   onActiveSessionsPress,
   onLoginHistoryPress,
   testID = 'session-management-section',
@@ -71,4 +72,4 @@ export function SessionManagementSection({
       </YStack>
     </YStack>
   )
-}
+})

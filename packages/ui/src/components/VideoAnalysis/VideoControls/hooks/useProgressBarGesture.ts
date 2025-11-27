@@ -1,4 +1,4 @@
-import { log } from '@my/logging'
+//import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Gesture } from 'react-native-gesture-handler'
 import {
@@ -250,6 +250,49 @@ export function useProgressBarGesture(
   // This prevents seeks when onUpdate fires but finger hasn't actually moved (>0.5% threshold)
   const lastScrubbedPositionForSeekShared = useSharedValue<number>(-1)
 
+  // MEMORY LEAK FIX: Batched functions to reduce runOnJS closure allocations
+  // Batch seek + show controls (common pattern: tap to seek)
+  const batchSeekAndControls = useCallback(
+    (seekTime: number) => {
+      onSeek(seekTime)
+      showControlsAndResetTimer()
+    },
+    [onSeek, showControlsAndResetTimer]
+  )
+
+  // Batch scrubbing start (isScrubbing + showControls)
+  const batchScrubbingStart = useCallback(
+    (updates: { isScrubbing?: boolean; showControls?: boolean }) => {
+      if (updates.isScrubbing !== undefined) {
+        setIsScrubbing(updates.isScrubbing)
+      }
+      if (updates.showControls) {
+        showControlsAndResetTimer()
+      }
+    },
+    [setIsScrubbing, showControlsAndResetTimer]
+  )
+
+  // Batch scrubbing end cleanup (multiple state updates)
+  const batchScrubbingEnd = useCallback(
+    (updates: {
+      isScrubbing?: boolean
+      lastPosition?: number
+      currentPosition?: number | null
+    }) => {
+      if (updates.isScrubbing !== undefined) {
+        setIsScrubbing(updates.isScrubbing)
+      }
+      if (updates.lastPosition !== undefined) {
+        setLastScrubbedPosition(updates.lastPosition)
+      }
+      if (updates.currentPosition !== undefined) {
+        setScrubbingPosition(updates.currentPosition)
+      }
+    },
+    [setIsScrubbing, setLastScrubbedPosition, setScrubbingPosition]
+  )
+
   // Keep shared value in sync with state
   // This ensures gesture handlers always have access to current scrubbing state
   // without needing to recreate the entire gesture handler
@@ -263,26 +306,24 @@ export function useProgressBarGesture(
     }
   }, [enableScrubbingTelemetry, isScrubbing, isScrubbingShared, globalScrubbingShared])
 
-  // Create listeners for shared values to prevent "no listeners" warnings
-  // These shared values are updated in gesture handlers but need observers
+  // OPTIMIZATION: Single consolidated reaction to observe all internal shared values
+  // Prevents "onAnimatedValueUpdate with no listeners" warnings while minimizing overhead.
+  // Consolidates 3 separate reactions into 1 worklet registration (3x reduction).
+  // These values are updated in gesture handlers but need observers to avoid warnings.
   useAnimatedReaction(
-    () => isScrubbingShared.value,
     () => {
-      // Dummy listener - just observes the value to register it
-      // This prevents the "onAnimatedValueUpdate with no listeners" warning
-    }
-  )
-  useAnimatedReaction(
-    () => lastScrubbedPositionShared.value,
+      'worklet'
+      // Read all values to register them as observed (prevents warnings)
+      // Values are intentionally unused - this is just for observation registration
+      return {
+        isScrubbing: isScrubbingShared.value,
+        lastScrubbedPosition: lastScrubbedPositionShared.value,
+        controlsShownForThisGesture: controlsShownForThisGestureShared.value,
+      }
+    },
     () => {
-      // Dummy listener - just observes the value to register it
-      // This prevents the "onAnimatedValueUpdate with no listeners" warning
-    }
-  )
-  useAnimatedReaction(
-    () => controlsShownForThisGestureShared.value,
-    () => {
-      // Dummy listener for controlsShownForThisGesture tracking
+      // Listener intentionally empty - ensures values are observed by UI runtime
+      // This single reaction replaces 3 separate ones, reducing initialization overhead
     }
   )
 
@@ -372,14 +413,15 @@ export function useProgressBarGesture(
         progressShared.value = seekPercentage
         // Reset gesture-level flag on each new gesture
         controlsShownForThisGestureShared.value = false
-        runOnJS(log.debug)('VideoControls', `${barType} progress bar touch begin`, {
-          eventX: event.x,
-          trackLeftInset,
-          relativeX,
-          progressBarWidth: progressBarWidthShared.value,
-          seekPercentage,
-          duration,
-        })
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+        // runOnJS(log.debug)('VideoControls', `${barType} progress bar touch begin`, {
+        //   eventX: event.x,
+        //   trackLeftInset,
+        //   relativeX,
+        //   progressBarWidth: progressBarWidthShared.value,
+        //   seekPercentage,
+        //   duration,
+        // })
       })
       .onStart((event) => {
         // SAFETY NET: Prevent duplicate seeks (defensive programming)
@@ -394,15 +436,16 @@ export function useProgressBarGesture(
 
         if (timeSinceLastOnStart < DUPLICATE_GESTURE_THRESHOLD_MS) {
           // Duplicate gesture detected - ignore this onStart call
-          runOnJS(log.debug)(
-            'VideoControls',
-            `${barType} progress bar touch start - DUPLICATE IGNORED`,
-            {
-              eventX: event.x,
-              timeSinceLastOnStart: Math.round(timeSinceLastOnStart * 100) / 100,
-              threshold: DUPLICATE_GESTURE_THRESHOLD_MS,
-            }
-          )
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+          // runOnJS(log.debug)(
+          //   'VideoControls',
+          //   `${barType} progress bar touch start - DUPLICATE IGNORED`,
+          //   {
+          //     eventX: event.x,
+          //     timeSinceLastOnStart: Math.round(timeSinceLastOnStart * 100) / 100,
+          //     threshold: DUPLICATE_GESTURE_THRESHOLD_MS,
+          //   }
+          // )
           return
         }
 
@@ -416,51 +459,51 @@ export function useProgressBarGesture(
             ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
             : 0
 
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
         // DEBUG: Log corrected calculation to validate fix
-        runOnJS(log.debug)(
-          'VideoControls',
-          `${barType} progress bar touch start - CORRECTED CALCULATION`,
-          {
-            eventX: event.x,
-            trackLeftInset,
-            relativeX,
-            progressBarWidth: progressBarWidthShared.value,
-            correctedSeekPercentage,
-            duration,
-            expectedSeekTimeCorrected:
-              duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
-          }
-        )
+        // runOnJS(log.debug)(
+        //   'VideoControls',
+        //   `${barType} progress bar touch start - CORRECTED CALCULATION`,
+        //   {
+        //     eventX: event.x,
+        //     trackLeftInset,
+        //     relativeX,
+        //     progressBarWidth: progressBarWidthShared.value,
+        //     correctedSeekPercentage,
+        //     duration,
+        //     expectedSeekTimeCorrected:
+        //       duration > 0 ? (correctedSeekPercentage / 100) * duration : 0,
+        //   }
+        // )
 
         // Store position for potential drag
         lastScrubbedPositionShared.value = correctedSeekPercentage
         progressShared.value = correctedSeekPercentage
-        runOnJS(log.debug)('VideoControls', `${barType} progress bar touch start`, {
-          eventX: event.x,
-          trackLeftInset,
-          relativeX,
-          progressBarWidth: progressBarWidthShared.value,
-          seekPercentage: correctedSeekPercentage,
-          duration,
-        })
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+        // runOnJS(log.debug)('VideoControls', `${barType} progress bar touch start`, {
+        //   eventX: event.x,
+        //   trackLeftInset,
+        //   relativeX,
+        //   progressBarWidth: progressBarWidthShared.value,
+        //   seekPercentage: correctedSeekPercentage,
+        //   duration,
+        // })
 
         // For immediate taps (no dragging), seek right away
         if (duration > 0 && correctedSeekPercentage >= 0) {
           // Force seek to end if within 2% threshold (prevents off-by-frame issues)
           const seekTime =
             correctedSeekPercentage > 98 ? duration : (correctedSeekPercentage / 100) * duration
-          runOnJS(log.debug)('VideoControls', `${barType} immediate seek`, {
-            seekPercentage: correctedSeekPercentage,
-            seekTime,
-            duration,
-            isEndSeek: correctedSeekPercentage > 98,
-          })
-          runOnJS(onSeek)(seekTime)
-          // Show controls when user taps progress bar (consistent with drag behavior)
-          // Only call once per tap (onStart fires once per gesture)
-          // Mark that controls were shown to prevent duplicate call in onUpdate
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+          // runOnJS(log.debug)('VideoControls', `${barType} immediate seek`, {
+          //   seekPercentage: correctedSeekPercentage,
+          //   seekTime,
+          //   duration,
+          //   isEndSeek: correctedSeekPercentage > 98,
+          // })
+          // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
           controlsShownForThisGestureShared.value = true
-          runOnJS(showControlsAndResetTimer)()
+          runOnJS(batchSeekAndControls)(seekTime)
         }
       })
       .onUpdate((event) => {
@@ -502,9 +545,6 @@ export function useProgressBarGesture(
             globalScrubbingShared.value = true
           }
           isScrubbingFlagRef.current = true
-          if (enableScrubbingTelemetry) {
-            runOnJS(setIsScrubbing)(true)
-          }
 
           // Reset seek timestamp and position tracking to allow immediate first seek when scrubbing starts
           lastSeekTimestampShared.value = 0
@@ -513,17 +553,24 @@ export function useProgressBarGesture(
           // Only call showControlsAndResetTimer if it wasn't already called in onStart
           // This prevents duplicate calls when user taps and then slightly moves finger
           const controlsAlreadyShown = controlsShownForThisGestureShared.value
-          if (!controlsAlreadyShown) {
-            controlsShownForThisGestureShared.value = true
-            runOnJS(showControlsAndResetTimer)()
+          // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
+          if (enableScrubbingTelemetry || !controlsAlreadyShown) {
+            if (!controlsAlreadyShown) {
+              controlsShownForThisGestureShared.value = true
+            }
+            runOnJS(batchScrubbingStart)({
+              isScrubbing: enableScrubbingTelemetry ? true : undefined,
+              showControls: !controlsAlreadyShown,
+            })
           }
 
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
           // Log when scrubbing starts from onUpdate (user dragged after tap)
-          runOnJS(log.debug)('VideoControls', `${barType} scrubbing started (drag detected)`, {
-            translationX: event.translationX,
-            translationY: event.translationY,
-            eventX: event.x,
-          })
+          // runOnJS(log.debug)('VideoControls', `${barType} scrubbing started (drag detected)`, {
+          //   translationX: event.translationX,
+          //   translationY: event.translationY,
+          //   eventX: event.x,
+          // })
         }
 
         const relativeX = Math.max(0, event.x - trackLeftInset)
@@ -532,9 +579,7 @@ export function useProgressBarGesture(
             ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
             : 0
 
-        if (enableScrubbingTelemetry) {
-          runOnJS(setScrubbingPosition)(correctedSeekPercentage)
-        }
+        // MEMORY LEAK FIX: Removed runOnJS(setScrubbingPosition) - components should subscribe to lastScrubbedPositionShared directly
         lastScrubbedPositionShared.value = correctedSeekPercentage
         progressShared.value = correctedSeekPercentage
 
@@ -564,12 +609,13 @@ export function useProgressBarGesture(
             lastSeekTimestampShared.value = now
             lastScrubbedPositionForSeekShared.value = correctedSeekPercentage
             const seekTime = (correctedSeekPercentage / 100) * duration
-            runOnJS(log.debug)('VideoControls', `${barType} scrubbing seek`, {
-              seekTime,
-              seekPercentage: correctedSeekPercentage,
-              translationX: event.translationX,
-              positionChange: Math.round(positionChange * 100) / 100,
-            })
+            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+            // runOnJS(log.debug)('VideoControls', `${barType} scrubbing seek`, {
+            //   seekTime,
+            //   seekPercentage: correctedSeekPercentage,
+            //   translationX: event.translationX,
+            //   positionChange: Math.round(positionChange * 100) / 100,
+            // })
             runOnJS(onSeek)(seekTime)
           }
         }
@@ -580,16 +626,15 @@ export function useProgressBarGesture(
         const wasScrubbing = isScrubbingShared.value
         const currentPosition = lastScrubbedPositionShared.value
 
-        runOnJS(log.debug)('VideoControls', `${barType} gesture ended`, {
-          wasScrubbing,
-          finalPosition: currentPosition,
-          finalSeekTime:
-            duration > 0 && currentPosition >= 0 ? (currentPosition / 100) * duration : 0,
-        })
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+        // runOnJS(log.debug)('VideoControls', `${barType} gesture ended`, {
+        //   wasScrubbing,
+        //   finalPosition: currentPosition,
+        //   finalSeekTime:
+        //     duration > 0 && currentPosition >= 0 ? (currentPosition / 100) * duration : 0,
+        // })
 
-        if (enableScrubbingTelemetry) {
-          runOnJS(setIsScrubbing)(false)
-        }
+        // MEMORY LEAK FIX: Removed runOnJS(setIsScrubbing) - components should subscribe to isScrubbingShared directly
         isScrubbingShared.value = false
         isScrubbingFlagRef.current = false
 
@@ -599,40 +644,39 @@ export function useProgressBarGesture(
         }
 
         if (wasScrubbing) {
+          // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
           if (enableScrubbingTelemetry) {
-            runOnJS(setLastScrubbedPosition)(currentPosition)
-          }
-          if (enableScrubbingTelemetry) {
-            runOnJS(setScrubbingPosition)(null)
+            setLastScrubbedPosition(currentPosition)
+            setScrubbingPosition(null)
           }
           progressShared.value = currentPosition
 
           if (duration > 0 && currentPosition >= 0) {
             const seekTime = (currentPosition / 100) * duration
-            runOnJS(log.debug)('VideoControls', `${barType} drag end seek`, {
-              finalSeekPercentage: currentPosition,
-              finalSeekTime: seekTime,
-              duration,
-            })
+            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+            // runOnJS(log.debug)('VideoControls', `${barType} drag end seek`, {
+            //   finalSeekPercentage: currentPosition,
+            //   finalSeekTime: seekTime,
+            //   duration,
+            // })
             runOnJS(onSeek)(seekTime)
           }
         }
       })
       .onFinalize(() => {
         // Ensure cleanup on gesture cancellation
-        const wasScrubbing = isScrubbingShared.value
-        runOnJS(log.debug)('VideoControls', `${barType} gesture finalized`, {
-          wasScrubbing,
-        })
+        // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+        // runOnJS(log.debug)('VideoControls', `${barType} gesture finalized`, {
+        //   wasScrubbing,
+        // })
 
+        // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
         if (enableScrubbingTelemetry) {
-          runOnJS(setIsScrubbing)(false)
+          setIsScrubbing(false)
+          setScrubbingPosition(null)
         }
         isScrubbingShared.value = false
         isScrubbingFlagRef.current = false
-        if (enableScrubbingTelemetry) {
-          runOnJS(setScrubbingPosition)(null)
-        }
         progressShared.value = lastScrubbedPositionShared.value
         // Reset global scrubbing state on cancellation
         if (globalScrubbingShared) {
@@ -699,9 +743,7 @@ export function useProgressBarGesture(
               progressBarWidthShared.value > 0
                 ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
                 : 0
-            if (enableScrubbingTelemetry) {
-              runOnJS(setScrubbingPosition)(seekPercentage)
-            }
+            // MEMORY LEAK FIX: Removed runOnJS(setScrubbingPosition) - components should subscribe to lastScrubbedPositionShared directly
             lastScrubbedPositionShared.value = seekPercentage
           })
           .onUpdate((event) => {
@@ -718,21 +760,18 @@ export function useProgressBarGesture(
               progressBarWidthShared.value > 0
                 ? Math.max(0, Math.min(100, (relativeX / progressBarWidthShared.value) * 100))
                 : 0
-            if (enableScrubbingTelemetry) {
-              runOnJS(setScrubbingPosition)(seekPercentage)
-            }
+            // MEMORY LEAK FIX: Removed runOnJS(setScrubbingPosition) - components should subscribe to lastScrubbedPositionShared directly
             lastScrubbedPositionShared.value = seekPercentage
           })
           .onEnd(() => {
             const currentPosition = lastScrubbedPositionShared.value
+            // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
             if (enableScrubbingTelemetry) {
-              runOnJS(setIsScrubbing)(false)
-              runOnJS(setLastScrubbedPosition)(currentPosition)
+              setIsScrubbing(false)
+              setLastScrubbedPosition(currentPosition)
+              setScrubbingPosition(null)
             }
             isScrubbingShared.value = false
-            if (enableScrubbingTelemetry) {
-              runOnJS(setScrubbingPosition)(null)
-            }
 
             if (duration > 0 && currentPosition >= 0) {
               const seekTime = (currentPosition / 100) * duration
@@ -746,14 +785,13 @@ export function useProgressBarGesture(
           })
           .onFinalize(() => {
             const currentPosition = lastScrubbedPositionShared.value
+            // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
             if (enableScrubbingTelemetry) {
-              runOnJS(setIsScrubbing)(false)
-              runOnJS(setLastScrubbedPosition)(currentPosition)
+              setIsScrubbing(false)
+              setLastScrubbedPosition(currentPosition)
+              setScrubbingPosition(null)
             }
             isScrubbingShared.value = false
-            if (enableScrubbingTelemetry) {
-              runOnJS(setScrubbingPosition)(null)
-            }
           })
           .simultaneousWithExternalGesture()
         */
@@ -767,7 +805,7 @@ export function useProgressBarGesture(
         .activateAfterLongPress(0) // Immediate activation once minDistance is met
         // NOTE: No onBegin handler - minDistance(5) prevents onBegin from being useful for taps.
         // This gesture only activates when user drags (5px movement), so onStart is sufficient.
-        .onStart((event) => {
+        .onStart(() => {
           // CRITICAL: This only fires after minDistance(5px) is met, so we know user is dragging.
           // Initialize drag state here (not in onBegin) to prevent duplicate events on taps.
           const currentProgress = Math.max(0, Math.min(100, progressShared.value))
@@ -780,14 +818,15 @@ export function useProgressBarGesture(
           // Show controls when user starts dragging handle
           runOnJS(showControlsAndResetTimer)()
 
-          runOnJS(log.debug)('VideoControls', `${barType} main gesture start (drag detected)`, {
-            eventX: event.x,
-            trackLeftInset,
-            progressBarWidth: progressBarWidthShared.value,
-            seekPercentage: currentProgress,
-            translationX: event.translationX,
-            translationY: event.translationY,
-          })
+          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+          // runOnJS(log.debug)('VideoControls', `${barType} main gesture start (drag detected)`, {
+          //   eventX: event.x,
+          //   trackLeftInset,
+          //   progressBarWidth: progressBarWidthShared.value,
+          //   seekPercentage: currentProgress,
+          //   translationX: event.translationX,
+          //   translationY: event.translationY,
+          // })
         })
         .onUpdate((event) => {
           // More lenient horizontal gesture detection - reduced threshold
@@ -803,9 +842,7 @@ export function useProgressBarGesture(
           const startPercent = gestureStartPercentageShared.value
           const deltaPercent = width > 0 ? (event.translationX / width) * 100 : 0
           const seekPercentage = Math.max(0, Math.min(100, startPercent + deltaPercent))
-          if (enableScrubbingTelemetry) {
-            runOnJS(setScrubbingPosition)(seekPercentage)
-          }
+          // MEMORY LEAK FIX: Removed runOnJS(setScrubbingPosition) - components should subscribe to lastScrubbedPositionShared directly
           lastScrubbedPositionShared.value = seekPercentage
           progressShared.value = seekPercentage
         })
@@ -813,14 +850,15 @@ export function useProgressBarGesture(
           // Seek ONLY on gesture end with the final scrubbed position
           // NOTE: This only fires if minDistance (5px) was met, preventing duplicate seeks on taps
           const currentPosition = lastScrubbedPositionShared.value
+          // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
           if (enableScrubbingTelemetry) {
-            runOnJS(setIsScrubbing)(false)
-            runOnJS(setLastScrubbedPosition)(currentPosition)
+            runOnJS(batchScrubbingEnd)({
+              isScrubbing: false,
+              lastPosition: currentPosition,
+              currentPosition: null,
+            })
           }
           isScrubbingShared.value = false
-          if (enableScrubbingTelemetry) {
-            runOnJS(setScrubbingPosition)(null)
-          }
           isScrubbingFlagRef.current = false
           gestureStartPercentageShared.value = 0
           progressShared.value = currentPosition
@@ -828,24 +866,26 @@ export function useProgressBarGesture(
           // SEEK ONLY ONCE AT END with final position - allow seeking to 0%
           if (duration > 0 && currentPosition >= 0) {
             const seekTime = (currentPosition / 100) * duration
-            runOnJS(log.debug)('VideoControls', `${barType} main gesture end - seeking`, {
-              seekPercentage: currentPosition,
-              seekTime,
-              duration,
-            })
+            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
+            // runOnJS(log.debug)('VideoControls', `${barType} main gesture end - seeking`, {
+            //   seekPercentage: currentPosition,
+            //   seekTime,
+            //   duration,
+            // })
             runOnJS(onSeek)(seekTime)
           }
         })
         .onFinalize(() => {
           const currentPosition = lastScrubbedPositionShared.value
+          // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
           if (enableScrubbingTelemetry) {
-            runOnJS(setIsScrubbing)(false)
-            runOnJS(setLastScrubbedPosition)(currentPosition)
+            runOnJS(batchScrubbingEnd)({
+              isScrubbing: false,
+              lastPosition: currentPosition,
+              currentPosition: null,
+            })
           }
           isScrubbingShared.value = false
-          if (enableScrubbingTelemetry) {
-            runOnJS(setScrubbingPosition)(null)
-          }
           isScrubbingFlagRef.current = false
           gestureStartPercentageShared.value = 0
           progressShared.value = currentPosition

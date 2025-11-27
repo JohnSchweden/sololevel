@@ -93,6 +93,8 @@ jest.mock('@tamagui/lucide-icons', () => ({
 // Mock safe area hook
 jest.mock('@app/provider/safe-area/use-safe-area', () => ({
   useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useStableSafeArea: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
+  useStableTopInset: () => 44,
 }))
 
 // Mock react-native-safe-area-context

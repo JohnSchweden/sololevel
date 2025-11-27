@@ -45,17 +45,19 @@ export const i18nConfig = {
   nsSeparator: ':',
 }
 
-// Initialize i18next - force reinitialization if needed
-const configWithDebugOff = {
+// Initialize i18n synchronously at module load
+// Resources are already imported as JSON (static imports), so initialization is fast
+// This ensures i18n is always ready before any component tries to use it
+// I18nProvider will handle locale detection/change asynchronously if needed
+export const configWithDebugOff = {
   ...i18nConfig,
   debug: false,
 }
 
+// Initialize i18n synchronously - resources are already in memory from static imports
+// This prevents uninitialized state if I18nProvider fails to mount or errors
 if (!i18n.isInitialized) {
   i18n.use(initReactI18next).init(configWithDebugOff)
-} else {
-  // If already initialized, force reinit with correct config
-  i18n.init(configWithDebugOff)
 }
 
 export default i18n

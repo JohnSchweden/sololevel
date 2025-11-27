@@ -1,5 +1,6 @@
 import { VideoStorageService } from '@app/features/CameraRecording/services/videoStorageService'
 import { log } from '@my/logging'
+import { useQueryClient } from '@tanstack/react-query'
 import * as FileSystem from 'expo-file-system'
 import React from 'react'
 import { InteractionManager, Platform } from 'react-native'
@@ -106,6 +107,8 @@ export function usePrefetchNextVideos(
   })
 
   const getCached = useVideoHistoryStore((state) => state.getCached)
+  const updateCache = useVideoHistoryStore((state) => state.updateCache)
+  const queryClient = useQueryClient()
   const activeDownloadsRef = React.useRef<Set<number>>(new Set())
   const abortControllersRef = React.useRef<Map<number, AbortController>>(new Map())
   const cancelledRef = React.useRef(false)
@@ -163,6 +166,13 @@ export function usePrefetchNextVideos(
 
   /**
    * Prefetch thumbnail for a video item
+   *
+   * Strategy:
+   * 1. Check if already cached in persistent disk cache
+   * 2. Determine download URL:
+   *    - If thumbnailUri is HTTP URL, use it directly
+   *    - If thumbnailUri is stale file:// path, fall back to cloudThumbnailUrl
+   * 3. Download and persist to disk cache
    */
   const prefetchThumbnail = React.useCallback(
     async (item: VideoItem, signal?: AbortSignal): Promise<boolean> => {
@@ -174,7 +184,7 @@ export function usePrefetchNextVideos(
         return false
       }
 
-      // Skip if already cached
+      // Skip if already cached in persistent disk cache
       const cached = await isThumbnailCached(item.videoId)
       if (cached) {
         log.debug('usePrefetchNextVideos', 'Thumbnail already cached, skipping', {
@@ -184,19 +194,53 @@ export function usePrefetchNextVideos(
         return true
       }
 
-      // Skip if no thumbnail URL
-      if (!item.thumbnailUri || !item.thumbnailUri.startsWith('http')) {
+      // Determine the download URL
+      // Priority: HTTP thumbnailUri > cloudThumbnailUrl (fallback for stale file:// paths)
+      let downloadUrl: string | undefined
+
+      if (item.thumbnailUri?.startsWith('http')) {
+        // thumbnailUri is already a cloud URL
+        downloadUrl = item.thumbnailUri
+      } else if (item.cloudThumbnailUrl?.startsWith('http')) {
+        // thumbnailUri is a stale file:// path, fall back to stored cloud URL
+        log.debug('usePrefetchNextVideos', 'Using cloudThumbnailUrl for stale local path', {
+          analysisId: item.id,
+          videoId: item.videoId,
+          stalePath: item.thumbnailUri?.substring(0, 60),
+        })
+        downloadUrl = item.cloudThumbnailUrl
+      }
+
+      if (!downloadUrl) {
+        log.debug('usePrefetchNextVideos', 'No downloadable thumbnail URL available', {
+          analysisId: item.id,
+          videoId: item.videoId,
+          thumbnailUri: item.thumbnailUri?.substring(0, 60),
+          hasCloudUrl: !!item.cloudThumbnailUrl,
+        })
         return false
       }
 
       try {
-        await persistThumbnailFile(item.videoId, item.thumbnailUri, { signal })
+        const persistedPath = await persistThumbnailFile(item.videoId, downloadUrl, { signal })
         if (signal?.aborted) {
           return false
         }
-        log.debug('usePrefetchNextVideos', 'Thumbnail prefetched', {
+
+        // Update Zustand cache entry with persistent path
+        updateCache(item.id, { thumbnail: persistedPath })
+
+        // Update TanStack Query cache so UI immediately reflects the new thumbnail
+        // Without this, the stale thumbnailUri would persist until next refetch
+        queryClient.setQueryData<VideoItem[]>(['history', 'completed', 10], (old) => {
+          if (!old) return old
+          return old.map((v) => (v.id === item.id ? { ...v, thumbnailUri: persistedPath } : v))
+        })
+
+        log.debug('usePrefetchNextVideos', 'Thumbnail prefetched and caches updated', {
           analysisId: item.id,
           videoId: item.videoId,
+          persistedPath,
         })
         return true
       } catch (error) {

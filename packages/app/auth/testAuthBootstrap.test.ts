@@ -74,7 +74,7 @@ describe('testAuthBootstrap', () => {
       configurable: true,
     })
 
-    process.env.TEST_AUTH_ENABLED = 'true'
+    process.env.TEST_AUTH_ENABLED = 'false'
     process.env.TEST_AUTH_EMAIL = 'test@example.com'
     process.env.TEST_AUTH_PASSWORD = 'test-password-123'
 
@@ -84,6 +84,38 @@ describe('testAuthBootstrap', () => {
     expect(result.error).toContain('production builds')
 
     // Restore original NODE_ENV
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalEnv,
+      configurable: true,
+    })
+  })
+
+  it('allows explicit override in production when test auth is enabled', async () => {
+    const { authClient } = require('@my/api')
+    const originalEnv = process.env.NODE_ENV
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'production',
+      configurable: true,
+    })
+
+    process.env.TEST_AUTH_ENABLED = 'true'
+    process.env.TEST_AUTH_EMAIL = 'test@example.com'
+    process.env.TEST_AUTH_PASSWORD = 'test-password-123'
+
+    jest.mocked(authClient.getCurrentUserId).mockResolvedValue(null)
+    jest.mocked(authClient.signInWithPassword).mockResolvedValue({
+      success: true,
+      data: {
+        user: { id: 'test-user-id', email: 'test@example.com' },
+        session: { access_token: 'token' },
+      },
+    })
+
+    const result = await testAuthBootstrap()
+
+    expect(result.success).toBe(true)
+    expect(result.message).toBe('Test auth bootstrap completed successfully')
+
     Object.defineProperty(process.env, 'NODE_ENV', {
       value: originalEnv,
       configurable: true,

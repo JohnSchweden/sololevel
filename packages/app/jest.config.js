@@ -39,6 +39,7 @@ module.exports = {
     '^@app/(.*)$': '<rootDir>/$1',
     '^@api/(.*)$': '<rootDir>/../api/src/$1',
     '^@config/(.*)$': '<rootDir>/../config/src/$1',
+    '^@my/ui/src/(.*)$': '<rootDir>/../ui/src/$1', // Handle @my/ui/src/... imports
     '^@my/ui/(.*)$': '<rootDir>/../ui/src/$1',
     '^@my/app/(.*)$': '<rootDir>/$1',
     '^@my/api/(.*)$': '<rootDir>/../api/src/$1',

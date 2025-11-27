@@ -107,9 +107,9 @@ export function useInsightsData() {
       const startTime = Date.now()
 
       //  Simulate API call delay (disabled in test environment)
-      if (process.env.NODE_ENV !== 'test') {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
+      // if (process.env.NODE_ENV !== 'test') {
+      //   await new Promise((resolve) => setTimeout(resolve, 100))
+      // }
 
       const duration = Date.now() - startTime
 
@@ -122,6 +122,7 @@ export function useInsightsData() {
 
       return mockInsightsData
     },
+    initialData: mockInsightsData, // Provide initial data immediately to prevent empty state flash
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
   })

@@ -94,6 +94,10 @@ export type { ConfirmDialogProps } from './components/ConfirmDialog'
 export { StateDisplay } from './components/StateDisplay'
 export type { StateDisplayProps } from './components/StateDisplay'
 
+// Loading Components
+export { CircularSpinner } from './components/CircularSpinner'
+export type { CircularSpinnerProps } from './components/CircularSpinner'
+
 // Hooks
 export { useToastController } from './hooks/useToastController'
 

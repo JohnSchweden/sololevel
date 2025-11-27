@@ -1,7 +1,7 @@
 import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo } from 'react'
 import Animated, {
   FadeIn,
   FadeOut,
@@ -9,8 +9,6 @@ import Animated, {
   withTiming,
   Easing,
   useDerivedValue,
-  useAnimatedReaction,
-  runOnJS,
   type SharedValue,
 } from 'react-native-reanimated'
 import { BlurView } from '../../BlurView/BlurView'
@@ -172,16 +170,12 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({
     return collapseProgress.value <= 0.1 ? 110 : 70
   }, [collapseProgress])
 
-  // Sync bottom value to state for use in style
-  const [bottom, setBottom] = useState(80)
-
-  useAnimatedReaction(
-    () => bottomValue.value,
-    (value) => {
-      runOnJS(setBottom)(value)
-    },
-    [bottomValue]
-  )
+  // MEMORY LEAK FIX: Use animated style directly instead of syncing to state via runOnJS
+  const containerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      bottom: bottomValue.value,
+    }
+  }, [bottomValue])
 
   // Filter messages to show (limit to prevent overcrowding)
   // Prioritize highlighted and active messages, then show most recent
@@ -207,14 +201,16 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({
     <Animated.View
       entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(200)}
-      style={{
-        position: 'absolute',
-        bottom,
-        left: 20,
-        right: 20,
-        zIndex: 0,
-        pointerEvents: 'box-none',
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: 20,
+          right: 20,
+          zIndex: 0,
+          pointerEvents: 'box-none',
+        },
+        containerAnimatedStyle,
+      ]}
       testID="feedback-bubbles"
     >
       <YStack

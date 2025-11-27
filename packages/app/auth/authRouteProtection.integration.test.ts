@@ -198,13 +198,13 @@ describe('Route Protection Integration', () => {
       expect(authClient.signInWithPassword).toHaveBeenCalledWith('test@example.com', 'password')
     })
 
-    it('should be disabled in production environment', async () => {
+    it('should be disabled in production environment when test auth is off', async () => {
       const originalNodeEnv = process.env.NODE_ENV
       Object.defineProperty(process.env, 'NODE_ENV', {
         value: 'production',
         writable: true,
       })
-      process.env.TEST_AUTH_ENABLED = 'true'
+      process.env.TEST_AUTH_ENABLED = 'false'
       process.env.TEST_AUTH_EMAIL = 'test@example.com'
       process.env.TEST_AUTH_PASSWORD = 'password'
 

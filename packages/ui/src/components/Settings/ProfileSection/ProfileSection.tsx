@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
+import { Image } from 'expo-image'
 import { useMemo } from 'react'
-import { Image, Spinner, Text, YStack } from 'tamagui'
+import { Spinner, Text, YStack } from 'tamagui'
 
 // PERF FIX: Cache module-level to prevent require() blocking main thread on every mount
 // This is evaluated once at module load time, not on every component render
@@ -114,27 +115,43 @@ export function ProfileSection({
     >
       {/* Avatar with fallback: 1) real URL, 2) mock image, 3) letter fallback */}
       {imageSource ? (
-        <Image
-          source={imageSource}
-          width={84}
-          height={84}
-          borderRadius={42} // Half of width for perfect circle
-          borderWidth={1}
-          borderColor="$color9"
-          testID={`${testID}-avatar`}
-          accessibilityLabel={`${userName}'s profile picture`}
-        />
-      ) : (
-        <Image
-          source={mockAvatarImage}
+        <YStack
           width={84}
           height={84}
           borderRadius={42}
           borderWidth={1}
           borderColor="$color9"
+          overflow="hidden"
+          testID={`${testID}-avatar`}
+        >
+          <Image
+            source={imageSource}
+            contentFit="cover"
+            style={{ width: 82, height: 82 }}
+            cachePolicy="memory-disk"
+            transition={200}
+            accessibilityLabel={`${userName}'s profile picture`}
+          />
+        </YStack>
+      ) : (
+        <YStack
+          width={84}
+          height={84}
+          borderRadius={42}
+          borderWidth={1}
+          borderColor="$color9"
+          overflow="hidden"
           testID={`${testID}-avatar-mock`}
-          accessibilityLabel={`${userName}'s profile picture`}
-        />
+        >
+          <Image
+            source={mockAvatarImage}
+            contentFit="cover"
+            style={{ width: 82, height: 82 }}
+            cachePolicy="memory-disk"
+            transition={200}
+            accessibilityLabel={`${userName}'s profile picture`}
+          />
+        </YStack>
       )}
 
       {/* User Name */}

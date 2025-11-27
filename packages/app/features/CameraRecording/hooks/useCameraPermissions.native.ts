@@ -1,4 +1,3 @@
-import { log } from '@my/logging'
 import { useCallback, useState } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
 import { useFeatureFlagsStore } from '../../../stores/feature-flags'
@@ -164,7 +163,6 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
 
     // Prevent multiple rationale modals globally
     if (globalRationaleModalOpen) {
-      log.debug('useCameraPermissions', '📱 Rationale modal already open globally, skipping...')
       return false
     }
 
@@ -221,16 +219,11 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
     async (requestPermissionFn: () => Promise<T>, isAlreadyGranted: boolean): Promise<boolean> => {
       // Prevent multiple concurrent permission requests globally
       if (globalPermissionRequestInProgress) {
-        log.debug(
-          'useCameraPermissions',
-          '⚠️ Permission request already in progress globally, skipping...'
-        )
         return false
       }
 
       // If permission is already granted, don't request again
       if (isAlreadyGranted) {
-        log.debug('useCameraPermissions', '✅ Permission already granted, skipping request...')
         return true
       }
 
@@ -238,8 +231,6 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
         globalPermissionRequestInProgress = true
         setIsLoading(true)
         setError(null)
-
-        log.debug('useCameraPermissions', '🚀 Starting permission request flow...')
 
         // Show rationale modal first (if enabled)
         const shouldProceed = await showRationaleModal()
@@ -253,7 +244,6 @@ export function useBaseCameraPermissions<T extends BasePermissionResponse>(
 
         // Handle different permission states
         if (result.granted) {
-          log.info('useCameraPermissions', '✅ Permission granted successfully')
           return true
         }
 

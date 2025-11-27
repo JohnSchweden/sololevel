@@ -17,6 +17,7 @@ e2e/setup-failure.png
 
 # expo
 **/.expo/*
+**/bundle-export
 
 # iOS build artifacts
 **/ios/build/

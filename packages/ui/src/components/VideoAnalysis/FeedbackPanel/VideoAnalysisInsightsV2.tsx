@@ -577,6 +577,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
             icon={BarChart3}
             testID="insights-v2-overview-header"
             borderBottomWidth={0}
+            variant="minSpacing"
           />
 
           <YStack
@@ -707,6 +708,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
             icon={Sparkles}
             testID="insights-v2-quote-header"
             borderBottomWidth={0}
+            variant="minSpacing"
           />
           <YStack
             padding="$4"
@@ -764,6 +766,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Award}
           testID="insights-v2-achievements-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {achievements.length > 0 ? (
           <XStack
@@ -847,6 +850,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Target}
           testID="insights-v2-focus-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {focusAreas.length > 0 ? (
           <YStack gap="$3">
@@ -877,6 +881,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={BarChart3}
           testID="insights-v2-skill-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {skillMatrix.length > 0 ? (
           <YStack
@@ -1003,6 +1008,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Sparkles}
           testID="insights-v2-timeline-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {performanceTimeline.length > 0 ? (
           <YStack
@@ -1043,6 +1049,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Sparkles}
           testID="insights-v2-highlights-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {highlights.length > 0 ? (
           <YStack gap="$3">
@@ -1071,6 +1078,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Lightbulb}
           testID="insights-v2-actions-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {actions.length > 0 ? (
           <YStack gap="$3">
@@ -1099,6 +1107,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           icon={Play}
           testID="insights-v2-reels-header"
           borderBottomWidth={0}
+          variant="minSpacing"
         />
         {reels.length > 0 ? (
           <YStack gap="$3">

@@ -1,6 +1,6 @@
-import { useLazySectionVisibility } from '@app/hooks/useLazySectionVisibility'
-import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+// import { useLazySectionVisibility } from '@app/hooks/useLazySectionVisibility'
+// import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   AchievementCard,
   ActivityChart,
@@ -12,9 +12,11 @@ import {
   StateDisplay,
 } from '@my/ui'
 import { Award, BarChart3, Calendar, Target } from '@tamagui/lucide-icons'
-import { LazySection } from '@ui/components/Performance'
-import { memo, useCallback, useMemo } from 'react'
-import { Platform, RefreshControl, View } from 'react-native'
+// import { LazySection } from '@ui/components/Performance'
+import { memo, useMemo } from 'react'
+// import { useCallback } from 'react'
+import { Platform, View } from 'react-native'
+// import { RefreshControl } from 'react-native'
 import { ScrollView, Text, XStack, YStack } from 'tamagui'
 import { useInsightsData } from './hooks/useInsightsData'
 import type { InsightsData } from './hooks/useInsightsData'
@@ -45,6 +47,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
       <SettingsSectionHeader
         title="This Week"
         icon={BarChart3}
+        variant="minSpacing"
       />
 
       {/* Stats Grid */}
@@ -130,6 +133,7 @@ const FocusAreasSection = memo(function FocusAreasSection({
       <SettingsSectionHeader
         title="Focus Areas"
         icon={Target}
+        variant="minSpacing"
       />
 
       {focusAreasList.map((focus, index) => (
@@ -160,6 +164,7 @@ const AchievementsSection = memo(function AchievementsSection({
       <SettingsSectionHeader
         title="Recent Achievements"
         icon={Award}
+        variant="minSpacing"
       />
 
       {achievementsList.map((achievement, index) => (
@@ -191,6 +196,7 @@ const QuickStatsSection = memo(function QuickStatsSection({
       <SettingsSectionHeader
         title="Quick Stats"
         icon={Calendar}
+        variant="minSpacing"
       />
 
       <XStack gap="$4">
@@ -239,12 +245,8 @@ const QuickStatsSection = memo(function QuickStatsSection({
 export function InsightsScreen({
   testID = 'insights-screen',
 }: InsightsScreenProps = {}): React.ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook to prevent layout jumps during navigation
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render
@@ -252,42 +254,42 @@ export function InsightsScreen({
     () => ({ flex: 1 as const, paddingLeft: insets.left, paddingRight: insets.right }),
     [insets.left, insets.right]
   )
-  const { data, isLoading, isError, refetch } = useInsightsData()
+  const { data, isError, refetch } = useInsightsData()
 
   // Lazy load sections to reduce initial render time
   // First section renders immediately, others render after delay
-  const { visibleSections: lazyVisibleSections } = useLazySectionVisibility({
-    sectionCount: 4,
-    renderFirstImmediately: true,
-    renderDelay: 150, // Delay between sections to spread mount work
-  })
+  // const { visibleSections: lazyVisibleSections } = useLazySectionVisibility({
+  //   sectionCount: 4,
+  //   renderFirstImmediately: true,
+  //   renderDelay: 150, // Delay between sections to spread mount work
+  // })
 
   // Stable dependencies array to prevent useStaggeredAnimation from re-running unnecessarily
-  const staggerDependencies = useMemo(() => [isLoading], [isLoading])
+  // const staggerDependencies = useMemo(() => [isLoading], [isLoading])
 
-  const { visibleItems: sectionsVisible } = useStaggeredAnimation({
-    itemCount: 4,
-    staggerDelay: 50,
-    dependencies: staggerDependencies, // Only restart animation when loading state changes, not on data updates
-  })
+  // const { visibleItems: sectionsVisible } = useStaggeredAnimation({
+  //   itemCount: 4,
+  //   staggerDelay: 50,
+  //   dependencies: staggerDependencies, // Only restart animation when loading state changes, not on data updates
+  // })
 
   // Stable refetch callback
-  const handleRefresh = useCallback(() => {
-    refetch()
-  }, [refetch])
+  // const handleRefresh = useCallback(() => {
+  //   refetch()
+  // }, [refetch])
 
   // Memoize refresh control to prevent recreation
-  const refreshControl = useMemo(
-    () => (
-      <RefreshControl
-        refreshing={isLoading}
-        onRefresh={handleRefresh}
-        tintColor="white"
-        titleColor="white"
-      />
-    ),
-    [isLoading, handleRefresh]
-  )
+  // const refreshControl = useMemo(
+  //   () => (
+  //     <RefreshControl
+  //       refreshing={isLoading}
+  //       onRefresh={handleRefresh}
+  //       tintColor="white"
+  //       titleColor="white"
+  //     />
+  //   ),
+  //   [isLoading, handleRefresh]
+  // )
 
   // Memoize data references to prevent child re-renders (only when data exists)
   const dailyActivityData = useMemo(
@@ -305,85 +307,45 @@ export function InsightsScreen({
       !data ? null : (
         <>
           {/* Weekly Overview Section - renders immediately */}
-          <LazySection
-            isVisible={lazyVisibleSections[0]}
-            placeholderHeight={300}
-            testID="weekly-overview-section"
-          >
-            <WeeklyOverviewSection
-              isVisible={sectionsVisible[0]}
-              data={data}
-              dailyActivityData={dailyActivityData}
-            />
-          </LazySection>
+          <WeeklyOverviewSection
+            isVisible={true}
+            data={data}
+            dailyActivityData={dailyActivityData}
+          />
 
-          {/* Focus Areas Section - lazy loaded */}
-          <LazySection
-            isVisible={lazyVisibleSections[1]}
-            placeholderHeight={200}
-            testID="focus-areas-section"
-          >
-            <FocusAreasSection
-              isVisible={sectionsVisible[1]}
-              focusAreasList={focusAreasList}
-            />
-          </LazySection>
+          <FocusAreasSection
+            isVisible={true}
+            focusAreasList={focusAreasList}
+          />
 
-          {/* Achievements Section - lazy loaded */}
-          <LazySection
-            isVisible={lazyVisibleSections[2]}
-            placeholderHeight={200}
-            testID="achievements-section"
-          >
-            <AchievementsSection
-              isVisible={sectionsVisible[2]}
-              achievementsList={achievementsList}
-            />
-          </LazySection>
+          <AchievementsSection
+            isVisible={true}
+            achievementsList={achievementsList}
+          />
 
-          {/* Quick Stats Section - lazy loaded */}
-          <LazySection
-            isVisible={lazyVisibleSections[3]}
-            placeholderHeight={150}
-            testID="quick-stats-section"
-          >
-            <QuickStatsSection
-              isVisible={sectionsVisible[3]}
-              data={data}
-            />
-          </LazySection>
+          <QuickStatsSection
+            isVisible={true}
+            data={data}
+          />
         </>
       ),
-    [
-      data,
-      lazyVisibleSections[0],
-      lazyVisibleSections[1],
-      lazyVisibleSections[2],
-      lazyVisibleSections[3],
-      sectionsVisible[0],
-      sectionsVisible[1],
-      sectionsVisible[2],
-      sectionsVisible[3],
-      dailyActivityData,
-      focusAreasList,
-      achievementsList,
-    ]
+    [data, dailyActivityData, focusAreasList, achievementsList]
   )
 
-  if (isLoading) {
-    return (
-      <GlassBackground
-        backgroundColor="$color3"
-        testID={testID}
-      >
-        <StateDisplay
-          type="loading"
-          title="Loading insights..."
-          testID={`${testID}-loading`}
-        />
-      </GlassBackground>
-    )
-  }
+  // if (isLoading) {
+  //   return (
+  //     <GlassBackground
+  //       backgroundColor="$color3"
+  //       testID={testID}
+  //     >
+  //       <StateDisplay
+  //         type="loading"
+  //         title="This too shall pass..."
+  //         testID={`${testID}-loading`}
+  //       />
+  //     </GlassBackground>
+  //   )
+  // }
 
   if (isError || !data) {
     return (
@@ -415,10 +377,10 @@ export function InsightsScreen({
       <View style={containerStyle}>
         <ScrollView
           flex={1}
-          refreshControl={refreshControl}
+          // refreshControl={refreshControl}
         >
           <YStack
-            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 20}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom={Platform.OS === 'android' ? '$10' : '$6'}

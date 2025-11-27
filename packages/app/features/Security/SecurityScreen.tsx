@@ -1,8 +1,12 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { AuthenticationSection, GlassBackground, SessionManagementSection } from '@my/ui'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { View } from 'react-native'
 import { ScrollView, YStack } from 'tamagui'
+
+// Module-level constants for stable identity
+const NOOP = (): void => {}
+const CONTAINER_STYLE = { flex: 1 as const }
 
 export interface SecurityScreenProps {
   /**
@@ -37,16 +41,9 @@ export function SecurityScreen({
   onLoginHistoryPress,
   testID = 'security-screen',
 }: SecurityScreenProps = {}): React.ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-
-  // PERF FIX: Memoize container style to prevent recalculating layout on every render
-  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
 
   // Local state for security settings (P1: Move to Zustand store)
   const [appLock, setAppLock] = useState(false)
@@ -57,10 +54,10 @@ export function SecurityScreen({
       backgroundColor="$color3"
       testID={testID}
     >
-      <View style={containerStyle}>
+      <View style={CONTAINER_STYLE}>
         <ScrollView flex={1}>
           <YStack
-            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 20}
             paddingHorizontal="$4"
             gap="$0"
             paddingBottom={insets.bottom + 24}
@@ -73,8 +70,8 @@ export function SecurityScreen({
             />
 
             <SessionManagementSection
-              onActiveSessionsPress={onActiveSessionsPress || (() => {})}
-              onLoginHistoryPress={onLoginHistoryPress || (() => {})}
+              onActiveSessionsPress={onActiveSessionsPress || NOOP}
+              onLoginHistoryPress={onLoginHistoryPress || NOOP}
             />
           </YStack>
         </ScrollView>

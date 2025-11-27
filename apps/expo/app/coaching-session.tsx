@@ -1,7 +1,34 @@
-import { CoachScreen } from '@app/features/Coach'
 import { MOCK_COACHING_SESSIONS } from '@app/features/Coach/mocks/coachingSessions'
 import { log } from '@my/logging'
+import { GlassBackground, StateDisplay } from '@my/ui'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import React, { Suspense } from 'react'
+
+// Lazy load CoachScreen to reduce initial bundle size
+// Coaching session is only accessed from history screen
+const LazyCoachScreen = React.lazy(() =>
+  import('@app/features/Coach').then((module) => ({
+    default: module.CoachScreen,
+  }))
+)
+
+/**
+ * Loading fallback for lazy-loaded Coaching Session screen
+ */
+function CoachingLoadingFallback() {
+  return (
+    <GlassBackground
+      backgroundColor="$color3"
+      testID="coaching-loading-fallback"
+    >
+      <StateDisplay
+        type="loading"
+        title="Loading session..."
+        testID="coaching-loading-state"
+      />
+    </GlassBackground>
+  )
+}
 
 /**
  * Coaching Session Route (Native)
@@ -16,7 +43,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
  * - Stack navigation (modal route, not a tab)
  * - Reuses CoachScreen component
  * - Header configured in root _layout.tsx
- * - No tab overhead or lazy loading
+ * - Performance: Uses React.lazy() to defer code loading until route is accessed
  */
 export default function CoachingSessionRoute() {
   const router = useRouter()
@@ -40,12 +67,14 @@ export default function CoachingSessionRoute() {
   })
 
   return (
-    <CoachScreen
-      sessionId={sessionData.id}
-      sessionTitle={sessionData.title}
-      sessionDate={sessionData.date}
-      initialMessages={sessionData.initialMessages}
-      hasBottomNavigation={false}
-    />
+    <Suspense fallback={<CoachingLoadingFallback />}>
+      <LazyCoachScreen
+        sessionId={sessionData.id}
+        sessionTitle={sessionData.title}
+        sessionDate={sessionData.date}
+        initialMessages={sessionData.initialMessages}
+        hasBottomNavigation={false}
+      />
+    </Suspense>
   )
 }

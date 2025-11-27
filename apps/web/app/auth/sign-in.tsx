@@ -1,5 +1,6 @@
 import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { useAuth } from '@my/app/hooks/useAuth'
+import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
 import { Button, H2, Input, Paragraph, YStack, useToastController } from '@my/ui'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -7,6 +8,7 @@ import { useEffect, useState } from 'react'
 
 export default function SignInScreen() {
   const { signIn, isAuthenticated } = useAuth()
+  const user = useAuthStore((state) => state.user)
   const router = useRouter()
   const { redirectTo } = useLocalSearchParams<{ redirectTo?: string }>()
   const toast = useToastController()
@@ -24,10 +26,13 @@ export default function SignInScreen() {
   useEffect(() => {
     if (isAuthenticated) {
       const destination = redirectTo || '/'
-      log.info('SignInScreen', 'User already authenticated, redirecting', { destination })
+      log.debug('SignInScreen', 'User already authenticated, redirecting', {
+        destination,
+        userId: user?.id,
+      })
       router.replace(destination as any)
     }
-  }, [isAuthenticated, router, redirectTo])
+  }, [isAuthenticated, router, redirectTo, user?.id])
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -44,7 +49,10 @@ export default function SignInScreen() {
 
       if (result.success) {
         const destination = redirectTo || '/'
-        log.info('SignInScreen', 'Sign in successful, redirecting', { destination })
+        log.info('SignInScreen', 'Sign in successful, redirecting', {
+          destination,
+          userId: user?.id,
+        })
         router.replace(destination as any)
       } else {
         log.warn('SignInScreen', 'Sign in failed', {

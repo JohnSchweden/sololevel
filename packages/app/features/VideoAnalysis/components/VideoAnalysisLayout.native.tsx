@@ -13,7 +13,7 @@ import { type VideoControlsRef } from '@ui/components/VideoAnalysis'
 
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import type { FeedbackScrollControl, PullToRevealControl } from '../hooks/useGestureController'
-import { usePersistentProgressStore, useVideoPlayerStore } from '../stores'
+import { useVideoPlayerStore } from '../stores'
 import type { FeedbackPanelItem } from '../types'
 import { FeedbackSection } from './FeedbackSection'
 import { PersistentProgressBar } from './PersistentProgressBar'
@@ -261,11 +261,13 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
    *
    * @see usePersistentProgressStore - store with reference stability
    */
-  // PERF FIX FINAL: Only subscribe to shouldRenderPersistent flag
-  // ProgressBar reads all other props directly from store (no parent re-render)
-  const shouldRenderPersistent = usePersistentProgressStore(
-    (state) => state.props?.shouldRenderPersistent ?? false
-  )
+  // PERF FIX: Derive shouldRenderPersistent from collapseProgress directly
+  // Don't wait for VideoControls to set store props - that causes 500ms delay
+  // VideoControls is a deeply nested child that hasn't mounted when Layout first renders
+  // Use same threshold as useProgressBarVisibility: collapseProgress >= 0.4 = persistent mode
+  const PERSISTENT_MODE_THRESHOLD = 0.4
+  const initialCollapseProgress = animation.collapseProgress.value
+  const shouldRenderPersistent = initialCollapseProgress >= PERSISTENT_MODE_THRESHOLD
 
   // PERF: Log render duration to identify bottlenecks
   // useEffect(() => {

@@ -1,4 +1,4 @@
-import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
   SettingsRadioGroup,
@@ -33,12 +33,8 @@ export interface PersonalisationScreenProps {
 export function PersonalisationScreen({
   testID = 'personalisation-screen',
 }: PersonalisationScreenProps = {}): React.ReactElement {
-  const insetsRaw = useSafeArea()
-  // PERF FIX: Memoize insets to prevent re-renders when values haven't changed
-  const insets = useMemo(
-    () => insetsRaw,
-    [insetsRaw.top, insetsRaw.bottom, insetsRaw.left, insetsRaw.right]
-  )
+  // Use stable safe area hook that properly memoizes insets
+  const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render
@@ -77,7 +73,7 @@ export function PersonalisationScreen({
       <View style={containerStyle}>
         <ScrollView flex={1}>
           <YStack
-            paddingTop={insets.top + APP_HEADER_HEIGHT + 30}
+            paddingTop={insets.top + APP_HEADER_HEIGHT + 20}
             paddingHorizontal="$4"
             gap="$6"
             paddingBottom={insets.bottom + 24}

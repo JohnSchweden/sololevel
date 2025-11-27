@@ -82,7 +82,7 @@ describe('AuthGate (Web)', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('Spinner')).toBeInTheDocument()
+      expect(screen.getByTestId('auth-gate-loading-state')).toBeInTheDocument()
     })
   })
 

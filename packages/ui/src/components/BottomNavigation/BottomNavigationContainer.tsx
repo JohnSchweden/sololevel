@@ -1,7 +1,10 @@
 import React from 'react'
 import { Platform } from 'react-native'
 
-export function BottomNavigationContainer(props: { children: React.ReactNode }) {
+export function BottomNavigationContainer(props: {
+  children: React.ReactNode
+  disableBlur?: boolean
+}) {
   if (Platform.OS !== 'web') {
     const {
       BottomNavigationContainer: BottomNavigationContainerNative,

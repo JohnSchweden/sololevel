@@ -89,8 +89,11 @@ export default function TabsLayout() {
         return null // Don't render bottom nav outside tabs
       }
 
+      // Disable blur on coach tab (CoachScreen has its own BlurView)
+      const isCoachTab = activeTabRef.current === 'coach'
+
       return (
-        <BottomNavigationContainer>
+        <BottomNavigationContainer disableBlur={isCoachTab}>
           <BottomNavigation
             activeTab={activeTabRef.current}
             disabled={false}

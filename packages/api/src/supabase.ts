@@ -77,17 +77,85 @@ if (!supabaseUrl || !supabaseKey) {
   )
 }
 
-// Create typed Supabase client
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
-  auth: {
-    // Auto refresh session
-    autoRefreshToken: true,
-    // Persist auth session in storage
-    persistSession: true,
-    // Storage key for session
-    storageKey: 'supabase.auth.token',
+// LAZY CLIENT CREATION: Defer Supabase client creation to avoid blocking app launch
+// createClient() with persistSession:true reads AsyncStorage synchronously, blocking JS thread
+// By making it lazy, we avoid storage reads until client is actually used
+let supabaseClient: ReturnType<typeof createClient<Database>> | null = null
+
+/**
+ * Get Supabase client instance (lazy initialization)
+ * Client is created on first access, not at module import time
+ * This prevents blocking app launch with AsyncStorage reads
+ */
+function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
+  if (!supabaseClient) {
+    supabaseClient = createClient<Database>(supabaseUrl!, supabaseKey!, {
+      auth: {
+        // Auto refresh session
+        autoRefreshToken: true,
+        // Persist auth session in storage
+        persistSession: true,
+        // Storage key for session
+        storageKey: 'supabase.auth.token',
+      },
+    })
+  }
+  return supabaseClient
+}
+
+// Export lazy client via transparent Proxy
+// The Proxy forwards all operations to the real client, making it transparent to:
+// - instanceof checks (via getPrototypeOf trap)
+// - Type checking (via proper typing)
+// - Mocking libraries (via forwarding all property accesses)
+// - Property modifications (via set trap)
+//
+// NOTE: We do NOT cache properties because:
+// 1. Cached properties become stale if the underlying client changes
+// 2. Direct property binding (e.g., `const auth = supabase.auth`) should always
+//    reference the current client instance, not a cached copy
+// 3. The real client already maintains stable references for its properties
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get(_target, prop) {
+    // Always forward to real client (no caching)
+    // This ensures properties always reflect the current client state
+    const client = getSupabaseClient()
+    const value = client[prop as keyof typeof client]
+
+    // If the property is a function, bind it to the client to preserve 'this' context
+    if (typeof value === 'function') {
+      return value.bind(client)
+    }
+
+    return value
   },
-})
+  set(_target, prop, value) {
+    // Forward property assignments to the real client
+    // Note: Supabase client properties are typically read-only, but we handle
+    // assignments for completeness (e.g., custom properties or test mocks)
+    const client = getSupabaseClient()
+    ;(client as unknown as Record<PropertyKey, unknown>)[prop] = value
+    return true
+  },
+  getPrototypeOf(_target) {
+    // Forward instanceof checks to the real client's prototype
+    // This makes `supabase instanceof SupabaseClient` work correctly
+    return Object.getPrototypeOf(getSupabaseClient())
+  },
+  has(_target, prop) {
+    // Forward 'in' operator checks to the real client
+    return prop in getSupabaseClient()
+  },
+  ownKeys(_target) {
+    // Forward Object.keys() and similar operations to the real client
+    return Reflect.ownKeys(getSupabaseClient())
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    // Forward property descriptor lookups to the real client
+    // This is needed for proper property enumeration and descriptor access
+    return Reflect.getOwnPropertyDescriptor(getSupabaseClient(), prop)
+  },
+}) as ReturnType<typeof createClient<Database>>
 
 // Type exports for convenience
 export type { Database } from '../types/database'

@@ -23,8 +23,12 @@ export interface TestAuthBootstrapResult {
 
 /**
  * Build-time guard to prevent test auth in production
+ * Allows override when TEST_AUTH_ENABLED=true for testing purposes
  */
 function validateEnvironment(): TestAuthBootstrapResult {
+  // Check if test auth is explicitly enabled (allows production override)
+  const testAuthEnabled = isTestAuthEnabled()
+
   // Check if we're in production build
   const nodeEnv = process.env.NODE_ENV
   const expoEnv = process.env.EXPO_PUBLIC_ENV
@@ -33,6 +37,20 @@ function validateEnvironment(): TestAuthBootstrapResult {
   const isAllowedEnv = !nodeEnv || nodeEnv === 'test' || nodeEnv === 'development'
   const isProductionBuild = expoEnv === 'production'
 
+  // If test auth is explicitly enabled, allow even in production (for testing)
+  if (testAuthEnabled) {
+    log.warn(
+      'testAuthBootstrap',
+      'Test auth enabled in production mode - testing override active',
+      {
+        nodeEnv,
+        expoEnv,
+      }
+    )
+    return { success: true, message: 'Environment validation passed (testing override)' }
+  }
+
+  // Otherwise, enforce production guard
   if (!isAllowedEnv || isProductionBuild) {
     const error = `Test auth bootstrap is disabled in production builds (NODE_ENV: ${nodeEnv}, EXPO_PUBLIC_ENV: ${expoEnv})`
     log.error('testAuthBootstrap', error)

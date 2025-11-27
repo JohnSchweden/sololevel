@@ -2,6 +2,7 @@ import { log } from '@my/logging'
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   forwardRef,
@@ -89,7 +90,6 @@ export interface VideoControlsProps {
   /** Shared progress percentage updated by `useVideoPlayer` for UI-thread sync */
   persistentProgressShared?: SharedValue<number>
 }
-
 export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
   (
     {
@@ -556,7 +556,11 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       return persistentProgressStoreSetter ?? onPersistentProgressBarPropsChange ?? null
     }, [persistentProgressStoreSetter, onPersistentProgressBarPropsChange])
 
-    useEffect(() => {
+    // PERF FIX: Use useLayoutEffect to set props synchronously before paint
+    // This ensures PersistentProgressBar renders on the first frame, not after a delay
+    // The store starts with props: null, so the progress bar won't render until this runs
+    // Using useEffect caused a visible delay where the bar appeared ~100ms after navigation
+    useLayoutEffect(() => {
       if (!combinedPersistentSetter) {
         return
       }
@@ -595,7 +599,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       persistentProgressGesture,
     ])
 
-    useEffect(() => {
+    // Cleanup: Reset store on unmount (synchronous to match setup)
+    useLayoutEffect(() => {
       if (!combinedPersistentSetter) {
         return
       }

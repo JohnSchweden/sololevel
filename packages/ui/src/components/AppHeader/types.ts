@@ -45,4 +45,8 @@ export interface AppHeaderProps {
   cameraProps?: {
     isRecording?: boolean
   }
+  // Safe area props
+  topInset?: number // Status bar height to extend blur to top edge
+  // Blur props
+  disableBlur?: boolean // Disable blur background (useful when parent already has blur)
 }

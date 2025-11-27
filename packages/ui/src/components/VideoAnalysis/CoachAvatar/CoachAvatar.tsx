@@ -1,6 +1,7 @@
+import { Image } from 'expo-image'
 import { BlurView } from '../../BlurView/BlurView'
 
-import { Image, View } from 'tamagui'
+import { View } from 'tamagui'
 
 export interface CoachAvatarProps {
   size?: number
@@ -60,9 +61,14 @@ export function CoachAvatar({
         >
           <Image
             source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
-            width={size * 1.15}
-            height={size * 1.15}
-            marginTop={-9}
+            contentFit="cover"
+            style={{
+              width: size * 1.15,
+              height: size * 1.15,
+              marginTop: -9,
+            }}
+            cachePolicy="memory-disk"
+            transition={200}
             testID="coach-avatar-image"
           />
         </View>

@@ -4,7 +4,7 @@ import { StateDisplay } from './StateDisplay'
 
 describe('StateDisplay', () => {
   describe('Loading State', () => {
-    it('should render loading state with spinner and title', () => {
+    it('should render loading state with spinner only', () => {
       // Arrange
       const props = {
         type: 'loading' as const,
@@ -21,10 +21,11 @@ describe('StateDisplay', () => {
       // Assert
       expect(screen.getByTestId('state-display')).toBeInTheDocument()
       expect(screen.getByTestId('state-display-spinner')).toBeInTheDocument()
-      expect(screen.getByTestId('state-display-title')).toHaveTextContent('Loading insights...')
+      // Loading state does not render title or description (only spinner)
+      expect(screen.queryByTestId('state-display-title')).not.toBeInTheDocument()
     })
 
-    it('should render loading state with description', () => {
+    it('should not render description for loading state', () => {
       // Arrange
       const props = {
         type: 'loading' as const,
@@ -40,9 +41,9 @@ describe('StateDisplay', () => {
       )
 
       // Assert
-      expect(screen.getByTestId('state-display-description')).toHaveTextContent(
-        'Please wait while we fetch your data'
-      )
+      expect(screen.getByTestId('state-display-spinner')).toBeInTheDocument()
+      // Loading state does not render description
+      expect(screen.queryByTestId('state-display-description')).not.toBeInTheDocument()
     })
   })
 
@@ -203,7 +204,8 @@ describe('StateDisplay', () => {
       // Assert
       expect(screen.getByTestId('custom-state-display')).toBeInTheDocument()
       expect(screen.getByTestId('custom-state-display-spinner')).toBeInTheDocument()
-      expect(screen.getByTestId('custom-state-display-title')).toBeInTheDocument()
+      // Loading state does not render title (only spinner)
+      expect(screen.queryByTestId('custom-state-display-title')).not.toBeInTheDocument()
     })
 
     it('should accept container props', () => {

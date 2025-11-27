@@ -38,14 +38,21 @@ jest.mock('expo-router', () => ({
 jest.mock('@react-navigation/elements', () => ({}))
 
 // Mock useSafeArea hook
-jest.mock('@app/provider/safe-area/use-safe-area', () => ({
-  useSafeArea: () => ({
+jest.mock('@app/provider/safe-area/use-safe-area', () => {
+  const insets = {
     top: 44,
     bottom: 34,
     left: 0,
     right: 0,
-  }),
-}))
+  }
+
+  return {
+    __esModule: true,
+    useSafeArea: () => insets,
+    useStableTopInset: () => insets.top,
+    useStableSafeArea: () => insets,
+  }
+})
 
 jest.mock('expo-constants', () => ({
   expoConfig: { extra: {} },
@@ -61,6 +68,18 @@ jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
   createDownloadResumable: jest.fn(),
 }))
+
+jest.mock('expo-image', () => {
+  const React = require('react')
+  const MockImage = ({ children, testID = 'expo-image', ...props }: any) =>
+    React.createElement('img', { 'data-testid': testID, ...props }, children)
+
+  return {
+    __esModule: true,
+    Image: MockImage,
+    default: MockImage,
+  }
+})
 
 // Mock expo-blur for GlassBackground/GlassButton
 jest.mock('expo-blur', () => {

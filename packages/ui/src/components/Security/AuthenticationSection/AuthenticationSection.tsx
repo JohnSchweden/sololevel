@@ -1,4 +1,5 @@
 import { Fingerprint, Shield } from '@tamagui/lucide-icons'
+import React from 'react'
 import { YStack } from 'tamagui'
 import { SettingsSectionHeader } from '../../Settings/SettingsSectionHeader'
 import { SettingsToggleItem } from '../../Settings/SettingsToggleItem'
@@ -47,7 +48,7 @@ export interface AuthenticationSectionProps {
  * />
  * ```
  */
-export function AuthenticationSection({
+export const AuthenticationSection = React.memo(function AuthenticationSection({
   appLock,
   onAppLockChange,
   biometricLogin,
@@ -85,4 +86,4 @@ export function AuthenticationSection({
       </YStack>
     </YStack>
   )
-}
+})

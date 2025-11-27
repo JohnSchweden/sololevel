@@ -1,6 +1,6 @@
 import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
-import { H3, Spinner, YStack } from '@my/ui'
+import { GlassBackground, StateDisplay } from '@my/ui'
 import { usePathname, useRouter } from 'expo-router'
 import React, { useEffect, useRef } from 'react'
 
@@ -74,18 +74,17 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
     }
 
     return (
-      <YStack
-        flex={1}
-        justifyContent="center"
-        alignItems="center"
-        gap="$4"
-        backgroundColor="$background"
+      <GlassBackground
+        backgroundColor="$color3"
         minHeight="100%"
+        testID="auth-gate-loading-fallback"
       >
-        {/* @ts-ignore - TS union type complexity limit */}
-        <Spinner size="large" />
-        <H3 color="$color10">Loading...</H3>
-      </YStack>
+        <StateDisplay
+          type="loading"
+          title="This too shall pass..."
+          testID="auth-gate-loading-state"
+        />
+      </GlassBackground>
     )
   }
 
@@ -99,7 +98,9 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
   // User is authenticated, render protected content
   logOnce('authenticated', () =>
-    log.info('AuthGate', 'User authenticated, rendering protected content')
+    log.debug('AuthGate', 'Rendering protected route', {
+      pathname,
+    })
   )
   return <>{children}</>
 }

@@ -58,6 +58,14 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           log.warn('CameraRecording', 'Zoom control not supported in web browser')
           throw new Error('Zoom control is not available in web browsers')
         },
+        pausePreview: (): void => {
+          // No-op on web - no camera preview buffers to release
+          log.debug('CameraPreview', 'pausePreview called (web - no-op)')
+        },
+        resumePreview: (): void => {
+          // No-op on web
+          log.debug('CameraPreview', 'resumePreview called (web - no-op)')
+        },
       }),
       []
     )

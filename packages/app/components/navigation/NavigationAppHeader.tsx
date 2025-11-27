@@ -1,3 +1,4 @@
+import { useStableTopInset } from '@app/provider/safe-area/use-safe-area'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -17,11 +18,6 @@ const ANIMATION_DURATIONS = {
   quick: 200,
   lazy: 400,
 } as const
-
-// Module-level cache for the last valid top inset to prevent jumps on screen transitions
-// This ensures we can immediately render with the correct inset even if the new screen
-// receives a 0 inset initially (common during navigation on some devices)
-let globalLastValidTopInset: number | null = null
 
 /**
  * Custom header options extended onto React Navigation options
@@ -287,24 +283,9 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
    * On iOS and Android, we keep a stable top inset to avoid header jumping when status bar toggles.
    * We capture the initial top inset value and maintain it even when status bar is hidden.
    *
-   * FIX: Use global cache to prevent initial 0-inset overlap on new screens
+   * Uses shared stable inset hook to prevent initial 0-inset overlap on new screens
    */
-  const topInsetRef = useRef<number | null>(globalLastValidTopInset)
-
-  // Update ref and global cache if we have a valid positive inset
-  // This handles initialization (0 -> 47) and rotation (47 -> 20)
-  // It effectively ignores 0 (status bar hidden) to prevent layout jumps
-  if (insets.top > 0 && topInsetRef.current !== insets.top) {
-    topInsetRef.current = insets.top
-    globalLastValidTopInset = insets.top
-  }
-
-  // Fallback for initialization if global cache is empty
-  if (topInsetRef.current === null) {
-    topInsetRef.current = Math.max(insets.top, 0)
-  }
-
-  const topInset = topInsetRef.current ?? 0
+  const topInset = useStableTopInset(insets)
 
   /**
    * Extract options-derived values
@@ -360,6 +341,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
       profileImageUri: navHeaderProps.profileImageUri,
       notificationBadgeCount: navHeaderProps.notificationBadgeCount ?? 0,
       cameraProps: navHeaderProps.cameraProps,
+      disableBlur: navHeaderProps.disableBlur ?? false,
     }),
     [navHeaderProps, titleAlignment, isTransparent, colorScheme]
   )
@@ -465,18 +447,23 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
     ],
     [backgroundColor, insets.left, insets.right]
   )
-  const topInsetStyle = useMemo(
-    () => ({ height: topInset, backgroundColor }),
-    [topInset, backgroundColor]
+  const wrapperStyle = useMemo(
+    () => [
+      styles.wrapper,
+      {
+        overflow: 'visible' as const,
+        paddingTop: topInset,
+      },
+    ],
+    [topInset]
   )
 
   return (
     <View style={containerStyle}>
-      <View style={topInsetStyle} />
-      <View style={styles.wrapper}>
+      <View style={wrapperStyle}>
         {isVideoAnalysisMode ? (
           <VideoAnalysisAnimatedHeader
-            appHeaderProps={appHeaderProps}
+            appHeaderProps={{ ...appHeaderProps, topInset }}
             initialOpacity={initialOpacity}
             targetOpacity={targetOpacity}
             hasInitializedRef={hasInitializedRef}
@@ -484,7 +471,10 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
             currentHeaderVisible={currentHeaderVisible}
           />
         ) : (
-          <AppHeader {...appHeaderProps} />
+          <AppHeader
+            {...appHeaderProps}
+            topInset={topInset}
+          />
         )}
       </View>
     </View>

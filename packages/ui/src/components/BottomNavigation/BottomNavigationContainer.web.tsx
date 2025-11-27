@@ -1,5 +1,6 @@
 import { LinearGradient } from '@tamagui/linear-gradient'
 import React, { useMemo } from 'react'
+import { YStack } from 'tamagui'
 
 // Platform-agnostic safe area hook for bottom navigation
 // PERF FIX: Return stable constant object (defined outside component to prevent re-allocation)
@@ -22,13 +23,35 @@ const useSafeAreaInsets = () => {
  */
 export function BottomNavigationContainer({
   children,
+  disableBlur = false,
 }: {
   children: React.ReactNode
+  disableBlur?: boolean
 }) {
   // PERF FIX: useSafeAreaInsets returns stable constant, no memoization needed
   // but memoize derived values to prevent recalculation
   const insets = useSafeAreaInsets()
   const containerHeight = useMemo(() => 72 + insets.bottom, [insets.bottom])
+
+  if (disableBlur) {
+    return (
+      <YStack
+        position="absolute"
+        bottom={0}
+        left={0}
+        right={0}
+        height={containerHeight}
+        paddingBottom={insets.bottom}
+        paddingHorizontal="$4"
+        alignItems="center"
+        justifyContent="space-between"
+        backgroundColor="transparent"
+        zIndex={10}
+      >
+        {children}
+      </YStack>
+    )
+  }
 
   return (
     <LinearGradient

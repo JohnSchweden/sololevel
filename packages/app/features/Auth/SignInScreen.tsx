@@ -52,7 +52,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   // Notify parent if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      log.info('SignInScreen', 'User already authenticated')
+      // Route will log with redirect context, no need to duplicate here
       onAlreadyAuthenticated?.()
     }
   }, [isAuthenticated, onAlreadyAuthenticated])
