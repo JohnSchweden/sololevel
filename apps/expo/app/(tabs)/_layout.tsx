@@ -1,13 +1,11 @@
-import { NavigationAppHeader } from '@app/components/navigation'
+import { NavigationAppHeader, useHeaderLogo } from '@app/components/navigation'
 import { useTabNavigation } from '@app/features/CameraRecording/hooks/useTabNavigation'
 import { useTabPersistence } from '@app/features/CameraRecording/hooks/useTabPersistence'
 import { log } from '@my/logging'
 import { BottomNavigation, BottomNavigationContainer } from '@my/ui'
-import { Image } from 'expo-image'
 import { Tabs, usePathname, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { View } from 'react-native'
-import { YStack } from 'tamagui'
 
 export default function TabsLayout() {
   const pathname = usePathname()
@@ -118,30 +116,8 @@ export default function TabsLayout() {
   }, [])
 
   // Logo image for record tab header - defined statically so it's visible immediately
-  // before camera screen mounts
-  const recordHeaderLogo = useMemo(
-    () => (
-      <YStack
-        paddingBottom={4}
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Image
-          source={require('../../assets/icon_sololevel_header.png')}
-          contentFit="contain"
-          style={{
-            height: 44,
-            width: 220,
-          }}
-          cachePolicy="memory-disk"
-          transition={200}
-          accessibilityLabel="Solo:Level"
-          testID="header-logo"
-        />
-      </YStack>
-    ),
-    []
-  )
+  // before camera screen mounts (prevents visible gap/flash)
+  const recordHeaderLogo = useHeaderLogo()
 
   // Stable options objects for each screen
   const recordAppHeaderProps = useMemo(
@@ -150,7 +126,7 @@ export default function TabsLayout() {
       mode: 'camera-idle' as const,
       showTimer: false,
       timerValue: '00:00',
-      titleSlot: recordHeaderLogo, // Show logo statically in header
+      titleSlot: recordHeaderLogo, // Show logo statically in header to prevent gap on mount
       leftAction: 'sidesheet' as const,
       onMenuPress: handleMenuPress,
       cameraProps: { isRecording: false },

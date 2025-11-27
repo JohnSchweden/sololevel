@@ -1,11 +1,10 @@
+import { useHeaderLogo } from '@app/components/navigation'
 import { CameraRecordingScreen } from '@app/features/CameraRecording'
 import { useKeepAwake } from '@app/features/CameraRecording/hooks/useKeepAwake'
 import type { HeaderState } from '@app/features/CameraRecording/types'
 import { RecordingState } from '@app/features/CameraRecording/types'
-import { Image } from 'expo-image'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { YStack } from 'tamagui'
+import { useCallback, useEffect, useRef } from 'react'
 
 /**
  * Record Tab - Camera recording and video upload
@@ -41,30 +40,8 @@ export default function RecordTab() {
 
   // Logo image for header (only shown when not recording)
   // Used for dynamic updates when recording state changes
-  // Initial logo is set statically in _layout.tsx for immediate visibility
-  const headerLogo = useMemo(
-    () => (
-      <YStack
-        paddingBottom={4}
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Image
-          source={require('../../assets/icon_sololevel_header.png')}
-          contentFit="contain"
-          style={{
-            height: 44,
-            width: 220,
-          }}
-          cachePolicy="memory-disk"
-          transition={200}
-          accessibilityLabel="Solo:Level"
-          testID="header-logo"
-        />
-      </YStack>
-    ),
-    []
-  )
+  // Initial logo is set statically in _layout.tsx for immediate visibility (prevents gap)
+  const headerLogo = useHeaderLogo()
 
   // Handle dynamic header updates from screen
   const handleHeaderStateChange = useCallback(
