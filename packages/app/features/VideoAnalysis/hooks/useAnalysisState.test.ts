@@ -70,6 +70,8 @@ const mockFeedbackStatusIntegration = jest.fn<(analysisId?: string) => FeedbackS
 const mockGetAnalysisIdForJobId = jest.fn<(jobId: number) => Promise<string | null>>()
 const mockUseAnalysisJob = jest.fn<(jobId: number) => { data: AnalysisJob | null }>()
 const mockUseAnalysisJobByVideoId = jest.fn<(videoId: number) => { data: AnalysisJob | null }>()
+const mockUseAnalysisJobBatched =
+  jest.fn<(analysisJobId?: number, videoRecordingId?: number) => { data: AnalysisJob | null }>()
 
 const mockFunctionsInvoke = jest.fn<() => Promise<{ data: any; error: any }>>()
 
@@ -130,6 +132,8 @@ jest.mock('@app/hooks/useAnalysis', () => {
   return {
     useAnalysisJob: (jobId: number) => mockUseAnalysisJob(jobId),
     useAnalysisJobByVideoId: (videoId: number) => mockUseAnalysisJobByVideoId(videoId),
+    useAnalysisJobBatched: (analysisJobId?: number, videoRecordingId?: number) =>
+      mockUseAnalysisJobBatched(analysisJobId, videoRecordingId),
   }
 })
 
@@ -148,6 +152,7 @@ describe('useAnalysisState', () => {
     mockGetAnalysisIdForJobId.mockResolvedValue(null)
     mockUseAnalysisJob.mockReturnValue({ data: null })
     mockUseAnalysisJobByVideoId.mockReturnValue({ data: null })
+    mockUseAnalysisJobBatched.mockReturnValue({ data: null })
     ;(global as any).__DEV__ = true
   })
 
@@ -244,7 +249,7 @@ describe('useAnalysisState', () => {
       progress_percentage: 42,
       video_recording_id: 123,
     }
-    mockUseAnalysisJobByVideoId.mockReturnValueOnce({ data: analysisJob })
+    mockUseAnalysisJobBatched.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'recording:123',
@@ -268,7 +273,7 @@ describe('useAnalysisState', () => {
       progress_percentage: 100,
       video_recording_id: 123,
     }
-    mockUseAnalysisJob.mockReturnValueOnce({ data: analysisJob })
+    mockUseAnalysisJobBatched.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'job:77',
@@ -471,7 +476,7 @@ describe('useAnalysisState', () => {
       video_recording_id: 500,
       error_message: 'Edge function error',
     }
-    mockUseAnalysisJob.mockReturnValueOnce({ data: analysisJob })
+    mockUseAnalysisJobBatched.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'job:90',
@@ -496,7 +501,7 @@ describe('useAnalysisState', () => {
       progress_percentage: 0,
       video_recording_id: 123,
     }
-    mockUseAnalysisJobByVideoId.mockReturnValueOnce({ data: analysisJob })
+    mockUseAnalysisJobBatched.mockReturnValueOnce({ data: analysisJob })
     mockAnalysisStoreState.subscriptions = new Map([
       [
         'recording:123',
