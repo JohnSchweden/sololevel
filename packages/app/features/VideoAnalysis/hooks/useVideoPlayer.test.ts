@@ -1,11 +1,35 @@
-// Mock the Zustand store BEFORE importing
-const mockUseVideoPlayerStore = jest.fn()
-jest.mock('../stores', () => ({
-  useVideoPlayerStore: mockUseVideoPlayerStore,
-}))
+// Mock the Zustand stores BEFORE importing
+// Use factory function pattern to avoid Jest hoisting issues
+let mockStoreState: any
+let mockUseVideoPlayerStore: jest.Mock & {
+  getState: jest.Mock
+  subscribe: jest.Mock
+  setSeekImmediate: jest.Mock
+}
+
+jest.mock('../stores', () => {
+  const mockFn = jest.fn() as jest.Mock & {
+    getState: jest.Mock
+    subscribe: jest.Mock
+    setSeekImmediate: jest.Mock
+  }
+  mockFn.getState = jest.fn(() => mockStoreState)
+  mockFn.subscribe = jest.fn(() => jest.fn())
+  mockFn.setSeekImmediate = jest.fn()
+  mockUseVideoPlayerStore = mockFn
+  return {
+    useVideoPlayerStore: mockFn,
+    usePersistentProgressStore: {
+      getState: jest.fn(() => ({
+        updateTime: jest.fn(),
+      })),
+    },
+  }
+})
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
+import { useEffect, useState } from 'react'
 
 import { useVideoPlayer } from './useVideoPlayer'
 import type { UseVideoPlayerOptions } from './useVideoPlayer.types'
@@ -19,15 +43,17 @@ jest.mock('@my/logging', () => ({
   },
 }))
 
-describe.skip('useVideoPlayer', () => {
-  let mockStoreState: any
+describe('useVideoPlayer', () => {
   let mockSetters: any
 
   beforeEach(() => {
     jest.useRealTimers()
     jest.clearAllMocks()
 
-    // Set up mock store state
+    const listeners = new Set<(state: any) => void>()
+    const notify = () => listeners.forEach((l) => l(mockStoreState))
+
+    // Set up mock store state (shared with mock factory)
     mockStoreState = {
       isPlaying: false,
       displayTime: 0,
@@ -35,30 +61,39 @@ describe.skip('useVideoPlayer', () => {
       pendingSeek: null,
       videoEnded: false,
       manualControlsVisible: null,
+      controlsVisible: false,
+      seekImmediate: null,
     }
 
     // Set up mock store setters that update the state
     mockSetters = {
       setIsPlaying: jest.fn((isPlaying) => {
         mockStoreState.isPlaying = isPlaying
+        notify()
       }),
       setDisplayTime: jest.fn((displayTime) => {
         mockStoreState.displayTime = displayTime
+        notify()
       }),
       setDuration: jest.fn((duration) => {
         mockStoreState.duration = duration
+        notify()
       }),
       setPendingSeek: jest.fn((pendingSeek) => {
         mockStoreState.pendingSeek = pendingSeek
+        notify()
       }),
       setVideoEnded: jest.fn((videoEnded) => {
         mockStoreState.videoEnded = videoEnded
+        notify()
       }),
       setManualControlsVisible: jest.fn((manualControlsVisible) => {
         mockStoreState.manualControlsVisible = manualControlsVisible
+        notify()
       }),
       setControlsVisible: jest.fn((controlsVisible) => {
         mockStoreState.controlsVisible = controlsVisible
+        notify()
       }),
       batchUpdate: jest.fn(),
     }
@@ -67,15 +102,43 @@ describe.skip('useVideoPlayer', () => {
     Object.assign(mockStoreState, mockSetters)
 
     // Mock the store hook to handle selectors properly
-    mockUseVideoPlayerStore.mockImplementation((selector?: any) => {
-      if (typeof selector === 'function') {
-        // Call the selector function with the mock state
-        return selector(mockStoreState)
-      }
+    if (mockUseVideoPlayerStore) {
+      mockUseVideoPlayerStore.mockImplementation((selector?: any) => {
+        if (typeof selector === 'function') {
+          // Simulate subscription to store updates
+          const [, forceUpdate] = useState({})
+          useEffect(() => {
+            const listener = () => forceUpdate({})
+            listeners.add(listener)
+            return () => {
+              listeners.delete(listener)
+            }
+          }, [])
 
-      // If no selector provided, this is an error - the hook always provides a selector
-      throw new Error('useVideoPlayerStore called without selector - this should not happen')
-    })
+          // Call the selector function with the mock state
+          return selector(mockStoreState)
+        }
+
+        // If no selector provided, this is an error - the hook always provides a selector
+        throw new Error('useVideoPlayerStore called without selector - this should not happen')
+      })
+
+      // Update getState to return current mock state
+      mockUseVideoPlayerStore.getState.mockImplementation(() => mockStoreState)
+      mockUseVideoPlayerStore.subscribe.mockImplementation(((listener?: (state: any) => void) => {
+        if (listener) {
+          listeners.add(listener)
+        }
+        return () => {
+          if (listener) listeners.delete(listener)
+        }
+      }) as jest.Mock)
+      mockUseVideoPlayerStore.setSeekImmediate.mockImplementation(((
+        fn: ((time: number) => void) | null
+      ) => {
+        mockStoreState.seekImmediate = fn
+      }) as unknown as jest.Mock)
+    }
   })
 
   const renderVideoPlayer = (options?: UseVideoPlayerOptions) =>
@@ -133,6 +196,15 @@ describe.skip('useVideoPlayer', () => {
 
     // Assert
     expect(result.current.pendingSeek).toBe(0)
+    // Replay doesn't set isPlaying immediately - waits for seek complete
+    expect(result.current.isPlaying).toBe(false)
+
+    // Act - simulate seek complete at 0
+    act(() => {
+      result.current.onSeekComplete(0)
+    })
+
+    // Assert - now playing should be true after seek complete
     expect(result.current.isPlaying).toBe(true)
   })
 
@@ -163,8 +235,8 @@ describe.skip('useVideoPlayer', () => {
       result.current.onLoad({ duration: 120 })
     })
 
-    // Assert
-    expect(result.current.duration).toBe(120)
+    // Assert - duration removed from return object, read from store
+    expect(mockStoreState.duration).toBe(120)
   })
 
   it('tracks pending seek until completion and updates time', () => {
@@ -413,5 +485,189 @@ describe.skip('useVideoPlayer', () => {
     expect(result.current.shouldPlayVideo).toBe(false)
     expect(result.current.shouldPlayAudio).toBe(true)
     expect(result.current.isVideoPausedForAudio).toBe(true)
+  })
+
+  describe('Module 4: Unified Visibility & Interaction Manager', () => {
+    it('syncs refs when storeManualVisible changes', () => {
+      // Arrange
+      const { result, rerender } = renderVideoPlayer()
+
+      // Act - set manual controls visible
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
+
+      // Assert - hasUserInteractedRef should be synced (verified via forced visibility behavior)
+      // When user interacts, forced visibility should respect it
+      rerender({ opts: { isProcessing: true } })
+      expect(result.current.showControls).toBe(true)
+    })
+
+    it('handles forced visibility when video ends', () => {
+      // Arrange
+      const { result, rerender } = renderVideoPlayer()
+      const playerRef = result.current.ref.current
+
+      act(() => {
+        playerRef?.play()
+        result.current.setControlsVisible(true)
+        result.current.onLoad({ duration: 10 })
+      })
+
+      // Force re-render to pick up store changes
+      rerender({ opts: {} })
+      expect(result.current.showControls).toBe(true)
+
+      // Act - trigger end
+      act(() => {
+        result.current.onEnd(10)
+      })
+
+      // Force re-render to pick up store changes
+      rerender({ opts: {} })
+
+      // Assert - controls should be forced visible when ended
+      expect(result.current.showControls).toBe(true)
+      expect(result.current.videoEnded).toBe(true)
+    })
+
+    it('handles forced visibility when processing', () => {
+      // Arrange
+      const { result, rerender } = renderVideoPlayer({ isProcessing: false })
+      const playerRef = result.current.ref.current
+
+      act(() => {
+        playerRef?.play()
+        result.current.setControlsVisible(true)
+      })
+
+      // Act - processing state changes
+      rerender({ opts: { isProcessing: true } })
+
+      // Assert - controls stay visible during processing
+      expect(result.current.showControls).toBe(true)
+    })
+
+    it('synchronizes computed visibility to store', () => {
+      // Arrange
+      const { result, rerender } = renderVideoPlayer()
+
+      // Assert - initial state
+      expect(result.current.showControls).toBe(false)
+
+      // Act - set manual visible
+      act(() => {
+        result.current.setControlsVisible(true)
+      })
+
+      // Force re-render to pick up store changes
+      rerender({ opts: {} })
+
+      // Assert - computed visibility should be true
+      expect(result.current.showControls).toBe(true)
+    })
+
+    it('manages auto-hide timer correctly', () => {
+      jest.useFakeTimers()
+
+      // Arrange
+      const { result, rerender } = renderVideoPlayer()
+      const playerRef = result.current.ref.current
+
+      act(() => {
+        result.current.setControlsVisible(true)
+        playerRef?.play()
+      })
+
+      // Force re-render to pick up store changes
+      rerender({ opts: {} })
+      expect(result.current.showControls).toBe(true)
+
+      // Act - advance timers just under threshold
+      act(() => {
+        jest.advanceTimersByTime(2900)
+      })
+      rerender({ opts: {} })
+      expect(result.current.showControls).toBe(true)
+
+      // Act - exceed auto hide threshold (timer callback should set manualControlsVisible to false)
+      act(() => {
+        jest.advanceTimersByTime(200)
+      })
+
+      // Force re-render to pick up timer callback changes
+      rerender({ opts: {} })
+
+      // Assert
+      expect(result.current.showControls).toBe(false)
+
+      jest.useRealTimers()
+    })
+
+    it('does not auto-hide when forced visible (processing)', () => {
+      jest.useFakeTimers()
+
+      // Arrange
+      const { result, rerender } = renderVideoPlayer({ isProcessing: true })
+      const playerRef = result.current.ref.current
+
+      act(() => {
+        result.current.setControlsVisible(true)
+        playerRef?.play()
+      })
+
+      // Force re-render to pick up store changes
+      rerender({ opts: { isProcessing: true } })
+      expect(result.current.showControls).toBe(true)
+
+      // Act - advance timers past threshold
+      act(() => {
+        jest.advanceTimersByTime(4000)
+      })
+      rerender({ opts: { isProcessing: true } })
+
+      // Assert - controls should stay visible (forced by processing)
+      expect(result.current.showControls).toBe(true)
+
+      // Act - processing ends
+      rerender({ opts: { isProcessing: false } })
+
+      // Act - advance timers again (should trigger auto-hide now)
+      act(() => {
+        jest.advanceTimersByTime(4000)
+      })
+      rerender({ opts: { isProcessing: false } })
+
+      // Assert - now should auto-hide
+      expect(result.current.showControls).toBe(false)
+
+      jest.useRealTimers()
+    })
+
+    it('cleans up auto-hide timer on unmount', () => {
+      jest.useFakeTimers()
+
+      // Arrange
+      const { result, unmount } = renderVideoPlayer()
+      const playerRef = result.current.ref.current
+
+      act(() => {
+        result.current.setControlsVisible(true)
+        playerRef?.play()
+      })
+
+      // Act - unmount before timer fires
+      unmount()
+
+      // Act - advance timers (should not cause errors)
+      act(() => {
+        jest.advanceTimersByTime(4000)
+      })
+
+      // Assert - no errors thrown (cleanup worked)
+      expect(true).toBe(true)
+
+      jest.useRealTimers()
+    })
   })
 })

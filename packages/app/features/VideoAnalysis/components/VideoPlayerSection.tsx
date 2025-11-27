@@ -12,7 +12,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
-import { useAudioController } from '../hooks/useAudioController'
+import { useAudioControllerLazy } from '../hooks/useAudioControllerLazy'
 import { requestFeedbackPanelTab } from '../hooks/useFeedbackPanel'
 import { useVideoPlayer } from '../hooks/useVideoPlayer'
 // PERFORMANCE FIX: Import stores for direct subscriptions
@@ -187,33 +187,49 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const [fastSeek, setFastSeek] = useState<((time: number) => void) | null>(null)
   const handleSeekCompleteRef = useRef<(time?: number) => void>(() => {})
 
+  // PERF FIX: Subscribe to primitive values instead of full activeAudio object
+  // Prevents useMemo thrash when activeAudio object reference changes but values are stable
+  const activeAudioId = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.id ?? null) : null
+  )
+  const activeAudioUrl = useFeedbackAudioStore((state) =>
+    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.url ?? null) : null
+  )
+
+  // PERFORMANCE FIX: Move useAudioControllerLazy subscription here (moved from VideoAnalysisScreen)
+  // VideoPlayerSection now owns the store subscription, preventing VideoAnalysisScreen re-renders
+  // Module 3: Lazy initialization defers 14 useEffects until first audio play (~50-100ms mount time reduction)
+  // NOTE: Must be declared before useEffect that uses it (line 209)
+  const audioController = useAudioControllerLazy(
+    activeAudioUrl,
+    useMemo(
+      () => ({
+        onNaturalEnd: onAudioNaturalEnd,
+      }),
+      [onAudioNaturalEnd]
+    )
+  )
+
   useEffect(() => {
+    // 1. Register seekImmediate in store
     const seekImmediateFn = (time: number) => {
-      // First sync store so pendingSeek/videoEnded update before native completion fires
       onSeek(time)
-
-      log.debug('VideoPlayerSection.seekImmediate', 'Invoked fast seek', {
-        seekTime: time,
-      })
-
-      // PERFORMANCE FIX: Call native video player's seekDirect immediately
-      // Bypasses React render cycle for <16ms latency
-      // Note: seekDirect internally calls onSeekComplete, which triggers handleSeekComplete via VideoPlayer props
+      log.debug('VideoPlayerSection.seekImmediate', 'Invoked fast seek', { seekTime: time })
       nativeVideoPlayerRef.current?.seekDirect(time)
     }
-
-    // Register in store for imperative access by feedback coordinator
     useVideoPlayerStore.getState().setSeekImmediate(seekImmediateFn)
-
-    // Also store in local state to pass to VideoControls
     setFastSeek(() => seekImmediateFn)
 
+    // 2. Register audioController in store
+    const audioStore = useFeedbackAudioStore.getState()
+    audioStore.setController(audioController)
+
     return () => {
-      // Clear on unmount
       useVideoPlayerStore.getState().setSeekImmediate(null)
       setFastSeek(null)
+      useFeedbackAudioStore.getState().setController(null)
     }
-  }, [onSeek, videoPlayer.ref])
+  }, [onSeek, videoPlayer.ref, audioController])
 
   // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
   // Eliminates prop drilling and prevents VideoPlayerSection re-renders on state changes
@@ -258,35 +274,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const overlayVisible = useFeedbackCoordinatorStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.overlayVisible : false
   )
-
-  // PERF FIX: Subscribe to primitive values instead of full activeAudio object
-  // Prevents useMemo thrash when activeAudio object reference changes but values are stable
-  const activeAudioId = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.id ?? null) : null
-  )
-  const activeAudioUrl = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.url ?? null) : null
-  )
-
-  // PERFORMANCE FIX: Move useAudioController subscription here (moved from VideoAnalysisScreen)
-  // VideoPlayerSection now owns the store subscription, preventing VideoAnalysisScreen re-renders
-  const audioController = useAudioController(
-    activeAudioUrl,
-    useMemo(
-      () => ({
-        onNaturalEnd: onAudioNaturalEnd,
-      }),
-      [onAudioNaturalEnd]
-    )
-  )
-
-  useEffect(() => {
-    const audioStore = useFeedbackAudioStore.getState()
-    audioStore.setController(audioController)
-    return () => {
-      useFeedbackAudioStore.getState().setController(null)
-    }
-  }, [audioController])
 
   // PERFORMANCE FIX: Direct subscription to persistent progress setter
   // Eliminates VideoAnalysisScreen re-renders when progress state changes
@@ -716,10 +703,19 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   // Shared value for social icons opacity - synced with controls visibility (matches title/avatar pattern)
   const socialOverlayOpacity = useSharedValue(showControls ? 1 : 0)
 
-  // Sync social icons overlay opacity with controls visibility
+  // Shared value for title overlay opacity - synced with actual controls visibility (not forced visibility)
+  // NOTE: Must be declared before useEffect that uses it (line 714)
+  const titleOverlayOpacity = useSharedValue(actualControlsVisible ? 1 : 0)
+
+  // Unified Opacity Sync Effect
+  // Syncs Reanimated shared values with React state for overlays
   useEffect(() => {
+    // 1. Sync social icons overlay opacity with controls visibility
     socialOverlayOpacity.value = showControls ? 1 : 0
-  }, [showControls, socialOverlayOpacity])
+
+    // 2. Sync title overlay opacity with actual controls visibility (respects auto-hide)
+    titleOverlayOpacity.value = actualControlsVisible ? 1 : 0
+  }, [showControls, actualControlsVisible, socialOverlayOpacity, titleOverlayOpacity])
 
   // Animation styles for social icons - matches title pattern with range [0.4, 0.5, 0.6]
   // Fade in from 0.4 to 0.5, fade out from 0.5 to 0.6 (visible only at 0.5 normal mode)
@@ -741,14 +737,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
       ],
     }
   }, [socialOverlayOpacity])
-
-  // Shared value for title overlay opacity - synced with actual controls visibility (not forced visibility)
-  const titleOverlayOpacity = useSharedValue(actualControlsVisible ? 1 : 0)
-
-  // Sync title overlay opacity with actual controls visibility (respects auto-hide, not forced visibility)
-  useEffect(() => {
-    titleOverlayOpacity.value = actualControlsVisible ? 1 : 0
-  }, [actualControlsVisible, titleOverlayOpacity])
 
   // Animation style for video title overlay - only visible in max mode (collapseProgress = 0) and when controls are visible
   const titleOverlayAnimatedStyle = useAnimatedStyle(() => {

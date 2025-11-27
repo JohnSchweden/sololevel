@@ -171,8 +171,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     }
   }, [])
 
-  useEffect(() => clearHideTimeout, [clearHideTimeout])
-
   const scheduleHide = useCallback(() => {
     clearHideTimeout()
 
@@ -204,12 +202,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     [clearHideTimeout, scheduleHide, setManualControlsVisible]
   )
 
-  useEffect(() => {
-    if (storeManualVisible) {
-      hasUserInteractedRef.current = true
-    }
-  }, [storeManualVisible])
-
   const forcedVisible = useMemo(() => {
     if (videoEnded) {
       return true
@@ -224,29 +216,51 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
 
   forcedVisibleRef.current = forcedVisible
 
+  // Module 4: Unified Visibility & Interaction Manager
+  // Combines 4 separate effects into one to reduce render passes and fragmentation:
+  // 1. Ref synchronization (user interaction, video ended)
+  // 2. Forced visibility logic (override manual state)
+  // 3. Store synchronization (computed visibility)
+  // 4. Auto-hide timer management
   useEffect(() => {
+    // 1. Sync Refs
+    if (storeManualVisible) {
+      hasUserInteractedRef.current = true
+    }
+    videoEndedRef.current = videoEnded
+
+    // 2. Handle Forced Visibility (Processing/Ended)
     if (forcedVisible) {
       clearHideTimeout()
-      setManualControlsVisible(true) // Force controls visible when video ends or processing
+      setManualControlsVisible(true)
     }
-  }, [forcedVisible, clearHideTimeout, setManualControlsVisible])
 
-  // Update computed controlsVisible whenever forced or manual visibility changes
-  useEffect(() => {
+    // 3. Update Store with Computed Visibility
     const computedVisible = forcedVisible || Boolean(storeManualVisible)
     setStoreControlsVisible(computedVisible)
-  }, [forcedVisible, storeManualVisible, setStoreControlsVisible])
 
-  useEffect(() => {
-    if (storeManualVisible && isPlaying && !forcedVisibleRef.current) {
+    // 4. Manage Auto-Hide Timer
+    // Only schedule hide if:
+    // - Controls are manually visible
+    // - Video is playing
+    // - We aren't forced to show them (e.g. not buffering/ended)
+    if (storeManualVisible && isPlaying && !forcedVisible) {
       scheduleHide()
-      return () => {
-        clearHideTimeout()
-      }
     }
 
-    return undefined
-  }, [storeManualVisible, isPlaying, scheduleHide, clearHideTimeout])
+    return () => {
+      clearHideTimeout()
+    }
+  }, [
+    storeManualVisible,
+    videoEnded,
+    forcedVisible,
+    isPlaying,
+    setManualControlsVisible,
+    setStoreControlsVisible,
+    scheduleHide,
+    clearHideTimeout,
+  ])
 
   const getPreciseCurrentTime = useCallback(() => actualCurrentTimeRef.current, [])
 
@@ -346,10 +360,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     },
     [setDuration, setVideoEnded, updateProgressShared]
   )
-
-  useEffect(() => {
-    videoEndedRef.current = videoEnded
-  }, [videoEnded])
 
   const handleEnd = useCallback(
     (endTime?: number) => {
@@ -523,6 +533,19 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     updateProgressShared,
   ])
 
+  // Initialize playback state based on initialStatus on first mount
+  const hasInitializedRef = useRef(false)
+  useEffect(() => {
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true
+      if (initialStatus === 'playing') {
+        setIsPlaying(true)
+      } else if (initialStatus === 'paused') {
+        setIsPlaying(false)
+      }
+    }
+  }, [initialStatus, setIsPlaying])
+
   useEffect(() => {
     const wasProcessing = prevProcessingRef.current
     const nowProcessing = isProcessing
@@ -566,16 +589,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions = {}): UseVideoPla
     ref.current.getCurrentTime = getPreciseCurrentTime
     ref.current.getDuration = () => durationRef.current
   }
-
-  // Cleanup timers on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      if (hideControlsTimeoutRef.current) {
-        clearTimeout(hideControlsTimeoutRef.current)
-        hideControlsTimeoutRef.current = null
-      }
-    }
-  }, [])
 
   return {
     ref,
