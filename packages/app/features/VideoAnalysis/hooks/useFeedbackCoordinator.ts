@@ -206,18 +206,62 @@ export function useFeedbackCoordinator({
 
   // Track audioController in ref to avoid stale closures in handlePlay
   const audioControllerRef = useRef(audioController)
-  useEffect(() => {
-    audioControllerRef.current = audioController
-  }, [audioController])
+  // Track bubbleController in ref - initialized null, populated by effect
+  const bubbleControllerRef = useRef<ReturnType<typeof useBubbleController> | null>(null)
+  // Extract videoPlayback.play/pause to refs
+  const videoPlayRef = useRef(videoPlayback.play)
+  const videoPlaybackPauseRef = useRef(videoPlayback.pause)
 
   // Track latest isPlaying value to avoid stale closures
   const isPlayingRef = useRef(useVideoPlayerStore.getState().isPlaying)
+
+  // Module 4: Unified Store Subscriptions
+  // Combines subscriptions to VideoPlayerStore and FeedbackAudioStore
+  // Reduces effect count and groups external store listeners
   useEffect(() => {
-    const unsubscribe = useVideoPlayerStore.subscribe((state) => {
+    // 1. Video Player Subscription (isPlaying)
+    const unsubscribeVideo = useVideoPlayerStore.subscribe((state) => {
       isPlayingRef.current = state.isPlaying
     })
+
+    // 2. Audio Store Subscription (activeAudio)
+    const prevActiveAudioRef = { value: useFeedbackAudioStore.getState().activeAudio }
+    const unsubscribeAudio = useFeedbackAudioStore.subscribe((state) => {
+      const currentActiveAudio = state.activeAudio
+      const prevActiveAudio = prevActiveAudioRef.value
+
+      const hasChanged =
+        prevActiveAudio?.id !== currentActiveAudio?.id || prevActiveAudio !== currentActiveAudio
+
+      if (!hasChanged) return
+
+      prevActiveAudioRef.value = currentActiveAudio
+
+      if (__DEV__) {
+        log.debug('useFeedbackCoordinator.audioSubscription', '🔍 Audio state change detected', {
+          prevActiveAudioId: prevActiveAudio?.id ?? null,
+          currentActiveAudioId: currentActiveAudio?.id ?? null,
+          prevIsPlaying: state.isPlaying,
+        })
+      }
+
+      // Audio was playing, now stopped - hide bubble if visible
+      if (prevActiveAudio && !currentActiveAudio) {
+        if (useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible) {
+          if (__DEV__) {
+            log.debug('useFeedbackCoordinator.audioSubscription', '✓ Hiding bubble on audio stop')
+          }
+          // Note: bubbleControllerRef might be stale on first render, but audio stop unlikely on mount
+          if (bubbleControllerRef.current) {
+            bubbleControllerRef.current.hideBubble('audio-stop')
+          }
+        }
+      }
+    })
+
     return () => {
-      unsubscribe()
+      unsubscribeVideo()
+      unsubscribeAudio()
     }
   }, [])
 
@@ -393,10 +437,13 @@ export function useFeedbackCoordinator({
   const pendingItemRef = useRef<FeedbackPanelItem | null>(null)
   const cleanupPerformedRef = useRef(false)
 
-  const bubbleControllerRef = useRef(bubbleController)
+  // bubbleControllerRef is now synced in the combined effect below
   useEffect(() => {
+    audioControllerRef.current = audioController
     bubbleControllerRef.current = bubbleController
-  }, [bubbleController])
+    videoPlayRef.current = videoPlayback.play
+    videoPlaybackPauseRef.current = videoPlayback.pause
+  }, [audioController, bubbleController, videoPlayback.play, videoPlayback.pause])
 
   const handleProgressTrigger = useCallback(
     (timeSeconds: number) => {
@@ -662,11 +709,7 @@ export function useFeedbackCoordinator({
   )
 
   // Extract videoPlayback.play() to a ref to avoid depending on entire videoPlayback object
-  // videoPlayback changes when currentTime changes, but play() method is stable
-  const videoPlayRef = useRef(videoPlayback.play)
-  useEffect(() => {
-    videoPlayRef.current = videoPlayback.play
-  }, [videoPlayback.play])
+  // videoPlayRef is now synced in the combined effect above
 
   const handlePlay = useCallback(() => {
     const startTime = Date.now()
@@ -802,80 +845,35 @@ export function useFeedbackCoordinator({
     // DO NOT call videoPlayRef.current() here - video must stay paused during audio
   }, [bubbleIndexById, selection, showBubble])
 
-  // Rule: After audio ends and video resumes playing, remove highlight and clear activeAudio
-  useEffect(() => {
-    const highlightedId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
-    const videoIsPlaying = isPlayingRef.current
-    const audioIsNotPlaying = !audioController.isPlaying
-
-    log.debug(
-      'useFeedbackCoordinator.audioEndVideoResume',
-      '🔍 Checking audio end + video resume condition',
-      {
-        audioIsNotPlaying,
-        highlightedFeedbackId: highlightedId,
-        videoIsPlaying,
-        audioCurrentTime: audioController.currentTime,
-        shouldClear: audioIsNotPlaying && highlightedId && videoIsPlaying,
-      }
-    )
-
-    if (audioIsNotPlaying && highlightedId && videoIsPlaying) {
-      log.debug(
-        'useFeedbackCoordinator.audioEndVideoResume',
-        '✓ Audio ended + video resumed - clearing highlight',
-        {
-          highlightedId,
-          audioCurrentTime: audioController.currentTime,
-        }
-      )
-      selection.clearHighlight({ reason: 'audio-ended-video-resumed' })
-      // Clear activeAudio when audio ends naturally and video resumes
-      // This prevents handlePlay from trying to resume finished audio
-      const audioState = useFeedbackAudioStore.getState()
-      if (audioState.activeAudio && audioController.currentTime === 0) {
-        log.debug('useFeedbackCoordinator.audioEndVideoResume', '✓ Clearing activeAudio', {
-          activeAudioId: audioState.activeAudio?.id ?? null,
-        })
-        audioState.setActiveAudio(null)
-      }
-    }
-  }, [
-    audioController.isPlaying,
-    audioController.currentTime,
-    selection,
-    // Read from store imperatively - no subscription needed
-    isPlayingRef, // Use ref instead of videoPlayback.isPlaying
-  ])
-
-  // Rule: Clear activeAudio when audio ends naturally (currentTime reset to 0)
-  // This handles the case where audio finishes but video isn't playing yet
-  // Only clear if audio was actually playing (duration > 0 means audio was loaded and played)
-  // and currentTime is 0 (indicating audio ended, not paused mid-track)
+  // Combined Audio State Reaction Effect (Module 4)
+  // Merges audioEndVideoResume and audioEndDetection to reduce effect count
   const prevAudioPlayingRef = useRef(audioController.isPlaying)
   const prevAudioCurrentTimeRef = useRef(audioController.currentTime)
+
   useEffect(() => {
+    const currentIsPlaying = audioController.isPlaying
+    const currentCurrentTime = audioController.currentTime
+    const currentDuration = audioController.duration
+
     const wasPlaying = prevAudioPlayingRef.current
     const wasAtNonZeroPosition = prevAudioCurrentTimeRef.current > 0
-    const nowNotPlaying = !audioController.isPlaying
-    const nowAtZero = audioController.currentTime === 0
+    const nowNotPlaying = !currentIsPlaying
+    const nowAtZero = currentCurrentTime === 0
 
     // Update refs for next comparison
-    prevAudioPlayingRef.current = audioController.isPlaying
-    prevAudioCurrentTimeRef.current = audioController.currentTime
+    prevAudioPlayingRef.current = currentIsPlaying
+    prevAudioCurrentTimeRef.current = currentCurrentTime
 
+    // Logic 1: Audio End Detection (Natural End)
     // Only clear if audio transitioned from playing to stopped AND reset to 0
-    // This detects natural end (handleEnd sets currentTime=0) vs pause at start
     if (
       wasPlaying &&
       wasAtNonZeroPosition &&
       nowNotPlaying &&
       nowAtZero &&
       useFeedbackAudioStore.getState().activeAudio &&
-      audioController.duration > 0
+      currentDuration > 0
     ) {
-      // Audio ended naturally (transitioned from playing to stopped with currentTime reset to 0)
-      // Clear activeAudio to prevent handlePlay from trying to resume finished audio
       log.debug(
         'useFeedbackCoordinator.audioEndDetection',
         '🎵 Audio ended naturally - clearing activeAudio',
@@ -885,12 +883,44 @@ export function useFeedbackCoordinator({
           nowNotPlaying,
           nowAtZero,
           activeAudioId: useFeedbackAudioStore.getState().activeAudio?.id ?? null,
-          duration: audioController.duration,
+          duration: currentDuration,
         }
       )
       useFeedbackAudioStore.getState().setActiveAudio(null)
     }
-  }, [audioController.isPlaying, audioController.currentTime, audioController.duration])
+
+    // Logic 2: Resume Video on Audio End
+    // Rule: After audio ends and video resumes playing, remove highlight and clear activeAudio
+    const highlightedId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
+    const videoIsPlaying = isPlayingRef.current
+
+    if (nowNotPlaying && highlightedId && videoIsPlaying) {
+      log.debug(
+        'useFeedbackCoordinator.audioEndVideoResume',
+        '✓ Audio ended + video resumed - clearing highlight',
+        {
+          highlightedId,
+          audioCurrentTime: currentCurrentTime,
+        }
+      )
+      selection.clearHighlight({ reason: 'audio-ended-video-resumed' })
+
+      // Clear activeAudio when audio ends naturally and video resumes
+      const audioState = useFeedbackAudioStore.getState()
+      if (audioState.activeAudio && currentCurrentTime === 0) {
+        log.debug('useFeedbackCoordinator.audioEndVideoResume', '✓ Clearing activeAudio', {
+          activeAudioId: audioState.activeAudio?.id ?? null,
+        })
+        audioState.setActiveAudio(null)
+      }
+    }
+  }, [
+    audioController.isPlaying,
+    audioController.currentTime,
+    audioController.duration,
+    selection,
+    isPlayingRef, // stable ref
+  ])
 
   const handlePanelCollapse = useCallback(() => {
     hideBubble('manual')
@@ -956,7 +986,7 @@ export function useFeedbackCoordinator({
       setTimeout(() => {
         // Use refs for all dependencies to make this callback completely stable
         // This prevents handleAudioOverlayClose/Inactivity from recreating
-        if (hasActiveBubble) {
+        if (hasActiveBubble && bubbleControllerRef.current) {
           log.debug('useFeedbackCoordinator.handleAudioStop', '✓ Hiding bubble', {
             reason,
             bubbleIndex: bubbleState.currentBubbleIndex,
@@ -1001,7 +1031,9 @@ export function useFeedbackCoordinator({
       const nextSelection = selection
       const nextFeedbackAudio = useFeedbackAudioStore.getState()
 
-      nextBubbleController.hideBubble('cleanup')
+      if (nextBubbleController) {
+        nextBubbleController.hideBubble('cleanup')
+      }
 
       nextSelection.clearHighlight({ reason: 'coordinator-unmount' })
       nextSelection.clearSelection()
@@ -1018,54 +1050,27 @@ export function useFeedbackCoordinator({
   const overlayVisible =
     audioController.isPlaying && Boolean(useFeedbackAudioStore.getState().activeAudio)
 
-  // Ensure bubble hides if it remains visible without active audio after render
+  // Combined Bubble Visibility Logic
+  // Merges separate effects for hiding (on audio stop) and showing (on overlay visible)
+  // into a single coordinator effect that manages bubble visibility based on audio state.
   useEffect(() => {
+    // Case 1: Hide if active audio is gone (Safety check)
     if (!useFeedbackAudioStore.getState().activeAudio && bubbleVisible) {
       hideBubble('audio-stop')
+      return
     }
-  }, [bubbleVisible, hideBubble])
 
-  // Hide bubble when audio stops
-  useEffect(() => {
-    let prevActiveAudio = useFeedbackAudioStore.getState().activeAudio
-    // PERF FIX #3: Subscribe to store and manually check if activeAudio changed to prevent duplicate logs
-    return useFeedbackAudioStore.subscribe((state) => {
-      const currentActiveAudio = state.activeAudio
-      // PERF FIX #3: Early return if activeAudio hasn't actually changed (prevents duplicate logs)
-      // This prevents logging when other store properties change (e.g., audioUrls, errors)
-      if (prevActiveAudio?.id === currentActiveAudio?.id) {
-        return
+    // Case 2: Show bubble if overlay is visible and we have a match
+    if (overlayVisible) {
+      const candidateId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
+      if (!candidateId) return
+
+      const nextBubbleIndex = bubbleIndexById.get(candidateId) ?? null
+      if (nextBubbleIndex !== null && (currentBubbleIndex !== nextBubbleIndex || !bubbleVisible)) {
+        showBubble(nextBubbleIndex)
       }
-
-      log.debug('useFeedbackCoordinator.audioStopBubbleHide', '🔍 Audio state change detected', {
-        prevActiveAudioId: prevActiveAudio?.id ?? null,
-        currentActiveAudioId: currentActiveAudio?.id ?? null,
-        prevIsPlaying: state.isPlaying,
-        bubbleVisible: useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible,
-      })
-
-      if (prevActiveAudio && !currentActiveAudio) {
-        // Audio was playing, now stopped
-        log.debug(
-          'useFeedbackCoordinator.audioStopBubbleHide',
-          '🎵 Audio stopped - checking bubble visibility',
-          {
-            prevActiveAudioId: prevActiveAudio?.id ?? null,
-            bubbleVisible: useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible,
-            highlightedFeedbackId: useFeedbackCoordinatorStore.getState().highlightedFeedbackId,
-          }
-        )
-        if (useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible) {
-          log.debug('useFeedbackCoordinator.audioStopBubbleHide', '✓ Hiding bubble on audio stop', {
-            bubbleIndex: useFeedbackCoordinatorStore.getState().bubbleState.currentBubbleIndex,
-            reason: 'activeAudio cleared',
-          })
-          hideBubble('audio-stop')
-        }
-      }
-      prevActiveAudio = currentActiveAudio
-    })
-  }, [hideBubble])
+    }
+  }, [overlayVisible, bubbleVisible, currentBubbleIndex, bubbleIndexById, showBubble, hideBubble])
 
   const handleAudioNaturalEnd = useCallback(() => {
     const highlightedId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
@@ -1203,42 +1208,8 @@ export function useFeedbackCoordinator({
     // Don't include batchUpdate in deps - it's stable
   ])
 
-  useEffect(() => {
-    if (!overlayVisible) {
-      return
-    }
-
-    // PERFORMANCE FIX: Read from store instead of selection object
-    // Selection state is now in store, written directly by useFeedbackSelection
-    const candidateId = useFeedbackCoordinatorStore.getState().highlightedFeedbackId
-
-    if (!candidateId) {
-      return
-    }
-
-    const nextBubbleIndex = bubbleIndexById.get(candidateId) ?? null
-
-    if (nextBubbleIndex === null || (currentBubbleIndex === nextBubbleIndex && bubbleVisible)) {
-      return
-    }
-
-    showBubble(nextBubbleIndex)
-  }, [
-    overlayVisible,
-    // Read from store imperatively - no subscription needed
-    bubbleIndexById,
-    hideBubble,
-    showBubble,
-    bubbleVisible,
-    currentBubbleIndex,
-  ])
-
   // Store videoPlayback.pause in ref to prevent handlePause from recreating
-  // when videoPlayback object changes (which happens when its internal state changes)
-  const videoPlaybackPauseRef = useRef(videoPlayback.pause)
-  useEffect(() => {
-    videoPlaybackPauseRef.current = videoPlayback.pause
-  }, [videoPlayback.pause])
+  // videoPlaybackPauseRef is now synced in the combined effect above
 
   // Memoize pause handler to prevent recreation
   // Always call setIsPlaying(false) - harmless if already false, avoids dependency on isPlaying

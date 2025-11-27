@@ -62,13 +62,21 @@ export interface UseAudioControllerCallbacks {
  *   other subscribers (e.g. overlay UI) receive updates without new hook
  *   instances.
  *
+ * ## Lazy Initialization (Module 3)
+ * - When `lazy=true`, all 14 useEffects are registered but do not execute logic
+ * - Effects remain no-ops until `lazy` becomes `false` (via re-render)
+ * - This defers effect execution until first audio playback is needed
+ * - Expected mount time reduction: ~50-100ms
+ *
  * @param audioUrl - Resolved feedback audio URL or `null` to clear playback.
  * @param callbacks - Optional lifecycle callbacks (e.g. natural end hook).
+ * @param lazy - If `true`, effects are registered but do not execute until `lazy` becomes `false`.
  * @returns Stable controller state and handlers for audio playback.
  */
 export function useAudioController(
   audioUrl: string | null,
-  callbacks: UseAudioControllerCallbacks = {}
+  callbacks: UseAudioControllerCallbacks = {},
+  lazy = false
 ): AudioControllerState {
   const [isPlaying, setIsPlaying] = useState(false)
   const [, setCurrentTime] = useState(0)
@@ -86,6 +94,7 @@ export function useAudioController(
 
   // Reset state when audio URL changes
   useEffect(() => {
+    if (lazy) return // Skip effect execution when lazy
     if (audioUrl !== previousAudioUrlRef.current) {
       // log.debug('useAudioController', 'Audio URL changed, updating state', {
       //   previousUrl: previousAudioUrlRef.current,
@@ -125,17 +134,19 @@ export function useAudioController(
 
       previousAudioUrlRef.current = audioUrl
     }
-  }, [audioUrl])
+  }, [audioUrl, lazy])
 
   const isPlayingRef = useRef(isPlaying)
   useEffect(() => {
+    if (lazy) return // Skip effect execution when lazy
     isPlayingRef.current = isPlaying
-  }, [isPlaying])
+  }, [isPlaying, lazy])
 
   const callbacksRef = useRef<UseAudioControllerCallbacks>(callbacks)
   useEffect(() => {
+    if (lazy) return // Skip effect execution when lazy
     callbacksRef.current = callbacks
-  }, [callbacks])
+  }, [callbacks, lazy])
 
   // PERF FIX: Remove isPlaying from deps to prevent callback recreation on every play/pause toggle
   // Read from ref instead for logging; only recreate when audioUrl changes (legitimate new audio source)
@@ -310,33 +321,32 @@ export function useAudioController(
   const seekToRef = useRef(seekTo)
   const resetRef = useRef(reset)
 
+  // Module 4: Batch Effect Registration
+  // Combine all ref synchronizations into a single effect to reduce mount overhead
   useEffect(() => {
+    if (lazy) return // Skip effect execution when lazy
+
     setIsPlayingRef.current = setIsPlayingCallback
-  }, [setIsPlayingCallback])
-  useEffect(() => {
     togglePlaybackRef.current = togglePlayback
-  }, [togglePlayback])
-  useEffect(() => {
     handleLoadRef.current = handleLoad
-  }, [handleLoad])
-  useEffect(() => {
     handleProgressRef.current = handleProgress
-  }, [handleProgress])
-  useEffect(() => {
     handleEndRef.current = handleEnd
-  }, [handleEnd])
-  useEffect(() => {
     handleErrorRef.current = handleError
-  }, [handleError])
-  useEffect(() => {
     handleSeekCompleteRef.current = handleSeekComplete
-  }, [handleSeekComplete])
-  useEffect(() => {
     seekToRef.current = seekTo
-  }, [seekTo])
-  useEffect(() => {
     resetRef.current = reset
-  }, [reset])
+  }, [
+    lazy,
+    setIsPlayingCallback,
+    togglePlayback,
+    handleLoad,
+    handleProgress,
+    handleEnd,
+    handleError,
+    handleSeekComplete,
+    seekTo,
+    reset,
+  ])
 
   // Keep stable ref with getters for backwards compatibility
   const controllerRef = useRef<AudioControllerState | null>(null)
@@ -374,10 +384,11 @@ export function useAudioController(
   }
 
   useEffect(() => {
+    if (lazy) return // Skip effect execution when lazy
     return () => {
       controllerRef.current?.reset()
     }
-  }, [])
+  }, [lazy])
 
   return controllerRef.current
 }
