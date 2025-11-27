@@ -163,13 +163,9 @@ export function VideosSection({
     []
   )
 
-  // Notify parent of initial visible items on mount
-  React.useEffect(() => {
-    if (videos.length > 0 && onVisibleItemsChangeRef.current) {
-      const initialVisible = videos.slice(0, Math.min(3, videos.length))
-      onVisibleItemsChangeRef.current(initialVisible)
-    }
-  }, [videos.length]) // Only run when videos array length changes (initial mount or data load)
+  // REMOVED: Initial visible items notification
+  // Let FlatList's onViewableItemsChanged be the ONLY source of truth
+  // This prevents race condition where parent prefetches ALL items before FlatList reports actual visible items
 
   return (
     <YStack
@@ -325,8 +321,8 @@ export function VideosSection({
           }}
           showsHorizontalScrollIndicator={false}
           // Virtualization & Performance Props
-          // CRITICAL FIX: Use 5 to match actual viewport (4 visible + 1 buffer)
-          // Previous value of 3 caused 900ms delay on 4th thumbnail
+          // Actual device testing shows 4 thumbnails visible on most screens
+          // Use 5 (4 visible + 1 buffer) for smooth initial render
           initialNumToRender={5}
           maxToRenderPerBatch={3} // Slightly larger batch for smoother scroll
           windowSize={5} // Keep 5 items in memory for smooth scrolling

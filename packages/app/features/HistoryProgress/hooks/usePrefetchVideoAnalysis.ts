@@ -448,9 +448,8 @@ export function usePrefetchVideoAnalysis(
     }
     lastPrefetchRunRef.current = runSignature
 
-    // CRITICAL FIX: Use 4 items (not 3) for immediateCount to match viewport
-    // Most devices show 4 thumbnails visible initially, not 3
-    // This eliminates the ~900ms delay on the 4th thumbnail
+    // Actual device testing shows 4 thumbnails visible on most screens
+    // Prefetch 4 immediately (actual viewport), defer rest based on network
     const getPrefetchConfig = () => {
       switch (networkQuality) {
         case 'fast':

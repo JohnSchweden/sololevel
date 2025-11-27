@@ -675,6 +675,7 @@ jest.mock('react-native', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
     },
+    useWindowDimensions: jest.fn(() => ({ width: 375, height: 812 })),
     LayoutAnimation: {
       configureNext: jest.fn(),
       create: jest.fn(),

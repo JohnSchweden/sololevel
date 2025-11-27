@@ -309,14 +309,21 @@ async function resolveStaleThumbailsFromCache(
  * 1. Display persisted Zustand cache data instantly (no loading spinner, no network)
  * 2. Skip database refetch on mount if cache exists (refetchOnMount: false)
  * 3. Refetch only when:
- *    - App comes to foreground AND data is stale (>5 minutes old)
  *    - Cache explicitly invalidated (new analysis completed via useCameraScreenLogic)
  *    - First app launch (no cache exists)
+ *    - User manually pulls to refresh
  *
- * Cache Invalidation Triggers:
+ * Cache Invalidation Triggers (Event-Driven):
  * - New recording started: `queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })`
  *   (handled in useCameraScreenLogic.ts line 183)
- * - App foreground: Respects 5min staleTime (only refetches if data older than 5min)
+ * - Video deleted: Explicit invalidation (when implemented)
+ * - User pull-to-refresh: Manual refetch
+ *
+ * Note: We use event-driven invalidation instead of time-based staleTime because:
+ * - Supabase Realtime subscriptions notify us when data changes
+ * - We know exactly when new videos are added (recording completion)
+ * - No need to poll/refetch on app foreground if data hasn't changed
+ * - Cache remains valid indefinitely until explicitly invalidated
  *
  * Thumbnail Resolution Flow (3-Tier Caching):
  * ```
@@ -381,7 +388,7 @@ export function useHistoryQuery(limit = 10) {
     // Pre-populate TanStack Query cache with Zustand data
     // This makes the cache the single source of truth
     // Note: TanStack Query will set dataUpdatedAt to current time, which is fine
-    // The staleTime check will still work correctly for refetchOnWindowFocus
+    // Cache invalidation is event-driven, not time-based
     safeSetQueryData(
       queryClient,
       ['history', 'completed', limit],
@@ -430,12 +437,14 @@ export function useHistoryQuery(limit = 10) {
       // Refetch if cache is incomplete (fewer items than limit)
       // Otherwise, skip refetch since cache is already populated
       refetchOnMount: shouldRefetchOnMount,
-      refetchOnWindowFocus: true, // Refetch when app comes to foreground (staleTime respects this)
+      // Event-driven invalidation: Don't refetch on app foreground
+      // Cache is invalidated explicitly when new videos are added (useCameraScreenLogic)
+      refetchOnWindowFocus: false,
       queryFn: async (): Promise<VideoItem[]> => {
         const startTime = Date.now()
 
-        // TanStack Query handles caching with staleTime (5 minutes)
-        // Zustand store is used for persistence and data transformation only
+        // Zustand store is used for persistence and data transformation
+        // Cache invalidation is event-driven (new recording, deletion, pull-to-refresh)
         if (__DEV__) {
           log.debug('useHistoryQuery', 'Fetching history data', {
             limit,
@@ -546,7 +555,9 @@ export function useHistoryQuery(limit = 10) {
           throw error
         }
       },
-      staleTime: 5 * 60 * 1000, // 5 minutes - refetch on window focus if data older than this
+      // Event-driven cache: Never auto-stale, only invalidate on explicit events
+      // (new recording, deletion, pull-to-refresh)
+      staleTime: Number.POSITIVE_INFINITY,
       gcTime: 24 * 60 * 60 * 1000, // Keep in memory for 24 hours
     }
 

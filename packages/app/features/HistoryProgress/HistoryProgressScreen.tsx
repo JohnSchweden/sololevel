@@ -4,7 +4,7 @@ import { ConfirmDialog, GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import React from 'react'
-import { Dimensions, Platform } from 'react-native'
+import { Platform, useWindowDimensions } from 'react-native'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
 import { usePrefetchNextVideos } from './hooks/usePrefetchNextVideos'
@@ -76,10 +76,9 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
   // Get screen width for full-width dialog with horizontal padding (18px on each side)
-  const dialogWidth = React.useMemo(() => {
-    const screenWidth = Dimensions.get('window').width
-    return screenWidth - 36 // 18px padding on each side = 36px total
-  }, [])
+  // useWindowDimensions updates automatically on device rotation
+  const { width: screenWidth } = useWindowDimensions()
+  const dialogWidth = screenWidth - 36 // 18px padding on each side = 36px total
 
   // Log screen mount
   React.useEffect(() => {
@@ -128,22 +127,13 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   const videosToPrefetch = React.useMemo(() => displayedVideos, [displayedVideos])
   const hasMoreVideos = videos.length > 10
 
-  // Memoize initial visible items slice to prevent creating new array reference
-  // CRITICAL FIX: Use 4 items (not 3) to match actual viewport on most devices
-  // The 4th thumbnail was delayed ~900ms because it was treated as "next to prefetch"
-  // instead of "already visible", waiting for FlatList's onViewableItemsChanged
-  const initialVisibleItems = React.useMemo(
-    () => displayedVideos.slice(0, Math.min(4, displayedVideos.length)),
-    [displayedVideos]
-  )
-
-  // CRITICAL FIX: Removed 500ms polling interval that was causing cascade re-renders
-  // Use pure ref-based callback pattern instead - no setState, no intervals, zero overhead
-  const prevVisibleIdsRef = React.useRef<string>(initialVisibleItems.map((v) => v.id).join(','))
-  // Use state to trigger updates only when visible items actually change
-  // This prevents cascade re-renders from scroll events while ensuring hooks update
-  const [visibleItemsForPrefetch, setVisibleItemsForPrefetch] =
-    React.useState<typeof videos>(initialVisibleItems)
+  // CRITICAL FIX: Let FlatList be the ONLY source of truth for visible items
+  // Starting with empty array prevents race condition where:
+  // 1. usePrefetchNextVideos runs with visibleItems=[] → prefetches ALL 10
+  // 2. FlatList fires onViewableItemsChanged 167ms later → recalculates prefetch
+  // Now: Wait for FlatList to report actual visible items before prefetching
+  const prevVisibleIdsRef = React.useRef<string>('')
+  const [visibleItemsForPrefetch, setVisibleItemsForPrefetch] = React.useState<typeof videos>([])
 
   // Memoize prefetch config to prevent unnecessary recalculations
   const prefetchConfig = React.useMemo(
@@ -220,7 +210,7 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
       }
       prevDataStateRef.current = currentState
     }
-  }, [videos, isLoading, error])
+  }, [videos, isPending, error])
 
   // Pull-to-refresh state (temporarily disabled)
   // const [refreshing, setRefreshing] = React.useState(false)
