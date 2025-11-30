@@ -256,13 +256,27 @@ export function useAnalysisState(
     isHistoryMode ? null : state.getLatestActiveTask()
   )
 
+  // CRITICAL FIX: Use ref to preserve recordingId once we have it
+  // Prevents subscription from being deleted when upload completes and latestUploadTask becomes null
+  const recordingIdRef = useRef<number | null>(null)
+
   const derivedRecordingId = useMemo(() => {
+    // If videoRecordingId is provided as prop, always use it (stable)
     if (videoRecordingId) {
+      recordingIdRef.current = videoRecordingId
       return videoRecordingId
     }
 
+    // If we have a recordingId from upload task, use it and store in ref
     if (typeof latestUploadTask?.videoRecordingId === 'number') {
+      recordingIdRef.current = latestUploadTask.videoRecordingId
       return latestUploadTask.videoRecordingId
+    }
+
+    // If upload completed but we have a stored recordingId, keep using it
+    // This prevents subscription from being deleted when latestUploadTask becomes null
+    if (recordingIdRef.current !== null) {
+      return recordingIdRef.current
     }
 
     return null

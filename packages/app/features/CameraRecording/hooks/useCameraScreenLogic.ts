@@ -44,10 +44,11 @@ export const useCameraScreenLogic = ({
   const [cameraReady, setCameraReady] = useState(false)
 
   // Handle recording state changes - simplified since we don't need screen transitions
-  const handleRecordingStateChange = useCallback((state: RecordingState, duration: number) => {
+  const handleRecordingStateChange = useCallback((state: RecordingState, durationMs: number) => {
     log.info('useCameraScreenLogic', 'Recording state changed', {
       state,
-      duration,
+      durationMs,
+      durationSeconds: (durationMs / 1000).toFixed(2),
     })
   }, [])
 
@@ -171,9 +172,10 @@ export const useCameraScreenLogic = ({
 
       // 2) Start the upload and analysis pipeline in background
       // Use ref to read current duration without creating dependency
+      // Convert milliseconds to seconds (duration from state machine is in ms)
       void startUploadAndAnalysis({
         sourceUri: videoUri,
-        durationSeconds: durationRef.current,
+        durationSeconds: durationRef.current / 1000,
         originalFilename: 'recorded_video.mp4',
         onRecordingIdAvailable: (recordingId) => {
           log.info('useCameraScreenLogic', 'Recording ID available - invalidating history cache', {

@@ -184,8 +184,8 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
         </YStack> */}
         <StateDisplay
           type="loading"
-          title="Wait a sec, will ya."
-          //description="I'm checking your choreography..."
+          title="Analysing video..."
+          description="This too shall pass. 😌"
           testID="processing-indicator"
           // containerProps={{
           //   pointerEvents: 'none',

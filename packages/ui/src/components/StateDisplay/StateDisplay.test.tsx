@@ -25,7 +25,7 @@ describe('StateDisplay', () => {
       expect(screen.queryByTestId('state-display-title')).not.toBeInTheDocument()
     })
 
-    it('should not render description for loading state', () => {
+    it('should render title and description for loading state when description is provided', () => {
       // Arrange
       const props = {
         type: 'loading' as const,
@@ -42,13 +42,16 @@ describe('StateDisplay', () => {
 
       // Assert
       expect(screen.getByTestId('state-display-spinner')).toBeInTheDocument()
-      // Loading state does not render description
-      expect(screen.queryByTestId('state-display-description')).not.toBeInTheDocument()
+      // Loading state renders title and description when description is provided
+      expect(screen.getByTestId('state-display-title')).toHaveTextContent('Loading...')
+      expect(screen.getByTestId('state-display-description')).toHaveTextContent(
+        'Please wait while we fetch your data'
+      )
     })
   })
 
   describe('Empty State', () => {
-    it('should render empty state with icon, title and description', () => {
+    it('should render empty state with icon only (no title or description)', () => {
       // Arrange
       const props = {
         type: 'empty' as const,
@@ -67,10 +70,9 @@ describe('StateDisplay', () => {
       // Assert
       expect(screen.getByTestId('state-display')).toBeInTheDocument()
       expect(screen.getByTestId('state-display-icon')).toHaveTextContent('📊')
-      expect(screen.getByTestId('state-display-title')).toHaveTextContent('No data available yet')
-      expect(screen.getByTestId('state-display-description')).toHaveTextContent(
-        'Complete workouts to see insights about your performance.'
-      )
+      // Empty state does not render title or description
+      expect(screen.queryByTestId('state-display-title')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('state-display-description')).not.toBeInTheDocument()
     })
 
     it('should render empty state without icon when not provided', () => {
@@ -90,12 +92,14 @@ describe('StateDisplay', () => {
 
       // Assert
       expect(screen.queryByTestId('state-display-icon')).not.toBeInTheDocument()
-      expect(screen.getByTestId('state-display-title')).toHaveTextContent('No data available yet')
+      // Empty state does not render title or description
+      expect(screen.queryByTestId('state-display-title')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('state-display-description')).not.toBeInTheDocument()
     })
   })
 
   describe('Error State', () => {
-    it('should render error state with title and description', () => {
+    it('should render error state without title or description', () => {
       // Arrange
       const props = {
         type: 'error' as const,
@@ -112,10 +116,9 @@ describe('StateDisplay', () => {
 
       // Assert
       expect(screen.getByTestId('state-display')).toBeInTheDocument()
-      expect(screen.getByTestId('state-display-title')).toHaveTextContent('Failed to load insights')
-      expect(screen.getByTestId('state-display-description')).toHaveTextContent(
-        'Please try again later or pull to refresh.'
-      )
+      // Error state does not render title or description
+      expect(screen.queryByTestId('state-display-title')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('state-display-description')).not.toBeInTheDocument()
     })
 
     it('should render error state with retry button when onRetry is provided', () => {

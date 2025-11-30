@@ -34,7 +34,7 @@ export default function CompressTestScreen() {
         source: 'mini_speech.mp4',
       })
 
-      const result = await compressVideo(fileUri, { quality: 'medium' })
+      const result = await compressVideo(fileUri, { quality: 'low' })
       const after = await FileSystem.getInfoAsync(result.compressedUri, { size: true })
 
       setCompressedSize((after as any).size ?? 0)

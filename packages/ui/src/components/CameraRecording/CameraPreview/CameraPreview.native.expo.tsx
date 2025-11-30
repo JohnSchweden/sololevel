@@ -15,6 +15,8 @@ import type { CameraPreviewContainerProps, CameraPreviewRef } from '../types'
 export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainerProps>(
   (
     {
+      isRecording: _isRecording,
+      recordingState: _recordingState,
       cameraType,
       zoomLevel = 0,
       onZoomChange,

@@ -292,6 +292,7 @@ export function CameraRecordingScreen({
             ref={cameraRef}
             cameraType={cameraType}
             isRecording={isRecording}
+            recordingState={recordingState}
             zoomLevel={zoomLevel} // Pass current zoom level for display purposes
             permissionGranted={permission?.granted ?? false}
             onCameraReady={handleCameraReady}

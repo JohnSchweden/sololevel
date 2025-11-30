@@ -24,6 +24,7 @@ export const VisionCameraPreview = memo(
     (
       {
         isRecording,
+        recordingState,
         cameraType,
         zoomLevel = 0,
         onZoomChange,
@@ -50,6 +51,12 @@ export const VisionCameraPreview = memo(
       const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
       // Track if we've ever been in a recording state to avoid resetting on initial mount
       const hasBeenRecordingRef = useRef(false)
+      // Track previous isRecording state to distinguish pause from stop
+      const prevIsRecordingRef = useRef<boolean | null>(null)
+      // Track current isRecording state in ref for timeout closure
+      const currentIsRecordingRef = useRef(isRecording)
+      // Track reset timeout to cancel if we resume quickly
+      const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null)
       // MEMORY LEAK FIX: Use number instead of string to avoid NSString retention in native bridge
       // Each Date.now().toString() creates an NSCFString that persists in Objective-C memory
       const [sessionId, setSessionId] = useState<number>(Date.now())
@@ -126,24 +133,91 @@ export const VisionCameraPreview = memo(
         }
       }, [])
 
-      // Reset camera session when TRANSITIONING from recording to idle (not on initial mount!)
-      // BUG FIX: Only reset when we've actually been recording before
+      // Reset camera session when TRANSITIONING from recording to stopped/idle (not on pause!)
+      // BUG FIX: Only reset when we've actually been recording before AND we're stopping (not pausing)
+      // PAUSE FIX: Use recordingState prop to distinguish pause from stop - only reset on STOPPED/IDLE
       useEffect(() => {
+        // Update ref with current value
+        currentIsRecordingRef.current = isRecording
+        const prevIsRecording = prevIsRecordingRef.current
+        prevIsRecordingRef.current = isRecording
+
         if (isRecording) {
+          // Cancel any pending reset timeout if we're resuming
+          if (resetTimeoutRef.current) {
+            clearTimeout(resetTimeoutRef.current)
+            resetTimeoutRef.current = null
+            log.info('VisionCamera', 'Cancelled camera reset - recording resumed (was paused)')
+          }
           // Mark that we've entered recording state
           hasBeenRecordingRef.current = true
-        } else if (hasBeenRecordingRef.current) {
+        } else if (hasBeenRecordingRef.current && prevIsRecording === true) {
           // Only reset if we were actually recording before (not on initial mount)
-          // MEMORY LEAK FIX: Use number to avoid creating new NSString in native bridge
-          // Generate new session ID to force camera reinitialization
-          setSessionId(Date.now())
-          // Reset camera ready state to force reinitialization
-          setIsCameraReady(false)
-          setIsInitialized(false)
-          // Reset the flag for next recording cycle
-          hasBeenRecordingRef.current = false
+          // AND we're transitioning to STOPPED or IDLE (not PAUSED)
+          // PAUSE FIX: Use recordingState to distinguish pause from stop
+          const isStoppedOrIdle = recordingState === 'stopped' || recordingState === 'idle'
+          const isPaused = recordingState === 'paused'
+
+          if (isStoppedOrIdle) {
+            // Clear any existing timeout
+            if (resetTimeoutRef.current) {
+              clearTimeout(resetTimeoutRef.current)
+            }
+
+            // Reset immediately for STOPPED/IDLE states
+            log.info('VisionCamera', 'Resetting camera session after recording stop', {
+              hasBeenRecording: hasBeenRecordingRef.current,
+              recordingState,
+            })
+            setSessionId(Date.now())
+            setIsCameraReady(false)
+            setIsInitialized(false)
+            hasBeenRecordingRef.current = false
+          } else if (isPaused) {
+            // Don't reset on pause - cancel any pending reset
+            if (resetTimeoutRef.current) {
+              clearTimeout(resetTimeoutRef.current)
+              resetTimeoutRef.current = null
+            }
+            log.info('VisionCamera', 'Recording paused - keeping camera session alive', {
+              recordingState,
+            })
+          }
+          // If recordingState is undefined, fall back to timeout-based detection (backward compatibility)
+          else if (!recordingState) {
+            // Clear any existing timeout
+            if (resetTimeoutRef.current) {
+              clearTimeout(resetTimeoutRef.current)
+            }
+
+            resetTimeoutRef.current = setTimeout(() => {
+              // Only reset if isRecording is still false after delay (meaning it's a stop, not a pause)
+              if (!currentIsRecordingRef.current && isMounted.current) {
+                log.info(
+                  'VisionCamera',
+                  'Resetting camera session after recording stop (timeout fallback)',
+                  {
+                    hasBeenRecording: hasBeenRecordingRef.current,
+                  }
+                )
+                setSessionId(Date.now())
+                setIsCameraReady(false)
+                setIsInitialized(false)
+                hasBeenRecordingRef.current = false
+              }
+              resetTimeoutRef.current = null
+            }, 2000) // 2 second delay for backward compatibility
+          }
         }
-      }, [isRecording])
+
+        return () => {
+          // Cleanup timeout on unmount or when isRecording changes
+          if (resetTimeoutRef.current) {
+            clearTimeout(resetTimeoutRef.current)
+            resetTimeoutRef.current = null
+          }
+        }
+      }, [isRecording, recordingState])
 
       // NOTE: Removed 30-second flushInterval - it was redundant and had a race condition:
       // - Redundant: pausePreview() handles tab unfocus, recording finish resets camera,
@@ -256,7 +330,7 @@ export const VisionCameraPreview = memo(
                 try {
                   const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
                     format: 'mp4',
-                    duration: video.duration ? video.duration / 1000 : undefined, // Convert ms to seconds
+                    duration: video.duration, // VisionCamera returns duration in seconds
                   })
 
                   if (!isMounted.current) return
@@ -350,11 +424,18 @@ export const VisionCameraPreview = memo(
             }
 
             try {
+              log.info('VisionCamera', 'Attempting to pause recording', {
+                hasCameraRef: !!cameraRef.current,
+                isCameraReady: checkCameraReady(),
+              })
               await cameraRef.current!.pauseRecording()
-              log.info('VisionCamera', 'Recording paused')
+              log.info('VisionCamera', 'Recording paused successfully')
             } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error)
               log.error('VisionCamera', 'Failed to pause recording', {
-                error: error instanceof Error ? error.message : String(error),
+                error: errorMessage,
+                hasCameraRef: !!cameraRef.current,
+                isCameraReady: checkCameraReady(),
               })
               throw error
             }
@@ -369,9 +450,15 @@ export const VisionCameraPreview = memo(
               await cameraRef.current!.resumeRecording()
               log.info('VisionCamera', 'Recording resumed')
             } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error)
               log.error('VisionCamera', 'Failed to resume recording', {
-                error: error instanceof Error ? error.message : String(error),
+                error: errorMessage,
+                // Log additional context for debugging
+                hasCameraRef: !!cameraRef.current,
+                isCameraReady: checkCameraReady(),
               })
+
+              // Re-throw with original error message for state machine to handle
               throw error
             }
           },

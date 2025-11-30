@@ -3,8 +3,12 @@
 // Web: HTMLVideoElement or similar
 type CameraView = any
 
+export type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped'
+
 export interface CameraPreviewContainerProps {
   isRecording: boolean
+  /** Full recording state to distinguish pause from stop */
+  recordingState?: RecordingState
   cameraType: 'front' | 'back'
   zoomLevel?: number
   onZoomChange?: (zoom: number) => void

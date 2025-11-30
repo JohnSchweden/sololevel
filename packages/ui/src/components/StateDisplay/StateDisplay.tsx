@@ -110,23 +110,24 @@ export function StateDisplay({
         >
           {/* @ts-ignore - Tamagui Spinner has overly strict color typing (type augmentation works in app, needed for web) */}
           <Spinner
-            size="small"
+            size="large"
             color="$color12"
           />
         </YStack>
       )}
 
       {/* Title - commented out for loading state */}
-      {!isLoading && (
+      {isLoading && description && (
         <YStack
           paddingHorizontal="$4"
-          maxWidth="90%"
+          maxWidth="100%"
           width="100%"
           alignItems="center"
+          paddingTop="$4"
         >
           <Text
-            fontSize="$5"
-            fontWeight="500"
+            fontSize="$4"
+            fontWeight="600"
             textAlign="center"
             color="$color12"
             testID={`${testID}-title`}
@@ -137,12 +138,14 @@ export function StateDisplay({
       )}
 
       {/* Description - commented out for loading state */}
-      {!isLoading && description && (
+      {isLoading && description && (
         <Text
-          fontSize="$3"
+          fontSize="$4"
+          fontWeight="600"
           textAlign="center"
           color="$color11"
           maxWidth={300}
+          paddingTop="$4"
           testID={`${testID}-description`}
         >
           {description}

@@ -279,7 +279,36 @@ export function useRecordingStateMachine(
       // Use ref to read current duration without dependency
       onStateChange?.(RecordingState.RECORDING, durationRef.current)
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : 'Failed to resume recording')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resume recording'
+
+      // Check if VisionCamera reports no active recording (pause may have stopped it)
+      if (
+        errorMessage.includes('no active video recording') ||
+        errorMessage.includes('stopRecording() twice')
+      ) {
+        log.error('useRecordingStateMachine', 'Resume failed: recording was stopped during pause', {
+          error: errorMessage,
+          recordingState,
+          duration: durationRef.current,
+        })
+
+        // Reset to idle state since the recording session was lost
+        setRecordingState(RecordingState.IDLE)
+        setDuration(0)
+        setStartTime(null)
+        setPausedDuration(0)
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+
+        onStateChange?.(RecordingState.IDLE, 0)
+        onError?.('Recording session was lost. Please start a new recording.')
+        return
+      }
+
+      onError?.(errorMessage)
     }
   }, [recordingState, cameraControls, maxDurationMs, onStateChange, onError])
 
