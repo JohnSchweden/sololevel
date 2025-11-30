@@ -155,6 +155,7 @@ describe('useCameraScreenLogic', () => {
         originalFilename: mockMetadata.originalFilename,
         durationSeconds: mockMetadata.duration,
         format: 'mp4',
+        localUri: mockMetadata.localUri,
         onRecordingIdAvailable: expect.any(Function),
       })
       expect(mockStartUploadAndAnalysis).toHaveBeenCalledTimes(1)

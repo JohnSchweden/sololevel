@@ -123,6 +123,34 @@ jest.mock('expo-file-system', () => ({
   createDownloadResumable: jest.fn(),
 }))
 
+// Mock expo-media-library for all tests
+jest.mock('expo-media-library', () => ({
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  createAssetAsync: jest.fn(),
+  getAssetsAsync: jest.fn(() =>
+    Promise.resolve({ assets: [], endCursor: '', hasNextPage: false, totalCount: 0 })
+  ),
+  getAssetInfoAsync: jest.fn(),
+  deleteAssetsAsync: jest.fn(),
+  MediaType: {
+    audio: 'audio',
+    photo: 'photo',
+    video: 'video',
+    unknown: 'unknown',
+  },
+  SortBy: {
+    default: 'default',
+    id: 'id',
+    creationTime: 'creationTime',
+    modificationTime: 'modificationTime',
+    mediaType: 'mediaType',
+    width: 'width',
+    height: 'height',
+    duration: 'duration',
+  },
+}))
+
 // Mock expo-crypto for all tests
 jest.mock('expo-crypto', () => ({
   digestStringAsync: jest.fn(() => Promise.resolve('test-hash')),
@@ -153,6 +181,7 @@ jest.mock('expo-modules-core', () => ({
     return null
   }),
   NativeModule: class NativeModule {},
+  createPermissionHook: jest.fn(() => () => [true, jest.fn()]),
 }))
 
 // Tamagui mock defined later in this file to avoid duplication

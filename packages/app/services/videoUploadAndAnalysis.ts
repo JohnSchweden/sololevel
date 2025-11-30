@@ -22,6 +22,8 @@ export interface VideoUploadAndAnalysisOptions {
   originalFilename?: string
   durationSeconds?: number
   format?: 'mp4' | 'mov'
+  /** Local file URI for thumbnail generation when file is provided directly */
+  localUri?: string
 
   // Callbacks for progress tracking
   onProgress?: (progress: number) => void
@@ -49,39 +51,106 @@ function seedUploadTask(filename: string, file?: File | Blob): string {
 }
 
 /**
+ * Check if a local URI points to a temporary/cache location that should be persisted.
+ * Temporary paths are cleared by iOS/Android and need to be copied to Documents/recordings/
+ */
+function isTemporaryPath(localUri: string): boolean {
+  return (
+    localUri.includes('Caches/') ||
+    localUri.includes('temp/') ||
+    localUri.includes('tmp/') ||
+    localUri.includes('ExponentAsset-') ||
+    localUri.includes('ImagePicker/') ||
+    localUri.includes('DocumentPicker/')
+  )
+}
+
+/**
+ * Check if a local URI is already in a persistent location (Documents/recordings/)
+ */
+function isPersistentPath(localUri: string): boolean {
+  return localUri.includes('Documents/recordings/') || localUri.includes('Documents/recordings\\')
+}
+
+/**
+ * Generate thumbnail from video URI (unified for both recorded and uploaded videos)
+ */
+async function generateThumbnail(videoUri: string, context: string): Promise<string | undefined> {
+  if (Platform.OS === 'web' || !videoUri) {
+    return undefined
+  }
+
+  try {
+    const { generateVideoThumbnail } = await import('@my/api')
+    const result = await generateVideoThumbnail(videoUri)
+    if (result?.uri) {
+      log.info('videoUploadAndAnalysis', `Thumbnail generated for ${context}`, {
+        thumbnailLength: result.uri.length,
+        thumbnailType: result.uri.startsWith('data:') ? 'data-url' : 'file-uri',
+      })
+      return result.uri
+    }
+  } catch (err) {
+    log.warn('videoUploadAndAnalysis', `Thumbnail generation failed for ${context}`, {
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
+  return undefined
+}
+
+/**
  * Resolve the file/blob to upload and its metadata from either a provided file
  * or a local URI that may need compression and conversion to Blob.
+ *
+ * UNIFIED BEHAVIOR:
+ * - Both recorded (sourceUri) and uploaded (file + localUri) videos:
+ *   1. Generate thumbnails from the original video URI
+ *   2. Store localUri in metadata for persistence
+ *   3. Go through the same upload pipeline
  */
 async function resolveVideoToUpload(params: {
   sourceUri?: string
   file?: File | Blob
   durationSeconds?: number
   format?: 'mp4' | 'mov'
+  /** Local file URI for thumbnail generation and persistence when file is provided directly */
+  localUri?: string
 }): Promise<{
   videoToUpload: File | Blob
   metadata: VideoMetadata
   thumbnailUri?: string
   thumbnailUrl?: string
 }> {
-  const { sourceUri, file, durationSeconds, format } = params
+  const { sourceUri, file, durationSeconds, format, localUri } = params
 
-  if (file) {
+  // UNIFIED PATH: If file is provided with localUri, treat it similar to sourceUri
+  // The only difference is we don't compress (file is already processed)
+  if (file && localUri) {
     const metadata: VideoMetadata = {
       duration: durationSeconds || 30,
       format: format || 'mp4',
+      localUri: localUri, // Store for persistence check later
     }
-    log.info('startUploadAndAnalysis', 'Using provided file directly', {
+
+    log.info('startUploadAndAnalysis', 'Processing uploaded video file', {
       fileName: (file instanceof File ? file.name : undefined) || 'video.mp4',
       fileSize: file.size,
       duration: metadata.duration,
       format: metadata.format,
+      localUri: localUri.substring(0, 80),
+      isTemporary: isTemporaryPath(localUri),
+      isPersistent: isPersistentPath(localUri),
     })
-    // No thumbnail generation for pre-processed files (P0 scope)
-    return { videoToUpload: file, metadata, thumbnailUri: undefined, thumbnailUrl: undefined }
+
+    // Generate thumbnail from localUri (same as recorded videos)
+    const thumbnailUri = await generateThumbnail(localUri, 'uploaded video')
+
+    return { videoToUpload: file, metadata, thumbnailUri, thumbnailUrl: undefined }
   }
 
+  // RECORDED VIDEO PATH: sourceUri provided (from camera recording)
   if (!sourceUri) {
-    throw new Error('Invalid options: neither file nor sourceUri provided')
+    throw new Error('Invalid options: neither file+localUri nor sourceUri provided')
   }
 
   // Default metadata before compression
@@ -92,11 +161,10 @@ async function resolveVideoToUpload(params: {
 
   // Attempt compression first, with graceful fallback
   let videoToUploadUri = sourceUri
-  let thumbnailUri: string | undefined
   // Store original sourceUri as localUri - this is the persistent saved video from camera
   const persistentLocalUri = sourceUri
   try {
-    log.info('videoUploadAndAnalysis', 'Starting video compression')
+    log.info('videoUploadAndAnalysis', 'Starting video compression for recorded video')
     const compressionResult = await compressVideo(sourceUri)
 
     log.info('videoUploadAndAnalysis', 'Video compression completed', {
@@ -104,31 +172,6 @@ async function resolveVideoToUpload(params: {
       size: compressionResult.metadata.size,
       duration: durationSeconds ? durationSeconds : undefined,
     })
-
-    // Generate thumbnail (non-blocking - errors logged but don't fail upload)
-    try {
-      const { generateVideoThumbnail } = await import('@my/api')
-      const result = await generateVideoThumbnail(sourceUri)
-      thumbnailUri = result?.uri
-      metadata = {
-        duration: durationSeconds || 30,
-        format: format || 'mp4',
-        // Keep original persistent localUri, not compressed temp path
-        localUri: persistentLocalUri,
-      }
-
-      if (thumbnailUri) {
-        log.info('videoUploadAndAnalysis', 'Thumbnail generated successfully', {
-          thumbnailLength: thumbnailUri.length,
-          thumbnailType: thumbnailUri.startsWith('data:') ? 'data-url' : 'file-uri',
-        })
-      }
-    } catch (err) {
-      log.warn('videoUploadAndAnalysis', 'Thumbnail generation failed', {
-        error: err instanceof Error ? err.message : String(err),
-      })
-      thumbnailUri = undefined
-    }
 
     videoToUploadUri = compressionResult.compressedUri
     const compressedFormat = (compressionResult.metadata.format === 'mov' ? 'mov' : 'mp4') as
@@ -148,11 +191,17 @@ async function resolveVideoToUpload(params: {
     // Keep defaults and original URI
   }
 
+  // Generate thumbnail from original sourceUri (before compression, for better quality)
+  const thumbnailUri = await generateThumbnail(persistentLocalUri, 'recorded video')
+
+  // Ensure localUri is set in metadata
+  metadata = { ...metadata, localUri: metadata.localUri ?? persistentLocalUri }
+
   log.info('startUploadAndAnalysis', 'Converting video to Blob', { uri: videoToUploadUri })
   const videoToUpload = await uriToBlob(videoToUploadUri)
   return {
     videoToUpload,
-    metadata: { ...metadata, localUri: metadata.localUri ?? sourceUri },
+    metadata,
     thumbnailUri,
     thumbnailUrl: undefined,
   }
@@ -260,6 +309,7 @@ export async function startUploadAndAnalysis(
     originalFilename,
     durationSeconds,
     format,
+    localUri,
     onProgress,
     onError,
     onUploadInitialized,
@@ -281,6 +331,7 @@ export async function startUploadAndAnalysis(
       file,
       durationSeconds,
       format,
+      localUri,
     })
 
     // Log thumbnail generation success
@@ -305,17 +356,38 @@ export async function startUploadAndAnalysis(
       onProgress,
       onError,
       onUploadInitialized: async (details) => {
-        // Persist video to recordings/ if it's in temporary location (non-blocking)
+        // UNIFIED PERSISTENCE: Persist video to recordings/ if it's in temporary location
+        // This ensures both recorded and uploaded videos survive app restarts
+        // Works for:
+        // - Uploaded videos from ImagePicker/DocumentPicker (Library/Caches/...)
+        // - Any other temporary paths that might get cleared by the OS
         if (metadata.localUri && Platform.OS !== 'web') {
           const localUri = metadata.localUri
-          const isTemporaryPath =
-            localUri.includes('Caches/') ||
-            localUri.includes('temp/') ||
-            localUri.includes('ExponentAsset-')
 
-          if (isTemporaryPath) {
+          // Skip if already in persistent location
+          if (isPersistentPath(localUri)) {
+            log.debug(
+              'startUploadAndAnalysis',
+              'Video already in persistent location, skipping copy',
+              {
+                recordingId: details.recordingId,
+                localUri: localUri.substring(0, 80),
+              }
+            )
+          } else if (isTemporaryPath(localUri)) {
+            // Persist to Documents/recordings/ for offline playback
             const recordingsDir = `${FileSystem.documentDirectory}recordings/`
             const persistedPath = `${recordingsDir}analysis_${details.recordingId}.mp4`
+
+            log.info(
+              'startUploadAndAnalysis',
+              'Persisting temporary video to recordings directory',
+              {
+                recordingId: details.recordingId,
+                from: localUri.substring(0, 80),
+                to: persistedPath.substring(0, 80),
+              }
+            )
 
             // Persist video asynchronously (non-blocking)
             FileSystem.getInfoAsync(recordingsDir)
@@ -330,27 +402,47 @@ export async function startUploadAndAnalysis(
               .then(() => FileSystem.copyAsync({ from: localUri, to: persistedPath }))
               .then(async () => {
                 // Update history store index with persisted path
-                const { useVideoHistoryStore } = await import(
-                  '../features/HistoryProgress/stores/videoHistory'
-                )
-                const historyStore = useVideoHistoryStore.getState()
-                historyStore.setLocalUri(details.storagePath, persistedPath)
+                try {
+                  const { useVideoHistoryStore } = await import(
+                    '../features/HistoryProgress/stores/videoHistory'
+                  )
+                  const historyStore = useVideoHistoryStore.getState()
+                  historyStore.setLocalUri(details.storagePath, persistedPath)
 
-                log.info('startUploadAndAnalysis', 'Persisted temporary video to recordings', {
-                  recordingId: details.recordingId,
-                  from: localUri,
-                  to: persistedPath,
-                  storagePath: details.storagePath,
-                })
+                  log.info('startUploadAndAnalysis', 'Video persisted successfully', {
+                    recordingId: details.recordingId,
+                    from: localUri.substring(0, 80),
+                    to: persistedPath.substring(0, 80),
+                    storagePath: details.storagePath,
+                  })
+                } catch (importError) {
+                  // Dynamic import can fail (network error, bundle corruption)
+                  // This is non-critical - video is already persisted, just missing index update
+                  log.warn('startUploadAndAnalysis', 'Failed to import store for index update', {
+                    recordingId: details.recordingId,
+                    error: importError instanceof Error ? importError.message : String(importError),
+                    note: 'Video persisted successfully, but localUri index not updated',
+                  })
+                  // Don't rethrow - video persistence succeeded, index update is non-critical
+                }
               })
               .catch((error) => {
                 log.warn('startUploadAndAnalysis', 'Failed to persist temporary video', {
                   recordingId: details.recordingId,
-                  from: localUri,
+                  from: localUri.substring(0, 80),
                   to: persistedPath,
                   error: error instanceof Error ? error.message : String(error),
                 })
               })
+          } else {
+            log.debug(
+              'startUploadAndAnalysis',
+              'Video path is not temporary, skipping persistence',
+              {
+                recordingId: details.recordingId,
+                localUri: localUri.substring(0, 80),
+              }
+            )
           }
         }
 

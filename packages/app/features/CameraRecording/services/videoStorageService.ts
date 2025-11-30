@@ -1,5 +1,6 @@
 import { log } from '@my/logging'
 import * as FileSystem from 'expo-file-system'
+import * as MediaLibrary from 'expo-media-library'
 import { recordEviction } from '../../HistoryProgress/utils/cacheMetrics'
 
 /**
@@ -54,6 +55,7 @@ export class VideoStorageService {
 
   /**
    * Save video file to local storage
+   * @param skipFilesystem - If true, skip filesystem save but still save to gallery (for discarded recordings)
    */
   static async saveVideo(
     sourceUri: string,
@@ -62,68 +64,109 @@ export class VideoStorageService {
       duration?: number
       size?: number
       format?: string
+    },
+    options?: {
+      skipFilesystem?: boolean
     }
   ): Promise<{
-    localUri: string
+    localUri: string | null
     filename: string
     size: number
     metadata: any
   }> {
-    try {
-      await VideoStorageService.initialize()
+    const skipFilesystem = options?.skipFilesystem ?? false
 
+    try {
       // Validate source file exists
-      log.info('VideoStorageService', 'Validating source file', { sourceUri })
+      log.info('VideoStorageService', 'Validating source file', {
+        sourceUri,
+        skipFilesystem,
+      })
       const sourceInfo = await FileSystem.getInfoAsync(sourceUri)
       if (!sourceInfo.exists) {
         throw new Error(`Source file does not exist: ${sourceUri}`)
       }
 
-      // Generate unique filename with timestamp
-      const timestamp = Date.now()
-      const extension = VideoStorageService.getFileExtension(filename) || 'mp4'
-      const uniqueFilename = `video_${timestamp}.${extension}`
-      const localUri = `${VideoStorageService.VIDEOS_DIR}${uniqueFilename}`
+      let localUri: string | null = null
+      let uniqueFilename = filename
+      let fileSize = sourceInfo.size || 0
 
-      log.info('VideoStorageService', 'Copying file', {
-        from: sourceUri,
-        to: localUri,
-        sourceExists: sourceInfo.exists,
-        sourceSize: sourceInfo.size,
-        videosDir: VideoStorageService.VIDEOS_DIR,
-      })
+      // Skip filesystem save if discarding (only save to gallery)
+      if (!skipFilesystem) {
+        await VideoStorageService.initialize()
 
-      // Copy file from source to local storage
-      await FileSystem.copyAsync({
-        from: sourceUri,
-        to: localUri,
-      })
+        // Generate unique filename with timestamp
+        const timestamp = Date.now()
+        const extension = VideoStorageService.getFileExtension(filename) || 'mp4'
+        uniqueFilename = `video_${timestamp}.${extension}`
+        localUri = `${VideoStorageService.VIDEOS_DIR}${uniqueFilename}`
 
-      // Verify the copy was successful
-      const copiedInfo = await FileSystem.getInfoAsync(localUri)
-      if (!copiedInfo.exists) {
-        throw new Error(`Failed to copy video file to: ${localUri}`)
-      }
+        log.info('VideoStorageService', 'Copying file to filesystem', {
+          from: sourceUri,
+          to: localUri,
+          sourceExists: sourceInfo.exists,
+          sourceSize: sourceInfo.size,
+          videosDir: VideoStorageService.VIDEOS_DIR,
+        })
 
-      // Verify file size is reasonable
-      if (!copiedInfo.size || copiedInfo.size === 0) {
-        log.warn('VideoStorageService', 'Copied file has zero size', { localUri, copiedInfo })
+        // Copy file from source to local storage
+        await FileSystem.copyAsync({
+          from: sourceUri,
+          to: localUri,
+        })
+
+        // Verify the copy was successful
+        const copiedInfo = await FileSystem.getInfoAsync(localUri)
+        if (!copiedInfo.exists) {
+          throw new Error(`Failed to copy video file to: ${localUri}`)
+        }
+
+        // Verify file size is reasonable
+        if (!copiedInfo.size || copiedInfo.size === 0) {
+          log.warn('VideoStorageService', 'Copied file has zero size', { localUri, copiedInfo })
+        }
+
+        fileSize = copiedInfo.size || 0
+        log.info('VideoStorageService', 'Video saved to filesystem', { localUri, fileSize })
+      } else {
+        log.info('VideoStorageService', 'Skipping filesystem save (discarding)', { sourceUri })
       }
 
       const result = {
         localUri,
         filename: uniqueFilename,
-        size: copiedInfo.size || 0,
+        size: fileSize,
         metadata: {
           ...metadata,
           savedAt: new Date().toISOString(),
           originalFilename: filename,
           sourcePath: sourceUri,
           sourceSize: sourceInfo.size,
+          skipFilesystem,
         },
       }
 
-      log.info('VideoStorageService', 'Video saved successfully', result)
+      // Save to device gallery (photo library) like native camera app
+      // Always save to gallery (both kept and discarded videos)
+      // Use sourceUri when discarding (no localUri), otherwise use localUri
+      const gallerySourceUri = skipFilesystem ? sourceUri : localUri!
+      if (gallerySourceUri) {
+        try {
+          await VideoStorageService.saveToGallery(gallerySourceUri)
+          log.info('VideoStorageService', 'Video saved to gallery', {
+            gallerySourceUri,
+            skipFilesystem,
+          })
+        } catch (galleryError) {
+          // Log but don't fail - gallery save is optional
+          log.warn('VideoStorageService', 'Failed to save video to gallery', {
+            gallerySourceUri,
+            skipFilesystem,
+            error: galleryError instanceof Error ? galleryError.message : String(galleryError),
+          })
+        }
+      }
+
       return result
     } catch (error) {
       log.error('VideoStorageService', 'Failed to save video', {
@@ -137,6 +180,36 @@ export class VideoStorageService {
       throw new Error(
         `Failed to save video: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
+    }
+  }
+
+  /**
+   * Save video to device photo gallery (camera roll)
+   * Like the native camera app, videos are saved to the gallery automatically
+   */
+  static async saveToGallery(videoUri: string): Promise<string> {
+    try {
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync()
+      if (status !== 'granted') {
+        throw new Error('Media library permission not granted')
+      }
+
+      // Create asset in media library
+      const asset = await MediaLibrary.createAssetAsync(videoUri)
+      log.info('VideoStorageService', 'Video saved to gallery', {
+        videoUri,
+        assetId: asset.id,
+        uri: asset.uri,
+      })
+
+      return asset.uri
+    } catch (error) {
+      log.error('VideoStorageService', 'Failed to save video to gallery', {
+        videoUri,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
     }
   }
 

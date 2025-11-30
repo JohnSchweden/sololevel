@@ -1,5 +1,4 @@
 import { analysisKeys } from '@app/hooks/analysisKeys'
-import { safeSetQueryData } from '@app/utils/safeCacheUpdate'
 import { getAnalysisIdForJobId, supabase } from '@my/api'
 import type { Database } from '@my/api'
 import { log } from '@my/logging'
@@ -128,27 +127,13 @@ export function usePrefetchVideoAnalysis(
         return null
       }
 
-      // Check multiple cache layers (fastest first):
-      // 1. TanStack Query cache (in-memory, from current session)
-      // 2. Persisted videoHistory store (survives app restarts)
-      let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(analysisJobId))
-      if (!cachedUuid) {
-        cachedUuid = getUuid(analysisJobId) ?? undefined
-        if (cachedUuid) {
-          // Restore to TanStack Query cache for faster subsequent lookups
-          safeSetQueryData(
-            queryClient,
-            analysisKeys.uuid(analysisJobId),
-            cachedUuid,
-            'usePrefetchVideoAnalysis.restore'
-          )
-          if (__DEV__) {
-            log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
-              analysisJobId,
-              analysisUuid: cachedUuid,
-            })
-          }
-        }
+      // FIX: Check Zustand store only - single source of truth for UUID caching
+      const cachedUuid = getUuid(analysisJobId)
+      if (cachedUuid && __DEV__) {
+        log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
+          analysisJobId,
+          analysisUuid: cachedUuid,
+        })
       }
 
       if (signal?.aborted) {
@@ -164,14 +149,8 @@ export function usePrefetchVideoAnalysis(
           baseDelay: 200,
         }))
 
-      // Cache UUID in both TanStack Query (fast) and persisted store (survives restarts)
+      // FIX: Cache UUID in Zustand store only - single source of truth
       if (analysisUuid && !cachedUuid) {
-        safeSetQueryData(
-          queryClient,
-          analysisKeys.uuid(analysisJobId),
-          analysisUuid,
-          'usePrefetchVideoAnalysis.cache'
-        )
         setUuid(analysisJobId, analysisUuid)
         if (__DEV__) {
           log.debug('usePrefetchVideoAnalysis', 'Cached UUID for future lookups', {

@@ -4,7 +4,7 @@ import {
   CameraPreviewArea,
   type CameraPreviewRef,
   IdleControls,
-  NavigationDialog,
+  // NavigationDialog, // COMMENTED OUT: Discard immediately on back press without dialog
   // PoseDetectionToggleCompact,
   // PoseOverlay,
   RecordingControls,
@@ -136,7 +136,7 @@ export function CameraRecordingScreen({
   const {
     cameraType,
     zoomLevel,
-    showNavigationDialog,
+    // showNavigationDialog, // COMMENTED OUT: Discard immediately on back press without dialog
     recordingState,
     duration,
     formattedDuration,
@@ -157,12 +157,13 @@ export function CameraRecordingScreen({
     handleUploadVideo,
     handleVideoSelected,
     handleSettingsOpen,
-    confirmNavigation,
-    cancelNavigation,
+    // confirmNavigation, // COMMENTED OUT: Discard immediately on back press without dialog
+    // cancelNavigation, // COMMENTED OUT: Discard immediately on back press without dialog
     handleCameraReady,
-    setShowNavigationDialog,
+    // setShowNavigationDialog, // COMMENTED OUT: Discard immediately on back press without dialog
     handleVideoRecorded,
     resetRecording,
+    getIsDiscarding,
   } = cameraScreenLogicResult
 
   // PERF: Stable callback for VisionCameraPreview memo
@@ -297,6 +298,7 @@ export function CameraRecordingScreen({
             permissionGranted={permission?.granted ?? false}
             onCameraReady={handleCameraReady}
             onVideoRecorded={handleVideoRecorded}
+            getIsDiscarding={getIsDiscarding}
             onError={handleCameraError}
             backgroundImage={golfBackgroundImage}
             backgroundOpacity={1}
@@ -365,15 +367,15 @@ export function CameraRecordingScreen({
             </CameraControlsOverlay>
           ))}
 
-        {/* Navigation Confirmation Dialog */}
-        <NavigationDialog
+        {/* Navigation Confirmation Dialog - COMMENTED OUT: Discard immediately on back press */}
+        {/* <NavigationDialog
           open={showNavigationDialog}
           onOpenChange={setShowNavigationDialog}
           title="Discard Recording?"
           message="Are you sure you want to leave? Your current recording will be lost."
           onDiscard={confirmNavigation}
           onCancel={cancelNavigation}
-        />
+        /> */}
 
         {/* Dev buttons for testing - navigation via callback */}
         {__DEV__ && onDevNavigate && (
@@ -386,7 +388,7 @@ export function CameraRecordingScreen({
             padding="$2"
             borderRadius="$4"
           >
-            <Button
+            {/* <Button
               size="$4"
               backgroundColor="transparent"
               color="white"
@@ -395,7 +397,7 @@ export function CameraRecordingScreen({
               pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
             >
               🚀 DEV COMPRESSION TEST
-            </Button>
+            </Button> */}
             <Button
               size="$4"
               backgroundColor="transparent"

@@ -4,9 +4,11 @@
 // No imports needed - jest-expo preset provides globals
 import type { DownloadResumable } from 'expo-file-system'
 import * as FileSystem from 'expo-file-system'
+import * as MediaLibrary from 'expo-media-library'
 import { VideoStorageService } from './videoStorageService'
 
 const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>
+const mockMediaLibrary = MediaLibrary as jest.Mocked<typeof MediaLibrary>
 
 if (!mockFileSystem.createDownloadResumable) {
   mockFileSystem.createDownloadResumable = jest.fn() as any
@@ -151,12 +153,17 @@ describe('VideoStorageService', () => {
       const metadata = { duration: 30, format: 'mp4' }
 
       mockFileSystem.getInfoAsync
-        .mockResolvedValueOnce({ exists: false } as any) // recordings dir
-        .mockResolvedValueOnce({ exists: false } as any) // temp dir
-        .mockResolvedValueOnce({ exists: true, size: 2048000 } as any) // source file
+        .mockResolvedValueOnce({ exists: true, size: 2048000 } as any) // source file (checked first)
+        .mockResolvedValueOnce({ exists: false } as any) // recordings dir (in initialize)
+        .mockResolvedValueOnce({ exists: false } as any) // temp dir (in initialize)
         .mockResolvedValueOnce({ exists: true, size: 1024000 } as any) // saved file
 
       mockFileSystem.copyAsync.mockResolvedValueOnce(undefined)
+      mockMediaLibrary.requestPermissionsAsync.mockResolvedValueOnce({ status: 'granted' } as any)
+      mockMediaLibrary.createAssetAsync.mockResolvedValueOnce({
+        id: 'test-asset-id',
+        uri: 'file:///gallery/video.mp4',
+      } as any)
 
       // Act
       const result = await VideoStorageService.saveVideo(sourceUri, filename, metadata)
@@ -171,11 +178,47 @@ describe('VideoStorageService', () => {
         originalFilename: filename,
         sourcePath: sourceUri,
         sourceSize: 2048000,
+        skipFilesystem: false,
       })
       expect(mockFileSystem.copyAsync).toHaveBeenCalledWith({
         from: sourceUri,
         to: expect.stringMatching(/^file:\/\/\/documents\/recordings\/video_\d+\.mp4$/),
       })
+      // Gallery save should be called when video is kept
+      expect(mockMediaLibrary.createAssetAsync).toHaveBeenCalled()
+    })
+
+    it('skips filesystem but saves to gallery when skipFilesystem is true', async () => {
+      // Arrange
+      const sourceUri = 'file:///source/video.mp4'
+      const filename = 'test-video.mp4'
+      const metadata = { duration: 30, format: 'mp4' }
+
+      mockFileSystem.getInfoAsync.mockResolvedValueOnce({
+        exists: true,
+        size: 2048000,
+      } as any) // source file
+
+      mockMediaLibrary.requestPermissionsAsync.mockResolvedValueOnce({ status: 'granted' } as any)
+      mockMediaLibrary.createAssetAsync.mockResolvedValueOnce({
+        id: 'test-asset-id',
+        uri: 'file:///gallery/video.mp4',
+      } as any)
+
+      // Act
+      const result = await VideoStorageService.saveVideo(sourceUri, filename, metadata, {
+        skipFilesystem: true,
+      })
+
+      // Assert
+      expect(result.localUri).toBeNull()
+      expect(result.filename).toBe(filename) // Original filename preserved
+      expect(result.size).toBe(2048000) // Source file size
+      expect(result.metadata.skipFilesystem).toBe(true)
+      // Filesystem operations should be skipped
+      expect(mockFileSystem.copyAsync).not.toHaveBeenCalled()
+      // Gallery save should still occur when discarding (using sourceUri)
+      expect(mockMediaLibrary.createAssetAsync).toHaveBeenCalledWith(sourceUri)
     })
 
     it('throws error when file copy fails', async () => {

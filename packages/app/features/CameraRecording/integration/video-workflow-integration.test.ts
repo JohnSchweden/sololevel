@@ -170,6 +170,9 @@ describe('Video Workflow Integration', () => {
       expect(videos[0].uri).toBe(savedVideo.localUri)
 
       // Step 4: Get video info for playback
+      if (!savedVideo.localUri) {
+        throw new Error('localUri should not be null')
+      }
       const videoInfo = await VideoStorageService.getVideoInfo(savedVideo.localUri)
       expect(videoInfo.exists).toBe(true)
       expect(videoInfo.size).toBe(1024000)
@@ -222,6 +225,9 @@ describe('Video Workflow Integration', () => {
 
       // Step 5: Simulate playing each video
       for (const video of savedVideos) {
+        if (!video.localUri) {
+          throw new Error('localUri should not be null')
+        }
         const info = await VideoStorageService.getVideoInfo(video.localUri)
         expect(info.exists).toBe(true)
         expect(info.uri).toBe(video.localUri)
@@ -331,6 +337,9 @@ describe('Video Workflow Integration', () => {
       )
 
       // Step 2: Mock file info showing corrupted file
+      if (!savedVideo.localUri) {
+        throw new Error('localUri should not be null')
+      }
       mockFileSystem.getInfoAsync.mockResolvedValue({
         exists: true,
         uri: savedVideo.localUri,
@@ -368,6 +377,9 @@ describe('Video Workflow Integration', () => {
       expect(stats.totalSize).toBe(5120000) // 5 * 1024000
 
       // Step 3: Delete some videos to free space
+      if (!videos[0].localUri || !videos[1].localUri) {
+        throw new Error('localUri should not be null')
+      }
       await VideoStorageService.deleteVideo(videos[0].localUri)
       await VideoStorageService.deleteVideo(videos[1].localUri)
 
@@ -425,9 +437,12 @@ describe('Video Workflow Integration', () => {
       const allVideos = await VideoStorageService.listVideos()
 
       // Step 3: Get info for each video
-      const infoPromises = savedVideos.map((video) =>
-        VideoStorageService.getVideoInfo(video.localUri)
-      )
+      const infoPromises = savedVideos.map((video) => {
+        if (!video.localUri) {
+          throw new Error('localUri should not be null')
+        }
+        return VideoStorageService.getVideoInfo(video.localUri)
+      })
       const videoInfos = await Promise.all(infoPromises)
 
       const endTime = Date.now()
@@ -458,6 +473,9 @@ describe('Video Workflow Integration', () => {
       )
 
       // Step 2: Verify all data needed for VideoPlayer is available
+      if (!savedVideo.localUri) {
+        throw new Error('localUri should not be null')
+      }
       const videoData = {
         uri: savedVideo.localUri,
         duration: savedVideo.metadata.duration * 1000, // Convert to milliseconds
@@ -491,6 +509,9 @@ describe('Video Workflow Integration', () => {
 
         // Verify format is preserved
         expect(savedVideo.metadata.format).toBe(format)
+        if (!savedVideo.localUri) {
+          throw new Error('localUri should not be null')
+        }
         expect(savedVideo.localUri).toContain(`.${format}`)
 
         // Verify file is accessible

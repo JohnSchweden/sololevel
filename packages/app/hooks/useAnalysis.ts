@@ -99,7 +99,7 @@ export function useAnalysisJobBatched(analysisJobId?: number, videoRecordingId?:
       ? analysisKeys.job(analysisJobId!)
       : shouldFetchByVideoId
         ? analysisKeys.jobByVideo(videoRecordingId!)
-        : ['analysis', 'job', 'batched', null],
+        : analysisKeys.batchedNull(), // FIX: Use proper key instead of magic string
     queryFn: async () => {
       if (shouldFetchByJobId) {
         return getAnalysisJob(analysisJobId!)

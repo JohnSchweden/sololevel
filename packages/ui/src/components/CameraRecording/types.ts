@@ -14,7 +14,9 @@ export interface CameraPreviewContainerProps {
   onZoomChange?: (zoom: number) => void
   onCameraReady?: () => void
   onError?: (error: string) => void
-  onVideoRecorded?: (videoUri: string) => void
+  onVideoRecorded?: (videoUri: string | null) => void
+  /** Function to check if recording is being discarded (to skip filesystem save) */
+  getIsDiscarding?: () => boolean
   children?: React.ReactNode
   permissionGranted?: boolean
   /** Background image source for simulator testing */

@@ -31,6 +31,7 @@ export const VisionCameraPreview = memo(
         onCameraReady,
         onError,
         onVideoRecorded,
+        getIsDiscarding,
         children,
         permissionGranted = false,
         backgroundImage,
@@ -325,13 +326,23 @@ export const VisionCameraPreview = memo(
                   return
                 }
 
+                // Check if discarding to skip filesystem save
+                const isDiscarding = getIsDiscarding?.() ?? false
+
                 // Save video to local storage using expo-file-system
                 const filename = `recording_${Date.now()}.mp4`
                 try {
-                  const savedVideo = await VideoStorageService.saveVideo(video.path, filename, {
-                    format: 'mp4',
-                    duration: video.duration, // VisionCamera returns duration in seconds
-                  })
+                  const savedVideo = await VideoStorageService.saveVideo(
+                    video.path,
+                    filename,
+                    {
+                      format: 'mp4',
+                      duration: video.duration, // VisionCamera returns duration in seconds
+                    },
+                    {
+                      skipFilesystem: isDiscarding, // Skip filesystem save when discarding
+                    }
+                  )
 
                   if (!isMounted.current) return
 
@@ -339,14 +350,23 @@ export const VisionCameraPreview = memo(
                     codec,
                     duration: video.duration,
                     savedPath: savedVideo.localUri,
+                    isDiscarding,
+                    skipFilesystem: isDiscarding,
                   })
 
-                  log.info('VisionCamera', 'Video saved to local storage', {
-                    filename,
-                    localUri: savedVideo.localUri,
-                  })
+                  if (isDiscarding) {
+                    log.info('VisionCamera', 'Video saved to gallery only (discarding)', {
+                      filename,
+                    })
+                  } else {
+                    log.info('VisionCamera', 'Video saved to local storage', {
+                      filename,
+                      localUri: savedVideo.localUri,
+                    })
+                  }
 
                   // Notify parent component about the saved video
+                  // Pass null if filesystem save was skipped (discarding)
                   onVideoRecorded?.(savedVideo.localUri)
 
                   // Video saved successfully - parent component will handle navigation to player

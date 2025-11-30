@@ -3082,6 +3082,7 @@ __metadata:
     expo-document-picker: "npm:^14.0.6"
     expo-image-picker: "npm:^17.0.7"
     expo-localization: "npm:^16.1.6"
+    expo-media-library: "npm:^18.2.0"
     i18next: "npm:^25.4.2"
     jest: "npm:^29.7.0"
     jest-expo: "npm:^53.0.9"
@@ -11341,6 +11342,16 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10c0/51ca653dd920517d327bdf72448319cf4612cc78a19d78def9e6ab3ea9dfbe9b82aa9e3d2790c702af899f15139eaaabafb90a171bb2668f40bb5c696e96098f
+  languageName: node
+  linkType: hard
+
+"expo-media-library@npm:^18.2.0":
+  version: 18.2.0
+  resolution: "expo-media-library@npm:18.2.0"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10c0/6bbd7cb9bf4bbc641ea3b2e8a84354df61ae3f2fc72cc538c4807d9b29c3e17705daf0079c5f5e86112a0dc993d69245bf8dba5e1453c13dad4549a9a12aebec
   languageName: node
   linkType: hard
 

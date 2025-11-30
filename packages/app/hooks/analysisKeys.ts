@@ -12,4 +12,7 @@ export const analysisKeys = {
   historical: (analysisId: number) => [...analysisKeys.all, 'historical', analysisId] as const,
   history: () => ['history'] as const,
   historyCompleted: () => [...analysisKeys.history(), 'completed'] as const,
+  // FIX: Add batchedNull key to prevent orphan cache entries
+  // Used when useAnalysisJobBatched is called without jobId or videoId
+  batchedNull: () => [...analysisKeys.all, 'job', 'batched', 'null'] as const,
 }

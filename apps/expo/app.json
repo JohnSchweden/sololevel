@@ -23,7 +23,8 @@
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",
       "infoPlist": {
-        "CFBundleIconName": "AppIcon"
+        "CFBundleIconName": "AppIcon",
+        "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library, just like the native camera app."
       }
     },
     "android": {

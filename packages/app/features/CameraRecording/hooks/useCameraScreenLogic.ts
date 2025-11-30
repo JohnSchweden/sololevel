@@ -17,6 +17,9 @@ export const useCameraScreenLogic = ({
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
 
+  // Track if we're discarding recording (to prevent processing)
+  const isDiscardingRef = useRef(false)
+
   // Camera swap visual feedback state
   const [isCameraSwapping, setIsCameraSwapping] = useState(false)
   const [isMounted, setIsMounted] = useState(true)
@@ -123,12 +126,17 @@ export const useCameraScreenLogic = ({
     }
   }, [cameraRef, cameraReady, isMounted])
 
-  // Log when camera controls become available
+  // Log when camera controls become available (only once when isReady transitions to true)
+  const hasLoggedCameraReadyRef = useRef(false)
   useEffect(() => {
-    if (cameraControls) {
+    if (cameraControls.isReady && !hasLoggedCameraReadyRef.current) {
+      hasLoggedCameraReadyRef.current = true
       log.info('useCameraScreenLogic', 'Camera controls are now available for recording')
+    } else if (!cameraControls.isReady) {
+      // Reset flag when camera becomes unavailable
+      hasLoggedCameraReadyRef.current = false
     }
-  }, [cameraControls])
+  }, [cameraControls.isReady])
 
   const {
     recordingState,
@@ -162,10 +170,45 @@ export const useCameraScreenLogic = ({
   const durationRef = useRef(duration)
   durationRef.current = duration // Update ref synchronously on every render
 
+  // Wrap resetRecording to ensure discard flag is reset when starting fresh
+  // Note: When discarding, the flag is reset in handleVideoRecorded after checking
+  const resetRecordingWithFlagReset = useCallback(() => {
+    // Only reset flag if we're not currently discarding
+    // If discarding, the flag will be reset in handleVideoRecorded after it checks
+    if (!isDiscardingRef.current) {
+      isDiscardingRef.current = false
+    }
+    resetRecording()
+  }, [resetRecording])
+
+  // Get discard flag getter for camera component
+  const getIsDiscarding = useCallback(() => {
+    return isDiscardingRef.current
+  }, [])
+
   // Handle video recording completion - notify parent, process in background
   const handleVideoRecorded = useCallback(
-    async (videoUri: string) => {
-      log.info('useCameraScreenLogic', 'Video recorded and saved', { videoUri })
+    async (videoUri: string | null) => {
+      log.info('useCameraScreenLogic', 'Video recorded and saved', {
+        videoUri,
+        isDiscarding: isDiscardingRef.current,
+      })
+
+      // If user is discarding (navigating back), don't process the video
+      if (isDiscardingRef.current) {
+        log.info('useCameraScreenLogic', 'Discarding recording - skipping video processing', {
+          videoUri,
+        })
+        isDiscardingRef.current = false // Reset flag
+        return
+      }
+
+      // If videoUri is null, it means filesystem save was skipped (discarding)
+      // In that case, we've already returned above, but this is a safety check
+      if (!videoUri) {
+        log.warn('useCameraScreenLogic', 'Video URI is null, skipping processing')
+        return
+      }
 
       // 1) Notify parent component (route file will handle navigation)
       onVideoProcessed?.(videoUri)
@@ -259,6 +302,8 @@ export const useCameraScreenLogic = ({
       log.warn('handleStartRecording', 'Camera not ready yet, cannot start recording')
       return
     }
+    // Reset discard flag when starting a new recording
+    isDiscardingRef.current = false
     try {
       await startRecording()
     } catch (error) {
@@ -303,16 +348,29 @@ export const useCameraScreenLogic = ({
   }, [canStop, stopRecording])
 
   const handleBackPress = useCallback(async () => {
-    if (!canStop) return
-    try {
-      await stopRecording()
-      // After stopping, reset to idle state
-      resetRecording()
-      log.info('handleBackPress', 'Recording stopped and reset to idle state')
-    } catch (error) {
-      log.warn('handleBackPress', `Stop recording and reset failed: ${error}`)
+    // Discard recording immediately without showing dialog
+    if (recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED) {
+      // Set discard flag to prevent video processing
+      isDiscardingRef.current = true
+      log.info('handleBackPress', 'Discarding recording on back press', {
+        isDiscarding: isDiscardingRef.current,
+      })
+      try {
+        await stopRecording()
+        // After stopping, reset to idle state
+        resetRecording()
+        log.info('handleBackPress', 'Recording discarded and reset to idle state')
+      } catch (error) {
+        log.warn('handleBackPress', `Error stopping recording on back press: ${error}`)
+        // Reset flag on error
+        isDiscardingRef.current = false
+      }
     }
-  }, [canStop, stopRecording, resetRecording])
+    // COMMENTED OUT: Show navigation dialog
+    // if (recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED) {
+    //   setShowNavigationDialog(true)
+    // }
+  }, [recordingState, stopRecording, resetRecording])
 
   const handleUploadVideo = useCallback(() => {
     // Legacy callback for backward compatibility
@@ -325,6 +383,7 @@ export const useCameraScreenLogic = ({
         fileName: file.name,
         fileSize: file.size,
         duration: metadata?.duration,
+        localUri: metadata?.localUri?.substring(0, 60),
       })
 
       // 1) Notify parent component (route file will handle navigation)
@@ -339,6 +398,7 @@ export const useCameraScreenLogic = ({
           `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
+        localUri: metadata?.localUri, // Pass local URI for thumbnail generation
         onRecordingIdAvailable: (recordingId) => {
           log.info('handleVideoSelected', 'Recording ID available - invalidating history cache', {
             recordingId,
@@ -356,13 +416,38 @@ export const useCameraScreenLogic = ({
     log.info('handleSettingsOpen', 'Settings clicked')
   }, [])
 
-  const confirmNavigation = useCallback(() => {
+  const confirmNavigation = useCallback(async () => {
     setShowNavigationDialog(false)
+    // Set discard flag to prevent video processing
+    // This flag will be checked in handleVideoRecorded and reset there
+    // IMPORTANT: Set flag BEFORE stopping to ensure it's checked when callback fires
+    isDiscardingRef.current = true
+    log.info('confirmNavigation', 'Setting discard flag and stopping recording', {
+      isDiscarding: isDiscardingRef.current,
+    })
     try {
-      stopRecording()
-      resetRecording()
+      // Stop recording - this will trigger onRecordingFinished callback asynchronously
+      await stopRecording()
+      log.info('confirmNavigation', 'Recording stopped, waiting for handleVideoRecorded callback')
+      // After stopping, reset to idle state
+      // Note: Don't reset the discard flag here - let handleVideoRecorded reset it
+      // after checking it, since the camera callback is async
+      // Use setTimeout to defer reset until after any pending callbacks
+      setTimeout(() => {
+        // Double-check flag is still set (should be, unless handleVideoRecorded already processed it)
+        if (isDiscardingRef.current) {
+          log.warn(
+            'confirmNavigation',
+            'Discard flag still set after timeout - resetting state anyway'
+          )
+        }
+        resetRecording()
+        log.info('confirmNavigation', 'Recording state reset to idle after discard')
+      }, 100) // Small delay to allow async callback to fire
     } catch (error) {
       log.warn('confirmNavigation', `Error stopping recording on navigation: ${error}`)
+      // Reset flag on error
+      isDiscardingRef.current = false
     }
   }, [stopRecording, resetRecording])
 
@@ -414,7 +499,8 @@ export const useCameraScreenLogic = ({
 
       // Recording actions
       handleVideoRecorded,
-      resetRecording,
+      resetRecording: resetRecordingWithFlagReset,
+      getIsDiscarding,
     }
   }, [
     // Primitive state values (EXCLUDING duration/formattedDuration)
@@ -442,7 +528,8 @@ export const useCameraScreenLogic = ({
     handleCameraReady,
     setShowNavigationDialog,
     handleVideoRecorded,
-    resetRecording,
+    resetRecordingWithFlagReset,
+    getIsDiscarding,
   ])
 
   // Memoize final return object - only recreate when stableLogic changes OR formattedDuration changes

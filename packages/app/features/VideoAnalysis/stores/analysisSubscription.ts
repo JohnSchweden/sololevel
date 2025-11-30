@@ -27,6 +27,11 @@ export interface SubscriptionState {
   subscription?: () => void
   titleSubscription?: () => void
   subscriptionPromise?: Promise<void>
+  // FIX: Track abort controllers for async operations to prevent writes after unmount
+  pendingOperations: AbortController[]
+  // FIX: Track title receipt to delay cache invalidation until title is ready
+  hasTitleReceived?: boolean
+  pendingInvalidationTimeoutId?: ReturnType<typeof setTimeout> | null
 }
 
 export interface AnalysisJob {
@@ -161,7 +166,11 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
           lastStatus: current?.lastStatus ?? null,
           health: current?.health ?? null,
           subscription: current?.subscription,
+          titleSubscription: current?.titleSubscription,
           subscriptionPromise,
+          pendingOperations: current?.pendingOperations ?? [], // FIX: Initialize abort controllers array
+          hasTitleReceived: current?.hasTitleReceived ?? false, // FIX: Initialize title tracking
+          pendingInvalidationTimeoutId: current?.pendingInvalidationTimeoutId ?? null, // FIX: Initialize invalidation timeout
         })
       })
 
@@ -183,11 +192,41 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
           clearTimeout(current.backfillTimeoutId)
         }
 
+        // FIX: Clear pending invalidation timeout on unsubscribe
+        if (current.pendingInvalidationTimeoutId) {
+          clearTimeout(current.pendingInvalidationTimeoutId)
+        }
+
+        // FIX: Abort all pending async operations to prevent writes after unmount
+        if (current.pendingOperations) {
+          current.pendingOperations.forEach((controller) => {
+            try {
+              controller.abort()
+            } catch (error) {
+              log.debug('AnalysisSubscriptionStore', 'Error aborting operation', {
+                error,
+                key,
+              })
+            }
+          })
+        }
+
         if (current.subscription) {
           try {
             current.subscription()
           } catch (error) {
             log.error('AnalysisSubscriptionStore', 'Error during unsubscribe', {
+              error,
+              key,
+            })
+          }
+        }
+
+        if (current.titleSubscription) {
+          try {
+            current.titleSubscription()
+          } catch (error) {
+            log.error('AnalysisSubscriptionStore', 'Error during title unsubscribe', {
               error,
               key,
             })
@@ -301,11 +340,34 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
           if (subscription.backfillTimeoutId) {
             clearTimeout(subscription.backfillTimeoutId)
           }
+          // FIX: Abort all pending async operations
+          if (subscription.pendingOperations) {
+            subscription.pendingOperations.forEach((controller) => {
+              try {
+                controller.abort()
+              } catch (error) {
+                log.debug('AnalysisSubscriptionStore', 'Error aborting operation during reset', {
+                  error,
+                  key,
+                })
+              }
+            })
+          }
           if (subscription.subscription) {
             try {
               subscription.subscription()
             } catch (error) {
               log.error('AnalysisSubscriptionStore', 'Error during reset unsubscribe', {
+                error,
+                key,
+              })
+            }
+          }
+          if (subscription.titleSubscription) {
+            try {
+              subscription.titleSubscription()
+            } catch (error) {
+              log.error('AnalysisSubscriptionStore', 'Error during reset title unsubscribe', {
                 error,
                 key,
               })
@@ -426,7 +488,7 @@ function handleTitleUpdate(
   key: string,
   jobId: number,
   title: string | null,
-  _set: StoreSetter,
+  set: StoreSetter,
   get: StoreGetter
 ): void {
   log.info('AnalysisSubscriptionStore', 'Title update received', {
@@ -444,16 +506,77 @@ function handleTitleUpdate(
     return
   }
 
+  // FIX: Mark title as received and trigger pending invalidation if needed
+  set((draft: AnalysisSubscriptionStoreState) => {
+    const subscription = draft.subscriptions.get(key)
+    if (subscription) {
+      subscription.hasTitleReceived = true
+
+      // Clear any pending invalidation timeout since title is now ready
+      if (subscription.pendingInvalidationTimeoutId) {
+        clearTimeout(subscription.pendingInvalidationTimeoutId)
+        subscription.pendingInvalidationTimeoutId = null
+      }
+    }
+  })
+
+  // Trigger invalidation immediately since title is now ready
+  const queryClient = get().queryClient
+  if (queryClient) {
+    // Check if job is completed - if so, invalidate now that title is ready
+    const subscription = get().subscriptions.get(key)
+    if (subscription?.lastStatus === 'completed') {
+      log.info(
+        'AnalysisSubscriptionStore',
+        'Title received after completion - invalidating history cache',
+        {
+          jobId,
+          title,
+        }
+      )
+      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
+    }
+  }
+
+  // FIX: Create abort controller for this async operation
+  const abortController = new AbortController()
+  const subscription = get().subscriptions.get(key)
+  if (subscription) {
+    // Store abort controller in subscription state for cleanup on unmount
+    set((draft: AnalysisSubscriptionStoreState) => {
+      const sub = draft.subscriptions.get(key)
+      if (sub) {
+        if (!sub.pendingOperations) {
+          sub.pendingOperations = []
+        }
+        sub.pendingOperations.push(abortController)
+      }
+    })
+  }
+
   // Update cache with title immediately when it becomes available
   // Schedule for after render cycle using Promise.resolve().then() for true async deferral
   Promise.resolve().then(async () => {
+    // FIX: Check abort signal before proceeding
+    if (abortController.signal.aborted) {
+      return
+    }
+
     try {
       const historyStore = useVideoHistoryStore.getState()
       const queryClient = get().queryClient
 
+      // FIX: Check abort signal before writing to stores
+      if (abortController.signal.aborted) {
+        return
+      }
+
       // Update Zustand cache with title
       const cached = historyStore.getCached(jobId)
       if (cached) {
+        if (abortController.signal.aborted) {
+          return
+        }
         historyStore.updateCache(jobId, { title })
         log.info(
           'AnalysisSubscriptionStore',
@@ -466,9 +589,12 @@ function handleTitleUpdate(
       }
 
       // Also update TanStack Query cache if job exists
-      if (queryClient) {
+      if (queryClient && !abortController.signal.aborted) {
         const currentJob = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(jobId))
         if (currentJob && currentJob.video_recording_id !== null) {
+          if (abortController.signal.aborted) {
+            return
+          }
           const updatedJob = { ...currentJob, title } as AnalysisJob & {
             video_recording_id: number
           }
@@ -480,24 +606,35 @@ function handleTitleUpdate(
         }
       }
 
-      if (!cached) {
+      if (!cached && !abortController.signal.aborted) {
         // Cache doesn't exist yet - try to get job data from TanStack Query to create minimal entry
-        const subscription = get().subscriptions.get(key)
-        const subscriptionJobId = subscription?.jobId
+        const currentSubscription = get().subscriptions.get(key)
+        const subscriptionJobId = currentSubscription?.jobId
         const job =
           subscriptionJobId && queryClient
             ? (queryClient.getQueryData<AnalysisJob>(analysisKeys.job(subscriptionJobId)) ?? null)
             : null
 
-        if (job) {
+        if (job && !abortController.signal.aborted) {
           // Fetch thumbnail from video_recordings to include in minimal cache entry
           // This ensures thumbnails are available even if setJobResults runs later
           const { supabase } = await import('@my/api')
+
+          // FIX: Check abort signal before async operation
+          if (abortController.signal.aborted) {
+            return
+          }
+
           const { data: videoRecording } = await supabase
             .from('video_recordings')
             .select('thumbnail_url, storage_path, metadata')
             .eq('id', job.video_recording_id ?? 0)
             .single()
+
+          // FIX: Check abort signal after async operation
+          if (abortController.signal.aborted) {
+            return
+          }
 
           // Resolve thumbnail using 3-tier caching strategy (shared utility)
           const videoId = job.video_recording_id ?? 0
@@ -509,16 +646,29 @@ function handleTitleUpdate(
             },
             {
               onCacheUpdate: (uri) => {
+                // FIX: Check abort signal before writing to store
+                if (abortController.signal.aborted) {
+                  return
+                }
                 const historyStore = useVideoHistoryStore.getState()
                 historyStore.updateCache(job.id, { thumbnail: uri })
               },
               onPersistedUpdate: (uri) => {
+                // FIX: Check abort signal before writing to store
+                if (abortController.signal.aborted) {
+                  return
+                }
                 const historyStore = useVideoHistoryStore.getState()
                 historyStore.updateCache(job.id, { thumbnail: uri })
               },
               logContext: 'AnalysisSubscriptionStore',
             }
           )
+
+          // FIX: Final abort check before creating cache entry
+          if (abortController.signal.aborted) {
+            return
+          }
 
           // Create minimal cache entry with title, thumbnail, and job data
           // setJobResults will update it with full data later
@@ -533,6 +683,28 @@ function handleTitleUpdate(
             video_source: '',
           }
 
+          // FIX: Extract videoUri from metadata.localUri (same pattern as analysisStatus.ts)
+          // Without this, cache entry has no videoUri and falls back to FALLBACK_VIDEO_URI (BigBuckBunny)
+          const storagePath = videoRecording?.storage_path ?? undefined
+          let videoUri: string | undefined
+
+          if (
+            storagePath &&
+            videoRecording?.metadata &&
+            typeof videoRecording.metadata === 'object'
+          ) {
+            const metadata = videoRecording.metadata as Record<string, unknown>
+            if (typeof metadata.localUri === 'string') {
+              historyStore.setLocalUri(storagePath, metadata.localUri)
+              videoUri = metadata.localUri
+            }
+          }
+
+          // Fall back to persisted localUriIndex if metadata didn't have localUri
+          if (!videoUri && storagePath) {
+            videoUri = historyStore.getLocalUri(storagePath) ?? undefined
+          }
+
           historyStore.addToCache({
             id: job.id,
             videoId: job.video_recording_id ?? 0,
@@ -540,16 +712,23 @@ function handleTitleUpdate(
             title, // Use the real title from database
             createdAt: jobCreatedAt,
             thumbnail: thumbnailUri,
-            storagePath: videoRecording?.storage_path ?? undefined,
+            storagePath,
+            videoUri,
             results: jobResults,
           })
           log.info(
             'AnalysisSubscriptionStore',
-            'Created minimal cache entry with title and thumbnail from analyses subscription',
+            'Created minimal cache entry with title, thumbnail, and videoUri from analyses subscription',
             {
               jobId,
               title,
               hasThumbnail: !!thumbnailUri,
+              hasVideoUri: !!videoUri,
+              videoUriSource: videoUri
+                ? videoUri.includes('recordings/')
+                  ? 'persisted'
+                  : 'metadata'
+                : 'none',
               thumbnailSource: videoRecording?.thumbnail_url
                 ? 'cloud'
                 : videoRecording?.metadata
@@ -557,7 +736,7 @@ function handleTitleUpdate(
                   : 'none',
             }
           )
-        } else {
+        } else if (!abortController.signal.aborted) {
           // Job data not available yet - title will be set when setJobResults runs
           log.debug(
             'AnalysisSubscriptionStore',
@@ -570,9 +749,27 @@ function handleTitleUpdate(
         }
       }
     } catch (error) {
+      // FIX: Ignore AbortError - it's expected when component unmounts
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      if (abortController.signal.aborted) {
+        return
+      }
       log.warn('AnalysisSubscriptionStore', 'Error updating cache with title', {
         jobId,
         error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      // FIX: Remove abort controller from subscription state when operation completes
+      set((draft: AnalysisSubscriptionStoreState) => {
+        const sub = draft.subscriptions.get(key)
+        if (sub?.pendingOperations) {
+          const index = sub.pendingOperations.indexOf(abortController)
+          if (index > -1) {
+            sub.pendingOperations.splice(index, 1)
+          }
+        }
       })
     }
   })
@@ -764,21 +961,92 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
     }
   }
 
-  // Invalidate history cache when analysis completes
+  // FIX: Invalidate history cache when analysis completes, but delay if title not ready yet
+  // Problem: Title subscription fires AFTER job completion (500ms+ gap). Invalidating immediately
+  // causes cache to be populated with job data without title, then title arrives but cache already stale.
   if (previousStatus !== 'completed' && job.status === 'completed') {
+    const subscription = get().subscriptions.get(key)
+    const hasTitle = subscription?.hasTitleReceived ?? false
     const queryClient = get().queryClient
-    if (queryClient) {
-      log.info('AnalysisSubscriptionStore', 'Analysis completed - invalidating history cache', {
-        jobId: job.id,
-      })
-      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-    } else {
+
+    if (!queryClient) {
       log.warn('AnalysisSubscriptionStore', 'QueryClient not set - cannot invalidate cache', {
         jobId: job.id,
       })
+      return
     }
-    // Note: Title is already fetched via subscribeToAnalysisTitle subscription
-    // which fires earlier (right after LLM analysis, before job completion)
+
+    // If title already received, invalidate immediately
+    if (hasTitle) {
+      log.info(
+        'AnalysisSubscriptionStore',
+        'Analysis completed with title - invalidating history cache',
+        {
+          jobId: job.id,
+        }
+      )
+      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
+      return
+    }
+
+    // Title not ready yet - delay invalidation
+    // Set timeout to invalidate after title arrives (max 3 seconds) or immediately if title arrives first
+    log.info(
+      'AnalysisSubscriptionStore',
+      'Analysis completed without title - delaying invalidation',
+      {
+        jobId: job.id,
+      }
+    )
+
+    set((draft: AnalysisSubscriptionStoreState) => {
+      const sub = draft.subscriptions.get(key)
+      if (!sub) return
+
+      // Clear any existing pending invalidation timeout
+      if (sub.pendingInvalidationTimeoutId) {
+        clearTimeout(sub.pendingInvalidationTimeoutId)
+      }
+
+      // Schedule invalidation after delay (title should arrive within 3 seconds)
+      const timeoutId = setTimeout(() => {
+        const currentState = get()
+        const currentSub = currentState.subscriptions.get(key)
+        if (!currentSub) {
+          log.debug(
+            'AnalysisSubscriptionStore',
+            'Subscription deleted, skipping delayed invalidation',
+            {
+              key,
+            }
+          )
+          return
+        }
+
+        const currentQueryClient = currentState.queryClient
+        if (currentQueryClient) {
+          log.info(
+            'AnalysisSubscriptionStore',
+            'Delayed invalidation timeout - invalidating history cache',
+            {
+              jobId: job.id,
+              hasTitle: currentSub.hasTitleReceived,
+            }
+          )
+          currentQueryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
+        }
+
+        // Clear timeout ID
+        set((draft: AnalysisSubscriptionStoreState) => {
+          const sub = draft.subscriptions.get(key)
+          if (sub) {
+            sub.pendingInvalidationTimeoutId = null
+          }
+        })
+      }, 3000) // 3 second delay to allow title to arrive
+
+      sub.pendingInvalidationTimeoutId = timeoutId
+    })
   }
 }
 
@@ -874,33 +1142,40 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
     attempts: subscription.retryAttempts,
   })
 
-  // MEMORY LEAK FIX: Check existence before scheduling timer
-  // This prevents orphaned timers when subscription is deleted between setTimeout and set()
-  const timeoutId = setTimeout(() => {
-    // Re-check existence before retry to prevent calling retry on deleted subscription
-    const currentState = get()
-    const currentSubscription = currentState.subscriptions.get(key)
-    if (!currentSubscription) {
-      log.debug('AnalysisSubscriptionStore', 'Skipping retry - subscription was deleted', {
+  // FIX: Store timeout ID synchronously inside set() to prevent race condition
+  // Problem: setTimeout() followed by set() creates a window where unsubscribe()
+  // can be called but timeout ID isn't stored yet, causing orphaned timers
+  set((draft: AnalysisSubscriptionStoreState) => {
+    const current = draft.subscriptions.get(key)
+    if (!current) {
+      // Subscription was deleted, don't schedule retry
+      log.debug('AnalysisSubscriptionStore', 'Subscription deleted, skipping retry schedule', {
         key,
       })
       return
     }
-    void get().retry(key)
-  }, delay)
 
-  set((draft: AnalysisSubscriptionStoreState) => {
-    const current = draft.subscriptions.get(key)
-    if (!current) {
-      // MEMORY LEAK FIX: Clean up orphaned timer if subscription was deleted
-      // This handles race condition where subscription is deleted between setTimeout and set()
-      clearTimeout(timeoutId)
-      log.debug('AnalysisSubscriptionStore', 'Cleaned up orphaned retry timer', { key })
-      return
-    }
+    // Clear any existing timeout first
     if (current.retryTimeoutId) {
       clearTimeout(current.retryTimeoutId)
     }
+
+    // Store timeout ID synchronously BEFORE scheduling to prevent race condition
+    // This ensures unsubscribe() can always clear the timeout
+    const timeoutId = setTimeout(() => {
+      // Re-check existence before retry to prevent calling retry on deleted subscription
+      const currentState = get()
+      const currentSubscription = currentState.subscriptions.get(key)
+      if (!currentSubscription) {
+        log.debug('AnalysisSubscriptionStore', 'Skipping retry - subscription was deleted', {
+          key,
+        })
+        return
+      }
+      void get().retry(key)
+    }, delay)
+
+    // Store timeout ID synchronously (no async gap)
     current.retryTimeoutId = timeoutId
   })
 }

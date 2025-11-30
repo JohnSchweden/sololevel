@@ -1,4 +1,5 @@
 import type { UploadProgress, UploadStatus } from '@api/src/validation/cameraRecordingSchemas'
+import { log } from '@my/logging'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
@@ -100,6 +101,17 @@ const createEmptyQueue = (): UploadQueue => ({
   completed: [],
   failed: [],
 })
+
+/**
+ * Valid state transitions for upload status machine
+ * Prevents invalid transitions like completed → uploading or failed → completed
+ */
+const VALID_TRANSITIONS: Record<UploadStatus, UploadStatus[]> = {
+  pending: ['uploading', 'failed'],
+  uploading: ['completed', 'failed'],
+  completed: [], // Terminal state - no transitions allowed
+  failed: ['pending'], // Retry only - can move back to pending
+}
 
 export const useUploadProgressStore = create<UploadProgressStore>()(
   subscribeWithSelector(
@@ -221,7 +233,23 @@ export const useUploadProgressStore = create<UploadProgressStore>()(
         }),
 
       // Set upload status
-      setUploadStatus: (taskId, status, error) =>
+      setUploadStatus: (taskId, status, error) => {
+        const task = get().activeUploads.get(taskId)
+        if (!task) return
+
+        // Validate state transition
+        const currentStatus = task.status
+        const allowedTransitions = VALID_TRANSITIONS[currentStatus]
+        if (!allowedTransitions.includes(status)) {
+          log.error('useUploadProgressStore', 'Invalid upload status transition', {
+            taskId,
+            from: currentStatus,
+            to: status,
+            allowedTransitions,
+          })
+          return
+        }
+
         set((draft) => {
           const task = draft.activeUploads.get(taskId)
           if (!task) return
@@ -257,7 +285,8 @@ export const useUploadProgressStore = create<UploadProgressStore>()(
 
           // Update uploading state
           draft.isUploading = draft.activeUploads.size > 0 || draft.queue.pending.length > 0
-        }),
+        })
+      },
 
       // Retry upload
       retryUpload: (taskId) =>

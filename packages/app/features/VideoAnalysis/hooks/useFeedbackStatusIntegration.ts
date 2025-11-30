@@ -203,7 +203,8 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       return undefined
     }
 
-    // CRITICAL: Guard against concurrent subscription attempts
+    // PRIMARY GUARD: Check in-flight flag first (state-based, most reliable)
+    // This prevents duplicate subscriptions even if network is slow (>100ms)
     if (isSubscribingRef.current) {
       log.debug(
         'useFeedbackStatusIntegration',
@@ -212,7 +213,8 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       return undefined
     }
 
-    // Debounce: prevent subscription attempts more frequent than 100ms
+    // SECONDARY GUARD: Debounce check (time-based, prevents rapid-fire attempts)
+    // Only reaches here if no subscription is in-flight
     const now = Date.now()
     if (now - lastSubscriptionAttemptRef.current < 100) {
       log.debug(

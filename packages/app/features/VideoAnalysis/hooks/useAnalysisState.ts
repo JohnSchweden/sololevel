@@ -4,13 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
 import { useAnalysisSubscriptionStore } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import { useUploadProgressStore } from '@app/features/VideoAnalysis/stores/uploadProgress'
-import { analysisKeys } from '@app/hooks/analysisKeys'
 import type { AnalysisJob } from '@app/hooks/useAnalysis'
 import { useAnalysisJobBatched } from '@app/hooks/useAnalysis'
 import { useUploadProgress } from '@app/hooks/useVideoUpload'
 import { mockFeedbackItems } from '@app/mocks/feedback'
 import { useFeatureFlagsStore } from '@app/stores/feature-flags'
-import { safeSetQueryData } from '@app/utils/safeCacheUpdate'
 import { getAnalysisIdForJobId, supabase } from '@my/api'
 import { log } from '@my/logging'
 
@@ -263,13 +261,11 @@ export function useAnalysisState(
   const derivedRecordingId = useMemo(() => {
     // If videoRecordingId is provided as prop, always use it (stable)
     if (videoRecordingId) {
-      recordingIdRef.current = videoRecordingId
       return videoRecordingId
     }
 
-    // If we have a recordingId from upload task, use it and store in ref
+    // If we have a recordingId from upload task, use it
     if (typeof latestUploadTask?.videoRecordingId === 'number') {
-      recordingIdRef.current = latestUploadTask.videoRecordingId
       return latestUploadTask.videoRecordingId
     }
 
@@ -281,6 +277,15 @@ export function useAnalysisState(
 
     return null
   }, [videoRecordingId, latestUploadTask])
+
+  // FIX: Move ref updates to effect to avoid side effects during render
+  // React 19 concurrent features can render multiple times before commit
+  // Writing to refs during render causes inconsistent state between concurrent renders
+  useEffect(() => {
+    if (derivedRecordingId !== null) {
+      recordingIdRef.current = derivedRecordingId
+    }
+  }, [derivedRecordingId])
 
   const uploadProgressRecordId = derivedRecordingId ?? latestUploadTask?.videoRecordingId ?? null
   const uploadQuery = useUploadProgress(uploadProgressRecordId ?? 0)
@@ -383,33 +388,19 @@ export function useAnalysisState(
   const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
 
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
-    // Try to get UUID from cache synchronously (check multiple cache layers)
+    // FIX: Use Zustand store only - single source of truth for UUID caching
+    // UUIDs don't change, so Zustand with persistence is the right choice
     const effectiveJobId = analysisJobId ?? null
     if (effectiveJobId) {
-      // Check TanStack Query cache first (in-memory, fastest)
-      let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
-      // Fallback to persisted store (survives app restarts)
+      // Check persisted store only (survives app restarts)
       // Note: Store may not be hydrated yet, so getUuid() may return null
       // This is fine - useEffect will re-check after hydration completes
-      if (!cachedUuid) {
-        cachedUuid = getUuid(effectiveJobId) ?? undefined
-        if (cachedUuid) {
-          // Restore to TanStack Query cache for faster subsequent lookups
-          safeSetQueryData(
-            queryClient,
-            analysisKeys.uuid(effectiveJobId),
-            cachedUuid,
-            'useAnalysisState.initial'
-          )
-        }
-      }
+      const cachedUuid = getUuid(effectiveJobId)
       if (cachedUuid) {
-        log.debug('useAnalysisState', 'Using cached UUID', {
+        log.debug('useAnalysisState', 'Using cached UUID from Zustand', {
           analysisJobId: effectiveJobId,
           uuid: cachedUuid,
-          source: queryClient.getQueryData(analysisKeys.uuid(effectiveJobId))
-            ? 'tanstack'
-            : 'persisted',
+          source: 'persisted',
         })
         return cachedUuid
       }
@@ -424,29 +415,15 @@ export function useAnalysisState(
       return
     }
 
-    // Check multiple cache layers (fastest first)
-    let cachedUuid = queryClient.getQueryData<string>(analysisKeys.uuid(effectiveJobId))
-    if (!cachedUuid) {
-      // Re-check persisted store (may have hydrated since last check)
-      cachedUuid = getUuid(effectiveJobId) ?? undefined
-      if (cachedUuid) {
-        // Restore to TanStack Query cache for faster subsequent lookups
-        safeSetQueryData(
-          queryClient,
-          analysisKeys.uuid(effectiveJobId),
-          cachedUuid,
-          'useAnalysisState.effect'
-        )
-      }
-    }
+    // FIX: Check Zustand store only - single source of truth
+    // Re-check persisted store (may have hydrated since last check)
+    const cachedUuid = getUuid(effectiveJobId)
     if (cachedUuid) {
       if (analysisUuid !== cachedUuid) {
         log.debug('useAnalysisState', 'Using cached UUID from effect', {
           analysisJobId: effectiveJobId,
           uuid: cachedUuid,
-          source: queryClient.getQueryData(analysisKeys.uuid(effectiveJobId))
-            ? 'tanstack'
-            : 'persisted',
+          source: 'persisted',
           wasHydrated: isHydrated,
         })
         setAnalysisUuid(cachedUuid)
@@ -463,13 +440,7 @@ export function useAnalysisState(
         })
 
         if (!abortController.signal.aborted && uuid) {
-          // Cache UUID in both TanStack Query (fast) and persisted store (survives restarts)
-          safeSetQueryData(
-            queryClient,
-            analysisKeys.uuid(effectiveJobId),
-            uuid,
-            'useAnalysisState.resolveUuid'
-          )
+          // FIX: Cache UUID in Zustand store only - single source of truth
           setUuid(effectiveJobId, uuid)
           setAnalysisUuid(uuid)
         } else if (!abortController.signal.aborted) {
