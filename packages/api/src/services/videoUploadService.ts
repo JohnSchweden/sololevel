@@ -185,8 +185,12 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
       throw new Error('File is empty')
     }
 
-    if (durationSeconds > 60) {
-      throw new Error('Video duration cannot exceed 60 seconds')
+    const maxDurationSeconds = Number.parseInt(
+      process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
+      10
+    )
+    if (durationSeconds > maxDurationSeconds) {
+      throw new Error(`Video duration cannot exceed ${maxDurationSeconds} seconds`)
     }
 
     // Get authenticated user

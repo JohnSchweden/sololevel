@@ -1,3 +1,4 @@
+import { MAX_RECORDING_DURATION_SECONDS } from '@app/features/CameraRecording/config/recordingConfig'
 import { shadows } from '@my/config'
 import { log } from '@my/logging'
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
@@ -42,7 +43,7 @@ export function IdleControls({
   onCameraSwap,
   disabled = false,
   cameraSwapDisabled = false,
-  maxDurationSeconds = 60,
+  maxDurationSeconds = MAX_RECORDING_DURATION_SECONDS,
   maxFileSizeBytes = 100 * 1024 * 1024, // 100MB
   showUploadProgress = false,
   uploadProgress = 0,
@@ -55,6 +56,7 @@ export function IdleControls({
 }: IdleControlsProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false)
 
+  // Timing refs for performance tracking
   const handleUploadVideo = useCallback(() => {
     if (onVideoSelected) {
       // Use integrated video picker
@@ -91,7 +93,7 @@ export function IdleControls({
       <XStack
         alignItems="center"
         justifyContent="center"
-        gap="$6"
+        gap="$8"
         paddingHorizontal="$3"
       >
         {/* Upload Video Button */}
@@ -110,23 +112,33 @@ export function IdleControls({
         />
 
         {/* Primary Record Button */}
-        <GlassButton
-          onPress={onStartRecording}
-          disabled={disabled}
-          testID={recordButtonTestID}
-          minWidth={70}
-          minHeight={70}
-          borderWidth={2}
-          borderColor="rgba(255,255,255,0.65)"
-          accessibilityLabel="Start recording"
-          accessibilityHint="Press to start recording a new video"
+        <YStack
+          width={72}
+          height={72}
+          alignItems="center"
+          justifyContent="center"
+          overflow="hidden"
         >
-          <Circle
-            size={48}
-            backgroundColor="$orange10"
-            opacity={disabled ? 0.5 : 1.0}
-          />
-        </GlassButton>
+          <GlassButton
+            onPress={onStartRecording}
+            disabled={disabled}
+            testID={recordButtonTestID}
+            width={72}
+            minWidth={72}
+            minHeight={72}
+            borderRadius={36}
+            borderWidth={2}
+            borderColor="rgba(255, 255, 255, 0.65)"
+            accessibilityLabel="Start recording"
+            accessibilityHint="Press to start recording a new video"
+          >
+            <Circle
+              size={56}
+              backgroundColor="$orange10"
+              opacity={disabled ? 0.5 : 1.0}
+            />
+          </GlassButton>
+        </YStack>
 
         {/* Camera Swap Button */}
         <YStack

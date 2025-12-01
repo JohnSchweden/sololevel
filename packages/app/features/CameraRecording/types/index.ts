@@ -1,5 +1,6 @@
-// Camera Recording Types
 import { z } from 'zod'
+// Camera Recording Types
+import { MAX_RECORDING_DURATION_MS } from '../config/recordingConfig'
 
 // Permission Status Types
 export enum CameraPermissionStatus {
@@ -104,7 +105,6 @@ export interface RecordingControlsProps {
   onUpload?: () => void
   onCameraSwap?: () => void
   onZoomChange?: (level: 1 | 2 | 3) => void
-  onSettingsOpen?: () => void
 }
 
 // CameraHeaderProps removed - now using AppHeaderProps from @my/ui/components/AppHeader
@@ -130,7 +130,7 @@ export const cameraSettingsSchema = z.object({
 export const recordingSessionSchema = z.object({
   id: z.string(),
   startTime: z.string().datetime(),
-  duration: z.number().min(0).max(60000), // Max 60 seconds in milliseconds
+  duration: z.number().min(0).max(MAX_RECORDING_DURATION_MS),
   state: recordingStateSchema,
   filePath: z.string().optional(),
 })

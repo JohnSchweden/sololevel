@@ -1,8 +1,15 @@
+import { log } from '@my/logging'
+
 /**
  * Video File Validation Utilities
  * Handles format, duration, and size validation for video uploads
  * Cross-platform compatible for web and native
  */
+
+const MAX_DURATION_SECONDS = Number.parseInt(
+  process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
+  10
+)
 
 export interface VideoValidationResult {
   isValid: boolean
@@ -30,7 +37,7 @@ export interface VideoValidationOptions {
 }
 
 const DEFAULT_OPTIONS: Required<VideoValidationOptions> = {
-  maxDurationSeconds: 60,
+  maxDurationSeconds: MAX_DURATION_SECONDS,
   maxFileSizeBytes: 100 * 1024 * 1024, // 100MB
   allowedFormats: ['video/mp4', 'video/quicktime', 'video/mov'],
   requireAudio: false,
@@ -44,7 +51,8 @@ const DEFAULT_OPTIONS: Required<VideoValidationOptions> = {
  */
 export async function validateVideoFile(
   file: File,
-  options: VideoValidationOptions = {}
+  options: VideoValidationOptions = {},
+  metadataOverride?: Partial<VideoValidationResult['metadata']>
 ): Promise<VideoValidationResult> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
   const errors: string[] = []
@@ -70,26 +78,47 @@ export async function validateVideoFile(
     errors.push('File is empty')
   }
 
-  // Get video metadata
-  let metadata: VideoValidationResult['metadata']
+  // Get video metadata - use override if provided (faster, from native picker)
+  let metadata: VideoValidationResult['metadata'] | undefined
   try {
-    metadata = await getVideoMetadata(file)
+    if (metadataOverride?.duration && metadataOverride.duration > 0) {
+      // Use duration from native picker (much faster than estimation)
+      metadata = {
+        duration: metadataOverride.duration,
+        width: metadataOverride.width,
+        height: metadataOverride.height,
+        format: file.type,
+        size: file.size,
+      }
+    } else if (metadataOverride) {
+      // Use override even if duration is 0 (for empty file tests)
+      metadata = {
+        duration: metadataOverride.duration ?? 0,
+        width: metadataOverride.width,
+        height: metadataOverride.height,
+        format: metadataOverride.format ?? file.type,
+        size: metadataOverride.size ?? file.size,
+      }
+    } else {
+      // Fall back to metadata extraction
+      metadata = await getVideoMetadata(file)
+    }
 
-    // Duration validation
-    if (metadata.duration > opts.maxDurationSeconds) {
+    // Duration validation (only if metadata was successfully retrieved)
+    if (metadata && metadata.duration > opts.maxDurationSeconds) {
       errors.push(`Video too long. Maximum duration: ${opts.maxDurationSeconds} seconds`)
     }
 
-    if (metadata.duration < opts.minDurationSeconds) {
+    if (metadata && metadata.duration < opts.minDurationSeconds) {
       errors.push(`Video too short. Minimum duration: ${opts.minDurationSeconds} seconds`)
     }
 
-    if (metadata.duration === 0) {
+    if (metadata && metadata.duration === 0) {
       errors.push('Video has no duration')
     }
 
     // Resolution validation
-    if (metadata.width && metadata.height) {
+    if (metadata && metadata.width && metadata.height) {
       const { width, height } = metadata
 
       // Minimum resolution check
@@ -120,18 +149,23 @@ export async function validateVideoFile(
     }
 
     // File size vs duration warnings
-    const bitrate = (file.size * 8) / metadata.duration // bits per second
-    if (bitrate < 500000) {
-      warnings.push('Video quality appears to be very low. Consider using higher bitrate.')
-    } else if (bitrate > 10000000) {
-      warnings.push('Video bitrate is very high. File size may be unnecessarily large.')
+    if (metadata && metadata.duration > 0) {
+      const bitrate = (file.size * 8) / metadata.duration // bits per second
+      if (bitrate < 500000) {
+        warnings.push('Video quality appears to be very low. Consider using higher bitrate.')
+      } else if (bitrate > 10000000) {
+        warnings.push('Video bitrate is very high. File size may be unnecessarily large.')
+      }
     }
 
     // Format-specific warnings
     if (file.type === 'video/quicktime' || file.type === 'video/mov') {
       warnings.push('MOV format detected. MP4 recommended for better compatibility.')
     }
-  } catch (_error) {
+  } catch (error) {
+    log.error('videoValidation', 'validateVideoFile: Error during validation', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     errors.push('Unable to read video metadata. File may be corrupted or unsupported format.')
   }
 
@@ -166,8 +200,15 @@ function getVideoMetadata(file: File): Promise<{
       video.preload = 'metadata'
       video.muted = true // Prevent audio playback
 
-      video.onloadedmetadata = () => {
+      // Timeout after 10 seconds
+      const timeoutId = setTimeout(() => {
+        log.error('videoValidation', 'getVideoMetadata: Timeout after 10s')
         URL.revokeObjectURL(url)
+        reject(new Error('Timeout loading video metadata'))
+      }, 10000)
+
+      video.onloadedmetadata = () => {
+        clearTimeout(timeoutId)
         const bitrate = file.size > 0 ? (file.size * 8) / video.duration : 0
         resolve({
           duration: video.duration,
@@ -180,25 +221,22 @@ function getVideoMetadata(file: File): Promise<{
         })
       }
 
-      video.onerror = () => {
+      video.onerror = (error) => {
+        clearTimeout(timeoutId)
+        log.error('videoValidation', 'getVideoMetadata: Video element error', {
+          error,
+        })
         URL.revokeObjectURL(url)
         reject(new Error('Failed to load video metadata'))
       }
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        URL.revokeObjectURL(url)
-        reject(new Error('Timeout loading video metadata'))
-      }, 10000)
 
       video.src = url
     } else {
       // Native platform - for now use estimation, but log the issue
       // TODO: Implement proper native video metadata extraction
-
       // More conservative bitrate estimation for mobile videos
       const estimatedBitrate = 4000000 // 4Mbps (higher quality mobile videos)
-      const estimatedDuration = file.size / (estimatedBitrate / 8)
+      const estimatedDuration = file.size / estimatedBitrate // Rough estimate
 
       resolve({
         duration: estimatedDuration,

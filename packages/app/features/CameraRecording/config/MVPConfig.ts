@@ -5,6 +5,7 @@
  */
 
 import type { MVPPoseDetectionConfig } from '../types/MVPpose'
+import { MAX_RECORDING_DURATION_SECONDS } from './recordingConfig'
 
 /**
  * MVP Application Mode
@@ -81,7 +82,7 @@ export const DEFAULT_MVP_CONFIG: MVPConfig = {
     defaultZoomLevel: 1,
     enableFlash: false,
     enableGrid: false,
-    maxRecordingDuration: 60, // 60 seconds
+    maxRecordingDuration: MAX_RECORDING_DURATION_SECONDS,
     qualityPreset: 'medium',
     enablePoseDetection: false,
     poseConfig: {

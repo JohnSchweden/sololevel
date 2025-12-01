@@ -1,3 +1,8 @@
+// Camera Recording Validation Schemas
+const MAX_DURATION_SECONDS = Number.parseInt(
+  process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
+  10
+)
 import { z } from 'zod'
 
 // Video format validation
@@ -16,7 +21,7 @@ export const VideoRecordingSchema = z.object({
   filename: z.string().min(1).max(255),
   original_filename: z.string().min(1).max(255).nullable(),
   file_size: z.number().int().positive(),
-  duration_seconds: z.number().min(1).max(60),
+  duration_seconds: z.number().min(1).max(MAX_DURATION_SECONDS),
   format: VideoFormatSchema,
   storage_path: z.string().min(1),
   upload_status: UploadStatusSchema,
@@ -159,7 +164,7 @@ export const UploadProgressSchema = z.object({
 export const VideoUploadOptionsSchema = z.object({
   file: z.instanceof(File).or(z.instanceof(Blob)),
   originalFilename: z.string().min(1).max(255).optional(),
-  durationSeconds: z.number().int().min(1).max(60),
+  durationSeconds: z.number().int().min(1).max(MAX_DURATION_SECONDS),
   format: VideoFormatSchema,
   onProgress: z.function().optional(),
   onError: z.function().optional(),

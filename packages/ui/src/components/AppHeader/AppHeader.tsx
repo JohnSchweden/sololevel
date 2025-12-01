@@ -1,6 +1,6 @@
 import MaskedView from '@react-native-masked-view/masked-view'
 import { LinearGradient } from '@tamagui/linear-gradient'
-import { Bell, ChevronLeft, Menu, MoreHorizontal, User } from '@tamagui/lucide-icons'
+import { Bell, ChevronLeft, Menu, MoreHorizontal, Settings, User } from '@tamagui/lucide-icons'
 import { type ComponentProps, useMemo, useState } from 'react'
 import { Platform } from 'react-native'
 import { BlurView } from '../BlurView/BlurView'
@@ -9,6 +9,7 @@ import { BlurView } from '../BlurView/BlurView'
 const IS_IOS = Platform.OS === 'ios'
 
 import { NotificationSheet } from '@ui/components/BottomSheets'
+import { RecordingSettingsSheet } from '@ui/components/BottomSheets'
 import { VideoSettingsSheet } from '@ui/components/BottomSheets'
 import { Image } from 'expo-image'
 import { Circle, Text, Theme, XStack, YStack } from 'tamagui'
@@ -47,6 +48,8 @@ export function AppHeader({
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false)
   // Video settings sheet state
   const [videoSettingsSheetOpen, setVideoSettingsSheetOpen] = useState(false)
+  // Recording settings sheet state
+  const [recordingSettingsSheetOpen, setRecordingSettingsSheetOpen] = useState(false)
 
   // Derive state from mode - memoize to prevent recalculation on every render
   const isRecording = useMemo(
@@ -90,12 +93,17 @@ export function AppHeader({
       return 'menu'
     }
 
+    // Show recording settings icon only in recording mode
+    if (isRecording) {
+      return 'recordingSettings'
+    }
+
     if (mode !== 'recording' && mode !== 'camera') {
       return 'notifications'
     }
 
     return 'none'
-  }, [rightAction, rightSlot, isVideoSettings, isAnalysis, mode])
+  }, [rightAction, rightSlot, isVideoSettings, isAnalysis, isRecording, mode])
 
   type IconColor = ComponentProps<typeof Bell>['color']
   type TextColor = ComponentProps<typeof Text>['color']
@@ -271,6 +279,31 @@ export function AppHeader({
             accessibilityLabel="Open video settings menu"
             icon={
               <MoreHorizontal
+                size="$1.5"
+                color={iconColor}
+              />
+            }
+          />
+        )
+
+      case 'recordingSettings':
+        return (
+          <Button
+            chromeless
+            minWidth={44}
+            minHeight={44}
+            borderRadius="$10"
+            backgroundColor="transparent"
+            borderWidth={0}
+            hoverStyle={buttonHoverStyle}
+            pressStyle={buttonPressStyle}
+            focusStyle={buttonFocusStyle}
+            onPress={() => setRecordingSettingsSheetOpen(true)}
+            cursor="pointer"
+            accessibilityRole="button"
+            accessibilityLabel="Camera settings"
+            icon={
+              <Settings
                 size="$1.5"
                 color={iconColor}
               />
@@ -590,6 +623,11 @@ export function AppHeader({
       <VideoSettingsSheet
         open={videoSettingsSheetOpen}
         onOpenChange={setVideoSettingsSheetOpen}
+      />
+
+      <RecordingSettingsSheet
+        open={recordingSettingsSheetOpen}
+        onOpenChange={setRecordingSettingsSheetOpen}
       />
     </>
   )

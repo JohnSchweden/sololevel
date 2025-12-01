@@ -1,6 +1,8 @@
+import { MAX_RECORDING_DURATION_SECONDS } from '@app/features/CameraRecording/config/recordingConfig'
 import { log } from '@my/logging'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { validateVideoFile } from '../../utils/videoValidation'
+import { ConfirmationDialog } from '../CameraRecording/CameraControls/NavigationDialog'
 import type { VideoFilePickerProps } from './types'
 
 /**
@@ -16,11 +18,14 @@ export function VideoFilePicker({
   isOpen,
   onVideoSelected,
   onCancel,
-  maxDurationSeconds = 60,
+  maxDurationSeconds = MAX_RECORDING_DURATION_SECONDS,
   maxFileSizeBytes = 100 * 1024 * 1024, // 100MB
   showUploadProgress = false,
   disabled = false,
 }: VideoFilePickerProps) {
+  const [showDurationErrorDialog, setShowDurationErrorDialog] = useState(false)
+  const [durationError, setDurationError] = useState<string>('')
+
   // Native file selection using HTML5 File API
   const triggerFilePicker = useCallback(async () => {
     if (disabled || showUploadProgress) return
@@ -59,16 +64,21 @@ export function VideoFilePicker({
 
           if (!validation.isValid) {
             log.error('VideoFilePicker', 'Video validation failed', { errors: validation.errors })
+
+            // Check if error is due to duration exceeding limit
+            const durationError = validation.errors.find(
+              (error) => error.includes('too long') || error.includes('duration')
+            )
+
+            if (durationError && validation.metadata?.duration) {
+              const errorMessage = `The selected video is ${Math.ceil(validation.metadata.duration)} seconds long. Maximum allowed duration is ${maxDurationSeconds} seconds.`
+              setDurationError(errorMessage)
+              setShowDurationErrorDialog(true)
+            }
+
             resolve()
             return
           }
-
-          log.info('VideoFilePicker', 'Video selected (native)', {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            duration: validation.metadata?.duration,
-          })
 
           onVideoSelected(file, validation.metadata)
           resolve()
@@ -106,5 +116,27 @@ export function VideoFilePicker({
   }, [isOpen, disabled, showUploadProgress, triggerFilePicker])
 
   // This component renders nothing - just triggers native file picker
-  return null
+  return (
+    <>
+      <ConfirmationDialog
+        open={showDurationErrorDialog}
+        onOpenChange={(open) => {
+          setShowDurationErrorDialog(open)
+        }}
+        onConfirm={() => {
+          setShowDurationErrorDialog(false)
+        }}
+        onCancel={() => {
+          setShowDurationErrorDialog(false)
+        }}
+        title="Video Too Long"
+        message={
+          durationError || `The maximum allowed video duration is ${maxDurationSeconds} seconds.`
+        }
+        confirmLabel="OK"
+        cancelLabel=""
+        variant="error"
+      />
+    </>
+  )
 }

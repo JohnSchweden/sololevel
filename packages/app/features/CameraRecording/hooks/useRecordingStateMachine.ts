@@ -1,5 +1,6 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { MAX_RECORDING_DURATION_SECONDS } from '../config/recordingConfig'
 import { RecordingState } from '../types'
 
 // Platform-agnostic alert function
@@ -67,8 +68,8 @@ interface RecordingStateMachineResult {
 
 /**
  * Recording State Machine Hook
- * Manages recording state transitions with 60s timer enforcement
- * Implements US-RU-01: Record video up to 60 seconds with hard limit
+ * Manages recording state transitions with configurable timer enforcement
+ * Implements US-RU-01: Record video up to MAX_RECORDING_DURATION_SECONDS with hard limit
  */
 export function useRecordingStateMachine(
   config: RecordingStateMachineConfig
@@ -88,6 +89,7 @@ export function useRecordingStateMachine(
   const [pausedDuration, setPausedDuration] = useState(0)
 
   const timerRef = useRef<NodeJS.Timeout | number | null>(null)
+  const stopRecordingRef = useRef<(() => Promise<void>) | null>(null)
 
   // Use ref for duration to prevent callback recreation during recording
   // Callbacks only need to read current duration, not recreate when it changes
@@ -112,16 +114,16 @@ export function useRecordingStateMachine(
         const elapsed = currentTime - startTime + pausedDuration
 
         if (elapsed >= maxDurationMs) {
-          // Hit maximum duration - automatically stop
-          setDuration(maxDurationMs)
-          setRecordingState(RecordingState.STOPPED)
-          onMaxDurationReached?.()
-          onStateChange?.(RecordingState.STOPPED, maxDurationMs)
-          // Clear timer
+          // Hit maximum duration - automatically stop recording and start analysis
+          // Clear timer first to prevent multiple calls
           if (timerRef.current) {
             clearInterval(timerRef.current)
             timerRef.current = null
           }
+
+          // Call stopRecording to stop the camera and trigger video processing
+          // This will call handleVideoRecorded which starts the analysis pipeline
+          stopRecordingRef.current?.()
           return
         }
 
@@ -144,7 +146,7 @@ export function useRecordingStateMachine(
         timerRef.current = null
       }
     }
-  }, [recordingState, startTime, maxDurationMs, onMaxDurationReached, onStateChange])
+  }, [recordingState, startTime, pausedDuration, maxDurationMs])
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -159,20 +161,31 @@ export function useRecordingStateMachine(
       return
     }
 
-    try {
-      const now = Date.now()
-      setStartTime(now)
-      setDuration(0)
-      setPausedDuration(0)
-      setRecordingState(RecordingState.RECORDING)
+    const now = Date.now()
+    setStartTime(now)
+    setDuration(0)
+    setPausedDuration(0)
+    setRecordingState(RecordingState.RECORDING)
 
-      // Start camera recording
-      await cameraControls.startRecording()
+    // PERF FIX: Call onStateChange IMMEDIATELY after setting state
+    // This triggers UI update before camera initialization (~1.4s)
+    onStateChange?.(RecordingState.RECORDING, 0)
 
-      onStateChange?.(RecordingState.RECORDING, 0)
-    } catch (error) {
-      onError?.(error instanceof Error ? error.message : 'Failed to start recording')
-    }
+    // PERF FIX: Start camera in background - don't block React's state flush
+    // Using setTimeout(0) allows React to commit state updates before camera init
+    setTimeout(async () => {
+      try {
+        await cameraControls.startRecording()
+      } catch (error) {
+        // Camera failed to start - reset state
+        log.error('useRecordingStateMachine', 'Camera failed to start', { error })
+        setRecordingState(RecordingState.IDLE)
+        // FIX: Notify header of state reset to prevent UI inconsistency
+        // Header was notified of RECORDING at line 172, must be notified of IDLE reset
+        onStateChange?.(RecordingState.IDLE, 0)
+        onError?.(error instanceof Error ? error.message : 'Failed to start recording')
+      }
+    }, 0)
   }, [recordingState, cameraControls, onStateChange, onError])
 
   // Pause recording
@@ -231,8 +244,10 @@ export function useRecordingStateMachine(
 
       setRecordingState(RecordingState.STOPPED)
       log.info('useRecordingStateMachine', 'Calling onStateChange with STOPPED', {
-        duration: finalDuration,
+        durationMs: finalDuration,
+        durationSeconds: (finalDuration / 1000).toFixed(2),
       })
+      onMaxDurationReached?.()
       onStateChange?.(RecordingState.STOPPED, finalDuration)
 
       if (timerRef.current) {
@@ -249,8 +264,14 @@ export function useRecordingStateMachine(
     pausedDuration,
     maxDurationMs,
     onStateChange,
+    onMaxDurationReached,
     onError,
   ])
+
+  // Store stopRecording in ref so it can be called from timer
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording
+  }, [stopRecording])
 
   const resumeRecording = useCallback(async () => {
     if (recordingState !== RecordingState.PAUSED) {
@@ -262,7 +283,7 @@ export function useRecordingStateMachine(
     if (durationRef.current >= maxDurationMs) {
       showAlert(
         'Maximum Duration Reached',
-        'This recording has reached the 60-second limit and cannot be resumed.'
+        `This recording has reached the ${MAX_RECORDING_DURATION_SECONDS}-second limit and cannot be resumed.`
       )
       return
     }

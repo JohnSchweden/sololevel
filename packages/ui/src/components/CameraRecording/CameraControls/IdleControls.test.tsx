@@ -50,7 +50,7 @@ describe('Idle Controls Component', () => {
     onCameraSwap: jest.fn(),
     disabled: false,
     cameraSwapDisabled: false,
-    maxDurationSeconds: 60,
+    maxDurationSeconds: 30,
     maxFileSizeBytes: 100 * 1024 * 1024,
   }
 

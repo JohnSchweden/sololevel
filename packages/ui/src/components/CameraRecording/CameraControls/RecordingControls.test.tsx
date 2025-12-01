@@ -45,7 +45,6 @@ describe('Recording Controls Component', () => {
     onStop: jest.fn(),
     onCameraSwap: jest.fn(),
     onZoomChange: jest.fn(),
-    onSettingsOpen: jest.fn(),
   }
 
   beforeEach(() => {
@@ -78,19 +77,9 @@ describe('Recording Controls Component', () => {
       expect(resumeButton).toBeTruthy()
     })
 
-    it('renders zoom controls when zoom level > 1', () => {
-      const zoomedProps = { ...mockProps, zoomLevel: 2 as const }
-
-      render(
-        <TestProvider>
-          <RecordingControls {...zoomedProps} />
-        </TestProvider>
-      )
-
-      // Should render zoom indicator
-      const zoomIndicator = screen.getByText('2x')
-      expect(zoomIndicator).toBeTruthy()
-    })
+    // Note: RecordingControls doesn't render zoom controls directly
+    // Use RecordingControlsWithZoom component for zoom functionality
+    // This test removed - zoom controls are in RecordingControlsWithZoom component
 
     it('renders camera swap button when enabled', () => {
       render(
@@ -101,17 +90,6 @@ describe('Recording Controls Component', () => {
 
       const cameraButton = screen.getByLabelText('Switch camera')
       expect(cameraButton).toBeTruthy()
-    })
-
-    it('renders settings button', () => {
-      render(
-        <TestProvider>
-          <RecordingControls {...mockProps} />
-        </TestProvider>
-      )
-
-      const settingsButton = screen.getByLabelText('Camera settings')
-      expect(settingsButton).toBeTruthy()
     })
   })
 
@@ -169,19 +147,6 @@ describe('Recording Controls Component', () => {
       fireEvent.click(cameraButton)
 
       expect(mockProps.onCameraSwap).toHaveBeenCalled()
-    })
-
-    it('handles settings button press', () => {
-      render(
-        <TestProvider>
-          <RecordingControls {...mockProps} />
-        </TestProvider>
-      )
-
-      const settingsButton = screen.getByLabelText('Camera settings')
-      fireEvent.click(settingsButton)
-
-      expect(mockProps.onSettingsOpen).toHaveBeenCalled()
     })
 
     it('handles zoom change', () => {
@@ -253,11 +218,9 @@ describe('Recording Controls Component', () => {
 
       // Verify buttons exist by their accessibility labels
       const stopButton = screen.getByLabelText('Stop recording')
-      const settingsButton = screen.getByLabelText('Camera settings')
       const swapButton = screen.getByLabelText('Switch camera')
 
       expect(stopButton).toBeTruthy()
-      expect(settingsButton).toBeTruthy()
       expect(swapButton).toBeTruthy()
     })
 

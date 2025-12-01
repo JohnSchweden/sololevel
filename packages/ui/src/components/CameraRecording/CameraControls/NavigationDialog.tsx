@@ -1,5 +1,7 @@
 import { shadows } from '@my/config'
+import { log } from '@my/logging'
 import { AlertTriangle } from '@tamagui/lucide-icons'
+import { useEffect, useRef } from 'react'
 import { Dialog, XStack, YStack } from 'tamagui'
 import { Button } from 'tamagui'
 
@@ -184,6 +186,59 @@ export function ConfirmationDialog({
   cancelLabel = 'Cancel',
   variant = 'warning',
 }: ConfirmationDialogProps) {
+  const prevOpenRef = useRef(open)
+  const renderStartTimeRef = useRef<number | null>(null)
+
+  // Track when open prop changes (React render trigger)
+  useEffect(() => {
+    if (open !== prevOpenRef.current) {
+      const renderStartTime =
+        typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+      renderStartTimeRef.current = renderStartTime
+      prevOpenRef.current = open
+
+      log.debug('ConfirmationDialog', 'open prop changed, component will re-render', {
+        open,
+        title,
+        variant,
+        wasOpen: !open,
+      })
+
+      // Track when Dialog component renders (moved from render phase to useEffect)
+      if (open) {
+        const dialogRenderStartTime =
+          typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+        log.debug('ConfirmationDialog', 'Dialog component rendering (JSX return)', {
+          open,
+          timeSincePropChange: renderStartTimeRef.current
+            ? dialogRenderStartTime - renderStartTimeRef.current
+            : null,
+        })
+      }
+    }
+  }, [open, title, variant])
+
+  // Log when dialog actually renders/mounts (after React commits)
+  useEffect(() => {
+    if (open) {
+      const renderTime =
+        typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+      const timeSinceRenderStart = renderStartTimeRef.current
+        ? renderTime - renderStartTimeRef.current
+        : null
+
+      log.debug('ConfirmationDialog', 'Dialog rendered/mounted (after React commit)', {
+        timeSinceRenderStart,
+        open,
+        title,
+        variant,
+        messageLength: message?.length || 0,
+      })
+    } else {
+      log.debug('ConfirmationDialog', 'Dialog closed/unmounted')
+    }
+  }, [open, title, variant, message])
+
   const getVariantConfig = () => {
     switch (variant) {
       case 'error':
@@ -234,7 +289,13 @@ export function ConfirmationDialog({
     <Dialog
       modal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(newOpen) => {
+        log.debug('ConfirmationDialog', 'Dialog onOpenChange called', {
+          newOpen,
+          wasOpen: open,
+        })
+        onOpenChange(newOpen)
+      }}
     >
       <Dialog.Portal>
         <Dialog.Overlay
@@ -242,6 +303,19 @@ export function ConfirmationDialog({
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
+          onLayout={() => {
+            if (open) {
+              const layoutTime =
+                typeof performance !== 'undefined' && performance.now
+                  ? performance.now()
+                  : Date.now()
+              log.debug('ConfirmationDialog', 'Dialog.Overlay onLayout (mounted to DOM)', {
+                timeSinceRenderStart: renderStartTimeRef.current
+                  ? layoutTime - renderStartTimeRef.current
+                  : null,
+              })
+            }
+          }}
         />
 
         <Dialog.Content
@@ -254,6 +328,19 @@ export function ConfirmationDialog({
           maxWidth={400}
           backgroundColor="$background"
           borderRadius="$4"
+          onLayout={() => {
+            if (open) {
+              const layoutTime =
+                typeof performance !== 'undefined' && performance.now
+                  ? performance.now()
+                  : Date.now()
+              log.debug('ConfirmationDialog', 'Dialog.Content onLayout (mounted to DOM)', {
+                timeSinceRenderStart: renderStartTimeRef.current
+                  ? layoutTime - renderStartTimeRef.current
+                  : null,
+              })
+            }
+          }}
         >
           {/* Header */}
           <XStack
@@ -295,28 +382,31 @@ export function ConfirmationDialog({
             gap="$3"
             paddingTop="$2"
           >
-            <Dialog.Close
-              displayWhenAdapted
-              asChild
-            >
-              <Button
-                flex={1}
-                variant="outlined"
-                onPress={onCancel}
-                minHeight={44}
-                accessibilityRole="button"
-                accessibilityLabel={cancelLabel}
+            {cancelLabel && (
+              <Dialog.Close
+                displayWhenAdapted
+                asChild
               >
-                {cancelLabel}
-              </Button>
-            </Dialog.Close>
+                <Button
+                  flex={1}
+                  variant="outlined"
+                  onPress={onCancel}
+                  minHeight={44}
+                  accessibilityRole="button"
+                  accessibilityLabel={cancelLabel}
+                >
+                  {cancelLabel}
+                </Button>
+              </Dialog.Close>
+            )}
 
             <Dialog.Close
               displayWhenAdapted
               asChild
             >
               <Button
-                flex={1}
+                flex={cancelLabel ? 1 : undefined}
+                width={cancelLabel ? undefined : '100%'}
                 backgroundColor="$color9"
                 color="white"
                 onPress={onConfirm}

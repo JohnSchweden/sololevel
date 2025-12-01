@@ -66,6 +66,10 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
           // No-op on web
           log.debug('CameraPreview', 'resumePreview called (web - no-op)')
         },
+        resetCamera: (): void => {
+          // No-op on web - no camera session to reset
+          log.debug('CameraPreview', 'resetCamera called (web - no-op)')
+        },
       }),
       []
     )

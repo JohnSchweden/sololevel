@@ -22,7 +22,7 @@ describe('Integration Tests', () => {
   describe('Recording Workflow', () => {
     it('coordinates between recording state machine and UI controls', () => {
       const mockRecordingConfig = {
-        maxDurationMs: 60000,
+        maxDurationMs: 30000,
         onMaxDurationReached: jest.fn(),
         onStateChange: jest.fn(),
         onError: jest.fn(),
@@ -50,7 +50,6 @@ describe('Integration Tests', () => {
             onStop={recordingResult.current.stopRecording}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -76,7 +75,6 @@ describe('Integration Tests', () => {
             onStop={recordingResult.current.stopRecording}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -87,7 +85,7 @@ describe('Integration Tests', () => {
 
     it('handles complete recording session lifecycle', () => {
       const mockRecordingConfig = {
-        maxDurationMs: 60000,
+        maxDurationMs: 30000,
         onMaxDurationReached: jest.fn(),
         onStateChange: jest.fn(),
         onError: jest.fn(),
@@ -116,7 +114,7 @@ describe('Integration Tests', () => {
 
     it('integrates idle controls with recording state machine', () => {
       const mockRecordingConfig = {
-        maxDurationMs: 60000,
+        maxDurationMs: 30000,
         onMaxDurationReached: jest.fn(),
         onStateChange: jest.fn(),
         onError: jest.fn(),
@@ -167,7 +165,6 @@ describe('Integration Tests', () => {
             onStop={() => {}}
             onCameraSwap={cameraResult.current.actions.swapCamera}
             onZoomChange={cameraResult.current.actions.setZoomLevel}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -192,7 +189,6 @@ describe('Integration Tests', () => {
             onStop={() => {}}
             onCameraSwap={cameraResult.current.actions.swapCamera}
             onZoomChange={cameraResult.current.actions.setZoomLevel}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -214,7 +210,6 @@ describe('Integration Tests', () => {
             onStop={() => {}}
             onCameraSwap={cameraResult.current.actions.swapCamera}
             onZoomChange={cameraResult.current.actions.setZoomLevel}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -227,7 +222,7 @@ describe('Integration Tests', () => {
       const { result: cameraResult } = renderHook(() => useCameraControls())
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -248,7 +243,7 @@ describe('Integration Tests', () => {
   describe('Navigation Dialog Integration', () => {
     it('integrates with recording state machine for navigation warnings', () => {
       const mockRecordingConfig = {
-        maxDurationMs: 60000,
+        maxDurationMs: 30000,
         onMaxDurationReached: jest.fn(),
         onStateChange: jest.fn(),
         onError: jest.fn(),
@@ -285,7 +280,7 @@ describe('Integration Tests', () => {
 
     it('handles recording discard workflow', () => {
       const mockRecordingConfig = {
-        maxDurationMs: 60000,
+        maxDurationMs: 30000,
         onMaxDurationReached: jest.fn(),
         onStateChange: jest.fn(),
         onError: jest.fn(),
@@ -327,7 +322,7 @@ describe('Integration Tests', () => {
     it('maintains state consistency across re-renders', () => {
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -346,7 +341,6 @@ describe('Integration Tests', () => {
             onStop={recordingResult.current.stopRecording}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -370,7 +364,6 @@ describe('Integration Tests', () => {
             onStop={recordingResult.current.stopRecording}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -383,7 +376,7 @@ describe('Integration Tests', () => {
     it('handles rapid state changes gracefully', () => {
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -407,7 +400,7 @@ describe('Integration Tests', () => {
     it('handles memory cleanup on unmount', () => {
       const { result: recordingResult, unmount } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -427,7 +420,7 @@ describe('Integration Tests', () => {
     it('maintains performance with multiple components', () => {
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -457,7 +450,6 @@ describe('Integration Tests', () => {
               onStop={recordingResult.current.stopRecording}
               onCameraSwap={cameraResult.current.actions.swapCamera}
               onZoomChange={cameraResult.current.actions.setZoomLevel}
-              onSettingsOpen={jest.fn()}
             />
           </div>
         </TestProvider>
@@ -474,7 +466,7 @@ describe('Integration Tests', () => {
       const onError = jest.fn()
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError,
@@ -493,7 +485,6 @@ describe('Integration Tests', () => {
             onStop={() => {}}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )
@@ -516,7 +507,7 @@ describe('Integration Tests', () => {
     it('maintains component stability during state transitions', () => {
       const { result: recordingResult } = renderHook(() =>
         useRecordingStateMachine({
-          maxDurationMs: 60000,
+          maxDurationMs: 30000,
           onMaxDurationReached: jest.fn(),
           onStateChange: jest.fn(),
           onError: jest.fn(),
@@ -535,7 +526,6 @@ describe('Integration Tests', () => {
             onStop={recordingResult.current.stopRecording}
             onCameraSwap={() => {}}
             onZoomChange={() => {}}
-            onSettingsOpen={() => {}}
           />
         </TestProvider>
       )

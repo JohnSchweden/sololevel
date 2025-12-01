@@ -229,11 +229,12 @@ describe('useHistoryQuery', () => {
         },
       },
     })
-    // Mock may be called twice: initial query + incomplete cache refetch
+    // Use limit=1 to match the single mock item, preventing incomplete cache refetch
+    const limit = 1
     mockGetUserAnalysisJobs.mockResolvedValue([mockJob])
 
     // ACT: First render - fetches from API
-    const { result, rerender } = renderHook(() => useHistoryQuery(), {
+    const { result, rerender } = renderHook(() => useHistoryQuery(limit), {
       wrapper: createWrapper(queryClient),
     })
 
@@ -241,8 +242,7 @@ describe('useHistoryQuery', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    // Hook may call API twice on first load if cache is incomplete (1 item < 10 limit)
-    // This is expected behavior - the refetch logic ensures cache is complete
+    // Hook fetches on first load
     expect(mockGetUserAnalysisJobs).toHaveBeenCalled()
 
     // Reset mock call count
@@ -257,7 +257,7 @@ describe('useHistoryQuery', () => {
     })
 
     // ASSERT: TanStack Query returns cached data without API call
-    // No new calls should be made since data is within staleTime
+    // No new calls should be made since data is within staleTime and cache is complete
     expect(mockGetUserAnalysisJobs).not.toHaveBeenCalled()
     expect(result.current.data).toEqual([
       {

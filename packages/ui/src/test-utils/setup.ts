@@ -1,3 +1,11 @@
+// Mock TurboModuleRegistry to prevent DevMenu errors
+jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => ({
+  get: () => null,
+  getEnforcing: () => ({
+    installTurboModule: () => false,
+  }),
+}))
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -250,6 +258,7 @@ jest.mock('react-native', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
     },
+    useWindowDimensions: jest.fn(() => ({ width: 375, height: 812 })),
     StyleSheet: {
       create: jest.fn((styles) => styles),
       flatten: jest.fn((style) => style),

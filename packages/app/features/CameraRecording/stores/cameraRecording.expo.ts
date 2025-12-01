@@ -403,8 +403,12 @@ export const useRecordingTimer = () => {
       const now = Date.now()
       const duration = Math.floor((now - metrics.startTime!) / 1000)
 
-      // Stop at 60 seconds
-      if (duration >= 60) {
+      // Stop at max duration
+      const maxDurationSeconds = Number.parseInt(
+        process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
+        10
+      )
+      if (duration >= maxDurationSeconds) {
         useCameraRecordingStore.getState().stopRecording()
         return
       }
@@ -418,7 +422,11 @@ export const useRecordingTimer = () => {
   return {
     duration: metrics.duration,
     formattedDuration: formatDuration(metrics.duration),
-    remainingTime: Math.max(0, 60 - metrics.duration),
+    remainingTime: Math.max(
+      0,
+      Number.parseInt(process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30', 10) -
+        metrics.duration
+    ),
   }
 }
 

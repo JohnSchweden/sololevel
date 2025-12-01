@@ -67,7 +67,7 @@ describe('Native Media Picker Integration', () => {
       mediaTypes: 'videos',
       allowsEditing: false,
       quality: 1,
-      videoMaxDuration: 60,
+      videoMaxDuration: 30,
     })
 
     expect(result.canceled).toBe(false)
@@ -101,7 +101,7 @@ describe('Native Media Picker Integration', () => {
       mediaTypes: 'videos',
       allowsEditing: false,
       quality: 1,
-      videoMaxDuration: 60,
+      videoMaxDuration: 30,
     })
 
     expect(result.canceled).toBe(false)
@@ -142,12 +142,12 @@ describe('Native Media Picker Integration', () => {
 
     expect(validFormats).toContain(testFormat)
 
-    // Test duration validation (≤60 seconds)
+    // Test duration validation (≤30 seconds)
     const validDuration = 30 // seconds
-    const invalidDuration = 120 // seconds
+    const invalidDuration = 60 // seconds
 
-    expect(validDuration).toBeLessThanOrEqual(60)
-    expect(invalidDuration).toBeGreaterThan(60)
+    expect(validDuration).toBeLessThanOrEqual(30)
+    expect(invalidDuration).toBeGreaterThan(30)
   })
 
   it('should handle permission denials gracefully', async () => {
@@ -175,7 +175,7 @@ describe('Native Media Picker Integration', () => {
       mediaTypes: 'videos',
       allowsEditing: false,
       quality: 1,
-      videoMaxDuration: 60,
+      videoMaxDuration: 30,
     })
 
     expect(result.canceled).toBe(true)

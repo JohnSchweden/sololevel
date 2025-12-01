@@ -37,4 +37,9 @@ export interface CameraPreviewRef {
   getZoom: () => Promise<number>
   pausePreview: () => void
   resumePreview: () => void
+  /**
+   * Imperatively reset camera session (forces remount).
+   * Use before state changes to sync camera reset with UI updates.
+   */
+  resetCamera: () => void
 }

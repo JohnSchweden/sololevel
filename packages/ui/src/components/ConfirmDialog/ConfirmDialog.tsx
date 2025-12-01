@@ -1,5 +1,5 @@
-import { X } from '@tamagui/lucide-icons'
 import type React from 'react'
+import { useWindowDimensions } from 'react-native'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
 import { BlurView } from '../BlurView/BlurView'
 
@@ -60,12 +60,13 @@ export interface ConfirmDialogProps {
 
   /**
    * Maximum width of the dialog
-   * @default 400
+   * @default undefined (uses responsive width: screenWidth - 36)
    */
   maxWidth?: number | string
 
   /**
    * Width of the dialog (overrides maxWidth for full-width dialogs)
+   * @default undefined (uses responsive width: screenWidth - 36)
    */
   width?: number | string
 }
@@ -99,9 +100,32 @@ export function ConfirmDialog({
   onCancel,
   testID = 'confirm-dialog',
   variant = 'destructive',
-  maxWidth = 400,
+  maxWidth,
   width,
 }: ConfirmDialogProps): React.ReactElement {
+  const { width: screenWidth } = useWindowDimensions()
+
+  // Calculate responsive width: screenWidth - 36 (18px padding on each side)
+  // This ensures consistent dialog width across all screen sizes
+  const responsiveWidth = screenWidth - 36
+
+  // Use provided width, or maxWidth, or default to responsive width
+  const dialogWidth =
+    width !== undefined
+      ? typeof width === 'number'
+        ? width
+        : Number.parseInt(String(width), 10)
+      : maxWidth !== undefined
+        ? undefined // Let maxWidth be applied
+        : responsiveWidth
+
+  const dialogMaxWidth =
+    width === undefined && maxWidth !== undefined
+      ? typeof maxWidth === 'number'
+        ? maxWidth
+        : Number.parseInt(String(maxWidth), 10)
+      : undefined
+
   const confirmButtonColor = variant === 'success' ? '$blue9' : '$red8'
   const confirmButtonPressColor = variant === 'success' ? '$blue10' : '$red9'
   return (
@@ -134,17 +158,13 @@ export function ConfirmDialog({
           ]}
           enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
-          {...(width !== undefined
-            ? { width: typeof width === 'number' ? width : Number.parseInt(String(width), 10) }
-            : {
-                maxWidth:
-                  typeof maxWidth === 'number' ? maxWidth : Number.parseInt(String(maxWidth), 10),
-              })}
+          {...(dialogWidth !== undefined ? { width: dialogWidth } : {})}
+          {...(dialogMaxWidth !== undefined ? { maxWidth: dialogMaxWidth } : {})}
           testID={testID}
           position="relative"
           overflow="hidden"
           backgroundColor="transparent"
-          borderRadius="$8"
+          borderRadius="$6"
           borderWidth={1}
           borderColor="rgba(255, 255, 255, 0.3)"
         >
@@ -162,14 +182,14 @@ export function ConfirmDialog({
           />
           <YStack
             gap="$4"
-            padding="$4"
+            //padding="$4"
             position="relative"
             zIndex={1}
           >
             {/* Title */}
             <Dialog.Title>
               <Text
-                fontSize="$6"
+                fontSize="$5"
                 fontWeight="600"
                 color="$color12"
                 letterSpacing={0}
@@ -181,7 +201,7 @@ export function ConfirmDialog({
             {/* Message */}
             <Dialog.Description>
               <Text
-                fontSize="$5"
+                fontSize="$4"
                 color="$color11"
                 lineHeight="$6"
               >
@@ -192,12 +212,12 @@ export function ConfirmDialog({
             {/* Actions */}
             <XStack
               gap="$3"
-              justifyContent="flex-end"
               marginTop="$2"
             >
               {variant === 'destructive' && (
                 <Button
                   unstyled
+                  flex={1}
                   onPress={onCancel}
                   disabled={isProcessing}
                   paddingHorizontal="$5"
@@ -207,11 +227,14 @@ export function ConfirmDialog({
                   animation="quick"
                   pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
                   testID={`${testID}-cancel-button`}
+                  alignItems="center"
+                  justifyContent="center"
                 >
                   <Text
                     fontSize="$4"
                     fontWeight="500"
                     color="$color12"
+                    textAlign="center"
                   >
                     {cancelLabel}
                   </Text>
@@ -220,6 +243,8 @@ export function ConfirmDialog({
 
               <Button
                 unstyled
+                flex={variant === 'destructive' ? 1 : undefined}
+                width={variant === 'destructive' ? undefined : '100%'}
                 onPress={onConfirm}
                 disabled={isProcessing}
                 paddingHorizontal="$5"
@@ -229,6 +254,8 @@ export function ConfirmDialog({
                 animation="quick"
                 pressStyle={{ backgroundColor: confirmButtonPressColor, scale: 0.98 }}
                 testID={`${testID}-confirm-button`}
+                alignItems="center"
+                justifyContent="center"
               >
                 {isProcessing ? (
                   // @ts-ignore - TS union type complexity limit
@@ -241,6 +268,7 @@ export function ConfirmDialog({
                     fontSize="$4"
                     fontWeight="500"
                     color="$color12"
+                    textAlign="center"
                   >
                     {confirmLabel}
                   </Text>
@@ -249,7 +277,7 @@ export function ConfirmDialog({
             </XStack>
           </YStack>
 
-          <Dialog.Close asChild>
+          {/* <Dialog.Close asChild>
             <Button
               position="absolute"
               top="$1"
@@ -272,7 +300,7 @@ export function ConfirmDialog({
                 color="$color12"
               />
             </Button>
-          </Dialog.Close>
+          </Dialog.Close> */}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog>

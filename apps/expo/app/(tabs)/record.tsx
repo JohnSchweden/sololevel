@@ -46,6 +46,12 @@ export default function RecordTab() {
   // Handle dynamic header updates from screen
   const handleHeaderStateChange = useCallback(
     (state: HeaderState) => {
+      // STOPPED state: Don't update header - keep whatever was showing during recording
+      // Navigation will happen shortly (~1-2s) when file save completes
+      if (state.mode === RecordingState.STOPPED) {
+        return // Skip header update for STOPPED state
+      }
+
       const isInRecordingState =
         state.mode === RecordingState.RECORDING || state.mode === RecordingState.PAUSED
 

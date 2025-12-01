@@ -12,7 +12,7 @@ describe('Recording State Machine', () => {
   const { useRecordingStateMachine } = require('../../mocks')
 
   const mockConfig = {
-    maxDurationMs: 60000,
+    maxDurationMs: 30000,
     onMaxDurationReached: jest.fn(),
     onStateChange: jest.fn(),
     onError: jest.fn(),

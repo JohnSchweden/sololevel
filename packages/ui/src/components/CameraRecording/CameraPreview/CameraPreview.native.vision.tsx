@@ -156,17 +156,17 @@ export const VisionCameraPreview = memo(
           // Only reset if we were actually recording before (not on initial mount)
           // AND we're transitioning to STOPPED or IDLE (not PAUSED)
           // PAUSE FIX: Use recordingState to distinguish pause from stop
-          const isStoppedOrIdle = recordingState === 'stopped' || recordingState === 'idle'
           const isPaused = recordingState === 'paused'
 
-          if (isStoppedOrIdle) {
+          if (recordingState === 'idle') {
+            // Only reset camera on IDLE state (user explicitly reset or discard)
+            // Don't reset on STOPPED - camera stays frozen while video saves and navigation occurs
             // Clear any existing timeout
             if (resetTimeoutRef.current) {
               clearTimeout(resetTimeoutRef.current)
             }
 
-            // Reset immediately for STOPPED/IDLE states
-            log.info('VisionCamera', 'Resetting camera session after recording stop', {
+            log.info('VisionCamera', 'Resetting camera session - state returned to idle', {
               hasBeenRecording: hasBeenRecordingRef.current,
               recordingState,
             })
@@ -174,6 +174,19 @@ export const VisionCameraPreview = memo(
             setIsCameraReady(false)
             setIsInitialized(false)
             hasBeenRecordingRef.current = false
+          } else if (recordingState === 'stopped') {
+            // STOPPED = video being saved, navigation pending
+            // Freeze camera preview (sets isActive=false) until screen unmounts
+            // Clear any reset timeout
+            if (resetTimeoutRef.current) {
+              clearTimeout(resetTimeoutRef.current)
+              resetTimeoutRef.current = null
+            }
+            // FREEZE: Pause the camera to stop live preview (shows last frame via blur overlay)
+            setIsPaused(true)
+            log.info('VisionCamera', 'Recording stopped - camera preview frozen until navigation', {
+              recordingState,
+            })
           } else if (isPaused) {
             // Don't reset on pause - cancel any pending reset
             if (resetTimeoutRef.current) {
@@ -551,6 +564,23 @@ export const VisionCameraPreview = memo(
           // Camera session resumes instantly since it stayed mounted
           resumePreview: (): void => {
             setIsPaused(false)
+          },
+
+          // Imperatively reset camera session (forces remount)
+          // Call BEFORE state changes to sync camera reset with UI updates
+          resetCamera: (): void => {
+            log.info('VisionCamera', 'Imperative camera reset triggered')
+            // Clear any pending reset timeouts
+            if (resetTimeoutRef.current) {
+              clearTimeout(resetTimeoutRef.current)
+              resetTimeoutRef.current = null
+            }
+            // Force camera remount by changing sessionId
+            setSessionId(Date.now())
+            setIsCameraReady(false)
+            setIsInitialized(false)
+            setIsPaused(false)
+            hasBeenRecordingRef.current = false
           },
         }),
         [device, currentZoomLevel, onZoomChange, onError, isInitialized, isCameraReady, sessionId]

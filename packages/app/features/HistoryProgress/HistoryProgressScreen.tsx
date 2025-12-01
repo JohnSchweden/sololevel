@@ -4,7 +4,7 @@ import { ConfirmDialog, GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
 import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import React from 'react'
-import { Platform, useWindowDimensions } from 'react-native'
+import { Platform } from 'react-native'
 import { YStack } from 'tamagui'
 import { useHistoryQuery } from './hooks/useHistoryQuery'
 import { usePrefetchNextVideos } from './hooks/usePrefetchNextVideos'
@@ -74,11 +74,6 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
   // Use stable safe area hook to prevent layout jumps during navigation
   const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-
-  // Get screen width for full-width dialog with horizontal padding (18px on each side)
-  // useWindowDimensions updates automatically on device rotation
-  const { width: screenWidth } = useWindowDimensions()
-  const dialogWidth = screenWidth - 36 // 18px padding on each side = 36px total
 
   // Log screen mount
   React.useEffect(() => {
@@ -312,11 +307,10 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
       {/* Coming soon dialog */}
       <ConfirmDialog
         visible={showComingSoonDialog}
-        title="Ain't time for that now."
+        title="Ain't time for that now"
         message="Coming soon..."
         confirmLabel="OK"
         variant="success"
-        width={dialogWidth}
         onConfirm={() => setShowComingSoonDialog(false)}
         onCancel={() => setShowComingSoonDialog(false)}
         testID={`${testID}-coming-soon-dialog`}

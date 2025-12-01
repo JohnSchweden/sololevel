@@ -89,6 +89,16 @@ export default function TabsLayout() {
         return null // Don't render bottom nav outside tabs
       }
 
+      // Hide bottom nav during recording - read mode from route options (same pattern as header)
+      const currentRoute = props.state?.routes?.[props.state?.index]
+      const routeOptions = props.descriptors?.[currentRoute?.key]?.options
+      const headerMode = routeOptions?.appHeaderProps?.mode
+      const isRecording = headerMode === 'recording'
+
+      if (isRecording) {
+        return null
+      }
+
       // Disable blur on coach tab (CoachScreen has its own BlurView)
       const isCoachTab = activeTabRef.current === 'coach'
 

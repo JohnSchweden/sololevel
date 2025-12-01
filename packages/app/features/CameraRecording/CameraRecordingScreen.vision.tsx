@@ -7,7 +7,7 @@ import {
   // NavigationDialog, // COMMENTED OUT: Discard immediately on back press without dialog
   // PoseDetectionToggleCompact,
   // PoseOverlay,
-  RecordingControls,
+  RecordingControlsWithZoom,
 } from '@ui/components/CameraRecording'
 
 import { useStatusBar } from '@app/hooks/useStatusBar'
@@ -127,10 +127,11 @@ export function CameraRecordingScreen({
   // Get active tab from tabs layout persistence
   const { activeTab } = useTabPersistence()
 
-  // Get hook result
+  // Get hook result - pass onHeaderStateChange for DIRECT updates (bypasses React state delay)
   const cameraScreenLogicResult = useCameraScreenLogic({
     onVideoProcessed,
     cameraRef,
+    onHeaderStateChange,
   })
 
   const {
@@ -156,7 +157,7 @@ export function CameraRecordingScreen({
     handleBackPress,
     handleUploadVideo,
     handleVideoSelected,
-    handleSettingsOpen,
+    // handleSettingsOpen, // Not used in vision camera screen
     // confirmNavigation, // COMMENTED OUT: Discard immediately on back press without dialog
     // cancelNavigation, // COMMENTED OUT: Discard immediately on back press without dialog
     handleCameraReady,
@@ -248,7 +249,6 @@ export function CameraRecordingScreen({
       onStop: handleStopRecording,
       onCameraSwap: handleCameraSwap,
       onZoomChange: handleZoomChange,
-      onSettingsOpen: handleSettingsOpen,
     }),
     [
       recordingState,
@@ -260,7 +260,6 @@ export function CameraRecordingScreen({
       handleStopRecording,
       handleCameraSwap,
       handleZoomChange,
-      handleSettingsOpen,
     ]
   )
 
@@ -363,7 +362,10 @@ export function CameraRecordingScreen({
             </CameraControlsOverlay>
           ) : (
             <CameraControlsOverlay position="bottom">
-              <RecordingControls {...recordingControlsProps} />
+              <RecordingControlsWithZoom
+                {...recordingControlsProps}
+                bottomInset={insets.bottom}
+              />
             </CameraControlsOverlay>
           ))}
 

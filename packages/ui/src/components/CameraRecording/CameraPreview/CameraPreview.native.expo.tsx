@@ -81,7 +81,10 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
             }
             const video = await cameraRef.current.recordAsync({
               codec: 'avc1',
-              maxDuration: 60, // Maximum 60 seconds to prevent frame rate rounding issues
+              maxDuration: Number.parseInt(
+                process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
+                10
+              ), // Maximum duration from environment variable
             })
             if (!video?.uri) {
               throw new Error('Recording failed: no video data received')
@@ -309,6 +312,16 @@ export const CameraPreview = forwardRef<CameraPreviewRef, CameraPreviewContainer
         getZoom: async (): Promise<number> => {
           // Return current zoom level from internal state
           return currentZoomLevel
+        },
+
+        // Imperatively reset camera session
+        // Expo Camera doesn't have session concept like VisionCamera,
+        // but we reset state to ensure clean state on discard
+        resetCamera: (): void => {
+          log.info('ExpoCamera', 'Imperative camera reset triggered')
+          setIsCameraReady(false)
+          setCameraError(null)
+          // Expo Camera will reinitialize on next render cycle
         },
       }),
       [currentZoomLevel, onZoomChange, isCameraReady] // Include currentZoomLevel in dependencies

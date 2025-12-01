@@ -3,14 +3,19 @@ import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
+import { MAX_RECORDING_DURATION_MS } from '../config/recordingConfig'
+import type { HeaderState } from '../types'
 import { CameraRecordingScreenProps, RecordingState } from '../types'
 import { useRecordingStateMachine } from './useRecordingStateMachine'
 
 export const useCameraScreenLogic = ({
   onVideoProcessed,
   cameraRef,
+  onHeaderStateChange,
 }: CameraRecordingScreenProps & {
   cameraRef?: any
+  /** Direct callback for immediate header updates (bypasses React state) */
+  onHeaderStateChange?: (state: HeaderState) => void
 }) => {
   const queryClient = useQueryClient()
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back')
@@ -46,14 +51,36 @@ export const useCameraScreenLogic = ({
 
   const [cameraReady, setCameraReady] = useState(false)
 
-  // Handle recording state changes - simplified since we don't need screen transitions
-  const handleRecordingStateChange = useCallback((state: RecordingState, durationMs: number) => {
-    log.info('useCameraScreenLogic', 'Recording state changed', {
-      state,
-      durationMs,
-      durationSeconds: (durationMs / 1000).toFixed(2),
-    })
-  }, [])
+  // Handle recording state changes - call onHeaderStateChange DIRECTLY to bypass React state delay
+  // This is the key performance fix: React batches state updates during async operations,
+  // causing ~500ms delay. By calling the header callback directly, UI updates instantly.
+  const handleRecordingStateChange = useCallback(
+    (state: RecordingState, durationMs: number) => {
+      const isInRecordingState =
+        state === RecordingState.RECORDING || state === RecordingState.PAUSED
+
+      log.info('useCameraScreenLogic', 'Recording state changed', {
+        state,
+        durationMs,
+        durationSeconds: (durationMs / 1000).toFixed(2),
+      })
+
+      // PERF FIX: Call onHeaderStateChange DIRECTLY from state machine callback
+      // This bypasses React's state batching and updates UI immediately
+      if (onHeaderStateChange) {
+        const minutes = Math.floor(durationMs / 60000)
+        const seconds = Math.floor((durationMs % 60000) / 1000)
+        const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+
+        onHeaderStateChange({
+          time: formattedDuration,
+          mode: state,
+          isRecording: isInRecordingState,
+        })
+      }
+    },
+    [onHeaderStateChange]
+  )
 
   // Stabilize camera controls to prevent dependency array size changes
   const cameraControls = useMemo(() => {
@@ -152,7 +179,7 @@ export const useCameraScreenLogic = ({
     canResume,
     canStop,
   } = useRecordingStateMachine({
-    maxDurationMs: 60000, // 60 seconds
+    maxDurationMs: MAX_RECORDING_DURATION_MS,
     cameraControls,
     onMaxDurationReached: useCallback(() => {
       // TODO: Show user notification about max duration
@@ -356,6 +383,12 @@ export const useCameraScreenLogic = ({
         isDiscarding: isDiscardingRef.current,
       })
       try {
+        // TIMING FIX: Start camera reset FIRST, then update UI state in parallel
+        // This syncs the camera reset animation (~780ms) with UI state changes
+        // Instead of: UI updates → then camera resets (jarring)
+        // Now: camera starts resetting → UI updates during reset (smooth)
+        cameraRef?.current?.resetCamera?.()
+
         await stopRecording()
         // After stopping, reset to idle state
         resetRecording()
@@ -370,7 +403,7 @@ export const useCameraScreenLogic = ({
     // if (recordingState === RecordingState.RECORDING || recordingState === RecordingState.PAUSED) {
     //   setShowNavigationDialog(true)
     // }
-  }, [recordingState, stopRecording, resetRecording])
+  }, [recordingState, stopRecording, resetRecording, cameraRef])
 
   const handleUploadVideo = useCallback(() => {
     // Legacy callback for backward compatibility

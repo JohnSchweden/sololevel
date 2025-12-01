@@ -17,6 +17,7 @@ export type AppHeaderRightAction =
   | 'menu'
   | 'notifications'
   | 'videoSettings'
+  | 'recordingSettings'
   | 'profile'
   | 'none'
 

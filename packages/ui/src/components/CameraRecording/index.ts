@@ -20,5 +20,9 @@ export {
 
 // Interactive Controls
 export { ControlButton, IdleControls, RecordButton } from './CameraControls/IdleControls'
-export { RecordingControls } from './CameraControls/RecordingControls'
+export {
+  RecordingControls,
+  RecordingControlsWithZoom,
+  ZoomControls,
+} from './CameraControls/RecordingControls'
 export { NavigationDialog } from './CameraControls/NavigationDialog'

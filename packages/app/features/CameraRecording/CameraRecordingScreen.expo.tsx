@@ -61,10 +61,11 @@ export function CameraRecordingScreen({
   // Get active tab from tabs layout persistence
   const { activeTab } = useTabPersistence()
 
-  // Get hook result
+  // Get hook result - pass onHeaderStateChange for DIRECT updates (bypasses React state delay)
   const cameraScreenLogicResult = useCameraScreenLogic({
     onVideoProcessed,
     cameraRef,
+    onHeaderStateChange,
   })
 
   const {
@@ -87,7 +88,7 @@ export function CameraRecordingScreen({
     handleBackPress,
     handleUploadVideo,
     handleVideoSelected,
-    handleSettingsOpen,
+    // handleSettingsOpen, // Not used in expo camera screen
     confirmNavigation,
     cancelNavigation,
     handleCameraReady,
@@ -173,7 +174,6 @@ export function CameraRecordingScreen({
       onStop: handleStopRecording,
       onCameraSwap: handleCameraSwap,
       onZoomChange: handleZoomChange,
-      onSettingsOpen: handleSettingsOpen,
     }),
     [
       recordingState,
@@ -185,7 +185,6 @@ export function CameraRecordingScreen({
       handleStopRecording,
       handleCameraSwap,
       handleZoomChange,
-      handleSettingsOpen,
     ]
   )
 

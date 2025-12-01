@@ -15,6 +15,8 @@ jest.mock('@ui/components/BottomSheets', () => ({
     open ? <div data-testid="notification-sheet">Notification Sheet</div> : null,
   VideoSettingsSheet: ({ open, onOpenChange }: any) =>
     open ? <div data-testid="video-settings-sheet">Video Settings Sheet</div> : null,
+  RecordingSettingsSheet: ({ open, onOpenChange }: any) =>
+    open ? <div data-testid="recording-settings-sheet">Recording Settings Sheet</div> : null,
 }))
 
 describe('AppHeader', () => {

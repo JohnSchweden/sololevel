@@ -38,13 +38,14 @@ class RecordingStateMachineMock {
     const testTimeout = process.env.NODE_ENV === 'test' ? 100 : 60000
     this.timerId = setTimeout(() => {
       this.state = RecordingState.STOPPED
-      this.duration = 60000 // 60 seconds in milliseconds
-      this.formattedDuration = '01:00'
+      this.duration =
+        Number.parseInt(process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30', 10) * 1000 // Max duration in milliseconds
+      this.formattedDuration = '00:30'
       this.updateStateObject()
       // Update the isAtMaxDuration property directly on the state object
       this.currentStateObject.isAtMaxDuration = true
       if (this.config?.onStateChange) {
-        this.config.onStateChange(RecordingState.STOPPED, 60000)
+        this.config.onStateChange(RecordingState.STOPPED, 30000)
       }
       if (this.config?.onMaxDurationReached) {
         this.config.onMaxDurationReached()
@@ -62,7 +63,9 @@ class RecordingStateMachineMock {
       resumeRecording: this.resumeRecording.bind(this),
       stopRecording: this.stopRecording.bind(this),
       resetRecording: this.resetRecording.bind(this),
-      remainingTime: 60000 - this.duration,
+      remainingTime:
+        Number.parseInt(process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30', 10) * 1000 -
+        this.duration,
       formattedDuration: this.formattedDuration,
       canRecord: this.state === RecordingState.IDLE,
       canPause: this.state === RecordingState.RECORDING,
@@ -75,7 +78,9 @@ class RecordingStateMachineMock {
     Object.assign(this.currentStateObject, {
       recordingState: this.state,
       duration: this.duration,
-      remainingTime: 60000 - this.duration,
+      remainingTime:
+        Number.parseInt(process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30', 10) * 1000 -
+        this.duration,
       formattedDuration: this.formattedDuration,
       canRecord: this.state === RecordingState.IDLE,
       canPause: this.state === RecordingState.RECORDING,
