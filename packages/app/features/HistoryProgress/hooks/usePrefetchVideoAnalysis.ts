@@ -84,13 +84,7 @@ export function usePrefetchVideoAnalysis(
   const abortControllersRef = useRef<Map<number, AbortController>>(new Map())
   const highestRequestedIndexRef = useRef(-1)
   const feedbackPrefetchedRef = useRef<Set<number>>(new Set()) // Track feedback prefetch attempts
-  // CRITICAL FIX: Use ref for prefetchFeedbackMetadata to avoid dependency chain issue.
-  // Without this, prefetchFeedbackMetadata (defined without useCallback) gets new reference
-  // on every render, causing prefetchVideo to change, triggering the effect to re-run,
-  // which cancels all scheduled Priority 2 timeouts (videos 5-7).
-  const prefetchFeedbackMetadataRef = useRef<
-    ((analysisJobId: number, signal?: AbortSignal) => Promise<string | null>) | null
-  >(null)
+  const feedbackBatchPrefetchedRef = useRef<boolean>(false) // Track if batch prefetch has run
   const getCached = useVideoHistoryStore((state) => state.getCached)
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
   const setUuid = useVideoHistoryStore((state) => state.setUuid)
@@ -109,182 +103,213 @@ export function usePrefetchVideoAnalysis(
   )
 
   /**
-   * Prefetch feedback metadata for a single analysis
-   * Lightweight: Only fetches feedback data, not audio URLs
-   * @returns The resolved analysis UUID, or null if not found
+   * Batch prefetch feedback metadata for multiple analyses
+   * PERFORMANCE: Fetches all feedbacks in 1 query instead of N separate queries
+   * @returns Map of analysisJobId -> analysisUuid for successfully resolved IDs
    */
-  const prefetchFeedbackMetadata = async (
-    analysisJobId: number,
-    signal?: AbortSignal
-  ): Promise<string | null> => {
-    try {
-      // CRITICAL: Skip if already attempted to prevent duplicate prefetch on re-render
-      if (feedbackPrefetchedRef.current.has(analysisJobId)) {
-        return null
+  const batchPrefetchFeedbackMetadata = useCallback(
+    async (analysisJobIds: number[], signal?: AbortSignal): Promise<Map<number, string>> => {
+      const result = new Map<number, string>()
+
+      if (analysisJobIds.length === 0 || signal?.aborted) {
+        return result
       }
 
-      if (signal?.aborted) {
-        return null
-      }
-
-      // FIX: Check Zustand store only - single source of truth for UUID caching
-      const cachedUuid = getUuid(analysisJobId)
-      if (cachedUuid && __DEV__) {
-        log.debug('usePrefetchVideoAnalysis', 'Using persisted UUID for feedback prefetch', {
-          analysisJobId,
-          analysisUuid: cachedUuid,
-        })
-      }
-
-      if (signal?.aborted) {
-        return null
-      }
-
-      // Resolve analysis UUID from job ID (only if not cached)
-      const analysisUuid =
-        cachedUuid ??
-        (await getAnalysisIdForJobId(analysisJobId, {
-          signal,
-          maxRetries: 2, // Fewer retries for prefetch (non-critical)
-          baseDelay: 200,
-        }))
-
-      // FIX: Cache UUID in Zustand store only - single source of truth
-      if (analysisUuid && !cachedUuid) {
-        setUuid(analysisJobId, analysisUuid)
-        if (__DEV__) {
-          log.debug('usePrefetchVideoAnalysis', 'Cached UUID for future lookups', {
-            analysisJobId,
-            analysisUuid,
-          })
+      try {
+        // PERFORMANCE: Quick check if all feedbacks are already cached
+        // Skip entire batch if nothing needs to be done (common on re-navigation)
+        let allCached = true
+        for (const analysisJobId of analysisJobIds) {
+          const cachedUuid = getUuid(analysisJobId)
+          if (!cachedUuid || getFeedbacksByAnalysisId(cachedUuid).length === 0) {
+            allCached = false
+            break
+          }
         }
-      }
 
-      if (!analysisUuid) {
-        if (__DEV__) {
-          log.debug(
-            'usePrefetchVideoAnalysis',
-            'Analysis UUID not found, skipping feedback prefetch',
-            {
-              analysisJobId,
+        if (allCached) {
+          // All feedbacks already cached - skip batch prefetch entirely
+          return result
+        }
+
+        // Step 1: Resolve all UUIDs (batch resolve missing ones)
+        const uuidMap = new Map<number, string>()
+        const missingIds: number[] = []
+
+        for (const analysisJobId of analysisJobIds) {
+          const cachedUuid = getUuid(analysisJobId)
+          if (cachedUuid) {
+            uuidMap.set(analysisJobId, cachedUuid)
+          } else {
+            missingIds.push(analysisJobId)
+          }
+        }
+
+        // Batch resolve missing UUIDs (sequential to avoid overwhelming API)
+        for (const analysisJobId of missingIds) {
+          if (signal?.aborted) {
+            break
+          }
+          try {
+            const analysisUuid = await getAnalysisIdForJobId(analysisJobId, {
+              signal,
+              maxRetries: 2,
+              baseDelay: 200,
+            })
+            if (analysisUuid) {
+              uuidMap.set(analysisJobId, analysisUuid)
+              setUuid(analysisJobId, analysisUuid)
             }
+          } catch {
+            // Skip failed UUID resolutions
+          }
+        }
+
+        if (signal?.aborted) {
+          return result
+        }
+
+        // Step 2: Check which feedbacks are already cached
+        const uncachedUuids: string[] = []
+        const cachedCounts = new Map<string, number>()
+
+        for (const [analysisJobId, analysisUuid] of Array.from(uuidMap.entries())) {
+          const cachedFeedbacks = getFeedbacksByAnalysisId(analysisUuid)
+          if (cachedFeedbacks.length > 0) {
+            cachedCounts.set(analysisUuid, cachedFeedbacks.length)
+            feedbackPrefetchedRef.current.add(analysisJobId)
+            result.set(analysisJobId, analysisUuid)
+          } else {
+            uncachedUuids.push(analysisUuid)
+          }
+        }
+
+        // Step 3: Batch fetch all uncached feedbacks in 1 query
+        if (uncachedUuids.length === 0) {
+          if (__DEV__) {
+            log.debug('usePrefetchVideoAnalysis', 'Batch feedback prefetch summary', {
+              total: analysisJobIds.length,
+              cachedSkipped: cachedCounts.size,
+              fetched: 0,
+              cachedCounts: Object.fromEntries(cachedCounts),
+            })
+          }
+          return result
+        }
+
+        if (signal?.aborted) {
+          return result
+        }
+
+        type FeedbackSelectResult = Pick<
+          Database['public']['Tables']['analysis_feedback']['Row'],
+          | 'id'
+          | 'analysis_id'
+          | 'message'
+          | 'category'
+          | 'timestamp_seconds'
+          | 'confidence'
+          | 'ssml_status'
+          | 'audio_status'
+          | 'ssml_attempts'
+          | 'audio_attempts'
+          | 'ssml_last_error'
+          | 'audio_last_error'
+          | 'ssml_updated_at'
+          | 'audio_updated_at'
+          | 'created_at'
+        >
+
+        // Single batch query with IN clause
+        const { data: feedbacksData, error: fetchError } = await supabase
+          .from('analysis_feedback')
+          .select(
+            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
           )
+          .in('analysis_id', uncachedUuids)
+          .order('created_at', { ascending: true })
+          .returns<FeedbackSelectResult[]>()
+
+        if (signal?.aborted) {
+          return result
         }
-        feedbackPrefetchedRef.current.add(analysisJobId) // Mark as attempted
-        return null
-      }
 
-      // Check if feedbacks already exist in store (may be from persisted cache)
-      const cachedFeedbacks = getFeedbacksByAnalysisId(analysisUuid)
-      if (cachedFeedbacks.length > 0) {
-        if (__DEV__) {
-          log.debug('usePrefetchVideoAnalysis', 'Feedbacks already cached, skipping prefetch', {
-            analysisJobId,
-            analysisUuid,
-            count: cachedFeedbacks.length,
-            source: 'persisted-or-memory',
+        if (fetchError) {
+          log.warn('usePrefetchVideoAnalysis', 'Batch feedback prefetch failed', {
+            analysisIds: analysisJobIds,
+            error: fetchError.message,
           })
+          return result
         }
-        feedbackPrefetchedRef.current.add(analysisJobId) // Mark as attempted
-        return analysisUuid
-      }
 
-      // Mark as attempted before network request
-      feedbackPrefetchedRef.current.add(analysisJobId)
+        // Step 4: Group feedbacks by analysis_id and add to store
+        const feedbacksByUuid = new Map<string, FeedbackSelectResult[]>()
+        if (feedbacksData) {
+          for (const feedback of feedbacksData) {
+            const existing = feedbacksByUuid.get(feedback.analysis_id) || []
+            existing.push(feedback)
+            feedbacksByUuid.set(feedback.analysis_id, existing)
+          }
+        }
 
-      // Check if aborted before making network request
-      if (signal?.aborted) {
-        return null
-      }
-
-      // Fetch existing feedbacks from database (same query as subscribeToAnalysisFeedbacks)
-      type FeedbackSelectResult = Pick<
-        Database['public']['Tables']['analysis_feedback']['Row'],
-        | 'id'
-        | 'analysis_id'
-        | 'message'
-        | 'category'
-        | 'timestamp_seconds'
-        | 'confidence'
-        | 'ssml_status'
-        | 'audio_status'
-        | 'ssml_attempts'
-        | 'audio_attempts'
-        | 'ssml_last_error'
-        | 'audio_last_error'
-        | 'ssml_updated_at'
-        | 'audio_updated_at'
-        | 'created_at'
-      >
-
-      const { data: feedbacksData, error: fetchError } = await supabase
-        .from('analysis_feedback')
-        .select(
-          'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
-        )
-        .eq('analysis_id', analysisUuid)
-        .order('created_at', { ascending: true })
-        .returns<FeedbackSelectResult[]>()
-
-      // Check if aborted after query completes (before processing results)
-      if (signal?.aborted) {
-        return null
-      }
-
-      if (fetchError) {
-        log.warn('usePrefetchVideoAnalysis', 'Failed to prefetch feedback metadata', {
-          analysisJobId,
-          analysisUuid,
-          error: fetchError.message,
-        })
-        return null
-      }
-
-      // Add feedbacks to store (without subscription - that happens when screen mounts)
-      if (feedbacksData && feedbacksData.length > 0) {
-        feedbacksData.forEach((feedback) => {
-          // Map database row to FeedbackStatusData format
-          addFeedback({
-            id: feedback.id,
-            analysis_id: feedback.analysis_id,
-            message: feedback.message,
-            category: feedback.category,
-            timestamp_seconds: feedback.timestamp_seconds,
-            confidence: feedback.confidence ?? 0,
-            ssml_status: (feedback.ssml_status ?? 'queued') as FeedbackStatusData['ssml_status'],
-            audio_status: (feedback.audio_status ?? 'queued') as FeedbackStatusData['audio_status'],
-            ssml_attempts: feedback.ssml_attempts,
-            audio_attempts: feedback.audio_attempts,
-            ssml_last_error: feedback.ssml_last_error,
-            audio_last_error: feedback.audio_last_error,
-            ssml_updated_at: feedback.ssml_updated_at,
-            audio_updated_at: feedback.audio_updated_at,
-            created_at: feedback.created_at,
-            updated_at: feedback.created_at, // analysis_feedback table doesn't have updated_at column, use created_at
+        // Add all feedbacks to store
+        let fetchedCount = 0
+        for (const [analysisUuid, feedbacks] of Array.from(feedbacksByUuid.entries())) {
+          feedbacks.forEach((feedback: FeedbackSelectResult) => {
+            addFeedback({
+              id: feedback.id,
+              analysis_id: feedback.analysis_id,
+              message: feedback.message,
+              category: feedback.category,
+              timestamp_seconds: feedback.timestamp_seconds,
+              confidence: feedback.confidence ?? 0,
+              ssml_status: (feedback.ssml_status ?? 'queued') as FeedbackStatusData['ssml_status'],
+              audio_status: (feedback.audio_status ??
+                'queued') as FeedbackStatusData['audio_status'],
+              ssml_attempts: feedback.ssml_attempts,
+              audio_attempts: feedback.audio_attempts,
+              ssml_last_error: feedback.ssml_last_error,
+              audio_last_error: feedback.audio_last_error,
+              ssml_updated_at: feedback.ssml_updated_at,
+              audio_updated_at: feedback.audio_updated_at,
+              created_at: feedback.created_at,
+              updated_at: feedback.created_at,
+            })
           })
-        })
+          fetchedCount++
+
+          // Mark corresponding analysisJobIds as prefetched
+          for (const [analysisJobId, uuid] of Array.from(uuidMap.entries())) {
+            if (uuid === analysisUuid) {
+              feedbackPrefetchedRef.current.add(analysisJobId)
+              result.set(analysisJobId, uuid)
+            }
+          }
+        }
 
         if (__DEV__) {
-          log.debug('usePrefetchVideoAnalysis', 'Prefetched feedback metadata', {
-            analysisJobId,
-            analysisUuid,
-            count: feedbacksData.length,
+          log.debug('usePrefetchVideoAnalysis', 'Batch feedback prefetch summary', {
+            total: analysisJobIds.length,
+            cachedSkipped: cachedCounts.size,
+            fetched: fetchedCount,
+            fetchedCounts: Object.fromEntries(
+              Array.from(feedbacksByUuid.entries()).map(([uuid, fb]) => [uuid, fb.length])
+            ),
+            cachedCounts: Object.fromEntries(cachedCounts),
           })
         }
+
+        return result
+      } catch (error) {
+        log.warn('usePrefetchVideoAnalysis', 'Batch feedback prefetch failed', {
+          analysisIds: analysisJobIds,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return result
       }
-
-      return analysisUuid
-    } catch (error) {
-      log.warn('usePrefetchVideoAnalysis', 'Feedback prefetch failed', {
-        analysisJobId,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return null
-    }
-  }
-
-  // Store latest version in ref (updates on each render, but ref is stable)
-  prefetchFeedbackMetadataRef.current = prefetchFeedbackMetadata
+    },
+    [getUuid, setUuid, getFeedbacksByAnalysisId, addFeedback]
+  )
 
   const prefetchVideo = useCallback(
     (analysisId: number): void => {
@@ -298,25 +323,27 @@ export function usePrefetchVideoAnalysis(
         return
       }
 
+      // PERFORMANCE: Early bailout if already cached - skip stagger delays
+      const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
+      const zustandCached = getCached(analysisId)
+
+      if (cached && zustandCached) {
+        // Both caches populated - mark as prefetched immediately, no async work needed
+        prefetchedRef.current.add(analysisId)
+        return
+      }
+
       // Create abort controller for this prefetch operation
       const controller = new AbortController()
       abortControllersRef.current.set(analysisId, controller)
 
-      const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
       if (cached) {
+        // TanStack Query cached but Zustand might need update - still mark as prefetched
         prefetchedRef.current.add(analysisId)
-        if (__DEV__) {
-          log.debug('usePrefetchVideoAnalysis', 'Query already cached, skipping', {
-            analysisId,
-          })
-        }
-        // Pass abort signal to allow cancellation on unmount
-        // Use ref to avoid dependency issues that cancel Priority 2 prefetches
-        void prefetchFeedbackMetadataRef.current?.(analysisId, controller.signal)
+        abortControllersRef.current.delete(analysisId)
         return
       }
 
-      const zustandCached = getCached(analysisId)
       if (!zustandCached) {
         if (__DEV__) {
           log.debug('usePrefetchVideoAnalysis', 'Not in Zustand cache, skipping prefetch', {
@@ -349,10 +376,6 @@ export function usePrefetchVideoAnalysis(
           inFlightRef.current.delete(analysisId)
           abortControllersRef.current.delete(analysisId)
         })
-
-      // Pass abort signal to allow cancellation on unmount
-      // Use ref to avoid dependency issues that cancel Priority 2 prefetches
-      void prefetchFeedbackMetadataRef.current?.(analysisId, controller.signal)
     },
     [getCached, queryClient]
   )
@@ -479,6 +502,19 @@ export function usePrefetchVideoAnalysis(
       })
     }
 
+    // PERFORMANCE: Batch prefetch feedbacks for all priority items at once
+    // Use queueMicrotask for minimal delay (doesn't block render, but faster than setTimeout)
+    const allPriorityIds = [...priority1, ...priority2, ...priority3]
+    if (allPriorityIds.length > 0 && !feedbackBatchPrefetchedRef.current) {
+      feedbackBatchPrefetchedRef.current = true
+      const batchController = new AbortController()
+      // queueMicrotask: runs after current task but before next frame paint
+      // Faster than setTimeout(0) which waits for next event loop tick
+      queueMicrotask(() => {
+        void batchPrefetchFeedbackMetadata(allPriorityIds, batchController.signal)
+      })
+    }
+
     // Priority 1: Immediate (visible items)
     priority1.forEach((analysisId, localIndex) => {
       const globalIndex = localIndex
@@ -489,6 +525,7 @@ export function usePrefetchVideoAnalysis(
     })
 
     // Priority 2: Next 3 items (10ms stagger, cancelable)
+    // PERFORMANCE: Skip stagger if already cached
     priority2.forEach((analysisId, localIndex) => {
       const globalIndex = immediateCount + localIndex
       if (globalIndex > highestRequestedIndexRef.current) {
@@ -496,6 +533,15 @@ export function usePrefetchVideoAnalysis(
       }
 
       if (isPrefetchedOrPending(analysisId)) {
+        return
+      }
+
+      // PERFORMANCE: Check if cached before scheduling timeout
+      const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
+      const zustandCached = getCached(analysisId)
+      if (cached && zustandCached) {
+        // Already cached - execute immediately, skip stagger
+        prefetchVideo(analysisId)
         return
       }
 
@@ -511,6 +557,7 @@ export function usePrefetchVideoAnalysis(
     })
 
     // Priority 3: Remaining items (100ms stagger, cancelable)
+    // PERFORMANCE: Skip stagger if already cached
     priority3.forEach((analysisId, localIndex) => {
       const globalIndex = immediateCount + 3 + localIndex
       if (globalIndex > highestRequestedIndexRef.current) {
@@ -518,6 +565,15 @@ export function usePrefetchVideoAnalysis(
       }
 
       if (isPrefetchedOrPending(analysisId)) {
+        return
+      }
+
+      // PERFORMANCE: Check if cached before scheduling timeout
+      const cached = queryClient.getQueryData(analysisKeys.historical(analysisId))
+      const zustandCached = getCached(analysisId)
+      if (cached && zustandCached) {
+        // Already cached - execute immediately, skip stagger
+        prefetchVideo(analysisId)
         return
       }
 
@@ -539,8 +595,10 @@ export function usePrefetchVideoAnalysis(
         clearTimeout(timeoutId)
       })
       scheduledMapRef.current.clear()
+      // Reset batch prefetch flag on cleanup
+      feedbackBatchPrefetchedRef.current = false
     }
-  }, [analysisIds, isPrefetchedOrPending, networkQuality, prefetchVideo])
+  }, [analysisIds, isPrefetchedOrPending, networkQuality, prefetchVideo, queryClient, getCached])
 
   useEffect(() => {
     if (analysisIds.length === 0) {
@@ -597,6 +655,12 @@ export function usePrefetchVideoAnalysis(
       })
     }
 
+    // PERFORMANCE: Batch prefetch feedbacks for scroll-triggered items too
+    // Fire-and-forget: quick operation, no abort controller needed (unmount check handled in batch function)
+    if (idsToPrefetch.length > 0) {
+      void batchPrefetchFeedbackMetadata(idsToPrefetch, undefined)
+    }
+
     idsToPrefetch.forEach((analysisId, offset) => {
       const globalIndex = frontierStartIndex + offset
       if (globalIndex > highestRequestedIndexRef.current) {
@@ -610,5 +674,12 @@ export function usePrefetchVideoAnalysis(
 
       prefetchVideo(analysisId)
     })
-  }, [analysisIds, isPrefetchedOrPending, lastVisibleIndex, normalizedLookAhead, prefetchVideo])
+  }, [
+    analysisIds,
+    isPrefetchedOrPending,
+    lastVisibleIndex,
+    normalizedLookAhead,
+    prefetchVideo,
+    batchPrefetchFeedbackMetadata,
+  ])
 }

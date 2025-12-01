@@ -3,7 +3,7 @@ import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import * as FileSystem from 'expo-file-system'
 import React from 'react'
-import { InteractionManager, Platform } from 'react-native'
+import { Platform } from 'react-native'
 import { resolveHistoricalVideoUri } from '../../VideoAnalysis/hooks/useHistoricalAnalysis'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 import { getCachedThumbnailPath, persistThumbnailFile } from '../utils/thumbnailCache'
@@ -115,7 +115,8 @@ export function usePrefetchNextVideos(
 
   /**
    * Check if thumbnail is already cached on disk
-   * CRITICAL FIX: Defer file I/O to background using InteractionManager
+   * PERFORMANCE: Direct file check without InteractionManager deferral
+   * (prefetch runs after mount anyway, no need to defer)
    */
   const isThumbnailCached = React.useCallback(async (videoId: number): Promise<boolean> => {
     if (Platform.OS === 'web') {
@@ -123,27 +124,10 @@ export function usePrefetchNextVideos(
     }
 
     try {
-      // Defer file system checks to idle time (prevents blocking main thread)
-      return new Promise<boolean>((resolve) => {
-        InteractionManager.runAfterInteractions(async () => {
-          try {
-            const cachedPath = getCachedThumbnailPath(videoId)
-            const fileInfo = await FileSystem.getInfoAsync(cachedPath)
-            resolve(fileInfo.exists)
-          } catch (error) {
-            log.warn('usePrefetchNextVideos', 'Failed to check thumbnail cache', {
-              videoId,
-              error: error instanceof Error ? error.message : String(error),
-            })
-            resolve(false)
-          }
-        })
-      })
-    } catch (error) {
-      log.warn('usePrefetchNextVideos', 'Failed to schedule thumbnail cache check', {
-        videoId,
-        error: error instanceof Error ? error.message : String(error),
-      })
+      const cachedPath = getCachedThumbnailPath(videoId)
+      const fileInfo = await FileSystem.getInfoAsync(cachedPath)
+      return fileInfo.exists
+    } catch {
       return false
     }
   }, [])
@@ -184,13 +168,9 @@ export function usePrefetchNextVideos(
         return false
       }
 
-      // Skip if already cached in persistent disk cache
+      // Skip if already cached in persistent disk cache (no log - summary covers it)
       const cached = await isThumbnailCached(item.videoId)
       if (cached) {
-        log.debug('usePrefetchNextVideos', 'Thumbnail already cached, skipping', {
-          analysisId: item.id,
-          videoId: item.videoId,
-        })
         return true
       }
 
@@ -203,21 +183,11 @@ export function usePrefetchNextVideos(
         downloadUrl = item.thumbnailUri
       } else if (item.cloudThumbnailUrl?.startsWith('http')) {
         // thumbnailUri is a stale file:// path, fall back to stored cloud URL
-        log.debug('usePrefetchNextVideos', 'Using cloudThumbnailUrl for stale local path', {
-          analysisId: item.id,
-          videoId: item.videoId,
-          stalePath: item.thumbnailUri?.substring(0, 60),
-        })
         downloadUrl = item.cloudThumbnailUrl
       }
 
       if (!downloadUrl) {
-        log.debug('usePrefetchNextVideos', 'No downloadable thumbnail URL available', {
-          analysisId: item.id,
-          videoId: item.videoId,
-          thumbnailUri: item.thumbnailUri?.substring(0, 60),
-          hasCloudUrl: !!item.cloudThumbnailUrl,
-        })
+        // No downloadable URL available - skip silently (common case for local recordings)
         return false
       }
 
@@ -237,18 +207,10 @@ export function usePrefetchNextVideos(
           return old.map((v) => (v.id === item.id ? { ...v, thumbnailUri: persistedPath } : v))
         })
 
-        log.debug('usePrefetchNextVideos', 'Thumbnail prefetched and caches updated', {
-          analysisId: item.id,
-          videoId: item.videoId,
-          persistedPath,
-        })
+        // Successfully prefetched - summary log covers total count
         return true
       } catch (error) {
         if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
-          log.debug('usePrefetchNextVideos', 'Thumbnail prefetch aborted', {
-            analysisId: item.id,
-            videoId: item.videoId,
-          })
           return false
         }
         log.warn('usePrefetchNextVideos', 'Thumbnail prefetch failed', {
@@ -464,6 +426,7 @@ export function usePrefetchNextVideos(
 
   /**
    * Process prefetch queue with concurrency limit
+   * PERFORMANCE: Parallel cache checks + proper semaphore (no polling)
    */
   const processPrefetchQueue = React.useCallback(
     async (itemsToPrefetch: VideoItem[]): Promise<void> => {
@@ -471,52 +434,54 @@ export function usePrefetchNextVideos(
         return
       }
 
-      // Filter and check cache BEFORE adding to queue to avoid unnecessary state updates
-      const availableItems: VideoItem[] = []
+      // PERFORMANCE: Filter out already in-progress items first (sync, fast)
+      const candidateItems = itemsToPrefetch.filter(
+        (item) =>
+          !stateRef.current.prefetching.includes(item.id) &&
+          !stateRef.current.prefetched.includes(item.id) &&
+          !activeDownloadsRef.current.has(item.id)
+      )
+
+      if (candidateItems.length === 0) {
+        return
+      }
+
+      // PERFORMANCE: Parallel cache checks for all candidates at once
+      const cacheCheckResults = await Promise.all(
+        candidateItems.map(async (item) => {
+          const thumbnailCached = await isThumbnailCached(item.videoId)
+          const videoCached = isVideoCached(item.id)
+          const needsThumbnail = item.thumbnailUri?.startsWith('http') && !thumbnailCached
+          const needsVideo = !videoCached
+          return {
+            item,
+            fullyCached: !needsThumbnail && !needsVideo,
+          }
+        })
+      )
+
+      // Separate cached vs needs-prefetch
       const newlyPrefetched: number[] = []
+      const availableItems: VideoItem[] = []
 
-      for (const item of itemsToPrefetch) {
-        // Skip if already in progress or prefetched
-        if (
-          stateRef.current.prefetching.includes(item.id) ||
-          stateRef.current.prefetched.includes(item.id) ||
-          activeDownloadsRef.current.has(item.id)
-        ) {
-          continue
+      for (const result of cacheCheckResults) {
+        if (result.fullyCached) {
+          newlyPrefetched.push(result.item.id)
+        } else {
+          availableItems.push(result.item)
         }
-
-        // Quick cache check: skip if both thumbnail and video are already cached
-        const thumbnailCached = await isThumbnailCached(item.videoId)
-        const videoCached = isVideoCached(item.id)
-        const needsThumbnail = item.thumbnailUri?.startsWith('http') && !thumbnailCached
-        const needsVideo = !videoCached
-
-        // If fully cached, mark as prefetched immediately without processing
-        if (!needsThumbnail && !needsVideo) {
-          newlyPrefetched.push(item.id)
-          continue
-        }
-
-        // Needs prefetching
-        availableItems.push(item)
       }
 
       // Batch update state for all newly discovered cached items (update ref only)
       if (newlyPrefetched.length > 0) {
-        const alreadyPrefetched = newlyPrefetched.filter((id) =>
-          stateRef.current.prefetched.includes(id)
-        )
-        if (alreadyPrefetched.length < newlyPrefetched.length) {
-          // Only update if there are new items to add
-          const deduped = [
-            ...stateRef.current.prefetched,
-            ...newlyPrefetched.filter((id) => !stateRef.current.prefetched.includes(id)),
-          ]
-          stateRef.current = {
-            ...stateRef.current,
-            prefetched: deduped,
-            failed: stateRef.current.failed.filter((id) => !newlyPrefetched.includes(id)),
-          }
+        const deduped = [
+          ...stateRef.current.prefetched,
+          ...newlyPrefetched.filter((id) => !stateRef.current.prefetched.includes(id)),
+        ]
+        stateRef.current = {
+          ...stateRef.current,
+          prefetched: deduped,
+          failed: stateRef.current.failed.filter((id) => !newlyPrefetched.includes(id)),
         }
       }
 
@@ -525,92 +490,120 @@ export function usePrefetchNextVideos(
         return
       }
 
-      // Process with concurrency limit
-      const queue: Promise<void>[] = []
+      // PERFORMANCE: Process with concurrency limit using Promise pool (no polling)
+      const inFlight = new Set<Promise<void>>()
+
       for (const item of availableItems) {
-        // Wait if we've reached concurrency limit
-        while (activeDownloadsRef.current.size >= finalConfig.concurrency) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
-          if (cancelledRef.current) {
-            return
-          }
-        }
-
-        // Skip if cancelled
         if (cancelledRef.current) {
-          return
+          break
         }
 
-        // Mark as active and start prefetch
+        // Wait for a slot if at concurrency limit
+        if (inFlight.size >= finalConfig.concurrency) {
+          // Wait for ANY promise to complete (not polling)
+          await Promise.race(inFlight)
+        }
+
+        // Skip if cancelled after waiting
+        if (cancelledRef.current) {
+          break
+        }
+
+        // Create and track the prefetch promise
         activeDownloadsRef.current.add(item.id)
-        queue.push(prefetchItem(item))
+        const prefetchPromise = prefetchItem(item).finally(() => {
+          inFlight.delete(prefetchPromise)
+        })
+        inFlight.add(prefetchPromise)
       }
 
-      // Wait for all prefetches to complete (or fail)
-      await Promise.allSettled(queue)
+      // Wait for remaining in-flight prefetches
+      if (inFlight.size > 0) {
+        await Promise.allSettled(inFlight)
+      }
     },
     [finalConfig.enabled, finalConfig.concurrency, prefetchItem, isThumbnailCached, isVideoCached]
   )
 
   // Track previous prefetch target to avoid recalculating for same items
   const prevPrefetchTargetRef = React.useRef<string>('')
+  // PERFORMANCE: Debounce scroll-triggered prefetch to prevent duplicate calculations
+  const prefetchDebounceRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   /**
    * Calculate which items to prefetch based on visible items
+   * PERFORMANCE: Debounced to prevent duplicate calculations on rapid scroll
    */
   React.useEffect(() => {
     if (!finalConfig.enabled || allItems.length === 0 || Platform.OS === 'web') {
       return
     }
 
-    // If no visible items (e.g., on mount), start from beginning
-    let lastVisibleIndex = -1
-    if (visibleItems.length === 0) {
-      // On mount with no scroll yet: prefetch from index 0
-      lastVisibleIndex = -1 // Will be incremented to 0 below
-    } else {
-      // Find the index of the last visible item in allItems
-      const lastVisibleItem = visibleItems[visibleItems.length - 1]
-      lastVisibleIndex = allItems.findIndex((item) => item.id === lastVisibleItem.id)
+    // Clear any pending debounced prefetch
+    if (prefetchDebounceRef.current) {
+      clearTimeout(prefetchDebounceRef.current)
     }
 
-    // Only error if we expected to find visible items but couldn't
-    if (lastVisibleIndex === -1 && visibleItems.length > 0) {
-      log.debug('usePrefetchNextVideos', 'Last visible item not found in all items', {
-        lastVisibleId: visibleItems[visibleItems.length - 1]?.id,
+    // PERFORMANCE: Debounce scroll-triggered prefetch calculations
+    // Immediate on mount (visibleItems.length === 0), debounced on scroll
+    const shouldDebounce = visibleItems.length > 0
+    const delay = shouldDebounce ? 150 : 0
+
+    prefetchDebounceRef.current = setTimeout(() => {
+      // If no visible items (e.g., on mount), start from beginning
+      let lastVisibleIndex = -1
+      if (visibleItems.length === 0) {
+        // On mount with no scroll yet: prefetch from index 0
+        lastVisibleIndex = -1 // Will be incremented to 0 below
+      } else {
+        // Find the index of the last visible item in allItems
+        const lastVisibleItem = visibleItems[visibleItems.length - 1]
+        lastVisibleIndex = allItems.findIndex((item) => item.id === lastVisibleItem.id)
+      }
+
+      // Only error if we expected to find visible items but couldn't
+      if (lastVisibleIndex === -1 && visibleItems.length > 0) {
+        log.debug('usePrefetchNextVideos', 'Last visible item not found in all items', {
+          lastVisibleId: visibleItems[visibleItems.length - 1]?.id,
+        })
+        return
+      }
+
+      // Calculate items to prefetch: next N items after last visible item
+      // If lastVisibleIndex is -1 (no visible items), start from 0
+      const startIndex = Math.max(0, lastVisibleIndex + 1)
+      const endIndex = Math.min(startIndex + finalConfig.lookAhead, allItems.length)
+      const itemsToPrefetch = allItems.slice(startIndex, endIndex)
+
+      // Create stable key for prefetch target (which items we'd prefetch)
+      const prefetchTargetKey = itemsToPrefetch.map((item) => item.id).join(',')
+
+      // Skip if we're already prefetching/prefetched these exact items
+      if (prevPrefetchTargetRef.current === prefetchTargetKey) {
+        return // Skip calculation - prefetch target unchanged
+      }
+
+      prevPrefetchTargetRef.current = prefetchTargetKey
+      cancelledRef.current = false
+
+      // Only log when prefetch target actually changes
+      log.debug('usePrefetchNextVideos', 'Calculating prefetch targets', {
+        visibleCount: visibleItems.length,
+        lastVisibleIndex,
+        itemsToPrefetch: itemsToPrefetch.length,
+        lookAhead: finalConfig.lookAhead,
       })
-      return
-    }
 
-    // Calculate items to prefetch: next N items after last visible item
-    // If lastVisibleIndex is -1 (no visible items), start from 0
-    const startIndex = Math.max(0, lastVisibleIndex + 1)
-    const endIndex = Math.min(startIndex + finalConfig.lookAhead, allItems.length)
-    const itemsToPrefetch = allItems.slice(startIndex, endIndex)
-
-    // Create stable key for prefetch target (which items we'd prefetch)
-    const prefetchTargetKey = itemsToPrefetch.map((item) => item.id).join(',')
-
-    // Skip if we're already prefetching/prefetched these exact items
-    if (prevPrefetchTargetRef.current === prefetchTargetKey) {
-      return // Skip calculation - prefetch target unchanged
-    }
-
-    prevPrefetchTargetRef.current = prefetchTargetKey
-    cancelledRef.current = false
-
-    // Only log when prefetch target actually changes
-    log.debug('usePrefetchNextVideos', 'Calculating prefetch targets', {
-      visibleCount: visibleItems.length,
-      lastVisibleIndex,
-      itemsToPrefetch: itemsToPrefetch.length,
-      lookAhead: finalConfig.lookAhead,
-    })
-
-    // Process prefetch queue
-    void processPrefetchQueue(itemsToPrefetch)
+      // Process prefetch queue
+      void processPrefetchQueue(itemsToPrefetch)
+    }, delay)
 
     return () => {
+      // Clear debounce timeout on cleanup
+      if (prefetchDebounceRef.current !== undefined) {
+        clearTimeout(prefetchDebounceRef.current)
+        prefetchDebounceRef.current = undefined
+      }
       cancelledRef.current = true
       abortControllersRef.current.forEach((controller) => controller.abort())
       abortControllersRef.current.clear()

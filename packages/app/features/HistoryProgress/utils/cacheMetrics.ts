@@ -42,7 +42,7 @@ export function recordCacheHit(type: CacheType): void {
   } else {
     metrics.videos.hits++
   }
-  log.debug('cacheMetrics', 'Cache hit recorded', { type })
+  // Removed per-hit log - use getCacheMetrics() for aggregated stats
 }
 
 /**
@@ -55,7 +55,7 @@ export function recordCacheMiss(type: CacheType): void {
   } else {
     metrics.videos.misses++
   }
-  log.debug('cacheMetrics', 'Cache miss recorded', { type })
+  // Removed per-miss log - use getCacheMetrics() for aggregated stats
 }
 
 /**

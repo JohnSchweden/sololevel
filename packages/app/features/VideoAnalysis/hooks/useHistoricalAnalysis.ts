@@ -382,14 +382,7 @@ export async function fetchHistoricalAnalysisData(
     // Use cached title immediately (already fresh from prefetch)
     const updatedCached = { ...cached, videoUri: optimisticVideoUri }
 
-    log.info('useHistoricalAnalysis', 'Returning cached analysis (optimistic)', {
-      analysisId,
-      hasVideoUri: !!updatedCached.videoUri,
-      videoUri: updatedCached.videoUri,
-      cachedAt: new Date(updatedCached.cachedAt).toISOString(),
-      title: updatedCached.title,
-      validationDeferred: true,
-    })
+    // Removed individual log - batch summaries in usePrefetchVideoAnalysis provide visibility
 
     // Return data with deferred validation flag
     // File validation will happen in useEffect after mount (non-blocking)
