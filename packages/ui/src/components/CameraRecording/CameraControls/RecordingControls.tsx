@@ -162,10 +162,10 @@ export function RecordingControls({
           icon={
             <SwitchCamera
               size="$1"
-              color="white"
+              color={!canSwapCamera ? 'rgba(255, 255, 255, 0.3)' : 'white'}
             />
           }
-          opacity={!canSwapCamera ? 0.5 : 1}
+          opacity={!canSwapCamera ? 0.3 : 1}
           accessibilityLabel="Switch camera"
           accessibilityHint="Switch between front and back camera"
         />

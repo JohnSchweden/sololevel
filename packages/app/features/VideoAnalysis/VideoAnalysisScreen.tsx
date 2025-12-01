@@ -516,11 +516,19 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     () => ({
       uri: historical.data?.videoUri ?? props.videoUri ?? '',
       posterUri: undefined,
+      // // Use cached thumbnail as poster for instant visual feedback while video loads
+      // posterUri: historical.data?.thumbnail,
       isReady: !isProcessing,
       isProcessing,
       initialStatus: normalizedInitialStatus as 'processing' | 'ready' | 'playing' | 'paused',
     }),
-    [historical.data?.videoUri, props.videoUri, isProcessing, normalizedInitialStatus]
+    [
+      historical.data?.videoUri,
+      historical.data?.thumbnail,
+      props.videoUri,
+      isProcessing,
+      normalizedInitialStatus,
+    ]
   )
 
   // 🆕 Gesture controller (after videoState to access isProcessing)

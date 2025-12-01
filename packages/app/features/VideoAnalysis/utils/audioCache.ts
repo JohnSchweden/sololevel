@@ -58,29 +58,56 @@ export function getCachedAudioPath(feedbackId: string, extension = 'wav'): strin
 /**
  * Check if audio file exists in cache (tries multiple extensions)
  * Priority order: wav, mp3, aac, m4a
+ * PERF: Uses Promise.race for parallel checks - returns as soon as ANY extension is found
  * @param feedbackId - Feedback ID
- * @param extension - Optional extension hint (checks this first, then tries others)
+ * @param extension - Optional extension hint (checks this first for fast path)
  * @returns True if any format of the file exists
  */
 export async function checkCachedAudio(feedbackId: string, extension?: string): Promise<boolean> {
-  const defaultOrder = ['wav', 'mp3', 'aac', 'm4a']
-  const extensionsToCheck = extension
-    ? [extension, ...defaultOrder.filter((e) => e !== extension)]
-    : defaultOrder
+  const path = await findCachedAudioPath(feedbackId, extension)
+  return path !== null
+}
 
-  for (const ext of extensionsToCheck) {
+/**
+ * Find cached audio file path for a feedback ID (tries multiple extensions)
+ * Priority order: wav, mp3, aac, m4a
+ * PERF: Uses parallel checks - returns as soon as ANY extension is found
+ * @param feedbackId - Feedback ID
+ * @param extension - Optional extension hint (checks this first for fast path)
+ * @returns Full file path if found, null otherwise
+ */
+export async function findCachedAudioPath(
+  feedbackId: string,
+  extension?: string
+): Promise<string | null> {
+  // Fast path: If extension hint provided, check that first (avoids parallel overhead)
+  if (extension) {
     try {
-      const path = getCachedAudioPath(feedbackId, ext)
+      const path = getCachedAudioPath(feedbackId, extension)
       const info = await getInfoAsync(path)
       if (info.exists) {
-        return true
+        return path
       }
-    } catch (error) {
-      // Try next extension
+    } catch {
+      // Fall through to parallel check
     }
   }
 
-  return false
+  // PERF: Parallel check all extensions simultaneously
+  const extensions = ['wav', 'mp3', 'aac', 'm4a'].filter((e) => e !== extension)
+  const results = await Promise.all(
+    extensions.map(async (ext) => {
+      try {
+        const path = getCachedAudioPath(feedbackId, ext)
+        const info = await getInfoAsync(path)
+        return info.exists ? path : null
+      } catch {
+        return null
+      }
+    })
+  )
+
+  return results.find((path) => path !== null) ?? null
 }
 
 export async function persistAudioFile(feedbackId: string, remoteUrl: string): Promise<string> {

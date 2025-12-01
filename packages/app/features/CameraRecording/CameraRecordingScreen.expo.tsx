@@ -167,6 +167,7 @@ export function CameraRecordingScreen({
       recordingState,
       duration, // Included for type compatibility, but not used by component
       zoomLevel,
+      // Disable camera swap when recording is active; enable when paused or idle
       canSwapCamera: recordingState !== RecordingState.RECORDING,
       canStop,
       onPause: handlePauseRecording,

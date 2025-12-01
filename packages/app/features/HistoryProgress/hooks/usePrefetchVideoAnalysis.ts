@@ -1,14 +1,17 @@
 import { analysisKeys } from '@app/hooks/analysisKeys'
-import { getAnalysisIdForJobId, supabase } from '@my/api'
+import { getAnalysisIdForJobId, getFirstAudioUrlForFeedback, supabase } from '@my/api'
 import type { Database } from '@my/api'
 import { log } from '@my/logging'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
+import { Platform } from 'react-native'
 import { fetchHistoricalAnalysisData } from '../../VideoAnalysis/hooks/useHistoricalAnalysis'
+import { useFeedbackAudioStore } from '../../VideoAnalysis/stores/feedbackAudio'
 import {
   type FeedbackStatusData,
   useFeedbackStatusStore,
 } from '../../VideoAnalysis/stores/feedbackStatus'
+import { findCachedAudioPath, persistAudioFile } from '../../VideoAnalysis/utils/audioCache'
 import { useVideoHistoryStore } from '../stores/videoHistory'
 import { useNetworkQuality } from './useNetworkQuality'
 
@@ -128,7 +131,32 @@ export function usePrefetchVideoAnalysis(
         }
 
         if (allCached) {
-          // All feedbacks already cached - skip batch prefetch entirely
+          // All feedbacks already cached - skip database fetch
+          // BUT still prefetch audio paths for cached feedbacks (they might not have audio resolved)
+          if (Platform.OS !== 'web' && !signal?.aborted) {
+            const completedFeedbackIds: number[] = []
+            for (const analysisJobId of analysisJobIds) {
+              const cachedUuid = getUuid(analysisJobId)
+              if (cachedUuid) {
+                const cachedFeedbacks = getFeedbacksByAnalysisId(cachedUuid)
+                for (const feedback of cachedFeedbacks) {
+                  if (feedback.audioStatus === 'completed') {
+                    completedFeedbackIds.push(feedback.id)
+                  }
+                }
+              }
+            }
+            if (__DEV__) {
+              log.debug('usePrefetchVideoAnalysis', 'Audio prefetch from cached feedbacks', {
+                analysisJobIds: analysisJobIds.length,
+                completedFeedbackIds: completedFeedbackIds.length,
+                feedbackIds: completedFeedbackIds.slice(0, 5), // First 5 for debugging
+              })
+            }
+            if (completedFeedbackIds.length > 0) {
+              void prefetchAudioPaths(completedFeedbackIds, signal)
+            }
+          }
           return result
         }
 
@@ -186,6 +214,22 @@ export function usePrefetchVideoAnalysis(
 
         // Step 3: Batch fetch all uncached feedbacks in 1 query
         if (uncachedUuids.length === 0) {
+          // All feedbacks cached after UUID resolution - still prefetch audio paths
+          if (Platform.OS !== 'web' && !signal?.aborted) {
+            const completedFeedbackIds: number[] = []
+            for (const [, analysisUuid] of Array.from(uuidMap.entries())) {
+              const cachedFeedbacks = getFeedbacksByAnalysisId(analysisUuid)
+              for (const feedback of cachedFeedbacks) {
+                if (feedback.audioStatus === 'completed') {
+                  completedFeedbackIds.push(feedback.id)
+                }
+              }
+            }
+            if (completedFeedbackIds.length > 0) {
+              void prefetchAudioPaths(completedFeedbackIds, signal)
+            }
+          }
+
           if (__DEV__) {
             log.debug('usePrefetchVideoAnalysis', 'Batch feedback prefetch summary', {
               total: analysisJobIds.length,
@@ -252,10 +296,21 @@ export function usePrefetchVideoAnalysis(
           }
         }
 
+        // PERF: Build reverse map (uuid -> jobIds) once for O(n) lookup instead of O(n*m)
+        const uuidToJobIds = new Map<string, number[]>()
+        for (const [analysisJobId, analysisUuid] of Array.from(uuidMap.entries())) {
+          const existing = uuidToJobIds.get(analysisUuid)
+          if (existing) {
+            existing.push(analysisJobId)
+          } else {
+            uuidToJobIds.set(analysisUuid, [analysisJobId])
+          }
+        }
+
         // Add all feedbacks to store
         let fetchedCount = 0
         for (const [analysisUuid, feedbacks] of Array.from(feedbacksByUuid.entries())) {
-          feedbacks.forEach((feedback: FeedbackSelectResult) => {
+          for (const feedback of feedbacks) {
             addFeedback({
               id: feedback.id,
               analysis_id: feedback.analysis_id,
@@ -275,26 +330,49 @@ export function usePrefetchVideoAnalysis(
               created_at: feedback.created_at,
               updated_at: feedback.created_at,
             })
-          })
+          }
           fetchedCount++
 
-          // Mark corresponding analysisJobIds as prefetched
-          for (const [analysisJobId, uuid] of Array.from(uuidMap.entries())) {
-            if (uuid === analysisUuid) {
+          // Mark corresponding analysisJobIds as prefetched (O(1) lookup via reverse map)
+          const jobIds = uuidToJobIds.get(analysisUuid)
+          if (jobIds) {
+            for (const analysisJobId of jobIds) {
               feedbackPrefetchedRef.current.add(analysisJobId)
-              result.set(analysisJobId, uuid)
+              result.set(analysisJobId, analysisUuid)
             }
           }
         }
 
+        // Step 5: Prefetch audio paths for completed feedbacks (PERF optimization)
+        // This resolves audio URLs BEFORE user navigates, eliminating filesystem checks during navigation
+        if (Platform.OS !== 'web' && !signal?.aborted) {
+          const completedFeedbackIds: number[] = []
+          if (feedbacksData) {
+            for (const feedback of feedbacksData) {
+              if (feedback.audio_status === 'completed') {
+                completedFeedbackIds.push(feedback.id)
+              }
+            }
+          }
+
+          if (completedFeedbackIds.length > 0) {
+            // Fire-and-forget: Resolve audio paths in background
+            // Don't await - let it complete while user is still on history screen
+            void prefetchAudioPaths(completedFeedbackIds, signal)
+          }
+        }
+
         if (__DEV__) {
+          // PERF: Build log data inline without intermediate arrays
+          const fetchedCounts: Record<string, number> = {}
+          for (const [uuid, fb] of Array.from(feedbacksByUuid.entries())) {
+            fetchedCounts[uuid] = fb.length
+          }
           log.debug('usePrefetchVideoAnalysis', 'Batch feedback prefetch summary', {
             total: analysisJobIds.length,
             cachedSkipped: cachedCounts.size,
             fetched: fetchedCount,
-            fetchedCounts: Object.fromEntries(
-              Array.from(feedbacksByUuid.entries()).map(([uuid, fb]) => [uuid, fb.length])
-            ),
+            fetchedCounts,
             cachedCounts: Object.fromEntries(cachedCounts),
           })
         }
@@ -309,6 +387,122 @@ export function usePrefetchVideoAnalysis(
       }
     },
     [getUuid, setUuid, getFeedbacksByAnalysisId, addFeedback]
+  )
+
+  /**
+   * Prefetch audio file paths for completed feedbacks
+   * PERF: Resolves audio URLs during history screen load (before navigation)
+   * This eliminates filesystem checks during VideoAnalysisScreen mount
+   */
+  const prefetchAudioPaths = useCallback(
+    async (feedbackIds: number[], signal?: AbortSignal): Promise<void> => {
+      if (feedbackIds.length === 0) {
+        return
+      }
+
+      const audioStore = useFeedbackAudioStore.getState()
+      const audioUrls = audioStore.audioUrls
+      const audioPaths = audioStore.audioPaths
+
+      if (__DEV__) {
+        log.debug('usePrefetchVideoAnalysis', 'Audio prefetch starting', {
+          feedbackIds: feedbackIds.slice(0, 5),
+          audioUrlsCount: Object.keys(audioUrls).length,
+          audioPathsCount: Object.keys(audioPaths).length,
+          sampleAudioUrls: Object.keys(audioUrls).slice(0, 3),
+          sampleAudioPaths: Object.keys(audioPaths).slice(0, 3),
+        })
+      }
+
+      // Filter out feedbacks that already have resolved URLs
+      const unresolvedIds = feedbackIds.filter((id) => {
+        const idStr = String(id)
+        return !audioUrls[idStr] && !audioPaths[idStr]
+      })
+
+      if (unresolvedIds.length === 0) {
+        if (__DEV__) {
+          log.debug('usePrefetchVideoAnalysis', 'All audio paths already resolved', {
+            total: feedbackIds.length,
+          })
+        }
+        return
+      }
+
+      if (__DEV__) {
+        log.debug('usePrefetchVideoAnalysis', 'Prefetching audio paths', {
+          total: feedbackIds.length,
+          unresolved: unresolvedIds.length,
+          alreadyCached: feedbackIds.length - unresolvedIds.length,
+        })
+      }
+
+      // Resolve audio paths in parallel (PERF: parallel > sequential)
+      const resolutions = await Promise.all(
+        unresolvedIds.map(async (feedbackId) => {
+          if (signal?.aborted) {
+            return null
+          }
+
+          const idStr = String(feedbackId)
+
+          try {
+            // Tier 1: Check local cache first (fastest) - returns path directly, no re-checking
+            const cachedPath = await findCachedAudioPath(idStr)
+            if (cachedPath) {
+              return { feedbackId: idStr, url: cachedPath, source: 'cache' as const }
+            }
+
+            // Tier 2: Fetch signed URL from cloud
+            const result = await getFirstAudioUrlForFeedback(feedbackId)
+            if (!result.ok) {
+              return null
+            }
+
+            // Tier 3: Download and cache in background (non-blocking)
+            if (result.url.startsWith('http')) {
+              persistAudioFile(idStr, result.url)
+                .then((persistentPath) => {
+                  // Update store with persistent path
+                  useFeedbackAudioStore.getState().setAudioPath(idStr, persistentPath)
+                })
+                .catch(() => {
+                  // Ignore background persist errors
+                })
+            }
+
+            return { feedbackId: idStr, url: result.url, source: 'cloud' as const }
+          } catch {
+            return null
+          }
+        })
+      )
+
+      // Batch update audio store
+      const validResolutions = resolutions.filter(
+        (r): r is { feedbackId: string; url: string; source: 'cache' | 'cloud' } => r !== null
+      )
+
+      if (validResolutions.length > 0) {
+        const currentUrls = useFeedbackAudioStore.getState().audioUrls
+        const updates: Record<string, string> = {}
+        for (const { feedbackId, url } of validResolutions) {
+          updates[feedbackId] = url
+        }
+        useFeedbackAudioStore.getState().setAudioUrls({ ...currentUrls, ...updates })
+
+        if (__DEV__) {
+          const cacheHits = validResolutions.filter((r) => r.source === 'cache').length
+          const cloudFetches = validResolutions.filter((r) => r.source === 'cloud').length
+          log.debug('usePrefetchVideoAnalysis', 'Audio paths prefetched', {
+            resolved: validResolutions.length,
+            cacheHits,
+            cloudFetches,
+          })
+        }
+      }
+    },
+    []
   )
 
   const prefetchVideo = useCallback(

@@ -11,15 +11,14 @@ import {
 } from '@ui/components/CameraRecording'
 
 import { useStatusBar } from '@app/hooks/useStatusBar'
+import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { useIsFocused } from '@react-navigation/native'
-//import { useSafeArea } from '@app/provider/safe-area/use-safe-area'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { VisionCameraPreview } from '@ui/components/CameraRecording/CameraPreview/CameraPreview.native.vision'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Platform } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, YStack } from 'tamagui'
+import { Button, Text, XStack, YStack } from 'tamagui'
 // import { MVPPoseDebugOverlay } from './components/MVPPoseDebugOverlay'
 import { useCameraPermissions } from './hooks/useCameraPermissions'
 import { useCameraScreenLogic } from './hooks/useCameraScreenLogic'
@@ -51,9 +50,8 @@ export function CameraRecordingScreen({
   // Hide status bar when this screen is focused
   useStatusBar(true, 'fade')
 
-  //const insets = useSafeArea()
-  //const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-  const insets = useSafeAreaInsets()
+  const insets = useStableSafeArea()
+  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
   const BOTTOM_NAV_HEIGHT = 0 // Fixed height from BottomNavigationContainer
 
   const cameraRef = useRef<CameraPreviewRef>(null)
@@ -286,6 +284,34 @@ export function CameraRecordingScreen({
           />
         }
       >
+        {/* Paused indicator - centered below app header */}
+        {recordingState === RecordingState.PAUSED && (
+          <XStack
+            position="absolute"
+            top={insets.top + APP_HEADER_HEIGHT}
+            left={0}
+            right={0}
+            justifyContent="center"
+            zIndex={100}
+            pointerEvents="none"
+          >
+            <XStack
+              backgroundColor="#E53935"
+              paddingHorizontal="$2"
+              paddingVertical="$1.5"
+              borderRadius="$2"
+            >
+              <Text
+                color="white"
+                fontWeight="700"
+                fontSize={14}
+              >
+                PAUSED
+              </Text>
+            </XStack>
+          </XStack>
+        )}
+
         <CameraPreviewArea isRecording={isRecording}>
           {/* Camera Preview Mode */}
           <VisionCameraPreview
