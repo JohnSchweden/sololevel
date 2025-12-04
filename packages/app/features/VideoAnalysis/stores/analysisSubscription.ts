@@ -841,110 +841,8 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
             key,
             jobId: job.id,
           })
-
-          // Also fetch title immediately in case it was already stored
-          // This is a fallback in case the subscription's immediate fetch doesn't work
-          // Retry with exponential backoff since title might not be stored yet
-          let retryCount = 0
-          const maxRetries = 5
-          const retryDelays = [500, 1000, 2000, 3000, 5000] // ms
-
-          const attemptFetch = async (): Promise<void> => {
-            try {
-              const { supabase } = await import('@my/api')
-              const { useVideoHistoryStore } = await import(
-                '../../HistoryProgress/stores/videoHistory'
-              )
-              const historyStore = useVideoHistoryStore.getState()
-
-              // Check if we already have the title
-              const cached = historyStore.getCached(job.id)
-              const jobCreatedAt =
-                typeof job.created_at === 'string'
-                  ? job.created_at
-                  : typeof job.created_at === 'object' && job.created_at !== null
-                    ? new Date(job.created_at as any).toISOString()
-                    : new Date().toISOString()
-              if (
-                cached?.title &&
-                cached.title !== `Analysis ${new Date(jobCreatedAt).toLocaleDateString()}`
-              ) {
-                log.debug('AnalysisSubscriptionStore', 'Title already in cache, skipping fetch', {
-                  key,
-                  jobId: job.id,
-                  title: cached.title,
-                })
-                return
-              }
-
-              // Use maybeSingle() to handle case where row doesn't exist yet
-              const result = (await supabase
-                .from('analyses')
-                .select('title')
-                .eq('job_id', job.id)
-                .maybeSingle()) as { data: { title: string | null } | null; error: any }
-
-              if (result.error) {
-                log.debug('AnalysisSubscriptionStore', 'Title fetch failed', {
-                  key,
-                  jobId: job.id,
-                  error: result.error.message,
-                  retryCount,
-                })
-                // Retry if we haven't exceeded max retries
-                if (retryCount < maxRetries) {
-                  const delay = retryDelays[retryCount] || 5000
-                  retryCount++
-                  setTimeout(() => attemptFetch(), delay)
-                }
-                return
-              }
-
-              if (result.data?.title) {
-                log.info(
-                  'AnalysisSubscriptionStore',
-                  'Fetched title immediately after subscription setup',
-                  {
-                    key,
-                    jobId: job.id,
-                    title: result.data.title,
-                    retryCount,
-                  }
-                )
-                handleTitleUpdate(key, job.id, result.data.title, set, get)
-              } else if (retryCount < maxRetries) {
-                // No title yet, retry
-                const delay = retryDelays[retryCount] || 5000
-                retryCount++
-                log.debug('AnalysisSubscriptionStore', 'Title not found yet, retrying', {
-                  key,
-                  jobId: job.id,
-                  retryCount,
-                  delay,
-                })
-                setTimeout(() => attemptFetch(), delay)
-              }
-            } catch (error) {
-              log.warn(
-                'AnalysisSubscriptionStore',
-                'Error fetching title after subscription setup',
-                {
-                  key,
-                  jobId: job.id,
-                  error: error instanceof Error ? error.message : String(error),
-                  retryCount,
-                }
-              )
-              // Retry on error if we haven't exceeded max retries
-              if (retryCount < maxRetries) {
-                const delay = retryDelays[retryCount] || 5000
-                retryCount++
-                setTimeout(() => attemptFetch(), delay)
-              }
-            }
-          }
-
-          setTimeout(() => attemptFetch(), retryDelays[0])
+          // Note: subscribeToAnalysisTitle already performs an immediate fetch on SUBSCRIBED
+          // No need for additional polling - realtime will push updates when title is stored
         } else {
           log.warn('AnalysisSubscriptionStore', 'Title subscription returned undefined', {
             key,
@@ -961,9 +859,9 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
     }
   }
 
-  // FIX: Invalidate history cache when analysis completes, but delay if title not ready yet
-  // Problem: Title subscription fires AFTER job completion (500ms+ gap). Invalidating immediately
-  // causes cache to be populated with job data without title, then title arrives but cache already stale.
+  // Invalidate history cache when analysis completes, but delay if title not ready yet
+  // Note: With analyses table in realtime publication, title should arrive via postgres_changes
+  // before or simultaneously with job completion. This delay is a safety net for edge cases.
   if (previousStatus !== 'completed' && job.status === 'completed') {
     const subscription = get().subscriptions.get(key)
     const hasTitle = subscription?.hasTitleReceived ?? false

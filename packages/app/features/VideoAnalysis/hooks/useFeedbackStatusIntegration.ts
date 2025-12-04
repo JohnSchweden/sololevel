@@ -190,14 +190,82 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     }
   }, [analysisId, updateFeedbacksState])
 
+  // History mode: One-time fetch without subscription
+  // This is more efficient than realtime for completed analyses
+  const historyFetchedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!analysisId || !isHistoryMode) {
+      return
+    }
+
+    // Skip if already fetched for this analysis
+    if (historyFetchedRef.current === analysisId) {
+      return
+    }
+
+    // Check if we already have data in cache
+    const cachedFeedbacks = useFeedbackStatusStore.getState().getFeedbacksByAnalysisId(analysisId)
+    if (cachedFeedbacks.length > 0) {
+      log.debug('useFeedbackStatusIntegration', 'History mode: using cached feedbacks', {
+        analysisId,
+        count: cachedFeedbacks.length,
+      })
+      historyFetchedRef.current = analysisId
+      return
+    }
+
+    // One-time fetch for history mode
+    log.info('useFeedbackStatusIntegration', 'History mode: fetching feedbacks once', {
+      analysisId,
+    })
+    historyFetchedRef.current = analysisId
+
+    const fetchFeedbacks = async () => {
+      try {
+        const { supabase } = await import('@my/api')
+        const { data, error } = await (supabase as any)
+          .from('analysis_feedback')
+          .select(
+            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+          )
+          .eq('analysis_id', analysisId)
+          .order('timestamp_seconds', { ascending: true })
+
+        if (error) {
+          log.error('useFeedbackStatusIntegration', 'History fetch failed', { analysisId, error })
+          return
+        }
+
+        if (data && data.length > 0) {
+          const store = useFeedbackStatusStore.getState()
+          data.forEach((feedback: any) => {
+            store.addFeedback(feedback)
+          })
+          log.info('useFeedbackStatusIntegration', 'History mode: loaded feedbacks', {
+            analysisId,
+            count: data.length,
+          })
+        }
+      } catch (err) {
+        log.error('useFeedbackStatusIntegration', 'History fetch error', {
+          analysisId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
+    void fetchFeedbacks()
+  }, [analysisId, isHistoryMode])
+
   // Subscribe/unsubscribe based on analysis ID using a ref guard to prevent churn
-  // Skip subscription in history mode - data should be prefetched and in cache
+  // Skip subscription in history mode - uses one-time fetch above instead
   useEffect(() => {
     if (!analysisId || isHistoryMode) {
       if (isHistoryMode && analysisId) {
         log.debug(
           'useFeedbackStatusIntegration',
-          `Skipping subscription in history mode - using prefetched data for ${analysisId}`
+          `Skipping realtime subscription in history mode for ${analysisId}`
         )
       }
       return undefined

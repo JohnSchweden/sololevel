@@ -751,7 +751,7 @@ export function subscribeToLatestAnalysisJobByRecordingId(
 
       return () => {
         unsubscribed = true
-        subscription.unsubscribe()
+        void supabase.removeChannel(subscription)
       }
     })
     .catch((healthError) => {
@@ -871,7 +871,7 @@ export function subscribeToAnalysisJob(
 
       return () => {
         unsubscribed = true
-        subscription.unsubscribe()
+        void supabase.removeChannel(subscription)
       }
     })
     .catch((healthError) => {
@@ -964,7 +964,7 @@ export function subscribeToAnalysisTitle(
 
       return () => {
         unsubscribed = true
-        subscription.unsubscribe()
+        void supabase.removeChannel(subscription)
       }
     })
     .catch(() => {
@@ -1001,7 +1001,7 @@ export function subscribeToUserAnalysisJobs(
     .subscribe()
 
   return () => {
-    subscription.unsubscribe()
+    void supabase.removeChannel(subscription)
   }
 }
 
