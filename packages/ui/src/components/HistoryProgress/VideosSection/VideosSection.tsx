@@ -285,7 +285,7 @@ export function VideosSection({
           justifyContent="center"
           alignItems="center"
           gap="$3"
-          backgroundColor="$color2"
+          backgroundColor="transparent"
           borderRadius="$4"
           padding="$4"
           testID={`${testID}-empty`}

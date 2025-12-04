@@ -41,7 +41,11 @@ try {
       maxBuffer: 10 * 1024 * 1024 // 10MB buffer
     });
     
-    if (!status.includes('API URL') || !status.includes('Database URL')) {
+    // Check for indicators that Supabase is running
+    // Status output includes "local development setup is running" when active
+    if (!status.includes('local development setup is running') && 
+        !status.includes('Project URL') && 
+        !status.includes('postgresql://')) {
       throw new Error('Supabase not running');
     }
   } catch (error) {

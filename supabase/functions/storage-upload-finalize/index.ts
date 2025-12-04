@@ -1,5 +1,5 @@
-import type { SupabaseClient } from '../_shared/supabase/client'
-import { createServiceClientFromEnv } from '../_shared/supabase/client'
+import type { SupabaseClient } from '../_shared/supabase/client.ts'
+import { createServiceClientFromEnv } from '../_shared/supabase/client.ts'
 
 type StorageEvent = {
   type: string

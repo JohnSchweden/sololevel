@@ -13,8 +13,10 @@ import {
 } from '../media/audio.ts'
 
 // Get signed URL TTL from environment, default to 15 minutes (900 seconds)
+// Note: Cannot use SUPABASE_ prefix (reserved by Supabase), so using SIGNED_URL_TTL_SECONDS
 const getSignedUrlTtl = (): number => {
-  const ttl = (globalThis as any).Deno?.env?.get('SUPABASE_SIGNED_URL_TTL_SECONDS')
+  const ttl = (globalThis as any).Deno?.env?.get('SIGNED_URL_TTL_SECONDS') || 
+              (globalThis as any).Deno?.env?.get('SUPABASE_SIGNED_URL_TTL_SECONDS') // Legacy fallback
   return ttl ? parseInt(ttl, 10) : 900
 }
 
@@ -34,7 +36,7 @@ export interface UploadResult {
  * @param bytes File content as Uint8Array
  * @param contentType MIME type (e.g., 'audio/aac', 'audio/mpeg')
  * @param bucket Bucket name (defaults to 'processed')
- * @param ttlSeconds Optional TTL for signed URLs (defaults to env SUPABASE_SIGNED_URL_TTL_SECONDS or 900)
+ * @param ttlSeconds Optional TTL for signed URLs (defaults to env SIGNED_URL_TTL_SECONDS or 900)
  * @returns Upload result with signed URLs
  */
 export async function uploadProcessedArtifact(
