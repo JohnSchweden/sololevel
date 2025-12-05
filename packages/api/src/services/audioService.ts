@@ -108,6 +108,7 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
       }
     }
 
+    // .limit(1) tells PostgREST query returns at most one row (required for .maybeSingle())
     const { data: row, error: queryError } = await castedSupabase
       .from('analysis_audio_segments')
       .select('audio_url, storage_path')

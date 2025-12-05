@@ -164,21 +164,14 @@ function transformToCache(
       })
   }
 
-  // Resolve video URI: prioritize metadata.localUri if available, otherwise use storage_path
-  const metadataLocalUri = (job.video_recordings?.metadata as { localUri?: string } | undefined)
-    ?.localUri
+  // Resolve video URI from localUriIndex (device-local Zustand + AsyncStorage)
+  // After migration to remote storage, metadata.localUri is no longer written to DB
+  // CRITICAL: storagePath is NOT a playable URI - it's a Supabase storage key
+  // Only set videoUri if we have an actual local file path from localUriIndex
   const storagePath = job.video_recordings?.storage_path
-  let videoUri: string | null = null
-
-  if (metadataLocalUri && Platform.OS !== 'web') {
-    // Use metadata.localUri if available (from recording flow)
-    videoUri = metadataLocalUri
-    // Note: localUriIndex updates are now batched in the caller to prevent cascade re-renders
-    // This function no longer calls setLocalUri directly during transformation
-  } else {
-    // Fallback to storage_path (will be resolved via signed URL in useHistoricalAnalysis)
-    videoUri = storagePath ?? job.video_recordings?.filename ?? null
-  }
+  const localUri = storagePath ? useVideoHistoryStore.getState().getLocalUri(storagePath) : null
+  // videoUri should be undefined if we don't have a local file - useHistoricalAnalysis will resolve it
+  const videoUri = localUri ?? null
 
   // Use AI-generated title from analyses table if available, otherwise fall back to generated title
   // Note: analyses is a one-to-one relationship, so Supabase returns it as an object, not an array
@@ -414,12 +407,15 @@ export function useHistoryQuery(limit = 10) {
 
   // Build query options - cache already populated via setQueryData above
   const queryOptions = React.useMemo(() => {
-    // Check Zustand store directly (source of truth) to determine if cache is incomplete
+    // Check Zustand store directly (source of truth) to determine if cache is empty
     // This is more reliable than checking TanStack Query cache which may not be populated yet
     const state = useVideoHistoryStore.getState()
     const allCached = isHydrated ? state.getAllCached() : []
     const cachedCount = allCached.length
-    const shouldRefetchOnMount = cachedCount < limit
+    // Only refetch if cache is completely empty (first load)
+    // If we have any data, show it - don't refetch just because cachedCount < limit
+    // This prevents infinite refetches when user simply has fewer items than the limit
+    const shouldRefetchOnMount = cachedCount === 0
 
     if (__DEV__ && isHydrated) {
       log.debug('useHistoryQuery', 'Query options - checking Zustand store', {
@@ -476,7 +472,10 @@ export function useHistoryQuery(limit = 10) {
                     id: jobs[0].id,
                     status: jobs[0].status,
                     hasVideoRecordings: !!jobs[0].video_recordings,
-                    videoRecordingsMetadata: jobs[0].video_recordings?.metadata,
+                    storagePath: jobs[0].video_recordings?.storage_path,
+                    thumbnailUrl: jobs[0].video_recordings?.thumbnail_url,
+                    hasThumbnailMetadata: !!(jobs[0].video_recordings?.metadata as any)
+                      ?.thumbnailUri,
                   }
                 : 'no jobs',
             })
@@ -491,10 +490,8 @@ export function useHistoryQuery(limit = 10) {
           )
 
           // Update cache with completed jobs and transform to VideoItem
-          // Collect all cache entries and localUri updates to batch them in a single store update
-          // This prevents 10 sequential re-renders during pull-to-refresh
+          // Batch all cache entries in a single store update to prevent cascade re-renders
           const cacheEntries: Array<Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'>> = []
-          const localUriUpdates: Array<[string, string]> = []
 
           // CRITICAL FIX: transformToCache now returns synchronously
           // No longer awaits file checks - they happen in background
@@ -503,14 +500,8 @@ export function useHistoryQuery(limit = 10) {
             const cacheEntry = transformToCache(job)
             cacheEntries.push(cacheEntry)
 
-            // Collect localUri updates instead of applying immediately
-            const metadata = job.video_recordings?.metadata as Record<string, unknown> | undefined
-            if (cacheEntry.storagePath) {
-              const localUri = metadata?.localUri as string | undefined
-              if (localUri && localUri.includes('recordings/')) {
-                localUriUpdates.push([cacheEntry.storagePath, localUri])
-              }
-            }
+            // localUri mappings are no longer stored in DB metadata
+            // They're maintained in localUriIndex (set during upload and background downloads)
 
             return { jobId: job.id, cacheEntry }
           })
@@ -524,7 +515,7 @@ export function useHistoryQuery(limit = 10) {
               cachedAt: now,
               lastAccessed: now,
             })),
-            localUriUpdates
+            [] // No localUri updates from DB - maintained in localUriIndex separately
           )
 
           // Get cached entries and transform to VideoItems
@@ -566,7 +557,7 @@ export function useHistoryQuery(limit = 10) {
 
   const queryResult = useQuery(queryOptions)
 
-  // CRITICAL FIX: Manually trigger refetch if cache is incomplete after hydration completes
+  // CRITICAL FIX: Manually trigger refetch if cache is empty after hydration completes
   // TanStack Query's refetchOnMount is evaluated on mount, not when query becomes enabled
   // So we need to manually check and refetch if needed when hydration completes
   const hasTriggeredRefetchRef = React.useRef(false)
@@ -579,11 +570,12 @@ export function useHistoryQuery(limit = 10) {
     const allCached = state.getAllCached()
     const cachedCount = allCached.length
 
-    // If cache has fewer items than limit, trigger a refetch
-    if (cachedCount < limit) {
+    // Only trigger refetch if cache is completely empty (first load)
+    // If we have any data, show it - don't refetch just because cachedCount < limit
+    if (cachedCount === 0) {
       hasTriggeredRefetchRef.current = true
       if (__DEV__) {
-        log.debug('useHistoryQuery', 'Cache incomplete, triggering refetch', {
+        log.debug('useHistoryQuery', 'Cache empty, triggering refetch', {
           cachedCount,
           limit,
         })

@@ -372,19 +372,9 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                     }
                   )
 
-                  if (
-                    storagePath &&
-                    videoRecording?.metadata &&
-                    typeof videoRecording.metadata === 'object'
-                  ) {
-                    const metadata = videoRecording.metadata as Record<string, unknown>
-                    if (typeof metadata.localUri === 'string') {
-                      historyStore.setLocalUri(storagePath, metadata.localUri)
-                      historyStore.updateCache(job.id, { videoUri: metadata.localUri })
-                    }
-                  }
-
                   // Look up persisted videoUri from localUriIndex if available
+                  // After migration to remote storage, metadata.localUri is no longer in DB
+                  // Fast access: uploadVideo sets localUriIndex during upload
                   const persistedVideoUri = storagePath
                     ? historyStore.getLocalUri(storagePath)
                     : undefined

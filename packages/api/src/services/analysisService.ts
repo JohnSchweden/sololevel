@@ -301,6 +301,7 @@ export async function getAnalysisJob(id: number): Promise<AnalysisJob | null> {
 
 /**
  * Get analysis job by video recording ID
+ * Returns the latest analysis job if multiple exist for the same video
  */
 export async function getAnalysisJobByVideoId(
   videoRecordingId: number
@@ -310,17 +311,18 @@ export async function getAnalysisJobByVideoId(
     throw new Error('User not authenticated')
   }
 
+  // .limit(1) tells PostgREST query returns at most one row (required for .maybeSingle())
+  // .single() returns 406 when multiple analysis jobs exist for the same video
   const { data: job, error } = await supabase
     .from('analysis_jobs')
     .select('*')
     .eq('video_recording_id', videoRecordingId)
     .eq('user_id', user.data.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null // Not found
-    }
     throw new Error(`Failed to fetch analysis job: ${error.message}`)
   }
 
@@ -505,15 +507,36 @@ export function getPoseData(job: AnalysisJob): PoseData | null {
 
 /**
  * Get the latest analysis job for a video recording ID
+ * Retries once if auth fails to allow session refresh
  */
 export async function getLatestAnalysisJobForRecordingId(
-  recordingId: number
+  recordingId: number,
+  retryOnAuthError = true
 ): Promise<AnalysisJob | null> {
-  const user = await supabase.auth.getUser()
+  let user = await supabase.auth.getUser()
+
+  // If not authenticated and retry enabled, refresh session and retry once
+  if (!user.data.user && retryOnAuthError) {
+    log.warn(
+      'getLatestAnalysisJobForRecordingId',
+      'User not authenticated, attempting session refresh',
+      { recordingId }
+    )
+
+    // Refresh session by getting it explicitly (triggers refresh if needed)
+    const { data: sessionData } = await supabase.auth.getSession()
+
+    if (sessionData.session) {
+      // Retry with refreshed session
+      user = await supabase.auth.getUser()
+    }
+  }
+
   if (!user.data.user) {
     throw new Error('User not authenticated')
   }
 
+  // .limit(1) tells PostgREST query returns at most one row (required for .maybeSingle())
   const { data: job, error } = await supabase
     .from('analysis_jobs')
     .select('*')

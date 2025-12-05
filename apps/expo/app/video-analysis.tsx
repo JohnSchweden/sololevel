@@ -4,8 +4,11 @@ import {
   useVideoPlayerStore,
 } from '@my/app/features/VideoAnalysis/stores'
 import { useAnalysisJobStatus } from '@my/app/features/VideoAnalysis/stores/analysisStatus'
+import { useAnalysisSubscriptionStore } from '@my/app/features/VideoAnalysis/stores/analysisSubscription'
 import { useFeedbackAudioStore } from '@my/app/features/VideoAnalysis/stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from '@my/app/features/VideoAnalysis/stores/feedbackCoordinatorStore'
+// NOTE: useFeedbackStatusStore.unsubscribeAll() was removed from resetPlaybackStores
+// because it clears ALL cached feedbacks, destroying prefetched data from history screen.
 import { log } from '@my/logging'
 // import { GlassBackground, StateDisplay } from '@my/ui'
 //import { useHeaderHeight } from '@react-navigation/elements'
@@ -53,6 +56,12 @@ const resetPlaybackStores = ({
   useVideoPlayerStore.getState().reset()
   useFeedbackAudioStore.getState().reset()
   usePersistentProgressStore.getState().reset()
+  // FIX: Clean up Realtime subscriptions to prevent 15-minute zombie connections
+  useAnalysisSubscriptionStore.getState().reset()
+  // NOTE: DO NOT call useFeedbackStatusStore.unsubscribeAll() here!
+  // It clears ALL cached feedbacks, destroying prefetched data from history screen.
+  // In history mode, we don't create subscriptions anyway (realtime is skipped).
+  // Subscriptions are cleaned up by useFeedbackStatusIntegration's cleanup effect.
 }
 
 /**

@@ -2,11 +2,15 @@ import { supabase } from '@my/api'
 import { log } from '@my/logging'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Draft } from 'immer'
+import { enableMapSet } from 'immer'
 import React from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
+
+// CRITICAL: Enable immer Map/Set support - without this, Map mutations are silently ignored!
+enableMapSet()
 
 // Types for feedback status tracking
 export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
@@ -306,7 +310,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         lastGlobalUpdate: Date.now(),
 
         // Add feedback
-        addFeedback: (feedback) =>
+        addFeedback: (feedback) => {
           set((draft) => {
             const feedbackState = createFeedbackState(feedback)
             draft.feedbacks.set(feedback.id, feedbackState)
@@ -335,7 +339,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             markAnalysisTouched(draft, feedback.analysis_id)
             pruneAnalyses(draft)
             draft.lastGlobalUpdate = Date.now()
-          }),
+          })
+        },
 
         // Update feedback
         updateFeedback: (feedbackId, updates) =>
@@ -495,10 +500,12 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         getFeedbacksByAnalysisId: (analysisId) => {
           const state = get()
           const feedbackIds = state.feedbacksByAnalysisId.get(analysisId) || []
-          return feedbackIds
+          const result = feedbackIds
             .map((id) => state.feedbacks.get(id))
             .filter((feedback): feedback is FeedbackStatusState => feedback !== undefined)
             .sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+
+          return result
         },
 
         // Get feedback by ID
@@ -1073,8 +1080,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
       {
         name: 'feedback-status-store',
         storage: createJSONStorage(() => AsyncStorage),
-        partialize: (state: FeedbackStatusStore) => ({
-          // Persist feedbacks and mappings, but exclude subscriptions (functions can't be serialized)
+        // Serialize Maps to arrays for persistence, reconstruct on rehydration
+        partialize: (state) => ({
           feedbacks: Array.from(state.feedbacks.entries()),
           feedbacksByAnalysisId: Array.from(state.feedbacksByAnalysisId.entries()),
           analysisLastUpdated: Array.from(state.analysisLastUpdated.entries()),
@@ -1084,27 +1091,45 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           completedCount: state.completedCount,
           failedCount: state.failedCount,
           lastGlobalUpdate: state.lastGlobalUpdate,
-          // Exclude: subscriptions, subscriptionStatus, subscriptionRetries (runtime-only state)
         }),
-        merge: (persistedState: any, currentState: any) => {
-          // Convert arrays back to Maps on rehydration
+        // Reconstruct Maps from arrays on rehydration
+        merge: (persistedState, currentState) => {
+          const persisted = persistedState as {
+            feedbacks?: [number, FeedbackStatusState][]
+            feedbacksByAnalysisId?: [string, number[]][]
+            analysisLastUpdated?: [string, number][]
+            totalFeedbacks?: number
+            processingSSMLCount?: number
+            processingAudioCount?: number
+            completedCount?: number
+            failedCount?: number
+            lastGlobalUpdate?: number
+          }
+
           return {
             ...currentState,
-            feedbacks: new Map(persistedState.feedbacks || []),
-            feedbacksByAnalysisId: new Map(persistedState.feedbacksByAnalysisId || []),
-            analysisLastUpdated: new Map(persistedState.analysisLastUpdated || []),
-            totalFeedbacks: persistedState.totalFeedbacks ?? currentState.totalFeedbacks,
-            processingSSMLCount:
-              persistedState.processingSSMLCount ?? currentState.processingSSMLCount,
+            feedbacks: persisted.feedbacks ? new Map(persisted.feedbacks) : currentState.feedbacks,
+            feedbacksByAnalysisId: persisted.feedbacksByAnalysisId
+              ? new Map(persisted.feedbacksByAnalysisId)
+              : currentState.feedbacksByAnalysisId,
+            analysisLastUpdated: persisted.analysisLastUpdated
+              ? new Map(persisted.analysisLastUpdated)
+              : currentState.analysisLastUpdated,
+            totalFeedbacks: persisted.totalFeedbacks ?? currentState.totalFeedbacks,
+            processingSSMLCount: persisted.processingSSMLCount ?? currentState.processingSSMLCount,
             processingAudioCount:
-              persistedState.processingAudioCount ?? currentState.processingAudioCount,
-            completedCount: persistedState.completedCount ?? currentState.completedCount,
-            failedCount: persistedState.failedCount ?? currentState.failedCount,
-            lastGlobalUpdate: persistedState.lastGlobalUpdate ?? currentState.lastGlobalUpdate,
-            // Keep current runtime state for subscriptions
+              persisted.processingAudioCount ?? currentState.processingAudioCount,
+            completedCount: persisted.completedCount ?? currentState.completedCount,
+            failedCount: persisted.failedCount ?? currentState.failedCount,
+            lastGlobalUpdate: persisted.lastGlobalUpdate ?? currentState.lastGlobalUpdate,
+            // Transient state (subscriptions, abort controllers, etc.) should NOT persist
             subscriptions: currentState.subscriptions,
             subscriptionStatus: currentState.subscriptionStatus,
             subscriptionRetries: currentState.subscriptionRetries,
+            backfilling: currentState.backfilling,
+            backfillAbortControllers: currentState.backfillAbortControllers,
+            initialFetchAbortControllers: currentState.initialFetchAbortControllers,
+            backfillEventQueues: currentState.backfillEventQueues,
           }
         },
       }

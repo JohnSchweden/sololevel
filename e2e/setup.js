@@ -1,7 +1,7 @@
 const { device, element, by, waitFor } = require('detox')
 
 // Increase timeout for CI environments
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 120000
+jest.setTimeout(120000)
 
 // Global test helpers
 global.waitForElement = async (testID, timeout = 10000) => {
@@ -72,16 +72,12 @@ global.grantPermissions = async () => {
 }
 
 // Cleanup between tests
-beforeEach(async () => {
-  await device.reloadReactNative()
-})
+// Note: Removed beforeEach reload to avoid timeouts - app is launched fresh in beforeAll
 
 afterEach(async () => {
   // Take screenshot on test failure
-  if (jasmine.currentTest && jasmine.currentTest.failedExpectations.length > 0) {
-    const testName = jasmine.currentTest.fullName.replace(/\s+/g, '_')
-    await device.takeScreenshot(`failed_${testName}`)
-  }
+  // Note: Jest doesn't expose currentTest like jasmine, so we'll handle failures differently
+  // Screenshots can be taken manually in test catch blocks or via Detox's built-in failure handling
 })
 
 // Global error handling

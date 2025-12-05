@@ -195,6 +195,15 @@ const determinePhase = (params: {
     }
   }
 
+  // CRITICAL: In history mode, skip all processing checks - video is already playable.
+  // Must be checked BEFORE analysisStatus === 'completed' because:
+  // - First navigation: analysisStatus=pending → would fall through to isHistoryMode check (worked)
+  // - Subsequent navigations: analysisStatus=completed (cached) → would hit 'generating-feedback' (bug!)
+  // Feedback items will populate lazily via useFeedbackStatusIntegration subscription.
+  if (isHistoryMode) {
+    return { phase: 'ready', error: null }
+  }
+
   if (feedback.isFullyCompleted || firstPlayableReady) {
     return { phase: 'ready', error: null }
   }
@@ -209,18 +218,6 @@ const determinePhase = (params: {
 
   if (uploadStatus.status === 'completed') {
     return { phase: 'upload-complete', error: null }
-  }
-
-  if (isHistoryMode) {
-    // CRITICAL FIX: In history mode, always return 'ready' immediately.
-    // Historical videos are already complete - the video is playable, only feedback is loading.
-    // Previous bug: Returning 'generating-feedback' when feedback.feedbackItems.length === 0
-    // caused processing overlay to show for videos 5-7 due to prefetch race condition:
-    // - Videos 1-4: Immediate prefetch, feedback loads before user taps
-    // - Videos 5-7: 10-30ms delayed prefetch, user can tap before feedback metadata arrives
-    // - Videos 8-10: Already cached from previous session or scroll-prefetched
-    // Feedback items will populate lazily via useFeedbackStatusIntegration subscription.
-    return { phase: 'ready', error: null }
   }
 
   return { phase: 'uploading', error: null }

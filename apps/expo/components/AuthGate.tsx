@@ -64,6 +64,8 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
   }
 
   // Show loading state while auth is initializing
+  // PERF: Only show spinner if we're genuinely waiting (not about to redirect)
+  // This prevents Tamagui Spinner's Animated values from firing updates after unmount
   if (!initialized || loading) {
     if (fallback) {
       return <>{fallback}</>
@@ -83,7 +85,7 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
     )
   }
 
-  // Don't render children if not authenticated (redirect will happen)
+  // Don't render children if not authenticated (redirect will happen in useEffect)
   // Return dark background to prevent white flash during redirect
   if (!isAuthenticated) {
     logOnce('not-authenticated', () =>

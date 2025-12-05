@@ -91,8 +91,17 @@ export function usePrefetchVideoAnalysis(
   const getCached = useVideoHistoryStore((state) => state.getCached)
   const getUuid = useVideoHistoryStore((state) => state.getUuid)
   const setUuid = useVideoHistoryStore((state) => state.setUuid)
-  const addFeedback = useFeedbackStatusStore((state) => state.addFeedback)
-  const getFeedbacksByAnalysisId = useFeedbackStatusStore((state) => state.getFeedbacksByAnalysisId)
+  // CRITICAL: Use getState() inside callbacks to avoid stale closures
+  // Hook selectors capture functions at render time, but async callbacks may run later
+  // when the store state has changed (especially with persist middleware rehydration)
+  const addFeedback = useCallback(
+    (feedback: FeedbackStatusData) => useFeedbackStatusStore.getState().addFeedback(feedback),
+    []
+  )
+  const getFeedbacksByAnalysisId = useCallback(
+    (analysisId: string) => useFeedbackStatusStore.getState().getFeedbacksByAnalysisId(analysisId),
+    []
+  )
 
   // Adaptive prefetch based on network quality
   const networkQuality = useNetworkQuality()

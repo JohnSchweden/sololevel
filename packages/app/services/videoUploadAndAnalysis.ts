@@ -105,7 +105,7 @@ async function generateThumbnail(videoUri: string, context: string): Promise<str
  * UNIFIED BEHAVIOR:
  * - Both recorded (sourceUri) and uploaded (file + localUri) videos:
  *   1. Generate thumbnails from the original video URI
- *   2. Store localUri in metadata for persistence
+ *   2. Track localUri in device-local storage (localUriIndex) for fast access
  *   3. Go through the same upload pipeline
  */
 async function resolveVideoToUpload(params: {
@@ -249,14 +249,9 @@ async function uploadWithProgress(args: {
     originalFilename: originalFilename || `video.${metadata.format}`,
     durationSeconds: metadata.duration,
     format: metadata.format,
-    metadata: thumbnailUri
-      ? {
-          thumbnailUri,
-          localUri: metadata.localUri,
-        }
-      : metadata.localUri
-        ? { localUri: metadata.localUri }
-        : undefined,
+    // Only store thumbnailUri in DB metadata - localUri is device-specific
+    // and maintained in localUriIndex (Zustand + AsyncStorage) instead
+    metadata: thumbnailUri ? { thumbnailUri } : undefined,
     thumbnailUrl: thumbnailUrl || null,
     onProgress: (progress: number) => {
       log.info('startUploadAndAnalysis', 'Upload progress', { progress })

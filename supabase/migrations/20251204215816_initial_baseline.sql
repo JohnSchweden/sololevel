@@ -2253,6 +2253,35 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
+-- =============================================================================
+-- REALTIME PUBLICATIONS
+-- Enable realtime for tables that need live updates pushed to clients
+-- =============================================================================
+
+-- Add tables to supabase_realtime publication for live updates
+-- Note: Uses DO block with exception handling for idempotency (safe to re-run)
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.analysis_jobs;
+EXCEPTION WHEN duplicate_object THEN
+  NULL; -- Table already in publication
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.analyses;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.analysis_feedback;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
+
+
 
 
 

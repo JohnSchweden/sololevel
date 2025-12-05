@@ -24,6 +24,9 @@ const createChainableMock = () => {
     eq: vi.fn(() => mock),
     select: vi.fn(() => mock),
     single: vi.fn(),
+    maybeSingle: vi.fn(),
+    order: vi.fn(() => mock),
+    limit: vi.fn(() => mock),
     insert: vi.fn(),
     update: vi.fn(() => mock),
   }
@@ -269,7 +272,8 @@ describe('Analysis Service - Video Processing Extensions', () => {
       }
 
       const mockChain = createChainableMock()
-      mockChain.single.mockResolvedValue({ data: mockJob, error: null })
+      // getAnalysisJobByVideoId now uses .order().limit(1).maybeSingle()
+      mockChain.maybeSingle.mockResolvedValue({ data: mockJob, error: null })
 
       mockSupabase.from.mockReturnValue(mockChain)
 

@@ -377,7 +377,18 @@ export async function fetchHistoricalAnalysisData(
     // File validation is deferred to useEffect (async, non-blocking)
     // This prevents blocking mount with FileSystem.getInfoAsync calls (~200-500ms)
     // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
-    const optimisticVideoUri = cached.videoUri ?? FALLBACK_VIDEO_URI
+
+    // CRITICAL: Detect invalid videoUri (raw storagePath instead of actual URI)
+    // Valid URIs start with file://, http://, or https://
+    // Raw storage paths like "uuid/videos/date/id/video.mp4" are NOT playable
+    const cachedVideoUri = cached.videoUri
+    const isValidUri =
+      cachedVideoUri &&
+      (cachedVideoUri.startsWith('file://') ||
+        cachedVideoUri.startsWith('http://') ||
+        cachedVideoUri.startsWith('https://'))
+
+    const optimisticVideoUri = isValidUri ? cachedVideoUri : FALLBACK_VIDEO_URI
 
     // Use cached title immediately (already fresh from prefetch)
     const updatedCached = { ...cached, videoUri: optimisticVideoUri }
@@ -576,50 +587,84 @@ export function useHistoricalAnalysis(analysisId: number | null) {
       }
 
       // OPTIMISTIC CACHE: Defer file validation to async effect (non-blocking)
-      // This validates cached file:// URIs after mount to ensure they still exist
+      // This validates cached URIs after mount to ensure they're valid and files exist
       // If validation fails, we'll re-resolve the URI and update cache
-      if (pendingCacheUpdates?.validateVideoUri && existingCached.videoUri?.startsWith('file://')) {
-        // Validate file existence asynchronously (non-blocking)
-        void (async () => {
-          try {
-            const fileInfo = await FileSystem.getInfoAsync(existingCached.videoUri!)
-            if (!fileInfo.exists) {
-              // File missing - re-resolve URI and update cache
-              log.warn('useHistoricalAnalysis', 'Cached file URI missing, re-resolving', {
-                analysisId,
-                missingUri: existingCached.videoUri,
-                storagePath: existingCached.storagePath,
-              })
+      if (pendingCacheUpdates?.validateVideoUri && existingCached.videoUri) {
+        const cachedUri = existingCached.videoUri
+        const isValidUri =
+          cachedUri.startsWith('file://') ||
+          cachedUri.startsWith('http://') ||
+          cachedUri.startsWith('https://')
 
-              const localUriHint =
-                existingCached.videoUri?.startsWith('file://') && Platform.OS !== 'web'
-                  ? existingCached.videoUri
-                  : undefined
-              const resolvedVideoUri = await resolveHistoricalVideoUri(
-                existingCached.storagePath ?? null,
-                {
-                  analysisId,
-                  localUriHint,
-                }
-              )
-
-              // Update cache with resolved URI
-              updateCache(analysisId, { videoUri: resolvedVideoUri })
-              log.info('useHistoricalAnalysis', 'Re-resolved video URI after validation failure', {
-                analysisId,
-                oldUri: existingCached.videoUri,
-                newUri: resolvedVideoUri,
-              })
-            }
-          } catch (error) {
-            log.warn('useHistoricalAnalysis', 'File validation error (non-blocking)', {
+        // CRITICAL: If cached URI is invalid (raw storagePath), resolve immediately
+        if (!isValidUri) {
+          log.warn(
+            'useHistoricalAnalysis',
+            'Invalid cached videoUri (raw storagePath), re-resolving',
+            {
               analysisId,
-              videoUri: existingCached.videoUri,
-              error: error instanceof Error ? error.message : String(error),
+              invalidUri: cachedUri,
+              storagePath: existingCached.storagePath,
+            }
+          )
+
+          // Re-resolve immediately (non-blocking async)
+          void (async () => {
+            const resolvedVideoUri = await resolveHistoricalVideoUri(
+              existingCached.storagePath ?? null,
+              { analysisId }
+            )
+            updateCache(analysisId, { videoUri: resolvedVideoUri })
+            log.info('useHistoricalAnalysis', 'Fixed invalid videoUri with resolved URI', {
+              analysisId,
+              oldUri: cachedUri,
+              newUri: resolvedVideoUri,
             })
-            // Non-blocking: Continue with optimistic URI even if validation fails
-          }
-        })()
+          })()
+        } else if (cachedUri.startsWith('file://')) {
+          // Validate local file existence asynchronously (non-blocking)
+          void (async () => {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(cachedUri)
+              if (!fileInfo.exists) {
+                // File missing - re-resolve URI and update cache
+                log.warn('useHistoricalAnalysis', 'Cached file URI missing, re-resolving', {
+                  analysisId,
+                  missingUri: cachedUri,
+                  storagePath: existingCached.storagePath,
+                })
+
+                const resolvedVideoUri = await resolveHistoricalVideoUri(
+                  existingCached.storagePath ?? null,
+                  {
+                    analysisId,
+                    localUriHint: cachedUri,
+                  }
+                )
+
+                // Update cache with resolved URI
+                updateCache(analysisId, { videoUri: resolvedVideoUri })
+                log.info(
+                  'useHistoricalAnalysis',
+                  'Re-resolved video URI after validation failure',
+                  {
+                    analysisId,
+                    oldUri: cachedUri,
+                    newUri: resolvedVideoUri,
+                  }
+                )
+              }
+            } catch (error) {
+              log.warn('useHistoricalAnalysis', 'File validation error (non-blocking)', {
+                analysisId,
+                videoUri: cachedUri,
+                error: error instanceof Error ? error.message : String(error),
+              })
+              // Non-blocking: Continue with optimistic URI even if validation fails
+            }
+          })()
+        }
+        // http/https URIs don't need validation - they're already valid remote URLs
       }
 
       updateCache(analysisId, updates)

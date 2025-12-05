@@ -683,27 +683,13 @@ function handleTitleUpdate(
             video_source: '',
           }
 
-          // FIX: Extract videoUri from metadata.localUri (same pattern as analysisStatus.ts)
-          // Without this, cache entry has no videoUri and falls back to FALLBACK_VIDEO_URI (BigBuckBunny)
+          // Resolve videoUri from localUriIndex (device-local storage)
+          // After migration to remote storage, metadata.localUri is no longer written to DB
+          // Fast access path: uploadVideo sets localUriIndex immediately during upload
           const storagePath = videoRecording?.storage_path ?? undefined
-          let videoUri: string | undefined
-
-          if (
-            storagePath &&
-            videoRecording?.metadata &&
-            typeof videoRecording.metadata === 'object'
-          ) {
-            const metadata = videoRecording.metadata as Record<string, unknown>
-            if (typeof metadata.localUri === 'string') {
-              historyStore.setLocalUri(storagePath, metadata.localUri)
-              videoUri = metadata.localUri
-            }
-          }
-
-          // Fall back to persisted localUriIndex if metadata didn't have localUri
-          if (!videoUri && storagePath) {
-            videoUri = historyStore.getLocalUri(storagePath) ?? undefined
-          }
+          const videoUri = storagePath
+            ? (historyStore.getLocalUri(storagePath) ?? undefined)
+            : undefined
 
           historyStore.addToCache({
             id: job.id,

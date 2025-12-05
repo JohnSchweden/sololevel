@@ -46,7 +46,12 @@ Deno.serve(async (req) => {
     }
 
     // Route: POST /ai-analyze-video - Main AI analysis endpoint
+    // Also handles DB webhook calls when Dashboard uses Edge Function type (calls root path)
     if (req.method === 'POST' && path === '/ai-analyze-video') {
+      // If X-Db-Webhook-Secret header present, it's a webhook call
+      if (req.headers.get('X-Db-Webhook-Secret')) {
+        return handleWebhookStart({ req, supabase, logger })
+      }
       return handleStartAnalysis({ req, supabase, logger })
     }
 
