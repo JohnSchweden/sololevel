@@ -114,14 +114,73 @@ const SUGGESTIONS: Suggestion[] = [
   { icon: Zap, text: 'Fix my squat technique', category: 'Technique' },
 ]
 
-// Mock AI responses
-const AI_RESPONSES = [
-  "That's a great question! Based on your training history, I'd recommend focusing on form first. Let me break that down for you...",
-  "I can see from your recent videos that you're making excellent progress! Here's what I noticed and some tips to optimize your technique:",
-  "Perfect timing for this question! Your body mechanics show you're ready for the next level. Here's my recommendation:",
-  "I love your dedication! Let's work on refining that movement pattern. Here's a step-by-step approach:",
-  "Great observation! Your proprioception is improving. Let's build on that momentum with these specific cues:",
-]
+// Context-aware response generator with humorous roast tone
+const generateCoachResponse = (userMessage: string): string => {
+  const lowerMessage = userMessage.toLowerCase()
+
+  // Deadlift form analysis
+  if (lowerMessage.includes('deadlift') || lowerMessage.includes('dead lift')) {
+    return "Oh boy, your deadlift form? Let's just say I've seen better lifting technique from someone trying to move a couch up three flights of stairs. Your back is probably crying right now. Here's the brutal truth about what you're doing wrong..."
+  }
+
+  // Squat technique
+  if (lowerMessage.includes('squat')) {
+    return "Your squat technique is giving me anxiety. It's like watching a baby bird try to fly for the first time—adorable but painful. Your knees are probably having a board meeting about unionizing. Let me fix this disaster:"
+  }
+
+  // Program creation
+  if (
+    lowerMessage.includes('program') ||
+    lowerMessage.includes('30-day') ||
+    lowerMessage.includes('plan')
+  ) {
+    return "A 30-day program? Bold move, considering you probably can't stick to a 3-day program. But I respect the ambition! Let's create something that won't make you quit by day 4. Here's what we're building:"
+  }
+
+  // Form analysis (general)
+  if (
+    lowerMessage.includes('form') ||
+    lowerMessage.includes('analyze') ||
+    lowerMessage.includes('technique')
+  ) {
+    return "Alright, let's be real here. Your form is about as stable as a Jenga tower in an earthquake. But hey, at least you're trying! Here's what's actually happening..."
+  }
+
+  // Bench press
+  if (lowerMessage.includes('bench') || lowerMessage.includes('press')) {
+    return "Your bench press? More like bench mess. I've seen better pressing technique from someone trying to push a door that says 'pull'. Your shoulders are probably plotting revenge. Let's fix this:"
+  }
+
+  // Cardio/endurance
+  if (
+    lowerMessage.includes('cardio') ||
+    lowerMessage.includes('endurance') ||
+    lowerMessage.includes('running')
+  ) {
+    return "Cardio? You mean that thing you do for 5 minutes before giving up? I've seen better endurance from a sloth on a treadmill. But we're gonna change that. Here's how:"
+  }
+
+  // Nutrition/diet
+  if (
+    lowerMessage.includes('nutrition') ||
+    lowerMessage.includes('diet') ||
+    lowerMessage.includes('eat')
+  ) {
+    return "Your nutrition plan? Let me guess—it's 'eat whatever, whenever'? I've seen better meal planning from a college student living on ramen. But we're gonna fix this disaster together:"
+  }
+
+  // Generic fallback responses
+  const genericResponses = [
+    "I've seen better technique from a newborn giraffe learning to walk. But I respect the hustle. Let me show you how to not embarrass yourself:",
+    "Oh honey, your body mechanics are giving me secondhand embarrassment. But we're gonna fix this mess together. Here's the brutal truth:",
+    "Your dedication is admirable, but your execution? Yikes. It's like watching someone try to parallel park for the first time. Let's fix this disaster:",
+    "I appreciate the enthusiasm, but your proprioception is about as accurate as a broken GPS. Here's what you're actually doing wrong:",
+    "Listen, I've seen toddlers with better coordination, but at least you're not giving up. Let me roast your technique and then show you the way:",
+    "Your form is so off, it's making my circuits hurt. But I'm here to help, not just judge. Here's what needs to happen:",
+  ]
+
+  return genericResponses[Math.floor(Math.random() * genericResponses.length)]
+}
 
 /**
  * Format today's date for new sessions
@@ -216,7 +275,7 @@ export function CoachScreen({
         id: '1',
         type: 'coach',
         content:
-          "Hi there! I'm your Solo:Lvl coach. I'm here to help you improve your fitness technique, answer questions about your workouts, and provide personalized guidance. What would you like to work on today?",
+          "Hey there! I'm your Solo:Level coach, and I'm here to roast your form into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you level up. What disaster are we fixing today?",
         timestamp: new Date(),
       },
     ]
@@ -265,13 +324,13 @@ export function CoachScreen({
       setInputMessage('')
       setIsTyping(true)
 
-      // Simulate AI response
+      // Simulate AI response with context-aware message
       setTimeout(
         () => {
           const coachResponse: Message = {
             id: (Date.now() + 1).toString(),
             type: 'coach',
-            content: AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)],
+            content: generateCoachResponse(messageToSend),
             timestamp: new Date(),
           }
           setMessages((prev) => [...prev, coachResponse])

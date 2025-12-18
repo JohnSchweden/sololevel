@@ -298,7 +298,7 @@ describe('CoachScreen', () => {
       expect(screen.getByTestId('coach-screen-input')).toBeInTheDocument()
 
       // Welcome message from coach should be present
-      expect(screen.getByText(/Hi there! I'm your Solo:Lvl coach/)).toBeInTheDocument()
+      expect(screen.getByText(/Hey there! I'm your Solo:Level coach/)).toBeInTheDocument()
     })
 
     it('shows loading state when isLoading is true', () => {

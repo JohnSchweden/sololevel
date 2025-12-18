@@ -28,8 +28,8 @@ export function HeaderLogo(): ReactElement {
         source={require('../../../../apps/expo/assets/icon_sololevel_header.png')}
         contentFit="contain"
         style={{
-          height: 44,
-          width: 220,
+          height: 36,
+          width: 132,
         }}
         cachePolicy="memory-disk"
         transition={200}

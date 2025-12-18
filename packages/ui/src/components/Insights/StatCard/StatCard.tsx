@@ -106,13 +106,22 @@ export function StatCard({
         )}
       </XStack>
 
-      {/* Label */}
-      <Text
-        fontSize="$3"
-        color="$color11"
+      {/* Label - supports multiline with center alignment */}
+      <YStack
+        alignItems={variant === 'center' ? 'center' : 'flex-start'}
+        gap="$0.5"
       >
-        {label}
-      </Text>
+        {label.split('\n').map((line, index) => (
+          <Text
+            key={index}
+            fontSize="$3"
+            color="$color11"
+            textAlign={variant === 'center' ? 'center' : 'left'}
+          >
+            {line}
+          </Text>
+        ))}
+      </YStack>
     </YStack>
   )
 }

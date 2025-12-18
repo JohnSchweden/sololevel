@@ -1,58 +1,55 @@
 graph TB
     subgraph Props["📥 Props"]
-        ScreenProps["VideoAnalysisScreenProps<br/>analysisJobId<br/>videoUri<br/>onBack"]
+        ScreenProps["VideoAnalysisScreenProps<br/>analysisJobId<br/>videoRecordingId<br/>initialStatus<br/>videoUri"]
     end
 
-    subgraph CoreHooks["🎯 Core Hooks (3-4 Total)"]
-        VideoPlayer["useVideoPlayer<br/>Consolidates:<br/>- useVideoPlayback<br/>- useVideoControls<br/>- useVideoAudioSync<br/>Returns: imperative ref API"]
-        FeedbackSystem["useFeedbackSystem<br/>Consolidates:<br/>- useFeedbackCoordinator<br/>- useFeedbackAudioSource<br/>- useAudioController<br/>- useFeedbackPanel<br/>Returns: feedback state + handlers"]
-        Analysis["useAnalysis<br/>Consolidates:<br/>- useAnalysisState<br/>- useHistoricalAnalysis<br/>Returns: analysis phase + data"]
+    subgraph Screen["🧠 Screen (logic-only)"]
+        ScreenHooks["useStatusBar · useHistoricalAnalysis · useAnalysisState · useFeedbackAudioSource · useFeedbackCoordinator · useAnimationController · useGestureController"]
+        DerivedProps["Stable props\nvideoState · feedback · subscription · handlers"]
     end
 
-    subgraph NativeOnly["📱 Native-Only Hook"]
-        VideoLayout["useVideoLayout<br/>Consolidates:<br/>- useGestureController<br/>- useAnimationController<br/>Returns: gesture + animation refs"]
+    subgraph Layout["📱 Layout"]
+        VA_Layout["VideoAnalysisLayout\n(native/web)"]
     end
 
-    subgraph Store["🗃️ Single Zustand Store"]
-        FeedbackStore["useFeedbackStore<br/>Single source of truth:<br/>- highlightedFeedbackId<br/>- bubbleState<br/>- overlayVisible<br/>- activeAudio<br/>- panelState"]
+    subgraph Sections["Sections (own the subscriptions)"]
+        Player["VideoPlayerSection\nuseVideoPlayer + useAudioControllerLazy\nSubscribes: useVideoPlayerStore,\nuseFeedbackAudioStore,\nuseFeedbackCoordinatorStore,\nusePersistentProgressStore"]
+        Feedback["FeedbackSection\nuseFeedbackPanel + command bus\nSubscribes: useFeedbackCoordinatorStore,\nuseFeedbackAudioStore,\nuseFeedbackPanelCommandStore"]
     end
 
-    subgraph Components["📦 Components"]
-        VideoPlayerComp["VideoPlayer<br/>(imperative ref API)"]
-        FeedbackPanelComp["FeedbackPanel<br/>(reads from store)"]
+    subgraph Stores["🗃️ Zustand"]
+        VStore["useVideoPlayerStore"]
+        FAStore["useFeedbackAudioStore"]
+        FCStore["useFeedbackCoordinatorStore"]
+        PPStore["usePersistentProgressStore"]
+        CmdStore["useFeedbackPanelCommandStore"]
     end
 
-    %% Props flow
-    ScreenProps --> VideoPlayer
-    ScreenProps --> FeedbackSystem
-    ScreenProps --> Analysis
+    ScreenProps --> ScreenHooks
+    ScreenHooks --> DerivedProps
+    DerivedProps --> VA_Layout
+    VA_Layout --> Player
+    VA_Layout --> Feedback
 
-    %% Hook dependencies
-    Analysis --> FeedbackSystem
-    VideoPlayer --> FeedbackSystem
+    Player --> VStore
+    Player --> FAStore
+    Player --> FCStore
+    Player --> PPStore
 
-    %% Store integration
-    FeedbackSystem --> FeedbackStore
-
-    %% Native-only
-    VideoLayout -.-> VideoPlayer
-    VideoLayout -.-> FeedbackSystem
-
-    %% Component rendering
-    VideoPlayer --> VideoPlayerComp
-    FeedbackSystem --> FeedbackPanelComp
-    FeedbackStore --> FeedbackPanelComp
+    Feedback --> FAStore
+    Feedback --> FCStore
+    Feedback --> CmdStore
 
     %% Styling
-    classDef core fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    classDef native fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    classDef store fill:#fce4ec,stroke:#ad1457,stroke-width:3px
-    classDef component fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef props fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    classDef screen fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef layout fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef sections fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef stores fill:#fce4ec,stroke:#ad1457,stroke-width:2px
 
-    class VideoPlayer,FeedbackSystem,Analysis core
-    class VideoLayout native
-    class FeedbackStore store
-    class VideoPlayerComp,FeedbackPanelComp component
     class ScreenProps props
+    class ScreenHooks,DerivedProps screen
+    class VA_Layout layout
+    class Player,Feedback sections
+    class VStore,FAStore,FCStore,PPStore,CmdStore stores
 

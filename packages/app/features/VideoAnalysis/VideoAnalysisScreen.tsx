@@ -440,16 +440,25 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
    * PERFORMANCE FIX: selectedFeedbackId now from granular Zustand subscription
    * instead of coordinator object - prevents re-renders when other coordinator state changes
    */
-  // Extract analysis title from historical data (history mode) or cache (active analysis)
+  // Extract analysis title and full feedback text from historical data (history mode) or cache (active analysis)
   // useHistoricalAnalysis returns data: CachedAnalysis | null (not HistoricalAnalysisData)
   let analysisTitle = historical.data?.title ?? undefined
+  let fullFeedbackText = historical.data?.fullFeedbackText ?? undefined
 
-  // For active analyses (not in history mode), try to get title from cache
-  if (!isHistoryMode && analysisState.analysisJobId) {
-    const cached = useVideoHistoryStore.getState().getCached(analysisState.analysisJobId)
-    if (cached?.title) {
-      analysisTitle = cached.title
-    }
+  // For active analyses (not in history mode), try to get title and full feedback from cache
+  // CRITICAL: Use selector hook (not getState()) to subscribe to cache updates
+  // When background fetch in useHistoricalAnalysis calls updateCache() to populate fullFeedbackText,
+  // this component will re-render with the new data
+  const cachedAnalysis = useVideoHistoryStore((state) =>
+    !isHistoryMode && analysisState.analysisJobId
+      ? state.getCached(analysisState.analysisJobId)
+      : null
+  )
+  if (cachedAnalysis?.title) {
+    analysisTitle = cachedAnalysis.title
+  }
+  if (cachedAnalysis?.fullFeedbackText) {
+    fullFeedbackText = cachedAnalysis.fullFeedbackText
   }
 
   const feedback = useMemo(
@@ -462,6 +471,8 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       phase: analysisState.phase,
       progress: analysisState.progress,
       analysisTitle, // AI-generated analysis title
+      fullFeedbackText, // Full AI-generated feedback text from analyses table
+      isHistoryMode,
     }),
     [
       analysisState.feedback.feedbackItems,
@@ -470,8 +481,10 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       // highlightedFeedbackId, - REMOVED: FeedbackSection subscribes directly
       // videoPlayer.currentTime REMOVED - was causing render cascades
       analysisTitle,
+      fullFeedbackText,
       analysisState.phase,
       analysisState.progress,
+      isHistoryMode,
     ]
   )
 

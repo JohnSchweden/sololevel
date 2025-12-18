@@ -19,6 +19,8 @@ import type { FeedbackPanelItem } from '../types'
 interface FeedbackSectionProps {
   feedbackItems: FeedbackPanelItem[]
   analysisTitle?: string // AI-generated analysis title
+  fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
+  isHistoryMode?: boolean
   // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
   currentVideoTime: number
   videoDuration: number
@@ -34,14 +36,18 @@ interface FeedbackSectionProps {
   onSelectAudio: (feedbackId: string) => void
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
+  scrollYShared?: any // SharedValue<number> for UI-thread scroll position updates
   scrollEnabled?: boolean
   scrollEnabledShared?: any // SharedValue<boolean> from gesture controller
   scrollGestureRef?: React.RefObject<any>
+  onMinimizeVideo?: () => void
 }
 
 export const FeedbackSection = memo(function FeedbackSection({
   feedbackItems,
   analysisTitle,
+  fullFeedbackText,
+  isHistoryMode = false,
   // selectedFeedbackId, - REMOVED: Subscribed directly from store
   currentVideoTime,
   videoDuration,
@@ -58,9 +64,11 @@ export const FeedbackSection = memo(function FeedbackSection({
   onSelectAudio,
   onScrollYChange,
   onScrollEndDrag,
+  scrollYShared,
   scrollEnabled,
   scrollEnabledShared,
   scrollGestureRef,
+  onMinimizeVideo,
 }: FeedbackSectionProps) {
   // PERFORMANCE FIX: Direct subscription to highlighted feedback state
   // Eliminates VideoAnalysisScreen re-renders when feedback selection changes
@@ -133,6 +141,8 @@ export const FeedbackSection = memo(function FeedbackSection({
         activeTab={feedbackPanel.activeTab}
         feedbackItems={preparedItems}
         analysisTitle={analysisTitle}
+        fullFeedbackText={fullFeedbackText}
+        isHistoryMode={isHistoryMode}
         comments={mockComments}
         currentVideoTime={currentVideoTime}
         videoDuration={videoDuration}
@@ -152,9 +162,11 @@ export const FeedbackSection = memo(function FeedbackSection({
         }}
         onScrollYChange={onScrollYChange}
         onScrollEndDrag={onScrollEndDrag}
+        scrollYShared={scrollYShared}
         scrollEnabled={scrollEnabled}
         scrollEnabledShared={scrollEnabledShared}
         scrollGestureRef={scrollGestureRef}
+        onMinimizeVideo={onMinimizeVideo}
       />
     </YStack>
   )

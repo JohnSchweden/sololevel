@@ -54,7 +54,7 @@ describe('VideoHistoryStore Auth Cleanup', () => {
       expect(useVideoHistoryStore.getState().cache.size).toBe(1)
     })
 
-    it('should clear cache when user logs out (user change: userId -> null)', () => {
+    it('should NOT clear cache when user logs out (userId -> null)', () => {
       // ARRANGE: Populate cache
       const store = useVideoHistoryStore.getState()
       store.addToCache({
@@ -103,8 +103,10 @@ describe('VideoHistoryStore Auth Cleanup', () => {
       currentState = { user: null, session: null }
       subscribers.forEach((sub) => sub(currentState))
 
-      // ASSERT: Cache should be cleared on logout (user changed from user-123 to null)
-      expect(useVideoHistoryStore.getState().cache.size).toBe(0)
+      // ASSERT: Cache should NOT be cleared on logout
+      // Implementation only clears when switching between two real users.
+      // Logout cleanup is handled by signOut() via clearAllUserData.
+      expect(useVideoHistoryStore.getState().cache.size).toBe(1)
     })
 
     it('should clear cache when user switches (user change: userId1 -> userId2)', () => {

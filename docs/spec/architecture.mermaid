@@ -3,89 +3,44 @@ graph TB
 
     subgraph Client["Client Applications"]
         Apps["📱 Expo (Native) + 🌐 Expo Router (Web)"]
+        Nav["🧭 Navigation\nStack: auth, (tabs), video-analysis, history-progress,\ncoaching-session, settings\nTabs: record | coach | insights\nCustom BottomNavigation (Tamagui)"]
         Bundler["📦 Metro Bundler"]
-        Router["🧭 Expo Router
-        (tabs) Layout:
-        - record (Camera)
-        - coach (AI Chat)
-        - insights (Progress)
-        BottomNavigation (Custom)"]
-        Auth["🔐 AuthGate"]
+        AuthGate["🔐 AuthGate (protected routes)"]
     end
 
     subgraph Packages["Shared Packages (@my/*)"]
-        UI["🎨 @my/ui (Tamagui)
-        BottomNavigation
-        BottomNavigationContainer"]
-        App["⚙️ @my/app (Logic + Screens)
-        useTabPersistence (AsyncStorage)
-        VideoAnalysisScreen (~611 lines)
-        ├── Direct Hook Composition (13 hooks)
-        ├── useVideoPlayback
-        ├── useAudioController
-        ├── useFeedbackCoordinator
-        ├── useVideoControls
-        ├── useVideoAudioSync
-        ├── useFeedbackPanel
-        ├── useAnalysisState
-        ├── useHistoricalAnalysis
-        ├── useAutoPlayOnReady
-        ├── useGestureController
-        ├── useAnimationController
-        ├── Zustand Stores
-        │   ├── useFeedbackCoordinatorStore
-        │   └── usePersistentProgressStore
-        └── VideoAnalysisLayout.native/web"]
-        API["🔌 @my/api (Supabase Client)"]
-        Config["🧰 @my/config (Types)"]
+        UI["🎨 @my/ui (Tamagui)\nBottomNavigationContainer\nVideoAnalysis UI: VideoPlayerSection,\nFeedbackSection, VideoControls, FeedbackPanel"]
+        App["⚙️ @my/app (Logic + Screens)\nCameraRecording (Expo/Vision camera,\nuploads → /video-analysis)\nVideoAnalysisScreen (111 LOC direct hooks,\nleaf store subscriptions)\nHistoryProgress (TanStack Query + Zustand cache\n+ thumbnail persistence)\nCoach (chat + sessions)\nInsights"]
+        API["🔌 @my/api (Supabase client, queries,\nuploads, history)"]
+        Config["🧰 @my/config (types/theme)"]
     end
 
     subgraph State["State Management"]
-        Zustand["🗃️ Zustand (Client)
-        useFeedbackCoordinatorStore
-        usePersistentProgressStore
-        useVideoAnalysisStore"]
-        TSQ["📊 TanStack Query (Server)"]
+        Zustand["🗃️ Zustand\nvideoPlayerStore\nfeedbackCoordinatorStore\nfeedbackAudioStore\npersistentProgressStore\nanalysisSubscription\nvideoHistoryStore"]
+        TSQ["📊 TanStack Query\nanalysisJobStatus\nhistory cache prefilled from Zustand"]
     end
 
     subgraph Backend["Supabase Backend"]
         AuthSvc["🔑 Auth (JWT + Sessions)"]
-        DB[("🗄️ PostgreSQL
-        video_recordings
-        analysis_jobs
-        analysis_feedback
-        analyses
-        analysis_audio_segments
-        analysis_ssml_segments
-        analysis_metrics
-        upload_sessions
-        🔒 RLS Enabled")]
-        Storage["📁 Storage
-        raw: videos
-        processed: audio
-        thumbnails: images"]
-        RT["⚡ Realtime
-        analysis_jobs changes"]
-        Edge["🧩 Edge Function
-        ai-analyze-video"]
+        DB[("🗄️ PostgreSQL\nvideo_recordings\nanalysis_jobs\nanalyses\nanalysis_feedback\nanalysis_audio_segments\nanalysis_ssml_segments\nanalysis_metrics\nupload_sessions\n🔒 RLS Enabled")]
+        Storage["📁 Storage\nraw videos\nprocessed audio\nthumbnails"]
+        RT["⚡ Realtime\nanalysis_jobs changes"]
+        Edge["🧩 Edge Function\nai-analyze-video"]
     end
 
     subgraph AI["AI Pipeline"]
-        ClientPose["🕺 Client Pose
-        MoveNet Lightning"]
-        EdgeAI["🧠 Edge Processing
-        Gemini 2.5 Video
-        Gemini LLM Feedback
-        Gemini TTS → MP3/WAV"]
+        ClientPose["🕺 Client Pose (MoveNet)"]
+        EdgeAI["🧠 Edge Processing\nGemini 2.5 Video + LLM feedback\nGemini TTS → audio"]
         SSMLW["🔤 SSML Worker"]
         AudioW["🔊 Audio Worker"]
     end
 
     User --> Apps
-    Apps --> Router
-    Router --> Auth
-    Auth --> UI
-    Auth --> App
+    Apps --> Nav
+    Apps --> Bundler
+    Nav --> AuthGate
+    AuthGate --> UI
+    AuthGate --> App
     App --> API
     App --> Zustand
     App --> TSQ
@@ -111,7 +66,7 @@ graph TB
     classDef backend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef ai fill:#fce4ec,stroke:#ad1457,stroke-width:2px
 
-    class User,Apps,Router,Auth client
+    class User,Apps,Nav,AuthGate client
     class UI,App,API,Config shared
     class Zustand,TSQ state
     class AuthSvc,DB,Storage,RT,Edge backend

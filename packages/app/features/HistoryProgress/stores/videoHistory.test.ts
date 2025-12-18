@@ -83,8 +83,82 @@ describe('VideoHistoryStore', () => {
     })
   })
 
+  describe('addMultipleToCache', () => {
+    it('should add multiple entries in a single batch', () => {
+      // Arrange
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const analysis1 = createMockAnalysis(1)
+      const analysis2 = createMockAnalysis(2)
+      const analysis3 = createMockAnalysis(3)
+      const now = Date.now()
+
+      // Act
+      act(() => {
+        result.current.addMultipleToCache(
+          [
+            { ...analysis1, cachedAt: now, lastAccessed: now },
+            { ...analysis2, cachedAt: now, lastAccessed: now },
+            { ...analysis3, cachedAt: now, lastAccessed: now },
+          ],
+          []
+        )
+      })
+
+      // Assert
+      expect(result.current.cache.size).toBe(3)
+      expect(result.current.cache.get(1)?.title).toBe('Test Analysis 1')
+      expect(result.current.cache.get(2)?.title).toBe('Test Analysis 2')
+      expect(result.current.cache.get(3)?.title).toBe('Test Analysis 3')
+    })
+
+    it('should apply localUri updates when provided', () => {
+      // Arrange
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const analysis1 = createMockAnalysis(1)
+      const now = Date.now()
+
+      // Act
+      act(() => {
+        result.current.addMultipleToCache(
+          [{ ...analysis1, cachedAt: now, lastAccessed: now }],
+          [['user-123/video.mp4', 'file:///documents/recordings/video.mp4']]
+        )
+      })
+
+      // Assert
+      expect(result.current.getLocalUri('user-123/video.mp4')).toBe(
+        'file:///documents/recordings/video.mp4'
+      )
+    })
+
+    it('should evict LRU when exceeding MAX_CACHE_ENTRIES', () => {
+      // Arrange
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const now = Date.now()
+      const analyses = Array.from({ length: 51 }, (_, i) => createMockAnalysis(i + 1)).map(
+        (analysis, index) => ({
+          ...analysis,
+          cachedAt: now + index * 10, // Stagger timestamps
+          lastAccessed: now + index * 10,
+        })
+      )
+
+      // Act
+      act(() => {
+        result.current.addMultipleToCache(analyses, [])
+      })
+
+      // Assert
+      expect(result.current.cache.size).toBeLessThanOrEqual(50)
+      // Entry 1 (oldest) should be evicted
+      expect(result.current.cache.has(1)).toBe(false)
+      // Entry 51 (newest) should still be there
+      expect(result.current.cache.has(51)).toBe(true)
+    })
+  })
+
   describe('getCached', () => {
-    it('should return cached entry and update lastAccessed', () => {
+    it('should return cached entry without updating lastAccessed (read-only)', () => {
       // Arrange
       const { result } = renderHook(() => useVideoHistoryStore())
       const mockAnalysis = createMockAnalysis(1)
@@ -107,7 +181,9 @@ describe('VideoHistoryStore', () => {
       // Assert
       expect(cached).toBeDefined()
       expect(cached?.id).toBe(1)
-      expect(result.current.cache.get(1)?.lastAccessed).toBeGreaterThanOrEqual(originalLastAccessed)
+      // getCached is read-only and does NOT update lastAccessed
+      // Updates should be done via updateCache() after initial read
+      expect(result.current.cache.get(1)?.lastAccessed).toBe(originalLastAccessed)
     })
 
     it('should return null for non-existent entry', () => {
@@ -483,6 +559,32 @@ describe('VideoHistoryStore', () => {
       expect(result.current.cache.has(1)).toBe(false) // Oldest should be removed
       expect(result.current.cache.has(2)).toBe(true)
       expect(result.current.cache.has(3)).toBe(true)
+    })
+
+    it('should clear UUID mapping when evicting entry', () => {
+      // Arrange
+      const { result } = renderHook(() => useVideoHistoryStore())
+      const analysis1 = createMockAnalysis(1)
+      const analysis2 = createMockAnalysis(2)
+
+      act(() => {
+        result.current.addToCache(analysis1)
+        result.current.addToCache(analysis2)
+        result.current.setUuid(1, 'uuid-1')
+        result.current.setUuid(2, 'uuid-2')
+      })
+
+      expect(result.current.getUuid(1)).toBe('uuid-1')
+      expect(result.current.getUuid(2)).toBe('uuid-2')
+
+      // Act - evict entry 1 (oldest)
+      act(() => {
+        result.current.evictLRU()
+      })
+
+      // Assert - UUID mapping for evicted entry should be cleared
+      expect(result.current.getUuid(1)).toBeNull()
+      expect(result.current.getUuid(2)).toBe('uuid-2')
     })
 
     it('should not fail on empty cache', () => {

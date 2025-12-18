@@ -135,6 +135,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
           <FeedbackSection
             feedbackItems={feedback.items}
             analysisTitle={feedback.analysisTitle}
+            fullFeedbackText={feedback.fullFeedbackText}
+            isHistoryMode={feedback.isHistoryMode}
             // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
             currentVideoTime={playbackCurrentTime}
             videoDuration={0}

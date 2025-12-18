@@ -82,110 +82,90 @@ analysis_feedback (
 
 ## Hook Composition Pattern
 
-**Migration:** Replaced orchestrator pattern with direct hook composition (see ADR 005).
-
-**Architecture Diagram:** See `docs/spec/video-analysis-screen-architecture.mermaid` for visual hook dependency graph.
+**Current (Phase 2 — leaf subscriptions):** `VideoAnalysisScreen` owns logic-only hooks and passes stable props to layout; all store subscriptions live in leaf sections. Video/audio controllers are created inside `VideoPlayerSection`; feedback/panel state is subscribed inside `FeedbackSection`. `useFeedbackAudioSource` writes audio URLs/errors into `useFeedbackAudioStore`; coordinators read store snapshots via `getState()` (no subscriptions).
 
 ### VideoAnalysisScreen Architecture
 
 ```typescript
-// Direct hook composition - each hook owns one concern
 function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
-  // Core video state
-  const videoPlayback = useVideoPlayback(initialStatus)
-  const videoControls = useVideoControls(...)
-  const videoAudioSync = useVideoAudioSync(...)
+  useStatusBar(true, 'fade')
 
-  // Audio management
-  const audioController = useAudioController(audioUrl)
-  const feedbackAudioSource = useFeedbackAudioSource(feedbackItems)
+  const historical = useHistoricalAnalysis(props.analysisJobId ?? null)
+  const analysisState = useAnalysisState(
+    props.analysisJobId,
+    props.videoRecordingId,
+    normalizedInitialStatus,
+    Boolean(props.analysisJobId)
+  )
 
-  // Feedback coordination
-  const analysisState = useAnalysisState(...)
-  const feedbackPanel = useFeedbackPanel()
+  const feedbackAudioSource = useFeedbackAudioSource(analysisState.feedback.feedbackItems)
   const feedbackCoordinator = useFeedbackCoordinator(...)
-
-  // Zustand stores (granular subscriptions)
-  const highlightedFeedbackId = useFeedbackCoordinatorStore(s => s.highlightedFeedbackId)
-  const bubbleState = useFeedbackCoordinatorStore(s => s.bubbleState)
-  const overlayVisible = useFeedbackCoordinatorStore(s => s.overlayVisible)
-  const setPersistentProgressProps = usePersistentProgressStore(s => s.setProps)
-
-  // Native-only (animations and gestures)
-  const gesture = useGestureController(...)
   const animation = useAnimationController()
+  const gesture = useGestureController(
+    animation.scrollY,
+    animation.feedbackContentOffsetY,
+    animation.scrollRef,
+    isProcessing
+  )
 
-  // Compose props and render layout
-  return <VideoAnalysisLayout
-    video={videoState}
-    playback={playback}
-    audio={audio}
-    feedback={feedback}
-    handlers={handlers}
-    // ... other props
-  />
+  return (
+    <VideoAnalysisLayout
+      video={videoState}
+      feedback={feedback}
+      subscription={{ key: subscriptionKey, shouldSubscribe: !isHistoryMode }}
+      handlers={handlers}
+      gesture={gesture}
+      animation={animation}
+      videoUri={videoState.uri}
+      audioOverlay={{
+        onClose: feedbackCoordinator.onAudioOverlayClose,
+        onInactivity: feedbackCoordinator.onAudioOverlayInactivity,
+        onInteraction: feedbackCoordinator.onAudioOverlayInteraction,
+      }}
+      controls={{ onControlsVisibilityChange: handleControlsVisibilityChange }}
+      videoControlsRef={videoControlsRef}
+      error={error}
+    />
+  )
 }
 ```
 
-### Hook Responsibilities
+### Hook & Section Responsibilities
 
-| Hook | Responsibility | Dependencies |
-|------|-----------------|--------------|
-| `useVideoPlayback` | Video playback control + state | initialStatus |
-| `useVideoControls` | Controls visibility + visibility changes | isProcessing, video state |
-| `useVideoAudioSync` | Audio/video sync coordination | video + audio states |
-| `useAudioController` | Audio playback control | audio URL |
-| `useFeedbackAudioSource` | Feedback audio URL + error management | feedbackItems |
-| `useAnalysisState` | Analysis phase + progress + errors | analysis job ID, videoRecordingId |
-| `useFeedbackPanel` | Panel state (expanded, tab, selection) | none |
-| `useFeedbackCoordinator` | Feedback interaction + audio overlay | video + audio + panel |
-| `useHistoricalAnalysis` | Historical analysis data loading | analysisJobId |
-| `useAutoPlayOnReady` | Auto-play when analysis completes | isProcessing, video state |
-| `useGestureController` | Pan gesture + scroll handling | animation refs |
-| `useAnimationController` | Animated values for layout animations | none |
-| `useStatusBar` | Status bar visibility control | none |
+| Area | Responsibility | Notes |
+|------|----------------|-------|
+| `useStatusBar` | Status bar visibility | Logic-only |
+| `useHistoricalAnalysis` | Load cached analysis + title/uri | History mode support |
+| `useAnalysisState` | Analysis phase/progress/errors | Normalizes initial status |
+| `useFeedbackAudioSource` | Resolve audio URLs/errors + cache | Writes to `useFeedbackAudioStore` |
+| `useFeedbackCoordinator` | Feedback coordination (imperative) | Reads store snapshots only |
+| `useAnimationController` | Animated values for layout | Shared with gesture |
+| `useGestureController` | Pan/scroll controls + scroll refs | Disables when processing |
+| `VideoPlayerSection` | Owns `useVideoPlayer` + `useAudioControllerLazy`; subscribes to playback/audio/coach/persistent progress stores | Only this section re-renders on playback/audio changes |
+| `FeedbackSection` | Owns `useFeedbackPanel` + command bus; subscribes to highlighted feedback + audio URLs/errors | Handles tab state and selection locally |
 
 ### Zustand Stores
 
-| Store | Purpose | Usage Pattern |
-|-------|---------|---------------|
-| `useFeedbackCoordinatorStore` | Granular feedback coordinator state (highlightedFeedbackId, bubbleState, overlayVisible, activeAudio) | Granular selectors to prevent re-renders |
-| `usePersistentProgressStore` | Persistent video progress tracking | Set/get progress props |
+| Store | Purpose | Subscription Location |
+|-------|---------|-----------------------|
+| `useVideoPlayerStore` | Playback timeline, duration, pending seek, display time | `VideoPlayerSection` (read/write); screen uses setters via refs only |
+| `useFeedbackAudioStore` | `audioUrls`, `errors`, `activeAudio`, cached paths | Written by `useFeedbackAudioSource`; read by `VideoPlayerSection` + `FeedbackSection` |
+| `useFeedbackCoordinatorStore` | `highlightedFeedbackId`, `isCoachSpeaking`, `bubbleState`, `overlayVisible` | `VideoPlayerSection` + `FeedbackSection`; coordinator reads via `getState()` |
+| `usePersistentProgressStore` | Persistent progress bar props/visibility | `VideoPlayerSection` |
+| `useFeedbackPanelCommandStore` | Command bus for tab switching | `FeedbackSection` |
 
 ### Benefits Over Orchestrator Pattern
 
-**Before:** 1 God Hook (1789 LOC, 14 nested hooks, 49 memoization layers)
-```
-- Hard to test (need 14 mocks)
-- Tight coupling (everything depends on everything)
-- Defensive memoization (trying to prevent re-renders)
-- Difficult debugging (complex data flow)
-```
-
-**After:** 13 Focused Hooks + Zustand Stores (direct composition, ~611 LOC)
-```
-- Easy to test (mock individual hooks)
-- Loose coupling (each hook independent)
-- Minimal memoization (only where needed)
-- Clear debugging (direct data flow)
-- Granular Zustand subscriptions prevent re-render cascades
-```
+- Screen re-renders ~0–1 times per feedback tap (subscriptions moved to leaf nodes).
+- Video/audio sync lives in `VideoPlayerSection`; screen stays dark during playback changes.
+- Feedback selection/tab changes stay in `FeedbackSection`; no screen-level subscriptions.
+- Coordinators read imperative store snapshots for overlays and progress without subscribing.
 
 ### Memoization Strategy
 
-- **Keep:** Stable references that affect layout rendering (bubble state, audio overlay)
-- **Remove:** Defensive memoization compensating for aggregation
-- **Result:** 90% reduction (49 → 5 instances)
-
-### Adding New Features
-
-1. Create focused hook: `useMyNewFeature()`
-2. Call in `VideoAnalysisScreen`
-3. Compose props to `VideoAnalysisLayout`
-4. Update layout to use new prop
-5. Test hook in isolation
-
-No need to touch complex orchestrator logic!
+- Stable handler set split into stable vs reactive; refs bridge to latest state.
+- `feedback`/`videoState` exclude fast-changing values (current time, highlighted IDs).
+- Audio overlay memoized only by callback refs; real audio state lives in `VideoPlayerSection`.
 
 Also used in codebase:
 - upload_sessions (tracks signed upload progress)

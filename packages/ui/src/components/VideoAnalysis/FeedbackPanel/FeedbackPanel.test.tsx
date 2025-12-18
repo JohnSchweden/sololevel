@@ -167,15 +167,47 @@ describe('FeedbackPanel', () => {
     expect(screen.getByTestId('insights-loading-fallback')).toBeInTheDocument()
   })
 
-  it('renders comments placeholder when active', () => {
+  it('renders comments analysis placeholder when active and not in history mode', () => {
     // 🧪 ARRANGE: Set up component with comments tab active
-    const commentsTabProps = { ...mockProps, isExpanded: true, activeTab: 'comments' as const }
+    const commentsTabProps = {
+      ...mockProps,
+      isExpanded: true,
+      activeTab: 'comments' as const,
+      isHistoryMode: false,
+    }
 
     // 🎬 ACT: Render the component
     render(<FeedbackPanel {...commentsTabProps} />)
 
     // ✅ ASSERT: Component renders successfully with comments content
     expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('comments-analysis-placeholder')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Go to History & Progress to see the comments for this video to get a better understanding for the idea. ;)'
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('sort-top')).toBeNull()
+    expect(screen.queryByTestId('comment-composer')).toBeNull()
+  })
+
+  it('shows comments UI when in history mode', () => {
+    // 🧪 ARRANGE: Comments tab with history mode enabled
+    const commentsHistoryProps = {
+      ...mockProps,
+      isExpanded: true,
+      activeTab: 'comments' as const,
+      isHistoryMode: true,
+    }
+
+    // 🎬 ACT
+    render(<FeedbackPanel {...commentsHistoryProps} />)
+
+    // ✅ ASSERT: Sort buttons and composer are visible, placeholder hidden
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('sort-top')).toBeInTheDocument()
+    expect(screen.getByTestId('comment-composer')).toBeInTheDocument()
+    expect(screen.queryByTestId('comments-analysis-placeholder')).toBeNull()
   })
 
   describe('Phase 2: Interactive Elements Tests', () => {

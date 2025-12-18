@@ -357,7 +357,8 @@ export async function getUserAnalysisJobs(
         metadata
       ),
       analyses:analyses!analyses_job_id_fkey (
-        title
+        title,
+        full_feedback_text
       )
     `)
     .eq('user_id', user.data.user.id)
@@ -911,6 +912,38 @@ export function subscribeToAnalysisJob(
   // Return cleanup function (will be set after health check completes)
   return () => {
     unsubscribed = true
+  }
+}
+
+/**
+ * Get full feedback text from analyses table for a given job ID
+ * Returns the complete AI-generated feedback text for display in insights
+ */
+export async function getAnalysisFullFeedbackText(
+  jobId: number
+): Promise<{ fullFeedbackText: string | null; error: string | null }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { fullFeedbackText: null, error: 'User not authenticated' }
+  }
+
+  // Use inner join to verify user ownership via analysis_jobs
+  const { data, error } = await (supabase as any)
+    .from('analyses')
+    .select('full_feedback_text, analysis_jobs!inner(user_id)')
+    .eq('job_id', jobId)
+    .eq('analysis_jobs.user_id', user.id)
+    .maybeSingle()
+
+  if (error) {
+    return { fullFeedbackText: null, error: error.message }
+  }
+
+  return {
+    fullFeedbackText: data?.full_feedback_text ?? null,
+    error: null,
   }
 }
 

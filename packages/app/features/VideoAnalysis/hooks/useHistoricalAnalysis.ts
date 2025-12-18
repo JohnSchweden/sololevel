@@ -378,6 +378,34 @@ export async function fetchHistoricalAnalysisData(
     // This prevents blocking mount with FileSystem.getInfoAsync calls (~200-500ms)
     // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
 
+    // CRITICAL: If cache doesn't have fullFeedbackText (old cache), fetch it in background
+    // Don't await - return cached data immediately and update cache asynchronously
+    if (!cached.fullFeedbackText) {
+      // Background fetch to backfill missing field
+      void (async () => {
+        const { data: analysis, error: analysisError } = (await supabase
+          .from('analyses')
+          .select('full_feedback_text')
+          .eq('job_id', analysisId)
+          .single()) as { data: { full_feedback_text: string | null } | null; error: any }
+
+        if (analysisError) {
+          log.warn('useHistoricalAnalysis', 'Failed to backfill fullFeedbackText', {
+            analysisId,
+            error: analysisError.message || analysisError,
+          })
+          return
+        }
+
+        if (analysis?.full_feedback_text) {
+          // Update cache - this triggers re-render via TanStack Query
+          useVideoHistoryStore.getState().updateCache(analysisId, {
+            fullFeedbackText: analysis.full_feedback_text,
+          })
+        }
+      })()
+    }
+
     // CRITICAL: Detect invalid videoUri (raw storagePath instead of actual URI)
     // Valid URIs start with file://, http://, or https://
     // Raw storage paths like "uuid/videos/date/id/video.mp4" are NOT playable
@@ -387,6 +415,29 @@ export async function fetchHistoricalAnalysisData(
       (cachedVideoUri.startsWith('file://') ||
         cachedVideoUri.startsWith('http://') ||
         cachedVideoUri.startsWith('https://'))
+
+    // CRITICAL FIX: If videoUri is missing/invalid but we have storagePath, resolve it NOW
+    // Don't defer to useEffect validation - that check fails when videoUri is undefined
+    // This happens on fresh install where cache has data but no videoUri
+    if (!isValidUri && cached.storagePath) {
+      log.debug('useHistoricalAnalysis', 'Cached data missing valid videoUri, resolving now', {
+        analysisId,
+        cachedVideoUri: cachedVideoUri ?? 'undefined',
+        storagePath: cached.storagePath,
+      })
+
+      // Resolve video URI synchronously in queryFn
+      const resolvedVideoUri = await resolveHistoricalVideoUri(cached.storagePath, { analysisId })
+
+      // Update cache with resolved URI
+      useVideoHistoryStore.getState().updateCache(analysisId, { videoUri: resolvedVideoUri })
+
+      const updatedCached = { ...cached, videoUri: resolvedVideoUri }
+      return {
+        analysis: updatedCached,
+        pendingCacheUpdates: {},
+      }
+    }
 
     const optimisticVideoUri = isValidUri ? cachedVideoUri : FALLBACK_VIDEO_URI
 
@@ -413,13 +464,16 @@ export async function fetchHistoricalAnalysisData(
     return { analysis: null }
   }
 
-  // Fetch the analysis record to get the AI-generated title
+  // Fetch the analysis record to get the AI-generated title and full feedback text
   // Type assertion needed until Supabase types are regenerated
   const { data: analysis, error: analysisError } = (await supabase
     .from('analyses')
-    .select('title')
+    .select('title, full_feedback_text')
     .eq('job_id', analysisId)
-    .single()) as { data: { title: string | null } | null; error: any }
+    .single()) as {
+    data: { title: string | null; full_feedback_text: string | null } | null
+    error: any
+  }
 
   if (analysisError && analysisError.code !== 'PGRST116') {
     log.warn('useHistoricalAnalysis', 'Failed to fetch analysis title', {
@@ -476,12 +530,14 @@ export async function fetchHistoricalAnalysisData(
   // Only use real title from database - don't cache dummy titles
   // Title subscription will update it later if it becomes available
   const dbTitle = analysis?.title
+  const dbFullFeedbackText = analysis?.full_feedback_text
 
   const cachedAnalysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> = {
     id: job.id,
     videoId: job.video_recording_id,
     userId: job.user_id,
     title: dbTitle ?? '', // Use empty string as placeholder - subscription will update it
+    fullFeedbackText: dbFullFeedbackText ?? undefined,
     createdAt: job.created_at,
     results: job.results as CachedAnalysis['results'],
     poseData: job.pose_data ? (job.pose_data as unknown as CachedAnalysis['poseData']) : undefined,

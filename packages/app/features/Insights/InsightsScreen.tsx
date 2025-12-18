@@ -45,7 +45,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="This Week"
+        title="This Week (The Numbers Don't Lie)"
         icon={BarChart3}
         variant="minSpacing"
       />
@@ -55,14 +55,24 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
         <YStack flex={1}>
           <StatCard
             value={data.weeklyStats.totalSessions}
-            label="Total Sessions"
+            label={
+              data.weeklyStats.totalSessions > 10
+                ? 'Sessions\n(Actually Trying)'
+                : 'Sessions\n(Barely Trying)'
+            }
+            variant="center"
           />
         </YStack>
         <YStack flex={1}>
           <StatCard
             value={`${data.weeklyStats.improvement}%`}
-            label="Improvement"
+            label={
+              data.weeklyStats.improvement > 20
+                ? 'Improvement\n(Not Bad!)'
+                : 'Improvement\n(Could Be Worse)'
+            }
             trend="up"
+            variant="center"
           />
         </YStack>
       </XStack>
@@ -81,7 +91,11 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             fontSize="$3"
             color="$color11"
           >
-            Weekly Progress
+            {data.weeklyStats.weeklyProgress >= 80
+              ? 'Weekly Progress (Almost There!)'
+              : data.weeklyStats.weeklyProgress >= 50
+                ? 'Weekly Progress (Halfway to Mediocrity)'
+                : 'Weekly Progress (Room for Improvement)'}
           </Text>
           <Text
             fontSize="$3"
@@ -94,6 +108,22 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
           value={data.weeklyStats.weeklyProgress}
           size="md"
         />
+        <Text
+          fontSize="$2"
+          color="$color10"
+          fontStyle="italic"
+          paddingTop="$1"
+        >
+          {data.weeklyStats.weeklyProgress >= 90
+            ? "Almost perfect! Now don't mess it up next week."
+            : data.weeklyStats.weeklyProgress >= 80
+              ? "Solid effort. Could be better, but we'll take it."
+              : data.weeklyStats.weeklyProgress >= 50
+                ? "Halfway there... which means you're also halfway behind."
+                : data.weeklyStats.weeklyProgress >= 25
+                  ? "A quarter of the way? That's... something, I guess."
+                  : 'Less than 25%? Ouch. Time to step it up.'}
+        </Text>
       </YStack>
 
       {/* Activity Chart */}
@@ -109,9 +139,36 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
           fontSize="$3"
           color="$color11"
         >
-          Daily Activity
+          Daily Activity (The Truth Hurts)
         </Text>
         <ActivityChart data={dailyActivityData} />
+        <Text
+          fontSize="$2"
+          color="$color10"
+          fontStyle="italic"
+          paddingTop="$2"
+        >
+          {(() => {
+            const totalSessions = dailyActivityData.reduce((sum, day) => sum + day.sessions, 0)
+            const avgSessions = totalSessions / dailyActivityData.length
+            const maxSessions = Math.max(...dailyActivityData.map((d) => d.sessions))
+            const minSessions = Math.min(...dailyActivityData.map((d) => d.sessions))
+
+            if (maxSessions === 0) {
+              return "Zero sessions? Really? That's not even trying."
+            }
+            if (maxSessions === minSessions && maxSessions === 1) {
+              return 'One session per day? Consistency is key, but so is effort.'
+            }
+            if (avgSessions >= 2.5) {
+              return "Now that's what I call commitment! Keep it up."
+            }
+            if (avgSessions >= 1.5) {
+              return 'Decent effort, but we both know you can do better.'
+            }
+            return 'Some days you tried, some days... not so much. Classic.'
+          })()}
+        </Text>
       </YStack>
     </YStack>
   )
@@ -131,19 +188,48 @@ const FocusAreasSection = memo(function FocusAreasSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Focus Areas"
+        title="Focus Areas (Where You're Failing)"
         icon={Target}
         variant="minSpacing"
       />
 
-      {focusAreasList.map((focus, index) => (
-        <FocusCard
-          key={`focus-${index}`}
-          title={focus.title}
-          progress={focus.progress}
-          priority={focus.priority}
-        />
-      ))}
+      {focusAreasList.map((focus, index) => {
+        const roastTitle =
+          focus.progress >= 80
+            ? `${focus.title} (Almost There!)`
+            : focus.progress >= 50
+              ? `${focus.title} (Halfway to Decent)`
+              : focus.progress >= 25
+                ? `${focus.title} (Baby Steps...)`
+                : `${focus.title} (Yikes)`
+
+        return (
+          <YStack
+            key={`focus-${index}`}
+            gap="$2"
+          >
+            <FocusCard
+              title={roastTitle}
+              progress={focus.progress}
+              priority={focus.priority}
+            />
+            <Text
+              fontSize="$2"
+              color="$color10"
+              fontStyle="italic"
+              paddingHorizontal="$2"
+            >
+              {focus.progress >= 80
+                ? 'Look at you, actually trying!'
+                : focus.progress >= 50
+                  ? "Not terrible, but we've seen better."
+                  : focus.progress >= 25
+                    ? "At least you're not at zero... yet."
+                    : 'This is embarrassing. Do better.'}
+            </Text>
+          </YStack>
+        )
+      })}
     </YStack>
   )
 })
@@ -162,20 +248,52 @@ const AchievementsSection = memo(function AchievementsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Recent Achievements"
+        title="Recent Achievements (You Did Something!)"
         icon={Award}
         variant="minSpacing"
       />
 
-      {achievementsList.map((achievement, index) => (
-        <AchievementCard
-          key={`achievement-${index}`}
-          title={achievement.title}
-          date={achievement.date}
-          type={achievement.type}
-          icon={achievement.icon}
-        />
-      ))}
+      {achievementsList.map((achievement, index) => {
+        const roastTitle =
+          achievement.type === 'streak'
+            ? `${achievement.title} (The Streak Lives!)`
+            : achievement.type === 'technique'
+              ? `${achievement.title} (You Learned Something!)`
+              : `${achievement.title} (A New Low... I Mean High!)`
+
+        const roastDate =
+          achievement.date === 'Today'
+            ? 'Today (Fresh off the press)'
+            : achievement.date.includes('ago')
+              ? `${achievement.date} (Ancient history)`
+              : achievement.date
+
+        return (
+          <YStack
+            key={`achievement-${index}`}
+            gap="$1"
+          >
+            <AchievementCard
+              title={roastTitle}
+              date={roastDate}
+              type={achievement.type}
+              icon={achievement.icon}
+            />
+            <Text
+              fontSize="$2"
+              color="$color10"
+              fontStyle="italic"
+              paddingHorizontal="$2"
+            >
+              {achievement.type === 'streak'
+                ? 'Keep it going before you break it!'
+                : achievement.type === 'technique'
+                  ? 'Finally, some improvement. About time.'
+                  : 'A personal best! Now do it again.'}
+            </Text>
+          </YStack>
+        )
+      })}
     </YStack>
   )
 })
@@ -194,7 +312,7 @@ const QuickStatsSection = memo(function QuickStatsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Quick Stats"
+        title="Quick Stats (The Brutal Truth)"
         icon={Calendar}
         variant="minSpacing"
       />
@@ -203,14 +321,24 @@ const QuickStatsSection = memo(function QuickStatsSection({
         <YStack flex={1}>
           <StatCard
             value={data.quickStats.streakDays}
-            label="Day Streak"
+            label={
+              data.quickStats.streakDays >= 7
+                ? 'Day Streak (Impressive!)'
+                : data.quickStats.streakDays >= 3
+                  ? 'Day Streak (Keep Going)'
+                  : 'Day Streak (Try Harder)'
+            }
             variant="center"
           />
         </YStack>
         <YStack flex={1}>
           <StatCard
             value={`${data.quickStats.avgSessionTime}min`}
-            label="Avg Session"
+            label={
+              data.quickStats.avgSessionTime >= 45
+                ? 'Avg Session (Decent Effort)'
+                : 'Avg Session (Was That It?)'
+            }
             variant="center"
           />
         </YStack>
@@ -247,7 +375,9 @@ export function InsightsScreen({
 }: InsightsScreenProps = {}): React.ReactElement {
   // Use stable safe area hook to prevent layout jumps during navigation
   const insets = useStableSafeArea()
+  const bottomInset = useMemo(() => Math.max(0, insets.bottom - 22), [insets.bottom])
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+  const BOTTOM_TAB_BAR_HEIGHT = (Platform.OS === 'android' ? 52 : 72) + bottomInset // Match BottomNavigationContainer height with inset
 
   // PERF FIX: Memoize container style to prevent recalculating layout on every render
   const containerStyle = useMemo(
@@ -355,13 +485,13 @@ export function InsightsScreen({
       >
         <StateDisplay
           type={isError ? 'error' : 'empty'}
-          title={isError ? 'Failed to load insights' : 'No data available yet'}
+          title={isError ? 'Oops, Something Broke (Classic)' : 'No Data Yet (Shocking)'}
           description={
             isError
-              ? 'Please try again later or pull to refresh.'
-              : 'Complete workouts to see insights about your performance and progress.'
+              ? 'The app tried its best, but even it gave up. Pull to refresh and try again.'
+              : "Complete some workouts first. I know, shocking concept. Then come back and see how you're actually doing."
           }
-          icon="📊"
+          icon={isError ? '💥' : '📊'}
           onRetry={isError ? refetch : undefined}
           testID={`${testID}-${isError ? 'error' : 'empty'}`}
         />
@@ -383,8 +513,7 @@ export function InsightsScreen({
             paddingTop={insets.top + APP_HEADER_HEIGHT + 20}
             paddingHorizontal="$4"
             gap="$6"
-            paddingBottom={Platform.OS === 'android' ? '$10' : '$6'}
-            marginBottom={insets.bottom}
+            paddingBottom={BOTTOM_TAB_BAR_HEIGHT}
           >
             {sectionsContent}
           </YStack>

@@ -22,6 +22,7 @@ export interface CachedAnalysis {
   videoId: number
   userId: string
   title: string
+  fullFeedbackText?: string // Complete AI-generated feedback text from analyses table
   createdAt: string
   thumbnail?: string
   /**
@@ -726,9 +727,10 @@ export function setupVideoHistoryCacheCleanup(authStore: {
   return authStore.subscribe((state) => {
     const currentUserId = state.user?.id || null
 
-    // Only clear cache when user changes (logout or switch user)
-    // Don't clear on initial auth state (when previousUserId is null)
-    if (previousUserId && currentUserId !== previousUserId) {
+    // Only clear cache when switching between two real users.
+    // Avoid clearing on transient null states (auth churn / bootstrap) because signOut()
+    // already triggers a full cleanup via clearAllUserData.
+    if (previousUserId && currentUserId && currentUserId !== previousUserId) {
       log.info('VideoHistoryStore', 'User changed, clearing cache', {
         previousUserId,
         currentUserId,

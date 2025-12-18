@@ -1,22 +1,10 @@
 {
   "ios": {
-    "bundleIdentifier": "com.spike123.sololevel"
+    "bundleIdentifier": "ai.sololevel.app"
   },
   "extra": {
     "eas": {
       "projectId": "cf2a6fd7-0d34-495d-9ffe-a822d0ebcbae"
     }
-  },
-  "expo": {
-    "plugins": [
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "freelancing-n5"
-        }
-      ]
-    ]
   }
 }

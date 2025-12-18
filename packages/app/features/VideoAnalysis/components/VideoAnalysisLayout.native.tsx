@@ -5,7 +5,15 @@ import { Dimensions } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
-import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated'
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnUI,
+  scrollTo,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated'
 import type { AnimatedRef, AnimatedStyle, SharedValue } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -38,6 +46,10 @@ const MODE_SCROLL_POSITIONS = {
   normal: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.normal, // 40% of screen
   min: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.min, // 67% of screen
 } as const
+
+// Snap animation timing (mirrors useGestureController)
+const SNAP_DURATION_MS = 600
+const SNAP_EASING = Easing.bezier(0.15, 0.0, 0.15, 1)
 
 /**
  * Props for VideoAnalysisLayout (Native)
@@ -89,6 +101,8 @@ export interface VideoAnalysisLayoutProps {
       feedback: number
     }
     analysisTitle?: string // AI-generated analysis title
+    fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
+    isHistoryMode: boolean
   }
 
   subscription: {
@@ -289,6 +303,19 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
     toggleControlsVisibilityOnTap(controlsVisible, controls.onControlsVisibilityChange)
   }, [controlsVisible, controls.onControlsVisibilityChange])
 
+  // Programmatically collapse video to min mode (used when focusing comment input)
+  const minimizeVideo = useCallback(() => {
+    runOnUI(() => {
+      'worklet'
+      const targetScrollPos = MODE_SCROLL_POSITIONS.min
+      animation.scrollY.value = withTiming(targetScrollPos, {
+        duration: SNAP_DURATION_MS,
+        easing: SNAP_EASING,
+      })
+      scrollTo(animation.scrollRef, 0, targetScrollPos, true)
+    })()
+  }, [animation.scrollRef, animation.scrollY])
+
   // Static layout: panelFraction is always EXPANDED_FRACTION (0.4), so videoAreaScale is always 0.6
   const computedVideoAreaScale = 0.6
 
@@ -483,6 +510,8 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                 <FeedbackSection
                   feedbackItems={feedback.items}
                   analysisTitle={feedback.analysisTitle}
+                  fullFeedbackText={feedback.fullFeedbackText}
+                  isHistoryMode={feedback.isHistoryMode}
                   // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
                   currentVideoTime={playbackCurrentTime}
                   videoDuration={0}
@@ -496,9 +525,11 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   onSelectAudio={handlers.onSelectAudio}
                   onScrollYChange={handlers.onFeedbackScrollY}
                   onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
+                  scrollYShared={animation.feedbackContentOffsetY}
                   scrollEnabled={true} // Always true - blocksExternalGesture handles blocking at gesture level
                   scrollEnabledShared={(gesture as any).feedbackScrollEnabledShared}
                   scrollGestureRef={(gesture as any).feedbackScrollGestureRef}
+                  onMinimizeVideo={minimizeVideo}
                 />
               </Animated.View>
             </YStack>

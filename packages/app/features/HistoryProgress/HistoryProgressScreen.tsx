@@ -35,12 +35,16 @@ export interface HistoryProgressScreenProps {
 // Mock coaching sessions data - defined outside component to prevent re-allocation
 // Frozen to prevent mutations and signal immutability
 const MOCK_COACHING_SESSIONS: readonly SessionItem[] = Object.freeze([
-  { id: 1, date: 'Today', title: 'Muscle Soreness and Growth in Weightlifting' },
-  { id: 2, date: 'Monday, Jul 28', title: 'Personalised supplement recommendations' },
-  { id: 3, date: 'Sunday, Jul 27', title: 'Posture correction techniques' },
-  { id: 4, date: 'Saturday, Jul 26', title: 'Injury prevention strategies' },
-  { id: 5, date: 'Friday, Jul 25', title: 'Nutrition timing for optimal performance' },
-  { id: 6, date: 'Thursday, Jul 24', title: 'Recovery techniques for athletes' },
+  { id: 1, date: 'Today', title: 'Your Deadlift is a Question Mark' },
+  { id: 2, date: 'Monday, Jul 28', title: 'Supplements: Because Real Food is Too Mainstream' },
+  { id: 3, date: 'Sunday, Jul 27', title: "Why Does Your Back Hurt? (Spoiler: It's Your Posture)" },
+  {
+    id: 4,
+    date: 'Saturday, Jul 26',
+    title: 'The Comprehensive Guide to Not Destroying Your Knees While Lifting Heavy Things',
+  },
+  { id: 5, date: 'Friday, Jul 25', title: 'Eat or Faint: The Meal Timing Dilemma' },
+  { id: 6, date: 'Thursday, Jul 24', title: "Recovery Isn't Optional" },
 ])
 
 /**

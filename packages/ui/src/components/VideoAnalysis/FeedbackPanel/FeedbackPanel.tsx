@@ -23,7 +23,9 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   runOnJS,
   useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
+  useSharedValue,
 } from 'react-native-reanimated'
 import type { SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -293,6 +295,8 @@ export interface FeedbackPanelProps {
   feedbackItems: FeedbackItem[]
   comments?: CommentItem[] // Comments for comments tab
   analysisTitle?: string // AI-generated analysis title
+  fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
+  isHistoryMode?: boolean // History mode shows real comments; analysis mode shows placeholder
   currentVideoTime?: number
   videoDuration?: number
   selectedFeedbackId?: string | null
@@ -311,9 +315,11 @@ export interface FeedbackPanelProps {
   // Nested scroll support
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
+  scrollYShared?: SharedValue<number> // Optional: SharedValue for UI-thread scroll position updates (avoids JS bridge)
   scrollEnabled?: boolean // Control scroll enabled state from parent (fallback for web/tests)
   scrollEnabledShared?: SharedValue<boolean> // Shared value for UI-thread scroll control (native only)
   scrollGestureRef?: React.RefObject<any> // Ref for this panel's scroll gesture (for blocksExternalGesture)
+  onMinimizeVideo?: () => void
 }
 
 export const FeedbackPanel = memo(
@@ -324,6 +330,8 @@ export const FeedbackPanel = memo(
     feedbackItems,
     comments = [],
     analysisTitle,
+    fullFeedbackText,
+    isHistoryMode = false,
     // currentVideoTime = 0, // DEPRECATED: auto-highlighting now controlled by coordinator
     selectedFeedbackId,
     //videoDuration = 0,
@@ -339,9 +347,11 @@ export const FeedbackPanel = memo(
     onCommentSubmit,
     onScrollYChange,
     onScrollEndDrag,
+    scrollYShared, // Optional: SharedValue for UI-thread scroll position updates
     scrollEnabled = true, // Default to enabled (fallback for web/tests)
     scrollEnabledShared, // Shared value for UI-thread control (native only)
     scrollGestureRef,
+    onMinimizeVideo,
   }: FeedbackPanelProps) {
     // Comment sorting state
     const [commentSort, setCommentSort] = useState<'top' | 'new'>('top')
@@ -360,7 +370,8 @@ export const FeedbackPanel = memo(
       ? useAnimatedProps(() => {
           'worklet'
           const enabled = scrollEnabledShared.value
-          runOnJS(log.debug)('FeedbackPanel', 'animatedProps scrollEnabled', { enabled })
+          // NOTE: Commented out - runOnJS() causes bridge overhead on every scroll state change
+          // runOnJS(log.debug)('FeedbackPanel', 'animatedProps scrollEnabled', { enabled })
           return {
             scrollEnabled: enabled,
           }
@@ -415,14 +426,52 @@ export const FeedbackPanel = memo(
     const tabTransitionEnterStyle = useMemo(() => ({ opacity: 0, y: 10 }), [])
     const tabTransitionExitStyle = useMemo(() => ({ opacity: 0, y: -10 }), [])
 
-    // Scroll handler to track position
-    const scrollHandler = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        if (onScrollYChange) {
-          runOnJS(onScrollYChange)(event.contentOffset.y)
+    // PERFORMANCE: Track scroll position on UI thread to avoid JS bridge overhead
+    // If scrollYShared is provided, update it directly in worklet (zero latency)
+    // Otherwise, fall back to JS callback (throttled via useAnimatedReaction)
+    const internalScrollY = useSharedValue(0)
+
+    // Sync internal scroll position to parent's SharedValue (if provided) on UI thread
+    useAnimatedReaction(
+      () => internalScrollY.value,
+      (currentY) => {
+        'worklet'
+        if (scrollYShared) {
+          scrollYShared.value = currentY
         }
       },
+      [scrollYShared]
+    )
+
+    // Fallback: Call JS callback only when scroll ends (if no SharedValue provided)
+    // This avoids calling runOnJS on every scroll event
+    useAnimatedReaction(
+      () => internalScrollY.value,
+      (currentY, previousY) => {
+        'worklet'
+        // Only call JS callback if no SharedValue is provided and value changed significantly
+        // This is a fallback for web/compatibility - prefer scrollYShared for native
+        if (!scrollYShared && onScrollYChange && previousY !== null) {
+          // Throttle: only update if change is significant (> 1px) to reduce bridge calls
+          if (Math.abs(currentY - previousY) > 1) {
+            runOnJS(onScrollYChange)(currentY)
+          }
+        }
+      },
+      [scrollYShared, onScrollYChange]
+    )
+
+    // Scroll handler - updates SharedValue directly on UI thread (no JS bridge)
+    const scrollHandler = useAnimatedScrollHandler({
+      onScroll: (event) => {
+        'worklet'
+        const scrollY = event.contentOffset.y
+        // Update SharedValue directly on UI thread (zero latency, no bridge)
+        internalScrollY.value = scrollY
+      },
       onEndDrag: () => {
+        'worklet'
+        // onScrollEndDrag is called infrequently, so runOnJS is acceptable here
         if (onScrollEndDrag) {
           runOnJS(onScrollEndDrag)()
         }
@@ -431,7 +480,7 @@ export const FeedbackPanel = memo(
 
     const isWeb = Platform.OS === 'web'
     const isAndroid = Platform.OS === 'android'
-    const shouldShowCommentComposer = activeTab === 'comments'
+    const shouldShowCommentComposer = activeTab === 'comments' && isHistoryMode
     const scrollBottomPadding = shouldShowCommentComposer ? 16 : 30
 
     // Performance tracking: Track flex changes as animation triggers
@@ -935,16 +984,55 @@ export const FeedbackPanel = memo(
         <Suspense fallback={<InsightsLoadingFallback />}>
           <LazyVideoAnalysisInsightsV2
             key="insights-content"
+            fullFeedbackText={fullFeedbackText}
             testID="insights-content"
           />
         </Suspense>
       ),
-      []
+      [fullFeedbackText]
     )
 
     // Render comments tab content
-    const renderCommentsContent = useCallback(
-      () => (
+    const renderCommentsContent = useCallback(() => {
+      if (!isHistoryMode) {
+        return (
+          <YStack
+            key="comments-content"
+            paddingTop="$2"
+            testID="comments-content"
+            accessibilityLabel="Comments content area"
+          >
+            <CommentsListContainer>
+              <YStack
+                padding="$4"
+                alignItems="center"
+                justifyContent="center"
+                gap="$2"
+                testID="comments-analysis-placeholder"
+                accessibilityLabel="Comments unavailable during analysis"
+              >
+                <Text
+                  fontSize="$4"
+                  color="$color11"
+                  textAlign="center"
+                >
+                  You are eager and curious. That's great. Right attitude!
+                </Text>
+                <Text
+                  fontSize="$4"
+                  color="$color11"
+                  textAlign="center"
+                >
+                  Go to History & Progress to see the comments for this video to get a better
+                  understanding for the idea. ;)
+                </Text>
+              </YStack>
+            </CommentsListContainer>
+          </YStack>
+        )
+      }
+
+      return (
         <YStack
           key="comments-content"
           paddingTop="$2"
@@ -1023,11 +1111,11 @@ export const FeedbackPanel = memo(
             )}
           </CommentsListContainer>
         </YStack>
-      ),
-      [commentSort, sortedComments, renderCommentItem]
-    )
+      )
+    }, [commentSort, isHistoryMode, sortedComments, renderCommentItem])
 
     const handleCommentInputFocus = useCallback((): void => {
+      onMinimizeVideo?.()
       // Scroll to end when input is focused to ensure it's visible above keyboard
       // KeyboardAvoidingView handles main positioning; this ensures composer is in view
       if (scrollViewRef.current) {
@@ -1043,7 +1131,7 @@ export const FeedbackPanel = memo(
           }
         }, 150)
       }
-    }, [])
+    }, [onMinimizeVideo])
 
     const renderCommentComposer = useCallback(() => {
       // Android gesture navigation needs additional bottom padding
@@ -1431,8 +1519,12 @@ export const FeedbackPanel = memo(
       prevProps.activeTab === nextProps.activeTab &&
       prevProps.selectedFeedbackId === nextProps.selectedFeedbackId &&
       JSON.stringify(prevProps.feedbackItems) === JSON.stringify(nextProps.feedbackItems) &&
+      JSON.stringify(prevProps.comments) === JSON.stringify(nextProps.comments) &&
+      prevProps.analysisTitle === nextProps.analysisTitle &&
+      prevProps.fullFeedbackText === nextProps.fullFeedbackText &&
       // Ignore currentVideoTime and videoDuration as they change frequently but don't affect visual state
       prevProps.onTabChange === nextProps.onTabChange &&
+      prevProps.isHistoryMode === nextProps.isHistoryMode &&
       // TEMP_DISABLED: Sheet expand/collapse for static layout
       // prevProps.onSheetExpand === nextProps.onSheetExpand &&
       // prevProps.onSheetCollapse === nextProps.onSheetCollapse &&
@@ -1443,9 +1535,11 @@ export const FeedbackPanel = memo(
       prevProps.onSelectAudio === nextProps.onSelectAudio &&
       prevProps.onScrollYChange === nextProps.onScrollYChange &&
       prevProps.onScrollEndDrag === nextProps.onScrollEndDrag &&
+      prevProps.scrollYShared === nextProps.scrollYShared &&
       prevProps.scrollEnabled === nextProps.scrollEnabled &&
       prevProps.scrollEnabledShared === nextProps.scrollEnabledShared &&
-      prevProps.scrollGestureRef === nextProps.scrollGestureRef
+      prevProps.scrollGestureRef === nextProps.scrollGestureRef &&
+      prevProps.onMinimizeVideo === nextProps.onMinimizeVideo
     )
   }
 )

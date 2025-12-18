@@ -178,6 +178,9 @@ function transformToCache(
   const analysesData = (job as any).analyses
   // Handle both object (one-to-one) and array (if it were one-to-many) cases
   const analysesTitle = Array.isArray(analysesData) ? analysesData[0]?.title : analysesData?.title
+  const analysesfullFeedbackText = Array.isArray(analysesData)
+    ? analysesData[0]?.full_feedback_text
+    : analysesData?.full_feedback_text
   const fallbackTitle = `Analysis ${new Date(job.created_at).toLocaleDateString()}`
   const analysisTitle = analysesTitle || fallbackTitle
 
@@ -186,6 +189,7 @@ function transformToCache(
     videoId: job.video_recording_id,
     userId: job.user_id,
     title: analysisTitle,
+    fullFeedbackText: analysesfullFeedbackText ?? undefined,
     createdAt: job.created_at,
     thumbnail: thumbnail ?? undefined,
     // Store cloud URL for recovery when local file:// paths become stale (cleared on app restart)
@@ -231,19 +235,18 @@ async function resolveStaleThumbailsFromCache(
   const { updateCache } = useVideoHistoryStore.getState()
 
   for (const item of cachedItems) {
-    // Skip if no thumbnail or already using persistent path
+    // Skip if no thumbnail or already using our persistent cache path
     if (!item.thumbnail) continue
     if (item.thumbnail.includes('Documents/thumbnails/')) continue
 
-    // Check if thumbnail is a stale file:// path (not persistent cache)
-    const isStaleFilePath =
-      item.thumbnail.startsWith('file://') &&
-      (item.thumbnail.includes('Library/Caches/') ||
-        item.thumbnail.includes('VideoThumbnails/') ||
-        item.thumbnail.includes('tmp/'))
+    // Any file:// path that's NOT in our persistent cache is potentially stale
+    // On fresh install, metadata.thumbnailUri contains paths from original device
+    // HTTP URLs are valid cloud URLs that should be downloaded and persisted
+    const isFileUrl = item.thumbnail.startsWith('file://')
+    const isHttpUrl = item.thumbnail.startsWith('http')
 
-    if (!isStaleFilePath && !item.thumbnail.startsWith('http')) {
-      // Not a stale path and not a cloud URL - might be valid persistent path
+    // Skip if it's neither a file URL nor an HTTP URL (shouldn't happen)
+    if (!isFileUrl && !isHttpUrl) {
       continue
     }
 
@@ -412,15 +415,21 @@ export function useHistoryQuery(limit = 10) {
     const state = useVideoHistoryStore.getState()
     const allCached = isHydrated ? state.getAllCached() : []
     const cachedCount = allCached.length
-    // Only refetch if cache is completely empty (first load)
-    // If we have any data, show it - don't refetch just because cachedCount < limit
-    // This prevents infinite refetches when user simply has fewer items than the limit
-    const shouldRefetchOnMount = cachedCount === 0
+    const lastSync = state.lastSync
+    const now = Date.now()
+    const FRESHNESS_WINDOW_MS = 60_000 // 60s: avoid spam when navigating rapidly
+    const isStale = lastSync === 0 || now - lastSync > FRESHNESS_WINDOW_MS
+
+    // Refetch when cache is empty, or when cache is partial AND stale.
+    // This keeps event-driven invalidation but avoids re-fetch spam on rapid re-entry.
+    const shouldRefetchOnMount = cachedCount === 0 || (cachedCount < limit && isStale)
 
     if (__DEV__ && isHydrated) {
       log.debug('useHistoryQuery', 'Query options - checking Zustand store', {
         cachedCount,
         limit,
+        lastSync,
+        isStale,
         shouldRefetchOnMount,
         isHydrated,
       })
@@ -518,6 +527,10 @@ export function useHistoryQuery(limit = 10) {
             [] // No localUri updates from DB - maintained in localUriIndex separately
           )
 
+          // CRITICAL: Update lastSync timestamp to record when fetch occurred
+          // This enables the 60-second freshness window to prevent refetch loops
+          cache.updateLastSync()
+
           // Get cached entries and transform to VideoItems
           const videoItems = videoItemsData.map(({ jobId }) => {
             const cached = cache.getCached(jobId)
@@ -534,6 +547,16 @@ export function useHistoryQuery(limit = 10) {
             limit,
             cacheSize: cache.cache.size,
           })
+
+          // CRITICAL FIX: Resolve stale thumbnails from freshly fetched data
+          // On fresh install, metadata.thumbnailUri may be stale temp paths from original device
+          // This runs in background (non-blocking) and updates both Zustand and TanStack Query
+          if (Platform.OS !== 'web') {
+            const freshCachedItems = videoItemsData
+              .map(({ jobId }) => cache.getCached(jobId))
+              .filter((item): item is CachedAnalysis => item !== null)
+            void resolveStaleThumbailsFromCache(freshCachedItems, queryClient, limit)
+          }
 
           return videoItems
         } catch (error) {
@@ -553,7 +576,7 @@ export function useHistoryQuery(limit = 10) {
     }
 
     return baseOptions
-  }, [limit, cache, isHydrated])
+  }, [limit, cache, isHydrated, queryClient])
 
   const queryResult = useQuery(queryOptions)
 

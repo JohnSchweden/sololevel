@@ -308,7 +308,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     useEffect(() => {
       const now = Date.now()
-      const timeSinceLastRender = now - lastRenderTimeRef.current
+      // const timeSinceLastRender = now - lastRenderTimeRef.current
       lastRenderTimeRef.current = now
 
       const prev = prevPropsRef.current
@@ -319,13 +319,13 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
         if (Math.abs(prev.currentTime - currentTime) > 0.1) changed.push('currentTime')
         if (prev.controlsVisible !== controlsVisible) changed.push('controlsVisible')
 
-        if (changed.length === 0 && timeSinceLastRender < 16) {
-          log.debug('VideoControls', '⚠️ Rapid re-render without prop changes', {
-            timeSinceLastRender,
-            isRapid: true,
-            stackTrace: new Error().stack?.split('\n').slice(1, 8).join('\n'),
-          })
-        }
+        // if (changed.length === 0 && timeSinceLastRender < 16) {
+        //   log.debug('VideoControls', '⚠️ Rapid re-render without prop changes', {
+        //     timeSinceLastRender,
+        //     isRapid: true,
+        //     stackTrace: new Error().stack?.split('\n').slice(1, 8).join('\n'),
+        //   })
+        // }
       }
 
       prevPropsRef.current = {

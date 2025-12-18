@@ -369,6 +369,25 @@ export async function startUploadAndAnalysis(
                 localUri: localUri.substring(0, 80),
               }
             )
+
+            // Even if already persisted, ensure the localUriIndex is populated
+            try {
+              const { useVideoHistoryStore } = await import(
+                '../features/HistoryProgress/stores/videoHistory'
+              )
+              const historyStore = useVideoHistoryStore.getState()
+              historyStore.setLocalUri(details.storagePath, localUri)
+            } catch (importError) {
+              log.warn(
+                'startUploadAndAnalysis',
+                'Failed to update localUri index for persisted video',
+                {
+                  recordingId: details.recordingId,
+                  localUri: localUri.substring(0, 80),
+                  error: importError instanceof Error ? importError.message : String(importError),
+                }
+              )
+            }
           } else if (isTemporaryPath(localUri)) {
             // Persist to Documents/recordings/ for offline playback
             const recordingsDir = `${FileSystem.documentDirectory}recordings/`
