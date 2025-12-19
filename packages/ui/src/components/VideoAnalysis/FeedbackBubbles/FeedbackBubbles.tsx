@@ -2,6 +2,7 @@ import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
 import { useRenderProfile } from '@ui/hooks/useRenderProfile'
 import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { memo, useMemo } from 'react'
+import { Platform } from 'react-native'
 import Animated, {
   FadeIn,
   FadeOut,
@@ -113,11 +114,18 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
       testID={`feedback-bubble-${message.id}`}
     >
       {/* Blur background layer */}
-      <BlurView
-        intensity={15}
-        tint="light"
-        style={BLUR_VIEW_STYLE}
-      />
+      {Platform.OS === 'ios' ? (
+        <BlurView
+          intensity={15}
+          tint="light"
+          style={BLUR_VIEW_STYLE}
+        />
+      ) : (
+        <YStack
+          backgroundColor="rgba(255, 255, 255, 0.15)"
+          style={BLUR_VIEW_STYLE}
+        />
+      )}
       {/* Text content */}
       <YStack
         padding="$3"

@@ -544,73 +544,143 @@ export function CoachScreen({
               }}
               testID={`${testID}-sticky-header`}
             >
-              <BlurView
-                intensity={10}
-                tint="regular"
-                style={blurViewStyle}
-              >
-                <XStack
-                  alignItems="center"
-                  padding="$4"
-                  gap="$4"
-                  paddingHorizontal="$6"
-                  opacity={sectionsVisible[0] ? 1 : 0}
-                  // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-                  // Staggered animation already handles visibility timing
-                  testID={`${testID}-avatar-section`}
+              {Platform.OS === 'ios' ? (
+                <BlurView
+                  intensity={10}
+                  tint="regular"
+                  style={blurViewStyle}
                 >
-                  {/* Avatar */}
-                  <YStack
-                    width={64}
-                    height={64}
-                    borderRadius={32}
-                    backgroundColor="$color5"
-                    borderWidth={1}
-                    borderColor="rgba(255,255,255,0.3)"
+                  <XStack
                     alignItems="center"
-                    justifyContent="center"
-                    overflow="hidden"
-                    testID={`${testID}-avatar`}
+                    padding="$4"
+                    gap="$4"
+                    paddingHorizontal="$6"
+                    opacity={sectionsVisible[0] ? 1 : 0}
+                    // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                    // Staggered animation already handles visibility timing
+                    testID={`${testID}-avatar-section`}
                   >
-                    <Image
-                      source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                      contentFit="cover"
-                      style={{
-                        width: 66,
-                        height: 66,
-                        borderRadius: 32,
-                      }}
-                      cachePolicy="memory-disk"
-                      transition={200}
-                    />
-                  </YStack>
+                    {/* Avatar */}
+                    <YStack
+                      width={64}
+                      height={64}
+                      borderRadius={32}
+                      backgroundColor="$color5"
+                      borderWidth={1}
+                      borderColor="rgba(255,255,255,0.3)"
+                      alignItems="center"
+                      justifyContent="center"
+                      overflow="hidden"
+                      testID={`${testID}-avatar`}
+                    >
+                      <Image
+                        source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                        contentFit="cover"
+                        style={{
+                          width: 66,
+                          height: 66,
+                          borderRadius: 32,
+                        }}
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
+                    </YStack>
 
-                  {/* Session Info */}
-                  <YStack
-                    flex={1}
-                    gap="$2"
-                    testID={`${testID}-session-info`}
+                    {/* Session Info */}
+                    <YStack
+                      flex={1}
+                      gap="$2"
+                      testID={`${testID}-session-info`}
+                    >
+                      <Text
+                        fontSize="$1"
+                        fontWeight="500"
+                        color="$color12"
+                        testID={`${testID}-session-date`}
+                      >
+                        {sessionDate || getTodayDate()}
+                      </Text>
+                      <Text
+                        fontSize="$4"
+                        fontWeight="500"
+                        color="$color12"
+                        numberOfLines={2}
+                        testID={`${testID}-session-title`}
+                      >
+                        {sessionTitle || 'New Coaching Session'}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </BlurView>
+              ) : (
+                <YStack
+                  backgroundColor="$color3"
+                  opacity={0.85}
+                  style={blurViewStyle}
+                >
+                  <XStack
+                    alignItems="center"
+                    padding="$4"
+                    gap="$4"
+                    paddingHorizontal="$6"
+                    opacity={sectionsVisible[0] ? 1 : 0}
+                    // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
+                    // Staggered animation already handles visibility timing
+                    testID={`${testID}-avatar-section`}
                   >
-                    <Text
-                      fontSize="$1"
-                      fontWeight="500"
-                      color="$color12"
-                      testID={`${testID}-session-date`}
+                    {/* Avatar */}
+                    <YStack
+                      width={64}
+                      height={64}
+                      borderRadius={32}
+                      backgroundColor="$color5"
+                      borderWidth={1}
+                      borderColor="rgba(255,255,255,0.3)"
+                      alignItems="center"
+                      justifyContent="center"
+                      overflow="hidden"
+                      testID={`${testID}-avatar`}
                     >
-                      {sessionDate || getTodayDate()}
-                    </Text>
-                    <Text
-                      fontSize="$4"
-                      fontWeight="500"
-                      color="$color12"
-                      numberOfLines={2}
-                      testID={`${testID}-session-title`}
+                      <Image
+                        source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                        contentFit="cover"
+                        style={{
+                          width: 66,
+                          height: 66,
+                          borderRadius: 32,
+                        }}
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
+                    </YStack>
+
+                    {/* Session Info */}
+                    <YStack
+                      flex={1}
+                      gap="$2"
+                      testID={`${testID}-session-info`}
                     >
-                      {sessionTitle || 'New Coaching Session'}
-                    </Text>
-                  </YStack>
-                </XStack>
-              </BlurView>
+                      <Text
+                        fontSize="$1"
+                        fontWeight="500"
+                        color="$color12"
+                        testID={`${testID}-session-date`}
+                      >
+                        {sessionDate || getTodayDate()}
+                      </Text>
+                      <Text
+                        fontSize="$4"
+                        fontWeight="500"
+                        color="$color12"
+                        numberOfLines={2}
+                        testID={`${testID}-session-title`}
+                      >
+                        {sessionTitle || 'New Coaching Session'}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </YStack>
+              )}
             </Pressable>
 
             {/* Messages - Extended to top */}

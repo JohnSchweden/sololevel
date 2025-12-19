@@ -4,6 +4,7 @@ import { Platform } from 'react-native'
 export function BottomNavigationContainer(props: {
   children: React.ReactNode
   disableBlur?: boolean
+  bottomOffset?: number
 }) {
   if (Platform.OS !== 'web') {
     const {

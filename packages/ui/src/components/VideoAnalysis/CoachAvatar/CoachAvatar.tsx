@@ -1,7 +1,8 @@
 import { Image } from 'expo-image'
+import { Platform } from 'react-native'
 import { BlurView } from '../../BlurView/BlurView'
 
-import { View } from 'tamagui'
+import { View, YStack } from 'tamagui'
 
 export interface CoachAvatarProps {
   size?: number
@@ -28,6 +29,17 @@ export function CoachAvatar({
   right = 20,
   zIndex = 0,
 }: CoachAvatarProps) {
+  const avatarStyle = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  }
+
   return (
     <View
       position={position}
@@ -35,44 +47,67 @@ export function CoachAvatar({
       right={right}
       zIndex={zIndex}
     >
-      <BlurView
-        intensity={15}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 1.5,
-          borderColor: 'rgba(255, 255, 255, 0.2)',
-          overflow: 'hidden',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <View
-          width={size}
-          height={size}
-          borderRadius={size / 2}
-          alignItems="center"
-          justifyContent="center"
-          testID={testID}
-          accessibilityLabel="AI Coach Avatar"
-          accessibilityRole="image"
-          data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
+      {Platform.OS === 'ios' ? (
+        <BlurView
+          intensity={15}
+          style={avatarStyle}
         >
-          <Image
-            source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
-            contentFit="cover"
-            style={{
-              width: size * 1.15,
-              height: size * 1.15,
-              marginTop: -9,
-            }}
-            cachePolicy="memory-disk"
-            transition={200}
-            testID="coach-avatar-image"
-          />
-        </View>
-      </BlurView>
+          <View
+            width={size}
+            height={size}
+            borderRadius={size / 2}
+            alignItems="center"
+            justifyContent="center"
+            testID={testID}
+            accessibilityLabel="AI Coach Avatar"
+            accessibilityRole="image"
+            data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
+          >
+            <Image
+              source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
+              contentFit="cover"
+              style={{
+                width: size * 1.15,
+                height: size * 1.15,
+                marginTop: -9,
+              }}
+              cachePolicy="memory-disk"
+              transition={200}
+              testID="coach-avatar-image"
+            />
+          </View>
+        </BlurView>
+      ) : (
+        <YStack
+          backgroundColor="rgba(0, 0, 0, 0.5)"
+          style={avatarStyle}
+        >
+          <View
+            width={size}
+            height={size}
+            borderRadius={size / 2}
+            alignItems="center"
+            justifyContent="center"
+            testID={testID}
+            accessibilityLabel="AI Coach Avatar"
+            accessibilityRole="image"
+            data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
+          >
+            <Image
+              source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
+              contentFit="cover"
+              style={{
+                width: size * 1.15,
+                height: size * 1.15,
+                marginTop: -9,
+              }}
+              cachePolicy="memory-disk"
+              transition={200}
+              testID="coach-avatar-image"
+            />
+          </View>
+        </YStack>
+      )}
     </View>
   )
 }

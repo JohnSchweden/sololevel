@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useWindowDimensions } from 'react-native'
+import { Platform, useWindowDimensions } from 'react-native'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
 import { BlurView } from '../BlurView/BlurView'
 
@@ -168,18 +168,32 @@ export function ConfirmDialog({
           borderWidth={1}
           borderColor="rgba(255, 255, 255, 0.3)"
         >
-          <BlurView
-            intensity={20}
-            tint="light"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              borderRadius: 24,
-            }}
-          />
+          {Platform.OS === 'ios' ? (
+            <BlurView
+              intensity={20}
+              tint="light"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: 24,
+              }}
+            />
+          ) : (
+            <YStack
+              backgroundColor="rgba(255, 255, 255, 0.9)"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: 24,
+              }}
+            />
+          )}
           <YStack
             gap="$4"
             //padding="$4"

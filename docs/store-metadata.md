@@ -317,38 +317,48 @@ Initial beta release:
 
 ## Pre-Submission Checklist
 
-### iOS TestFlight
-- [ ] Bundle ID matches App Store Connect: `ai.sololevel.app`
-- [ ] Build number incremented: `ios.buildNumber` in `apps/expo/app.json`
-- [ ] Version string set: `expo.version` in `apps/expo/app.json`
-- [ ] Privacy Policy URL hosted and accessible
-- [ ] Support URL configured
-- [ ] Screenshots prepared (all required sizes)
-- [ ] App description and keywords finalized
-- [ ] Export compliance answered
-- [ ] TestFlight internal testing group configured
+> **Pro Tip:** Use **Internal TestFlight** (iOS) and **Google Play Internal Testing** tracks. These bypass review processes and make the app available to testers within minutes after build processing completes.
+
+### iOS TestFlight (Internal Testing)
+**Required for Internal Testing:**
+- [x] Bundle ID matches App Store Connect: `ai.sololevel.app`
+- [x] Build number incremented: `ios.buildNumber` in `apps/expo/app.json` (currently `1`)
+- [x] Version string set: `expo.version` in `apps/expo/app.json` (currently `1.0.0`)
+- [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
+- [ ] Export compliance answered (requires App Store Connect - answer "No" for standard HTTPS/TLS)
+- [ ] TestFlight internal testing group configured (requires App Store Connect)
 - [ ] Build uploaded via `eas submit -p ios` or EAS dashboard
 
-### Google Play Console (Internal/Closed Beta)
-- [ ] Package name matches Play Console: `ai.sololevel.app`
-- [ ] Version code incremented: `android.versionCode` in `apps/expo/app.json`
-- [ ] Version name set: `expo.version` in `apps/expo/app.json`
-- [ ] Privacy Policy URL hosted and accessible
-- [ ] Data Safety form completed (all sections)
-- [ ] Content rating questionnaire completed
-- [ ] Screenshots prepared (phone, feature graphic)
-- [ ] App description finalized
-- [ ] Permissions justified in Data Safety form
-- [ ] Internal/closed testing track configured
+**Optional for Internal Testing (required for External/Production):**
+- [ ] Support URL configured (`https://sololevel.ai/support` referenced in code)
+- [ ] Screenshots prepared (all required sizes)
+- [ ] App description and keywords finalized (documented in this file)
+
+### Google Play Console (Internal Testing)
+**Required for Internal Testing:**
+- [x] Package name matches Play Console: `ai.sololevel.app`
+- [x] Version code incremented: `android.versionCode` in `apps/expo/app.json` (currently `1`)
+- [x] Version name set: `expo.version` in `apps/expo/app.json` (currently `1.0.0`)
+- [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
+- [ ] Data Safety form completed (all sections) (requires Play Console)
+- [ ] Content rating questionnaire completed (requires Play Console)
+- [ ] Internal testing track configured (requires Play Console)
 - [ ] Build uploaded via `eas submit -p android` or Play Console
 
-### Both Platforms
-- [ ] Production Supabase environment configured
-- [ ] Environment variables set for production builds
-- [ ] `expo-dev-client` removed from production plugins (already done)
-- [ ] Tested release build on physical device
-- [ ] All features working with production backend
-- [ ] No debug/test code in production build
+**Optional for Internal Testing (required for Closed Beta/Production):**
+- [ ] Screenshots prepared (phone, feature graphic)
+- [ ] App description finalized (documented in this file)
+- [x] Permissions justified in Data Safety form (documented in this file)
+
+**Note:** New Google Play accounts (created after Nov 2023) require 20 testers opted-in for 14 days before moving to Production.
+
+### Both Platforms (Required)
+- [x] Production Supabase environment configured (`env.prod.example` exists; verify EAS dashboard env vars)
+- [x] Environment variables set for production builds (verify EAS dashboard configuration)
+- [x] `expo-dev-client` removed from production plugins (not in plugins array; only in package.json deps)
+- [ ] Tested release build on physical device (requires manual verification)
+- [ ] All features working with production backend (requires manual verification)
+- [ ] No debug/test code in production build (`/app/dev/` routes exist; verify routing protection)
 
 ---
 

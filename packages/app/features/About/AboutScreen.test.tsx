@@ -21,6 +21,7 @@ jest.mock('@react-navigation/elements', () => ({}))
 
 // Mock image assets
 jest.mock('../../../../apps/expo/assets/icon-transparent.png', () => 'icon-transparent.png')
+jest.mock('../../../../apps/expo/assets/logo_text.png', () => 'logo_text.png')
 
 // Mock @my/ui components
 jest.mock('@my/ui', () => {
@@ -114,7 +115,10 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      expect(screen.getByText('Solo:Level')).toBeTruthy()
+      // App name is rendered as an image (logo_text.png), not as text
+      // App name also appears in copyright text
+      expect(screen.getByTestId('about-screen-logo-text')).toBeTruthy()
+      expect(screen.getByText(/Solo:Level/)).toBeTruthy()
     })
 
     it('should render version number', () => {
@@ -136,7 +140,9 @@ describe('AboutScreen', () => {
       render(<AboutScreen testID="about-screen" />)
 
       // Assert
-      expect(screen.getByText(/Your healthy relationship with a coach/i)).toBeTruthy()
+      expect(
+        screen.getByText(/Your toxic relationship with a coach you will never forget/i)
+      ).toBeTruthy()
     })
 
     it('should render Legal section header', () => {

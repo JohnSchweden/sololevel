@@ -45,7 +45,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="This Week (The Numbers Don't Lie)"
+        title="This Week (The numbers don't lie)"
         icon={BarChart3}
         variant="minSpacing"
       />
@@ -57,8 +57,8 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             value={data.weeklyStats.totalSessions}
             label={
               data.weeklyStats.totalSessions > 10
-                ? 'Sessions\n(Actually Trying)'
-                : 'Sessions\n(Barely Trying)'
+                ? 'Sessions\n(Not bad!)'
+                : 'Sessions\n(Barely trying)'
             }
             variant="center"
           />
@@ -68,8 +68,8 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             value={`${data.weeklyStats.improvement}%`}
             label={
               data.weeklyStats.improvement > 20
-                ? 'Improvement\n(Not Bad!)'
-                : 'Improvement\n(Could Be Worse)'
+                ? 'Improvement\n(Actually trying)'
+                : 'Improvement\n(Could be worse)'
             }
             trend="up"
             variant="center"
@@ -92,10 +92,10 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             color="$color11"
           >
             {data.weeklyStats.weeklyProgress >= 80
-              ? 'Weekly Progress (Almost There!)'
+              ? 'Weekly Progress (Almost there!)'
               : data.weeklyStats.weeklyProgress >= 50
-                ? 'Weekly Progress (Halfway to Mediocrity)'
-                : 'Weekly Progress (Room for Improvement)'}
+                ? 'Weekly Progress (Halfway to mediocrity)'
+                : 'Weekly Progress (Room for improvement)'}
           </Text>
           <Text
             fontSize="$3"
@@ -139,7 +139,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
           fontSize="$3"
           color="$color11"
         >
-          Daily Activity (The Truth Hurts)
+          Daily Activity (The truth hurts)
         </Text>
         <ActivityChart data={dailyActivityData} />
         <Text
@@ -188,7 +188,7 @@ const FocusAreasSection = memo(function FocusAreasSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Focus Areas (Where You're Failing)"
+        title="Focus Areas (Where you're failing)"
         icon={Target}
         variant="minSpacing"
       />
@@ -196,11 +196,11 @@ const FocusAreasSection = memo(function FocusAreasSection({
       {focusAreasList.map((focus, index) => {
         const roastTitle =
           focus.progress >= 80
-            ? `${focus.title} (Almost There!)`
+            ? `${focus.title} (Almost there!)`
             : focus.progress >= 50
-              ? `${focus.title} (Halfway to Decent)`
+              ? `${focus.title} (Halfway to decent)`
               : focus.progress >= 25
-                ? `${focus.title} (Baby Steps...)`
+                ? `${focus.title} (Baby steps...)`
                 : `${focus.title} (Yikes)`
 
         return (
@@ -248,7 +248,7 @@ const AchievementsSection = memo(function AchievementsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Recent Achievements (You Did Something!)"
+        title="Recent Achievements (You did something!)"
         icon={Award}
         variant="minSpacing"
       />
@@ -256,10 +256,10 @@ const AchievementsSection = memo(function AchievementsSection({
       {achievementsList.map((achievement, index) => {
         const roastTitle =
           achievement.type === 'streak'
-            ? `${achievement.title} (The Streak Lives!)`
+            ? `${achievement.title} (The streak lives!)`
             : achievement.type === 'technique'
-              ? `${achievement.title} (You Learned Something!)`
-              : `${achievement.title} (A New Low... I Mean High!)`
+              ? `${achievement.title} (You learned something!)`
+              : `${achievement.title} (A new low... I mean high!)`
 
         const roastDate =
           achievement.date === 'Today'
@@ -312,7 +312,7 @@ const QuickStatsSection = memo(function QuickStatsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Quick Stats (The Brutal Truth)"
+        title="Quick Stats (The brutal truth)"
         icon={Calendar}
         variant="minSpacing"
       />
@@ -325,8 +325,8 @@ const QuickStatsSection = memo(function QuickStatsSection({
               data.quickStats.streakDays >= 7
                 ? 'Day Streak (Impressive!)'
                 : data.quickStats.streakDays >= 3
-                  ? 'Day Streak (Keep Going)'
-                  : 'Day Streak (Try Harder)'
+                  ? 'Day Streak (Keep going)'
+                  : 'Day Streak (Try harder)'
             }
             variant="center"
           />
@@ -336,8 +336,8 @@ const QuickStatsSection = memo(function QuickStatsSection({
             value={`${data.quickStats.avgSessionTime}min`}
             label={
               data.quickStats.avgSessionTime >= 45
-                ? 'Avg Session (Decent Effort)'
-                : 'Avg Session (Was That It?)'
+                ? 'Avg Session (Decent effort)'
+                : 'Avg Session (Was that it?)'
             }
             variant="center"
           />

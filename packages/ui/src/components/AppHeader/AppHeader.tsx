@@ -566,17 +566,19 @@ export function AppHeader({
         />
       </MaskedView>
     ) : (
-      <BlurView
-        intensity={10}
-        tint="dark"
+      <LinearGradient
+        colors={['rgba(0, 0, 0, 0.75)', 'rgba(0, 0, 0, 0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
         style={headerBlurViewStyle}
       />
     )
   }, [disableBlur, maskedViewStyle, linearGradientStyle, headerBlurViewStyle])
 
   // iOS 16 Photos-style header: BlurView + dark gradient overlay
+  // Android: Uses LinearGradient background (BlurView causes flickering when content changes)
   // Extends to top edge (status bar area) when topInset is provided
-  // BlurView transitions from full blur at top to no blur at bottom
+  // iOS BlurView transitions from full blur at top to no blur at bottom
   // Can be disabled when parent already provides blur (e.g., CoachScreen)
   // PERF: Memoize headerWithBlur to prevent re-creation on every render
   const headerWithBlur = useMemo(

@@ -7,11 +7,13 @@ import { Image, ScrollView, Text, XStack, YStack } from 'tamagui'
 
 // Import app icon
 const appIcon = require('../../../../apps/expo/assets/icon-transparent.png')
+// Import logo text image
+const logoText = require('../../../../apps/expo/assets/logo_text.png')
 
 // App metadata (from package.json)
 const APP_NAME = 'Solo:Level'
 const APP_VERSION = '1.0.0'
-const APP_DESCRIPTION = 'Your healthy relationship with a coach.'
+const APP_DESCRIPTION = 'Your toxic relationship with a coach you will never forget.'
 
 export interface AboutScreenProps {
   /**
@@ -91,6 +93,11 @@ export function AboutScreen({
                 alignItems="center"
                 justifyContent="center"
                 overflow="hidden"
+                shadowColor="$color"
+                shadowOffset={{ width: 0, height: 2 }}
+                shadowOpacity={0.2}
+                shadowRadius={4}
+                elevation={4}
                 testID={`${testID}-logo`}
               >
                 <Image
@@ -103,13 +110,13 @@ export function AboutScreen({
               </XStack>
 
               {/* App Name */}
-              <Text
-                fontSize="$7"
-                fontWeight="600"
-                color="$color"
-              >
-                {APP_NAME}
-              </Text>
+              <Image
+                source={logoText}
+                width={120}
+                height={20}
+                resizeMode="contain"
+                testID={`${testID}-logo-text`}
+              />
 
               {/* Version */}
               <Text

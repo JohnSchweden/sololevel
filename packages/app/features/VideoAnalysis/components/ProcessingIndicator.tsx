@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
+import { Platform } from 'react-native'
 
 import { BlurView, StateDisplay } from '@my/ui'
 import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -124,17 +125,30 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
           blurAnimatedStyle,
         ]}
       >
-        <BlurView
-          intensity={40}
-          tint="dark"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        />
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+        ) : (
+          <YStack
+            backgroundColor="rgba(0, 0, 0, 0.8)"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+        )}
       </Animated.View>
 
       {/* MEMORY LEAK FIX: Use opacity animation instead of conditional rendering */}

@@ -47,8 +47,8 @@ export function CameraRecordingScreen({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_isPending, _startTransition] = useTransition()
 
-  // Hide status bar when this screen is focused
-  useStatusBar(true, 'fade')
+  // Hide status bar when this screen is focused (iOS only)
+  useStatusBar(true, 'fade', ['ios'])
 
   const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component

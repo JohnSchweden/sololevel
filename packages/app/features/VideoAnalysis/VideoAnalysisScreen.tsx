@@ -461,6 +461,65 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
     fullFeedbackText = cachedAnalysis.fullFeedbackText
   }
 
+  // CRITICAL FIX: For active analyses, fetch fullFeedbackText from database if missing from cache
+  // Similar to background fetch in useHistoricalAnalysis, but for active (non-history) analyses
+  useEffect(() => {
+    // Only fetch for active analyses (not history mode) when fullFeedbackText is missing
+    // NOTE: We fetch even if no cache entry exists yet - this backfills missing data
+    const analysisJobId = analysisState.analysisJobId
+    if (isHistoryMode || !analysisJobId || fullFeedbackText) {
+      return
+    }
+
+    // Background fetch to backfill missing fullFeedbackText
+    void (async () => {
+      // Type guard: analysisJobId is guaranteed to be number here due to guard clause above
+      if (!analysisJobId) {
+        return
+      }
+      try {
+        const { supabase } = await import('@my/api')
+        const { data: analysis, error: analysisError } = (await supabase
+          .from('analyses')
+          .select('full_feedback_text')
+          .eq('job_id', analysisJobId)
+          .single()) as { data: { full_feedback_text: string | null } | null; error: any }
+
+        if (analysisError) {
+          // PGRST116 = No rows found - expected when analysis record doesn't exist yet
+          // This is normal for active analyses that are still processing
+          if (analysisError.code === 'PGRST116') {
+            log.debug(
+              'VideoAnalysisScreen',
+              'fullFeedbackText not available yet (will be updated by subscription)',
+              {
+                analysisJobId,
+              }
+            )
+            return
+          }
+          log.warn('VideoAnalysisScreen', 'Failed to fetch fullFeedbackText', {
+            analysisJobId,
+            error: analysisError.message || analysisError,
+          })
+          return
+        }
+
+        if (analysis?.full_feedback_text) {
+          // Update cache - this triggers re-render via Zustand selector subscription
+          useVideoHistoryStore.getState().updateCache(analysisJobId, {
+            fullFeedbackText: analysis.full_feedback_text,
+          })
+        }
+      } catch (err) {
+        log.error('VideoAnalysisScreen', 'Error fetching fullFeedbackText', {
+          analysisJobId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    })()
+  }, [isHistoryMode, analysisState.analysisJobId, fullFeedbackText, cachedAnalysis])
+
   const feedback = useMemo(
     () => ({
       items: analysisState.feedback.feedbackItems,

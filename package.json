@@ -24,7 +24,7 @@
     "ios": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn ios --no-install",
     "android": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn android --no-install",
     "update:ios": "cd apps/expo/ios && pod install",
-    "update:android": "cd apps/expo/android && pod install",
+    "update:android": "echo 'Android dependencies are managed by Gradle - no action needed'",
     "ios:full": "yarn native:prebuild:ios && yarn update:ios && yarn ios",
     "android:full": "yarn native:prebuild:android && yarn update:android && yarn android",
     "web": "cd apps/web && yarn dev",

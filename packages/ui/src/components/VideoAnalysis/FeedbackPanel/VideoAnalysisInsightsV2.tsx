@@ -966,7 +966,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                     color="$green11"
                     fontWeight="600"
                   >
-                    +{overview.improvementDelta}% vs last video
+                    +{overview.improvementDelta}% vs last disaster
                   </Text>
                 </XStack>
                 <Text

@@ -25,6 +25,7 @@
       "tintedIcon": "./assets/icon-tinted.png",
       "infoPlist": {
         "CFBundleIconName": "AppIcon",
+        "UIViewControllerBasedStatusBarAppearance": true,
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select workout videos for AI analysis.",
         "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library, just like the native camera app."
       }

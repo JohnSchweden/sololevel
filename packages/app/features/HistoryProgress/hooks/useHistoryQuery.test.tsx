@@ -205,6 +205,9 @@ describe('useHistoryQuery', () => {
     expect(mockGetUserAnalysisJobs).toHaveBeenCalled()
 
     // ASSERT: Transformed data (title from date)
+    // Note: Initial return uses metadata thumbnail synchronously.
+    // Background operations (resolveStaleThumbailsFromCache) update to persistent cache
+    // asynchronously and may not complete before this assertion.
     expect(result.current.data).toEqual([
       {
         id: 1,
@@ -212,6 +215,7 @@ describe('useHistoryQuery', () => {
         title: 'Analysis 10/11/2025',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
+        cloudThumbnailUrl: undefined,
       },
     ])
   })

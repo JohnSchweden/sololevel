@@ -289,10 +289,11 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
               let thumbnailUri: string | undefined
               let storagePath: string | undefined
               let analysisTitle: string | undefined
+              let fullFeedbackText: string | undefined
 
               // Use dynamic import to avoid circular dependencies
-              // Fetch both video recording and analysis title in parallel
-              // Try to fetch title once (non-blocking), but don't wait if not available
+              // Fetch both video recording, analysis title, and fullFeedbackText in parallel
+              // Try to fetch title and fullFeedbackText once (non-blocking), but don't wait if not available
               // Title subscription will update it later if needed
               Promise.all([
                 import('@my/api').then(({ supabase }) =>
@@ -328,10 +329,37 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                     return null
                   }
                 }),
+                import('@my/api').then(async ({ supabase }) => {
+                  // Try to fetch fullFeedbackText once (non-blocking)
+                  // If not available, background fetch will update it later
+                  try {
+                    const result = (await supabase
+                      .from('analyses')
+                      .select('full_feedback_text')
+                      .eq('job_id', jobId)
+                      .single()) as {
+                      data: { full_feedback_text: string | null } | null
+                      error: any
+                    }
+
+                    return result.data?.full_feedback_text ?? null
+                  } catch (error) {
+                    log.debug(
+                      'analysisStatus',
+                      'fullFeedbackText fetch failed (will be updated by background fetch)',
+                      {
+                        jobId,
+                        error: error instanceof Error ? error.message : String(error),
+                      }
+                    )
+                    return null
+                  }
+                }),
               ])
-                .then(async ([videoResult, fetchedTitle]) => {
-                  // Extract analysis title (may be null if not available yet)
+                .then(async ([videoResult, fetchedTitle, fetchedFullFeedbackText]) => {
+                  // Extract analysis title and fullFeedbackText (may be null if not available yet)
                   analysisTitle = fetchedTitle ?? undefined
+                  fullFeedbackText = fetchedFullFeedbackText ?? undefined
 
                   // Only use real title from database - don't cache dummy titles
                   // Title subscription will update it later if it becomes available
@@ -384,6 +412,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                     videoId: job.video_recording_id,
                     userId: job.user_id,
                     title: analysisTitle ?? '', // Use empty string as placeholder - subscription will update it
+                    fullFeedbackText, // Store fullFeedbackText in cache
                     createdAt: job.created_at,
                     thumbnail: thumbnailUri, // Retrieved from video_recordings.metadata
                     videoUri: persistedVideoUri ?? undefined, // Use persisted path if available, convert null to undefined

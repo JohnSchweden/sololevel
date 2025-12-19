@@ -1,12 +1,14 @@
 import { Copy, Link, Mail } from '@tamagui/lucide-icons'
 import { memo } from 'react'
+import { Platform } from 'react-native'
 import { BlurView } from '../../BlurView/BlurView'
 
 import { Button } from '@ui/components/Button'
 import { Sheet, Text, XStack, YStack } from 'tamagui'
 
-// Shared BlurView style for bottom sheets (memoized at module level)
-// Reduced intensity from 50 to 35 for better performance while maintaining visual separation
+// Shared background style for bottom sheets (memoized at module level)
+// iOS: Uses BlurView with intensity 30
+// Android: Uses plain semi-transparent background (BlurView causes flickering when content changes)
 const BOTTOM_SHEET_BLUR_STYLE = {
   position: 'absolute' as const,
   top: 0,
@@ -46,11 +48,18 @@ export const ShareSheet = memo(function ShareSheet({
         borderTopLeftRadius="$6"
         borderTopRightRadius="$6"
       >
-        <BlurView
-          intensity={30}
-          tint="dark"
-          style={BOTTOM_SHEET_BLUR_STYLE}
-        />
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={BOTTOM_SHEET_BLUR_STYLE}
+          />
+        ) : (
+          <YStack
+            backgroundColor="rgba(0, 0, 0, 0.75)"
+            style={BOTTOM_SHEET_BLUR_STYLE}
+          />
+        )}
         <YStack
           padding="$4"
           gap="$4"

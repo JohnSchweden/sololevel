@@ -1,5 +1,6 @@
 import { Image } from 'expo-image'
 import { type ComponentProps, type ReactNode, useMemo, useState } from 'react'
+import { Platform } from 'react-native'
 import { Button, XStack, type XStackProps } from 'tamagui'
 import { BlurView, type BlurViewProps } from '../BlurView/BlurView'
 
@@ -113,7 +114,10 @@ export const GlassButton = ({
   glassOverlaySource,
   borderWidth = 1,
   borderColor = 'rgba(255, 255, 255, 0.15)',
-  backgroundColor = 'rgba(2, 2, 2, 0.0)',
+  backgroundColor = Platform.select({
+    android: 'rgba(51, 51, 51, 0.1)',
+    default: 'rgba(2, 2, 2, 0.0)',
+  }),
   variant = 'default',
   overlayOpacity = 0.8,
   edgeGlowIntensity = 0.9,
@@ -178,11 +182,18 @@ export const GlassButton = ({
         scale={isPressed && !disabled ? 0.93 : 1}
         pointerEvents="none"
       >
-        <BlurView
-          intensity={blurIntensity}
-          tint={blurTint}
-          style={blurViewStyle}
-        />
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            intensity={blurIntensity}
+            tint={blurTint}
+            style={blurViewStyle}
+          />
+        ) : (
+          <XStack
+            backgroundColor="rgba(0, 0, 0, 0.3)"
+            style={blurViewStyle}
+          />
+        )}
 
         <Image
           source={overlaySource}

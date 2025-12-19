@@ -2,6 +2,7 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { log } from '@my/logging'
 import { BlurView } from '@my/ui'
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 import {
   Camera,
   useCameraDevice,
@@ -764,13 +765,19 @@ export const VisionCameraPreview = memo(
             zIndex={5}
           >
             {/* PERF: Only render expensive BlurView when actually paused */}
-            {shouldShowOverlay && (
-              <BlurView
-                intensity={35}
-                tint="dark"
-                style={blurViewStyle}
-              />
-            )}
+            {shouldShowOverlay &&
+              (Platform.OS === 'ios' ? (
+                <BlurView
+                  intensity={35}
+                  tint="dark"
+                  style={blurViewStyle}
+                />
+              ) : (
+                <YStack
+                  backgroundColor="rgba(0, 0, 0, 0.7)"
+                  style={blurViewStyle}
+                />
+              ))}
           </YStack>
 
           {/* Recording indicator overlay */}

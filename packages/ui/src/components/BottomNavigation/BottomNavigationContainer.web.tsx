@@ -24,20 +24,22 @@ const useSafeAreaInsets = () => {
 export function BottomNavigationContainer({
   children,
   disableBlur = false,
+  bottomOffset = 0,
 }: {
   children: React.ReactNode
   disableBlur?: boolean
+  bottomOffset?: number
 }) {
   // PERF FIX: useSafeAreaInsets returns stable constant, no memoization needed
   // but memoize derived values to prevent recalculation
   const insets = useSafeAreaInsets()
-  const containerHeight = useMemo(() => 72 + insets.bottom, [insets.bottom])
+  const containerHeight = useMemo(() => 52 + insets.bottom, [insets.bottom])
 
   if (disableBlur) {
     return (
       <YStack
         position="absolute"
-        bottom={0}
+        bottom={bottomOffset}
         left={0}
         right={0}
         height={containerHeight}
@@ -60,7 +62,7 @@ export function BottomNavigationContainer({
       start={{ x: 0.5, y: 1 }}
       end={{ x: 0.5, y: 0 }}
       position="absolute"
-      bottom={0}
+      bottom={bottomOffset}
       left={0}
       right={0}
       paddingBottom={insets.bottom}
