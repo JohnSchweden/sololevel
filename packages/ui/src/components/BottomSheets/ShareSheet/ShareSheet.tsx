@@ -56,7 +56,7 @@ export const ShareSheet = memo(function ShareSheet({
           />
         ) : (
           <YStack
-            backgroundColor="rgba(0, 0, 0, 0.75)"
+            backgroundColor="rgba(20, 20, 20, 0.85)"
             style={BOTTOM_SHEET_BLUR_STYLE}
           />
         )}

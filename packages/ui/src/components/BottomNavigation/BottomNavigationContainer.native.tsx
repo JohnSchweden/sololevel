@@ -72,7 +72,7 @@ export function BottomNavigationContainer({
     </MaskedView>
   ) : (
     <LinearGradient
-      colors={['rgba(0, 0, 0, 0.05)', 'rgba(0, 0, 0, 0.9)']}
+      colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.9)']}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={backgroundStyle}

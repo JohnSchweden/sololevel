@@ -122,7 +122,7 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
         />
       ) : (
         <YStack
-          backgroundColor="rgba(255, 255, 255, 0.15)"
+          backgroundColor="rgba(37, 37, 37, 0.82)"
           style={BLUR_VIEW_STYLE}
         />
       )}
