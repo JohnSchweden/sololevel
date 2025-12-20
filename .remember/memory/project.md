@@ -28,6 +28,13 @@ Directory per component: `Component.tsx`, `Component.test.tsx`, `index.ts` (pare
 ## Debug Logging
 Remove troubleshooting logs once resolved. Keep only errors/warnings. Clean before commit. Use structured logging for long-term, remove temporary diagnostics.
 
+### Auth Retry Logging Pattern
+When implementing auth retry logic (session refresh fallback), always log:
+- **Before retry**: `log.warn` with context (what triggered retry)
+- **Success**: `log.info` with userId and session expiry (tracks frequency)
+- **Failure**: `log.error` with specific failure reason
+**Why**: High retry frequency indicates underlying session management issues that need investigation.
+
 ## Performance Rules
 
 ### React Optimization

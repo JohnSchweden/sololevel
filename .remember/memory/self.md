@@ -61,3 +61,46 @@ if (cloudThumbnail) {
   updateCache(analysisId, { thumbnail: persistentPath })
 }
 ```
+
+### Mistake: Using `as any` to bypass callback type inference issues
+**Wrong**:
+```typescript
+const unsubscribe = someFunction(arg, ((param1, param2) => {
+  handleUpdate(param1, param2)
+}) as any)
+```
+**Lesson**: Double parentheses `((` confuse TypeScript's type inference. The `as any` cast masks the real issue.
+
+**Correct**:
+```typescript
+// Remove extra parentheses - let TypeScript infer the type naturally
+const unsubscribe = someFunction(arg, (param1, param2) => {
+  handleUpdate(param1, param2)
+})
+```
+
+### Mistake: Testing internal implementation instead of user behavior
+**Wrong**:
+```typescript
+// Testing internal function directly with complex setup
+it('prependToHistoryCache prepends item', () => {
+  // 50+ lines of mock setup
+  // Call internal function directly
+  // Assert internal state
+})
+```
+**Lesson**: Internal functions are implementation details. Test via public API behavior. Follow 1:2 ratio rule.
+
+**Correct**:
+```typescript
+// Test the BEHAVIOR that triggers the function (fallback path)
+it('prepends to history when job completes without title', async () => {
+  // Simple setup - mock only external deps
+  await store.subscribe('job:3', { analysisJobId: 3 })
+  jobHandler?.(completedJob)
+  jest.advanceTimersByTime(3000) // Fallback timeout
+  
+  // Assert user-visible outcome
+  expect(cache[0]).toMatchObject({ id: 3, title: expect.stringMatching(/Analysis/) })
+})
+```

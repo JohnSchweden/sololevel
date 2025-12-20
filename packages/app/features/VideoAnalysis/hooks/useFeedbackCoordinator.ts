@@ -779,7 +779,9 @@ export function useFeedbackCoordinator({
         duration: endTime - startTime,
         elapsed: endTime - startTime,
       })
-    } else if (currentFeedbackAudio.activeAudio && currentController) {
+      return
+    }
+    if (currentFeedbackAudio.activeAudio && currentController) {
       log.debug(
         'useFeedbackCoordinator.handlePlay',
         '⚠️ Audio not resumed - missing highlight, already playing, or at end',
@@ -796,6 +798,26 @@ export function useFeedbackCoordinator({
     }
 
     if (!pendingFeedbackIdRef.current || !pendingItemRef.current) {
+      // BUG FIX: If there's a highlighted feedback but no activeAudio, start audio immediately
+      // This handles the case where user selects feedback while paused, then presses play
+      // Without this, video resumes and plays briefly before progress trigger detects feedback
+      if (hasHighlightedFeedback && !hasActiveAudio && highlightedFeedbackId) {
+        const audioUrls = currentFeedbackAudio.audioUrls
+        const audioUrl = audioUrls?.[highlightedFeedbackId]
+        const highlightedItem = feedbackItems.find((item) => item.id === highlightedFeedbackId)
+
+        if (audioUrl && highlightedItem) {
+          selection.selectFeedback(highlightedItem, { seek: false, playAudio: true })
+
+          const maybeIndex = bubbleIndexById.get(highlightedFeedbackId)
+          if (typeof maybeIndex === 'number') {
+            showBubble(maybeIndex)
+          }
+
+          return
+        }
+      }
+
       log.debug('useFeedbackCoordinator.handlePlay', '▶️ No pending feedback - resuming video', {
         hasPendingFeedbackId: !!pendingFeedbackIdRef.current,
         hasPendingItem: !!pendingItemRef.current,
@@ -843,7 +865,7 @@ export function useFeedbackCoordinator({
     // REMOVED: Don't resume video immediately - let audio control the timing
     // Video will resume when audio ends naturally via handleAudioNaturalEnd
     // DO NOT call videoPlayRef.current() here - video must stay paused during audio
-  }, [bubbleIndexById, selection, showBubble])
+  }, [bubbleIndexById, feedbackItems, selection, showBubble])
 
   // Combined Audio State Reaction Effect (Module 4)
   // Merges audioEndVideoResume and audioEndDetection to reduce effect count

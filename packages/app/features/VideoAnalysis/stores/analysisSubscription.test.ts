@@ -36,7 +36,11 @@ type RecordingSubscriptionMock = (
 type LatestJobFetcher = (recordingId: number) => Promise<any>
 type TitleSubscriptionMock = (
   jobId: number,
-  onTitle: (title: string | null) => void
+  onUpdate: (
+    title: string | null,
+    fullFeedbackText: string | null,
+    analysisUuid?: string | null
+  ) => void
 ) => (() => void) | undefined
 
 const mockSubscribeToAnalysisJob = jest.fn() as jest.MockedFunction<SubscriptionMock>
@@ -269,11 +273,11 @@ describe('analysisSubscription store', () => {
 
   it('updates cache when title is received via subscription', async () => {
     const unsubscribeJobMock = jest.fn()
-    let titleHandler: ((title: string | null) => void) | undefined
+    let titleHandler: ((title: string | null, fullFeedbackText: string | null) => void) | undefined
 
     mockSubscribeToAnalysisJob.mockReturnValue(unsubscribeJobMock)
-    mockSubscribeToAnalysisTitle.mockImplementation((_, onTitle) => {
-      titleHandler = onTitle
+    mockSubscribeToAnalysisTitle.mockImplementation((_, onUpdate) => {
+      titleHandler = onUpdate
       return jest.fn()
     })
 
@@ -292,7 +296,7 @@ describe('analysisSubscription store', () => {
     await flushMicrotasks()
 
     // Simulate title update
-    titleHandler?.('Test Analysis Title')
+    titleHandler?.('Test Analysis Title', null)
     jest.advanceTimersByTime(100)
     await flushMicrotasks()
 
@@ -411,5 +415,122 @@ describe('analysisSubscription store', () => {
 
     setTimeoutSpy.mockRestore()
     clearTimeoutSpy.mockRestore()
+  })
+
+  describe('prependToHistoryCache (via fallback path)', () => {
+    // BEHAVIOR: When job completes without title, fallback should prepend item to history cache after 3s
+    it('prepends to history cache when job completes without title', async () => {
+      // ARRANGE
+      const mockCache = new Map<string, unknown>()
+      const existingItems = [
+        { id: 1, videoId: 10, title: 'Video 1', createdAt: '2025-01-01T00:00:00Z' },
+      ]
+      mockCache.set(JSON.stringify(['history', 'completed', 10]), existingItems)
+
+      const mockQueryClient = {
+        setQueryData: jest.fn((key: unknown[], updater: unknown) => {
+          const existing = mockCache.get(JSON.stringify(key))
+          const newData = typeof updater === 'function' ? (updater as any)(existing) : updater
+          mockCache.set(JSON.stringify(key), newData)
+          return newData
+        }),
+        getQueryData: jest.fn((key: unknown[]) => mockCache.get(JSON.stringify(key)) ?? null),
+        invalidateQueries: jest.fn(),
+      } as any
+
+      const mockJob = {
+        id: 3,
+        video_recording_id: 30,
+        status: 'completed',
+        updated_at: '2025-01-03T00:00:00Z',
+      }
+      mockCache.set(JSON.stringify(['analysis', 'job', 3]), mockJob)
+      mockGetCached.mockReturnValue(null)
+
+      const store = useAnalysisSubscriptionStore.getState()
+      store.setQueryClient(mockQueryClient)
+
+      const unsubscribeJobMock = jest.fn()
+      let jobHandler: JobCallback | undefined
+
+      mockSubscribeToAnalysisJob.mockImplementation((_, onJob) => {
+        jobHandler = onJob
+        return unsubscribeJobMock
+      })
+      mockSubscribeToAnalysisTitle.mockReturnValue(jest.fn()) // Title never arrives
+
+      // ACT: Subscribe and trigger job completion
+      await store.subscribe('job:3', { analysisJobId: 3 })
+      await flushMicrotasks()
+      jobHandler?.(mockJob)
+
+      // Advance 3s for fallback timeout
+      jest.advanceTimersByTime(3000)
+      await flushMicrotasks()
+
+      // ASSERT: Item prepended to history cache
+      const cache = mockCache.get(JSON.stringify(['history', 'completed', 10])) as any[]
+      expect(cache).toHaveLength(2)
+      expect(cache[0]).toMatchObject({ id: 3, videoId: 30 })
+      expect(cache[0].title).toMatch(/Analysis/) // Fallback title format
+    })
+
+    // BEHAVIOR: When job completes and title arrives before timeout, no fallback prepend
+    it('does not use fallback when title arrives first', async () => {
+      // ARRANGE
+      const mockQueryClient = {
+        setQueryData: jest.fn(),
+        getQueryData: jest.fn(() => null),
+        invalidateQueries: jest.fn(),
+      } as any
+
+      const store = useAnalysisSubscriptionStore.getState()
+      store.setQueryClient(mockQueryClient)
+
+      const unsubscribeJobMock = jest.fn()
+      let jobHandler: JobCallback | undefined
+      let titleHandler:
+        | ((
+            title: string | null,
+            fullFeedbackText: string | null,
+            analysisUuid?: string | null
+          ) => void)
+        | undefined
+
+      mockSubscribeToAnalysisJob.mockImplementation((_, onJob) => {
+        jobHandler = onJob
+        return unsubscribeJobMock
+      })
+      mockSubscribeToAnalysisTitle.mockImplementation((_, onUpdate) => {
+        titleHandler = onUpdate
+        return jest.fn()
+      })
+
+      const mockJob = {
+        id: 5,
+        video_recording_id: 50,
+        status: 'completed',
+        updated_at: '2025-01-05T00:00:00Z',
+      }
+
+      // ACT: Subscribe, complete job, then title arrives
+      await store.subscribe('job:5', { analysisJobId: 5 })
+      await flushMicrotasks()
+      jobHandler?.(mockJob)
+      titleHandler?.('Real Title', 'Feedback', null) // Title arrives
+      jest.advanceTimersByTime(100)
+      await flushMicrotasks()
+
+      // Advance 3s - fallback should not trigger since title arrived
+      jest.advanceTimersByTime(3000)
+      await flushMicrotasks()
+
+      // ASSERT: setQueryData not called (title path doesn't prepend, only fallback does)
+      // In real flow, title path updates cache differently - we're just verifying fallback skipped
+      const setQueryDataCalls = mockQueryClient.setQueryData.mock.calls.filter(
+        (call: any) => call[0]?.[0] === 'history'
+      )
+      expect(setQueryDataCalls.length).toBe(0) // No history cache updates from fallback
+    })
   })
 })

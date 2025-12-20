@@ -57,3 +57,4 @@ echo "📊 Space after:  $AFTER"
 echo ""
 echo "💡 Note: Caches will regenerate as you use these tools."
 echo "   Spotify will re-download music, browsers will rebuild cache, etc."
+

@@ -9,30 +9,6 @@ import type { FeedbackPanelItem } from '../types'
 import type { AudioControllerState } from './useAudioController'
 import type { VideoPlaybackState } from './useVideoPlayer.types'
 
-const deferNonCriticalWork = (callback: () => void) => {
-  const raf =
-    typeof globalThis !== 'undefined' ? (globalThis as any).requestAnimationFrame : undefined
-  const timeout = typeof globalThis !== 'undefined' ? globalThis.setTimeout : undefined
-
-  if (typeof raf === 'function') {
-    raf(() => {
-      if (typeof timeout === 'function') {
-        timeout(callback, 0)
-      } else {
-        callback()
-      }
-    })
-    return
-  }
-
-  if (typeof timeout === 'function') {
-    timeout(callback, 0)
-    return
-  }
-
-  callback()
-}
-
 export interface FeedbackSelectionState {
   selectedFeedbackId: string | null
   isCoachSpeaking: boolean
@@ -253,9 +229,10 @@ export function useFeedbackSelection(
           selectedFeedbackId: item.id,
           ...(shouldActivateCoachSpeaking ? { isCoachSpeaking: true } : {}),
         })
-      }, 0)
 
-      deferNonCriticalWork(() => {
+        // PERFORMANCE FIX: Execute audio playback immediately after batchUpdate
+        // instead of deferring through RAF+setTimeout (which adds 3-second delay)
+        // Audio playback is time-sensitive and should start ASAP
         const storeSnapshot = useFeedbackCoordinatorStore.getState()
         const highlightStillMatches =
           storeSnapshot.highlightedFeedbackId === item.id &&
@@ -264,7 +241,7 @@ export function useFeedbackSelection(
         if (!highlightStillMatches) {
           log.debug(
             'useFeedbackSelection.applyHighlight',
-            '⏭️ Skipping deferred audio start - highlight changed before playback',
+            '⏭️ Skipping audio start - highlight changed before playback',
             {
               feedbackId: item.id,
               expectedHighlightId: item.id,
@@ -286,22 +263,18 @@ export function useFeedbackSelection(
           const urlToUse =
             activeAudio?.id === item.id ? `${audioUrl}#replay=${Date.now()}` : audioUrl
 
-          log.debug(
-            'useFeedbackSelection.applyHighlight',
-            '🎵 Playing audio for feedback (deferred)',
-            {
-              feedbackId: item.id,
-              hasAudioUrl: !!audioUrl,
-              currentActiveAudioId: activeAudio?.id ?? null,
-              willSetActiveAudio: true,
-              willSetIsPlaying: true,
-            }
-          )
+          log.debug('useFeedbackSelection.applyHighlight', '🎵 Playing audio for feedback', {
+            feedbackId: item.id,
+            hasAudioUrl: !!audioUrl,
+            currentActiveAudioId: activeAudio?.id ?? null,
+            willSetActiveAudio: true,
+            willSetIsPlaying: true,
+          })
 
           audioStore.setActiveAudio({ id: item.id, url: urlToUse })
           audioStore.setIsPlaying(true)
         } else {
-          log.debug('useFeedbackSelection.applyHighlight', '⏸️ Audio NOT playing (deferred)', {
+          log.debug('useFeedbackSelection.applyHighlight', '⏸️ Audio NOT playing', {
             feedbackId: item.id,
             playAudio,
             hasUrlsMap: urlsMap ? !!urlsMap[item.id] : false,
@@ -322,7 +295,7 @@ export function useFeedbackSelection(
             })
           }, autoDurationMs)
         }
-      })
+      }, 0)
     },
     [clearHighlight, clearHighlightTimer, triggerCoachSpeaking]
   )

@@ -1,6 +1,4 @@
-import { analysisKeys } from '@app/hooks/analysisKeys'
 import { log } from '@my/logging'
-import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startUploadAndAnalysis } from '../../../services/videoUploadAndAnalysis'
 import { MAX_RECORDING_DURATION_MS } from '../config/recordingConfig'
@@ -17,7 +15,6 @@ export const useCameraScreenLogic = ({
   /** Direct callback for immediate header updates (bypasses React state) */
   onHeaderStateChange?: (state: HeaderState) => void
 }) => {
-  const queryClient = useQueryClient()
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back')
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 3>(1)
   const [showNavigationDialog, setShowNavigationDialog] = useState(false)
@@ -247,16 +244,9 @@ export const useCameraScreenLogic = ({
         sourceUri: videoUri,
         durationSeconds: durationRef.current / 1000,
         originalFilename: 'recorded_video.mp4',
-        onRecordingIdAvailable: (recordingId) => {
-          log.info('useCameraScreenLogic', 'Recording ID available - invalidating history cache', {
-            recordingId,
-          })
-          // Invalidate history cache so new video appears immediately when user navigates to History
-          queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-        },
       })
     },
-    [onVideoProcessed, queryClient]
+    [onVideoProcessed]
   )
 
   const handleCameraSwap = useCallback(async () => {
@@ -432,16 +422,9 @@ export const useCameraScreenLogic = ({
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
         localUri: metadata?.localUri, // Pass local URI for thumbnail generation
-        onRecordingIdAvailable: (recordingId) => {
-          log.info('handleVideoSelected', 'Recording ID available - invalidating history cache', {
-            recordingId,
-          })
-          // Invalidate history cache so new video appears immediately when user navigates to History
-          queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-        },
       })
     },
-    [onVideoProcessed, queryClient]
+    [onVideoProcessed]
   )
 
   const handleSettingsOpen = useCallback(() => {

@@ -70,3 +70,4 @@ echo "⚠️  To delete Cursor state.vscdb (8.6GB):"
 echo "   1. Close Cursor completely"
 echo "   2. Run: rm ~/Library/Application\\ Support/Cursor/User/globalStorage/state.vscdb"
 echo "   3. Restart Cursor (will recreate empty database)"
+

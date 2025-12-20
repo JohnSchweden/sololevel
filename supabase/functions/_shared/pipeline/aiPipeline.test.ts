@@ -196,6 +196,10 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
 
     await processAIPipeline(mockContext)
 
+    // Wait for the async SSML/audio chain to complete (fire-and-forget in implementation)
+    // The pipeline calls processSSMLJobs().then() without awaiting
+    await new Promise(resolve => setTimeout(resolve, 10))
+
     // Verify SSML worker was called
     expect(mockProcessSSMLJobs).toHaveBeenCalledTimes(1)
     expect(mockProcessSSMLJobs).toHaveBeenCalledWith({
@@ -213,6 +217,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       {
         feedbackIds: [1, 2, 3],
         errors: 2,
+        processed: 1
       }
     )
   })

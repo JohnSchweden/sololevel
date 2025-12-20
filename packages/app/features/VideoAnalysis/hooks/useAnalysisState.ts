@@ -384,6 +384,15 @@ export function useAnalysisState(
   // Subscribe to hydration state to re-check cache after store hydrates
   const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
 
+  // FIX: Subscribe to UUID from Zustand store directly
+  // This ensures we react immediately when the UUID is stored from the title subscription
+  // The title subscription (analysisSubscription.ts) stores the UUID as soon as the analyses row is created
+  // which happens right after LLM analysis, BEFORE SSML/audio generation
+  const effectiveJobIdForUuid = derivedAnalysisJobId
+  const cachedUuid = useVideoHistoryStore((state) =>
+    effectiveJobIdForUuid ? state.getUuid(effectiveJobIdForUuid) : null
+  )
+
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
     // FIX: Use Zustand store only - single source of truth for UUID caching
     // UUIDs don't change, so Zustand with persistence is the right choice
@@ -392,18 +401,30 @@ export function useAnalysisState(
       // Check persisted store only (survives app restarts)
       // Note: Store may not be hydrated yet, so getUuid() may return null
       // This is fine - useEffect will re-check after hydration completes
-      const cachedUuid = getUuid(effectiveJobId)
-      if (cachedUuid) {
+      const uuid = getUuid(effectiveJobId)
+      if (uuid) {
         log.debug('useAnalysisState', 'Using cached UUID from Zustand', {
           analysisJobId: effectiveJobId,
-          uuid: cachedUuid,
+          uuid,
           source: 'persisted',
         })
-        return cachedUuid
+        return uuid
       }
     }
     return null
   })
+
+  // FIX: Sync cachedUuid from Zustand subscription to local state
+  // This triggers when the title subscription stores the UUID
+  useEffect(() => {
+    if (cachedUuid && cachedUuid !== analysisUuid) {
+      log.info('useAnalysisState', 'UUID received from title subscription', {
+        jobId: effectiveJobIdForUuid,
+        analysisUuid: cachedUuid,
+      })
+      setAnalysisUuid(cachedUuid)
+    }
+  }, [cachedUuid, analysisUuid, effectiveJobIdForUuid])
   useEffect(() => {
     const effectiveJobId = analysisJobId ?? analysisJob?.id ?? null
 

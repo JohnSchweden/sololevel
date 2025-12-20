@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { useVideoHistoryStore } from '../../HistoryProgress/stores/videoHistory'
 import { resolveThumbnailUri } from '../../HistoryProgress/utils/thumbnailCache'
+import { useFeedbackStatusStore } from './feedbackStatus'
 
 export type SubscriptionStatus = 'idle' | 'pending' | 'active' | 'failed'
 
@@ -419,11 +420,21 @@ function createSubscription(
         return
       }
 
-      // Subscribe to analyses table to get title as soon as it's available
+      // Subscribe to analyses table to get title, fullFeedbackText, and UUID as soon as they're available
       // This happens right after LLM analysis completes, before job status = 'completed'
+      // The UUID is critical for subscribing to feedback items
       const unsubscribeTitle = subscribeToAnalysisTitle(
         options.analysisJobId!,
-        (title: string | null) => handleTitleUpdate(key, options.analysisJobId!, title, set, get)
+        (title: string | null, fullFeedbackText: string | null, analysisUuid?: string | null) =>
+          handleTitleUpdate(
+            key,
+            options.analysisJobId!,
+            title,
+            fullFeedbackText,
+            set,
+            get,
+            analysisUuid
+          )
       )
 
       resolve(() => {
@@ -488,21 +499,76 @@ function handleTitleUpdate(
   key: string,
   jobId: number,
   title: string | null,
+  fullFeedbackText: string | null,
   set: StoreSetter,
-  get: StoreGetter
+  get: StoreGetter,
+  analysisUuid?: string | null
 ): void {
-  log.info('AnalysisSubscriptionStore', 'Title update received', {
+  log.info('AnalysisSubscriptionStore', 'Analysis content update received', {
     key,
     jobId,
     title,
     hasTitle: !!title,
+    hasFullFeedbackText: !!fullFeedbackText,
+    analysisUuid,
   })
 
-  if (!title) {
-    log.debug('AnalysisSubscriptionStore', 'Skipping title update - title is null/empty', {
-      key,
-      jobId,
-    })
+  // FIX: Store the UUID in Zustand cache immediately when received
+  // This is the earliest point we get the UUID (right after LLM analysis, before SSML/audio)
+  // The UUID is needed for feedback subscription
+  if (analysisUuid) {
+    const historyStore = useVideoHistoryStore.getState()
+    const existingUuid = historyStore.getUuid(jobId)
+    if (!existingUuid) {
+      log.info('AnalysisSubscriptionStore', 'Storing analysis UUID from title subscription', {
+        jobId,
+        analysisUuid,
+      })
+      historyStore.setUuid(jobId, analysisUuid)
+    }
+
+    // FIX: Start feedback subscription IMMEDIATELY when UUID is received
+    // Don't wait for React render cycles - the feedback rows are inserted
+    // milliseconds after the analyses row is created on the server
+    const feedbackStore = useFeedbackStatusStore.getState()
+    const isAlreadySubscribed = feedbackStore.subscriptions.has(analysisUuid)
+    const subscriptionStatus = feedbackStore.subscriptionStatus.get(analysisUuid)
+    const isActiveOrPending = subscriptionStatus === 'active' || subscriptionStatus === 'pending'
+
+    if (!isAlreadySubscribed && !isActiveOrPending) {
+      log.info(
+        'AnalysisSubscriptionStore',
+        'Starting feedback subscription immediately from title callback',
+        {
+          jobId,
+          analysisUuid,
+        }
+      )
+      feedbackStore.subscribeToAnalysisFeedbacks(analysisUuid).catch((error) => {
+        log.error(
+          'AnalysisSubscriptionStore',
+          'Failed to start feedback subscription from title callback',
+          {
+            jobId,
+            analysisUuid,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        )
+      })
+    }
+  }
+
+  // Update cache if we have either title or fullFeedbackText
+  const hasContent = title || fullFeedbackText
+  if (!hasContent) {
+    log.debug(
+      'AnalysisSubscriptionStore',
+      'Skipping update - both title and fullFeedbackText are null/empty',
+      {
+        key,
+        jobId,
+      }
+    )
     return
   }
 
@@ -520,23 +586,8 @@ function handleTitleUpdate(
     }
   })
 
-  // Trigger invalidation immediately since title is now ready
-  const queryClient = get().queryClient
-  if (queryClient) {
-    // Check if job is completed - if so, invalidate now that title is ready
-    const subscription = get().subscriptions.get(key)
-    if (subscription?.lastStatus === 'completed') {
-      log.info(
-        'AnalysisSubscriptionStore',
-        'Title received after completion - invalidating history cache',
-        {
-          jobId,
-          title,
-        }
-      )
-      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-    }
-  }
+  // NOTE: Removed invalidateQueries here - we now update TanStack Query cache directly
+  // in the async block below after addToCache, avoiding unnecessary server refetch
 
   // FIX: Create abort controller for this async operation
   const abortController = new AbortController()
@@ -571,19 +622,27 @@ function handleTitleUpdate(
         return
       }
 
-      // Update Zustand cache with title
+      // Update Zustand cache with title and/or fullFeedbackText
       const cached = historyStore.getCached(jobId)
       if (cached) {
         if (abortController.signal.aborted) {
           return
         }
-        historyStore.updateCache(jobId, { title })
+        const updates: { title?: string; fullFeedbackText?: string } = {}
+        if (title) {
+          updates.title = title
+        }
+        if (fullFeedbackText) {
+          updates.fullFeedbackText = fullFeedbackText
+        }
+        historyStore.updateCache(jobId, updates)
         log.info(
           'AnalysisSubscriptionStore',
-          'Updated cache with title from analyses subscription',
+          'Updated cache with analysis content from analyses subscription',
           {
             jobId,
-            title,
+            hasTitle: !!title,
+            hasFullFeedbackText: !!fullFeedbackText,
           }
         )
       }
@@ -595,25 +654,31 @@ function handleTitleUpdate(
           if (abortController.signal.aborted) {
             return
           }
-          const updatedJob = { ...currentJob, title } as AnalysisJob & {
+          const updatedJob = {
+            ...currentJob,
+            ...(title ? { title } : {}),
+          } as AnalysisJob & {
             video_recording_id: number
           }
           safeUpdateJobCache(queryClient, updatedJob, analysisKeys, 'handleTitleUpdate')
-          log.debug('AnalysisSubscriptionStore', 'Updated TanStack Query cache with title', {
-            jobId,
-            title,
-          })
+          log.debug(
+            'AnalysisSubscriptionStore',
+            'Updated TanStack Query cache with analysis content',
+            {
+              jobId,
+              hasTitle: !!title,
+              hasFullFeedbackText: !!fullFeedbackText,
+            }
+          )
         }
       }
 
       if (!cached && !abortController.signal.aborted) {
         // Cache doesn't exist yet - try to get job data from TanStack Query to create minimal entry
-        const currentSubscription = get().subscriptions.get(key)
-        const subscriptionJobId = currentSubscription?.jobId
-        const job =
-          subscriptionJobId && queryClient
-            ? (queryClient.getQueryData<AnalysisJob>(analysisKeys.job(subscriptionJobId)) ?? null)
-            : null
+        // FIX: Use jobId parameter directly instead of subscription.jobId (which may not be set yet)
+        const job = queryClient
+          ? (queryClient.getQueryData<AnalysisJob>(analysisKeys.job(jobId)) ?? null)
+          : null
 
         if (job && !abortController.signal.aborted) {
           // Fetch thumbnail from video_recordings to include in minimal cache entry
@@ -691,17 +756,74 @@ function handleTitleUpdate(
             ? (historyStore.getLocalUri(storagePath) ?? undefined)
             : undefined
 
+          // Only create cache entry if we have a title (required field)
+          // If title is null, use job.title as fallback, or skip if neither exists
+          const jobTitle = (job as any).title as string | undefined
+          const cacheTitle = (title ?? jobTitle ?? '') as string
+          if (!cacheTitle) {
+            log.debug(
+              'AnalysisSubscriptionStore',
+              'Skipping cache entry creation - no title available',
+              {
+                jobId: job.id,
+              }
+            )
+            return
+          }
+
           historyStore.addToCache({
             id: job.id,
             videoId: job.video_recording_id ?? 0,
             userId: jobUserId,
-            title, // Use the real title from database
+            title: cacheTitle, // Use title from subscription, fallback to job.title
+            fullFeedbackText: fullFeedbackText ?? undefined,
             createdAt: jobCreatedAt,
             thumbnail: thumbnailUri,
             storagePath,
             videoUri,
             results: jobResults,
           })
+
+          // CRITICAL FIX: Also update TanStack Query cache directly
+          // This avoids the need for a server refetch - the new video appears immediately
+          const queryClient = get().queryClient
+          if (queryClient && cacheTitle) {
+            // Use the same title as cache entry (already validated above)
+            const newVideoItem = {
+              id: job.id,
+              videoId: job.video_recording_id ?? 0,
+              title: cacheTitle,
+              createdAt: jobCreatedAt,
+              thumbnailUri: thumbnailUri,
+              cloudThumbnailUrl: videoRecording?.thumbnail_url ?? undefined,
+            }
+
+            // Update TanStack Query cache by prepending the new video
+            // Use a reasonable default limit (10) - matches useHistoryQuery default
+            const defaultLimit = 10
+            queryClient.setQueryData<
+              Array<{
+                id: number
+                videoId: number
+                title: string
+                createdAt: string
+                thumbnailUri?: string
+                cloudThumbnailUrl?: string
+              }>
+            >(['history', 'completed', defaultLimit], (old) => {
+              if (!old) return [newVideoItem]
+              // Don't add if already exists (prevent duplicates)
+              if (old.some((item) => item.id === job.id)) return old
+              // Prepend new video and maintain limit
+              return [newVideoItem, ...old].slice(0, defaultLimit)
+            })
+
+            log.info('AnalysisSubscriptionStore', 'Updated TanStack Query cache with new video', {
+              jobId: job.id,
+              title,
+            })
+          }
+
           log.info(
             'AnalysisSubscriptionStore',
             'Created minimal cache entry with title, thumbnail, and videoUri from analyses subscription',
@@ -723,15 +845,53 @@ function handleTitleUpdate(
             }
           )
         } else if (!abortController.signal.aborted) {
-          // Job data not available yet - title will be set when setJobResults runs
-          log.debug(
-            'AnalysisSubscriptionStore',
-            'Cache and job data not found, title will be set when cache is created',
-            {
-              jobId,
-              title,
-            }
-          )
+          // H10 FIX: Job data not available yet - create minimal cache entry with just title/fullFeedbackText
+          // This ensures UI gets the data immediately, even if full job data isn't loaded yet
+          if (title || fullFeedbackText) {
+            // FIX: Use jobId parameter directly instead of subscription.jobId
+            const jobFromQuery = queryClient
+              ? (queryClient.getQueryData<AnalysisJob>(analysisKeys.job(jobId)) ?? null)
+              : null
+            const recordingId = jobFromQuery?.video_recording_id ?? null
+
+            historyStore.addToCache({
+              id: jobId,
+              videoId: recordingId ?? 0, // Will be updated when full job data loads
+              userId: jobFromQuery ? ((jobFromQuery as any).user_id ?? '') : '', // Will be updated when full job data loads
+              title: title ?? 'Analysis', // Use provided title or fallback
+              fullFeedbackText: fullFeedbackText ?? undefined,
+              createdAt: jobFromQuery?.created_at
+                ? typeof jobFromQuery.created_at === 'string'
+                  ? jobFromQuery.created_at
+                  : new Date().toISOString()
+                : new Date().toISOString(),
+              results: {
+                feedback: [],
+                text_feedback: fullFeedbackText ?? '',
+                summary_text: '',
+                processing_time: 0,
+                video_source: '',
+              } as any, // Type assertion to match existing pattern in codebase
+            })
+            log.info(
+              'AnalysisSubscriptionStore',
+              'Created minimal cache entry with title/fullFeedbackText (job data not yet available)',
+              {
+                jobId,
+                title,
+                hasFullFeedbackText: !!fullFeedbackText,
+              }
+            )
+          } else {
+            log.debug(
+              'AnalysisSubscriptionStore',
+              'Cache and job data not found, title will be set when cache is created',
+              {
+                jobId,
+                title,
+              }
+            )
+          }
         }
       }
     } catch (error) {
@@ -759,6 +919,84 @@ function handleTitleUpdate(
       })
     }
   })
+}
+
+/**
+ * Prepend a completed analysis to the history cache without full refetch.
+ * This is more efficient than invalidateQueries - we add the new item directly.
+ */
+function prependToHistoryCache(
+  jobId: number,
+  title: string,
+  fullFeedbackText: string,
+  get: StoreGetter
+): void {
+  const queryClient = get().queryClient
+  if (!queryClient) {
+    log.warn('AnalysisSubscriptionStore', 'QueryClient not set - cannot prepend to history', {
+      jobId,
+    })
+    return
+  }
+
+  // Get the job data from TanStack Query cache
+  const job = queryClient.getQueryData<AnalysisJob>(analysisKeys.job(jobId))
+  if (!job || !job.video_recording_id) {
+    log.warn('AnalysisSubscriptionStore', 'Job not in cache - falling back to invalidation', {
+      jobId,
+    })
+    queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
+    return
+  }
+
+  // Get thumbnail from video history store if available
+  const historyStore = useVideoHistoryStore.getState()
+  const cached = historyStore.getCached(jobId)
+  const thumbnailUri = cached?.thumbnail
+  const cloudThumbnailUrl = cached?.cloudThumbnailUrl
+
+  // Build the VideoItem to prepend (includes fullFeedbackText for immediate availability)
+  const newItem = {
+    id: jobId,
+    videoId: job.video_recording_id,
+    title,
+    createdAt: job.updated_at || new Date().toISOString(),
+    thumbnailUri,
+    cloudThumbnailUrl,
+    fullFeedbackText,
+  }
+
+  // Prepend to TanStack Query cache (all limit variants)
+  const limits = [10, 20, 50] // Common limit values
+  for (const limit of limits) {
+    const queryKey = ['history', 'completed', limit] as const
+    const existing = queryClient.getQueryData<(typeof newItem)[]>(queryKey)
+    if (existing) {
+      // Check if item already exists (avoid duplicates)
+      if (!existing.some((item) => item.id === jobId)) {
+        queryClient.setQueryData(queryKey, [newItem, ...existing.slice(0, limit - 1)])
+        log.info('AnalysisSubscriptionStore', 'Prepended new item to history cache', {
+          jobId,
+          title,
+          limit,
+          newCacheSize: Math.min(existing.length + 1, limit),
+        })
+      }
+    } else {
+      // Cache doesn't exist yet (history never opened) - create with new item
+      queryClient.setQueryData(queryKey, [newItem])
+      log.info('AnalysisSubscriptionStore', 'Created history cache with new item', {
+        jobId,
+        title,
+        limit,
+      })
+    }
+  }
+
+  // Note: Zustand store (full CachedAnalysis with results) gets populated when:
+  // 1. User navigates to the video analysis screen (triggers fetch of full details)
+  // 2. History query refetches (on pull-to-refresh, etc.)
+  // We only need to update TanStack Query cache here for immediate list display.
 }
 
 function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: StoreGetter) {
@@ -805,6 +1043,7 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
 
   // Subscribe to title when we first receive a jobId (for recording subscriptions)
   // This happens when subscribing via recordingId - we get the jobId later
+  // The title subscription also provides the UUID needed for feedback subscription
   if (previousJobId !== job.id && job.id) {
     const subscription = get().subscriptions.get(key)
     if (subscription && !subscription.titleSubscription) {
@@ -813,8 +1052,10 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
         jobId: job.id,
       })
       try {
-        const unsubscribeTitle = subscribeToAnalysisTitle(job.id, (title: string | null) =>
-          handleTitleUpdate(key, job.id, title, set, get)
+        const unsubscribeTitle = subscribeToAnalysisTitle(
+          job.id,
+          (title: string | null, fullFeedbackText: string | null, analysisUuid?: string | null) =>
+            handleTitleUpdate(key, job.id, title, fullFeedbackText, set, get, analysisUuid)
         )
         if (unsubscribeTitle) {
           set((draft: AnalysisSubscriptionStoreState) => {
@@ -845,39 +1086,24 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
     }
   }
 
-  // Invalidate history cache when analysis completes, but delay if title not ready yet
-  // Note: With analyses table in realtime publication, title should arrive via postgres_changes
-  // before or simultaneously with job completion. This delay is a safety net for edge cases.
+  // Fallback: If job completes but title never arrives, use fallback title after timeout
+  // Normal case: handleTitleUpdate prepends when title is received
   if (previousStatus !== 'completed' && job.status === 'completed') {
     const subscription = get().subscriptions.get(key)
     const hasTitle = subscription?.hasTitleReceived ?? false
-    const queryClient = get().queryClient
 
-    if (!queryClient) {
-      log.warn('AnalysisSubscriptionStore', 'QueryClient not set - cannot invalidate cache', {
+    // If title already received, handleTitleUpdate already prepended - nothing to do
+    if (hasTitle) {
+      log.debug('AnalysisSubscriptionStore', 'Job completed - title already handled', {
         jobId: job.id,
       })
       return
     }
 
-    // If title already received, invalidate immediately
-    if (hasTitle) {
-      log.info(
-        'AnalysisSubscriptionStore',
-        'Analysis completed with title - invalidating history cache',
-        {
-          jobId: job.id,
-        }
-      )
-      queryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-      return
-    }
-
-    // Title not ready yet - delay invalidation
-    // Set timeout to invalidate after title arrives (max 3 seconds) or immediately if title arrives first
+    // Title not received yet - set fallback timeout
     log.info(
       'AnalysisSubscriptionStore',
-      'Analysis completed without title - delaying invalidation',
+      'Job completed without title - setting fallback timeout',
       {
         jobId: job.id,
       }
@@ -887,47 +1113,33 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
       const sub = draft.subscriptions.get(key)
       if (!sub) return
 
-      // Clear any existing pending invalidation timeout
       if (sub.pendingInvalidationTimeoutId) {
         clearTimeout(sub.pendingInvalidationTimeoutId)
       }
 
-      // Schedule invalidation after delay (title should arrive within 3 seconds)
+      // Fallback: use generated title if AI title never arrives
       const timeoutId = setTimeout(() => {
-        const currentState = get()
-        const currentSub = currentState.subscriptions.get(key)
-        if (!currentSub) {
-          log.debug(
-            'AnalysisSubscriptionStore',
-            'Subscription deleted, skipping delayed invalidation',
-            {
-              key,
-            }
-          )
+        const currentSub = get().subscriptions.get(key)
+        if (!currentSub) return
+
+        if (currentSub.hasTitleReceived) {
+          log.debug('AnalysisSubscriptionStore', 'Title arrived before timeout', { jobId: job.id })
           return
         }
 
-        const currentQueryClient = currentState.queryClient
-        if (currentQueryClient) {
-          log.info(
-            'AnalysisSubscriptionStore',
-            'Delayed invalidation timeout - invalidating history cache',
-            {
-              jobId: job.id,
-              hasTitle: currentSub.hasTitleReceived,
-            }
-          )
-          currentQueryClient.invalidateQueries({ queryKey: analysisKeys.historyCompleted() })
-        }
-
-        // Clear timeout ID
-        set((draft: AnalysisSubscriptionStoreState) => {
-          const sub = draft.subscriptions.get(key)
-          if (sub) {
-            sub.pendingInvalidationTimeoutId = null
-          }
+        const fallbackTitle = `Analysis ${new Date(job.updated_at || Date.now()).toLocaleDateString()}`
+        log.info('AnalysisSubscriptionStore', 'Using fallback title (no feedback)', {
+          jobId: job.id,
+          fallbackTitle,
         })
-      }, 3000) // 3 second delay to allow title to arrive
+        // Empty feedback text for fallback - will be fetched when user opens video
+        prependToHistoryCache(job.id, fallbackTitle, '', get)
+
+        set((draft: AnalysisSubscriptionStoreState) => {
+          const s = draft.subscriptions.get(key)
+          if (s) s.pendingInvalidationTimeoutId = null
+        })
+      }, 3000)
 
       sub.pendingInvalidationTimeoutId = timeoutId
     })

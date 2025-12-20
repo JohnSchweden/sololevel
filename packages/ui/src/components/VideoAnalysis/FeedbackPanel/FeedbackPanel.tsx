@@ -1256,7 +1256,7 @@ export const FeedbackPanel = memo(
       return (
         <YStack paddingHorizontal="$0">
           <YStack
-            alignItems="center"
+            alignItems="flex-start"
             backgroundColor="transparent"
             paddingTop="$4"
             paddingBottom="$4"

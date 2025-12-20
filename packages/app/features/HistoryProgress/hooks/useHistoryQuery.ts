@@ -30,6 +30,10 @@ export interface VideoItem {
    * Used by prefetch hooks to download thumbnails when local paths no longer exist.
    */
   cloudThumbnailUrl?: string
+  /**
+   * Full AI-generated feedback text. Available when analysis completes.
+   */
+  fullFeedbackText?: string
 }
 
 /**
@@ -212,6 +216,7 @@ function transformToVideoItem(cached: CachedAnalysis): VideoItem {
     createdAt: cached.createdAt,
     thumbnailUri: cached.thumbnail,
     cloudThumbnailUrl: cached.cloudThumbnailUrl,
+    fullFeedbackText: cached.fullFeedbackText,
   }
 }
 
@@ -345,13 +350,15 @@ export function useHistoryQuery(limit = 10) {
   // Store manages its own hydration state - just wait for it
   const isHydrated = useVideoHistoryStore((state) => state._isHydrated)
 
-  // Trigger lazy hydration on first access (deferred from app startup)
-  // CRITICAL FIX: Defer hydration to idle time to prevent blocking main thread
-  // AsyncStorage reads can block 200-500ms, causing JS thread drops to 2 FPS
+  // Fallback: trigger hydration if not already done by Provider (eager hydration)
+  // Provider triggers ensureHydrated() 1s after startup, but this is a safety net
+  // if useHistoryQuery is used before Provider's timer fires.
+  // ensureHydrated() is idempotent (checks _isHydrated first).
   React.useEffect(() => {
-    // Trigger hydration once on mount - store handles its own state
-    useVideoHistoryStore.getState().ensureHydrated()
-  }, [])
+    if (!isHydrated) {
+      useVideoHistoryStore.getState().ensureHydrated()
+    }
+  }, [isHydrated])
 
   // BATTLE-TESTED FIX #1: Pre-populate TanStack Query cache with Zustand data
   // This is better than initialData because it populates the actual cache,

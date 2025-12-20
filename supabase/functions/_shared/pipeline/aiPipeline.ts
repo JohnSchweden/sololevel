@@ -159,26 +159,44 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       }
     }
 
+    // Mark analysis job completed NOW - video analysis is done, feedback items are available
+    // SSML/audio will continue processing in background (don't block completion)
+    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
+    await notifyAnalysisComplete(analysisId, logger)
+
     // 4. Kick SSML worker (conditional) and then audio worker for newly created feedback items
+    // Process asynchronously in background - don't block job completion
     if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
       if (stages.runSSML) {
+        // Fire and forget - SSML/audio processing continues in background
+        // Errors are logged but don't fail the completed job (SSML/audio errors are per-feedback)
         processSSMLJobs({ supabase, logger, feedbackIds })
-          .then((ssmlResult) => {
+          .then((ssmlResult): void => {
             if (ssmlResult.errors === 0 && stages.runTTS) {
-              _processAudioJobs({ supabase, logger, feedbackIds })
+              // Fire and forget - don't wait for audio
+              void _processAudioJobs({ supabase, logger, feedbackIds })
             } else if (ssmlResult.errors > 0) {
               logger.info('Skipping audio generation due to SSML errors', {
                 feedbackIds,
-                errors: ssmlResult.errors
+                errors: ssmlResult.errors,
+                processed: ssmlResult.processedJobs
               })
             } else if (!stages.runTTS) {
               logger.info('Skipping audio generation (TTS stage disabled)', {
-                feedbackIds
+                feedbackIds,
+                ssmlProcessed: ssmlResult.processedJobs
               })
             }
           })
           .catch((error) => {
-            logger.error('Failed to process SSML/audio jobs', { error, feedbackIds })
+            logger.error('Background SSML/audio processing failed', {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              feedbackIds,
+              analysisId
+            })
+            // Don't fail the completed job - SSML/audio errors are per-feedback
+            // Errors are logged for monitoring/debugging but don't propagate
           })
       } else {
         logger.info('Skipping SSML generation (SSML stage disabled)', {
@@ -187,9 +205,6 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       }
     }
 
-    // Mark analysis job completed and notify clients
-    await updateAnalysisStatus(supabase, analysisId, 'completed', null, 100, logger)
-    await notifyAnalysisComplete(analysisId, logger)
     return
   } catch (error) {
     logger.error('AI Pipeline failed', {

@@ -194,13 +194,17 @@ ${SSML_USER_PROMPT_DEFAULT}
 Feedback text to convert to SSML:
 "{feedback_text}"
 
-Please generate SSML markup that enhances this feedback with:
-- Appropriate pauses and breaks for comedic timing
-- Emphasis on key words and phrases
-- Prosody adjustments for sarcastic tone
-- Natural speech patterns
+**CRITICAL:** First, rewrite this feedback text in a roast tone using modern US slang, playful insults, and comedic punchlines. Then wrap it in SSML markup.
 
-Return only the SSML content with Max 250 characters, starting with <speak> and ending with </speak>.`
+Your task:
+1. Rewrite the feedback text to roast the user - use slang, playful insults, and biting humor
+2. Add SSML markup that enhances the roast delivery with:
+   - Appropriate pauses and breaks for comedic timing
+   - Emphasis on key words and phrases (especially the roast parts)
+   - Prosody adjustments for sarcastic/comedic tone
+   - Natural speech patterns that match a comedian's delivery
+
+Return only the SSML content with Max 200 characters, starting with <speak> and ending with </speak>.`
 
 
 

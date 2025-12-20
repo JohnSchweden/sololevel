@@ -1,7 +1,6 @@
 import { startUploadAndAnalysis } from '@my/app/services/videoUploadAndAnalysis'
 import { log } from '@my/logging'
 import { useHeaderHeight } from '@react-navigation/elements'
-import { useQueryClient } from '@tanstack/react-query'
 import { Asset } from 'expo-asset'
 import { router } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
@@ -38,7 +37,6 @@ function DurationProbe({ uri, onReady }: { uri: string; onReady: (seconds: numbe
 }
 
 export default function PipelineTestScreen() {
-  const queryClient = useQueryClient()
   const headerHeight = useHeaderHeight()
   const [status, setStatus] = useState<PipelineStatus>('idle')
   const [details, setDetails] = useState<string>('')
@@ -123,12 +121,6 @@ export default function PipelineTestScreen() {
         onRecordingIdAvailable: (newRecordingId: number) => {
           setRecordingId(newRecordingId)
           log.info('pipeline-test', 'recording-id-available', { recordingId: newRecordingId })
-
-          // Invalidate history cache so new video appears immediately
-          log.info('pipeline-test', 'Recording ID available - invalidating history cache', {
-            recordingId: newRecordingId,
-          })
-          queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
 
           // Update route with the recordingId once available
           router.replace(

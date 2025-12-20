@@ -530,6 +530,32 @@ export async function getLatestAnalysisJobForRecordingId(
     if (sessionData.session) {
       // Retry with refreshed session
       user = await supabase.auth.getUser()
+
+      if (user.data.user) {
+        // CRITICAL: Auth retry succeeded - log for monitoring
+        // High frequency indicates stale session issues that need investigation
+        log.info(
+          'getLatestAnalysisJobForRecordingId',
+          'Auth retry succeeded - session refreshed successfully',
+          {
+            recordingId,
+            userId: user.data.user.id,
+            sessionExpiresAt: sessionData.session.expires_at,
+          }
+        )
+      } else {
+        log.error(
+          'getLatestAnalysisJobForRecordingId',
+          'Auth retry failed - session refresh did not restore authentication',
+          { recordingId }
+        )
+      }
+    } else {
+      log.error(
+        'getLatestAnalysisJobForRecordingId',
+        'Auth retry failed - no session available after refresh',
+        { recordingId }
+      )
     }
   }
 
@@ -948,14 +974,21 @@ export async function getAnalysisFullFeedbackText(
 }
 
 /**
- * Subscribe to analysis title updates from analyses table
- * This gets the title as soon as it's stored (right after LLM analysis, before job completion)
+ * Subscribe to analysis title, full feedback text, and UUID updates from analyses table
+ * This gets all values as soon as they're stored (right after LLM analysis, before job completion)
+ * The UUID is critical for subscribing to feedback items in analysis_feedback table
  */
 export function subscribeToAnalysisTitle(
   jobId: number,
-  onTitle: (title: string | null) => void
+  onUpdate: (
+    title: string | null,
+    fullFeedbackText: string | null,
+    analysisUuid?: string | null
+  ) => void
 ): (() => void) | undefined {
   let unsubscribed = false
+  // Store poll interval reference for cleanup on unsubscribe
+  let pollInterval: ReturnType<typeof setInterval> | null = null
 
   performHealthCheck()
     .then((health) => {
@@ -988,38 +1021,105 @@ export function subscribeToAnalysisTitle(
           },
           (payload) => {
             if (!unsubscribed) {
-              const analysis = payload.new as { title?: string | null } | null
-              // Note: log object is no-op in this file, but we call onTitle which will log in the store
-              if (analysis?.title !== undefined && analysis.title !== null) {
-                onTitle(analysis.title)
+              const analysis = payload.new as {
+                id?: string | null
+                title?: string | null
+                full_feedback_text?: string | null
+              } | null
+              // Note: log object is no-op in this file, but we call onUpdate which will log in the store
+              // Call onUpdate if either title or full_feedback_text is available
+              // Also pass the UUID (id) which is needed for feedback subscription
+              if (analysis) {
+                onUpdate(
+                  analysis.title ?? null,
+                  analysis.full_feedback_text ?? null,
+                  analysis.id ?? null
+                )
               }
             }
           }
         )
-        .subscribe((status) => {
+        .subscribe((status, _err) => {
           if (status === 'SUBSCRIBED') {
-            // Fetch current title immediately in case it was already stored
+            // Fetch current title, full_feedback_text, and id (UUID) immediately in case they were already stored
             // Use maybeSingle() to handle case where row doesn't exist yet
-            Promise.resolve(
-              supabase.from('analyses').select('title').eq('job_id', jobId).maybeSingle()
-            )
-              .then((result) => {
-                const { data, error } = result as {
-                  data: { title: string | null } | null
-                  error: any
-                }
-                if (!unsubscribed && !error && data?.title) {
-                  onTitle(data.title)
-                }
-              })
-              .catch(() => {
-                // Silent fail - title might not exist yet
-              })
+            const fetchData = () => {
+              Promise.resolve(
+                supabase
+                  .from('analyses')
+                  .select('id, title, full_feedback_text')
+                  .eq('job_id', jobId)
+                  .maybeSingle()
+              )
+                .then((result) => {
+                  const { data, error } = result as {
+                    data: {
+                      id: string | null
+                      title: string | null
+                      full_feedback_text: string | null
+                    } | null
+                    error: any
+                  }
+                  if (!unsubscribed && !error && data) {
+                    onUpdate(data.title ?? null, data.full_feedback_text ?? null, data.id ?? null)
+                  } else if (!unsubscribed && !error && !data) {
+                    // H9: Data doesn't exist yet - poll periodically as fallback for realtime failures
+                    // Poll every 2 seconds for up to 30 seconds (15 attempts)
+                    let pollAttempts = 0
+                    const maxPollAttempts = 15
+                    pollInterval = setInterval(() => {
+                      if (unsubscribed || pollAttempts >= maxPollAttempts) {
+                        if (pollInterval) {
+                          clearInterval(pollInterval)
+                          pollInterval = null
+                        }
+                        return
+                      }
+                      pollAttempts++
+                      supabase
+                        .from('analyses')
+                        .select('id, title, full_feedback_text')
+                        .eq('job_id', jobId)
+                        .maybeSingle()
+                        .then((pollResult) => {
+                          const { data: pollData, error: pollError } = pollResult as {
+                            data: {
+                              id: string | null
+                              title: string | null
+                              full_feedback_text: string | null
+                            } | null
+                            error: any
+                          }
+                          if (!unsubscribed && !pollError && pollData) {
+                            if (pollInterval) {
+                              clearInterval(pollInterval)
+                              pollInterval = null
+                            }
+                            onUpdate(
+                              pollData.title ?? null,
+                              pollData.full_feedback_text ?? null,
+                              pollData.id ?? null
+                            )
+                          }
+                        })
+                    }, 2000)
+                  }
+                })
+                .catch(() => {
+                  // Silent fail - data might not exist yet
+                })
+            }
+            fetchData()
           }
         })
 
       return () => {
         unsubscribed = true
+        // Clear poll interval immediately on unsubscribe to prevent memory leaks
+        if (pollInterval) {
+          clearInterval(pollInterval)
+          pollInterval = null
+        }
         void supabase.removeChannel(subscription)
       }
     })

@@ -154,11 +154,9 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
   subscribeWithSelector(
     persist<VideoHistoryStore, [], [['zustand/immer', never]], PersistedVideoHistoryState>(
       immer((set, get) => {
-        // Only log when actually hydrated (not at module load)
-        // This prevents 507k allocations before first paint
-        // Store creation is lightweight; hydration happens on-demand via ensureHydrated()
+        // Log store creation (hydration deferred until ensureHydrated() is called)
         if (__DEV__) {
-          log.debug('VideoHistoryStore', 'Store created (not yet hydrated)', {
+          log.debug('VideoHistoryStore', 'Store created (hydration deferred)', {
             CACHE_VERSION,
           })
         }
@@ -554,7 +552,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       {
         name: 'video-history-store',
         storage: createJSONStorage(() => AsyncStorage),
-        skipHydration: true, // Defer hydration until ensureHydrated() is called
+        skipHydration: true, // Defer hydration until ensureHydrated() is called (prevents 200-500ms JS thread block on startup)
         partialize: (state: VideoHistoryStore) => ({
           // Convert Maps to arrays for JSON serialization
           cache: Array.from(state.cache.entries()),
