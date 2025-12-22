@@ -71,6 +71,23 @@ export function SocialIcons({
   const BUTTON_MIN_WIDTH = 44
   const BUTTON_MIN_HEIGHT = 44
 
+  // Shadow styles for icons and text
+  const iconShadowStyle = {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4, // Android
+  } as const
+
+  const textShadowStyle = {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
+    elevation: 3, // Android
+  } as const
+
   // Shared button styles
   const buttonPressStyle = {
     opacity: PRESS_OPACITY,
@@ -161,12 +178,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
+            {...iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-likes-count"
             accessibilityLabel="Number of likes"
+            {...textShadowStyle}
           >
             {formatCount(likes)}
           </Text>
@@ -198,12 +217,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
+            {...iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-comments-count"
             accessibilityLabel="Number of comments"
+            {...textShadowStyle}
           >
             {formatCount(comments)}
           </Text>
@@ -235,12 +256,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
+            {...iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-bookmarks-count"
             accessibilityLabel="Number of bookmarks"
+            {...textShadowStyle}
           >
             {formatCount(displayBookmarkCount)}
           </Text>
@@ -272,12 +295,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
+            {...iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-shares-count"
             accessibilityLabel="Number of shares"
+            {...textShadowStyle}
           >
             {formatCount(shares)}
           </Text>
