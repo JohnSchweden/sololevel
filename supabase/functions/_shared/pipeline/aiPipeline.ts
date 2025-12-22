@@ -188,13 +188,49 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
               })
             }
           })
-          .catch((error) => {
+          .catch(async (error) => {
             logger.error('Background SSML/audio processing failed', {
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
               feedbackIds,
               analysisId
             })
+            
+            // CRITICAL FIX: Mark all feedback items as failed so clients show proper error state
+            // Without this, users see "processing" spinner forever when SSML/audio crashes
+            // Individual worker errors are already handled per-feedback with retry logic
+            // This catch handles catastrophic failures (e.g., worker import crash, OOM)
+            try {
+              const errorMessage = error instanceof Error ? error.message : String(error)
+              const { error: updateError } = await supabase
+                .from('analysis_feedback')
+                .update({
+                  ssml_status: 'failed',
+                  audio_status: 'failed',
+                  ssml_last_error: errorMessage,
+                  audio_last_error: errorMessage,
+                  ssml_updated_at: new Date().toISOString(),
+                  audio_updated_at: new Date().toISOString()
+                })
+                .in('id', feedbackIds)
+              
+              if (updateError) {
+                logger.error('Failed to mark feedback items as failed', {
+                  updateError: updateError.message,
+                  feedbackIds
+                })
+              } else {
+                logger.info('Marked feedback items as failed after catastrophic worker error', {
+                  feedbackIds,
+                  count: feedbackIds.length
+                })
+              }
+            } catch (updateErr) {
+              // Don't throw - this is a best-effort cleanup
+              logger.error('Error updating feedback failure status', {
+                updateErr: updateErr instanceof Error ? updateErr.message : String(updateErr)
+              })
+            }
             // Don't fail the completed job - SSML/audio errors are per-feedback
             // Errors are logged for monitoring/debugging but don't propagate
           })

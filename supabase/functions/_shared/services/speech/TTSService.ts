@@ -153,6 +153,9 @@ export class MockTTSService implements ITTSService {
   async synthesize(context: TTSContext): Promise<TTSResult> {
     logger.info('Mock TTS synthesis')
 
+    // Simulate 1s delay to mimic real TTS API latency
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
     const format = resolveAudioFormat(context.customParams?.format ? [context.customParams.format] : undefined, 'gemini')
     const extension = AUDIO_FORMATS[format].extension
 

@@ -44,6 +44,33 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
   const passwordInputRef = useRef<any>(null)
   const scrollViewRef = useRef<ScrollView>(null)
 
+  // Random roast message selection
+  const roastMessages = [
+    "Sign in. Or scroll away. We don't care.",
+    "Sign in. You're not getting past this screen without it.",
+    'Sign in to continue your journey with Solo:Level\n(Yes, "journey" is cringe. We know.)',
+    'Sign in. Try at least.\n(We know you forgot your password.)',
+    'Sign in\n(You know what to do.)',
+    "Sign in. We both know you're going to anyway.",
+    "Sign in. Or don't. We're not your parents.",
+    "Sign in. The form's right there. Use it.",
+    'Sign in to continue your journey with Solo:Level\n(We kept the colon. Fight us.)',
+    "Sign in. This screen isn't going anywhere.",
+    "Sign in. Your videos are waiting.\n(They're not, but sign in anyway.)",
+    "Sign in\n(It's not that hard.)",
+    'Sign in. You came here for a reason.',
+    'Sign in. Stop reading this and do it.',
+    'Sign in. The button works. We tested it.',
+    "Sign in. You're already here. Just do it.",
+    "Sign in. Or close the app. Your choice.\n(It's not really a choice.)",
+    "Sign in. We're not going to beg.",
+    'Sign in\n(You know the drill.)',
+  ]
+
+  const [subtitleMessage] = useState(() => {
+    return roastMessages[Math.floor(Math.random() * roastMessages.length)]
+  })
+
   // Initialize test auth on mount if enabled
   useEffect(() => {
     initializeTestAuth()
@@ -212,6 +239,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                   fontWeight="600"
                   color="$color12"
                   textAlign="center"
+                  letterSpacing={-0.85}
                 >
                   Welcome Back
                 </H2>
@@ -221,7 +249,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                   textAlign="center"
                   maxWidth={280}
                 >
-                  Sign in to continue your journey with Solo:Level
+                  {subtitleMessage}
                 </Paragraph>
               </YStack>
 

@@ -55,12 +55,13 @@ export async function analyzeVideoWithGemini(
   // 0) Generate analysis prompt (shared)
   const mappedParams = {
     duration: analysisParams?.duration || 6,
-    start_time: analysisParams?.startTime || 0,
-    end_time: analysisParams?.endTime || analysisParams?.duration || 6,
-    feedback_count: analysisParams?.feedbackCount || 1,
-    target_timestamps: analysisParams?.targetTimestamps,
-    min_gap: analysisParams?.minGap,
-    first_timestamp: analysisParams?.firstTimestamp,
+    // Unused variables (commented out - new prompt template only uses duration):
+    // start_time: analysisParams?.startTime || 0,
+    // end_time: analysisParams?.endTime || analysisParams?.duration || 6,
+    // feedback_count: analysisParams?.feedbackCount || 1,
+    // target_timestamps: analysisParams?.targetTimestamps,
+    // min_gap: analysisParams?.minGap,
+    // first_timestamp: analysisParams?.firstTimestamp,
   }
   const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
   logger.info(`Generated analysis prompt: ${prompt.length} characters`)
@@ -72,12 +73,22 @@ export async function analyzeVideoWithGemini(
     if (config.analysisMode === 'mock') {
       logger.info(`AI_ANALYSIS_MODE=mock: Using prepared response for MVP testing with video: ${videoPath}`)
 
-      // Simulate progress callbacks to maintain pipeline flow
+      // Helper for delay simulation
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+      // Simulate progress callbacks with delays to mimic real API latency (1s total)
       if (progressCallback) {
         await progressCallback(20) // Download simulation
+        await delay(250)
         await progressCallback(40) // Upload simulation
+        await delay(250)
         await progressCallback(55) // Processing simulation
+        await delay(250)
         await progressCallback(70) // Analysis simulation
+        await delay(250)
+      } else {
+        // No progress callback, still simulate 1s delay
+        await delay(1000)
       }
 
       // Use mock response

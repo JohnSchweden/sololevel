@@ -262,4 +262,77 @@ describe('useBubbleController', () => {
     // Assert: Bubble remains hidden
     expect(useFeedbackCoordinatorStore.getState().bubbleState.bubbleVisible).toBe(false)
   })
+
+  describe('findTriggerCandidate - forward seek detection', () => {
+    it('does not trigger feedback early during normal playback', () => {
+      // Arrange: Feedback at 2.5s, video playing normally
+      const feedbackItems = [
+        { id: '1', timestamp: 2500 },
+        { id: '2', timestamp: 4100 },
+      ]
+      const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
+
+      // Act: Simulate normal playback progression
+      // lastCheck=1500ms, currentTime=2000ms, feedback at 2500ms
+      // timeDelta=500ms < 1500ms threshold → NOT a forward seek
+      // Range check: 2500 > 1500 && 2500 <= 2000 → FALSE (not in range)
+      act(() => {
+        result.current.checkAndShowBubbleAtTime(1500)
+      })
+
+      act(() => {
+        const candidate = result.current.findTriggerCandidate(2000)
+        // Assert: Should NOT find candidate (feedback at 2500ms not yet reached)
+        expect(candidate).toBeNull()
+      })
+    })
+
+    it('triggers feedback when video crosses timestamp during normal playback', () => {
+      // Arrange: Feedback at 2.5s
+      const feedbackItems = [{ id: '1', timestamp: 2500 }]
+      const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
+
+      // Act: Simulate playback reaching feedback timestamp
+      // lastCheck=2000ms, currentTime=2600ms, feedback at 2500ms
+      // timeDelta=600ms < 1500ms threshold → NOT a forward seek
+      // Range check: 2500 > 2000 && 2500 <= 2600 → TRUE (in range)
+      act(() => {
+        result.current.checkAndShowBubbleAtTime(2000)
+      })
+
+      act(() => {
+        const candidate = result.current.findTriggerCandidate(2600)
+        // Assert: Should find candidate when timestamp is crossed
+        expect(candidate).not.toBeNull()
+        expect(candidate?.item.id).toBe('1')
+        expect(candidate?.item.timestamp).toBe(2500)
+      })
+    })
+
+    it('uses threshold check for forward seeks to prevent triggering skipped feedbacks', () => {
+      // Arrange: Two feedbacks at 2.5s and 4.1s
+      const feedbackItems = [
+        { id: '1', timestamp: 2500 },
+        { id: '2', timestamp: 4100 },
+      ]
+      const { result } = renderHook(() => useBubbleController(feedbackItems, 0, true, {}, 3))
+
+      // Act: Simulate user seeking from 1.5s to 4.1s
+      // lastCheck=1500ms, currentTime=4100ms
+      // timeDelta=2600ms > 1500ms threshold → IS a forward seek
+      // Threshold check: |2500 - 4100| = 1600ms > 500ms → FALSE (first feedback too far)
+      // Threshold check: |4100 - 4100| = 0ms < 500ms → TRUE (second feedback matches)
+      act(() => {
+        result.current.checkAndShowBubbleAtTime(1500)
+      })
+
+      act(() => {
+        const candidate = result.current.findTriggerCandidate(4100)
+        // Assert: Should find second feedback (at seek position), not first (skipped)
+        expect(candidate).not.toBeNull()
+        expect(candidate?.item.id).toBe('2')
+        expect(candidate?.item.timestamp).toBe(4100)
+      })
+    })
+  })
 })

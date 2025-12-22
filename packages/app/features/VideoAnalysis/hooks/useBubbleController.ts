@@ -62,6 +62,11 @@ export interface BubbleFeedbackItem {
 const MIN_DISPLAY_DURATION_MS = 3000
 const TIMESTAMP_THRESHOLD_MS = 500
 const CHECK_THROTTLE_MS = 50
+// Forward seek detection: if time jumps more than this threshold, treat as seek
+// FIX: Increased from 500ms to 1500ms to avoid false positives from playback jitter
+// Normal playback can have gaps of 500-600ms due to JS thread delays
+// Real seeks (user tapping timeline) typically jump 2+ seconds
+const FORWARD_SEEK_THRESHOLD_MS = 1500
 
 type BubbleTimerState<TItem extends BubbleFeedbackItem> = {
   item: TItem | null
@@ -142,10 +147,15 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
   }, [clearBubbleTimer])
 
   useEffect(() => {
-    lastCheckTimestampRef.current = Math.max(
-      lastCheckTimestampRef.current ?? currentTime * 1000,
-      currentTime * 1000
-    )
+    // FIX: Don't set lastCheck to 0 on first render - it causes false positive forward seek detection
+    // Only update if currentTime is meaningful (> 0) and would increase lastCheck
+    const currentTimeMs = currentTime * 1000
+    if (currentTimeMs > 0) {
+      lastCheckTimestampRef.current = Math.max(
+        lastCheckTimestampRef.current ?? currentTimeMs,
+        currentTimeMs
+      )
+    }
   }, [currentTime])
 
   const hideBubble = useCallback(
@@ -464,16 +474,22 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
       const storeState = getBubbleState()
 
+      // Detect forward seek: large jump forward indicates user seeked, not normal playback
+      const isForwardSeek =
+        lastCheck !== null && currentTimeMs - lastCheck > FORWARD_SEEK_THRESHOLD_MS
+      const isBackwardSeek = lastCheck !== null && currentTimeMs < lastCheck
+      const isSeekOrFirstCheck = lastCheck === null || isBackwardSeek || isForwardSeek
+
       for (let index = 0; index < feedbackItemsRef.current.length; index += 1) {
         const item = feedbackItemsRef.current[index]
 
         // Exact timing: only trigger when current time crosses the timestamp
-        // On first check or when seeking backwards, trigger if within threshold
-        // Otherwise, only trigger feedbacks that we just passed (prevents re-triggers)
-        const isInRange =
-          lastCheck === null || currentTimeMs < lastCheck
-            ? Math.abs(item.timestamp - currentTimeMs) < TIMESTAMP_THRESHOLD_MS
-            : item.timestamp > lastCheck && item.timestamp <= currentTimeMs
+        // On first check, backward seek, OR forward seek: trigger if within threshold of current time
+        // On normal forward playback: trigger feedbacks that we just passed (prevents re-triggers)
+        // FIX: Forward seek now uses threshold check to prevent triggering old feedbacks
+        const isInRange = isSeekOrFirstCheck
+          ? Math.abs(item.timestamp - currentTimeMs) < TIMESTAMP_THRESHOLD_MS
+          : item.timestamp > lastCheck && item.timestamp <= currentTimeMs
 
         const canShow =
           isInRange && (!storeState.bubbleVisible || storeState.currentBubbleIndex !== index)

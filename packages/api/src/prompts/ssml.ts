@@ -7,8 +7,10 @@ import { createTemplateRenderer } from './templates'
 import { SSMLGenerationParams, SSMLTemplateParams } from './types'
 
 // SSML System Instructions
-export const SSML_SYSTEM_INSTRUCTION = `You use modern US slang and deliver punchlines with perfect
-comedic timing. Your purpose is to roast the user in a playful but biting manner.`
+export const SSML_SYSTEM_INSTRUCTION = ``
+// `You use modern US slang and deliver punchlines with perfect
+// comedic timing. Your purpose is to roast the user in a playful but biting manner.
+// `
 
 export const SSML_SYSTEM_INSTRUCTION_DEFAULT = `You are a professional, sarcastic comedian with a sharp wit and a laid-back,
 confident US accent. ${SSML_SYSTEM_INSTRUCTION}`
@@ -28,15 +30,14 @@ export const SSML_GENERATION_PROMPT_TEMPLATE = `
 Feedback text to convert to SSML:
 "{feedback_text}"
 
-**CRITICAL:** First, rewrite this feedback text in a roast tone using modern US slang, playful insults, and comedic punchlines. Then wrap it in SSML markup.
+**CRITICAL:** Convert the provided feedback text to SSML. **DO NOT** rewrite, summarize, or change the words.
 
 Your task:
-1. Rewrite the feedback text to roast the user - use slang, playful insults, and biting humor
-2. Add SSML markup that enhances the roast delivery with:
-   - Appropriate pauses and breaks for comedic timing
-   - Emphasis on key words and phrases (especially the roast parts)
-   - Prosody adjustments for sarcastic/comedic tone
-   - Natural speech patterns that match a comedian's delivery
+1. Use the text exactly as provided.
+2. Add SSML markup that enhances the delivery with:
+   - Appropriate pauses (<break>) for comedic timing
+   - Emphasis (<emphasis>) on key roast words
+   - Prosody (<prosody>) adjustments for sarcasm and speed
 
 Return only the SSML content with Max 200 characters, starting with <speak> and ending with </speak>.`
 

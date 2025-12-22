@@ -63,7 +63,7 @@ sql_paths = ["./seed.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
-enabled = false
+enabled = true
 # List of IPv4 CIDR blocks allowed to connect to the database.
 # Defaults to allow all IPv4 connections. Set empty array to block all IPs.
 allowed_cidrs = ["0.0.0.0/0"]

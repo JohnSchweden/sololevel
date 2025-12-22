@@ -184,7 +184,7 @@ describe('FeedbackPanel', () => {
     expect(screen.getByTestId('comments-analysis-placeholder')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Go to History & Progress to see the comments for this video to get a better understanding for the idea. ;)'
+        'Share the video first, then check History & Progress once you actually have an audience. Logic helps! ;)'
       )
     ).toBeInTheDocument()
     expect(screen.queryByTestId('sort-top')).toBeNull()

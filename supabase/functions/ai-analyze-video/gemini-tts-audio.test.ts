@@ -105,3 +105,17 @@ Deno.test('generateTTSFromSSML - handles invalid config in real mode', async () 
     }
   })
 })
+
+Deno.test('generateTTSFromSSML - mock mode includes 1s delay for realistic simulation', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+    const startTime = Date.now()
+    await generateTTSFromSSML(validSSML, validOptions)
+    const elapsedTime = Date.now() - startTime
+    
+    // Should take at least 1 second (1000ms) due to delay simulation
+    // Allow some tolerance for test execution overhead (±100ms)
+    if (elapsedTime < 900) {
+      throw new Error(`Expected at least 900ms delay, got ${elapsedTime}ms`)
+    }
+  })
+})

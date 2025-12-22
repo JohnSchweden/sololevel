@@ -79,13 +79,13 @@ export function AboutScreen({
               alignItems="center"
               gap="$4"
               marginBottom="$4"
-              paddingTop="$8"
+              paddingTop="$10"
             >
               {/* Logo Container */}
               <XStack
-                width={80}
-                height={80}
-                $md={{ width: 96, height: 96 }}
+                width={70}
+                height={70}
+                $md={{ width: 84, height: 84 }}
                 //backgroundColor="$purple10"
                 borderRadius="$6"
                 borderWidth={0}
@@ -102,9 +102,9 @@ export function AboutScreen({
               >
                 <Image
                   source={appIcon}
-                  width={80}
-                  height={80}
-                  $md={{ width: 96, height: 96 }}
+                  width={70}
+                  height={70}
+                  $md={{ width: 84, height: 84 }}
                   resizeMode="contain"
                 />
               </XStack>
@@ -112,19 +112,11 @@ export function AboutScreen({
               {/* App Name */}
               <Image
                 source={logoText}
-                width={120}
-                height={20}
+                width={105}
+                height={18}
                 resizeMode="contain"
                 testID={`${testID}-logo-text`}
               />
-
-              {/* Version */}
-              <Text
-                fontSize="$3"
-                color="$color11"
-              >
-                Version {APP_VERSION}
-              </Text>
 
               {/* Description */}
               <Text
@@ -132,8 +124,18 @@ export function AboutScreen({
                 color="$color11"
                 textAlign="center"
                 paddingHorizontal="$4"
+                marginTop="$2"
               >
-                {APP_DESCRIPTION}
+                {APP_DESCRIPTION} <Text color="$color12">Get roasted and learn anyway.</Text>
+              </Text>
+
+              {/* Version */}
+              <Text
+                fontSize="$3"
+                color="$color11"
+                marginTop="$4"
+              >
+                Version {APP_VERSION}
               </Text>
             </YStack>
 

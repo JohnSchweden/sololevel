@@ -211,6 +211,16 @@ export function useFeedbackCoordinator({
   // Extract videoPlayback.play/pause to refs
   const videoPlayRef = useRef(videoPlayback.play)
   const videoPlaybackPauseRef = useRef(videoPlayback.pause)
+  // FIX: Track feedbackItems in ref to avoid stale closures in handlePlay
+  // Without this, handlePlay captures empty feedbackItems on first render
+  const feedbackItemsRef = useRef(feedbackItems)
+
+  // Helper to get bubble index from current feedbackItems (avoids stale bubbleIndexById)
+  const getBubbleIndexForId = useCallback((id: string): number | null => {
+    const items = feedbackItemsRef.current.filter((item) => item.type === 'suggestion')
+    const index = items.findIndex((item) => item.id === id)
+    return index >= 0 ? index : null
+  }, [])
 
   // Track latest isPlaying value to avoid stale closures
   const isPlayingRef = useRef(useVideoPlayerStore.getState().isPlaying)
@@ -443,7 +453,8 @@ export function useFeedbackCoordinator({
     bubbleControllerRef.current = bubbleController
     videoPlayRef.current = videoPlayback.play
     videoPlaybackPauseRef.current = videoPlayback.pause
-  }, [audioController, bubbleController, videoPlayback.play, videoPlayback.pause])
+    feedbackItemsRef.current = feedbackItems
+  }, [audioController, bubbleController, videoPlayback.play, videoPlayback.pause, feedbackItems])
 
   const handleProgressTrigger = useCallback(
     (timeSeconds: number) => {
@@ -804,13 +815,18 @@ export function useFeedbackCoordinator({
       if (hasHighlightedFeedback && !hasActiveAudio && highlightedFeedbackId) {
         const audioUrls = currentFeedbackAudio.audioUrls
         const audioUrl = audioUrls?.[highlightedFeedbackId]
-        const highlightedItem = feedbackItems.find((item) => item.id === highlightedFeedbackId)
+        // FIX: Use ref to get current feedbackItems (avoids stale closure on first render)
+        const currentFeedbackItems = feedbackItemsRef.current
+        const highlightedItem = currentFeedbackItems.find(
+          (item) => item.id === highlightedFeedbackId
+        )
 
         if (audioUrl && highlightedItem) {
           selection.selectFeedback(highlightedItem, { seek: false, playAudio: true })
 
-          const maybeIndex = bubbleIndexById.get(highlightedFeedbackId)
-          if (typeof maybeIndex === 'number') {
+          // FIX: Use dynamic lookup instead of stale bubbleIndexById
+          const maybeIndex = getBubbleIndexForId(highlightedFeedbackId)
+          if (maybeIndex !== null) {
             showBubble(maybeIndex)
           }
 
@@ -845,8 +861,9 @@ export function useFeedbackCoordinator({
     // selectFeedback will load audio URL and start playback in deferred callback
     selection.selectFeedback(item, { seek: false, playAudio: true })
 
-    const maybeIndex = bubbleIndexById.get(item.id)
-    if (typeof maybeIndex === 'number') {
+    // FIX: Use dynamic lookup instead of stale bubbleIndexById
+    const maybeIndex = getBubbleIndexForId(item.id)
+    if (maybeIndex !== null) {
       showBubble(maybeIndex)
     }
 
@@ -859,13 +876,14 @@ export function useFeedbackCoordinator({
       '✓ Pending feedback handled - audio loading deferred',
       {
         feedbackId: item.id,
-        bubbleIndex: bubbleIndexById.get(item.id) ?? null,
+        bubbleIndex: getBubbleIndexForId(item.id),
       }
     )
     // REMOVED: Don't resume video immediately - let audio control the timing
     // Video will resume when audio ends naturally via handleAudioNaturalEnd
     // DO NOT call videoPlayRef.current() here - video must stay paused during audio
-  }, [bubbleIndexById, feedbackItems, selection, showBubble])
+    // FIX: Removed feedbackItems and bubbleIndexById from deps - now using refs
+  }, [getBubbleIndexForId, selection, showBubble])
 
   // Combined Audio State Reaction Effect (Module 4)
   // Merges audioEndVideoResume and audioEndDetection to reduce effect count

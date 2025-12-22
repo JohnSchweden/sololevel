@@ -137,6 +137,17 @@ describe('SignInScreen', () => {
       expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
     })
+
+    // Test: Subtitle displays a random roast message
+    it('displays a random roast message subtitle', () => {
+      // Act: Render screen
+      renderWithProvider(<SignInScreen />)
+
+      // Assert: Subtitle is displayed (all roast messages start with "Sign in")
+      // Use case-sensitive match to avoid matching button text "Sign In"
+      const subtitle = screen.getByText(/^Sign in/)
+      expect(subtitle).toBeInTheDocument()
+    })
   })
 
   describe('Authentication State', () => {

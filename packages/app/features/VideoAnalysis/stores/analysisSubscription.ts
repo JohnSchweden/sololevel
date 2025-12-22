@@ -1192,11 +1192,22 @@ function handleSubscriptionError(
   get: StoreGetter,
   set: StoreSetter
 ) {
-  log.error('AnalysisSubscriptionStore', 'Subscription error reported', {
-    key,
-    error,
-    details,
-  })
+  // CHANNEL_CLOSED is expected when unsubscribing or navigating away
+  // CHANNEL_ERROR can happen during reconnection - only warn, don't spam error logs
+  const isExpectedLifecycleEvent = error === 'CHANNEL_CLOSED' || error === 'CHANNEL_ERROR'
+  if (isExpectedLifecycleEvent) {
+    log.debug('AnalysisSubscriptionStore', 'Subscription channel event', {
+      key,
+      error,
+      details,
+    })
+  } else {
+    log.error('AnalysisSubscriptionStore', 'Subscription error reported', {
+      key,
+      error,
+      details,
+    })
+  }
 
   set((draft: AnalysisSubscriptionStoreState) => {
     const subscription = draft.subscriptions.get(key)

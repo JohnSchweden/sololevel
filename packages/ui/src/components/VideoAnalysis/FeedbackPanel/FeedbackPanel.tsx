@@ -1016,15 +1016,23 @@ export const FeedbackPanel = memo(
                   color="$color11"
                   textAlign="center"
                 >
-                  You are eager and curious. That's great. Right attitude!
+                  Cute curiosity, but you're hunting ghosts. No friends = no comments.
                 </Text>
                 <Text
                   fontSize="$4"
                   color="$color11"
                   textAlign="center"
                 >
-                  Go to History & Progress to see the comments for this video to get a better
-                  understanding for the idea. ;)
+                  Share the video first, then check History & Progress once you actually have an
+                  audience. Logic helps! ;)
+                </Text>
+                <Text
+                  fontSize="$4"
+                  color="$color11"
+                  textAlign="center"
+                  paddingTop="$4"
+                >
+                  In Beta Version, it works without sharing.
                 </Text>
               </YStack>
             </CommentsListContainer>

@@ -1063,46 +1063,50 @@ export function subscribeToAnalysisTitle(
                   if (!unsubscribed && !error && data) {
                     onUpdate(data.title ?? null, data.full_feedback_text ?? null, data.id ?? null)
                   } else if (!unsubscribed && !error && !data) {
-                    // H9: Data doesn't exist yet - poll periodically as fallback for realtime failures
-                    // Poll every 2 seconds for up to 30 seconds (15 attempts)
+                    // H9: Data doesn't exist yet - poll with exponential backoff as fallback for realtime failures
+                    // Backoff: 1s, 2s, 4s, 8s, 16s = 31s total coverage with only 5 requests (vs 15 with fixed interval)
                     let pollAttempts = 0
-                    const maxPollAttempts = 15
-                    pollInterval = setInterval(() => {
+                    const maxPollAttempts = 5
+                    const baseDelayMs = 1000
+
+                    const schedulePoll = () => {
                       if (unsubscribed || pollAttempts >= maxPollAttempts) {
-                        if (pollInterval) {
-                          clearInterval(pollInterval)
-                          pollInterval = null
-                        }
                         return
                       }
-                      pollAttempts++
-                      supabase
-                        .from('analyses')
-                        .select('id, title, full_feedback_text')
-                        .eq('job_id', jobId)
-                        .maybeSingle()
-                        .then((pollResult) => {
-                          const { data: pollData, error: pollError } = pollResult as {
-                            data: {
-                              id: string | null
-                              title: string | null
-                              full_feedback_text: string | null
-                            } | null
-                            error: any
-                          }
-                          if (!unsubscribed && !pollError && pollData) {
-                            if (pollInterval) {
-                              clearInterval(pollInterval)
-                              pollInterval = null
+                      const delayMs = baseDelayMs * 2 ** pollAttempts
+                      pollInterval = setTimeout(() => {
+                        if (unsubscribed) {
+                          return
+                        }
+                        pollAttempts++
+                        supabase
+                          .from('analyses')
+                          .select('id, title, full_feedback_text')
+                          .eq('job_id', jobId)
+                          .maybeSingle()
+                          .then((pollResult) => {
+                            const { data: pollData, error: pollError } = pollResult as {
+                              data: {
+                                id: string | null
+                                title: string | null
+                                full_feedback_text: string | null
+                              } | null
+                              error: any
                             }
-                            onUpdate(
-                              pollData.title ?? null,
-                              pollData.full_feedback_text ?? null,
-                              pollData.id ?? null
-                            )
-                          }
-                        })
-                    }, 2000)
+                            if (!unsubscribed && !pollError && pollData) {
+                              onUpdate(
+                                pollData.title ?? null,
+                                pollData.full_feedback_text ?? null,
+                                pollData.id ?? null
+                              )
+                            } else if (!unsubscribed && !pollError) {
+                              // Data still not available, schedule next poll
+                              schedulePoll()
+                            }
+                          })
+                      }, delayMs)
+                    }
+                    schedulePoll()
                   }
                 })
                 .catch(() => {
@@ -1115,9 +1119,9 @@ export function subscribeToAnalysisTitle(
 
       return () => {
         unsubscribed = true
-        // Clear poll interval immediately on unsubscribe to prevent memory leaks
+        // Clear poll timeout immediately on unsubscribe to prevent memory leaks
         if (pollInterval) {
-          clearInterval(pollInterval)
+          clearTimeout(pollInterval)
           pollInterval = null
         }
         void supabase.removeChannel(subscription)

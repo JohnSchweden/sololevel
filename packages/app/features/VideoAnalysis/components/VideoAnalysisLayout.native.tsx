@@ -481,13 +481,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
 
               {/* Processing Indicator - positioned absolutely to overlay above video section */}
               <ProcessingIndicator
-                phase={
-                  video.isReady && feedback.phase === 'generating-feedback'
-                    ? ('ready' as AnalysisPhase)
-                    : video.isReady
-                      ? feedback.phase
-                      : 'analyzing'
-                }
+                phase={feedback.phase}
                 progress={feedback.progress}
                 subscription={subscription}
               />

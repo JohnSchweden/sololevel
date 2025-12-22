@@ -888,7 +888,11 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                     }
                   }
                 } else if (status === 'CHANNEL_ERROR') {
-                  log.error('FeedbackStatusStore', `Subscription error for analysis ${analysisId}`)
+                  // CHANNEL_ERROR can happen during reconnection or cleanup - don't spam error logs
+                  log.debug(
+                    'FeedbackStatusStore',
+                    `Subscription channel error for analysis ${analysisId}`
+                  )
                   set((draft) => {
                     const retryState = draft.subscriptionRetries.get(analysisId)
 
@@ -905,6 +909,40 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                       log.warn('FeedbackStatusStore', 'Subscription marked failed after retries', {
                         analysisId,
                       })
+
+                      // FINAL FETCH: Catch any feedbacks that arrived after last retry's initial fetch
+                      // Fire and forget - don't block on this
+                      void (async () => {
+                        try {
+                          const { data: finalFeedbacks, error } = await (supabase as any)
+                            .from('analysis_feedback')
+                            .select(
+                              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                            )
+                            .eq('analysis_id', analysisId)
+                            .order('created_at', { ascending: true })
+
+                          if (!error && finalFeedbacks && finalFeedbacks.length > 0) {
+                            log.info(
+                              'FeedbackStatusStore',
+                              'Final fetch found feedbacks after retries failed',
+                              {
+                                analysisId,
+                                count: finalFeedbacks.length,
+                              }
+                            )
+                            finalFeedbacks.forEach((feedback: any) => {
+                              get().addFeedback(feedback as FeedbackStatusData)
+                            })
+                          }
+                        } catch (err) {
+                          log.debug('FeedbackStatusStore', 'Final fetch failed (non-critical)', {
+                            analysisId,
+                            error: err instanceof Error ? err.message : String(err),
+                          })
+                        }
+                      })()
+
                       return
                     }
 
