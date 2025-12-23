@@ -151,47 +151,100 @@ export const useAuthStore = create<AuthStore>()(
         } = await supabase.auth.getSession()
 
         if (cachedSession) {
-          // Fast path: Use cached session immediately
-          set({
-            session: cachedSession,
-            user: cachedSession.user,
-            loading: false,
-            initialized: true,
-          })
+          // STALE TOKEN FIX: Check if token is expired BEFORE trusting it
+          // expires_at is Unix timestamp in seconds, add 60s buffer for clock skew
+          const expiresAtMs = cachedSession.expires_at ? cachedSession.expires_at * 1000 : 0
+          const bufferMs = 60 * 1000 // 60 second safety buffer
+          const isExpired = expiresAtMs > 0 && expiresAtMs - bufferMs < Date.now()
 
-          log.info('auth.ts', 'Using cached session (fast path)', {
-            userId: cachedSession.user.id,
-          })
-
-          // Validate session in background (non-blocking)
-          supabase.auth
-            .getSession()
-            .then(({ data: { session }, error }) => {
-              if (error || !session) {
-                // Session invalid - clear and force re-auth
-                log.warn('auth.ts', 'Cached session invalid, clearing', { error })
-                set({ session: null, user: null })
-              } else if (session.access_token !== cachedSession.access_token) {
-                // Session refreshed - update
-                log.info('auth.ts', 'Session refreshed in background')
-                set({ session, user: session.user })
-              }
+          if (isExpired) {
+            // Token expired - skip fast path, force full validation
+            log.warn('auth.ts', 'Cached session expired, skipping fast path', {
+              expiresAt: new Date(expiresAtMs).toISOString(),
+              now: new Date().toISOString(),
+              expiredByMs: Date.now() - expiresAtMs,
             })
-            .catch((err) => {
-              log.error('auth.ts', 'Background session validation failed', { error: err })
+            // Fall through to slow path below
+          } else {
+            // Token valid - use fast path
+            set({
+              session: cachedSession,
+              user: cachedSession.user,
+              loading: false,
+              initialized: true,
             })
 
-          // Setup auth listener in background
-          setTimeout(() => {
-            if (!authSubscription) {
-              authSubscription = supabase.auth.onAuthStateChange((event, session) => {
-                log.debug('auth.ts', 'Auth state changed', { event, hasSession: !!session })
-                set({ user: session?.user ?? null, session })
+            log.info('auth.ts', 'Using cached session (fast path)', {
+              userId: cachedSession.user.id,
+              expiresIn: Math.round((expiresAtMs - Date.now()) / 1000),
+            })
+
+            // Validate session with SERVER (not cache) in background
+            // CRITICAL: Use getUser() not getSession() - getUser() validates with server
+            // This catches tokens that are valid by timestamp but revoked server-side
+            supabase.auth
+              .getUser()
+              .then(async ({ data: { user }, error }) => {
+                // Only sign out on EXPLICIT auth errors, not network failures
+                // Network errors should NOT log users out - that's terrible UX
+                const isAuthError =
+                  error?.message?.includes('invalid') ||
+                  error?.message?.includes('expired') ||
+                  error?.message?.includes('revoked') ||
+                  error?.message?.includes('401') ||
+                  error?.status === 401
+
+                if (isAuthError) {
+                  // Token genuinely invalid on server - sign out
+                  log.warn('auth.ts', 'Session invalid on server, signing out', {
+                    error: error?.message,
+                  })
+                  await supabase.auth.signOut()
+                  set({ session: null, user: null })
+                } else if (error) {
+                  // Network error or transient failure - keep session, don't log out
+                  log.warn('auth.ts', 'Session validation failed (network?), keeping session', {
+                    error: error?.message,
+                  })
+                } else if (!user) {
+                  // No user but no error - weird state, sign out
+                  log.warn('auth.ts', 'No user returned from getUser, signing out')
+                  await supabase.auth.signOut()
+                  set({ session: null, user: null })
+                } else if (user.id !== cachedSession.user.id) {
+                  // Different user - this shouldn't happen, but handle it
+                  log.warn('auth.ts', 'User mismatch, signing out')
+                  await supabase.auth.signOut()
+                  set({ session: null, user: null })
+                } else {
+                  log.debug('auth.ts', 'Cached session validated with server')
+                }
               })
-            }
-          }, 500)
+              .catch((err) => {
+                // Network error - absolutely do NOT sign out
+                log.warn(
+                  'auth.ts',
+                  'Background session validation failed (network), keeping session',
+                  {
+                    error: err,
+                  }
+                )
+              })
 
-          return // Exit early - UI is already interactive
+            // Setup auth listener in background
+            setTimeout(() => {
+              if (!authSubscription) {
+                authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+                  if (__DEV__) {
+                    log.debug('auth.ts', 'Auth state changed', { event, hasSession: !!session })
+                  }
+                  set({ user: session?.user ?? null, session })
+                })
+              }
+            }, 500)
+
+            return // Exit early - UI is already interactive
+          }
         }
       } catch (cacheError) {
         log.warn('auth.ts', 'Failed to get cached session, proceeding with full initialization', {
@@ -222,12 +275,9 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         // Listen for auth changes - store subscription for cleanup
-        authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+        authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
           if (__DEV__) {
-            log.debug('auth.ts', 'Auth state changed', {
-              event: _event,
-              hasSession: !!session,
-            })
+            log.debug('auth.ts', 'Auth state changed', { event, hasSession: !!session })
           }
           set({
             user: session?.user ?? null,

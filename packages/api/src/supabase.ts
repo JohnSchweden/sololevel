@@ -12,6 +12,22 @@ try {
   Platform = null
 }
 
+// AsyncStorage adapter for React Native session persistence
+// Supabase v2 requires explicit storage adapter on React Native
+let AsyncStorage: {
+  getItem: (key: string) => Promise<string | null>
+  setItem: (key: string, value: string) => Promise<void>
+  removeItem: (key: string) => Promise<void>
+} | null = null
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  AsyncStorage = require('@react-native-async-storage/async-storage').default
+} catch {
+  // AsyncStorage not available (web or Node.js) - will use default localStorage
+  AsyncStorage = null
+}
+
 /**
  * Adjusts Supabase URL for platform-specific localhost handling
  * - iOS Simulator/Web: 127.0.0.1 works as-is
@@ -64,10 +80,6 @@ if (supabaseUrl) {
   supabaseUrl = adjustUrlForPlatform(supabaseUrl)
 }
 
-// DEBUG: Log environment variables (without exposing keys)
-if (process.env.NODE_ENV === 'development') {
-}
-
 // Ensure required environment variables are present
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
@@ -97,6 +109,9 @@ function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
         persistSession: true,
         // Storage key for session
         storageKey: 'supabase.auth.token',
+        // Use AsyncStorage on React Native for session persistence
+        // Without this, sessions are stored in memory only and lost on app restart
+        ...(AsyncStorage && { storage: AsyncStorage }),
       },
     })
   }

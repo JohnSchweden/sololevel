@@ -47,6 +47,115 @@ const DEFAULT_OPTIONS: Required<VideoValidationOptions> = {
 }
 
 /**
+ * Video metadata for URI-based validation (native)
+ * Avoids reading entire file into memory
+ */
+export interface VideoFileInfo {
+  size: number
+  mimeType: string
+  duration: number
+  fileName?: string
+  width?: number
+  height?: number
+}
+
+/**
+ * Validate video from metadata only (no File object needed)
+ * Use this on native to avoid reading entire video into memory
+ */
+export function validateVideoFromMetadata(
+  info: VideoFileInfo,
+  options: VideoValidationOptions = {}
+): VideoValidationResult {
+  const opts = { ...DEFAULT_OPTIONS, ...options }
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // Format validation
+  if (!opts.allowedFormats.includes(info.mimeType)) {
+    errors.push(`Invalid format. Supported formats: ${opts.allowedFormats.join(', ')}`)
+  }
+
+  // Size validation
+  if (info.size > opts.maxFileSizeBytes) {
+    errors.push(`File too large. Maximum size: ${formatFileSize(opts.maxFileSizeBytes)}`)
+  }
+
+  if (info.size === 0) {
+    errors.push('File is empty')
+  }
+
+  // Duration validation
+  if (info.duration > opts.maxDurationSeconds) {
+    errors.push(`Video too long. Maximum duration: ${opts.maxDurationSeconds} seconds`)
+  }
+
+  if (info.duration < opts.minDurationSeconds) {
+    errors.push(`Video too short. Minimum duration: ${opts.minDurationSeconds} seconds`)
+  }
+
+  if (info.duration === 0) {
+    errors.push('Video has no duration')
+  }
+
+  // Resolution validation (if provided)
+  if (info.width && info.height) {
+    if (info.width < opts.minResolution.width || info.height < opts.minResolution.height) {
+      errors.push(
+        `Video resolution too low. Minimum: ${opts.minResolution.width}x${opts.minResolution.height}`
+      )
+    }
+
+    if (info.width > opts.maxResolution.width || info.height > opts.maxResolution.height) {
+      warnings.push(`Video resolution very high. May cause performance issues.`)
+    }
+
+    const resolution = info.width * info.height
+    if (resolution < 720 * 1280) {
+      warnings.push(
+        'Video resolution is quite low. Consider using higher quality for better analysis.'
+      )
+    }
+
+    const aspectRatio = info.width / info.height
+    if (aspectRatio < 0.5 || aspectRatio > 2.0) {
+      warnings.push('Video has unusual aspect ratio. Square or 16:9 recommended.')
+    }
+  }
+
+  // Bitrate warnings
+  if (info.duration > 0) {
+    const bitrate = (info.size * 8) / info.duration
+    if (bitrate < 500000) {
+      warnings.push('Video quality appears to be very low. Consider using higher bitrate.')
+    } else if (bitrate > 10000000) {
+      warnings.push('Video bitrate is very high. File size may be unnecessarily large.')
+    }
+  }
+
+  // Format-specific warnings
+  if (info.mimeType === 'video/quicktime' || info.mimeType === 'video/mov') {
+    warnings.push('MOV format detected. MP4 recommended for better compatibility.')
+  }
+
+  const metadata: VideoValidationResult['metadata'] = {
+    duration: info.duration,
+    size: info.size,
+    format: info.mimeType,
+    width: info.width,
+    height: info.height,
+    bitrate: info.duration > 0 ? (info.size * 8) / info.duration : undefined,
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    metadata,
+  }
+}
+
+/**
  * Validate video file format, duration, and size
  */
 export async function validateVideoFile(

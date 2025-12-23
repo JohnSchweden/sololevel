@@ -8,6 +8,7 @@ import { useAuthStore } from './auth'
 jest.mock('@my/api', () => {
   const mockSignOut = jest.fn()
   const mockGetSession = jest.fn()
+  const mockGetUser = jest.fn()
   const mockOnAuthStateChange = jest.fn()
 
   return {
@@ -15,6 +16,7 @@ jest.mock('@my/api', () => {
       auth: {
         signOut: mockSignOut,
         getSession: mockGetSession,
+        getUser: mockGetUser,
         onAuthStateChange: mockOnAuthStateChange,
       },
     },
@@ -152,10 +154,16 @@ describe('AuthStore', () => {
 
       // Use static import instead of dynamic import
       const mockGetSession = jest.mocked(supabase.auth.getSession)
+      const mockGetUser = jest.mocked(supabase.auth.getUser)
       const mockOnAuthStateChange = jest.mocked(supabase.auth.onAuthStateChange)
 
       mockGetSession.mockResolvedValue({
         data: { session: mockSession },
+        error: null,
+      })
+      // Mock getUser for background validation
+      mockGetUser.mockResolvedValue({
+        data: { user: mockUser },
         error: null,
       })
       mockOnAuthStateChange.mockReturnValue({
@@ -167,7 +175,10 @@ describe('AuthStore', () => {
       try {
         await useAuthStore.getState().initialize()
 
-        expect(supabase.auth.getSession).toHaveBeenCalledTimes(2)
+        // getSession called once for initial check
+        expect(supabase.auth.getSession).toHaveBeenCalledTimes(1)
+        // getUser called for background server validation
+        expect(supabase.auth.getUser).toHaveBeenCalledTimes(1)
         expect(supabase.auth.onAuthStateChange).not.toHaveBeenCalled()
 
         jest.runOnlyPendingTimers()

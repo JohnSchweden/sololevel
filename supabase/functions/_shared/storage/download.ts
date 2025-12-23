@@ -21,7 +21,7 @@ export interface DownloadedVideo {
 export async function downloadVideo(
   supabase: any,
   videoPath: string,
-  maxFileSizeMB = 20
+  maxFileSizeMB = 50
 ): Promise<DownloadedVideo> {
   logger.info(`Resolving video source: ${videoPath}`)
   const _startResolveMs = Date.now()

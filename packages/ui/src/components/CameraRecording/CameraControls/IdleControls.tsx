@@ -13,7 +13,12 @@ import { VideoFilePicker } from '../../VideoFilePicker/VideoFilePicker'
 export interface IdleControlsProps {
   onStartRecording?: () => void
   onUploadVideo?: () => void
-  onVideoSelected?: (file: File, metadata: VideoValidationResult['metadata']) => void
+  /**
+   * Called when video is selected from picker.
+   * Native: file is undefined (uses metadata.localUri to avoid memory spike)
+   * Web: file is provided
+   */
+  onVideoSelected?: (file: File | undefined, metadata: VideoValidationResult['metadata']) => void
   onCameraSwap?: () => void
   disabled?: boolean
   cameraSwapDisabled?: boolean
@@ -68,7 +73,7 @@ export function IdleControls({
   }, [onVideoSelected, onUploadVideo])
 
   const handleVideoSelected = useCallback(
-    (file: File, metadata: VideoValidationResult['metadata']) => {
+    (file: File | undefined, metadata: VideoValidationResult['metadata']) => {
       setIsPickerOpen(false)
       onVideoSelected?.(file, metadata)
     },

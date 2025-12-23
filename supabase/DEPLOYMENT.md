@@ -34,7 +34,7 @@ yarn supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 yarn supabase secrets set GEMINI_MMM_MODEL=gemini-2.0-flash
 yarn supabase secrets set GEMINI_LLM_MODEL=gemini-2.5-flash-lite
 yarn supabase secrets set GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
-yarn supabase secrets set GEMINI_FILES_MAX_MB=20
+yarn supabase secrets set GEMINI_FILES_MAX_MB=50
 yarn supabase secrets set DEFAULT_VOICE_NAME=Sadachbia
 
 # Optional: Set AI analysis mode (real or mock)

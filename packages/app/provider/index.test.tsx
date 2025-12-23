@@ -20,6 +20,11 @@ jest.mock('react-native', () => ({
   View: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
     <div {...props}>{children}</div>
   ),
+  AppState: {
+    currentState: 'active',
+    addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    removeEventListener: jest.fn(),
+  },
 }))
 
 jest.mock('react-native-safe-area-context', () => ({

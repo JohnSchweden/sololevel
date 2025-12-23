@@ -73,6 +73,22 @@ function isPersistentPath(localUri: string): boolean {
 }
 
 /**
+ * Best-effort cleanup of temp compressed file.
+ * Non-blocking, silent failure (compressor may already clean up its own temps).
+ */
+async function cleanupTempFile(uri: string): Promise<void> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri)
+    if (info.exists) {
+      await FileSystem.deleteAsync(uri, { idempotent: true })
+    }
+  } catch {
+    // Silent failure - temp cleanup is best-effort
+    // iOS/Android will eventually clean temp directories anyway
+  }
+}
+
+/**
  * Generate thumbnail from video URI (unified for both recorded and uploaded videos)
  */
 async function generateThumbnail(videoUri: string, context: string): Promise<string | undefined> {
@@ -123,35 +139,87 @@ async function resolveVideoToUpload(params: {
 }> {
   const { sourceUri, file, durationSeconds, format, localUri } = params
 
-  // UNIFIED PATH: If file is provided with localUri, treat it similar to sourceUri
-  // The only difference is we don't compress (file is already processed)
-  if (file && localUri) {
-    const metadata: VideoMetadata = {
-      duration: durationSeconds || 30,
+  // FILE PICKER PATH: localUri provided (native may not have file blob)
+  // Native: file is undefined (avoids 28MB memory spike), uses localUri for compression
+  // Web: file is provided as fallback
+  if (localUri && !sourceUri) {
+    log.info('startUploadAndAnalysis', 'Processing file picker video', {
+      hasFile: !!file,
+      fileSize: file?.size,
+      duration: durationSeconds,
       format: format || 'mp4',
-      localUri: localUri, // Store for persistence check later
-    }
-
-    log.info('startUploadAndAnalysis', 'Processing uploaded video file', {
-      fileName: (file instanceof File ? file.name : undefined) || 'video.mp4',
-      fileSize: file.size,
-      duration: metadata.duration,
-      format: metadata.format,
       localUri: localUri.substring(0, 80),
       isTemporary: isTemporaryPath(localUri),
       isPersistent: isPersistentPath(localUri),
     })
 
-    // Generate thumbnail from localUri (same as recorded videos)
-    const thumbnailUri = await generateThumbnail(localUri, 'uploaded video')
+    // PERF: Start thumbnail generation in parallel with compression
+    // Thumbnail uses original localUri, doesn't need to wait for compression
+    const thumbnailPromise = generateThumbnail(localUri, 'uploaded video')
 
-    return { videoToUpload: file, metadata, thumbnailUri, thumbnailUrl: undefined }
+    // Compress the video from localUri (single blob creation after compression)
+    let videoToUpload: File | Blob | undefined = undefined
+    let finalFormat: 'mp4' | 'mov' = format || 'mp4'
+    let compressedTempUri: string | undefined = undefined
+
+    try {
+      log.info('videoUploadAndAnalysis', 'Starting video compression for file picker video')
+      const compressionResult = await compressVideo(localUri)
+      compressedTempUri = compressionResult.compressedUri
+
+      log.info('videoUploadAndAnalysis', 'File picker video compression completed', {
+        compressedUri: compressionResult.compressedUri,
+        compressedSize: compressionResult.metadata.size,
+        duration: durationSeconds,
+      })
+
+      // Convert compressed URI to blob for upload (single blob creation)
+      videoToUpload = await uriToBlob(compressionResult.compressedUri)
+      finalFormat = (compressionResult.metadata.format === 'mov' ? 'mov' : 'mp4') as 'mp4' | 'mov'
+
+      // Clean up temp compressed file after reading to blob (best-effort, non-blocking)
+      // Note: react-native-compressor may already clean up its temp files
+      if (compressedTempUri && compressedTempUri !== localUri) {
+        void cleanupTempFile(compressedTempUri)
+      }
+    } catch (compressionError) {
+      log.warn('videoUploadAndAnalysis', 'File picker video compression failed', {
+        error:
+          compressionError instanceof Error ? compressionError.message : String(compressionError),
+      })
+
+      // Fallback: use provided file blob if available, otherwise create from localUri
+      if (file) {
+        videoToUpload = file
+      } else {
+        log.info('videoUploadAndAnalysis', 'Creating fallback blob from localUri')
+        videoToUpload = await uriToBlob(localUri)
+      }
+    }
+
+    const metadata: VideoMetadata = {
+      duration: durationSeconds || 30,
+      format: finalFormat,
+      localUri: localUri, // Store for persistence check later
+    }
+
+    // Await thumbnail (started in parallel, may already be done)
+    const thumbnailUri = await thumbnailPromise
+
+    return { videoToUpload, metadata, thumbnailUri, thumbnailUrl: undefined }
   }
 
   // RECORDED VIDEO PATH: sourceUri provided (from camera recording)
   if (!sourceUri) {
     throw new Error('Invalid options: neither file+localUri nor sourceUri provided')
   }
+
+  // Store original sourceUri as localUri - this is the persistent saved video from camera
+  const persistentLocalUri = sourceUri
+
+  // PERF: Start thumbnail generation in parallel with compression
+  // Thumbnail uses original sourceUri, doesn't need to wait for compression
+  const thumbnailPromise = generateThumbnail(persistentLocalUri, 'recorded video')
 
   // Default metadata before compression
   let metadata: VideoMetadata = {
@@ -161,11 +229,12 @@ async function resolveVideoToUpload(params: {
 
   // Attempt compression first, with graceful fallback
   let videoToUploadUri = sourceUri
-  // Store original sourceUri as localUri - this is the persistent saved video from camera
-  const persistentLocalUri = sourceUri
+  let compressedTempUri: string | undefined = undefined
+
   try {
     log.info('videoUploadAndAnalysis', 'Starting video compression for recorded video')
     const compressionResult = await compressVideo(sourceUri)
+    compressedTempUri = compressionResult.compressedUri
 
     log.info('videoUploadAndAnalysis', 'Video compression completed', {
       compressedUri: compressionResult.compressedUri,
@@ -191,14 +260,21 @@ async function resolveVideoToUpload(params: {
     // Keep defaults and original URI
   }
 
-  // Generate thumbnail from original sourceUri (before compression, for better quality)
-  const thumbnailUri = await generateThumbnail(persistentLocalUri, 'recorded video')
-
   // Ensure localUri is set in metadata
   metadata = { ...metadata, localUri: metadata.localUri ?? persistentLocalUri }
 
   log.info('startUploadAndAnalysis', 'Converting video to Blob', { uri: videoToUploadUri })
   const videoToUpload = await uriToBlob(videoToUploadUri)
+
+  // Clean up temp compressed file after reading to blob (best-effort, non-blocking)
+  // Note: react-native-compressor may already clean up its temp files
+  if (compressedTempUri && compressedTempUri !== sourceUri) {
+    void cleanupTempFile(compressedTempUri)
+  }
+
+  // Await thumbnail (started in parallel, may already be done)
+  const thumbnailUri = await thumbnailPromise
+
   return {
     videoToUpload,
     metadata,
@@ -312,8 +388,9 @@ export async function startUploadAndAnalysis(
   } = options
 
   // Input validation
-  if (!sourceUri && !file) {
-    throw new Error('Either sourceUri or file must be provided')
+  // Valid inputs: sourceUri (camera) OR file (web picker) OR localUri (native picker)
+  if (!sourceUri && !file && !localUri) {
+    throw new Error('Either sourceUri, file, or localUri must be provided')
   }
 
   // 1) Seed upload progress store with a temporary pending task so UI shows processing

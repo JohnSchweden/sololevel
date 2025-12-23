@@ -60,7 +60,7 @@ export function getGeminiConfig(): GeminiConfig {
   const llmGenerateUrl = `${apiBase}/v1beta/models/${llmModel}:generateContent`
   const ttsGenerateUrl = `${apiBase}/v1beta/models/${ttsModel}:generateContent`
 
-  const filesMaxMb = Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '20')
+  const filesMaxMb = Number.parseInt(Deno.env.get('GEMINI_FILES_MAX_MB') || '50')
   const analysisMode = (Deno.env.get('AI_ANALYSIS_MODE') || 'real') as 'real' | 'mock'
   const defaultVoiceName = Deno.env.get('DEFAULT_VOICE_NAME') || 'Sadachbia'
 

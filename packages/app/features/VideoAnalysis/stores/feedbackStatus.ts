@@ -525,13 +525,15 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         // Subscribe to analysis feedbacks
         subscribeToAnalysisFeedbacks: async (analysisId) => {
           const state = get()
+          const existingStatus = state.subscriptionStatus.get(analysisId)
+          // FIX: Check status ALONE - the subscriptions Map is populated AFTER channel creation,
+          // but status is set to 'pending' BEFORE. This caused a race window where duplicate
+          // subscriptions could be created, causing Supabase to close the first channel.
+          const shouldBlock = existingStatus === 'active' || existingStatus === 'pending'
 
-          // Strengthen guard: don't subscribe if already active OR pending
-          if (
-            state.subscriptions.has(analysisId) &&
-            (state.subscriptionStatus.get(analysisId) === 'active' ||
-              state.subscriptionStatus.get(analysisId) === 'pending')
-          ) {
+          // FIX: Guard on status alone - don't require subscriptions.has()
+          // Status is set to 'pending' immediately, subscriptions Map is set later
+          if (shouldBlock) {
             log.debug(
               'FeedbackStatusStore',
               `Already subscribed or subscribing to analysis ${analysisId}`
@@ -547,17 +549,17 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             return
           }
 
-          try {
-            // Defer state update to avoid updating during render cycle
-            await Promise.resolve().then(() => {
-              set((draft) => {
-                draft.subscriptionStatus.set(analysisId, 'pending')
-                if (!draft.subscriptionRetries.has(analysisId)) {
-                  draft.subscriptionRetries.set(analysisId, { attempts: 0, timeoutId: null })
-                }
-              })
-            })
+          // FIX: Set status to 'pending' SYNCHRONOUSLY before any async work
+          // This ensures any concurrent calls see the pending status immediately
+          // and prevents duplicate channel creation race conditions
+          set((draft) => {
+            draft.subscriptionStatus.set(analysisId, 'pending')
+            if (!draft.subscriptionRetries.has(analysisId)) {
+              draft.subscriptionRetries.set(analysisId, { attempts: 0, timeoutId: null })
+            }
+          })
 
+          try {
             // Check if feedbacks already exist in store (from prefetch or previous subscription)
             const existingFeedbacksInStore = get().getFeedbacksByAnalysisId(analysisId)
             const hasPrefetchedFeedbacks = existingFeedbacksInStore.length > 0

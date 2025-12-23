@@ -9,11 +9,13 @@ const getActionSheetProvider = () => {
     return ({ children }: { children: React.ReactNode }) => children
   }
 }
+import { supabase } from '@my/api'
 import { log } from '@my/logging'
 import { TamaguiProvider, type TamaguiProviderProps, ToastProvider, config } from '@my/ui'
+import { focusManager } from '@tanstack/react-query'
 import { enableMapSet } from 'immer'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, View, useColorScheme } from 'react-native'
+import { AppState, type AppStateStatus, Platform, View, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { initializeTestAuth } from '../auth/testAuthBootstrap'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -22,6 +24,67 @@ import { useFeatureFlagsStore } from '../stores/feature-flags'
 import { I18nProvider } from './I18nProvider'
 import { QueryProvider } from './QueryProvider'
 import { ToastViewport } from './ToastViewport'
+
+/**
+ * Setup AppState listener for React Native to handle background/foreground transitions.
+ * This is CRITICAL for:
+ * 1. Refreshing auth tokens when app returns from background
+ * 2. Enabling TanStack Query's refetchOnWindowFocus on React Native
+ *
+ * Without this, users get logged out when they lock their phone and come back.
+ */
+function useAppStateRefresh() {
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
+
+  useEffect(() => {
+    // Skip on web - window focus events work natively there
+    if (Platform.OS === 'web') return
+
+    // Setup TanStack Query focus manager for React Native
+    // This makes refetchOnWindowFocus work on mobile
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasBackground = appStateRef.current.match(/inactive|background/)
+      const isNowActive = nextState === 'active'
+
+      if (wasBackground && isNowActive) {
+        log.debug('Provider', 'App returned to foreground, refreshing session')
+
+        // 1. Tell TanStack Query the window is focused (triggers refetchOnWindowFocus)
+        focusManager.setFocused(true)
+
+        // 2. Refresh Supabase auth session
+        // This catches expired tokens that occurred while app was suspended
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+          if (error) {
+            log.warn('Provider', 'Session refresh on foreground failed', { error: error.message })
+          } else if (session) {
+            // Update auth store with refreshed session
+            useAuthStore.getState().setAuth(session.user, session)
+            log.debug('Provider', 'Session refreshed on foreground', {
+              userId: session.user.id.slice(0, 8),
+              expiresIn: session.expires_at
+                ? Math.round((session.expires_at * 1000 - Date.now()) / 1000)
+                : null,
+            })
+          } else {
+            // No session - user was logged out while backgrounded
+            log.info('Provider', 'No session on foreground - user logged out')
+            useAuthStore.getState().setAuth(null, null)
+          }
+        })
+      } else if (nextState.match(/inactive|background/)) {
+        // App going to background - mark as unfocused
+        focusManager.setFocused(false)
+      }
+
+      appStateRef.current = nextState
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [])
+}
 
 // Module-level flag to ensure initialization runs only once across all Provider instances
 let providerInitialized = false
@@ -41,6 +104,9 @@ export function Provider({
   useEffect(() => {
     enableMapSet()
   }, [])
+
+  // Handle app background/foreground transitions - refresh auth + TanStack Query focus
+  useAppStateRefresh()
 
   const colorScheme = useColorScheme()
   const theme = colorScheme === 'dark' ? 'dark' : defaultTheme || 'dark'

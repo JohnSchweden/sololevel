@@ -35,7 +35,7 @@ describe('getGeminiConfig', () => {
     expect(config.mmModel).toBe('gemini-2.5-flash')
     expect(config.llmModel).toBe('gemini-2.5-flash-lite')
     expect(config.ttsModel).toBe('gemini-2.5-flash-preview-tts')
-    expect(config.filesMaxMb).toBe(20)
+    expect(config.filesMaxMb).toBe(50)
     expect(config.analysisMode).toBe('real')
     expect(config.defaultVoiceName).toBe('Sadachbia')
   })

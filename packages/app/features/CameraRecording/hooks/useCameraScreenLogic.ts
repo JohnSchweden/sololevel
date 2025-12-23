@@ -401,27 +401,30 @@ export const useCameraScreenLogic = ({
   }, [])
 
   const handleVideoSelected = useCallback(
-    (file: File, metadata: any) => {
+    (file: File | undefined, metadata: any) => {
       log.info('handleVideoSelected', 'Video selected for upload', {
-        fileName: file.name,
-        fileSize: file.size,
+        fileName: file?.name ?? metadata?.originalFilename,
+        fileSize: file?.size ?? metadata?.size,
         duration: metadata?.duration,
         localUri: metadata?.localUri?.substring(0, 60),
+        hasFile: !!file,
       })
 
       // 1) Notify parent component (route file will handle navigation)
       onVideoProcessed?.(metadata?.localUri)
 
       // 2) Start the upload and analysis pipeline in background
+      // Native: file is undefined, uses localUri for compression (avoids 28MB memory spike)
+      // Web: file is provided
       void startUploadAndAnalysis({
         file,
         originalFilename:
           metadata?.originalFilename ||
-          file.name ||
+          file?.name ||
           `selected_video.${metadata?.format === 'mov' ? 'mov' : 'mp4'}`,
         durationSeconds: metadata?.duration,
         format: metadata?.format === 'mov' ? 'mov' : 'mp4',
-        localUri: metadata?.localUri, // Pass local URI for thumbnail generation
+        localUri: metadata?.localUri, // Used for compression on native, thumbnail on both
       })
     },
     [onVideoProcessed]

@@ -416,7 +416,7 @@ export function CameraRecordingScreen({
             padding="$2"
             borderRadius="$4"
           >
-            {/* <Button
+            <Button
               size="$4"
               backgroundColor="transparent"
               color="white"
@@ -425,7 +425,7 @@ export function CameraRecordingScreen({
               pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
             >
               🚀 DEV COMPRESSION TEST
-            </Button> */}
+            </Button>
             <Button
               size="$4"
               backgroundColor="transparent"

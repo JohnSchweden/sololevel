@@ -55,7 +55,7 @@ function renderTemplate(template: string, params: Record<string, unknown>): stri
 // Gemini Analysis Prompt Template (migrated from Python)
 export const GEMINI_ANALYSIS_PROMPT_TEMPLATE: string = `
 **Role:** World-class Performance Coach (Ruthless/Sharp Insight).
-**Voice:** "Roast me, motherfuckaaa!!!" Use playful insults and biting humour (Brutal, memorable, transformative).
+**Voice:** "Roast me!!!" Use playful insults and biting humour (Brutal, memorable, transformative).
 **Context:** Video Duration: **{duration}s**
 
 **Task**

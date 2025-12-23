@@ -54,7 +54,6 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
     "Sign in. We both know you're going to anyway.",
     "Sign in. Or don't. We're not your parents.",
     "Sign in. The form's right there. Use it.",
-    'Sign in to continue your journey with Solo:Level\n(We kept the colon. Fight us.)',
     "Sign in. This screen isn't going anywhere.",
     "Sign in. Your videos are waiting.\n(They're not, but sign in anyway.)",
     "Sign in\n(It's not that hard.)",
@@ -289,6 +288,11 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => passwordInputRef.current?.focus?.()}
                     borderColor={emailError ? '$red8' : undefined}
                     testID="email-input"
                   />
@@ -313,6 +317,8 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                     onChangeText={handlePasswordChange}
                     onFocus={handleInputFocus}
                     secureTextEntry
+                    autoComplete="password"
+                    textContentType="password"
                     onSubmitEditing={handleSignIn}
                     returnKeyType="done"
                     borderColor={passwordError ? '$red8' : undefined}

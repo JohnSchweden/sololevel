@@ -2,16 +2,21 @@ import { MAX_RECORDING_DURATION_SECONDS } from '@app/features/CameraRecording/co
 import { useActionSheet } from '@expo/react-native-action-sheet'
 import { log } from '@my/logging'
 import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
 import * as ImagePicker from 'expo-image-picker'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import type { VideoValidationResult } from '../../utils/videoValidation'
-import { validateVideoFile } from '../../utils/videoValidation'
+import { validateVideoFromMetadata } from '../../utils/videoValidation'
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog'
 
 export interface VideoFilePickerProps {
   isOpen: boolean
-  onVideoSelected: (file: File, metadata: VideoValidationResult['metadata']) => void
+  /**
+   * Called when video is selected.
+   * Native: file is undefined (use metadata.localUri to avoid 28MB memory spike)
+   */
+  onVideoSelected: (file: File | undefined, metadata: VideoValidationResult['metadata']) => void
   onCancel: () => void
   maxDurationSeconds?: number
   maxFileSizeBytes?: number
@@ -54,18 +59,13 @@ export function VideoFilePicker({
               return
             }
 
-            // NOTE: videoMaxDuration causes iOS to validate duration before returning,
-            // which can add 5-15 seconds delay. We validate ourselves instead for faster UX.
+            // allowsEditing: true shows iOS native video trim UI, letting users cut long videos
+            // videoMaxDuration enforces the limit in the trim UI (user can't select >30s)
+            // Tradeoff: iOS transcodes the result (~3-5s delay) instead of returning original file
             result = await ImagePicker.launchImageLibraryAsync({
               mediaTypes: 'videos',
-              allowsEditing: false,
-              // CRITICAL PERFORMANCE FIX:
-              // 'current' skips the slow iOS transcoding/export step (15s+ delay).
-              // It returns the original file (often HEVC) immediately.
-              preferredAssetRepresentationMode:
-                ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
-              // Removed quality: 1 as it can trigger compression
-              // Removed videoMaxDuration to avoid pre-validation delay
+              allowsEditing: true,
+              videoMaxDuration: maxDurationSeconds,
             })
             break
           }
@@ -120,17 +120,20 @@ export function VideoFilePicker({
           } else if ('type' in asset) {
             // ImagePicker asset
             fileName = `video_${Date.now()}.mp4`
-            mimeType = asset.type === 'video' ? 'video/mp4' : 'video/mp4'
+            // mediaTypes: 'videos' guarantees type='video', but check defensively
+            if (asset.type !== 'video') {
+              throw new Error('Selected media is not a video')
+            }
+            mimeType = 'video/mp4'
           } else {
             fileName = `video_${Date.now()}.mp4`
             mimeType = 'video/mp4'
           }
 
-          // For gallery/file selection, the file is already local - no need to copy it
-          // Only create File object for validation using the existing local file
-          const response = await fetch(asset.uri)
-          const blob = await response.blob()
-          const file = new File([blob], fileName, { type: mimeType })
+          // PERF: Get file size from FileSystem instead of fetching entire file into memory
+          // This avoids a 28MB memory spike for large videos
+          const fileInfo = await FileSystem.getInfoAsync(asset.uri, { size: true })
+          const fileSize = (fileInfo as { size?: number }).size || 0
 
           // Get duration from asset if available
           let assetDuration = 0
@@ -144,16 +147,18 @@ export function VideoFilePicker({
             }
           }
 
-          // Pass asset duration from picker as metadata override to avoid slow estimation
-          const metadataOverride = assetDuration > 0 ? { duration: assetDuration } : undefined
-
-          const validation = await validateVideoFile(
-            file,
+          // Validate using metadata only (no File blob needed on native)
+          const validation = validateVideoFromMetadata(
+            {
+              size: fileSize,
+              mimeType,
+              duration: assetDuration,
+              fileName,
+            },
             {
               maxDurationSeconds,
               maxFileSizeBytes,
-            },
-            metadataOverride
+            }
           )
 
           if (!validation.isValid) {
@@ -178,27 +183,21 @@ export function VideoFilePicker({
             return
           }
 
-          // Use asset duration if available and valid, otherwise use validation metadata
-          const finalDuration =
-            assetDuration > 0 ? assetDuration : validation.metadata?.duration || 0
+          // Construct metadata with guaranteed required fields
+          const metadata = {
+            duration: validation.metadata?.duration ?? assetDuration,
+            size: validation.metadata?.size ?? fileSize,
+            format: validation.metadata?.format ?? mimeType,
+            width: validation.metadata?.width,
+            height: validation.metadata?.height,
+            bitrate: validation.metadata?.bitrate,
+            localUri: asset.uri, // Use original URI - file stays on disk
+            originalFilename: fileName,
+          }
 
-          const metadata = validation.metadata
-            ? {
-                ...validation.metadata,
-                duration: finalDuration,
-                localUri: asset.uri, // Use original URI since file is already local
-                originalFilename: fileName,
-              }
-            : {
-                duration: finalDuration,
-                size: file.size,
-                format: mimeType.split('/')[1] || 'mp4',
-                localUri: asset.uri, // Use original URI since file is already local
-                originalFilename: fileName,
-              }
-
-          // Call success callback
-          onVideoSelected(file, metadata)
+          // Call success callback with undefined file (native uses localUri for compression)
+          // This avoids reading 28MB into memory just to pass it through
+          onVideoSelected(undefined, metadata)
 
           // Reset ref so picker can be opened again
           hasShownActionSheetRef.current = false
