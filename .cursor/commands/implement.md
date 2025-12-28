@@ -1,7 +1,7 @@
 Implement with real-time progress tracking and quality gates following TDD.
 
 CONTEXT:
-- Follow TDD methodology strictly (Red-Green-Refactor)
+- Follow TDD methodology strictly (Red-Green-Refactor) and @.cursor/rules/quality/testing-philosophy.mdc 
 - Track progress against Definition of Done criteria
 
 EXECUTION WORKFLOW:

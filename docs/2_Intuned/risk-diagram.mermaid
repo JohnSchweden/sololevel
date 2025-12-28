@@ -1,0 +1,88 @@
+graph TD
+    %% ---------------------------------------------------------
+    %% STYLES
+    %% ---------------------------------------------------------
+    classDef process fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b;
+    classDef risk fill:#ffebee,stroke:#c62828,stroke-width:2px,stroke-dasharray: 5 5,color:#c62828;
+    classDef decision fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#fbc02d;
+
+    %% ---------------------------------------------------------
+    %% MAIN PIPELINE (The "Happy Path")
+    %% ---------------------------------------------------------
+    subgraph Pipeline [Product Optimization Pipeline]
+        direction TB
+        
+        Step1["Step 1: Shopify Ingestion
+        (Baseline Data)"]
+        
+        Step15["Step 1.5: Page Selection
+        (Revenue & Relevance Filter)"]
+        
+        Step2["Step 2: LLM Query Runner
+        (Simulate Shopping Behavior)"]
+        
+        Step3["Step 3: Metrics Analysis
+        (Visibility Scoring)"]
+        
+        Step4["Step 4: Competitive Analysis
+        (Why others win)"]
+        
+        Step5["Step 5: Technical Readiness
+        (Schema & HTML)"]
+        
+        Step6["Step 6: Content Optimization
+        (Clarify Usage & Benefits)"]
+        
+        Step7["Step 7: Negative Eligibility
+        (Remove Avoidance Signals)"]
+        
+        Step8["Step 8: Validation & Trust
+        (Rerun & Verify)"]
+    end
+
+    %% ---------------------------------------------------------
+    %% RISKS (The "Reality Check")
+    %% ---------------------------------------------------------
+    Risk3("Risk #3: Spaghetti Code
+    (Hardcoded Liquid/iFrames)")
+    
+    Risk2("Risk #2: Token Incinerator
+    (Cost > Value)")
+    
+    Risk1("Risk #1: Random Generator
+    (Non-deterministic Metrics)")
+    
+    Risk4("Risk #4: Hallucinated Logic
+    (Anthropomorphizing Stats)")
+    
+    Risk5("Risk #5: Execution Gap
+    (Merchants can't code)")
+
+    %% ---------------------------------------------------------
+    %% CONNECTIONS
+    %% ---------------------------------------------------------
+    
+    %% Flow
+    Step1 --> Step15
+    Step15 --> Step2
+    Step2 --> Step3
+    Step3 --> Step4
+    Step4 --> Step5
+    Step5 --> Step6
+    Step6 --> Step7
+    Step7 --> Step8
+
+    %% Risk Mapping
+    Risk3 -.-o Step1
+    Risk2 -.-o Step2
+    Risk1 -.-o Step3
+    Risk4 -.-o Step4
+    Risk5 -.-o Step5
+    Risk5 -.-o Step8
+    Risk1 -.-o Step8
+
+    %% ---------------------------------------------------------
+    %% CLASS ASSIGNMENT
+    %% ---------------------------------------------------------
+    class Step1,Step15,Step2,Step3,Step4,Step5,Step6,Step7,Step8 process;
+    class Risk1,Risk2,Risk3,Risk4,Risk5 risk;
