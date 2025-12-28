@@ -26,10 +26,6 @@
       "tintedIcon": "./assets/icon-tinted.png",
       "infoPlist": {
         "CFBundleIconName": "AppIcon",
-        // REQUIRED: React Native's RCTStatusBarManager requires this to be NO (false)
-        // Error: "RCTStatusBarManager module requires that the UIViewControllerBasedStatusBarAppearance key in the Info.plist is set to NO"
-        // Per-screen customization still works via React Native's StatusBar API (StatusBar.setHidden, <StatusBar> component)
-        // and the useStatusBar hook which uses useFocusEffect to manage status bar per screen
         "UIViewControllerBasedStatusBarAppearance": false,
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select workout videos for AI analysis.",
         "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library, just like the native camera app.",
