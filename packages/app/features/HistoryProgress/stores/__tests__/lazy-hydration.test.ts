@@ -5,28 +5,23 @@
  * reducing startup memory usage.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { mmkvStorage } from '@my/config'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useVideoHistoryStore } from '../videoHistory'
 
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}))
+// Get mocked functions from the setup mock
+const mockGetItem = mmkvStorage.getItem as jest.Mock
 
 describe('Lazy Store Hydration', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Clear AsyncStorage mock
-    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+    // Clear MMKV mock
+    mockGetItem.mockReturnValue(null)
   })
 
   describe('Deferred hydration', () => {
     it('should not hydrate store data until ensureHydrated is called', async () => {
-      // Arrange: Store some data in AsyncStorage
+      // Arrange: Store some data in MMKV
       const mockCacheData = {
         cache: [
           [
@@ -48,7 +43,7 @@ describe('Lazy Store Hydration', () => {
         lastSync: Date.now(),
         version: 4,
       }
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockCacheData))
+      mockGetItem.mockReturnValueOnce(JSON.stringify(mockCacheData))
 
       // Act: Create store instance (should not hydrate automatically if skipHydration is enabled)
       const { result } = renderHook(() => useVideoHistoryStore())
@@ -60,7 +55,7 @@ describe('Lazy Store Hydration', () => {
     })
 
     it('should hydrate store when ensureHydrated is called', async () => {
-      // Arrange: Store some data in AsyncStorage
+      // Arrange: Store some data in MMKV
       const mockCacheData = {
         cache: [
           [
@@ -82,12 +77,12 @@ describe('Lazy Store Hydration', () => {
         lastSync: Date.now(),
         version: 4,
       }
-      // Mock AsyncStorage to return the cached data when called with the store key
-      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      // Mock MMKV to return the cached data when called with the store key
+      mockGetItem.mockImplementation((key: string) => {
         if (key === 'video-history-store') {
-          return Promise.resolve(JSON.stringify(mockCacheData))
+          return JSON.stringify(mockCacheData)
         }
-        return Promise.resolve(null)
+        return null
       })
 
       const { result } = renderHook(() => useVideoHistoryStore())
@@ -128,8 +123,8 @@ describe('Lazy Store Hydration', () => {
         { timeout: 2000 }
       )
 
-      // Verify that ensureHydrated was called and AsyncStorage was accessed
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith('video-history-store')
+      // Verify that ensureHydrated was called and MMKV was accessed
+      expect(mockGetItem).toHaveBeenCalledWith('video-history-store')
 
       // The persist middleware may not fully work in test environment,
       // but we can verify the mechanism by manually adding to cache and checking it works

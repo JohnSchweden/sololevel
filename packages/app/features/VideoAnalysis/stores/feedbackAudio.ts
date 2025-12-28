@@ -1,5 +1,5 @@
+import { mmkvStorage } from '@my/config'
 import { log } from '@my/logging'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
@@ -44,13 +44,13 @@ export interface FeedbackAudioState {
  * reading via selectors (no prop drilling) and use the provided actions to
  * mutate state.
  *
- * PERF: audioPaths is persisted to AsyncStorage - survives app restarts
+ * PERF: audioPaths is persisted to MMKV - survives app restarts
  * This eliminates filesystem checks on navigation (250ms+ saved per feedback)
  */
 export const useFeedbackAudioStore = create<FeedbackAudioState>()(
   persist(
     immer((set, get) => ({
-      // Persistent audio file paths (persisted to AsyncStorage)
+      // Persistent audio file paths (persisted to MMKV)
       audioPaths: {},
       getAudioPath: (feedbackId) => get().audioPaths[feedbackId] ?? null,
       setAudioPath: (feedbackId, path) => {
@@ -156,7 +156,7 @@ export const useFeedbackAudioStore = create<FeedbackAudioState>()(
     })),
     {
       name: 'feedback-audio-paths',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => mmkvStorage),
       // Only persist audioPaths - transient state (audioUrls, errors, etc.) should NOT persist
       partialize: (state) => ({ audioPaths: state.audioPaths }),
     }

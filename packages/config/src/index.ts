@@ -39,3 +39,6 @@ export type { Conf } from './tamagui.d'
 
 // Export Supabase database types
 export type { Database, Json } from './database.types'
+
+// Export storage adapters
+export { mmkvStorage, mmkvStorageAsync, mmkvDirect, mmkv } from './storage'

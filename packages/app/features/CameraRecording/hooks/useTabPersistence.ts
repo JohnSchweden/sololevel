@@ -1,5 +1,5 @@
+import { mmkvDirect } from '@my/config'
 import { log } from '@my/logging'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type TabType = 'coach' | 'record' | 'insights'
@@ -17,30 +17,30 @@ export type TabParamList = {
 const TAB_STORAGE_KEY = 'activeTab'
 const DEFAULT_TAB: TabType = 'record'
 
-// Module-level cache to prevent redundant AsyncStorage reads on remount
+// Module-level cache to prevent redundant MMKV reads on remount
 // When component remounts (e.g., due to shouldRender toggle), we use cached value
 let cachedTab: TabType | null = null
 let hasLoadedFromStorage = false
 
 /**
  * Custom hook for persisting tab state across app sessions
- * Uses AsyncStorage to save and restore the active tab
+ * Uses MMKV for fast synchronous storage (30x faster than AsyncStorage)
  *
  * Note: Uses module-level cache to prevent double-loading on component remount
  */
 export function useTabPersistence() {
-  // Use cached value if already loaded (prevents double AsyncStorage read)
+  // Use cached value if already loaded (prevents double MMKV read)
   const [activeTab, setActiveTabState] = useState<TabType>(cachedTab ?? DEFAULT_TAB)
   const [isLoading, setIsLoading] = useState(!hasLoadedFromStorage)
 
-  const loadSavedTab = useCallback(async () => {
+  const loadSavedTab = useCallback(() => {
     // Skip if already loaded from storage (module-level guard)
     if (hasLoadedFromStorage) {
       return
     }
 
     try {
-      const savedTab = await AsyncStorage.getItem(TAB_STORAGE_KEY)
+      const savedTab = mmkvDirect.getString(TAB_STORAGE_KEY)
 
       if (savedTab && isValidTab(savedTab)) {
         cachedTab = savedTab as TabType
@@ -72,9 +72,9 @@ export function useTabPersistence() {
 
   // Use ref for saveTab to keep setActiveTab stable (prevents cascade re-renders)
   // Create stable callback first, then assign to ref
-  const saveTabCallback = useCallback(async (tab: TabType) => {
+  const saveTabCallback = useCallback((tab: TabType) => {
     try {
-      await AsyncStorage.setItem(TAB_STORAGE_KEY, tab)
+      mmkvDirect.setString(TAB_STORAGE_KEY, tab)
       log.debug('useTabPersistence', 'Saved tab state', { tab })
     } catch (error) {
       log.error('useTabPersistence', 'Failed to save tab state', {

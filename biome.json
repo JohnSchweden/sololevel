@@ -184,6 +184,7 @@
   },
   "files": {
     "maxSize": 3145728,
-    "ignoreUnknown": true
+    "ignoreUnknown": true,
+    "ignore": ["**/ios/Pods/**", "**/ios/build/**", "**/android/**"]
   }
 }

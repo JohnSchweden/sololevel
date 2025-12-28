@@ -1,6 +1,6 @@
 import { supabase } from '@my/api'
+import { mmkvStorage } from '@my/config'
 import { log } from '@my/logging'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Draft } from 'immer'
 import { enableMapSet } from 'immer'
 import React from 'react'
@@ -1119,7 +1119,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
       })),
       {
         name: 'feedback-status-store',
-        storage: createJSONStorage(() => AsyncStorage),
+        storage: createJSONStorage(() => mmkvStorage),
         // Serialize Maps to arrays for persistence, reconstruct on rehydration
         partialize: (state) => ({
           feedbacks: Array.from(state.feedbacks.entries()),

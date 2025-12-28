@@ -495,6 +495,18 @@ jest.mock('@my/config', () => ({
   FeedbackMessage: {},
   SocialStats: {},
   FeedbackItem: {},
+  mmkvStorage: {
+    getItem: jest.fn((_key: string) => null),
+    setItem: jest.fn((_key: string, _value: string) => {}),
+    removeItem: jest.fn((_key: string) => {}),
+  },
+  mmkvDirect: {
+    getString: jest.fn().mockReturnValue(null),
+    setString: jest.fn(),
+    delete: jest.fn(),
+    contains: jest.fn().mockReturnValue(false),
+    clearAll: jest.fn(),
+  },
 }))
 
 // Mock @my/api

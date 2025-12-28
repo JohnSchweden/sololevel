@@ -1,3 +1,4 @@
+import { mmkv, mmkvStorageAsync } from '@my/config'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 
@@ -12,21 +13,10 @@ try {
   Platform = null
 }
 
-// AsyncStorage adapter for React Native session persistence
-// Supabase v2 requires explicit storage adapter on React Native
-let AsyncStorage: {
-  getItem: (key: string) => Promise<string | null>
-  setItem: (key: string, value: string) => Promise<void>
-  removeItem: (key: string) => Promise<void>
-} | null = null
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  AsyncStorage = require('@react-native-async-storage/async-storage').default
-} catch {
-  // AsyncStorage not available (web or Node.js) - will use default localStorage
-  AsyncStorage = null
-}
+// MMKV storage adapter for React Native session persistence
+// MMKV provides ~30x faster performance than AsyncStorage through C++ JSI bindings
+// On web/Node.js platforms, MMKV is unavailable and we omit storage to let Supabase use localStorage
+// This eliminates AsyncStorage's 50-200ms JS thread blocks on state mutations
 
 /**
  * Adjusts Supabase URL for platform-specific localhost handling
@@ -90,14 +80,14 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 // LAZY CLIENT CREATION: Defer Supabase client creation to avoid blocking app launch
-// createClient() with persistSession:true reads AsyncStorage synchronously, blocking JS thread
+// createClient() with persistSession:true reads storage synchronously, blocking JS thread
 // By making it lazy, we avoid storage reads until client is actually used
 let supabaseClient: ReturnType<typeof createClient<Database>> | null = null
 
 /**
  * Get Supabase client instance (lazy initialization)
  * Client is created on first access, not at module import time
- * This prevents blocking app launch with AsyncStorage reads
+ * This prevents blocking app launch with storage reads
  */
 function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
   if (!supabaseClient) {
@@ -109,9 +99,10 @@ function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
         persistSession: true,
         // Storage key for session
         storageKey: 'supabase.auth.token',
-        // Use AsyncStorage on React Native for session persistence
-        // Without this, sessions are stored in memory only and lost on app restart
-        ...(AsyncStorage && { storage: AsyncStorage }),
+        // Use MMKV storage on React Native for session persistence (~30x faster than AsyncStorage)
+        // Conditionally pass storage only when MMKV is available (native platforms)
+        // On web/Node.js, omit storage to let Supabase fall back to localStorage automatically
+        ...(mmkv && { storage: mmkvStorageAsync }),
       },
     })
   }

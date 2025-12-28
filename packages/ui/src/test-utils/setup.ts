@@ -468,6 +468,52 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }))
 
+// Mock react-native-mmkv with in-memory Map (virtual module)
+jest.mock(
+  'react-native-mmkv',
+  () => {
+    const store = new Map<string, string>()
+    return {
+      MMKV: jest.fn().mockImplementation(() => ({
+        getString: jest.fn((key: string) => store.get(key) ?? null),
+        set: jest.fn((key: string, value: string) => store.set(key, value)),
+        delete: jest.fn((key: string) => store.delete(key)),
+        contains: jest.fn((key: string) => store.has(key)),
+        clearAll: jest.fn(() => store.clear()),
+      })),
+    }
+  },
+  { virtual: true }
+)
+
+// Mock @my/config storage exports
+jest.mock('@my/config', () => {
+  const store = new Map<string, string>()
+  const actualConfig = jest.requireActual('@my/config') as Record<string, unknown>
+  return {
+    ...actualConfig,
+    mmkvStorage: {
+      getItem: jest.fn((key: string) => store.get(key) ?? null),
+      setItem: jest.fn((key: string, value: string) => store.set(key, value)),
+      removeItem: jest.fn((key: string) => store.delete(key)),
+    },
+    mmkvStorageAsync: {
+      getItem: jest.fn(async (key: string) => store.get(key) ?? null),
+      setItem: jest.fn(async (key: string, value: string) => {
+        store.set(key, value)
+      }),
+      removeItem: jest.fn(async (key: string) => store.delete(key)),
+    },
+    mmkvDirect: {
+      getString: jest.fn((key: string) => store.get(key) ?? null),
+      setString: jest.fn((key: string, value: string) => store.set(key, value)),
+      delete: jest.fn((key: string) => store.delete(key)),
+      contains: jest.fn((key: string) => store.has(key)),
+      clearAll: jest.fn(() => store.clear()),
+    },
+  }
+})
+
 // POST-MVP: react-native-worklets-core mock removed (pose detection feature)
 // jest.mock('react-native-worklets-core', () => ({
 //   Worklets: {

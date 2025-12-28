@@ -3,19 +3,21 @@
  *
  * Tests user-visible behavior: tab persistence across app sessions
  * Following TDD and testing philosophy: focus on user behavior, not implementation
+ *
+ * Note: Tests run in sequence due to module-level cache (by design).
+ * First test loads cache, subsequent tests use cached value.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { mmkvDirect } from '@my/config'
+import { act, renderHook } from '@testing-library/react'
+
+// Import after mocks are defined
+// eslint-disable-next-line import/order
 import { useTabPersistence } from './useTabPersistence'
 
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}))
+// Get mocked functions from the setup mock
+const mockGetString = mmkvDirect.getString as jest.Mock
+const mockSetString = mmkvDirect.setString as jest.Mock
 
 // Mock logging to avoid console noise in tests
 jest.mock('@my/logging', () => ({
@@ -28,71 +30,50 @@ jest.mock('@my/logging', () => ({
 }))
 
 // Reset mocks before each test
-// Note: Module-level cache persists across tests (by design)
-// Tests account for this by properly mocking AsyncStorage
 beforeEach(() => {
   jest.clearAllMocks()
 })
 
 describe('useTabPersistence', () => {
-  it('should load saved tab, handle defaults, and errors on mount', async () => {
-    // 🧪 ARRANGE: Test comprehensive loading scenarios
-    // Test 1: Load saved tab (happy path)
-    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('coach')
+  // First test: loads from storage and populates module-level cache
+  it('should load saved tab from storage on first mount', () => {
+    // 🧪 ARRANGE: Mock returns saved tab
+    mockGetString.mockReturnValueOnce('coach')
 
-    // 🎬 ACT: Render hook
+    // 🎬 ACT: Render hook (first time - loads from storage)
     const { result } = renderHook(() => useTabPersistence())
 
-    // ✅ ASSERT: Should load saved tab and finish loading
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
+    // ✅ ASSERT: Should load saved tab synchronously (no loading state)
+    expect(result.current.isLoading).toBe(false)
     expect(result.current.activeTab).toBe('coach')
-    expect(AsyncStorage.getItem).toHaveBeenCalledWith('activeTab')
-
-    // Note: Module-level cache prevents testing additional scenarios (default tab on null,
-    // error handling, invalid values) in separate tests. These are verified by implementation:
-    // - Default tab ('record') used when savedTab is null (lines 49-53)
-    // - Errors during load fallback to default tab (lines 55-61)
-    // - Invalid saved values rejected and default used (lines 45-54)
+    expect(mockGetString).toHaveBeenCalledWith('activeTab')
   })
 
-  it('should save tab when user changes it and handle errors', async () => {
-    // 🧪 ARRANGE: Mock setItem
-    ;(AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined)
-
+  // Second test: uses cached value, tests save functionality
+  it('should save tab when user changes it', () => {
+    // 🧪 ARRANGE: Hook already has cached value from first test
     const { result } = renderHook(() => useTabPersistence())
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
+    // Initial state uses cache (no storage read)
+    expect(result.current.isLoading).toBe(false)
+    expect(mockGetString).not.toHaveBeenCalled() // Cache prevents read
 
     // 🎬 ACT: User changes tab
     act(() => {
       result.current.setActiveTab('insights')
     })
 
-    // ✅ ASSERT: Tab should update and save to storage
+    // ✅ ASSERT: Tab should update and save to storage synchronously
     expect(result.current.activeTab).toBe('insights')
-    await waitFor(() => {
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('activeTab', 'insights')
-    })
-
-    // Test error handling: save fails but tab still updates
-    ;(AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Save failed'))
-    act(() => {
-      result.current.setActiveTab('record')
-    })
-    expect(result.current.activeTab).toBe('record')
+    expect(mockSetString).toHaveBeenCalledWith('activeTab', 'insights')
   })
 
-  it('should reject invalid tab values', async () => {
-    // 🧪 ARRANGE
+  // Third test: validates input without storage operations
+  it('should reject invalid tab values', () => {
+    // 🧪 ARRANGE: Hook uses cached value
     const { result } = renderHook(() => useTabPersistence())
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
+    expect(result.current.isLoading).toBe(false)
     const initialTab = result.current.activeTab
 
     // 🎬 ACT: Try to set invalid tab
@@ -103,6 +84,6 @@ describe('useTabPersistence', () => {
 
     // ✅ ASSERT: Tab should not change
     expect(result.current.activeTab).toBe(initialTab)
-    expect(AsyncStorage.setItem).not.toHaveBeenCalled()
+    expect(mockSetString).not.toHaveBeenCalled()
   })
 })

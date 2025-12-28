@@ -11,7 +11,7 @@
   },
   "installConfig": {},
   "scripts": {
-    "postinstall": "sh -c 'if [ \"${CI:-false}\" = \"true\" ]; then echo \"Skipping postinstall build on CI\"; else yarn check-tamagui && yarn build; fi'",
+    "postinstall": "sh -c 'if [ \"${CI:-false}\" = \"true\" ]; then echo \"Skipping postinstall build on CI\"; elif [ \"${EAS_BUILD:-false}\" = \"true\" ]; then echo \"Building packages only for EAS build\"; yarn check-tamagui && yarn build:packages; else yarn check-tamagui && yarn build; fi'",
     "prepare": "husky",
     "dev": "turbo dev",
     "dev:mvp": "turbo dev",
@@ -34,7 +34,7 @@
     "build": "turbo build",
     "build:web": "turbo build --filter=web-app",
     "build:native": "turbo build --filter=expo-app",
-    "build:packages": "turbo build --filter=@my/config --filter=@my/ui",
+    "build:packages": "turbo build --filter=@my/config --filter=@my/ui --filter=@my/logging --filter=@my/api --filter=@my/app",
     "build:mvp": "turbo build",
     "build:prod": "turbo build --filter=production",
     "build:e2e:ios": "detox build --configuration ios.sim.debug",

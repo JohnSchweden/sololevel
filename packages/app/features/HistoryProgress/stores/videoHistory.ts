@@ -1,6 +1,6 @@
 import type { AnalysisResults, PoseData } from '@my/api'
+import { mmkvStorage } from '@my/config'
 import { log } from '@my/logging'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import React from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
@@ -551,7 +551,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
       }),
       {
         name: 'video-history-store',
-        storage: createJSONStorage(() => AsyncStorage),
+        storage: createJSONStorage(() => mmkvStorage),
         skipHydration: true, // Defer hydration until ensureHydrated() is called (prevents 200-500ms JS thread block on startup)
         partialize: (state: VideoHistoryStore) => ({
           // Convert Maps to arrays for JSON serialization
@@ -587,7 +587,7 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
 
           const persisted = isPersistedState(persistedState) ? persistedState : {}
 
-          log.debug('VideoHistoryStore', 'Rehydrating from AsyncStorage', {
+          log.debug('VideoHistoryStore', 'Rehydrating from MMKV', {
             hasPersistedState: !!persistedState,
             persistedVersion: persisted.version,
             persistedLastSync: persisted.lastSync,
