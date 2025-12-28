@@ -3125,17 +3125,24 @@ __metadata:
     "@tamagui/font-inter": "npm:1.135.2"
     "@tamagui/shorthands": "npm:1.135.2"
     "@tamagui/themes": "npm:1.135.2"
+    "@types/jest": "npm:^29.5.0"
+    jest: "npm:^29.7.0"
     react: "npm:19.0.0"
     react-dom: "npm:19.0.0"
     react-native: "npm:0.79.6"
     tamagui: "npm:1.135.2"
+    ts-jest: "npm:^29.4.3"
+    typescript: "npm:^5.6.0"
   peerDependencies:
     react: ^18 || ^19
     react-dom: ^18 || ^19
     react-native: 0.79.6
+    react-native-mmkv: ^4.1.0
     tamagui: 1.135.2
   peerDependenciesMeta:
     react-native:
+      optional: true
+    react-native-mmkv:
       optional: true
   languageName: unknown
   linkType: soft
@@ -7599,6 +7606,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/jest@npm:^29.5.0":
+  version: 29.5.14
+  resolution: "@types/jest@npm:29.5.14"
+  dependencies:
+    expect: "npm:^29.0.0"
+    pretty-format: "npm:^29.0.0"
+  checksum: 10c0/18e0712d818890db8a8dab3d91e9ea9f7f19e3f83c2e50b312f557017dc81466207a71f3ed79cf4428e813ba939954fa26ffa0a9a7f153181ba174581b1c2aed
+  languageName: node
+  linkType: hard
+
 "@types/jest@npm:^30.0.0":
   version: 30.0.0
   resolution: "@types/jest@npm:30.0.0"
@@ -10943,7 +10960,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expect@npm:^29.7.0":
+"expect@npm:^29.0.0, expect@npm:^29.7.0":
   version: 29.7.0
   resolution: "expect@npm:29.7.0"
   dependencies:
@@ -11027,6 +11044,8 @@ __metadata:
     react-native-compressor: "npm:1.13.0"
     react-native-gesture-handler: "npm:^2.28.0"
     react-native-logs: "npm:^5.3.0"
+    react-native-mmkv: "npm:^4.1.0"
+    react-native-nitro-modules: "npm:^0.32.0"
     react-native-reanimated: "npm:~3.17.4"
     react-native-safe-area-context: "npm:^5.6.0"
     react-native-screens: "npm:~4.11.1"
@@ -15851,7 +15870,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pretty-format@npm:^29.0.3, pretty-format@npm:^29.7.0":
+"pretty-format@npm:^29.0.0, pretty-format@npm:^29.0.3, pretty-format@npm:^29.7.0":
   version: 29.7.0
   resolution: "pretty-format@npm:29.7.0"
   dependencies:
@@ -16342,6 +16361,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-mmkv@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "react-native-mmkv@npm:4.1.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-nitro-modules: "*"
+  checksum: 10c0/af69e58df6d78366b93cbd055ab810201f2e7403a09b448f218014eba6695af10569eb64e6ed81c21b9dbb976c9d7c5fb76650a4de2304731956f42717d80804
+  languageName: node
+  linkType: hard
+
 "react-native-modal-datetime-picker@npm:^18.0.0":
   version: 18.0.0
   resolution: "react-native-modal-datetime-picker@npm:18.0.0"
@@ -16351,6 +16381,16 @@ __metadata:
     "@react-native-community/datetimepicker": ">=6.7.0"
     react-native: ">=0.65.0"
   checksum: 10c0/2217780609af89f1863971dafcdb9deca33663d863ffd65ef43a4b91357a5b623f91ed4f7730231d29e85ac6e5e9d84c11d4c024a791eea70b2df2c423f30610
+  languageName: node
+  linkType: hard
+
+"react-native-nitro-modules@npm:^0.32.0":
+  version: 0.32.0
+  resolution: "react-native-nitro-modules@npm:0.32.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/4074d93391a5691175d9df335549c3719e2c549e9639d1c092a591c22196e596a1654a77496e9b6c56708605d6074d3a25199ace091db1682d69fbc0d100af04
   languageName: node
   linkType: hard
 
@@ -18776,7 +18816,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.8.2, typescript@npm:^5.9.2":
+"typescript@npm:^5.6.0, typescript@npm:^5.8.2, typescript@npm:^5.9.2":
   version: 5.9.3
   resolution: "typescript@npm:5.9.3"
   bin:
@@ -18786,7 +18826,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.2#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.6.0#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.2#optional!builtin<compat/typescript>":
   version: 5.9.3
   resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:

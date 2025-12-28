@@ -55,6 +55,8 @@ EXPO_PUBLIC_USE_MOCKS=true
 ### Basic Information
 - **App Name:** Solo:Level
 - **Subtitle:** Instant AI feedback on your videos
+- **Bundle ID:** `ai.sololevel.app`
+- **SKU:** `sololevel` (unique identifier for App Store Connect; can be any alphanumeric string)
 - **Category:** Health & Fitness (Primary), Productivity (Secondary)
 - **Age Rating:** 4+ (or 12+ if video content requires it)
 
@@ -325,9 +327,20 @@ Initial beta release:
 - [x] Build number incremented: `ios.buildNumber` in `apps/expo/app.json` (currently `1`)
 - [x] Version string set: `expo.version` in `apps/expo/app.json` (currently `1.0.0`)
 - [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
-- [ ] Export compliance answered (requires App Store Connect - answer "No" for standard HTTPS/TLS)
+- [X] Export compliance answered (requires App Store Connect - answer "No" for standard HTTPS/TLS) ITSAppUsesNonExemptEncryption set to false (NO)
 - [ ] TestFlight internal testing group configured (requires App Store Connect)
 - [ ] Build uploaded via `eas submit -p ios` or EAS dashboard
+
+**How to Configure TestFlight Internal Testing:**
+1. In App Store Connect, go to **TestFlight** tab
+2. Click **Internal Testing** in left sidebar
+3. Add testers:
+   - Click **+** button to add tester email addresses directly (no confirmation needed for internal testing)
+   - Or create a group first, then add testers to the group
+4. Assign build to testers:
+   - After uploading a build (via `eas submit -p ios`), select it from the dropdown
+   - Enable it for the internal testing group/testers
+5. Testers receive email invitation and can install via TestFlight app
 
 **Optional for Internal Testing (required for External/Production):**
 - [ ] Support URL configured (`https://sololevel.ai/support` referenced in code)
@@ -340,12 +353,23 @@ Initial beta release:
 - [x] Version code incremented: `android.versionCode` in `apps/expo/app.json` (currently `1`)
 - [x] Version name set: `expo.version` in `apps/expo/app.json` (currently `1.0.0`)
 - [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
-- [ ] Data Safety form completed (all sections) (requires Play Console)
-- [ ] Content rating questionnaire completed (requires Play Console)
+- [x] Data Safety form completed (all sections) (requires Play Console)
+- [x] Content rating questionnaire completed (requires Play Console)
 - [ ] Internal testing track configured (requires Play Console)
 - [ ] Build uploaded via `eas submit -p android` or Play Console
 
-**Optional for Internal Testing (required for Closed Beta/Production):**
+**How to Set Up Internal Testing:**
+1. Go to Play Console → Your app → **Release** → **Testing** → **Internal testing**
+2. Click **Create new release** (or **Edit release** if one exists)
+3. Upload your AAB/APK or add build from existing uploads
+4. Add release notes (see "Release Notes (Beta)" section above)
+5. Click **Review release** → **Start rollout to Internal testing**
+6. Add testers:
+   - Go to **Testers** tab → **Create email list** (or use existing list)
+   - Add tester email addresses (no confirmation needed for internal testing)
+   - Testers receive opt-in link via email
+
+**Optional for Internal Testing (required for Closed Testing/Production):**
 - [ ] Screenshots prepared (phone, feature graphic)
 - [ ] App description finalized (documented in this file)
 - [x] Permissions justified in Data Safety form (documented in this file)

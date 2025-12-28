@@ -1,6 +1,9 @@
 {
   "ios": {
-    "bundleIdentifier": "ai.sololevel.app"
+    "bundleIdentifier": "ai.sololevel.app",
+    "infoPlist": {
+      "ITSAppUsesNonExemptEncryption": false
+    }
   },
   "extra": {
     "eas": {
