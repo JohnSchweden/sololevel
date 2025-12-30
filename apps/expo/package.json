@@ -19,9 +19,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",
-    "eas:build:ios": "yarn dlx eas-cli build -p ios --profile production",
+    "increment-build": "node scripts/increment-build-number.mjs",
+    "eas:build:ios": "node scripts/build-with-increment.mjs ios production",
     "eas:submit:ios": "yarn dlx eas-cli submit -p ios",
-    "eas:build:android": "yarn dlx eas-cli build -p android --profile production",
+    "eas:build:android": "node scripts/build-with-increment.mjs android production",
     "eas:submit:android": "yarn dlx eas-cli submit -p android"
   },
   "dependencies": {

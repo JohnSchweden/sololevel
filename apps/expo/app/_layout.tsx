@@ -18,11 +18,18 @@ import { SplashScreen, Stack } from 'expo-router'
 import { Platform, StatusBar } from 'react-native'
 
 // Sentry initialization for crash reporting and performance monitoring
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  // enableInExpoDevelopment: true, // No longer needed in modern Sentry
-  debug: __DEV__,
-})
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    debug: __DEV__,
+    enableAutoSessionTracking: true,
+    tracesSampleRate: 1.0,
+  })
+} else if (!__DEV__) {
+  // Log warning in production if DSN is missing (shouldn't happen with EAS)
+  log.warn('_layout.tsx', 'EXPO_PUBLIC_SENTRY_DSN is not set - crash reporting disabled')
+}
 
 import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'

@@ -15,11 +15,13 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ai.sololevel.app",
-      "buildNumber": "1",
+      "buildNumber": "4",
       "icon": "./assets/icon.png",
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",
@@ -38,7 +40,7 @@
         "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "splash": {
         "image": "./assets/splashscreen_logo.png",
         "resizeMode": "contain",
@@ -59,13 +61,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router", 
-      "expo-font", 
+      "expo-router",
+      "expo-font",
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "deploymentTarget": "18.4"
           }
         }
       ],
@@ -83,7 +86,10 @@
         "@sentry/react-native/expo",
         {
           "organization": "sololevel",
-          "project": "sololevel-app"
+          "project": "sololevel-app",
+          "uploadNativeSymbols": true,
+          "uploadSourceMaps": true,
+          "setCommits": false
         }
       ]
     ],
