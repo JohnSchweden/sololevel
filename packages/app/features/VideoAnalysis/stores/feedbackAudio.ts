@@ -84,15 +84,18 @@ export const useFeedbackAudioStore = create<FeedbackAudioState>()(
           const previousId = draft.activeAudio?.id ?? null
           draft.activeAudio = activeAudio
 
-          log.debug(
-            'feedbackAudioStore.setActiveAudio',
-            `Audio changed ${previousId} → ${activeAudio?.id ?? null}`,
-            {
-              activeAudioId: activeAudio?.id ?? null,
-              hasUrl: !!activeAudio?.url,
-              urlPreview: activeAudio?.url ? activeAudio.url.substring(0, 60) + '...' : 'N/A',
-            }
-          )
+          // Compile-time stripping: DEBUG logs removed in production builds
+          if (__DEV__) {
+            log.debug(
+              'feedbackAudioStore.setActiveAudio',
+              `Audio changed ${previousId} → ${activeAudio?.id ?? null}`,
+              {
+                activeAudioId: activeAudio?.id ?? null,
+                hasUrl: !!activeAudio?.url,
+                urlPreview: activeAudio?.url ? activeAudio.url.substring(0, 60) + '...' : 'N/A',
+              }
+            )
+          }
 
           if (!activeAudio) {
             draft.isPlaying = false
@@ -104,35 +107,55 @@ export const useFeedbackAudioStore = create<FeedbackAudioState>()(
           const wasPlaying = draft.isPlaying
           draft.isPlaying = isPlaying
 
-          log.debug(
-            'feedbackAudioStore.setIsPlaying',
-            `Toggling playback ${wasPlaying} → ${isPlaying}`,
-            {
-              hasController: !!draft.controller,
-              activeAudioId: draft.activeAudio?.id ?? null,
-              controllerFn: draft.controller?.setIsPlaying ? 'exists' : 'MISSING',
-            }
-          )
+          // Compile-time stripping: DEBUG logs removed in production builds
+          if (__DEV__) {
+            log.debug(
+              'feedbackAudioStore.setIsPlaying',
+              `Toggling playback ${wasPlaying} → ${isPlaying}`,
+              {
+                hasController: !!draft.controller,
+                activeAudioId: draft.activeAudio?.id ?? null,
+                controllerFn: draft.controller?.setIsPlaying ? 'exists' : 'MISSING',
+              }
+            )
+          }
 
           draft.controller?.setIsPlaying(isPlaying)
         })
       },
       setController: (controller) => {
+        // PERF: Skip if same controller instance (prevents double-registration in React StrictMode)
+        const currentController = get().controller
+        if (currentController === controller) {
+          // Compile-time stripping: DEBUG logs removed in production builds
+          if (__DEV__) {
+            log.debug('feedbackAudioStore.setController', 'Skipping duplicate registration', {
+              hasController: !!controller,
+            })
+          }
+          return
+        }
+
         const shouldResume = !!controller && get().isPlaying
 
         set((draft) => {
           draft.controller = controller
-          log.debug('feedbackAudioStore.setController', `Audio controller registered`, {
-            hasController: !!controller,
-            hasSetIsPlaying: !!controller?.setIsPlaying,
-            shouldResume,
-          })
+          // Compile-time stripping: DEBUG logs removed in production builds
+          if (__DEV__) {
+            log.debug('feedbackAudioStore.setController', `Audio controller registered`, {
+              hasController: !!controller,
+              hasSetIsPlaying: !!controller?.setIsPlaying,
+              shouldResume,
+            })
+          }
         })
 
         if (shouldResume && controller?.setIsPlaying) {
-          log.debug('feedbackAudioStore.setController', 'Resuming playback on new controller', {
-            activeAudioId: get().activeAudio?.id ?? null,
-          })
+          if (__DEV__) {
+            log.debug('feedbackAudioStore.setController', 'Resuming playback on new controller', {
+              activeAudioId: get().activeAudio?.id ?? null,
+            })
+          }
           controller.setIsPlaying(true)
         }
       },

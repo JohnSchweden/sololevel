@@ -468,19 +468,43 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }))
 
-// Mock react-native-mmkv with in-memory Map (virtual module)
+// Mock react-native-mmkv v4.x with in-memory Map (virtual module)
+// v4.x API: Uses createMMKV() factory function instead of new MMKV() class
+// Matches real MMKV behavior: getString() returns undefined for missing keys
 jest.mock(
   'react-native-mmkv',
   () => {
     const store = new Map<string, string>()
+    // Singleton instance (matches real MMKV behavior with same id)
+    let mockInstance: {
+      getString: jest.Mock<(key: string) => string | undefined>
+      set: jest.Mock<(key: string, value: string | number | boolean) => void>
+      delete: jest.Mock<(key: string) => boolean>
+      contains: jest.Mock<(key: string) => boolean>
+      clearAll: jest.Mock<() => void>
+    } | null = null
+
+    function getMockInstance() {
+      if (!mockInstance) {
+        mockInstance = {
+          getString: jest.fn((key: string) => store.get(key)) as jest.Mock<
+            (key: string) => string | undefined
+          >,
+          set: jest.fn((key: string, value: string | number | boolean) => {
+            store.set(key, String(value))
+          }) as jest.Mock<(key: string, value: string | number | boolean) => void>,
+          delete: jest.fn((key: string) => store.delete(key)) as jest.Mock<
+            (key: string) => boolean
+          >,
+          contains: jest.fn((key: string) => store.has(key)) as jest.Mock<(key: string) => boolean>,
+          clearAll: jest.fn(() => store.clear()) as jest.Mock<() => void>,
+        }
+      }
+      return mockInstance
+    }
+
     return {
-      MMKV: jest.fn().mockImplementation(() => ({
-        getString: jest.fn((key: string) => store.get(key) ?? null),
-        set: jest.fn((key: string, value: string) => store.set(key, value)),
-        delete: jest.fn((key: string) => store.delete(key)),
-        contains: jest.fn((key: string) => store.has(key)),
-        clearAll: jest.fn(() => store.clear()),
-      })),
+      createMMKV: jest.fn(() => getMockInstance()),
     }
   },
   { virtual: true }

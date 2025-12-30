@@ -1,5 +1,6 @@
 import { useFeedbackStatusStore } from '@app/features/VideoAnalysis/stores/feedbackStatus'
 import type { FeedbackPanelItem } from '@app/features/VideoAnalysis/types'
+import { supabase } from '@my/api'
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -223,7 +224,6 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
 
     const fetchFeedbacks = async () => {
       try {
-        const { supabase } = await import('@my/api')
         const { data, error } = await (supabase as any)
           .from('analysis_feedback')
           .select(
@@ -292,6 +292,21 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       return undefined
     }
     lastSubscriptionAttemptRef.current = now
+
+    // PERF: Check store status directly to catch early subscription from title callback
+    // Early subscription is created in analysisSubscription.ts title callback to catch events
+    // before screen renders. This eliminates duplicate subscription attempts.
+    const storeStatus = useFeedbackStatusStore.getState().subscriptionStatus.get(analysisId)
+    if (storeStatus === 'active' || storeStatus === 'pending') {
+      log.debug(
+        'useFeedbackStatusIntegration',
+        `Skipping subscription - early subscription already active/pending for ${analysisId}`,
+        {
+          storeStatus,
+        }
+      )
+      return undefined
+    }
 
     // CRITICAL: Guard against re-subscription if already subscribed or attempting
     const alreadySubscribed =

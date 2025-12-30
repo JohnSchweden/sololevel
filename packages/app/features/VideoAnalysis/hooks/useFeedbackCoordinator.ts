@@ -198,6 +198,10 @@ export function useFeedbackCoordinator({
   // Prevents re-triggering until video moves significantly past completion point
   const completedFeedbackRef = useRef<Map<string, number>>(new Map())
 
+  // PERF: Throttle verbose progress logs - only log "no bubble triggered" every 2 seconds
+  // Reduces log spam from 4 logs/sec to 0.5 logs/sec
+  const lastProgressLogTimeRef = useRef<number>(0)
+
   // Reset completed feedback when items change (e.g. new analysis loaded)
   // This prevents memory leaks and ID collisions across different videos
   useEffect(() => {
@@ -548,6 +552,27 @@ export function useFeedbackCoordinator({
         }
       })
 
+      // PURE: Find trigger candidate WITHOUT side effects
+      const candidate = bubbleController.findTriggerCandidate(timeSeconds * 1000)
+      if (!candidate) {
+        // PERF: Only log when there's actual activity (candidate found, state changes)
+        // Suppress verbose "no bubble triggered" logs on every progress tick (250ms)
+        // Compile-time stripping: DEBUG logs removed in production builds
+        if (__DEV__) {
+          // Only log occasionally (every 2 seconds) to reduce log spam
+          const now = Date.now()
+          if (now - lastProgressLogTimeRef.current > 2000) {
+            log.debug('useFeedbackCoordinator.handleProgressTrigger', '⏭️ No bubble triggered', {
+              timeSeconds,
+              currentTimeMs,
+            })
+            lastProgressLogTimeRef.current = now
+          }
+        }
+        return
+      }
+
+      // Log when candidate is found (actual activity)
       log.debug('useFeedbackCoordinator.handleProgressTrigger', '🔍 Checking for bubble trigger', {
         timeSeconds,
         currentTimeMs,
@@ -557,16 +582,6 @@ export function useFeedbackCoordinator({
           age: currentTimeMs - ts,
         })),
       })
-
-      // PURE: Find trigger candidate WITHOUT side effects
-      const candidate = bubbleController.findTriggerCandidate(timeSeconds * 1000)
-      if (!candidate) {
-        log.debug('useFeedbackCoordinator.handleProgressTrigger', '⏭️ No bubble triggered', {
-          timeSeconds,
-          currentTimeMs,
-        })
-        return
-      }
 
       const { item } = candidate
       log.debug(

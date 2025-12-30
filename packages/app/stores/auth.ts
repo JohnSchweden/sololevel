@@ -145,6 +145,7 @@ export const useAuthStore = create<AuthStore>()(
       // CRITICAL FIX: Check cached session first (synchronous, <100ms)
       // This prevents 2.07s blocking delay before UI becomes interactive
       // Fast path: Use cached session immediately, validate in background
+      // NOTE: URL mismatch check happens synchronously in supabase.ts before client creation
       try {
         const {
           data: { session: cachedSession },

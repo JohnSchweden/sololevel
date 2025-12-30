@@ -441,7 +441,7 @@ export function AppHeader({
       )
     }
 
-    return (
+    const textElement = (
       <Text
         fontSize="$6"
         fontFamily="$heading"
@@ -450,11 +450,33 @@ export function AppHeader({
         textAlign={titleAlignment}
         numberOfLines={1}
         letterSpacing={0.2}
+        lineHeight={IS_IOS ? undefined : 20}
         accessibilityRole="header"
         accessibilityLabel="header"
+        {...(IS_IOS
+          ? {}
+          : {
+              // Android-specific: Remove font padding for better vertical alignment
+              includeFontPadding: false,
+            })}
       >
         {title}
       </Text>
+    )
+
+    // On Android, wrap in container with explicit height for vertical centering
+    if (IS_IOS) {
+      return textElement
+    }
+
+    return (
+      <YStack
+        height={44}
+        justifyContent="center"
+        alignItems={titleAlignment === 'center' ? 'center' : 'flex-start'}
+      >
+        {textElement}
+      </YStack>
     )
   })()
 

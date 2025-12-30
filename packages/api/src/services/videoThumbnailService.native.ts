@@ -15,10 +15,13 @@ export async function generateVideoThumbnail(videoUri: string): Promise<{ uri: s
       quality: 0.8, // 80% quality
     })
 
-    log.debug('videoThumbnailService', 'Thumbnail generated successfully', {
-      videoUri,
-      thumbnailUri: thumbnail.uri,
-    })
+    // Compile-time stripping: DEBUG logs removed in production builds
+    if (__DEV__) {
+      log.debug('videoThumbnailService', 'Thumbnail generated successfully', {
+        videoUri,
+        thumbnailUri: thumbnail.uri,
+      })
+    }
 
     return thumbnail
   } catch (error) {

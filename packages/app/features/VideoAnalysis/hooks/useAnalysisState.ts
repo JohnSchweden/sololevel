@@ -329,6 +329,16 @@ export function useAnalysisState(
       return undefined
     }
 
+    // PERF: Skip screen subscription if early subscription already exists
+    // Early subscription is created in upload callback to catch events before screen renders
+    // This eliminates duplicate subscription attempts and DEBUG log noise
+    const existingStatus = useAnalysisSubscriptionStore.getState().getStatus(subscriptionKey)
+    if (existingStatus === 'active' || existingStatus === 'pending') {
+      // Early subscription already active - screen subscription not needed
+      // Cleanup will still unsubscribe when component unmounts (idempotent)
+      return undefined
+    }
+
     let isMounted = true
 
     void subscribe(subscriptionKey, options).catch((error: unknown) => {

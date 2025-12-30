@@ -1,5 +1,5 @@
 // Export Supabase client and types
-export { supabase } from './supabase'
+export { supabase, resetSupabaseClient } from './supabase'
 export type { Database, Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
 
 // Export validation utilities

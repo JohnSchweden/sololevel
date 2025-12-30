@@ -1144,12 +1144,18 @@ export const FeedbackPanel = memo(
     const renderCommentComposer = useCallback(() => {
       // Android gesture navigation needs additional bottom padding
       // safeAreaBottom may be 0 on Android with gesture navigation, so ensure minimum padding
+      // On Android, remove extra padding when keyboard is not shown (empty space issue)
       const androidGesturePadding = Platform.OS === 'android' ? 20 : 0
       const basePadding = safeAreaBottom > 0 ? safeAreaBottom - 12 : 0
-      const bottomPadding = Math.max(
-        basePadding + androidGesturePadding,
-        Platform.OS === 'android' ? 20 : 8
-      )
+      // Increase padding when keyboard is visible on Android to prevent cutoff
+      const keyboardVisiblePadding = Platform.OS === 'android' && keyboardHeight > 0 ? 12 : 0
+      const bottomPadding =
+        Platform.OS === 'android' && keyboardHeight === 0
+          ? 20 // Minimal padding on Android when keyboard is hidden
+          : Math.max(
+              basePadding + androidGesturePadding + keyboardVisiblePadding,
+              Platform.OS === 'android' ? 20 + keyboardVisiblePadding : 8
+            )
 
       return (
         <CommentComposerContainer

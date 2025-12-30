@@ -4,7 +4,7 @@ import { log } from '@my/logging'
 import { SwitchCamera, Upload } from '@tamagui/lucide-icons'
 import React, { useCallback, useState } from 'react'
 // Use React Native Pressable with platform detection
-import { Pressable } from 'react-native'
+import { Platform, Pressable } from 'react-native'
 import { Button, Circle, XStack, YStack } from 'tamagui'
 import type { VideoValidationResult } from '../../../utils/videoValidation'
 import { GlassButton } from '../../GlassButton'
@@ -137,11 +137,27 @@ export function IdleControls({
             accessibilityLabel="Start recording"
             accessibilityHint="Press to start recording a new video"
           >
-            <Circle
-              size={56}
-              backgroundColor="$orange10"
-              opacity={disabled ? 0.5 : 1.0}
-            />
+            {Platform.OS === 'android' ? (
+              <YStack
+                width="100%"
+                height="100%"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Circle
+                  size={56}
+                  marginTop={-0.25}
+                  backgroundColor="$orange10"
+                  opacity={disabled ? 0.5 : 1.0}
+                />
+              </YStack>
+            ) : (
+              <Circle
+                size={56}
+                backgroundColor="$orange10"
+                opacity={disabled ? 0.5 : 1.0}
+              />
+            )}
           </GlassButton>
         </YStack>
 

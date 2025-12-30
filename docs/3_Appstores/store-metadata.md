@@ -328,8 +328,9 @@ Initial beta release:
 - [x] Version string set: `expo.version` in `apps/expo/app.json` (currently `1.0.0`)
 - [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
 - [X] Export compliance answered (requires App Store Connect - answer "No" for standard HTTPS/TLS) ITSAppUsesNonExemptEncryption set to false (NO)
-- [ ] TestFlight internal testing group configured (requires App Store Connect)
-- [ ] Build uploaded via `eas submit -p ios` or EAS dashboard
+- [x] TestFlight internal testing group configured (requires App Store Connect)
+- [x] Build created via `eas:build:ios`
+- [x] Build uploaded via `eas:submit:ios`
 
 **How to Configure TestFlight Internal Testing:**
 1. In App Store Connect, go to **TestFlight** tab
@@ -355,8 +356,11 @@ Initial beta release:
 - [x] Privacy Policy URL hosted and accessible (`https://sololevel.ai/privacy` referenced in code)
 - [x] Data Safety form completed (all sections) (requires Play Console)
 - [x] Content rating questionnaire completed (requires Play Console)
-- [ ] Internal testing track configured (requires Play Console)
-- [ ] Build uploaded via `eas submit -p android` or Play Console
+- [x] Internal testing track configured (requires Play Console)
+- [x] Build created via `eas:build:anroid`
+- [x] Build uploaded via `eas:submit:anroid`
+
+https://play.google.com/apps/internaltest/4701442905409277169
 
 **How to Set Up Internal Testing:**
 1. Go to Play Console → Your app → **Release** → **Testing** → **Internal testing**

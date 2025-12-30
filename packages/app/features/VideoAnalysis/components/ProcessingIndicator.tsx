@@ -371,7 +371,7 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
           />
         ) : (
           <YStack
-            backgroundColor="rgba(0, 0, 0, 0.8)"
+            backgroundColor="rgba(0, 0, 0, 0.9)"
             style={{
               position: 'absolute',
               top: 0,

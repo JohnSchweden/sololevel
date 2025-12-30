@@ -1,7 +1,7 @@
 import { GlassBackground } from '@my/ui'
 import { useCallback, useMemo } from 'react'
 import type { RefObject } from 'react'
-import { Dimensions } from 'react-native'
+import { Dimensions, Platform, StatusBar } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
@@ -31,7 +31,14 @@ import { VideoPlayerSection } from './VideoPlayerSection'
 import { toggleControlsVisibilityOnTap } from './toggleControlsVisibility'
 
 // Animation constants - Mode-based system
-const { height: SCREEN_H } = Dimensions.get('window')
+const { height: SCREEN_H_BASE } = Dimensions.get('window')
+
+// Android-only: Adjust for translucent status bar to prevent bottom overflow
+// iOS: Use original window height (automatically adjusts when status bar is hidden)
+const SCREEN_H =
+  Platform.OS === 'android' && StatusBar.currentHeight
+    ? SCREEN_H_BASE - StatusBar.currentHeight - 8 // 8px buffer for gesture nav/rendering differences
+    : SCREEN_H_BASE
 
 // Discrete video heights per mode (for contentContainerStyle)
 const VIDEO_HEIGHTS = {

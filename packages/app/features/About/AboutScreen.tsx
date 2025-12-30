@@ -2,7 +2,7 @@ import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { GlassBackground, SettingsListItem, SettingsSectionHeader } from '@my/ui'
 import { FileText } from '@tamagui/lucide-icons'
 import { useMemo } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import { Image, ScrollView, Text, XStack, YStack } from 'tamagui'
 
 // Import app icon
@@ -97,7 +97,7 @@ export function AboutScreen({
                 shadowOffset={{ width: 0, height: 2 }}
                 shadowOpacity={0.2}
                 shadowRadius={4}
-                elevation={4}
+                elevation={Platform.OS === 'android' ? 0 : 4}
                 testID={`${testID}-logo`}
               >
                 <Image

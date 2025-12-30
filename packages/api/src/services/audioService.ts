@@ -154,7 +154,10 @@ export async function getFirstAudioUrlForFeedback(feedbackId: number): Promise<A
       }
     }
 
-    log.debug(CONTEXT, 'Audio url not available yet', { feedbackId })
+    // Compile-time stripping: DEBUG logs removed in production builds
+    if (__DEV__) {
+      log.debug(CONTEXT, 'Audio url not available yet', { feedbackId })
+    }
     return {
       ok: false,
       error: 'Audio feedback not available yet.',

@@ -1,4 +1,5 @@
 import type React from 'react'
+import { Platform } from 'react-native'
 import { TextArea, type TextAreaProps } from 'tamagui'
 
 export interface CustomTextAreaProps extends Omit<TextAreaProps, 'onChange'> {
@@ -42,6 +43,7 @@ export const CustomTextArea = ({
       color="$color"
       lineHeight="$1"
       fontSize="$5"
+      textAlignVertical={Platform.OS === 'android' ? 'top' : undefined}
       focusStyle={{
         backgroundColor: '$backgroundHover',
         borderColor: '$borderColorHover',

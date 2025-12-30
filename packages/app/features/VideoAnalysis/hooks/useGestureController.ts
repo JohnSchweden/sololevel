@@ -1,6 +1,6 @@
 import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Dimensions } from 'react-native'
+import { Dimensions, Platform, StatusBar } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
 import Animated, {
@@ -18,7 +18,14 @@ import Animated, {
 // import { useGestureConflictDetector } from './useGestureConflictDetector'
 
 // Animation constants - Mode-based system
-const { height: SCREEN_H } = Dimensions.get('window')
+const { height: SCREEN_H_BASE } = Dimensions.get('window')
+
+// Android-only: Adjust for translucent status bar to prevent bottom overflow
+// iOS: Use original window height (automatically adjusts when status bar is hidden)
+const SCREEN_H =
+  Platform.OS === 'android' && StatusBar.currentHeight
+    ? SCREEN_H_BASE - StatusBar.currentHeight - 8 // 8px buffer for gesture nav/rendering differences
+    : SCREEN_H_BASE
 
 type VideoMode = 'min' | 'normal' | 'max'
 
@@ -392,9 +399,12 @@ export function useGestureController(
 
   // Log initial state
   useEffect(() => {
-    log.debug('useGestureController', 'Initialized', {
-      initialScrollEnabled: feedbackScrollEnabledShared.value,
-    })
+    // Compile-time stripping: DEBUG logs removed in production builds
+    if (__DEV__) {
+      log.debug('useGestureController', 'Initialized', {
+        initialScrollEnabled: feedbackScrollEnabledShared.value,
+      })
+    }
   }, [feedbackScrollEnabledShared])
 
   // Scroll blocking state - custom subscription store to avoid parent re-renders
@@ -434,7 +444,9 @@ export function useGestureController(
       }
       // NOTE: feedbackScrollEnabledShared kept always true - blocksExternalGesture handles blocking
       // feedbackScrollEnabledShared.value = value // REMOVED: causes scroll to break
-      log.debug('useGestureController', 'setFeedbackScrollEnabled', { value })
+      if (__DEV__) {
+        log.debug('useGestureController', 'setFeedbackScrollEnabled', { value })
+      }
       notifyFeedbackScrollSubscribers()
       return value
     },
@@ -652,12 +664,15 @@ export function useGestureController(
     }
 
     feedbackMomentumScrollEndRef.current = () => {
-      log.debug('VideoAnalysisScreen.onFeedbackMomentumScrollEnd', 'Momentum scroll ended', {
-        feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-        scrollY: Math.round(scrollY.value * 100) / 100,
-        gestureIsActive: gestureIsActive.value,
-        committedToVideoControl: committedToVideoControl.value,
-      })
+      // Compile-time stripping: DEBUG logs removed in production builds
+      if (__DEV__) {
+        log.debug('VideoAnalysisScreen.onFeedbackMomentumScrollEnd', 'Momentum scroll ended', {
+          feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
+          scrollY: Math.round(scrollY.value * 100) / 100,
+          gestureIsActive: gestureIsActive.value,
+          committedToVideoControl: committedToVideoControl.value,
+        })
+      }
     }
   }, [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl])
 

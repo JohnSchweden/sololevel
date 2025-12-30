@@ -57,21 +57,28 @@ export async function createSignedUploadUrl(
   storagePath: string,
   fileSize: number
 ): Promise<{ signedUrl: string; path: string }> {
-  log.debug('videoUploadService', 'createSignedUploadUrl called', { storagePath })
+  // Compile-time stripping: DEBUG logs removed in production builds
+  if (__DEV__) {
+    log.debug('videoUploadService', 'createSignedUploadUrl called', { storagePath })
+  }
 
   const user = await supabase.auth.getUser()
   if (!user.data.user) {
     throw new Error('User not authenticated')
   }
 
-  log.debug('videoUploadService', 'User authenticated', { userId: user.data.user.id })
+  if (__DEV__) {
+    log.debug('videoUploadService', 'User authenticated', { userId: user.data.user.id })
+  }
 
   // Basic file size validation (can be enhanced with more specific limits)
   if (fileSize <= 0) {
     throw new Error('File size must be greater than 0')
   }
 
-  log.debug('videoUploadService', 'Creating signed upload URL', { bucket: BUCKET_NAME })
+  if (__DEV__) {
+    log.debug('videoUploadService', 'Creating signed upload URL', { bucket: BUCKET_NAME })
+  }
 
   // Create signed URL for upload with cache headers
   // Note: Cache-Control must be set during the actual upload via the signed URL
@@ -173,11 +180,13 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     onUploadInitialized,
   } = options
 
-  // Debug logging
-  log.debug('videoUploadService', 'uploadVideo called', {
-    fileSize: file.size,
-    filename: originalFilename,
-  })
+  // Compile-time stripping: DEBUG logs removed in production builds
+  if (__DEV__) {
+    log.debug('videoUploadService', 'uploadVideo called', {
+      fileSize: file.size,
+      filename: originalFilename,
+    })
+  }
 
   try {
     // Validate file
@@ -205,7 +214,9 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
 
     // Create video recording record first (with temporary empty storage_path)
     // This gives us the video_recording_id needed for the semantic path
-    log.debug('videoUploadService', 'Creating video recording record')
+    if (__DEV__) {
+      log.debug('videoUploadService', 'Creating video recording record')
+    }
     const recording = await createVideoRecording({
       filename,
       original_filename: originalFilename,
@@ -221,7 +232,9 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     // Build semantic storage path using database ID and creation timestamp
     const storagePath = buildVideoPath(userId, recording.id, recording.created_at, format)
 
-    log.debug('videoUploadService', 'Generated semantic storage path', { storagePath })
+    if (__DEV__) {
+      log.debug('videoUploadService', 'Generated semantic storage path', { storagePath })
+    }
 
     // Update recording with actual storage path
     await updateVideoRecording(recording.id, {
@@ -229,11 +242,15 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     })
 
     // Create signed URL using the semantic path
-    log.debug('videoUploadService', 'Creating signed upload URL')
+    if (__DEV__) {
+      log.debug('videoUploadService', 'Creating signed upload URL')
+    }
     const { signedUrl } = await createSignedUploadUrl(storagePath, file.size)
-    log.debug('videoUploadService', 'Signed URL created', {
-      urlPrefix: signedUrl.substring(0, 50),
-    })
+    if (__DEV__) {
+      log.debug('videoUploadService', 'Signed URL created', {
+        urlPrefix: signedUrl.substring(0, 50),
+      })
+    }
 
     // Create upload session
     const session = await createUploadSession(recording.id, signedUrl, file.size)
@@ -251,10 +268,14 @@ export async function uploadVideo(options: VideoUploadOptions): Promise<VideoRec
     })
 
     // Upload file with progress tracking
-    log.debug('videoUploadService', 'Starting uploadWithProgress')
+    if (__DEV__) {
+      log.debug('videoUploadService', 'Starting uploadWithProgress')
+    }
     try {
       await uploadWithProgress(signedUrl, file, recording.id, session.id, onProgress)
-      log.debug('videoUploadService', 'uploadWithProgress completed successfully')
+      if (__DEV__) {
+        log.debug('videoUploadService', 'uploadWithProgress completed successfully')
+      }
     } catch (uploadError) {
       const errorMessage =
         uploadError instanceof Error ? uploadError.message : 'Unknown upload error'
@@ -282,14 +303,20 @@ async function uploadWithProgress(
   sessionId: number,
   onProgress?: (progress: number) => void
 ): Promise<void> {
-  log.debug('videoUploadService', 'uploadWithProgress: starting upload')
+  if (__DEV__) {
+    log.debug('videoUploadService', 'uploadWithProgress: starting upload')
+  }
 
   // Use fetch for Node/jsdom environments or Jest tests where XMLHttpRequest doesn't perform real network calls
   if (typeof XMLHttpRequest === 'undefined' || process.env.JEST_WORKER_ID) {
-    log.debug('videoUploadService', 'uploadWithProgress: using fetch path')
+    if (__DEV__) {
+      log.debug('videoUploadService', 'uploadWithProgress: using fetch path')
+    }
 
     try {
-      log.debug('videoUploadService', 'uploadWithProgress: calling fetch')
+      if (__DEV__) {
+        log.debug('videoUploadService', 'uploadWithProgress: calling fetch')
+      }
       const response = await fetch(signedUrl, {
         method: 'PUT',
         body: file,
@@ -300,9 +327,11 @@ async function uploadWithProgress(
         },
       })
 
-      log.debug('videoUploadService', 'uploadWithProgress: fetch response', {
-        status: response.status,
-      })
+      if (__DEV__) {
+        log.debug('videoUploadService', 'uploadWithProgress: fetch response', {
+          status: response.status,
+        })
+      }
 
       if (!response.ok) {
         throw new Error(`Upload failed with status: ${response.status}`)
@@ -312,7 +341,9 @@ async function uploadWithProgress(
       updateUploadProgress(recordingId, sessionId, file.size, 100)
       onProgress?.(100)
 
-      log.debug('videoUploadService', 'uploadWithProgress: completed successfully')
+      if (__DEV__) {
+        log.debug('videoUploadService', 'uploadWithProgress: completed successfully')
+      }
       return
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

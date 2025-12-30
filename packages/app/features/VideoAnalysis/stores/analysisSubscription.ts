@@ -1,9 +1,11 @@
 import { analysisKeys } from '@app/hooks/analysisKeys'
 import { safeUpdateJobCache } from '@app/utils/safeCacheUpdate'
 import {
+  getLatestAnalysisJobForRecordingId,
   subscribeToAnalysisJob,
   subscribeToAnalysisTitle,
   subscribeToLatestAnalysisJobByRecordingId,
+  supabase,
 } from '@my/api'
 import { log } from '@my/logging'
 import type { QueryClient } from '@tanstack/react-query'
@@ -29,7 +31,8 @@ export interface SubscriptionState {
   titleSubscription?: () => void
   subscriptionPromise?: Promise<void>
   // FIX: Track abort controllers for async operations to prevent writes after unmount
-  pendingOperations: AbortController[]
+  // Use Set for O(1) deletion instead of array O(n) splice
+  pendingOperations: Set<AbortController>
   // FIX: Track title receipt to delay cache invalidation until title is ready
   hasTitleReceived?: boolean
   pendingInvalidationTimeoutId?: ReturnType<typeof setTimeout> | null
@@ -104,10 +107,13 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
 
       // Guard: if already active/pending, return existing promise
       if (existing && (existing.status === 'pending' || existing.status === 'active')) {
-        log.debug('AnalysisSubscriptionStore', 'Subscription already in progress/active', {
-          subscriptionKey,
-          status: existing.status,
-        })
+        // Compile-time stripping: DEBUG logs removed in production builds
+        if (__DEV__) {
+          log.debug('AnalysisSubscriptionStore', 'Subscription already in progress/active', {
+            subscriptionKey,
+            status: existing.status,
+          })
+        }
         // Return existing promise if available to deduplicate concurrent calls
         return existing.subscriptionPromise
       }
@@ -169,7 +175,7 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
           subscription: current?.subscription,
           titleSubscription: current?.titleSubscription,
           subscriptionPromise,
-          pendingOperations: current?.pendingOperations ?? [], // FIX: Initialize abort controllers array
+          pendingOperations: current?.pendingOperations ?? new Set(), // FIX: Initialize abort controllers Set
           hasTitleReceived: current?.hasTitleReceived ?? false, // FIX: Initialize title tracking
           pendingInvalidationTimeoutId: current?.pendingInvalidationTimeoutId ?? null, // FIX: Initialize invalidation timeout
         })
@@ -204,10 +210,12 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
             try {
               controller.abort()
             } catch (error) {
-              log.debug('AnalysisSubscriptionStore', 'Error aborting operation', {
-                error,
-                key,
-              })
+              if (__DEV__) {
+                log.debug('AnalysisSubscriptionStore', 'Error aborting operation', {
+                  error,
+                  key,
+                })
+              }
             }
           })
         }
@@ -347,10 +355,12 @@ export const useAnalysisSubscriptionStore = create<AnalysisSubscriptionStoreStat
               try {
                 controller.abort()
               } catch (error) {
-                log.debug('AnalysisSubscriptionStore', 'Error aborting operation during reset', {
-                  error,
-                  key,
-                })
+                if (__DEV__) {
+                  log.debug('AnalysisSubscriptionStore', 'Error aborting operation during reset', {
+                    error,
+                    key,
+                  })
+                }
               }
             })
           }
@@ -504,6 +514,21 @@ function handleTitleUpdate(
   get: StoreGetter,
   analysisUuid?: string | null
 ): void {
+  // PERF: Skip duplicate title processing - title subscription can fire multiple times
+  // (e.g., after job completion). Only process once per subscription.
+  const existingSubscription = get().subscriptions.get(key)
+  if (existingSubscription?.hasTitleReceived) {
+    // Compile-time stripping: DEBUG logs removed in production builds
+    if (__DEV__) {
+      log.debug('AnalysisSubscriptionStore', 'Skipping duplicate title update', {
+        key,
+        jobId,
+        hasTitle: !!title,
+      })
+    }
+    return
+  }
+
   log.info('AnalysisSubscriptionStore', 'Analysis content update received', {
     key,
     jobId,
@@ -511,6 +536,14 @@ function handleTitleUpdate(
     hasTitle: !!title,
     hasFullFeedbackText: !!fullFeedbackText,
     analysisUuid,
+  })
+
+  // Mark title as received to prevent duplicate processing
+  set((draft: AnalysisSubscriptionStoreState) => {
+    const sub = draft.subscriptions.get(key)
+    if (sub) {
+      sub.hasTitleReceived = true
+    }
   })
 
   // FIX: Store the UUID in Zustand cache immediately when received
@@ -561,14 +594,17 @@ function handleTitleUpdate(
   // Update cache if we have either title or fullFeedbackText
   const hasContent = title || fullFeedbackText
   if (!hasContent) {
-    log.debug(
-      'AnalysisSubscriptionStore',
-      'Skipping update - both title and fullFeedbackText are null/empty',
-      {
-        key,
-        jobId,
-      }
-    )
+    // Compile-time stripping: DEBUG logs removed in production builds
+    if (__DEV__) {
+      log.debug(
+        'AnalysisSubscriptionStore',
+        'Skipping update - both title and fullFeedbackText are null/empty',
+        {
+          key,
+          jobId,
+        }
+      )
+    }
     return
   }
 
@@ -598,9 +634,9 @@ function handleTitleUpdate(
       const sub = draft.subscriptions.get(key)
       if (sub) {
         if (!sub.pendingOperations) {
-          sub.pendingOperations = []
+          sub.pendingOperations = new Set()
         }
-        sub.pendingOperations.push(abortController)
+        sub.pendingOperations.add(abortController)
       }
     })
   }
@@ -661,15 +697,17 @@ function handleTitleUpdate(
             video_recording_id: number
           }
           safeUpdateJobCache(queryClient, updatedJob, analysisKeys, 'handleTitleUpdate')
-          log.debug(
-            'AnalysisSubscriptionStore',
-            'Updated TanStack Query cache with analysis content',
-            {
-              jobId,
-              hasTitle: !!title,
-              hasFullFeedbackText: !!fullFeedbackText,
-            }
-          )
+          if (__DEV__) {
+            log.debug(
+              'AnalysisSubscriptionStore',
+              'Updated TanStack Query cache with analysis content',
+              {
+                jobId,
+                hasTitle: !!title,
+                hasFullFeedbackText: !!fullFeedbackText,
+              }
+            )
+          }
         }
       }
 
@@ -683,8 +721,6 @@ function handleTitleUpdate(
         if (job && !abortController.signal.aborted) {
           // Fetch thumbnail from video_recordings to include in minimal cache entry
           // This ensures thumbnails are available even if setJobResults runs later
-          const { supabase } = await import('@my/api')
-
           // FIX: Check abort signal before async operation
           if (abortController.signal.aborted) {
             return
@@ -761,13 +797,15 @@ function handleTitleUpdate(
           const jobTitle = (job as any).title as string | undefined
           const cacheTitle = (title ?? jobTitle ?? '') as string
           if (!cacheTitle) {
-            log.debug(
-              'AnalysisSubscriptionStore',
-              'Skipping cache entry creation - no title available',
-              {
-                jobId: job.id,
-              }
-            )
+            if (__DEV__) {
+              log.debug(
+                'AnalysisSubscriptionStore',
+                'Skipping cache entry creation - no title available',
+                {
+                  jobId: job.id,
+                }
+              )
+            }
             return
           }
 
@@ -883,14 +921,16 @@ function handleTitleUpdate(
               }
             )
           } else {
-            log.debug(
-              'AnalysisSubscriptionStore',
-              'Cache and job data not found, title will be set when cache is created',
-              {
-                jobId,
-                title,
-              }
-            )
+            if (__DEV__) {
+              log.debug(
+                'AnalysisSubscriptionStore',
+                'Cache and job data not found, title will be set when cache is created',
+                {
+                  jobId,
+                  title,
+                }
+              )
+            }
           }
         }
       }
@@ -908,13 +948,11 @@ function handleTitleUpdate(
       })
     } finally {
       // FIX: Remove abort controller from subscription state when operation completes
+      // Use Set.delete() for O(1) removal instead of array indexOf + splice O(n)
       set((draft: AnalysisSubscriptionStoreState) => {
         const sub = draft.subscriptions.get(key)
         if (sub?.pendingOperations) {
-          const index = sub.pendingOperations.indexOf(abortController)
-          if (index > -1) {
-            sub.pendingOperations.splice(index, 1)
-          }
+          sub.pendingOperations.delete(abortController)
         }
       })
     }
@@ -1094,9 +1132,11 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
 
     // If title already received, handleTitleUpdate already prepended - nothing to do
     if (hasTitle) {
-      log.debug('AnalysisSubscriptionStore', 'Job completed - title already handled', {
-        jobId: job.id,
-      })
+      if (__DEV__) {
+        log.debug('AnalysisSubscriptionStore', 'Job completed - title already handled', {
+          jobId: job.id,
+        })
+      }
       return
     }
 
@@ -1123,7 +1163,11 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
         if (!currentSub) return
 
         if (currentSub.hasTitleReceived) {
-          log.debug('AnalysisSubscriptionStore', 'Title arrived before timeout', { jobId: job.id })
+          if (__DEV__) {
+            log.debug('AnalysisSubscriptionStore', 'Title arrived before timeout', {
+              jobId: job.id,
+            })
+          }
           return
         }
 
@@ -1196,11 +1240,13 @@ function handleSubscriptionError(
   // CHANNEL_ERROR can happen during reconnection - only warn, don't spam error logs
   const isExpectedLifecycleEvent = error === 'CHANNEL_CLOSED' || error === 'CHANNEL_ERROR'
   if (isExpectedLifecycleEvent) {
-    log.debug('AnalysisSubscriptionStore', 'Subscription channel event', {
-      key,
-      error,
-      details,
-    })
+    if (__DEV__) {
+      log.debug('AnalysisSubscriptionStore', 'Subscription channel event', {
+        key,
+        error,
+        details,
+      })
+    }
   } else {
     log.error('AnalysisSubscriptionStore', 'Subscription error reported', {
       key,
@@ -1256,9 +1302,11 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
     const current = draft.subscriptions.get(key)
     if (!current) {
       // Subscription was deleted, don't schedule retry
-      log.debug('AnalysisSubscriptionStore', 'Subscription deleted, skipping retry schedule', {
-        key,
-      })
+      if (__DEV__) {
+        log.debug('AnalysisSubscriptionStore', 'Subscription deleted, skipping retry schedule', {
+          key,
+        })
+      }
       return
     }
 
@@ -1274,9 +1322,11 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
       const currentState = get()
       const currentSubscription = currentState.subscriptions.get(key)
       if (!currentSubscription) {
-        log.debug('AnalysisSubscriptionStore', 'Skipping retry - subscription was deleted', {
-          key,
-        })
+        if (__DEV__) {
+          log.debug('AnalysisSubscriptionStore', 'Skipping retry - subscription was deleted', {
+            key,
+          })
+        }
         return
       }
       void get().retry(key)
@@ -1287,7 +1337,7 @@ function scheduleRetry(key: string, get: StoreGetter, set: StoreSetter) {
   })
 }
 
-function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) {
+function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter): void {
   // MEMORY LEAK FIX: Check existence before scheduling timer
   const state = get()
   const subscription = state.subscriptions.get(key)
@@ -1302,9 +1352,11 @@ function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) 
     const currentState = get()
     const currentSubscription = currentState.subscriptions.get(key)
     if (!currentSubscription) {
-      log.debug('AnalysisSubscriptionStore', 'Skipping backfill - subscription was deleted', {
-        key,
-      })
+      if (__DEV__) {
+        log.debug('AnalysisSubscriptionStore', 'Skipping backfill - subscription was deleted', {
+          key,
+        })
+      }
       return
     }
 
@@ -1314,7 +1366,6 @@ function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) 
     }
 
     try {
-      const { getLatestAnalysisJobForRecordingId } = await import('@my/api')
       const job = await getLatestAnalysisJobForRecordingId(options.recordingId)
       if (job) {
         handleJobUpdate(key, job, set, get)
@@ -1333,7 +1384,9 @@ function scheduleBackfillCheck(key: string, set: StoreSetter, get: StoreGetter) 
       // MEMORY LEAK FIX: Clean up orphaned timer if subscription was deleted
       // This handles race condition where subscription is deleted between setTimeout and set()
       clearTimeout(timeoutId)
-      log.debug('AnalysisSubscriptionStore', 'Cleaned up orphaned backfill timer', { key })
+      if (__DEV__) {
+        log.debug('AnalysisSubscriptionStore', 'Cleaned up orphaned backfill timer', { key })
+      }
       return
     }
     if (subscription.backfillTimeoutId) {

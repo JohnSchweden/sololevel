@@ -10,11 +10,20 @@ import { Provider } from '@app/provider'
 import { JosefinSans_400Regular, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans'
 import { log } from '@my/logging'
 import { NativeToast } from '@my/ui'
+import * as Sentry from '@sentry/react-native'
 //import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { useFonts } from 'expo-font'
 import { SplashScreen, Stack } from 'expo-router'
 import { Platform, StatusBar } from 'react-native'
+
+// Sentry initialization for crash reporting and performance monitoring
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  // enableInExpoDevelopment: true, // No longer needed in modern Sentry
+  debug: __DEV__,
+})
+
 import { AuthGate } from '../components/AuthGate'
 //import { useColorScheme } from 'react-native'
 //import * as Linking from 'expo-linking'
@@ -130,7 +139,15 @@ function RootLayoutNav({ onRootViewReady }: { onRootViewReady?: () => void }) {
   // }, [])
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        Sentry.captureException(error, {
+          extra: {
+            componentStack: errorInfo.componentStack,
+          },
+        })
+      }}
+    >
       <Provider onRootViewReady={onRootViewReady}>
         {/*<ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>*/}
         {/* Android: Set transparent status bar globally */}

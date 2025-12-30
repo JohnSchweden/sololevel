@@ -4,6 +4,8 @@
  */
 
 import Constants from 'expo-constants'
+import * as FileSystem from 'expo-file-system'
+import { Video } from 'react-native-compressor'
 
 import { log } from '@my/logging'
 
@@ -55,9 +57,6 @@ export async function compressVideo(
     const originalMetadata = await getVideoMetadata(fileUri)
 
     log.info('videoCompression', 'Starting video compression', { fileUri, options })
-
-    // Import react-native-compressor dynamically
-    const { Video } = await import('react-native-compressor')
 
     // Set default options
     const quality = options.quality ?? 'medium'
@@ -160,9 +159,7 @@ async function getCompressedVideoMetadata(
     }
 
     // Use expo-file-system to get file info
-    const { getInfoAsync } = await import('expo-file-system')
-
-    const fileInfo = await getInfoAsync(compressedUri, { size: true })
+    const fileInfo = await FileSystem.getInfoAsync(compressedUri, { size: true })
 
     return {
       size: (fileInfo as any).size || 0,
@@ -197,8 +194,7 @@ async function getVideoMetadata(fileUri: string): Promise<CompressionResult['met
       }
     }
 
-    const { getInfoAsync } = await import('expo-file-system')
-    const fileInfo = await getInfoAsync(fileUri, { size: true })
+    const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true })
 
     return {
       size: (fileInfo as any).size || 0,

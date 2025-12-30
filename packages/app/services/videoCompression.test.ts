@@ -105,6 +105,8 @@ describe('videoCompression', () => {
       }
       const mockCompressor = jest.requireMock('react-native-compressor').Video.compress as jest.Mock
 
+      // Clear previous mock calls from other tests
+      mockCompressor.mockClear()
       constants.appOwnership = 'expo'
 
       const result = await compressVideo(mockFileUri)

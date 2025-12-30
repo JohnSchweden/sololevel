@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Dimensions } from 'react-native'
+import { Dimensions, Platform, StatusBar } from 'react-native'
 import type { ViewStyle } from 'react-native'
 import Animated, {
   cancelAnimation,
@@ -16,7 +16,14 @@ import Animated, {
 } from 'react-native-reanimated'
 
 // Animation constants - Mode-based system
-const { height: SCREEN_H } = Dimensions.get('window')
+const { height: SCREEN_H_BASE } = Dimensions.get('window')
+
+// Android-only: Adjust for translucent status bar to prevent bottom overflow
+// iOS: Use original window height (automatically adjusts when status bar is hidden)
+const SCREEN_H =
+  Platform.OS === 'android' && StatusBar.currentHeight
+    ? SCREEN_H_BASE - StatusBar.currentHeight - 8 // 8px buffer for gesture nav/rendering differences
+    : SCREEN_H_BASE
 
 // Discrete video heights per mode
 const VIDEO_HEIGHTS = {

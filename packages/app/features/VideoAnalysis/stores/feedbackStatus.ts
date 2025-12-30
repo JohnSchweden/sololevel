@@ -354,14 +354,17 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               return
             }
 
-            log.debug('FeedbackStatusStore', `Updating feedback ${feedbackId}`, {
-              existingAudioStatus: existing.audioStatus,
-              existingSSMLStatus: existing.ssmlStatus,
-              newAudioStatus: updates.audio_status,
-              newSSMLStatus: updates.ssml_status,
-              hasAudioUpdate: !!updates.audio_status,
-              hasSSMLUpdate: !!updates.ssml_status,
-            })
+            // Compile-time stripping: DEBUG logs removed in production builds
+            if (__DEV__) {
+              log.debug('FeedbackStatusStore', `Updating feedback ${feedbackId}`, {
+                existingAudioStatus: existing.audioStatus,
+                existingSSMLStatus: existing.ssmlStatus,
+                newAudioStatus: updates.audio_status,
+                newSSMLStatus: updates.ssml_status,
+                hasAudioUpdate: !!updates.audio_status,
+                hasSSMLUpdate: !!updates.ssml_status,
+              })
+            }
 
             // Update counters based on status changes
             const oldSSMLStatus = existing.ssmlStatus
@@ -597,9 +600,11 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               try {
                 // Check if aborted before starting fetch
                 if (initialFetchAbortController.signal.aborted) {
-                  log.debug('FeedbackStatusStore', 'Initial fetch aborted before start', {
-                    analysisId,
-                  })
+                  if (__DEV__) {
+                    log.debug('FeedbackStatusStore', 'Initial fetch aborted before start', {
+                      analysisId,
+                    })
+                  }
                   return
                 }
 
@@ -615,9 +620,11 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
 
                 // Check if aborted after fetch completes
                 if (initialFetchAbortController.signal.aborted) {
-                  log.debug('FeedbackStatusStore', 'Initial fetch aborted after completion', {
-                    analysisId,
-                  })
+                  if (__DEV__) {
+                    log.debug('FeedbackStatusStore', 'Initial fetch aborted after completion', {
+                      analysisId,
+                    })
+                  }
                   return
                 }
 

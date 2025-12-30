@@ -52,6 +52,10 @@ jest.mock('@app/provider/safe-area/use-safe-area', () => ({
 jest.mock('react-native', () => {
   const React = require('react')
   return {
+    Platform: {
+      OS: 'web',
+      select: jest.fn((obj: any) => obj.web || obj.default),
+    },
     View: ({ children, testID, style, ...props }: any) =>
       React.createElement('div', { 'data-testid': testID, style, ...props }, children),
   }

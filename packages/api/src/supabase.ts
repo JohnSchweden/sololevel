@@ -85,12 +85,163 @@ if (!supabaseUrl || !supabaseKey) {
 let supabaseClient: ReturnType<typeof createClient<Database>> | null = null
 
 /**
+ * Reset Supabase client cache (for URL changes or stale session clearing)
+ * Forces client recreation on next access
+ * Also clears stored URL cache to force re-validation on next check
+ */
+export function resetSupabaseClient(): void {
+  supabaseClient = null
+  // Clear stored URL cache to force re-validation on next check
+  if (mmkv) {
+    mmkv.delete('supabase.last_checked_url')
+  }
+}
+
+/**
+ * Base64 decode that works in React Native (no atob dependency)
+ * Uses manual decoding since atob is browser-only and not available in RN
+ */
+function base64Decode(base64: string): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+  let output = ''
+
+  // Pad to multiple of 4
+  const padded = base64.replace(/[^A-Za-z0-9+/]/g, '')
+  const padding = padded.length % 4
+  const input = padding ? padded + '===='.slice(padding) : padded
+
+  for (let i = 0; i < input.length; i += 4) {
+    const enc1 = chars.indexOf(input[i])
+    const enc2 = chars.indexOf(input[i + 1])
+    const enc3 = chars.indexOf(input[i + 2])
+    const enc4 = chars.indexOf(input[i + 3])
+
+    const chr1 = (enc1 << 2) | (enc2 >> 4)
+    const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2)
+    const chr3 = ((enc3 & 3) << 6) | enc4
+
+    output += String.fromCharCode(chr1)
+    if (enc3 !== 64) output += String.fromCharCode(chr2)
+    if (enc4 !== 64) output += String.fromCharCode(chr3)
+  }
+
+  return output
+}
+
+/**
+ * Normalize URLs: remove protocol, extract hostname
+ * Used for consistent URL comparison
+ */
+function normalizeUrl(url: string): string {
+  return url
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0]
+    .toLowerCase()
+}
+
+/**
+ * Check if stored session token issuer matches current Supabase URL
+ * Clears stale session if mismatch detected (e.g., switching from local to remote DB)
+ * MUST be synchronous to run before Supabase client reads storage
+ *
+ * PERFORMANCE: Only decodes JWT if URL changed since last launch (fast path: string comparison)
+ */
+function checkAndClearStaleSession(): void {
+  if (!mmkv) return // Skip on web/Node.js
+
+  // Get current Supabase URL (already adjusted for platform)
+  const currentUrl = supabaseUrl
+  if (!currentUrl) return
+
+  // Fast path: Check if URL changed since last launch (stored in MMKV)
+  // This avoids expensive JWT decode on every app launch
+  const lastCheckedUrl = mmkv.getString('supabase.last_checked_url')
+  const normalizedCurrentUrl = normalizeUrl(currentUrl)
+
+  // If URL hasn't changed, skip JWT decode (99% of launches)
+  if (lastCheckedUrl === normalizedCurrentUrl) {
+    return
+  }
+
+  try {
+    // Read directly from MMKV synchronously (not through async wrapper)
+    const storedSessionJson = mmkv.getString('supabase.auth.token')
+    if (!storedSessionJson) {
+      // No session - update stored URL and return
+      mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+      return
+    }
+
+    const storedSession = JSON.parse(storedSessionJson)
+    if (!storedSession.access_token) {
+      // No token - update stored URL and return
+      mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+      return
+    }
+
+    // Decode JWT to get issuer claim (only if URL changed)
+    const tokenParts = storedSession.access_token.split('.')
+    if (tokenParts.length !== 3) {
+      mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+      return
+    }
+
+    // Base64URL decode (React Native compatible - no atob dependency)
+    const base64Url = tokenParts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      base64Decode(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const payload = JSON.parse(jsonPayload)
+    const tokenIssuer = payload.iss || null
+
+    if (!tokenIssuer) {
+      mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+      return
+    }
+
+    // Normalize URLs for comparison
+    const issuerHost = normalizeUrl(tokenIssuer)
+    const urlMatches =
+      issuerHost === normalizedCurrentUrl ||
+      issuerHost.includes(normalizedCurrentUrl) ||
+      normalizedCurrentUrl.includes(issuerHost)
+
+    if (!urlMatches) {
+      // URL mismatch - clear stale session BEFORE client reads it
+      // Clear synchronously using MMKV directly
+      mmkv.delete('supabase.auth.token')
+    }
+
+    // Update stored URL after successful check (even if session was cleared)
+    mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+  } catch (error) {
+    // Silently fail - corrupted session will be handled by Supabase
+    // Still update stored URL to prevent repeated decode attempts
+    try {
+      mmkv.set('supabase.last_checked_url', normalizedCurrentUrl)
+    } catch {
+      // Ignore errors updating stored URL
+    }
+  }
+}
+
+/**
  * Get Supabase client instance (lazy initialization)
  * Client is created on first access, not at module import time
  * This prevents blocking app launch with storage reads
  */
 function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
   if (!supabaseClient) {
+    // CRITICAL: Check for stale session BEFORE creating client
+    // This ensures we clear MMKV synchronously before Supabase reads it
+    // Must be synchronous to prevent race condition where client reads stale session
+    checkAndClearStaleSession()
+
     supabaseClient = createClient<Database>(supabaseUrl!, supabaseKey!, {
       auth: {
         // Auto refresh session

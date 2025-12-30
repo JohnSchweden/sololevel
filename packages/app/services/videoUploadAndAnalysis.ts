@@ -3,7 +3,9 @@
  * Handles compression, upload, and AI analysis orchestration
  */
 
-import { supabase, uploadVideo, uploadVideoThumbnail } from '@my/api'
+import { generateVideoThumbnail, supabase, uploadVideo, uploadVideoThumbnail } from '@my/api'
+import { useVideoHistoryStore } from '@my/app/features/HistoryProgress/stores/videoHistory'
+import { useAnalysisSubscriptionStore } from '@my/app/features/VideoAnalysis/stores/analysisSubscription'
 import { useUploadProgressStore } from '@my/app/features/VideoAnalysis/stores/uploadProgress'
 import { log } from '@my/logging'
 import * as FileSystem from 'expo-file-system'
@@ -90,6 +92,7 @@ async function cleanupTempFile(uri: string): Promise<void> {
 
 /**
  * Generate thumbnail from video URI (unified for both recorded and uploaded videos)
+ * Uses static import to avoid Metro bundling overhead in hot path
  */
 async function generateThumbnail(videoUri: string, context: string): Promise<string | undefined> {
   if (Platform.OS === 'web' || !videoUri) {
@@ -97,7 +100,6 @@ async function generateThumbnail(videoUri: string, context: string): Promise<str
   }
 
   try {
-    const { generateVideoThumbnail } = await import('@my/api')
     const result = await generateVideoThumbnail(videoUri)
     if (result?.uri) {
       log.info('videoUploadAndAnalysis', `Thumbnail generated for ${context}`, {
@@ -350,6 +352,23 @@ async function uploadWithProgress(args: {
         storagePath,
       })
       useUploadProgressStore.getState().setUploadTaskRecordingId(tempTaskId, recordingId)
+
+      // FIX 5: Create subscription EARLY when recordingId is available
+      // This ensures subscription is active BEFORE server trigger fires (when upload completes)
+      // Prevents race condition where job is created before subscription is ready
+      // Backfill mechanism will still catch any missed events, but this eliminates the 500ms delay
+      const subscriptionKey = `recording:${recordingId}`
+      void useAnalysisSubscriptionStore
+        .getState()
+        .subscribe(subscriptionKey, { recordingId })
+        .catch((error) => {
+          log.warn('startUploadAndAnalysis', 'Early subscription setup failed (non-blocking)', {
+            recordingId,
+            error: error instanceof Error ? error.message : String(error),
+            note: 'Subscription will be created when screen renders',
+          })
+        })
+
       onRecordingIdAvailable?.(recordingId)
       onUploadInitialized?.({ recordingId, sessionId, storagePath })
     },
@@ -366,6 +385,53 @@ async function uploadWithProgress(args: {
 }
 
 // Analysis is now auto-started server-side after upload; no client trigger needed.
+
+/**
+ * Upload thumbnail to cloud storage in background (fire-and-forget)
+ * Optimized to use cached auth data and minimal DB queries
+ */
+async function uploadThumbnailInBackground(
+  thumbnailUri: string,
+  recordingId: number
+): Promise<void> {
+  // Get userId from cached auth (fast, no network call)
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    throw new Error('User not authenticated')
+  }
+
+  // Query only created_at field (single field, primary key lookup - very fast)
+  const { data: recording } = await supabase
+    .from('video_recordings')
+    .select('created_at')
+    .eq('id', recordingId)
+    .single()
+
+  if (!recording) {
+    throw new Error(`Video recording ${recordingId} not found`)
+  }
+
+  // Upload thumbnail (non-blocking, fire-and-forget)
+  const cloudThumbnailUrl = await uploadVideoThumbnail(
+    thumbnailUri,
+    recordingId,
+    userData.user.id,
+    recording.created_at
+  )
+
+  if (cloudThumbnailUrl) {
+    // Update video_recordings with thumbnail_url (non-blocking)
+    await supabase
+      .from('video_recordings')
+      .update({ thumbnail_url: cloudThumbnailUrl })
+      .eq('id', recordingId)
+
+    log.info('startUploadAndAnalysis', 'Thumbnail uploaded to CDN', {
+      recordingId,
+      thumbnailUrl: cloudThumbnailUrl,
+    })
+  }
+}
 
 /**
  * Orchestrates the complete video upload and analysis pipeline
@@ -416,8 +482,6 @@ export async function startUploadAndAnalysis(
 
     // Step 3: Upload with progress callbacks and store updates
     // Cloud thumbnail upload happens in onUploadInitialized callback after we get recording ID
-    let cloudThumbnailUrl: string | null = null
-
     await uploadWithProgress({
       videoToUpload,
       metadata,
@@ -438,30 +502,31 @@ export async function startUploadAndAnalysis(
 
           // Skip if already in persistent location
           if (isPersistentPath(localUri)) {
-            log.debug(
-              'startUploadAndAnalysis',
-              'Video already in persistent location, skipping copy',
-              {
-                recordingId: details.recordingId,
-                localUri: localUri.substring(0, 80),
-              }
-            )
+            // Compile-time stripping: DEBUG logs removed in production builds
+            if (__DEV__) {
+              log.debug(
+                'startUploadAndAnalysis',
+                'Video already in persistent location, skipping copy',
+                {
+                  recordingId: details.recordingId,
+                  localUri: localUri.substring(0, 80),
+                }
+              )
+            }
 
             // Even if already persisted, ensure the localUriIndex is populated
+            // Use pre-imported store to avoid dynamic import overhead
             try {
-              const { useVideoHistoryStore } = await import(
-                '../features/HistoryProgress/stores/videoHistory'
-              )
               const historyStore = useVideoHistoryStore.getState()
               historyStore.setLocalUri(details.storagePath, localUri)
-            } catch (importError) {
+            } catch (error) {
               log.warn(
                 'startUploadAndAnalysis',
                 'Failed to update localUri index for persisted video',
                 {
                   recordingId: details.recordingId,
                   localUri: localUri.substring(0, 80),
-                  error: importError instanceof Error ? importError.message : String(importError),
+                  error: error instanceof Error ? error.message : String(error),
                 }
               )
             }
@@ -493,10 +558,8 @@ export async function startUploadAndAnalysis(
               .then(() => FileSystem.copyAsync({ from: localUri, to: persistedPath }))
               .then(async () => {
                 // Update history store index with persisted path
+                // Use pre-imported store to avoid dynamic import overhead
                 try {
-                  const { useVideoHistoryStore } = await import(
-                    '../features/HistoryProgress/stores/videoHistory'
-                  )
                   const historyStore = useVideoHistoryStore.getState()
                   historyStore.setLocalUri(details.storagePath, persistedPath)
 
@@ -506,12 +569,12 @@ export async function startUploadAndAnalysis(
                     to: persistedPath.substring(0, 80),
                     storagePath: details.storagePath,
                   })
-                } catch (importError) {
-                  // Dynamic import can fail (network error, bundle corruption)
+                } catch (error) {
+                  // Store update can fail (state corruption, etc.)
                   // This is non-critical - video is already persisted, just missing index update
-                  log.warn('startUploadAndAnalysis', 'Failed to import store for index update', {
+                  log.warn('startUploadAndAnalysis', 'Failed to update store index', {
                     recordingId: details.recordingId,
-                    error: importError instanceof Error ? importError.message : String(importError),
+                    error: error instanceof Error ? error.message : String(error),
                     note: 'Video persisted successfully, but localUri index not updated',
                   })
                   // Don't rethrow - video persistence succeeded, index update is non-critical
@@ -526,57 +589,28 @@ export async function startUploadAndAnalysis(
                 })
               })
           } else {
-            log.debug(
-              'startUploadAndAnalysis',
-              'Video path is not temporary, skipping persistence',
-              {
-                recordingId: details.recordingId,
-                localUri: localUri.substring(0, 80),
-              }
-            )
+            // Compile-time stripping: DEBUG logs removed in production builds
+            if (__DEV__) {
+              log.debug(
+                'startUploadAndAnalysis',
+                'Video path is not temporary, skipping persistence',
+                {
+                  recordingId: details.recordingId,
+                  localUri: localUri.substring(0, 80),
+                }
+              )
+            }
           }
         }
 
         // Upload thumbnail to cloud storage after getting recording ID
+        // Fire-and-forget: non-blocking, uses cached auth data
         if (thumbnailUri) {
-          try {
-            // Get user from supabase
-            const { data: userData } = await supabase.auth.getUser()
-            if (userData.user) {
-              // Get video recording to get created_at timestamp
-              const { data: recording } = await supabase
-                .from('video_recordings')
-                .select('created_at')
-                .eq('id', details.recordingId)
-                .single()
-
-              if (recording) {
-                cloudThumbnailUrl = await uploadVideoThumbnail(
-                  thumbnailUri,
-                  details.recordingId,
-                  userData.user.id,
-                  recording.created_at
-                )
-
-                if (cloudThumbnailUrl) {
-                  // Update video_recordings with thumbnail_url
-                  await supabase
-                    .from('video_recordings')
-                    .update({ thumbnail_url: cloudThumbnailUrl })
-                    .eq('id', details.recordingId)
-
-                  log.info('startUploadAndAnalysis', 'Thumbnail uploaded to CDN', {
-                    recordingId: details.recordingId,
-                    thumbnailUrl: cloudThumbnailUrl,
-                  })
-                }
-              }
-            }
-          } catch (err) {
+          void uploadThumbnailInBackground(thumbnailUri, details.recordingId).catch((err) => {
             log.warn('startUploadAndAnalysis', 'Cloud thumbnail upload failed (non-blocking)', {
               error: err instanceof Error ? err.message : String(err),
             })
-          }
+          })
         }
 
         // Call original callback

@@ -224,12 +224,14 @@ Zustand persist middleware serializes state synchronously:
 
 ```typescript
 // File: packages/config/src/storage.ts (new file)
-import { MMKV } from 'react-native-mmkv'
+// react-native-mmkv v4.x API: Uses createMMKV() factory function
+import { createMMKV } from 'react-native-mmkv'
 import type { StateStorage } from 'zustand/middleware'
 
 // Single MMKV instance for all app storage
 // ID separates from other apps on same device
-export const mmkv = new MMKV({ id: 'sololevel-storage' })
+// v4.x: Use createMMKV() factory instead of new MMKV() class
+export const mmkv = createMMKV({ id: 'sololevel-storage' })
 
 /**
  * Zustand-compatible storage adapter for MMKV

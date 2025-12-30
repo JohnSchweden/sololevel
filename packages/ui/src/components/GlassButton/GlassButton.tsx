@@ -190,27 +190,30 @@ export const GlassButton = ({
           />
         ) : (
           <XStack
-            backgroundColor="rgba(0, 0, 0, 0.3)"
+            backgroundColor="rgba(0, 0, 0, 0.4)"
+            borderRadius={variant === 'variant2' ? 12 : undefined}
             style={blurViewStyle}
           />
         )}
 
-        <Image
-          source={overlaySource}
-          contentFit="cover"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: overlayOpacity,
-          }}
-          // Performance optimizations
-          cachePolicy="memory-disk" // Use both memory and disk cache
-          transition={200} // Smooth fade-in transition
-          priority="normal" // Button overlay images don't need high priority
-        />
+        {Platform.OS === 'ios' && (
+          <Image
+            source={overlaySource}
+            contentFit="cover"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: overlayOpacity,
+            }}
+            // Performance optimizations
+            cachePolicy="memory-disk" // Use both memory and disk cache
+            transition={200} // Smooth fade-in transition
+            priority="normal" // Button overlay images don't need high priority
+          />
+        )}
       </XStack>
 
       <Button

@@ -65,6 +65,8 @@ export const VisionCameraPreview = memo(
       // PERF FIX: Track pause state separately from camera initialization
       // When paused, camera stays mounted but inactive (no re-init on resume)
       const [isPaused, setIsPaused] = useState(false)
+      // Track recording start time for duration mismatch detection
+      const recordingStartTimeRef = useRef<number | null>(null)
 
       const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
 
@@ -320,15 +322,42 @@ export const VisionCameraPreview = memo(
               videoBitRate: 4_000_000, // 4 Mbps
               onRecordingFinished: async (video: { path: string; duration?: number }) => {
                 // Validate video path before saving
-                if (!video.path || !video.path.startsWith('file://')) {
+                // Android returns absolute path (/data/...), iOS returns file:// URI
+                const isValidPath =
+                  video.path && (video.path.startsWith('file://') || video.path.startsWith('/'))
+                if (!isValidPath) {
                   log.error('VisionCamera', 'Invalid video path received', {
                     codec,
                     path: video.path,
                     duration: video.duration,
-                    expectedFormat: 'file://...',
+                    expectedFormat: 'file://... or absolute path',
                   })
                   onError?.('Invalid video path')
                   return
+                }
+
+                // Normalize path: Android returns absolute path, iOS returns file:// URI
+                // FileSystem.copyAsync requires file:// URI format
+                const normalizedPath = video.path.startsWith('file://')
+                  ? video.path
+                  : `file://${video.path}`
+
+                // Check duration mismatch: VisionCamera duration (encoded) vs wall-clock time
+                if (video.duration && recordingStartTimeRef.current) {
+                  const wallClockDuration = (Date.now() - recordingStartTimeRef.current) / 1000 // seconds
+                  const encodedDuration = video.duration
+                  const durationDelta = Math.abs(wallClockDuration - encodedDuration)
+
+                  // Log warning if mismatch > 1 second (encoding overhead or frame drops)
+                  if (durationDelta > 1) {
+                    log.warn('VisionCamera', 'Duration mismatch detected', {
+                      encodedDuration: encodedDuration.toFixed(3),
+                      wallClockDuration: wallClockDuration.toFixed(3),
+                      deltaSeconds: durationDelta.toFixed(3),
+                      codec,
+                      note: 'Encoded duration reflects actual video frames; wall-clock includes encoding overhead',
+                    })
+                  }
                 }
 
                 // Check if mounted before proceeding with async operations
@@ -347,7 +376,7 @@ export const VisionCameraPreview = memo(
                 const filename = `recording_${Date.now()}.mp4`
                 try {
                   const savedVideo = await VideoStorageService.saveVideo(
-                    video.path,
+                    normalizedPath,
                     filename,
                     {
                       format: 'mp4',
@@ -389,7 +418,8 @@ export const VisionCameraPreview = memo(
 
                   log.error('VisionCamera', 'Failed to save video to local storage', {
                     codec,
-                    videoPath: video.path,
+                    videoPath: normalizedPath,
+                    originalPath: video.path,
                     filename,
                     error: saveError instanceof Error ? saveError.message : saveError,
                     errorStack: saveError instanceof Error ? saveError.stack : undefined,
@@ -412,6 +442,7 @@ export const VisionCameraPreview = memo(
             }
 
             try {
+              recordingStartTimeRef.current = Date.now()
               startRecordingWithCodec('h265')
               log.info('VisionCamera', 'Recording started')
             } catch (error) {
@@ -424,6 +455,7 @@ export const VisionCameraPreview = memo(
               )
 
               try {
+                recordingStartTimeRef.current = Date.now()
                 startRecordingWithCodec('h264')
                 log.info('VisionCamera', 'Recording started')
               } catch (fallbackError) {
@@ -437,6 +469,8 @@ export const VisionCameraPreview = memo(
           },
 
           stopRecording: async (): Promise<void> => {
+            // Reset recording start time when stopping
+            recordingStartTimeRef.current = null
             if (!checkCameraReady()) {
               throw new Error('Camera not ready for stopping recording')
             }

@@ -1,5 +1,6 @@
 import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
 import { useState } from 'react'
+import { Platform } from 'react-native'
 import { Button, Text, YStack } from 'tamagui'
 
 export interface SocialIconsProps {
@@ -71,22 +72,27 @@ export function SocialIcons({
   const BUTTON_MIN_WIDTH = 44
   const BUTTON_MIN_HEIGHT = 44
 
-  // Shadow styles for icons and text
-  const iconShadowStyle = {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4, // Android
-  } as const
+  // Shadow styles for icons and text (iOS only)
+  // Use style prop to avoid TypeScript type conflicts with Tamagui props
+  const iconShadowStyle =
+    Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.5,
+          shadowRadius: 4,
+        }
+      : { elevation: 0 }
 
-  const textShadowStyle = {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.6,
-    shadowRadius: 3,
-    elevation: 3, // Android
-  } as const
+  const textShadowStyle =
+    Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.6,
+          shadowRadius: 3,
+        }
+      : { elevation: 0 }
 
   // Shared button styles
   const buttonPressStyle = {
@@ -178,14 +184,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
-            {...iconShadowStyle}
+            style={iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-likes-count"
             accessibilityLabel="Number of likes"
-            {...textShadowStyle}
+            style={textShadowStyle}
           >
             {formatCount(likes)}
           </Text>
@@ -217,14 +223,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
-            {...iconShadowStyle}
+            style={iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-comments-count"
             accessibilityLabel="Number of comments"
-            {...textShadowStyle}
+            style={textShadowStyle}
           >
             {formatCount(comments)}
           </Text>
@@ -256,14 +262,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
-            {...iconShadowStyle}
+            style={iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-bookmarks-count"
             accessibilityLabel="Number of bookmarks"
-            {...textShadowStyle}
+            style={textShadowStyle}
           >
             {formatCount(displayBookmarkCount)}
           </Text>
@@ -295,14 +301,14 @@ export function SocialIcons({
             borderColor={BUTTON_BORDER_COLOR}
             pressStyle={buttonPressStyle}
             hoverStyle={buttonHoverStyle}
-            {...iconShadowStyle}
+            style={iconShadowStyle}
           />
           <Text
             fontSize="$2"
             color={fontColor}
             testID="social-shares-count"
             accessibilityLabel="Number of shares"
-            {...textShadowStyle}
+            style={textShadowStyle}
           >
             {formatCount(shares)}
           </Text>

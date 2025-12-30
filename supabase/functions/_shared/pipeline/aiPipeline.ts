@@ -66,10 +66,21 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       stages
     })
 
-    // Update status to processing
-    logger.info(`Updating analysis status to processing for job ${analysisId}`)
-    await updateAnalysisStatus(supabase, analysisId, 'processing', null, 10, logger)
-    logger.info(`Successfully updated status to processing for job ${analysisId}`)
+    // Update status to processing (idempotent - only if still queued)
+    // Note: handleWebhookStart may have already set this, so we check current status first
+    const { data: currentJob } = await supabase
+      .from('analysis_jobs')
+      .select('status')
+      .eq('id', analysisId)
+      .single()
+
+    if (currentJob?.status === 'queued') {
+      logger.info(`Updating analysis status to processing for job ${analysisId}`)
+      await updateAnalysisStatus(supabase, analysisId, 'processing', null, 10, logger)
+      logger.info(`Successfully updated status to processing for job ${analysisId}`)
+    } else {
+      logger.info(`Analysis job ${analysisId} already in status: ${currentJob?.status}, skipping status update`)
+    }
 
     // 1. Video Source Detection (No pose data needed for AI analysis)
     // Pose data is stored in database for UI purposes only

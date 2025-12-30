@@ -28,16 +28,22 @@
         "UIViewControllerBasedStatusBarAppearance": false,
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select workout videos for AI analysis.",
         "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library, just like the native camera app.",
+        "NSLocationWhenInUseUsageDescription": "This app does not use your location. This permission may be referenced by system libraries for photo metadata access.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a1a1a"
+        "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
       "versionCode": 1,
+      "splash": {
+        "image": "./assets/splashscreen_logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1a1a1a"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -72,7 +78,14 @@
         }
       ],
       "./plugins/withDisableCodeSigning",
-      "./plugins/withDarkIcon"
+      "./plugins/withDarkIcon",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "sololevel",
+          "project": "sololevel-app"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

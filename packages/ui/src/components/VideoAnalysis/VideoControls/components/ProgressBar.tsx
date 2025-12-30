@@ -1,6 +1,6 @@
 // import { log } from '@my/logging'
 import React, { useCallback, useEffect } from 'react'
-import { type LayoutChangeEvent, Pressable, View, type ViewStyle } from 'react-native'
+import { type LayoutChangeEvent, Platform, Pressable, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, {
   type AnimatedStyle,
@@ -379,22 +379,32 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                 accessibilityRole="progressbar"
                 justifyContent="center"
                 onLayout={handleTrackLayout}
-                elevation="$6"
-                shadowColor="$color1"
-                shadowOffset={{ width: 0, height: 0 }}
-                shadowOpacity={1}
-                shadowRadius={4}
+                elevation={Platform.select({ android: 3, default: 0 })}
+                style={Platform.select({
+                  ios: {
+                    shadowColor: resolveThemeColor('$color1', '#000000'),
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 1,
+                    shadowRadius: 4,
+                  },
+                  default: undefined,
+                })}
               >
                 {/* Visual progress track */}
                 <YStack
                   height={trackHeight}
                   backgroundColor={trackBackgroundColor}
                   position="relative"
-                  elevation="$6"
-                  shadowColor="$color1"
-                  shadowOffset={{ width: 0, height: 0 }}
-                  shadowOpacity={0.5}
-                  shadowRadius={4}
+                  elevation={Platform.select({ android: 3, default: 0 })}
+                  style={Platform.select({
+                    ios: {
+                      shadowColor: resolveThemeColor('$color1', '#000000'),
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 4,
+                    },
+                    default: undefined,
+                  })}
                 >
                   {/* Progress fill */}
                   <Animated.View

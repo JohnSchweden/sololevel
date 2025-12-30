@@ -31,10 +31,13 @@ export async function generateVideoThumbnail(videoUri: string): Promise<{ uri: s
         ctx.drawImage(video, 0, 0)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8) // 80% quality
 
-        log.debug('videoThumbnailService', 'Thumbnail generated successfully (web)', {
-          videoUri,
-          dataUrlLength: dataUrl.length,
-        })
+        // Compile-time stripping: DEBUG logs removed in production builds
+        if (__DEV__) {
+          log.debug('videoThumbnailService', 'Thumbnail generated successfully (web)', {
+            videoUri,
+            dataUrlLength: dataUrl.length,
+          })
+        }
 
         resolve({ uri: dataUrl })
       } catch (error) {

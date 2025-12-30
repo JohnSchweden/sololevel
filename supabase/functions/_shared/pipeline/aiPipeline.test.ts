@@ -64,8 +64,19 @@ import { processSSMLJobs } from '../../ai-analyze-video/workers/ssmlWorker.ts'
 
 describe('AIPipeline Orchestrator - Basic Functionality', () => {
   it('should execute all stages when all flags are true', async () => {
+    // Mock supabase query for analysis_jobs
+    const mockSupabase = {
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { status: 'queued' },
+        error: null,
+      }),
+    }
+
     const mockContext: PipelineContext = {
-      supabase: {},
+      supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
       videoPath: 'test-video.mp4',
@@ -97,20 +108,23 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
 
     await processAIPipeline(mockContext)
 
+    // Wait for async worker calls (fire-and-forget)
+    await new Promise(resolve => setTimeout(resolve, 50))
+
     // Check that video analysis service was called
     expect(mockContext.services.videoAnalysis.analyze).toHaveBeenCalledTimes(1)
 
     // Check that worker functions were called (pipeline now delegates to workers)
     expect(processSSMLJobs).toHaveBeenCalledTimes(1)
     expect(processSSMLJobs).toHaveBeenCalledWith({
-      supabase: {},
+      supabase: mockSupabase,
       logger: mockContext.logger,
       feedbackIds: [1, 2, 3], // Mock feedback IDs from updateAnalysisResults
     })
 
     expect(processAudioJobs).toHaveBeenCalledTimes(1)
     expect(processAudioJobs).toHaveBeenCalledWith({
-      supabase: {},
+      supabase: mockSupabase,
       logger: mockContext.logger,
       feedbackIds: [1, 2, 3], // Mock feedback IDs from updateAnalysisResults
     })
@@ -124,8 +138,19 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       confidence: 0.8,
     })
 
+    // Mock supabase query for analysis_jobs
+    const mockSupabase = {
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { status: 'queued' },
+        error: null,
+      }),
+    }
+
     const mockContext: PipelineContext = {
-      supabase: {},
+      supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
       videoPath: 'test-video.mp4',
@@ -145,7 +170,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       videoPath: 'test-video.mp4',
       analysisParams: { duration: 10, feedbackCount: 2 },
       progressCallback: expect.any(Function),
-      supabase: {},
+      supabase: mockSupabase,
     })
   })
 
@@ -169,8 +194,19 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
     vi.mocked(processSSMLJobs).mockImplementationOnce(mockProcessSSMLJobs)
     vi.mocked(processAudioJobs).mockImplementationOnce(mockProcessAudioJobs)
 
+    // Mock supabase query for analysis_jobs
+    const mockSupabase = {
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { status: 'queued' },
+        error: null,
+      }),
+    }
+
     const mockContext: PipelineContext = {
-      supabase: {},
+      supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
       videoPath: 'test-video.mp4',
@@ -198,12 +234,12 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
 
     // Wait for the async SSML/audio chain to complete (fire-and-forget in implementation)
     // The pipeline calls processSSMLJobs().then() without awaiting
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise(resolve => setTimeout(resolve, 50))
 
     // Verify SSML worker was called
     expect(mockProcessSSMLJobs).toHaveBeenCalledTimes(1)
     expect(mockProcessSSMLJobs).toHaveBeenCalledWith({
-      supabase: {},
+      supabase: mockSupabase,
       logger: mockContext.logger,
       feedbackIds: [1, 2, 3], // Mock feedback IDs from updateAnalysisResults
     })
@@ -227,8 +263,19 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
     const mockProcessSSMLJobs = vi.fn()
     vi.mocked(processSSMLJobs).mockImplementationOnce(mockProcessSSMLJobs)
 
+    // Mock supabase query for analysis_jobs
+    const mockSupabase = {
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { status: 'queued' },
+        error: null,
+      }),
+    }
+
     const mockContext: PipelineContext = {
-      supabase: {},
+      supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
       videoPath: 'test-video.mp4',
@@ -258,6 +305,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
     expect(mockProcessSSMLJobs).not.toHaveBeenCalled()
 
     // Logger should indicate SSML generation was skipped
+    // Note: The log message includes feedbackIds, but the actual call happens after updateAnalysisResults
     expect(mockContext.logger.info).toHaveBeenCalledWith(
       'Skipping SSML generation (SSML stage disabled)',
       { feedbackIds: [1, 2, 3] }

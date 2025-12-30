@@ -33,10 +33,10 @@ function getMMKV(): MMKV | null {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { MMKV: MMKVClass } = require('react-native-mmkv')
-    mmkvInstance = new MMKVClass({ id: 'sololevel-storage' })
+    const { createMMKV } = require('react-native-mmkv')
+    mmkvInstance = createMMKV({ id: 'sololevel-storage' })
     return mmkvInstance
-  } catch {
+  } catch (error) {
     // MMKV not available (web or Node.js)
     return null
   }
@@ -106,7 +106,9 @@ export const mmkvStorage: StateStorage = {
 export const mmkvStorageAsync = {
   getItem: async (key: string): Promise<string | null> => {
     const mmkv = getMMKV()
-    if (!mmkv) return null
+    if (!mmkv) {
+      return null
+    }
     return mmkv.getString(key) ?? null
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -116,7 +118,11 @@ export const mmkvStorageAsync = {
   },
   removeItem: async (key: string): Promise<void> => {
     const mmkv = getMMKV()
-    if (!mmkv) return
+    if (!mmkv) {
+      return
+    }
+    // MMKV API guarantees delete() exists - if it doesn't, that's a library version mismatch
+    // and should fail loudly rather than silently leaking storage with empty strings
     mmkv.delete(key)
   },
 }

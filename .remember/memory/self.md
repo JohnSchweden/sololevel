@@ -79,6 +79,36 @@ const unsubscribe = someFunction(arg, (param1, param2) => {
 })
 ```
 
+### Mistake: Using browser-only APIs (atob/btoa) in React Native
+**Wrong**:
+```typescript
+// atob is browser-only, crashes React Native with ReferenceError
+const decoded = atob(base64String)
+```
+**Lesson**: `atob()` and `btoa()` are Web APIs not available in React Native's JavaScript environment. Using them causes immediate crashes on launch.
+
+**Correct**:
+```typescript
+// Manual base64 decode for React Native compatibility
+function base64Decode(base64: string): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+  let output = ''
+  const padded = base64.replace(/[^A-Za-z0-9+/]/g, '')
+  const padding = padded.length % 4
+  const input = padding ? padded + '===='.slice(padding) : padded
+  for (let i = 0; i < input.length; i += 4) {
+    const enc1 = chars.indexOf(input[i])
+    const enc2 = chars.indexOf(input[i + 1])
+    const enc3 = chars.indexOf(input[i + 2])
+    const enc4 = chars.indexOf(input[i + 3])
+    output += String.fromCharCode((enc1 << 2) | (enc2 >> 4))
+    if (enc3 !== 64) output += String.fromCharCode(((enc2 & 15) << 4) | (enc3 >> 2))
+    if (enc4 !== 64) output += String.fromCharCode(((enc3 & 3) << 6) | enc4)
+  }
+  return output
+}
+```
+
 ### Mistake: Testing internal implementation instead of user behavior
 **Wrong**:
 ```typescript

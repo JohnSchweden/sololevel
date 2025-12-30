@@ -114,6 +114,9 @@ supabase/functions/**/node_modules/
 # Database backups
 backups/
 
+# Credentials and secrets (service account keys, certificates, etc.)
+.credentials/
+
 # Documentation directories
 docs/code-review/
 docs/debugging/

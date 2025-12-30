@@ -5,6 +5,7 @@ import type {
   AnalysisJob,
   SubscriptionOptions,
   SubscriptionState,
+  SubscriptionStatus,
 } from '@app/features/VideoAnalysis/stores/analysisSubscription'
 import type { FeedbackStatusState } from '@app/features/VideoAnalysis/stores/feedbackStatus'
 import type { UploadTask } from '@app/features/VideoAnalysis/stores/uploadProgress'
@@ -53,16 +54,24 @@ const mockUploadStoreState = {
   getTaskByRecordingId: jest.fn<(recordingId: number) => UploadTask | null>(),
 }
 
+const subscriptionsMap = new Map<
+  string,
+  Pick<SubscriptionState, 'status'> & {
+    job?: AnalysisJob | null
+  }
+>()
+
 const mockAnalysisStoreState = {
   subscribe: jest.fn<(key: string, options: SubscriptionOptions) => Promise<void>>(),
   unsubscribe: jest.fn<(key: string) => void>(),
   retry: jest.fn<(key: string) => Promise<void>>(),
-  subscriptions: new Map<
-    string,
-    Pick<SubscriptionState, 'status'> & {
-      job?: AnalysisJob | null
-    }
-  >(),
+  getStatus: jest.fn<(key: string) => SubscriptionStatus>((key: string): SubscriptionStatus => {
+    // FIXED: Read from mockAnalysisStoreState.subscriptions instead of closed-over subscriptionsMap
+    // This ensures getStatus always reads from the current Map instance, even when tests reassign it
+    const sub = mockAnalysisStoreState.subscriptions.get(key)
+    return (sub?.status ?? 'idle') as SubscriptionStatus
+  }),
+  subscriptions: subscriptionsMap,
 }
 
 const mockUploadProgress = jest.fn<(recordingId: number) => UploadProgress | undefined>()
