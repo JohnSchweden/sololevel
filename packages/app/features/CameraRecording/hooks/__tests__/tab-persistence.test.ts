@@ -15,7 +15,7 @@ const mockAsyncStorage = {
   clear: jest.fn(),
 }
 
-jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
+jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage, { virtual: true })
 
 // Simple test without complex mocking - focusing on the tab persistence logic
 

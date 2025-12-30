@@ -20,11 +20,15 @@ jest.mock('@my/logging', () => ({
 }))
 
 // Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(() => Promise.resolve('record')),
-  setItem: jest.fn(() => Promise.resolve()),
-  removeItem: jest.fn(() => Promise.resolve()),
-}))
+jest.mock(
+  '@react-native-async-storage/async-storage',
+  () => ({
+    getItem: jest.fn(() => Promise.resolve('record')),
+    setItem: jest.fn(() => Promise.resolve()),
+    removeItem: jest.fn(() => Promise.resolve()),
+  }),
+  { virtual: true }
+)
 
 // Mock crypto for upload progress store
 Object.defineProperty(global, 'crypto', {

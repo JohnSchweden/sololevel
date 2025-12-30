@@ -461,12 +461,16 @@ jest.mock('expo-router', () => ({
 }))
 
 // Mock additional modules that might be used
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}))
+jest.mock(
+  '@react-native-async-storage/async-storage',
+  () => ({
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+  }),
+  { virtual: true }
+)
 
 // Mock react-native-mmkv v4.x with in-memory Map (virtual module)
 // v4.x API: Uses createMMKV() factory function instead of new MMKV() class
