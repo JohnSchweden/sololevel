@@ -10,7 +10,7 @@
     "build": "echo 'Skipping native build - TypeScript compilation only'",
     "start": "EXPO_NO_TELEMETRY=1 expo start -c",
     "android": "EXPO_NO_TELEMETRY=1 expo run:android",
-    "android:release": "cd android && SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-} ./gradlew installRelease",
+    "android:release": "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-} EXPO_NO_TELEMETRY=1 expo run:android --variant release",
     "ios": "yarn fix-xcode-env && EXPO_NO_TELEMETRY=1 expo run:ios",
     "eject": "expo eject",
     "fix-xcode-env": "node scripts/fix-xcode-env.mjs",

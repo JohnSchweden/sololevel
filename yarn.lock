@@ -3205,7 +3205,7 @@ __metadata:
     expo-document-picker: "npm:^13.1.6"
     expo-file-system: "npm:^18.0.4"
     expo-image: "npm:^3.0.10"
-    expo-image-picker: "npm:^16.1.4"
+    expo-image-picker: "npm:^17.0.7"
     expo-linking: "npm:^7.1.7"
     jest: "npm:^29.7.0"
     jest-environment-jsdom: "npm:^29.7.0"
@@ -11428,7 +11428,7 @@ __metadata:
     expo-document-picker: "npm:^13.1.6"
     expo-file-system: "npm:^18.0.4"
     expo-font: "npm:~13.3.2"
-    expo-image-picker: "npm:^16.1.4"
+    expo-image-picker: "npm:^17.0.7"
     expo-linear-gradient: "npm:^15.0.7"
     expo-linking: "npm:^7.1.7"
     expo-localization: "npm:^16.1.6"
@@ -11671,32 +11671,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-image-loader@npm:~5.1.0":
-  version: 5.1.0
-  resolution: "expo-image-loader@npm:5.1.0"
-  peerDependencies:
-    expo: "*"
-  checksum: 10c0/2897a2c3623f752cc277677b170ca9b3db826439641ccc93dcc3a94ece76dcbf084ecc108eddfebb42c34bcb339ef00996726995112c99561f262696c3e23300
-  languageName: node
-  linkType: hard
-
 "expo-image-loader@npm:~6.0.0":
   version: 6.0.0
   resolution: "expo-image-loader@npm:6.0.0"
   peerDependencies:
     expo: "*"
   checksum: 10c0/36f1e80d2b3d2a1cce440c7d938cd3cf3138f2b1fa706a1954e415bfae87b5b8eeaec65be0ab17880eb7585dd28c9225d056ebdb98ac81e0ffbfe880d952b0eb
-  languageName: node
-  linkType: hard
-
-"expo-image-picker@npm:^16.1.4":
-  version: 16.1.4
-  resolution: "expo-image-picker@npm:16.1.4"
-  dependencies:
-    expo-image-loader: "npm:~5.1.0"
-  peerDependencies:
-    expo: "*"
-  checksum: 10c0/7e27458a48140cea2864564db40ff102525302ca60e9526838ae265523dba8b1d9ceea3a2ac94c1eaece78f4cd1ded0f1a2391517e61a3fd8a6f17b06e337293
   languageName: node
   linkType: hard
 
