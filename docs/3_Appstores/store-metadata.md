@@ -363,15 +363,34 @@ Initial beta release:
 https://play.google.com/apps/internaltest/4701442905409277169
 
 **How to Set Up Internal Testing:**
-1. Go to Play Console → Your app → **Release** → **Testing** → **Internal testing**
-2. Click **Create new release** (or **Edit release** if one exists)
-3. Upload your AAB/APK or add build from existing uploads
-4. Add release notes (see "Release Notes (Beta)" section above)
-5. Click **Review release** → **Start rollout to Internal testing**
-6. Add testers:
+1. Build and submit: Run `eas build --platform android` then `eas submit --platform android` (or use `yarn eas:build:android` then `yarn eas:submit:android`)
+   - This uploads the AAB to Play Console automatically (saved as draft)
+2. Go to Play Console → Your app → **Release** → **Testing** → **Internal testing**
+3. Click **Create new release** (or **Edit release** if one exists)
+4. Select the uploaded AAB from "App bundles and APKs to add" dropdown (it will be in the list from step 1)
+5. Add release notes (see "Release Notes (Beta)" section above)
+6. Click **Review release** → **Start rollout to Internal testing**
+7. Add testers:
    - Go to **Testers** tab → **Create email list** (or use existing list)
-   - Add tester email addresses (no confirmation needed for internal testing)
-   - Testers receive opt-in link via email
+   - Add tester email addresses
+   - **Share the opt-in URL manually** (see "How Testers Join Internal Testing" below)
+
+**Note:** `eas submit` uploads the bundle automatically - you don't need to manually upload the file. You only need to create the release and assign the already-uploaded bundle to it.
+
+**How Testers Join Internal Testing:**
+- **IMPORTANT:** Google Play does NOT automatically send invitation emails for internal testing. You must manually share the opt-in URL.
+- **Steps to share with testers:**
+  1. Go to Play Console → **Release** → **Testing** → **Internal testing** → **Testers** tab
+  2. Find the "Opt-in URL" (copy this link)
+  3. Send the opt-in URL to your testers manually (email, Slack, etc.)
+  4. Testers click the link and accept to join the testing program
+- **After opt-in:** Once testers have opted in, they automatically receive email notifications when you start a rollout for NEW releases in Internal testing.
+- **Existing releases:** If testers opt in AFTER a release is already rolled out, they won't get notified about that existing release, but they can access it via the Play Store link you share.
+
+**Troubleshooting:**
+- Testers not receiving emails → You need to manually share the opt-in URL (not automatic)
+- Testers already opted in but not getting release emails → Check release rollout status is "In Progress" not "Draft"
+- New testers added → Still need to share opt-in URL manually, then they'll get future release notifications
 
 **Optional for Internal Testing (required for Closed Testing/Production):**
 - [ ] Screenshots prepared (phone, feature graphic)

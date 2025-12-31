@@ -47,7 +47,7 @@
         "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
-      "versionCode": 2,
+      "versionCode": 4,
       "splash": {
         "image": "./assets/splashscreen_logo.png",
         "resizeMode": "contain",
@@ -76,6 +76,9 @@
           "ios": {
             "useFrameworks": "static",
             "deploymentTarget": "18.4"
+          },
+          "android": {
+            "enableProguardInReleaseBuilds": true
           }
         }
       ],
@@ -89,6 +92,7 @@
       ],
       "./plugins/withDisableCodeSigning",
       "./plugins/withDarkIcon",
+      "./plugins/withProguardRules",
       [
         "@sentry/react-native/expo",
         {
