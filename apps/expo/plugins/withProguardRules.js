@@ -7,20 +7,59 @@ const PROGUARD_RULES = `
 # Fixes IncompatibleClassChangeError with ResourceDrawableIdHelper.getResourceDrawableUri
 # This error occurs when R8 optimizes method calls incorrectly in production builds,
 # changing static method calls to instance calls or vice versa
--keep class expo.modules.image.** { *; }
--keep class com.facebook.react.views.imagehelper.** { *; }
 
-# Keep ResourceDrawableIdHelper class and all its members completely intact
+# Preserve attributes needed to prevent method signature changes
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes MethodParameters
+
+# Disable optimizations that can convert methods between static and virtual
+-optimizations !code/simplification/advanced,!code/simplification/cast,!method/inlining/*,!class/merging/*,!method/marking/static
+
+# Keep ALL expo.modules.image classes completely intact
+# Prevent any optimization, shrinking, or obfuscation
+-keep,allowshrinking,allowobfuscation class expo.modules.image.** { *; }
+-keep class expo.modules.image.** { *; }
+-keepclassmembers class expo.modules.image.** { *; }
+
+# Keep ALL com.facebook.react.views.imagehelper classes completely intact
+-keep,allowshrinking,allowobfuscation class com.facebook.react.views.imagehelper.** { *; }
+-keep class com.facebook.react.views.imagehelper.** { *; }
+-keepclassmembers class com.facebook.react.views.imagehelper.** { *; }
+
+# Specifically protect expo.modules.image.ResourceIdHelper
+# This is the class that appears in the error stack trace
+-keep class expo.modules.image.ResourceIdHelper {
+    *;
+}
+-keepclassmembers class expo.modules.image.ResourceIdHelper {
+    public <methods>;
+    public <fields>;
+    android.net.Uri getResourceDrawableUri(...);
+    android.net.Uri getResourceUri(...);
+}
+
+# Specifically protect com.facebook.react.views.imagehelper.ResourceDrawableIdHelper
 # This prevents R8 from changing method signatures (static vs instance)
 -keep class com.facebook.react.views.imagehelper.ResourceDrawableIdHelper {
     *;
 }
-
-# Specifically preserve the getResourceDrawableUri method signature
-# This method is called by expo-image and must remain exactly as defined
-# The -keepclassmembers rule ensures R8 doesn't change static/instance method calls
 -keepclassmembers class com.facebook.react.views.imagehelper.ResourceDrawableIdHelper {
+    public <methods>;
+    public <fields>;
     android.net.Uri getResourceDrawableUri(android.content.Context, java.lang.String);
+}
+
+# Keep inner classes and nested classes
+-keep class expo.modules.image.**$* { *; }
+-keep class com.facebook.react.views.imagehelper.**$* { *; }
+
+# Prevent R8 from devirtualizing or staticizing methods in these classes
+-keepclasseswithmembers class expo.modules.image.** {
+    <methods>;
+}
+-keepclasseswithmembers class com.facebook.react.views.imagehelper.** {
+    <methods>;
 }
 `
 
