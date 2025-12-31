@@ -25,10 +25,47 @@ if (sentryDsn) {
     debug: __DEV__,
     enableAutoSessionTracking: true,
     tracesSampleRate: 1.0,
+    // Prevent Hermes GC crashes during error stack generation
+    beforeSend(event) {
+      // Strip stack traces from TurboModule exceptions to prevent GC allocation during error handling
+      if (event.exception?.values) {
+        for (const exception of event.exception.values) {
+          if (exception.stacktrace?.frames) {
+            // Keep only top 5 frames to minimize GC pressure
+            exception.stacktrace.frames = exception.stacktrace.frames.slice(0, 5)
+          }
+        }
+      }
+      return event
+    },
   })
 } else if (!__DEV__) {
   // Log warning in production if DSN is missing (shouldn't happen with EAS)
   log.warn('_layout.tsx', 'EXPO_PUBLIC_SENTRY_DSN is not set - crash reporting disabled')
+}
+
+// Global error handler to catch unhandled exceptions before they trigger Hermes GC crashes
+// This prevents the "NO_CRASH_STACK" issue where Hermes crashes during error stack generation
+if (typeof ErrorUtils !== 'undefined') {
+  const originalHandler = ErrorUtils.getGlobalHandler()
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    // Log error without generating full stack trace (prevents GC allocation)
+    log.error('_layout.tsx', 'Unhandled error caught', {
+      message: error?.message || String(error),
+      isFatal,
+      // Don't access error.stack - this triggers Hermes GC allocation
+    })
+
+    // Report to Sentry (with stripped stack from beforeSend)
+    if (sentryDsn) {
+      Sentry.captureException(error)
+    }
+
+    // Call original handler if it exists
+    if (originalHandler) {
+      originalHandler(error, isFatal)
+    }
+  })
 }
 
 import { AuthGate } from '../components/AuthGate'

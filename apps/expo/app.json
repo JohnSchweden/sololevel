@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ai.sololevel.app",
-      "buildNumber": "7",
+      "buildNumber": "10",
       "icon": "./assets/icon.png",
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",
@@ -31,7 +31,14 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select workout videos for AI analysis.",
         "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library, just like the native camera app.",
         "NSLocationWhenInUseUsageDescription": "This app does not use your location. This permission may be referenced by system libraries for photo metadata access.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "RCTHermesGCConfig": {
+          "InitHeapSize": 67108864,
+          "MaxHeapSize": 536870912,
+          "SanitizeConfig": {
+            "RandomSeed": 0
+          }
+        }
       }
     },
     "android": {

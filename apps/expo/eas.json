@@ -38,6 +38,20 @@
         "simulator": false,
         "image": "latest"
       }
+    },
+    "local-test": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SENTRY_DSN": "https://6718ebeaf9ca5a552b765cb1d32857cb@o4510125964787712.ingest.de.sentry.io/4510126031503440"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "latest",
+        "buildConfiguration": "Release"
+      }
     }
   }
 }

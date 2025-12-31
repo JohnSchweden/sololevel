@@ -81,6 +81,17 @@ config.resolver.blockList = [
 config.transformer = {
   ...config.transformer,
   unstable_allowRequireContext: true,
+  // Hermes bytecode optimizations to reduce GC pressure
+  hermesCommand: path.resolve(
+    workspaceRoot,
+    'node_modules/react-native/sdks/hermesc/osx-bin/hermesc'
+  ),
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: false,
+      inlineRequires: true,
+    },
+  }),
 }
 
 // Add debugging for module resolution
