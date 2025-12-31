@@ -61,6 +61,50 @@ const PROGUARD_RULES = `
 -keepclasseswithmembers class com.facebook.react.views.imagehelper.** {
     <methods>;
 }
+
+# Glide library: Prevent R8 from breaking Glide's model provider and class initialization
+# This is critical for expo-image-loader which uses Glide internally
+-keep public class * implements com.bumptech.glide.module.GlideModule
+-keep class * extends com.bumptech.glide.module.AppGlideModule {
+    <init>(...);
+}
+-keep public enum com.bumptech.glide.load.ImageHeaderParser$** {
+    **[] $VALUES;
+    public *;
+}
+-keep class com.bumptech.glide.load.data.ParcelFileDescriptorRewinder$InternalRewinder {
+    *** rewind();
+}
+
+# Glide: Keep model loaders and their factories
+-keep class * implements com.bumptech.glide.load.model.ModelLoader {
+    *;
+}
+-keep class * implements com.bumptech.glide.load.model.ModelLoaderFactory {
+    *;
+}
+
+# Glide: Prevent R8 from breaking reflection-based Glide configuration
+-keepnames class * implements com.bumptech.glide.GeneratedAppGlideModule
+-keep class com.bumptech.glide.GeneratedAppGlideModule
+-keepnames class * extends com.bumptech.glide.GeneratedRequestManagerFactory
+
+# Glide: Keep resource decoders and encoders
+-keep class * implements com.bumptech.glide.load.ResourceDecoder {
+    *;
+}
+-keep class * implements com.bumptech.glide.load.ResourceEncoder {
+    *;
+}
+
+# Glide: Prevent issues with annotation processors
+-dontwarn com.bumptech.glide.annotation.compiler.*
+
+# expo-image-loader: Keep classes that interface with Glide
+-keep class expo.modules.imageloader.** { *; }
+-keepclassmembers class expo.modules.imageloader.** {
+    public <methods>;
+}
 `
 
 /**
