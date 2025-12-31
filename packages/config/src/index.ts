@@ -41,4 +41,5 @@ export type { Conf } from './tamagui.d'
 export type { Database, Json } from './database.types'
 
 // Export storage adapters
-export { mmkvStorage, mmkvStorageAsync, mmkvDirect, mmkv } from './storage'
+// Note: getMmkvInstance is a lazy getter to prevent crashes during early module loading
+export { mmkvStorage, mmkvStorageAsync, mmkvDirect, getMmkvInstance } from './storage'

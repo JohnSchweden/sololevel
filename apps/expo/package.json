@@ -75,6 +75,7 @@
     "react-native-svg": "^15.12.1",
     "react-native-video": "^6.16.1",
     "react-native-vision-camera": "^4.7.1",
+    "sentry-expo": "^7.2.0",
     "tamagui": "1.135.2"
   },
   "devDependencies": {

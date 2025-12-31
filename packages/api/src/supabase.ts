@@ -1,4 +1,4 @@
-import { mmkv, mmkvStorageAsync } from '@my/config'
+import { getMmkvInstance, mmkvStorageAsync } from '@my/config'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 
@@ -92,6 +92,7 @@ let supabaseClient: ReturnType<typeof createClient<Database>> | null = null
 export function resetSupabaseClient(): void {
   supabaseClient = null
   // Clear stored URL cache to force re-validation on next check
+  const mmkv = getMmkvInstance()
   if (mmkv) {
     mmkv.delete('supabase.last_checked_url')
   }
@@ -148,6 +149,7 @@ function normalizeUrl(url: string): string {
  * PERFORMANCE: Only decodes JWT if URL changed since last launch (fast path: string comparison)
  */
 function checkAndClearStaleSession(): void {
+  const mmkv = getMmkvInstance()
   if (!mmkv) return // Skip on web/Node.js
 
   // Get current Supabase URL (already adjusted for platform)
@@ -253,7 +255,7 @@ function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
         // Use MMKV storage on React Native for session persistence (~30x faster than AsyncStorage)
         // Conditionally pass storage only when MMKV is available (native platforms)
         // On web/Node.js, omit storage to let Supabase fall back to localStorage automatically
-        ...(mmkv && { storage: mmkvStorageAsync }),
+        ...(getMmkvInstance() && { storage: mmkvStorageAsync }),
       },
     })
   }

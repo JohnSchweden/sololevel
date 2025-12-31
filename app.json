@@ -1,3 +1,10 @@
 {
-  "expo": {}
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "cf2a6fd7-0d34-495d-9ffe-a822d0ebcbae"
+      }
+    },
+    "owner": "spike123"
+  }
 }

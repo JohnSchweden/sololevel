@@ -10,20 +10,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock @my/config storage before importing supabase
 vi.mock('@my/config', () => {
   const store = new Map<string, string>()
+  const mockMmkv = {
+    getString: vi.fn((key: string) => store.get(key)),
+    set: vi.fn((key: string, value: string) => {
+      store.set(key, value)
+    }),
+    delete: vi.fn((key: string) => {
+      store.delete(key)
+    }),
+    contains: vi.fn((key: string) => store.has(key)),
+    clearAll: vi.fn(() => {
+      store.clear()
+    }),
+  }
   return {
-    mmkv: {
-      getString: vi.fn((key: string) => store.get(key)),
-      set: vi.fn((key: string, value: string) => {
-        store.set(key, value)
-      }),
-      delete: vi.fn((key: string) => {
-        store.delete(key)
-      }),
-      contains: vi.fn((key: string) => store.has(key)),
-      clearAll: vi.fn(() => {
-        store.clear()
-      }),
-    },
+    mmkv: mockMmkv,
+    getMmkvInstance: vi.fn(() => mockMmkv),
     mmkvStorageAsync: {
       getItem: vi.fn(async (key: string) => store.get(key) ?? null),
       setItem: vi.fn(async (key: string, value: string) => {

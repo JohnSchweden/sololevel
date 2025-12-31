@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ai.sololevel.app",
-      "buildNumber": "4",
+      "buildNumber": "7",
       "icon": "./assets/icon.png",
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",
@@ -89,7 +89,8 @@
           "project": "sololevel-app",
           "uploadNativeSymbols": true,
           "uploadSourceMaps": true,
-          "setCommits": false
+          "setCommits": false,
+          "dsn": "https://6718ebeaf9ca5a552b765cb1d32857cb@o4510125964787712.ingest.de.sentry.io/4510126031503440"
         }
       ]
     ],

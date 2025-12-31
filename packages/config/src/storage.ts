@@ -191,5 +191,9 @@ export const mmkvDirect = {
  * - Prefer using mmkvStorage, mmkvStorageAsync, or mmkvDirect adapters
  * - Only use for advanced scenarios requiring full MMKV API
  * - Check for null before using
+ * - IMPORTANT: This is a getter function, not a direct export, to ensure
+ *   lazy initialization and prevent crashes during early module loading
  */
-export const mmkv = getMMKV()
+export function getMmkvInstance(): MMKV | null {
+  return getMMKV()
+}
