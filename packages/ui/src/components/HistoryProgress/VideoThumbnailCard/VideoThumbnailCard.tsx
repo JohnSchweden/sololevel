@@ -1,5 +1,5 @@
+import { OptimizedImage as Image } from '@my/ui'
 import { Play } from '@tamagui/lucide-icons'
-import { Image } from 'expo-image'
 import React from 'react'
 import { Spinner, Stack, YStack } from 'tamagui'
 import { GlassButton } from '../../GlassButton'

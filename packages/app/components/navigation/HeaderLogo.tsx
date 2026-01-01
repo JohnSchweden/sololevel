@@ -1,4 +1,4 @@
-import { Image } from 'expo-image'
+import { OptimizedImage as Image } from '@my/ui'
 import { type ReactElement, useMemo } from 'react'
 import { YStack } from 'tamagui'
 

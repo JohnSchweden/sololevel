@@ -237,6 +237,28 @@ jest.mock('react-native', () => {
       })
     )
   }
+  const MockImage = (props: any) => {
+    const { source, testID, style, ...rest } = props
+    // Handle different source types: number (require), string (URI), or object { uri }
+    let src = ''
+    if (typeof source === 'number') {
+      // Local require() - use a placeholder or convert to string representation
+      src = `mocked-image-${source}`
+    } else if (typeof source === 'string') {
+      src = source
+    } else if (source && typeof source === 'object' && 'uri' in source) {
+      src = source.uri
+    }
+    return React.createElement('img', {
+      ...rest,
+      src,
+      style,
+      'data-testid': testID || 'react-native-image',
+      alt: props.accessibilityLabel || props.alt,
+    })
+  }
+  MockImage.displayName = 'Image'
+
   const MockImageBackground = (props: any) =>
     React.createElement(
       'div',
@@ -278,7 +300,7 @@ jest.mock('react-native', () => {
     Pressable: MockPressable,
     ScrollView: MockScrollView,
     FlatList: MockFlatList,
-    Image: 'img',
+    Image: MockImage,
     ImageBackground: MockImageBackground,
     TextInput: 'input',
     SafeAreaView: MockSafeAreaView,

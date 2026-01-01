@@ -1,4 +1,7 @@
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
+// Import test setup to get all the mocks (expo-image, expo-blur, etc.)
+import '../../../test-utils/setup'
 import { CoachAvatar } from './CoachAvatar'
 
 // Mock the require call for the coach avatar image
@@ -59,8 +62,8 @@ jest.mock('react-native', () => {
     DevMenu: {},
     // Add other RN modules that might be imported
     Platform: {
-      OS: 'web',
-      select: jest.fn((obj) => obj.web || obj.default),
+      OS: 'ios', // Set to 'ios' so OptimizedImage uses ExpoImage (which is properly mocked)
+      select: jest.fn((obj) => obj.ios || obj.web || obj.default),
     },
     Dimensions: {
       get: jest.fn(() => ({ width: 375, height: 667 })),

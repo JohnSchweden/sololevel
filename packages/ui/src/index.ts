@@ -19,6 +19,8 @@ export {
   BottomNavigationContainer,
 } from './components/BottomNavigation/BottomNavigation'
 export { GlassBackground } from './components/GlassBackground'
+export { OptimizedImage } from './components/OptimizedImage'
+export type { OptimizedImageProps } from './components/OptimizedImage'
 
 // Settings Components
 export { ProfileSection } from './components/Settings/ProfileSection'

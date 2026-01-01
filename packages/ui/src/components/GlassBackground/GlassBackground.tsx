@@ -1,18 +1,29 @@
 // import { LinearGradient } from '@tamagui/linear-gradient'
-import { Image } from 'expo-image'
+import { OptimizedImage as Image } from '@my/ui'
 import React, { type ComponentProps } from 'react'
+import { type ImageStyle, Platform } from 'react-native'
 import { YStack, type YStackProps } from 'tamagui'
 
 // Default glass gradient image
 const defaultGlassGradient = require('../../../../../apps/expo/assets/glass-gradient-square.png')
 
-// Module-level constant for absolute fill style to prevent object creation on each render
-const ABSOLUTE_FILL_STYLE = {
-  position: 'absolute' as const,
+// Module-level constants for absolute fill style to prevent object creation on each render
+// iOS: Uses top/left/right/bottom (works with expo-image)
+// Android: Uses width/height (required for React Native Image compatibility)
+const ABSOLUTE_FILL_STYLE_IOS: ImageStyle = {
+  position: 'absolute',
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
+}
+
+const ABSOLUTE_FILL_STYLE_ANDROID: ImageStyle = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
 }
 
 export interface GlassBackgroundProps extends Omit<YStackProps, 'children'> {
@@ -78,7 +89,7 @@ export const GlassBackground = React.memo(function GlassBackground({
       <Image
         source={imageSource}
         contentFit={contentFit}
-        style={ABSOLUTE_FILL_STYLE}
+        style={Platform.OS === 'android' ? ABSOLUTE_FILL_STYLE_ANDROID : ABSOLUTE_FILL_STYLE_IOS}
         // Performance optimizations
         cachePolicy="memory-disk" // Use both memory and disk cache
         transition={200} // Smooth fade-in transition

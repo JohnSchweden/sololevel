@@ -1,5 +1,5 @@
+import { OptimizedImage as Image } from '@my/ui'
 import type { User } from '@supabase/supabase-js'
-import { Image } from 'expo-image'
 import { useMemo } from 'react'
 import { Spinner, Text, YStack } from 'tamagui'
 

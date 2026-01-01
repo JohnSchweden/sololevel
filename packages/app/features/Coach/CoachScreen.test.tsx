@@ -164,6 +164,8 @@ jest.mock('@my/ui', () => {
       React.createElement('div', { 'data-testid': testID || 'typing-indicator' }, 'Typing...'),
     BlurView: ({ children, testID, ...props }: any) =>
       React.createElement('div', { 'data-testid': testID || 'blur-view', ...props }, children),
+    OptimizedImage: ({ source, testID, ...props }: any) =>
+      React.createElement('img', { src: source, 'data-testid': testID, ...props }),
   }
 })
 

@@ -8,10 +8,10 @@ import { BlurView } from '../BlurView/BlurView'
 // PERF: Extract platform check to module-level constant
 const IS_IOS = Platform.OS === 'ios'
 
+import { OptimizedImage as Image } from '@my/ui'
 import { NotificationSheet } from '@ui/components/BottomSheets'
 import { RecordingSettingsSheet } from '@ui/components/BottomSheets'
 import { VideoSettingsSheet } from '@ui/components/BottomSheets'
-import { Image } from 'expo-image'
 import { Circle, Text, Theme, XStack, YStack } from 'tamagui'
 import { Button } from '../Button'
 import type { AppHeaderProps } from './types'

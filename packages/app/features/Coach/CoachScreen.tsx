@@ -9,8 +9,8 @@ import {
   TypingIndicator,
 } from '@my/ui'
 import { BlurView } from '@my/ui'
+import { OptimizedImage as Image } from '@my/ui'
 import { ChevronDown, ChevronUp, Sparkles, Target, Zap } from '@tamagui/lucide-icons'
-import { Image } from 'expo-image'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FlatList,

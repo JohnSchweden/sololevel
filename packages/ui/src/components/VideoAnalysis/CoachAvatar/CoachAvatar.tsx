@@ -1,4 +1,4 @@
-import { Image } from 'expo-image'
+import { OptimizedImage as Image } from '@my/ui'
 import { Platform } from 'react-native'
 import { BlurView } from '../../BlurView/BlurView'
 
