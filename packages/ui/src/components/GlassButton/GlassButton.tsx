@@ -1,8 +1,8 @@
-import { Image } from 'expo-image'
 import { type ComponentProps, type ReactNode, useMemo, useState } from 'react'
 import { Platform } from 'react-native'
 import { Button, XStack, type XStackProps } from 'tamagui'
 import { BlurView, type BlurViewProps } from '../BlurView/BlurView'
+import { OptimizedImage as Image } from '../OptimizedImage/OptimizedImage'
 
 // Import glass overlay assets
 const defaultGlassOverlay = require('../../../../../apps/expo/assets/glass-button.png')
