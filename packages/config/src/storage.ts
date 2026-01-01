@@ -14,10 +14,11 @@ import type { StateStorage } from 'zustand/middleware'
 let mmkvInstance: MMKV | null = null
 
 // Type definition for MMKV (to avoid importing when not available)
+// v4.x API uses remove() instead of delete()
 interface MMKV {
   getString: (key: string) => string | undefined
   set: (key: string, value: string | number | boolean) => void
-  delete: (key: string) => void
+  remove: (key: string) => void
   contains: (key: string) => boolean
   clearAll: () => void
 }
@@ -78,7 +79,7 @@ export const mmkvStorage: StateStorage = {
   removeItem: (name: string): void => {
     const mmkv = getMMKV()
     if (!mmkv) return
-    mmkv.delete(name)
+    mmkv.remove(name)
   },
 }
 
@@ -121,13 +122,19 @@ export const mmkvStorageAsync = {
     if (!mmkv) {
       return
     }
-    // Defensive check: verify delete method exists before calling
+    // Defensive check: verify remove method exists before calling
+    // v4.x API uses remove() instead of delete()
     // This handles cases where MMKV instance might not be fully initialized
-    if (typeof mmkv.delete === 'function') {
-      mmkv.delete(key)
+    if (typeof mmkv.remove === 'function') {
+      mmkv.remove(key)
     } else {
-      // Fallback: MMKV should have delete, but if it doesn't, fail loudly
-      throw new Error('MMKV instance does not have delete method')
+      // CRITICAL: Setting empty string does NOT delete the key - it stores an empty string value.
+      // This causes keys to persist indefinitely, leading to memory leaks and broken auth checks
+      // (code expecting null/undefined for missing tokens will find empty strings instead).
+      // Fail loudly to surface the issue rather than silently masking it.
+      throw new Error(
+        'MMKV instance does not have remove method. Cannot remove storage key. This indicates a corrupted or improperly initialized MMKV instance.'
+      )
     }
   },
 }
@@ -174,7 +181,7 @@ export const mmkvDirect = {
   delete: (key: string): void => {
     const mmkv = getMMKV()
     if (!mmkv) return
-    mmkv.delete(key)
+    mmkv.remove(key)
   },
   contains: (key: string): boolean => {
     const mmkv = getMMKV()

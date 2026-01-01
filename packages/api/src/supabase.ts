@@ -94,7 +94,7 @@ export function resetSupabaseClient(): void {
   // Clear stored URL cache to force re-validation on next check
   const mmkv = getMmkvInstance()
   if (mmkv) {
-    mmkv.delete('supabase.last_checked_url')
+    mmkv.remove('supabase.last_checked_url')
   }
 }
 
@@ -215,8 +215,8 @@ function checkAndClearStaleSession(): void {
 
     if (!urlMatches) {
       // URL mismatch - clear stale session BEFORE client reads it
-      // Clear synchronously using MMKV directly
-      mmkv.delete('supabase.auth.token')
+      // Clear synchronously using MMKV directly (v4.x uses remove() instead of delete())
+      mmkv.remove('supabase.auth.token')
     }
 
     // Update stored URL after successful check (even if session was cleared)

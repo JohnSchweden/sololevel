@@ -186,6 +186,27 @@ export const useAuthStore = create<AuthStore>()(
             supabase.auth
               .getUser()
               .then(async ({ data: { user }, error }) => {
+                // Detect URL/server mismatch (e.g., switching from remote to local)
+                // "invalid kid" means token was signed by different server - clear session silently
+                const isUrlMismatch =
+                  error?.message?.includes('invalid kid') ||
+                  error?.message?.includes('unable to parse or verify signature') ||
+                  error?.message?.includes('token is unverifiable')
+
+                if (isUrlMismatch) {
+                  // URL/server changed - clear session directly without signOut
+                  // This avoids triggering MMKV delete errors and handles URL changes gracefully
+                  log.warn(
+                    'auth.ts',
+                    'Session from different server (URL changed), clearing session',
+                    {
+                      error: error?.message,
+                    }
+                  )
+                  set({ session: null, user: null })
+                  return
+                }
+
                 // Only sign out on EXPLICIT auth errors, not network failures
                 // Network errors should NOT log users out - that's terrible UX
                 const isAuthError =

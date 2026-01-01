@@ -9,10 +9,11 @@
 const store = new Map<string, string>()
 
 // Create a shared MMKV instance mock (singleton pattern matches real usage)
+// v4.x API uses remove() instead of delete()
 let mockInstance: {
   getString: jest.Mock
   set: jest.Mock
-  delete: jest.Mock
+  remove: jest.Mock
   contains: jest.Mock
   clearAll: jest.Mock
 } | null = null
@@ -24,7 +25,7 @@ function getMockInstance() {
       set: jest.fn((key: string, value: string | number | boolean) => {
         store.set(key, String(value))
       }),
-      delete: jest.fn((key: string) => store.delete(key)),
+      remove: jest.fn((key: string) => store.delete(key)),
       contains: jest.fn((key: string) => store.has(key)),
       clearAll: jest.fn(() => store.clear()),
     }
