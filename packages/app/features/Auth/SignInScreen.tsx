@@ -317,6 +317,8 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                     onChangeText={handlePasswordChange}
                     onFocus={handleInputFocus}
                     secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
                     autoComplete="password"
                     textContentType="password"
                     onSubmitEditing={handleSignIn}

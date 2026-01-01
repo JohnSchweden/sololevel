@@ -227,7 +227,9 @@ export const useAuthStore = create<AuthStore>()(
                   'auth.ts',
                   'Background session validation failed (network), keeping session',
                   {
-                    error: err,
+                    error: err instanceof Error ? err.message : String(err),
+                    errorType: err?.constructor?.name,
+                    errorStack: err instanceof Error ? err.stack : undefined,
                   }
                 )
               })

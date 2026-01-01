@@ -121,9 +121,14 @@ export const mmkvStorageAsync = {
     if (!mmkv) {
       return
     }
-    // MMKV API guarantees delete() exists - if it doesn't, that's a library version mismatch
-    // and should fail loudly rather than silently leaking storage with empty strings
-    mmkv.delete(key)
+    // Defensive check: verify delete method exists before calling
+    // This handles cases where MMKV instance might not be fully initialized
+    if (typeof mmkv.delete === 'function') {
+      mmkv.delete(key)
+    } else {
+      // Fallback: MMKV should have delete, but if it doesn't, fail loudly
+      throw new Error('MMKV instance does not have delete method')
+    }
   },
 }
 

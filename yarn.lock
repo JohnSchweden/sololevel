@@ -3181,6 +3181,7 @@ __metadata:
     "@babel/preset-typescript": "npm:^7.27.1"
     "@expo/react-native-action-sheet": "npm:^4.1.1"
     "@my/config": "npm:0.0.1"
+    "@react-native-community/blur": "npm:^4.4.1"
     "@react-native-masked-view/masked-view": "npm:^0.3.2"
     "@tamagui/build": "npm:1.135.2"
     "@tamagui/core": "npm:1.135.2"
@@ -3444,6 +3445,16 @@ __metadata:
     "@types/react":
       optional: true
   checksum: 10c0/f1455f36479e87a0a2254fc2e2b2aba6740d1fbcada949071210bf2a009a031ad508ac01b544bce96337bcca82f49531b46c71615141a5985aaa11ae69b967b1
+  languageName: node
+  linkType: hard
+
+"@react-native-community/blur@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "@react-native-community/blur@npm:4.4.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/f8f3b2e0dc630d93219c5db822a5d283754beedf31b8e481c17bca6f8b2a29d0e24cad4c5013f692f120a3336490dc5b1b3990a68c714c3308151adf92686ad7
   languageName: node
   linkType: hard
 
