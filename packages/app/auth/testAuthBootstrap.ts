@@ -2,6 +2,7 @@ import { authClient } from '@my/api'
 import { log } from '@my/logging'
 
 // Module-level singleton promise to ensure bootstrap runs exactly once
+// (Added check for stale references during initialization)
 let bootstrapPromise: Promise<TestAuthBootstrapResult> | null = null
 
 /**

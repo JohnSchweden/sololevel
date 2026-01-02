@@ -476,6 +476,11 @@ export function getConsoleErrors(): ConsoleRecord[] {
   return consoleBuffer.filter((r) => r.level === 'error' || r.level === 'warn' || r.level === 'fatal')
 }
 
+// Temporary compatibility fix for stale references
+export function getDebugLogEndpoint(): string | null {
+  return null
+}
+
 export function getNetworkLogs(): NetworkRecord[] {
   return [...networkBuffer]
 }
