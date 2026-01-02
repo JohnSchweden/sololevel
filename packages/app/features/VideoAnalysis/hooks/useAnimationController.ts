@@ -18,11 +18,13 @@ import Animated, {
 // Animation constants - Mode-based system
 const { height: SCREEN_H_BASE } = Dimensions.get('window')
 
-// Android-only: Adjust for translucent status bar to prevent bottom overflow
-// iOS: Use original window height (automatically adjusts when status bar is hidden)
+// Platform-specific screen height calculation:
+// Android: Subtract status bar height since window dimensions include it but layout starts below
+//          Bottom safe area (gesture nav) is handled in FeedbackPanel scroll padding
+// iOS: Use full window height (layout automatically accounts for status bar)
 const SCREEN_H =
   Platform.OS === 'android' && StatusBar.currentHeight
-    ? SCREEN_H_BASE - StatusBar.currentHeight - 8 // 8px buffer for gesture nav/rendering differences
+    ? SCREEN_H_BASE - StatusBar.currentHeight
     : SCREEN_H_BASE
 
 // Discrete video heights per mode

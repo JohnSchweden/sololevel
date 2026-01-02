@@ -114,10 +114,7 @@ export const GlassButton = ({
   glassOverlaySource,
   borderWidth = 1,
   borderColor = 'rgba(255, 255, 255, 0.15)',
-  backgroundColor = Platform.select({
-    android: 'rgba(51, 51, 51, 0.1)',
-    default: 'rgba(2, 2, 2, 0.0)',
-  }),
+  backgroundColor,
   variant = 'default',
   overlayOpacity = 0.8,
   edgeGlowIntensity = 0.9,
@@ -130,6 +127,14 @@ export const GlassButton = ({
   // Select glass overlay based on variant
   const overlaySource =
     glassOverlaySource || (variant === 'variant2' ? glassButtonVariant2 : defaultGlassOverlay)
+
+  // Set default backgroundColor based on variant (only variant2 gets reduced dark fill on Android)
+  const defaultBackgroundColor: XStackProps['backgroundColor'] = backgroundColor
+    ? backgroundColor
+    : (Platform.select({
+        android: variant === 'variant2' ? 'rgba(51, 51, 51, 0.05)' : 'rgba(51, 51, 51, 0.1)',
+        default: 'rgba(2, 2, 2, 0.0)',
+      }) as XStackProps['backgroundColor'])
 
   // Track press state for BlurView animation sync
   const [isPressed, setIsPressed] = useState(false)
@@ -190,7 +195,7 @@ export const GlassButton = ({
           />
         ) : (
           <XStack
-            backgroundColor="rgba(0, 0, 0, 0.4)"
+            backgroundColor={variant === 'variant2' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.4)'}
             borderRadius={variant === 'variant2' ? 12 : undefined}
             style={blurViewStyle}
           />
@@ -234,7 +239,7 @@ export const GlassButton = ({
         borderRadius={borderRadius}
         borderWidth={borderWidth}
         borderColor={borderColor}
-        backgroundColor={backgroundColor}
+        backgroundColor={defaultBackgroundColor}
         pressStyle={
           disabled
             ? undefined

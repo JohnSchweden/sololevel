@@ -69,7 +69,8 @@ export const CenterControls = React.memo<CenterControlsProps>(
           minHeight={40}
           {...(Platform.OS === 'android'
             ? {
-                blurIntensity: 10,
+                blurIntensity: 0,
+                backgroundColor: 'rgba(134, 133, 133, 0.1)',
               }
             : {
                 blurTint: 'dark',
@@ -107,7 +108,8 @@ export const CenterControls = React.memo<CenterControlsProps>(
           minHeight={54}
           {...(Platform.OS === 'android'
             ? {
-                blurIntensity: 10,
+                blurIntensity: 0,
+                backgroundColor: 'rgba(134, 133, 133, 0.1)',
               }
             : {
                 blurTint: 'dark',
@@ -147,7 +149,8 @@ export const CenterControls = React.memo<CenterControlsProps>(
           minHeight={40}
           {...(Platform.OS === 'android'
             ? {
-                blurIntensity: 10,
+                blurIntensity: 0,
+                backgroundColor: 'rgba(134, 133, 133, 0.1)',
               }
             : {
                 blurTint: 'dark',

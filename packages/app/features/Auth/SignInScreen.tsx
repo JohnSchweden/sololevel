@@ -352,6 +352,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                   blurTint="light"
                   variant="variant2"
                   overlayOpacity={0.2}
+                  backgroundColor="transparent"
                 >
                   <Paragraph
                     fontSize="$3"

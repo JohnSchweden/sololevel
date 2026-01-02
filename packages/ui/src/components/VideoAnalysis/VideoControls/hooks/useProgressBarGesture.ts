@@ -644,10 +644,10 @@ export function useProgressBarGesture(
         }
 
         if (wasScrubbing) {
-          // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
+          // CRITICAL: Must use runOnJS for React state setters called from UI thread
           if (enableScrubbingTelemetry) {
-            setLastScrubbedPosition(currentPosition)
-            setScrubbingPosition(null)
+            runOnJS(setLastScrubbedPosition)(currentPosition)
+            runOnJS(setScrubbingPosition)(null)
           }
           progressShared.value = currentPosition
 
@@ -670,10 +670,10 @@ export function useProgressBarGesture(
         //   wasScrubbing,
         // })
 
-        // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
+        // CRITICAL: Must use runOnJS for React state setters called from UI thread
         if (enableScrubbingTelemetry) {
-          setIsScrubbing(false)
-          setScrubbingPosition(null)
+          runOnJS(setIsScrubbing)(false)
+          runOnJS(setScrubbingPosition)(null)
         }
         isScrubbingShared.value = false
         isScrubbingFlagRef.current = false
@@ -765,11 +765,11 @@ export function useProgressBarGesture(
           })
           .onEnd(() => {
             const currentPosition = lastScrubbedPositionShared.value
-            // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
+            // CRITICAL: Must use runOnJS for React state setters called from UI thread
             if (enableScrubbingTelemetry) {
-              setIsScrubbing(false)
-              setLastScrubbedPosition(currentPosition)
-              setScrubbingPosition(null)
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+              runOnJS(setScrubbingPosition)(null)
             }
             isScrubbingShared.value = false
 
@@ -785,11 +785,11 @@ export function useProgressBarGesture(
           })
           .onFinalize(() => {
             const currentPosition = lastScrubbedPositionShared.value
-            // MEMORY LEAK FIX: Removed runOnJS for state setters - components should subscribe to shared values directly
+            // CRITICAL: Must use runOnJS for React state setters called from UI thread
             if (enableScrubbingTelemetry) {
-              setIsScrubbing(false)
-              setLastScrubbedPosition(currentPosition)
-              setScrubbingPosition(null)
+              runOnJS(setIsScrubbing)(false)
+              runOnJS(setLastScrubbedPosition)(currentPosition)
+              runOnJS(setScrubbingPosition)(null)
             }
             isScrubbingShared.value = false
           })

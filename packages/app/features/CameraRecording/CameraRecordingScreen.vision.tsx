@@ -10,12 +10,16 @@ import {
   RecordingControlsWithZoom,
 } from '@ui/components/CameraRecording'
 
+import { useConfirmDialog } from '@app/hooks/useConfirmDialog'
 import { useStatusBar } from '@app/hooks/useStatusBar'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useAuthStore } from '@app/stores/auth'
 import { useIsFocused } from '@react-navigation/native'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { VisionCameraPreview } from '@ui/components/CameraRecording/CameraPreview/CameraPreview.native.vision'
+import { ConfirmDialog } from '@ui/components/ConfirmDialog'
+import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, XStack, YStack } from 'tamagui'
@@ -263,6 +267,30 @@ export function CameraRecordingScreen({
 
   // Track zoom level changes for debugging (removed log.info to prevent hydration issues)
 
+  // Dev logout functionality - exact same pattern as settings route
+  const router = useRouter()
+  const signOut = useAuthStore((state) => state.signOut)
+
+  // Stabilize router reference to prevent callback recreation
+  const routerRef = useRef(router)
+  routerRef.current = router
+
+  // Logout confirmation dialog - exact same logic as settings route
+  const onLogoutConfirm = useCallback(async () => {
+    await signOut()
+    // Navigate to camera screen (index) instead of login
+    // If test auth is disabled, AuthGate (in main layout) will redirect to sign-in
+    // If test auth is enabled, auto-sign-in will happen and user stays on camera
+    routerRef.current.replace('/')
+  }, [signOut]) // Remove router from deps, use ref instead
+  const logoutDialog = useConfirmDialog(onLogoutConfirm)
+
+  // Extract stable show handler - logoutDialog.show is stable but accessing via
+  // logoutDialog object causes re-renders when dialog state changes
+  // Use ref to capture stable function reference
+  const showLogoutDialogRef = useRef(logoutDialog.show)
+  showLogoutDialogRef.current = logoutDialog.show
+
   // Add bottom padding on Android to prevent BottomNavigation from being covered by system navigation
   const bottomPadding = Platform.OS === 'android' ? BOTTOM_NAV_HEIGHT + insets.bottom : 0
 
@@ -436,9 +464,31 @@ export function CameraRecordingScreen({
             >
               🔧 PIPELINE TEST
             </Button>
+            <Button
+              size="$4"
+              backgroundColor="transparent"
+              color="white"
+              onPress={() => showLogoutDialogRef.current()}
+              testID="dev-logout-button"
+              pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              🚪 DEV LOGOUT
+            </Button>
           </YStack>
         )}
       </CameraContainer>
+
+      {/* Logout confirmation dialog - exact same implementation as settings route */}
+      <ConfirmDialog
+        visible={logoutDialog.isVisible}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        isProcessing={logoutDialog.isProcessing}
+        onConfirm={logoutDialog.confirm}
+        onCancel={logoutDialog.hide}
+      />
     </YStack>
   )
 }

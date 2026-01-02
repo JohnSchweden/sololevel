@@ -1,4 +1,3 @@
-import { log } from '@my/logging'
 import {
   AlertCircle,
   CheckCircle,
@@ -370,22 +369,11 @@ export const FeedbackPanel = memo(
       ? useAnimatedProps(() => {
           'worklet'
           const enabled = scrollEnabledShared.value
-          // NOTE: Commented out - runOnJS() causes bridge overhead on every scroll state change
-          // runOnJS(log.debug)('FeedbackPanel', 'animatedProps scrollEnabled', { enabled })
           return {
             scrollEnabled: enabled,
           }
         }, [scrollEnabledShared])
       : undefined
-
-    // Log scroll state changes
-    useEffect(() => {
-      log.debug('FeedbackPanel', 'Scroll state update', {
-        scrollEnabled,
-        hasSharedValue: !!scrollEnabledShared,
-        hasAnimatedProps: !!animatedScrollProps,
-      })
-    }, [scrollEnabled, scrollEnabledShared, animatedScrollProps])
 
     // Feedback filter state
     const [feedbackFilter, setFeedbackFilter] = useState<
@@ -462,26 +450,34 @@ export const FeedbackPanel = memo(
     )
 
     // Scroll handler - updates SharedValue directly on UI thread (no JS bridge)
-    const scrollHandler = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        'worklet'
-        const scrollY = event.contentOffset.y
-        // Update SharedValue directly on UI thread (zero latency, no bridge)
-        internalScrollY.value = scrollY
+    const scrollHandler = useAnimatedScrollHandler(
+      {
+        onScroll: (event) => {
+          'worklet'
+          const scrollY = event.contentOffset.y
+          // Update SharedValue directly on UI thread (zero latency, no bridge)
+          internalScrollY.value = scrollY
+        },
+        onEndDrag: () => {
+          'worklet'
+          // onScrollEndDrag is called infrequently, so runOnJS is acceptable here
+          if (onScrollEndDrag) {
+            runOnJS(onScrollEndDrag)()
+          }
+        },
       },
-      onEndDrag: () => {
-        'worklet'
-        // onScrollEndDrag is called infrequently, so runOnJS is acceptable here
-        if (onScrollEndDrag) {
-          runOnJS(onScrollEndDrag)()
-        }
-      },
-    })
+      [scrollEnabled, scrollEnabledShared, onScrollEndDrag]
+    )
 
     const isWeb = Platform.OS === 'web'
     const isAndroid = Platform.OS === 'android'
     const shouldShowCommentComposer = activeTab === 'comments' && isHistoryMode
-    const scrollBottomPadding = shouldShowCommentComposer ? 16 : 30
+    // Android: Add bottom safe area inset to ensure content extends to screen edge
+    // This accounts for gesture navigation bars across different Android devices
+    const baseScrollBottomPadding = shouldShowCommentComposer ? 16 : 30
+    const scrollBottomPadding = isAndroid
+      ? baseScrollBottomPadding + safeAreaBottom
+      : baseScrollBottomPadding
 
     // Performance tracking: Track flex changes as animation triggers
     const [previousFlex, setPreviousFlex] = useState<number | undefined>(flex)
@@ -562,14 +558,6 @@ export const FeedbackPanel = memo(
       //   })
       // }
     }, [selectedFeedbackId])
-
-    // Log scrollEnabled prop changes
-    useEffect(() => {
-      log.debug('FeedbackPanel', 'scrollEnabled prop changed', {
-        scrollEnabled,
-        timestamp: Date.now(),
-      })
-    }, [scrollEnabled])
 
     const formatTime = useCallback((milliseconds: number) => {
       // Convert milliseconds to seconds for duration formatting
@@ -1240,11 +1228,24 @@ export const FeedbackPanel = memo(
         content = renderCommentsContent()
       }
 
-      // Apply animation props only when tab actually changed
+      // ANDROID PERFORMANCE FIX: Skip AnimatePresence on Android
+      // AnimatePresence causes 270-350ms delays on Android due to:
+      // - React Native batching more aggressive on Android
+      // - Layout measurement overhead on Android native
+      // - Tamagui animation driver overhead
+      // iOS keeps smooth animations, Android gets instant switching for better UX
+      if (Platform.OS === 'android') {
+        // Android: instant content swap, no animation
+        return <YStack key={`tab-content-${activeTab}`}>{content}</YStack>
+      }
+
+      // iOS: Apply animation only when tab actually changed (not on initial mount)
+      // This restores original behavior broken by Android performance fix
       if (tabActuallyChanged) {
         return (
           <AnimatePresence>
             <YStack
+              key={`tab-content-${activeTab}`}
               animation="quick"
               enterStyle={tabTransitionEnterStyle}
               exitStyle={tabTransitionExitStyle}
@@ -1332,7 +1333,9 @@ export const FeedbackPanel = memo(
                         opacity: 0.75,
                         scale: 0.97,
                       }}
-                      onPress={() => onTabChange(tab)}
+                      onPress={() => {
+                        onTabChange(tab)
+                      }}
                       testID={`tab-${tab}`}
                       accessibilityLabel={`${tab} tab`}
                       accessibilityRole="tab"

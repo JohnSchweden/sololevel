@@ -82,26 +82,8 @@ describe('ProgressBar', () => {
       expect(track).toBeInTheDocument()
     })
 
-    it('calls onFallbackPress when track is clicked', () => {
-      // Arrange
-      const onFallbackPress = jest.fn()
-
-      // Act
-      renderWithProvider(
-        <ProgressBar
-          {...defaultProps}
-          onFallbackPress={onFallbackPress}
-        />
-      )
-
-      const pressable = screen.getByTestId('progress-bar-pressable')
-      fireEvent.click(pressable)
-
-      // Assert
-      // In web environment, locationX may not be available
-      // We verify the callback was called (actual value tested in integration)
-      expect(onFallbackPress).toHaveBeenCalled()
-    })
+    // DEPRECATED: onFallbackPress removed - gesture handler now handles all tap-to-seek
+    // Tap-to-seek is tested in integration tests with useProgressBarGesture
 
     it('shows active state when scrubbing', () => {
       // Act

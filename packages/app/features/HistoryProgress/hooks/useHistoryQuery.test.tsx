@@ -63,6 +63,8 @@ beforeEach(() => {
   mockGetInfoAsync.mockReset()
   mockPersistThumbnailFile.mockReset()
   mockPersistThumbnailFile.mockResolvedValue('file:///documents/thumbnails/10.jpg')
+  // Default mock: return existing file for most checks
+  // Individual tests can override with mockResolvedValueOnce for specific URIs
   mockGetInfoAsync.mockResolvedValue(
     createExistingFileInfo({
       exists: true,
@@ -181,6 +183,13 @@ describe('useHistoryQuery', () => {
     expect(cache.getAllCached()).toEqual([]) // Verify cache is empty
     // Use mockResolvedValue instead of mockResolvedValueOnce to handle potential refetches
     mockGetUserAnalysisJobs.mockResolvedValue([mockJob])
+    // Mock filesystem: metadata thumbnail exists, persistent cache doesn't exist
+    // This prevents background updates from changing the initial return value
+    mockGetInfoAsync
+      .mockResolvedValueOnce(
+        createExistingFileInfo({ uri: 'https://example.com/thumb.jpg', exists: true })
+      ) // Metadata thumbnail exists
+      .mockResolvedValueOnce(createMissingFileInfo({ uri: 'file:///documents/thumbnails/10.jpg' })) // Persistent cache doesn't exist
 
     // ACT: Render hook
     const queryClient = createTestQueryClient()
@@ -208,6 +217,7 @@ describe('useHistoryQuery', () => {
     // Note: Initial return uses metadata thumbnail synchronously.
     // Background operations (resolveStaleThumbailsFromCache) update to persistent cache
     // asynchronously and may not complete before this assertion.
+    // Mock filesystem to return existing metadata thumbnail, so background update doesn't happen
     expect(result.current.data).toEqual([
       {
         id: 1,
@@ -216,6 +226,7 @@ describe('useHistoryQuery', () => {
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
         cloudThumbnailUrl: undefined,
+        fullFeedbackText: undefined,
       },
     ])
   })
@@ -282,6 +293,13 @@ describe('useHistoryQuery', () => {
     expect(cache.getAllCached()).toEqual([]) // Verify cache is empty
     // Mock will be called twice: once from initial query, once from incomplete cache refetch
     mockGetUserAnalysisJobs.mockResolvedValue([mockJob])
+    // Mock filesystem: metadata thumbnail exists, persistent cache doesn't exist
+    // This prevents background updates from changing the initial return value
+    mockGetInfoAsync
+      .mockResolvedValueOnce(
+        createExistingFileInfo({ uri: 'https://example.com/thumb.jpg', exists: true })
+      ) // Metadata thumbnail exists
+      .mockResolvedValueOnce(createMissingFileInfo({ uri: 'file:///documents/thumbnails/10.jpg' })) // Persistent cache doesn't exist
 
     // ACT: Render hook
     const queryClient = createTestQueryClient()
@@ -300,6 +318,8 @@ describe('useHistoryQuery', () => {
     expect(mockGetUserAnalysisJobs.mock.calls.length).toBeGreaterThanOrEqual(1)
 
     // ASSERT: Fetched from database (title from date)
+    // Initial return uses metadata thumbnail synchronously.
+    // Background operations update to persistent cache asynchronously and may not complete.
     expect(result.current.data).toEqual([
       {
         id: 1,
@@ -307,6 +327,8 @@ describe('useHistoryQuery', () => {
         title: 'Analysis 10/11/2025',
         createdAt: '2025-10-11T10:00:00Z',
         thumbnailUri: 'https://example.com/thumb.jpg',
+        cloudThumbnailUrl: undefined,
+        fullFeedbackText: undefined,
       },
     ])
   })

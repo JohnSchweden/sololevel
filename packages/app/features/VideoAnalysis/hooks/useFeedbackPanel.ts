@@ -109,7 +109,6 @@ export function useFeedbackPanel(options: UseFeedbackPanelOptions = {}): Feedbac
   }, [])
 
   const setActiveTab = useCallback((tab: FeedbackPanelTab) => {
-    // log.info('useFeedbackPanel', 'active tab changed', { tab })
     setActiveTabState(tab)
   }, [])
 

@@ -70,6 +70,9 @@ export function useAuth() {
 
       if (result.success) {
         // Auth state will be updated via the listener
+        // BUT: We should also set it immediately to avoid race conditions
+        // The listener is async and may fire after navigation
+        setAuth(result.data.user, result.data.session)
         log.info('useAuth', 'Sign in successful', {
           userId: result.data.user.id,
         })
@@ -83,7 +86,7 @@ export function useAuth() {
       setLoading(false)
       return result
     },
-    [setLoading]
+    [setAuth, setLoading]
   )
 
   /**

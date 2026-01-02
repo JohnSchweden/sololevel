@@ -1,4 +1,3 @@
-import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Dimensions, Platform, StatusBar } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
@@ -20,11 +19,13 @@ import Animated, {
 // Animation constants - Mode-based system
 const { height: SCREEN_H_BASE } = Dimensions.get('window')
 
-// Android-only: Adjust for translucent status bar to prevent bottom overflow
-// iOS: Use original window height (automatically adjusts when status bar is hidden)
+// Platform-specific screen height calculation:
+// Android: Subtract status bar height since window dimensions include it but layout starts below
+//          Bottom safe area (gesture nav) is handled in FeedbackPanel scroll padding
+// iOS: Use full window height (layout automatically accounts for status bar)
 const SCREEN_H =
   Platform.OS === 'android' && StatusBar.currentHeight
-    ? SCREEN_H_BASE - StatusBar.currentHeight - 8 // 8px buffer for gesture nav/rendering differences
+    ? SCREEN_H_BASE - StatusBar.currentHeight
     : SCREEN_H_BASE
 
 type VideoMode = 'min' | 'normal' | 'max'
@@ -397,16 +398,6 @@ export function useGestureController(
   // When scrolled: simultaneousWithExternalGesture + high activeOffsetY prevents conflicts
   const feedbackScrollEnabledShared = useSharedValue(true)
 
-  // Log initial state
-  useEffect(() => {
-    // Compile-time stripping: DEBUG logs removed in production builds
-    if (__DEV__) {
-      log.debug('useGestureController', 'Initialized', {
-        initialScrollEnabled: feedbackScrollEnabledShared.value,
-      })
-    }
-  }, [feedbackScrollEnabledShared])
-
   // Scroll blocking state - custom subscription store to avoid parent re-renders
   const feedbackScrollStateRef = useRef<FeedbackScrollSnapshot>({
     enabled: true,
@@ -424,9 +415,7 @@ export function useGestureController(
       try {
         listener()
       } catch (error) {
-        log.warn('useGestureController', '⚠️ Error notifying feedback scroll listener', {
-          error,
-        })
+        // Error notifying feedback scroll listener - silently continue
       }
     })
   }, [])
@@ -444,9 +433,6 @@ export function useGestureController(
       }
       // NOTE: feedbackScrollEnabledShared kept always true - blocksExternalGesture handles blocking
       // feedbackScrollEnabledShared.value = value // REMOVED: causes scroll to break
-      if (__DEV__) {
-        log.debug('useGestureController', 'setFeedbackScrollEnabled', { value })
-      }
       notifyFeedbackScrollSubscribers()
       return value
     },
@@ -575,12 +561,7 @@ export function useGestureController(
       setFeedbackScrollEnabled(updates.scrollEnabled)
       const previous = feedbackScrollStateRef.current.blockCompletely
       if (previous !== updates.blockCompletely) {
-        if (__DEV__) {
-          log.debug('useGestureController', '🔍 setBlockFeedbackScrollCompletelyTransition', {
-            prev: previous,
-            next: updates.blockCompletely,
-          })
-        }
+        // Block state changed
       }
       setBlockFeedbackScrollCompletely(updates.blockCompletely)
     },
@@ -664,15 +645,7 @@ export function useGestureController(
     }
 
     feedbackMomentumScrollEndRef.current = () => {
-      // Compile-time stripping: DEBUG logs removed in production builds
-      if (__DEV__) {
-        log.debug('VideoAnalysisScreen.onFeedbackMomentumScrollEnd', 'Momentum scroll ended', {
-          feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-          scrollY: Math.round(scrollY.value * 100) / 100,
-          gestureIsActive: gestureIsActive.value,
-          committedToVideoControl: committedToVideoControl.value,
-        })
-      }
+      // Momentum scroll ended
     }
   }, [feedbackContentOffsetY, scrollY, gestureIsActive, committedToVideoControl])
 
@@ -702,12 +675,6 @@ export function useGestureController(
       // Only update when crossing threshold
       if (isAtTop !== wasAtTop) {
         isFeedbackAtTop.value = isAtTop
-        if (__DEV__) {
-          runOnJS(log.debug)('useGestureController', 'Feedback scroll position threshold crossed', {
-            isAtTop,
-            scrollOffset: currentOffset,
-          })
-        }
       }
     },
     []
@@ -798,10 +765,6 @@ export function useGestureController(
             // Reading SharedValue.value directly in worklet = zero latency
             if (isFeedbackAtTop.value) {
               feedbackScrollEnabledShared.value = false
-              runOnJS(log.debug)('Gesture', 'onBegin: Disabled scroll (at top)', {
-                isInVideoArea,
-                touchStartsFromLeftEdge,
-              })
             }
             runOnJS(setFeedbackScrollEnabledTransition)(false)
           }
@@ -904,11 +867,6 @@ export function useGestureController(
                 // Fast swipe OR long swipe UP in normal mode → Change to min mode (don't scroll feedback)
                 isFastSwipeVideoModeChange.value = true
                 committedToVideoControl.value = true
-                runOnJS(log.debug)('Gesture', 'UP swipe mode change triggered', {
-                  isNormalMode,
-                  isFastSwipe,
-                  isLongSwipe: totalTranslationY.value > 80,
-                })
                 // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
                 runOnJS(batchScrollStateUpdate)({
                   scrollEnabled: false,
@@ -988,10 +946,6 @@ export function useGestureController(
               // So any DOWN swipe at top should expand the video
               isFastSwipeVideoModeChange.value = true
               committedToVideoControl.value = true
-              runOnJS(log.debug)('Gesture', 'DOWN swipe at top - expanding video', {
-                isAtTop,
-                direction: gestureDirection.value,
-              })
               runOnJS(batchScrollStateUpdate)({
                 scrollEnabled: false,
                 blockCompletely: true,
@@ -1003,12 +957,6 @@ export function useGestureController(
               if (isFeedbackAtTop.value) {
                 feedbackScrollEnabledShared.value = false
               }
-              runOnJS(log.debug)('Gesture', 'ELSE block: Committing to video control', {
-                isInVideoArea,
-                isAtTop,
-                direction: gestureDirection.value,
-                committedToVideoControl: committedToVideoControl.value,
-              })
               runOnJS(setFeedbackScrollEnabledTransition)(false)
               // runOnJS(log.debug)('VideoAnalysisScreen.rootPan', 'Gesture committed to video control', {
               //   direction: gestureDirection.value,
@@ -1145,9 +1093,6 @@ export function useGestureController(
           // ← CRITICAL: Re-enable ScrollView when gesture ends
           // RE-ENABLE SCROLL: Set shared value directly on UI thread for zero-latency
           feedbackScrollEnabledShared.value = true
-          runOnJS(log.debug)('Gesture', 'onEnd: Re-enabled scroll', {
-            scrollEnabledValue: feedbackScrollEnabledShared.value,
-          })
           // MEMORY LEAK FIX: Batched into single runOnJS call to reduce closure allocation
           runOnJS(batchScrollStateUpdate)({
             scrollEnabled: true,

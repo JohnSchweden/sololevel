@@ -86,12 +86,11 @@ export const VideoPlayerNative = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         // Always track the latest time, even if we don't notify (for accurate end time)
         lastReportedTimeRef.current = currentTime
 
-        // Stop processing progress updates when video is paused/ended
-        // This prevents unnecessary re-renders after video ends
-        // Use ref to get latest value even if component hasn't re-rendered yet
-        if (!isPlayingRef.current) {
-          return
-        }
+        // FIX: Removed aggressive !isPlayingRef.current guard that blocked progress events
+        // during the React state sync lag after pressing play. The native player starts
+        // immediately but isPlayingRef stays false for several frames, causing all early
+        // progress events (0s→5s) to be dropped. This triggered forward-seek detection
+        // which marked all feedback as skipped. Parent's handleProgress has proper guards.
 
         // Throttle updates to 60 FPS (16ms) for smooth progress without excessive re-renders
         // Previously 250ms (4 FPS) caused jerky 1-second-tact updates

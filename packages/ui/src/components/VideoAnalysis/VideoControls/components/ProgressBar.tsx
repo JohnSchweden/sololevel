@@ -1,6 +1,6 @@
 // import { log } from '@my/logging'
 import React, { useCallback, useEffect } from 'react'
-import { type LayoutChangeEvent, Platform, Pressable, View, type ViewStyle } from 'react-native'
+import { type LayoutChangeEvent, Platform, View, type ViewStyle } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, {
   type AnimatedStyle,
@@ -21,7 +21,7 @@ import { YStack, useTheme } from 'tamagui'
  * @property combinedGesture - Combined gesture handler for track (tap + pan) - handles entire 44px touch area
  * @property mainGesture - DEPRECATED: No longer used, handle is visual only - gestures handled by track
  * @property onLayout - Layout event handler to measure progress bar width
- * @property onFallbackPress - Fallback press handler when gesture fails (receives locationX)
+ * @property onFallbackPress - DEPRECATED: Android had stale locationX; gesture handler now handles all tap-to-seek
  * @property testID - Optional test identifier for the progress bar container
  * @property animationName - Tamagui animation name for conditional timing (e.g., 'quick', 'lazy')
  */
@@ -113,7 +113,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
     combinedGesture,
     // mainGesture is no longer used - handle is visual only, gestures handled by track
     onLayout,
-    onFallbackPress,
+    // onFallbackPress is deprecated - Android had stale locationX; gesture handler now handles all tap-to-seek
     testID,
     pointerEvents,
     progressShared,
@@ -273,12 +273,11 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
             data-testid={containerTestID}
           >
             <MaybeGestureDetector>
-              <Pressable
-                onPress={(event) => {
-                  const { locationX } = event.nativeEvent
-                  onFallbackPress?.(locationX)
-                }}
-                style={{ flex: 1 }}
+              {/* ANDROID FIX: Removed Pressable wrapper that had stale locationX on Android
+                  The GestureDetector's onStart already handles tap-to-seek correctly using event.x
+                  which updates properly on both platforms. Pressable fallback was redundant and broken. */}
+              <YStack
+                flex={1}
                 testID={pressableTestID}
                 data-testid={pressableTestID}
               >
@@ -354,18 +353,16 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                     </Animated.View>
                   </YStack>
                 </YStack>
-              </Pressable>
+              </YStack>
             </MaybeGestureDetector>
           </YStack>
         ) : (
-          // Persistent variant: Direct pressable wrapper
+          // Persistent variant: Direct gesture wrapper (no Pressable)
           <MaybeGestureDetector>
-            <Pressable
-              onPress={(event) => {
-                const { locationX } = event.nativeEvent
-                onFallbackPress?.(locationX)
-              }}
-              style={{ flex: 1 }}
+            {/* ANDROID FIX: Removed Pressable wrapper that had stale locationX on Android
+                The GestureDetector's onStart already handles tap-to-seek correctly using event.x */}
+            <YStack
+              flex={1}
               testID={pressableTestID}
               data-testid={pressableTestID}
             >
@@ -460,7 +457,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = React.memo(
                   </Animated.View>
                 </YStack>
               </YStack>
-            </Pressable>
+            </YStack>
           </MaybeGestureDetector>
         )}
       </Animated.View>
