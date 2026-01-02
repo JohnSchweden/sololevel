@@ -134,3 +134,21 @@ it('prepends to history when job completes without title', async () => {
   expect(cache[0]).toMatchObject({ id: 3, title: expect.stringMatching(/Analysis/) })
 })
 ```
+
+### Mistake: Implicit undefined return in async functions causing TypeError
+**Wrong**:
+```typescript
+// Early return in async function might be misinterpreted by some runtimes/transpilers
+async function removeItem(key) {
+  if (!mmkv) return // Returns Promise<undefined>, but prone to issues
+}
+```
+
+**Correct**:
+```typescript
+// Explicitly return Promise to ensure consistent behavior
+function removeItem(key): Promise<void> {
+  if (!mmkv) return Promise.resolve()
+  // ...
+}
+```

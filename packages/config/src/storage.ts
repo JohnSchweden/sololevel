@@ -105,35 +105,39 @@ export const mmkvStorage: StateStorage = {
  * - Fallback to null on web (Supabase uses localStorage automatically)
  */
 export const mmkvStorageAsync = {
-  getItem: async (key: string): Promise<string | null> => {
+  getItem: (key: string): Promise<string | null> => {
     const mmkv = getMMKV()
     if (!mmkv) {
-      return null
+      return Promise.resolve(null)
     }
-    return mmkv.getString(key) ?? null
+    return Promise.resolve(mmkv.getString(key) ?? null)
   },
-  setItem: async (key: string, value: string): Promise<void> => {
+  setItem: (key: string, value: string): Promise<void> => {
     const mmkv = getMMKV()
-    if (!mmkv) return
+    if (!mmkv) return Promise.resolve()
     mmkv.set(key, value)
+    return Promise.resolve()
   },
-  removeItem: async (key: string): Promise<void> => {
+  removeItem: (key: string): Promise<void> => {
     const mmkv = getMMKV()
     if (!mmkv) {
-      return
+      return Promise.resolve()
     }
     // Defensive check: verify remove method exists before calling
     // v4.x API uses remove() instead of delete()
     // This handles cases where MMKV instance might not be fully initialized
     if (typeof mmkv.remove === 'function') {
       mmkv.remove(key)
+      return Promise.resolve()
     } else {
       // CRITICAL: Setting empty string does NOT delete the key - it stores an empty string value.
       // This causes keys to persist indefinitely, leading to memory leaks and broken auth checks
       // (code expecting null/undefined for missing tokens will find empty strings instead).
       // Fail loudly to surface the issue rather than silently masking it.
-      throw new Error(
-        'MMKV instance does not have remove method. Cannot remove storage key. This indicates a corrupted or improperly initialized MMKV instance.'
+      return Promise.reject(
+        new Error(
+          'MMKV instance does not have remove method. Cannot remove storage key. This indicates a corrupted or improperly initialized MMKV instance.'
+        )
       )
     }
   },
