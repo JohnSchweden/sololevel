@@ -511,6 +511,26 @@ jest.mock('@my/config', () => ({
 
 // Mock @my/api
 jest.mock('@my/api', () => ({
+  authClient: {
+    signInWithPassword: jest.fn(() =>
+      Promise.resolve({
+        success: true,
+        data: {
+          user: { id: 'test-user-id' },
+          session: { user: { id: 'test-user-id' } },
+        },
+      })
+    ),
+    signOut: jest.fn(() => Promise.resolve({ success: true, data: undefined })),
+    getSession: jest.fn(() =>
+      Promise.resolve({
+        success: true,
+        data: { user: { id: 'test-user-id' } },
+      })
+    ),
+    getCurrentUserId: jest.fn(() => Promise.resolve(null)),
+    onAuthStateChange: jest.fn(() => () => {}),
+  },
   supabase: {
     auth: {
       signInWithPassword: jest.fn(() =>
