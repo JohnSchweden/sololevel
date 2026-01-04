@@ -419,6 +419,25 @@ export const FeedbackPanel = memo(
     // Otherwise, fall back to JS callback (throttled via useAnimatedReaction)
     const internalScrollY = useSharedValue(0)
 
+    // STABILITY FIX: Use refs for callbacks to ensure stable function identity for runOnJS
+    // This prevents "Object is not a function" errors when worklets hold stale function references
+    const onScrollYChangeRef = useRef(onScrollYChange)
+    const onScrollEndDragRef = useRef(onScrollEndDrag)
+
+    useEffect(() => {
+      onScrollYChangeRef.current = onScrollYChange
+      onScrollEndDragRef.current = onScrollEndDrag
+    }, [onScrollYChange, onScrollEndDrag])
+
+    // Stable callback wrappers
+    const stableOnScrollYChange = useCallback((scrollY: number) => {
+      onScrollYChangeRef.current?.(scrollY)
+    }, [])
+
+    const stableOnScrollEndDrag = useCallback(() => {
+      onScrollEndDragRef.current?.()
+    }, [])
+
     // Sync internal scroll position to parent's SharedValue (if provided) on UI thread
     useAnimatedReaction(
       () => internalScrollY.value,
@@ -439,14 +458,14 @@ export const FeedbackPanel = memo(
         'worklet'
         // Only call JS callback if no SharedValue is provided and value changed significantly
         // This is a fallback for web/compatibility - prefer scrollYShared for native
-        if (!scrollYShared && onScrollYChange && previousY !== null) {
+        if (!scrollYShared && previousY !== null) {
           // Throttle: only update if change is significant (> 1px) to reduce bridge calls
           if (Math.abs(currentY - previousY) > 1) {
-            runOnJS(onScrollYChange)(currentY)
+            runOnJS(stableOnScrollYChange)(currentY)
           }
         }
       },
-      [scrollYShared, onScrollYChange]
+      [scrollYShared, stableOnScrollYChange]
     )
 
     // Scroll handler - updates SharedValue directly on UI thread (no JS bridge)
@@ -461,12 +480,10 @@ export const FeedbackPanel = memo(
         onEndDrag: () => {
           'worklet'
           // onScrollEndDrag is called infrequently, so runOnJS is acceptable here
-          if (onScrollEndDrag) {
-            runOnJS(onScrollEndDrag)()
-          }
+          runOnJS(stableOnScrollEndDrag)()
         },
       },
-      [scrollEnabled, scrollEnabledShared, onScrollEndDrag]
+      [scrollEnabled, scrollEnabledShared, stableOnScrollEndDrag]
     )
 
     const isWeb = Platform.OS === 'web'
