@@ -835,7 +835,7 @@ export function useProgressBarGesture(
           progressShared.value = currentProgress
 
           // Show controls when user starts dragging handle
-          runOnJS(showControlsAndResetTimer)()
+          runOnJS(stableShowControlsAndResetTimer)()
 
           // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
           // runOnJS(log.debug)('VideoControls', `${barType} main gesture start (drag detected)`, {
