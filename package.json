@@ -21,7 +21,7 @@
     "native:prebuild": "cd apps/expo && yarn prebuild",
     "native:prebuild:ios": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform ios",
     "native:prebuild:android": "yarn flag:vision && cd apps/expo && EXPO_NO_TELEMETRY=true yarn native:prebuild --platform android",
-    "ios": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn ios --no-install",
+    "ios": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn ios --no-install --device 'iPhone'",
     "android": "cd apps/expo && EXPO_NO_TELEMETRY=true yarn android --no-install",
     "android:release": "cd apps/expo && yarn android:release",
     "update:ios": "cd apps/expo/ios && pod install",

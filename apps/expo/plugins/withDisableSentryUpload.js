@@ -1,11 +1,13 @@
 const { withGradleProperties } = require('@expo/config-plugins')
 
 /**
- * Expo config plugin to disable Sentry sourcemap upload for local development
+ * Expo config plugin to disable Sentry sourcemap upload for Android local development
  *
  * This persists across `expo prebuild --clean` operations.
- * Set SENTRY_DISABLE_AUTO_UPLOAD=true in gradle.properties for local builds.
+ * Sets SENTRY_DISABLE_AUTO_UPLOAD=true in gradle.properties for local builds.
  * Override to false in CI/CD where SENTRY_AUTH_TOKEN is available.
+ *
+ * NOTE: This plugin is Android-only. For iOS, use withDisableSentryUploadIOS.
  */
 function withDisableSentryUpload(config) {
   return withGradleProperties(config, (config) => {

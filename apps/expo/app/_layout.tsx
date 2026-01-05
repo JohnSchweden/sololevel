@@ -24,9 +24,18 @@ if (sentryDsn) {
     dsn: sentryDsn,
     debug: __DEV__,
     enableAutoSessionTracking: true,
-    tracesSampleRate: 1.0,
-    // Prevent Hermes GC crashes during error stack generation
+    // Production-recommended sampling: 10% of transactions
+    tracesSampleRate: __DEV__ ? 1.0 : 0.1,
+    // Prevent Hermes GC crashes during error stack generation + sample non-fatal events
     beforeSend(event) {
+      // Sample non-fatal events to reduce noise while keeping errors
+      if (event.level === 'info' && Math.random() > 0.05) {
+        return null // Drop 95% of info events
+      }
+      if (event.level === 'warning' && Math.random() > 0.2) {
+        return null // Drop 80% of warnings
+      }
+
       // Strip stack traces from TurboModule exceptions to prevent GC allocation during error handling
       if (event.exception?.values) {
         for (const exception of event.exception.values) {

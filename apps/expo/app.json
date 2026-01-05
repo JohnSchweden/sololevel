@@ -47,7 +47,7 @@
         "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
-      "versionCode": 12,
+      "versionCode": 14,
       "splash": {
         "image": "./assets/splashscreen_logo.png",
         "resizeMode": "contain",
@@ -102,7 +102,8 @@
         }
       ],
       "./plugins/withDisableSentryUpload",
-      "./plugins/withDisableSentryUploadGradle"
+      "./plugins/withDisableSentryUploadGradle",
+      "./plugins/withDisableSentryUploadIOS"
     ],
     "experiments": {
       "typedRoutes": true,

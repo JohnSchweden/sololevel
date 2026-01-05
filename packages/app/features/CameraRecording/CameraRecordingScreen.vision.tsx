@@ -63,6 +63,7 @@ export function CameraRecordingScreen({
 
   // PERF FIX: Pause/resume preview based on tab focus
   // Camera stays mounted but inactive when paused (no re-init on resume)
+  // NOTE: Android app background handling is now done inside VisionCameraPreview component
   useEffect(() => {
     if (!cameraRef.current) return
 

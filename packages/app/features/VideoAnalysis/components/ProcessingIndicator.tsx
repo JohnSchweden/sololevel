@@ -437,7 +437,7 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
           left={0}
           right={0}
           alignItems="center"
-          paddingBottom="$8"
+          paddingBottom="$12"
         >
           <SteppedProgressBar phase={phase} />
         </YStack>

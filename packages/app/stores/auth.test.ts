@@ -143,6 +143,26 @@ describe('AuthStore', () => {
 
       expect(useAuthStore.getState().loading).toBe(false)
     })
+
+    it('should reset feedbackAudioStore on sign out', async () => {
+      // ARRANGE: Import feedbackAudioStore to verify it gets reset
+      const { useFeedbackAudioStore } = require('../features/VideoAnalysis/stores/feedbackAudio')
+      const mockReset = jest.spyOn(useFeedbackAudioStore.getState(), 'reset')
+
+      // Use static import instead of dynamic import
+      const mockSignOut = jest.mocked(supabase.auth.signOut)
+      mockSignOut.mockResolvedValue({ error: null })
+
+      // ACT: Sign out
+      await useAuthStore.getState().signOut()
+
+      // ASSERT: feedbackAudioStore.reset should be called during clearAllUserData
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1)
+      expect(useAuthStore.getState().user).toBeNull()
+      expect(mockReset).toHaveBeenCalledTimes(1)
+
+      mockReset.mockRestore()
+    })
   })
 
   describe('initialize', () => {

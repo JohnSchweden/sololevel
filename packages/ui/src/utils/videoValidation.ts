@@ -1,3 +1,4 @@
+import { MAX_RECORDING_DURATION_SECONDS } from '@app/features/CameraRecording/config/recordingConfig'
 import { log } from '@my/logging'
 
 /**
@@ -6,10 +7,7 @@ import { log } from '@my/logging'
  * Cross-platform compatible for web and native
  */
 
-const MAX_DURATION_SECONDS = Number.parseInt(
-  process.env.EXPO_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '30',
-  10
-)
+const MAX_DURATION_SECONDS = MAX_RECORDING_DURATION_SECONDS
 
 export interface VideoValidationResult {
   isValid: boolean

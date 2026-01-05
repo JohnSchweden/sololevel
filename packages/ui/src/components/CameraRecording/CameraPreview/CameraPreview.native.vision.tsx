@@ -2,7 +2,7 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { log } from '@my/logging'
 import { BlurView } from '@my/ui'
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { Platform } from 'react-native'
+import { AppState, type AppStateStatus, Platform } from 'react-native'
 import {
   Camera,
   useCameraDevice,
@@ -65,8 +65,50 @@ export const VisionCameraPreview = memo(
       // PERF FIX: Track pause state separately from camera initialization
       // When paused, camera stays mounted but inactive (no re-init on resume)
       const [isPaused, setIsPaused] = useState(false)
+      // ANDROID FIX: Use ref to bypass React render cycle for immediate camera control
+      // Direct updates to this ref avoid 16-50ms setState delay
+      const isPausedRef = useRef(isPaused)
+      // ANDROID FIX: Track if app is in foreground - used to conditionally render Camera
+      // When app goes to background on Android, we fully unmount Camera to guarantee release
+      const [isAppInForeground, setIsAppInForeground] = useState(true)
+      const appStateRef = useRef<AppStateStatus>(AppState.currentState)
       // Track recording start time for duration mismatch detection
       const recordingStartTimeRef = useRef<number | null>(null)
+
+      // ANDROID FIX: Direct AppState listener for immediate camera unmount on background
+      // This is more aggressive than just setting isActive=false, but guarantees camera release
+      useEffect(() => {
+        if (Platform.OS !== 'android') {
+          return
+        }
+
+        const subscription = AppState.addEventListener('change', (nextState) => {
+          const wasBackground = appStateRef.current.match(/inactive|background/)
+          const goingToBackground = nextState.match(/inactive|background/)
+          const comingToForeground = wasBackground && nextState === 'active'
+
+          if (goingToBackground) {
+            log.info(
+              'VisionCamera',
+              'App going to background - unmounting camera to release resource'
+            )
+            isPausedRef.current = true
+            setIsPaused(true)
+            setIsAppInForeground(false)
+          } else if (comingToForeground) {
+            log.info('VisionCamera', 'App returning to foreground - remounting camera')
+            setIsAppInForeground(true)
+            isPausedRef.current = false
+            setIsPaused(false)
+          }
+
+          appStateRef.current = nextState
+        })
+
+        return () => {
+          subscription.remove()
+        }
+      }, [])
 
       const device = useCameraDevice(cameraType === 'front' ? 'front' : 'back')
 
@@ -110,6 +152,11 @@ export const VisionCameraPreview = memo(
       // PERF: Memoize blur overlay state to prevent unnecessary re-renders
       const shouldShowOverlay = isPaused && isInitialized && isCameraReady
       const overlayOpacity = useMemo(() => (shouldShowOverlay ? 1 : 0), [shouldShowOverlay])
+
+      // Sync isPausedRef with isPaused state
+      useEffect(() => {
+        isPausedRef.current = isPaused
+      }, [isPaused])
 
       // PERF: Memoize BlurView style to prevent object recreation on every render
       const blurViewStyle = useMemo(
@@ -591,14 +638,24 @@ export const VisionCameraPreview = memo(
           // PERF FIX: Pause preview without re-initialization
           // Sets isActive=false to stop camera session but keeps it mounted
           // Resume is instant when tab regains focus (no re-init needed)
+          // ANDROID FIX: Use ref for immediate pause (bypasses React render cycle)
           pausePreview: (): void => {
-            setIsPaused(true)
+            isPausedRef.current = true
+            // Force synchronous update using microtask
+            Promise.resolve().then(() => {
+              setIsPaused(true)
+            })
           },
 
           // PERF FIX: Resume preview without re-initialization
           // Camera session resumes instantly since it stayed mounted
+          // ANDROID FIX: Use ref for immediate resume (bypasses React render cycle)
           resumePreview: (): void => {
-            setIsPaused(false)
+            isPausedRef.current = false
+            // Force synchronous update using microtask
+            Promise.resolve().then(() => {
+              setIsPaused(false)
+            })
           },
 
           // Imperatively reset camera session (forces remount)
@@ -752,6 +809,41 @@ export const VisionCameraPreview = memo(
         )
       }
 
+      // ANDROID FIX: Completely unmount camera when app goes to background
+      // This is more aggressive than just isActive=false, but GUARANTEES camera release
+      // Without this, VisionCamera's native module may hold onto the camera resource
+      if (Platform.OS === 'android' && !isAppInForeground) {
+        return (
+          <YStack
+            flex={1}
+            position="relative"
+            backgroundColor="#1a1a1a"
+          >
+            {/* Show blur overlay while camera is unmounted */}
+            <YStack
+              position="absolute"
+              top={0}
+              left={0}
+              right={0}
+              bottom={0}
+              backgroundColor="rgba(0, 0, 0, 0.7)"
+              alignItems="center"
+              justifyContent="center"
+              zIndex={5}
+            >
+              <SizableText
+                size="$5"
+                color="$color11"
+                textAlign="center"
+              >
+                Camera paused
+              </SizableText>
+            </YStack>
+            {children}
+          </YStack>
+        )
+      }
+
       return (
         <YStack
           flex={1}
@@ -772,7 +864,8 @@ export const VisionCameraPreview = memo(
             // Camera should be active for preview when initialized, ready, and not paused
             // Recording is a separate operation that doesn't require deactivating the preview
             // PERF FIX: isPaused allows stopping camera without remount/re-init
-            isActive={isInitialized && isCameraReady && !isPaused}
+            // ANDROID FIX: Read from ref for immediate state without render delay
+            isActive={isInitialized && isCameraReady && !isPausedRef.current}
             format={format}
             fps={targetFps}
             video={true}

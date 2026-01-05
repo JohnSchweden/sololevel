@@ -421,23 +421,37 @@ export function AppHeader({
     }
 
     if (showTimer) {
-      return (
+      const timerText = (
+        <Text
+          fontSize="$5"
+          fontFamily="$body"
+          fontWeight="600"
+          color="$color12"
+          textAlign="center"
+        >
+          {timerValue}
+        </Text>
+      )
+
+      // iOS: Use BlurView for native blur effect
+      // Android: Use transparent background container (BlurView causes performance issues)
+      return IS_IOS ? (
         <BlurView
           intensity={10}
           tint="dark"
           style={blurViewStyle}
           accessibilityLabel={`Recording time: ${timerValue}`}
         >
-          <Text
-            fontSize="$5"
-            fontFamily="$body"
-            fontWeight="600"
-            color="$color12"
-            textAlign="center"
-          >
-            {timerValue}
-          </Text>
+          {timerText}
         </BlurView>
+      ) : (
+        <XStack
+          backgroundColor="transparent"
+          style={blurViewStyle}
+          accessibilityLabel={`Recording time: ${timerValue}`}
+        >
+          {timerText}
+        </XStack>
       )
     }
 

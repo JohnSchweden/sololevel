@@ -6,3 +6,4 @@ export type {
   UseLazySectionVisibilityOptions,
   UseLazySectionVisibilityReturn,
 } from './useLazySectionVisibility'
+export { useIsAppActive } from './useIsAppActive'
