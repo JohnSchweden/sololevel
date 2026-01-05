@@ -251,7 +251,7 @@ export function useProgressBarGesture(
   const lastScrubbedPositionForSeekShared = useSharedValue<number>(-1)
 
   // MEMORY LEAK FIX: Batched functions to reduce runOnJS closure allocations
-  
+
   // STABILITY FIX: Use refs for callbacks to ensure stable function identity for runOnJS
   // This prevents "Object is not a function" errors when worklets hold stale function references
   const onSeekRef = useRef(onSeek)

@@ -869,6 +869,7 @@ jest.mock('@my/logging', () => ({
     error: jest.fn(),
     fatal: jest.fn(),
   },
+  logBreadcrumb: jest.fn(),
   logOnChange: jest.fn(),
 }))
 

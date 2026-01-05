@@ -1,5 +1,5 @@
 import { supabase } from '@my/api'
-import { log } from '@my/logging'
+import { log, logBreadcrumb } from '@my/logging'
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -68,6 +68,15 @@ function clearAllUserData(): void {
     log.warn('auth.ts', 'Failed to reset feedback status', { error })
   }
 
+  try {
+    // Feedback audio store (session state and persisted audio paths)
+    const { useFeedbackAudioStore } = require('../features/VideoAnalysis/stores/feedbackAudio')
+    useFeedbackAudioStore.getState().reset()
+    log.debug('auth.ts', 'Feedback audio store reset')
+  } catch (error) {
+    log.warn('auth.ts', 'Failed to reset feedback audio store', { error })
+  }
+
   // Note: Keep theme and feature flags (not user-specific)
   log.info('auth.ts', 'User data cleanup completed')
 }
@@ -123,6 +132,9 @@ export const useAuthStore = create<AuthStore>()(
           set({ loading: false })
         } else {
           log.info('auth.ts', 'Sign out successful')
+          logBreadcrumb('auth', 'User signed out', {
+            userId: get().user?.id,
+          })
 
           // Clear all user-specific cached data
           clearAllUserData()
@@ -303,6 +315,15 @@ export const useAuthStore = create<AuthStore>()(
           if (__DEV__) {
             log.debug('auth.ts', 'Auth state changed', { event, hasSession: !!session })
           }
+
+          // Track sign in events with breadcrumbs
+          if (event === 'SIGNED_IN' && session?.user) {
+            logBreadcrumb('auth', 'User signed in', {
+              userId: session.user.id,
+              email: session.user.email,
+            })
+          }
+
           set({
             user: session?.user ?? null,
             session,

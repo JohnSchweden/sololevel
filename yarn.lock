@@ -11457,6 +11457,7 @@ __metadata:
     react-native-screens: "npm:~4.11.1"
     react-native-svg: "npm:^15.12.1"
     react-native-video: "npm:^6.16.1"
+    react-native-video-trim: "npm:^6.0.11"
     react-native-vision-camera: "npm:^4.7.1"
     react-test-renderer: "npm:19.0.0"
     sentry-expo: "npm:^7.2.0"
@@ -16907,6 +16908,16 @@ __metadata:
   peerDependencies:
     react-native: "*"
   checksum: 10c0/a48e6978f5a2c9e225bb93cc5f9985a8ac0fe7d8122105bcd88ef8d8420a3b33a67ce5d2bda2b606bf5fa94af9f6d04efce354580b60900e7c967fd2ebdc42cf
+  languageName: node
+  linkType: hard
+
+"react-native-video-trim@npm:^6.0.11":
+  version: 6.0.11
+  resolution: "react-native-video-trim@npm:6.0.11"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/94bbdaabd378651abe7d01ef49e09efbfec68fdb771a8d0493e4b07260b878b00e6f1f81b918bae6c8ec86088f5de0dca61afa68cf3ea4850d91d0d356aafa44
   languageName: node
   linkType: hard
 

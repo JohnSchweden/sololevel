@@ -31,7 +31,10 @@ export function useFeedbackAudioSource(
   const previousItemsRef = useRef<string>('')
 
   useEffect(() => {
+    // BUG FIX: Clear audioUrls when navigating away or to empty analysis
+    // This prevents stale audio from previous analysis from being used
     if (!feedbackItems.length) {
+      useFeedbackAudioStore.getState().setAudioUrls({})
       return undefined
     }
 
@@ -44,7 +47,18 @@ export function useFeedbackAudioSource(
       // Content unchanged, skip re-processing
       return undefined
     }
+
+    // BUG FIX: Clear audioUrls when analysis changes (detected by itemsKey change)
+    // This ensures new analysis starts with clean audio state
+    if (previousItemsRef.current && previousItemsRef.current !== itemsKey) {
+      useFeedbackAudioStore.getState().setAudioUrls({})
+    }
+
     previousItemsRef.current = itemsKey
+
+    // FIX: Use AbortController to handle race conditions
+    const abortController = new AbortController()
+    const signal = abortController.signal
 
     // Defer audio initialization to prevent blocking initial render
     // Move audio cache resolution off critical path (similar to prefetch deferral)
@@ -65,6 +79,8 @@ export function useFeedbackAudioSource(
       //     timestamp: item.timestamp,
       //   })),
       // })
+
+      if (signal.aborted) return
 
       // PERF FIX #1: Filter items to resolve first, then resolve in parallel
       const itemsToResolve = feedbackItems.filter((item) => {
@@ -111,6 +127,8 @@ export function useFeedbackAudioSource(
         // 4. Download and persist to disk (background)
 
         async function resolveAudioUri(): Promise<string> {
+          if (signal.aborted) return ''
+
           // Tier 1: Check feedbackAudio store first (indexed cache)
           const storedPath = useFeedbackAudioStore.getState().getAudioPath(feedbackId)
           if (storedPath && Platform.OS !== 'web') {
@@ -203,13 +221,18 @@ export function useFeedbackAudioSource(
             return { feedbackId, error: message }
           })
           .finally(() => {
-            inFlightRef.current.delete(feedbackId)
+            // Only delete if not aborted - otherwise we might clear for next effect run
+            if (!signal.aborted) {
+              inFlightRef.current.delete(feedbackId)
+            }
           })
       })
 
       // PERF FIX #1: Wait for all resolutions in parallel
       // This reduces total time from sum(serial) to max(parallel)
       void Promise.all(resolvePromises).then((results) => {
+        if (signal.aborted) return
+
         // Batch update audio URLs once all resolutions complete
         const updates: Record<string, string> = {}
         const errors: Record<string, string> = {}
@@ -249,7 +272,11 @@ export function useFeedbackAudioSource(
       })
     }, 100) // 100ms delay - same as prefetch deferral
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      abortController.abort()
+      inFlightRef.current.clear()
+    }
   }, [feedbackItems])
 
   const selectAudio = useCallback(

@@ -4,7 +4,7 @@ import type {
   AnalysisStatus,
   PoseData,
 } from '@api/src/validation/cameraRecordingSchemas'
-import { log } from '@my/logging'
+import { log, logBreadcrumb } from '@my/logging'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
@@ -244,18 +244,30 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
 
       // Set job status
       setJobStatus: (jobId, status, error) => {
+        const job = get().jobs.get(jobId)
         const updates: Partial<AnalysisJob> = { status }
 
         if (error) {
           updates.error_message = error
         }
 
-        if (status === 'processing' && !get().jobs.get(jobId)?.processing_started_at) {
+        if (status === 'processing' && !job?.processing_started_at) {
           updates.processing_started_at = new Date().toISOString()
+          logBreadcrumb('video-analysis', 'Analysis started processing', {
+            jobId,
+            videoRecordingId: job?.video_recording_id,
+          })
         }
 
         if (status === 'completed' || status === 'failed') {
           updates.processing_completed_at = new Date().toISOString()
+          if (status === 'failed') {
+            logBreadcrumb('video-analysis', 'Analysis failed', {
+              jobId,
+              videoRecordingId: job?.video_recording_id,
+              error: error || 'Unknown error',
+            })
+          }
         }
 
         get().updateJob(jobId, updates)
@@ -270,12 +282,22 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
 
       // Set job results
       setJobResults: (jobId, results, poseData) => {
+        const job = get().jobs.get(jobId)
         get().updateJob(jobId, {
           status: 'completed',
           progress_percentage: 100,
           processing_completed_at: new Date().toISOString(),
           results,
           pose_data: poseData,
+        })
+
+        // Track analysis completion with breadcrumb
+        logBreadcrumb('video-analysis', 'Analysis completed', {
+          jobId,
+          videoRecordingId: job?.video_recording_id,
+          hasPoseAnalysis: !!results?.pose_analysis,
+          hasMovementAnalysis: !!results?.movement_analysis,
+          recommendationsCount: results?.recommendations?.length || 0,
         })
 
         // Write to video history cache (non-blocking)

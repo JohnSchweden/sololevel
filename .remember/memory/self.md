@@ -134,3 +134,46 @@ it('prepends to history when job completes without title', async () => {
   expect(cache[0]).toMatchObject({ id: 3, title: expect.stringMatching(/Analysis/) })
 })
 ```
+
+### Mistake: Race condition in async state updates (stale closures)
+**Wrong**:
+```typescript
+useEffect(() => {
+  asyncFn().then(res => {
+     // If dependencies changed while asyncFn ran, this updates with stale data!
+     setState(res) 
+  })
+}, [deps])
+```
+**Lesson**: Always use AbortController or a cleanup flag to ignore results from stale effect runs.
+
+**Correct**:
+```typescript
+useEffect(() => {
+  const controller = new AbortController()
+  asyncFn().then(res => {
+     if (controller.signal.aborted) return
+     setState(res)
+  })
+  return () => controller.abort()
+}, [deps])
+```
+
+### Mistake: Timeout on User Interaction (Video Trimming)
+**Wrong**:
+```typescript
+// Arbitrary timeout for user action - user might take longer!
+const timeout = setTimeout(() => reject('timeout'), 60000)
+// Result: Native UI stays open, but JS promise rejects. User saves file -> ignored.
+```
+**Lesson**: Never put timeouts on user-driven UI flows (pickers, trimmers, auth screens) unless the system itself has a hard limit.
+
+**Correct**:
+```typescript
+// Let the user cancel via the UI, don't auto-cancel from code
+return new Promise((resolve) => {
+  // No timeout
+  nativeModule.onFinish(resolve)
+  nativeModule.onCancel(resolve)
+})
+```

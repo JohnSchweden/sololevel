@@ -1,7 +1,34 @@
 /**
  * Cross-platform logger (web + Expo Go)
  * Structured output, dev-gated debug, consistent API
+ * Integrates with Sentry for production error tracking
  */
+
+// Sentry types (optional - only available in React Native app)
+type SentryModule = {
+  captureMessage: (message: string, options?: {
+    level?: 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug'
+    tags?: Record<string, string>
+    extra?: Record<string, unknown>
+  }) => string
+  addBreadcrumb: (breadcrumb: {
+    category?: string
+    message?: string
+    level?: 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug'
+    data?: Record<string, unknown>
+    timestamp?: number
+  }) => void
+}
+
+// Sentry is optional - only available in React Native app
+let Sentry: SentryModule | undefined
+try {
+  // Dynamic import - only available in apps that have @sentry/react-native installed
+  Sentry = require('@sentry/react-native') as SentryModule
+} catch {
+  // Sentry not available (web, tests, or not installed) - gracefully degrade
+  Sentry = undefined
+}
 
 type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
 
@@ -61,6 +88,33 @@ function isProductionInfoAllowed(scope: string, message: string): boolean {
   const combinedKey = `${scope.toLowerCase()}: ${message.toLowerCase()}`
   return PRODUCTION_INFO_ALLOWLIST.has(message.toLowerCase()) ||
          PRODUCTION_INFO_ALLOWLIST.has(combinedKey)
+}
+
+/**
+ * Extract issue type from message for Sentry tagging
+ * Helps pattern detection and filtering in Sentry dashboard
+ */
+function extractIssueType(message: string): string {
+  const msg = message.toLowerCase()
+  
+  // Race conditions
+  if (msg.includes('race') || msg.includes('concurrent')) return 'race-condition'
+  
+  // Cache issues
+  if (msg.includes('cache miss')) return 'cache-miss'
+  if (msg.includes('cache hit')) return 'cache-hit'
+  if (msg.includes('cache')) return 'cache-issue'
+  
+  // Performance
+  if (msg.includes('slow') || msg.includes('timeout') || msg.includes('delay')) return 'performance'
+  
+  // Network
+  if (msg.includes('network') || msg.includes('connection')) return 'network'
+  
+  // State/sync issues
+  if (msg.includes('sync') || msg.includes('inconsistent')) return 'sync-issue'
+  
+  return 'general'
 }
 
 // Standardize context keys for consistent logging
@@ -429,6 +483,18 @@ export const log: LoggerLike = {
       args: [context],
       timestamp: new Date().toISOString()
     })
+
+    // Send to Sentry in production (sampling handled in Sentry beforeSend hook)
+    if (!isDev && Sentry) {
+      Sentry.captureMessage(`${scope}: ${message}`, {
+        level: 'warning',
+        tags: {
+          scope,
+          issue_type: extractIssueType(message),
+        },
+        extra: context,
+      })
+    }
   },
   error(scope: string, message: string, context?: Record<string, unknown>) {
     const formatted = formatLine('error', scope, message, context)
@@ -749,5 +815,29 @@ export function clearChangeCache(key?: string): void {
     changeCache.delete(key)
   } else {
     changeCache.clear()
+  }
+}
+
+/**
+ * Add breadcrumb for Sentry context tracking
+ * Records user actions and events leading up to issues
+ * 
+ * @example
+ * logBreadcrumb('user-action', 'User tapped play button', { videoId: '123' })
+ * logBreadcrumb('navigation', 'Navigated to video analysis', { route: '/analysis' })
+ */
+export function logBreadcrumb(
+  category: string,
+  message: string,
+  data?: Record<string, unknown>
+): void {
+  if (Sentry) {
+    Sentry.addBreadcrumb({
+      category,
+      message,
+      level: 'info',
+      data,
+      timestamp: Date.now() / 1000, // Unix timestamp in seconds
+    })
   }
 }
