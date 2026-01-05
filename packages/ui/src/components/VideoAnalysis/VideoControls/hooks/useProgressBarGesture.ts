@@ -251,13 +251,32 @@ export function useProgressBarGesture(
   const lastScrubbedPositionForSeekShared = useSharedValue<number>(-1)
 
   // MEMORY LEAK FIX: Batched functions to reduce runOnJS closure allocations
+  
+  // STABILITY FIX: Use refs for callbacks to ensure stable function identity for runOnJS
+  // This prevents "Object is not a function" errors when worklets hold stale function references
+  const onSeekRef = useRef(onSeek)
+  const showControlsAndResetTimerRef = useRef(showControlsAndResetTimer)
+
+  useEffect(() => {
+    onSeekRef.current = onSeek
+    showControlsAndResetTimerRef.current = showControlsAndResetTimer
+  }, [onSeek, showControlsAndResetTimer])
+
+  const stableOnSeek = useCallback((time: number) => {
+    onSeekRef.current(time)
+  }, [])
+
+  const stableShowControlsAndResetTimer = useCallback(() => {
+    showControlsAndResetTimerRef.current()
+  }, [])
+
   // Batch seek + show controls (common pattern: tap to seek)
   const batchSeekAndControls = useCallback(
     (seekTime: number) => {
-      onSeek(seekTime)
-      showControlsAndResetTimer()
+      stableOnSeek(seekTime)
+      stableShowControlsAndResetTimer()
     },
-    [onSeek, showControlsAndResetTimer]
+    [stableOnSeek, stableShowControlsAndResetTimer]
   )
 
   // Batch scrubbing start (isScrubbing + showControls)
@@ -267,10 +286,10 @@ export function useProgressBarGesture(
         setIsScrubbing(updates.isScrubbing)
       }
       if (updates.showControls) {
-        showControlsAndResetTimer()
+        stableShowControlsAndResetTimer()
       }
     },
-    [setIsScrubbing, showControlsAndResetTimer]
+    [setIsScrubbing, stableShowControlsAndResetTimer]
   )
 
   // Batch scrubbing end cleanup (multiple state updates)
@@ -616,7 +635,7 @@ export function useProgressBarGesture(
             //   translationX: event.translationX,
             //   positionChange: Math.round(positionChange * 100) / 100,
             // })
-            runOnJS(onSeek)(seekTime)
+            runOnJS(stableOnSeek)(seekTime)
           }
         }
       })
@@ -659,7 +678,7 @@ export function useProgressBarGesture(
             //   finalSeekTime: seekTime,
             //   duration,
             // })
-            runOnJS(onSeek)(seekTime)
+            runOnJS(stableOnSeek)(seekTime)
           }
         }
       })
@@ -780,7 +799,7 @@ export function useProgressBarGesture(
                 seekTime,
                 duration,
               })
-              runOnJS(onSeek)(seekTime)
+              runOnJS(stableOnSeek)(seekTime)
             }
           })
           .onFinalize(() => {
@@ -816,7 +835,7 @@ export function useProgressBarGesture(
           progressShared.value = currentProgress
 
           // Show controls when user starts dragging handle
-          runOnJS(showControlsAndResetTimer)()
+          runOnJS(stableShowControlsAndResetTimer)()
 
           // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
           // runOnJS(log.debug)('VideoControls', `${barType} main gesture start (drag detected)`, {
@@ -872,7 +891,7 @@ export function useProgressBarGesture(
             //   seekTime,
             //   duration,
             // })
-            runOnJS(onSeek)(seekTime)
+            runOnJS(stableOnSeek)(seekTime)
           }
         })
         .onFinalize(() => {
