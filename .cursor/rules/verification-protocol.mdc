@@ -16,8 +16,8 @@ When issues are found, fix them first, then verify the fix with evidence.
 
 Run these commands before summarizing:
 1. `yarn type-check`
-2. `yarn lint`
-3. `yarn workspace <package> test <testfile.test.*> --verbose`
+2. `yarn workspace <package> test <testfile.test.*> --verbose`
+3. `yarn lint`
 
 ## Summary Format (Strictly Enforced)
 

@@ -275,7 +275,7 @@ export function CoachScreen({
         id: '1',
         type: 'coach',
         content:
-          "Hey there! I'm your Solo:Level coach, and I'm here to roast your form into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you level up. What disaster are we fixing today?",
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
         timestamp: new Date(),
       },
     ]
@@ -574,7 +574,7 @@ export function CoachScreen({
                       testID={`${testID}-avatar`}
                     >
                       <Image
-                        source={require('../../../../apps/expo/assets/coach_avatar.png')}
+                        source={require('../../../../apps/expo/assets/coach_avatar_bright.webp')}
                         contentFit="cover"
                         style={{
                           width: 66,

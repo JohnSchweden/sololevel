@@ -5,7 +5,7 @@ import { Spinner, Text, YStack } from 'tamagui'
 
 // PERF FIX: Cache module-level to prevent require() blocking main thread on every mount
 // This is evaluated once at module load time, not on every component render
-const mockAvatarImage = require('../../../../../../apps/expo/assets/profile.png')
+const mockAvatarImage = require('../../../../../../apps/expo/assets/profile_settings.webp')
 
 export interface ProfileSectionProps {
   /**
@@ -139,7 +139,7 @@ export function ProfileSection({
           height={84}
           borderRadius={42}
           borderWidth={1}
-          borderColor="$color9"
+          borderColor="$color12"
           overflow="hidden"
           testID={`${testID}-avatar-mock`}
         >

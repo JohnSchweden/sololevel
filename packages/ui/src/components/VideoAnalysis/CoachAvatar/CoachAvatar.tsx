@@ -64,7 +64,7 @@ export function CoachAvatar({
             data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
           >
             <Image
-              source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
+              source={require('../../../../../../apps/expo/assets/coach_avatar_dark.webp')}
               contentFit="cover"
               style={{
                 width: size * 1.15,
