@@ -89,7 +89,7 @@ import { AuthGate } from '../components/AuthGate'
 SplashScreen.preventAutoHideAsync()
 
 // Profile image for header
-const profileImage = require('../assets/profile.png')
+const profileImage = require('../assets/profile_header.webp')
 
 export default function App() {
   // Fonts load progressively - UI renders immediately with system fallbacks

@@ -864,8 +864,8 @@ export const VisionCameraPreview = memo(
             // Camera should be active for preview when initialized, ready, and not paused
             // Recording is a separate operation that doesn't require deactivating the preview
             // PERF FIX: isPaused allows stopping camera without remount/re-init
-            // ANDROID FIX: Read from ref for immediate state without render delay
-            isActive={isInitialized && isCameraReady && !isPausedRef.current}
+            // FIX: Use state directly for React's unidirectional data flow (refs can diverge during render)
+            isActive={isInitialized && isCameraReady && !isPaused}
             format={format}
             fps={targetFps}
             video={true}

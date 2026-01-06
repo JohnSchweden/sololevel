@@ -47,7 +47,7 @@
         "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
-      "versionCode": 14,
+      "versionCode": 15,
       "splash": {
         "image": "./assets/splashscreen_logo.png",
         "resizeMode": "contain",

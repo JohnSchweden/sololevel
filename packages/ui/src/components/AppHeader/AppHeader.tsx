@@ -394,6 +394,8 @@ export function AppHeader({
                 source={profileImageSource}
                 contentFit="cover"
                 style={{
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.7)',
                   width: 36,
                   height: 36,
                   borderRadius: 18,

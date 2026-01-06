@@ -58,19 +58,22 @@ export async function generateTTSAudio(
     format = 'wav' as AudioFormat
   } = request
 
+  // Get TTS system instruction from environment variable with default
+  const ttsSystemInstruction = Deno.env.get('TTS_SYSTEM_INSTRUCTION') 
+    || 'Use a funny north european accent.'
+
+  // Combine system instruction with SSML content
+  // Gemini TTS doesn't support separate system role, so prepend instruction to user content
+  const contentText = ttsSystemInstruction ? `${ttsSystemInstruction}\n\n${request.ssml}` : request.ssml
+
   // Map format to MIME type
 
   // Gemini TTS request body (following Gemini TTS API schema)
   const requestBody = {
     contents: [{
-    //   role: "system",
-    //   parts: [{
-    //     text: TTS_GENERATION_PROMPT_TEMPLATE
-    //   }]
-    // }, {
-    //   role: "user",
+      role: "user",
       parts: [{
-        text: request.ssml // This is your user input (text/SSML)
+        text: contentText
       }]
     }],
     generationConfig: {
@@ -177,10 +180,7 @@ export async function generateTTSAudio(
       processingTime
     })
 
-    const prompt = `Gemini TTS synthesis: voice=${voiceName}, format=${contentType}, ssml=${request.ssml.substring(0, 100)}...`
-
-    // // Return the system instruction used so it can be persisted as prompt
-    // const prompt = TTS_GENERATION_PROMPT_TEMPLATE.trim()
+    const prompt = `Gemini TTS synthesis: voice=${voiceName}, format=${contentType}, instruction="${ttsSystemInstruction}", ssml=${request.ssml.substring(0, 100)}...`
 
     return {
       bytes: finalBytes,
