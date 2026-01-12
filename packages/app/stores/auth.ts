@@ -1,8 +1,9 @@
-import { supabase } from '@my/api'
+import { ProfileSchema, supabase, validateApiResponse } from '@my/api'
 import { log, logBreadcrumb } from '@my/logging'
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
+import { PROFILE_FIELDS } from '../hooks/useUser'
 
 // Lazy import query client to avoid circular dependencies
 let getQueryClient: (() => any) | null = null
@@ -12,6 +13,49 @@ function lazyGetQueryClient() {
     getQueryClient = imported
   }
   return getQueryClient?.()
+}
+
+/**
+ * Prefetch user profile into TanStack Query cache
+ * Called during auth initialization to prevent layout shifts in SettingsScreen
+ */
+async function prefetchUserProfile(userId: string): Promise<void> {
+  try {
+    const queryClient = lazyGetQueryClient()
+    if (!queryClient) {
+      log.warn('auth.ts', 'QueryClient not available for profile prefetch')
+      return
+    }
+
+    // Prefetch the profile - same query key as useCurrentUser
+    await queryClient.prefetchQuery({
+      queryKey: ['currentUser'],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select(PROFILE_FIELDS)
+          .match({ user_id: userId })
+          .single()
+
+        // Handle "no rows found" as valid null case
+        if (error?.code === 'PGRST116') {
+          return null
+        }
+
+        if (error) {
+          throw new Error(`Failed to fetch profile: ${error.message}`)
+        }
+
+        return validateApiResponse(ProfileSchema, data, 'prefetchUserProfile')
+      },
+      staleTime: 10 * 60 * 1000, // 10 minutes (matches useCurrentUser)
+    })
+
+    log.debug('auth.ts', 'User profile prefetched', { userId: userId.slice(0, 8) })
+  } catch (error) {
+    log.warn('auth.ts', 'Failed to prefetch user profile', { error })
+    // Non-blocking - SettingsScreen will fetch on render
+  }
 }
 
 /**
@@ -95,6 +139,8 @@ export interface AuthState {
   session: Session | null
   loading: boolean
   initialized: boolean
+  /** Timestamp when voice prefs were last checked (prevents duplicate checks) */
+  voicePrefsCheckedAt: number | null
 }
 
 export interface AuthActions {
@@ -104,6 +150,15 @@ export interface AuthActions {
   signOut: () => Promise<void>
   initialize: () => Promise<void>
   cleanup: () => void
+  /** Mark voice preferences as checked (call after hasUserSetVoicePreferences) */
+  markVoicePrefsChecked: () => void
+}
+
+/** Check if voice prefs were checked recently (within threshold) */
+export function wasVoicePrefsRecentlyChecked(thresholdMs = 30_000): boolean {
+  const checkedAt = useAuthStore.getState().voicePrefsCheckedAt
+  if (!checkedAt) return false
+  return Date.now() - checkedAt < thresholdMs
 }
 
 export type AuthStore = AuthState & AuthActions
@@ -118,6 +173,7 @@ export const useAuthStore = create<AuthStore>()(
     session: null,
     loading: true, // Start as true - we haven't checked auth yet, show loading until initialized
     initialized: false,
+    voicePrefsCheckedAt: null,
 
     // Actions
     setAuth: (user, session) => {
@@ -130,6 +186,10 @@ export const useAuthStore = create<AuthStore>()(
 
     setInitialized: (initialized) => {
       set({ initialized })
+    },
+
+    markVoicePrefsChecked: () => {
+      set({ voicePrefsCheckedAt: Date.now() })
     },
 
     signOut: async () => {
@@ -149,7 +209,7 @@ export const useAuthStore = create<AuthStore>()(
           clearAllUserData()
 
           // Clear auth state (triggers additional cleanup via subscriptions)
-          set({ user: null, session: null, loading: false })
+          set({ user: null, session: null, loading: false, voicePrefsCheckedAt: null })
           log.debug('auth.ts', 'Auth state cleared')
         }
       } catch (_error) {
@@ -200,6 +260,10 @@ export const useAuthStore = create<AuthStore>()(
               userId: cachedSession.user.id,
               expiresIn: Math.round((expiresAtMs - Date.now()) / 1000),
             })
+
+            // Prefetch user profile into TanStack Query cache (non-blocking)
+            // This prevents layout shifts in SettingsScreen by having profile data ready
+            prefetchUserProfile(cachedSession.user.id)
 
             // Validate session with SERVER (not cache) in background
             // CRITICAL: Use getUser() not getSession() - getUser() validates with server
@@ -317,6 +381,11 @@ export const useAuthStore = create<AuthStore>()(
             loading: false,
             initialized: true,
           })
+
+          // Prefetch user profile if session exists (non-blocking)
+          if (session?.user) {
+            prefetchUserProfile(session.user.id)
+          }
         }
 
         // Listen for auth changes - store subscription for cleanup
@@ -331,6 +400,9 @@ export const useAuthStore = create<AuthStore>()(
               userId: session.user.id,
               email: session.user.email,
             })
+            // Await prefetch to ensure profile is cached before UI reacts to login
+            // This prevents layout shift in SettingsScreen on first login
+            await prefetchUserProfile(session.user.id)
           }
 
           set({
@@ -358,6 +430,7 @@ export const useAuthStore = create<AuthStore>()(
         session: null,
         loading: false,
         initialized: false,
+        voicePrefsCheckedAt: null,
       })
     },
   }))

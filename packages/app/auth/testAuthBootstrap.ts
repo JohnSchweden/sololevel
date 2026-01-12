@@ -70,6 +70,18 @@ function validateEnvironment(): TestAuthBootstrapResult {
  * Uses EXPO_PUBLIC_ for both web and native (Metro bundler)
  */
 function isTestAuthEnabled(): boolean {
+  // Hard gate: __DEV__ is false in release builds (TestFlight/App Store)
+  // Metro strips this entire code path in production bundles
+  if (!__DEV__) {
+    return false
+  }
+
+  // Test override: Force-disable test auth for testing release behavior
+  // Set EXPO_PUBLIC_FORCE_DISABLE_TEST_AUTH=true to simulate release builds
+  if (process.env.EXPO_PUBLIC_FORCE_DISABLE_TEST_AUTH === 'true') {
+    return false
+  }
+
   // Both web and native use EXPO_PUBLIC_ (Metro bundler)
   const enabled = process.env.EXPO_PUBLIC_TEST_AUTH_ENABLED || process.env.TEST_AUTH_ENABLED
 

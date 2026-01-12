@@ -31,7 +31,7 @@ describe('AccountScreen', () => {
       )
 
       // Assert: Profile section visible with email
-      expect(screen.getByText('Test User')).toBeInTheDocument()
+      expect(screen.getByText('I watch you, Test User')).toBeInTheDocument()
       expect(screen.getByText('test@example.com')).toBeInTheDocument()
     })
 

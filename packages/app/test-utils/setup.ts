@@ -301,10 +301,11 @@ jest.mock('@my/ui', () => {
             : 'Loading...'
         )
       }
+      const userName = user?.name || user?.user_metadata?.full_name || user?.email || 'User'
       return React.createElement(
         'div',
         { 'data-testid': testID },
-        user?.name || user?.user_metadata?.full_name || user?.email || 'No user',
+        `I watch you, ${userName}`,
         email &&
           React.createElement(
             'div',

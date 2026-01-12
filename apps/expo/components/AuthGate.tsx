@@ -1,5 +1,5 @@
 import { hasUserSetVoicePreferences } from '@my/api'
-import { useAuthStore } from '@my/app/stores/auth'
+import { useAuthStore, wasVoicePrefsRecentlyChecked } from '@my/app/stores/auth'
 import { log } from '@my/logging'
 import { GlassBackground, StateDisplay } from '@my/ui'
 import { usePathname, useRouter } from 'expo-router'
@@ -68,6 +68,7 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
   }, [initialized, loading, isAuthenticated, redirectTo, router, isAuthRoute])
 
   // Effect 2: Check voice preferences for authenticated users
+  // Skip if SignInRoute already checked recently (prevents duplicate API calls)
   useEffect(() => {
     const shouldCheck =
       isAuthenticated &&
@@ -77,7 +78,8 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
       !voicePrefsCheckedRef.current &&
       !isAuthRoute &&
       !isOnboardingRoute &&
-      user?.id
+      user?.id &&
+      !wasVoicePrefsRecentlyChecked()
 
     if (!shouldCheck) return
 
@@ -87,6 +89,8 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
 
       try {
         const hasPreferences = await hasUserSetVoicePreferences(user.id)
+        useAuthStore.getState().markVoicePrefsChecked()
+
         if (!hasPreferences) {
           log.info('AuthGate', 'User has no voice preferences, redirecting to voice selection', {
             userId: user.id,

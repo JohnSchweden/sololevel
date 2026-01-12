@@ -1,3 +1,4 @@
+import { useCurrentUser } from '@app/hooks/useUser'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { log } from '@my/logging'
 import {
@@ -10,9 +11,14 @@ import {
   SettingsNavigationList,
 } from '@my/ui'
 import { useCallback, useMemo } from 'react'
+import { type ViewStyle } from 'react-native'
 import { View } from 'react-native'
 import { YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
+
+// Static styles - defined outside component to avoid recreation on each render
+const containerStyle: ViewStyle = { flex: 1 }
+const APP_HEADER_HEIGHT = 44
 
 export interface SettingsScreenProps {
   /**
@@ -65,74 +71,58 @@ export function SettingsScreen({
   onLogout,
   testID = 'settings-screen',
 }: SettingsScreenProps): React.ReactElement {
-  // Hooks: Auth state and header height
   // Use separate selectors to prevent infinite loops (object selectors create new references)
   const user = useAuthStore((state) => state.user)
   const isLoadingUser = useAuthStore((state) => state.loading)
-  // Use stable safe area hook that properly memoizes insets
+  const { data: profile, isLoading: isLoadingProfile } = useCurrentUser()
   const insets = useStableSafeArea()
-  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
-  // PERF FIX: Memoize container style to prevent recalculating layout on every render
-  // Inline object creation causes layout to diff styles every render
-  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
+  // Combined loading state: show skeleton until BOTH auth AND profile are ready
+  // Prevents layout shift when profile fetch is delayed after auth completes
+  const isLoading = isLoadingUser || isLoadingProfile
 
-  // PERF FIX: Memoize bottom section absolute positioning styles
   const bottomSectionStyle = useMemo(
-    () => ({
-      position: 'absolute' as const,
-      bottom: insets.bottom,
-      left: 0,
-      right: 0,
-    }),
+    () => ({ position: 'absolute' as const, bottom: insets.bottom, left: 0, right: 0 }),
     [insets.bottom]
   )
 
   // Handlers - memoized to prevent child re-renders
   const handleNavigate = useCallback(
     (route: string): void => {
-      if (onNavigate) {
-        onNavigate(route)
-      } else {
-        log.info('SettingsScreen', 'Navigate to', { route })
-      }
+      onNavigate(route)
     },
     [onNavigate]
   )
 
   const handleFooterLink = useCallback(
     (link: FooterLinkType): void => {
-      if (onFooterLink) {
-        onFooterLink(link)
-      } else {
-        log.info('SettingsScreen', 'Open link', { link })
-      }
+      if (onFooterLink) onFooterLink(link)
+      else log.info('SettingsScreen', 'Open link', { link })
     },
     [onFooterLink]
   )
 
   const handleLogout = useCallback((): void => {
-    if (onLogout) {
-      // Route handler will show confirmation dialog and handle signOut
-      onLogout()
-    } else {
-      log.info('SettingsScreen', 'Logout requested (no handler)')
-    }
+    if (onLogout) onLogout()
+    else log.info('SettingsScreen', 'Logout requested (no handler)')
   }, [onLogout])
 
-  // Profile data from authenticated user
-  // Uses user_metadata for name and avatar (populated during sign-up)
-  // Memoized to prevent ProfileSection re-renders when user object reference is stable
+  // Profile data with fallback chain: profile → user_metadata → email prefix → 'User'
   const profileUser = useMemo(
     () =>
       user
         ? {
             id: user.id,
-            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-            avatar_url: user.user_metadata?.avatar_url || null,
+            name:
+              profile?.username ||
+              profile?.full_name ||
+              user.user_metadata?.full_name ||
+              user.email?.split('@')[0] ||
+              'User',
+            avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
           }
         : null,
-    [user]
+    [user, profile]
   )
 
   return (
@@ -155,7 +145,7 @@ export function SettingsScreen({
             {/* Profile Section */}
             <ProfileSection
               user={profileUser}
-              isLoading={isLoadingUser}
+              isLoading={isLoading}
             />
 
             {/* Navigation List */}

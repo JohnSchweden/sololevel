@@ -159,9 +159,10 @@ export function ProfileSection({
         fontSize="$8"
         fontWeight="500"
         color="$color12"
+        textAlign="center"
         testID={`${testID}-name`}
       >
-        {userName}
+        I watch you, {userName}
       </Text>
 
       {/* Email (optional) */}

@@ -15,7 +15,7 @@ export default function SignInRoute() {
   const router = useRouter()
 
   const redirectAfterAuth = async () => {
-    const user = useAuthStore.getState().user
+    const { user, markVoicePrefsChecked } = useAuthStore.getState()
 
     if (!user?.id) {
       log.error('SignInRoute', 'No user ID available for voice preference check')
@@ -25,8 +25,9 @@ export default function SignInRoute() {
 
     try {
       const hasPreferences = await hasUserSetVoicePreferences(user.id)
-      const destination = hasPreferences ? '/' : '/onboarding/voice-selection'
+      markVoicePrefsChecked() // Prevent AuthGate from re-checking
 
+      const destination = hasPreferences ? '/' : '/onboarding/voice-selection'
       log.info('SignInRoute', hasPreferences ? 'User has preferences' : 'First login detected', {
         userId: user.id,
         destination,

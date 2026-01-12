@@ -304,7 +304,7 @@ describe('AuthStore', () => {
       // Simulate auth state change
       const mockUser = { id: 'user-1' } as User
       const mockSession = { user: mockUser } as Session
-      authChangeCallback('SIGNED_IN', mockSession)
+      await authChangeCallback('SIGNED_IN', mockSession)
 
       const state = useAuthStore.getState()
       expect(state.user).toBe(mockUser)

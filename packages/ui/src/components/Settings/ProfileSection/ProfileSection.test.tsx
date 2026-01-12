@@ -28,7 +28,7 @@ describe('ProfileSection', () => {
 
       // Assert: Avatar and name visible
       expect(screen.getByTestId('profile-section-avatar')).toBeInTheDocument()
-      expect(screen.getByText('Test User')).toBeInTheDocument()
+      expect(screen.getByText('I watch you, Test User')).toBeInTheDocument()
     })
 
     it('shows skeleton during loading state', () => {
@@ -65,7 +65,7 @@ describe('ProfileSection', () => {
       )
 
       // Assert: Name visible, avatar shows fallback
-      expect(screen.getByText('No Avatar User')).toBeInTheDocument()
+      expect(screen.getByText('I watch you, No Avatar User')).toBeInTheDocument()
       expect(screen.getByTestId('profile-section-avatar-mock')).toBeInTheDocument()
     })
   })

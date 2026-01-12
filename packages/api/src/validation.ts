@@ -4,16 +4,24 @@ import { z } from 'zod'
  * Common validation schemas for API responses
  */
 
+// Helper for datetime strings that accepts both ISO 8601 and PostgreSQL formats
+const datetimeString = z
+  .string()
+  .refine((val) => !Number.isNaN(Date.parse(val)), { message: 'Invalid datetime format' })
+
+// Helper for nullable URL strings
+const nullableUrl = z.string().url().or(z.null())
+
 // Profile schema (matches Supabase profiles table)
 export const ProfileSchema = z.object({
   id: z.number(),
   user_id: z.string().uuid(),
   full_name: z.string().nullable(),
   username: z.string().nullable(),
-  avatar_url: z.string().url().nullable(),
+  avatar_url: nullableUrl,
   bio: z.string().nullable(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  created_at: datetimeString,
+  updated_at: datetimeString,
 })
 
 export type Profile = z.infer<typeof ProfileSchema>

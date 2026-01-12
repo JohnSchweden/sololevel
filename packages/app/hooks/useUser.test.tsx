@@ -233,11 +233,24 @@ describe('useCurrentUser', () => {
       },
     } as any)
 
-    mockedSafeSupabaseOperation.mockResolvedValue({
-      success: true,
+    // Mock the from().select().match().single() chain
+    const mockSelect = jest.fn().mockReturnThis()
+    const mockMatch = jest.fn().mockReturnThis()
+    const mockSingle = jest.fn().mockResolvedValue({
       data: mockUser,
-      message: '',
+      error: null,
     })
+
+    mockSelect.mockReturnValue({
+      match: mockMatch,
+    })
+    mockMatch.mockReturnValue({
+      single: mockSingle,
+    })
+
+    mockedSupabase.from = jest.fn().mockReturnValue({
+      select: mockSelect,
+    }) as any
 
     mockedValidateApiResponse.mockReturnValue(mockUser)
 
@@ -251,6 +264,9 @@ describe('useCurrentUser', () => {
 
     expect(result.current.data).toEqual(mockUser)
     expect(mockedSupabase.auth.getSession).toHaveBeenCalled()
+    expect(mockSelect).toHaveBeenCalledWith(
+      'id, user_id, username, full_name, avatar_url, bio, created_at, updated_at'
+    )
   })
 
   it('returns null when no session', async () => {
@@ -293,6 +309,52 @@ describe('useCurrentUser', () => {
     )
 
     expect(result.current.data).toBeNull()
+  })
+
+  it('returns null when profile not found (PGRST116)', async () => {
+    ;(mockedSupabase.auth.getSession as jest.MockedFunction<any>).mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'current-user-id' },
+        },
+      },
+    } as any)
+
+    // Mock the from().select().match().single() chain
+    const mockSelect = jest.fn().mockReturnThis()
+    const mockMatch = jest.fn().mockReturnThis()
+    const mockSingle = jest.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST116', message: 'No rows found' },
+    })
+
+    mockSelect.mockReturnValue({
+      match: mockMatch,
+    })
+    mockMatch.mockReturnValue({
+      single: mockSingle,
+    })
+
+    mockedSupabase.from = jest.fn().mockReturnValue({
+      select: mockSelect,
+    }) as any
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true)
+      },
+      { timeout: 2000 }
+    )
+
+    expect(result.current.data).toBeNull()
+    expect(mockSelect).toHaveBeenCalledWith(
+      'id, user_id, username, full_name, avatar_url, bio, created_at, updated_at'
+    )
+    expect(mockedValidateApiResponse).not.toHaveBeenCalled()
   })
 })
 

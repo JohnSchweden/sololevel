@@ -5,6 +5,10 @@ import { ProfileSchema, type User, validateApiResponse } from '@my/api'
 import { useMutationWithErrorHandling } from './useMutationWithErrorHandling'
 import { useQueryWithErrorHandling } from './useQueryWithErrorHandling'
 
+/** Profile fields to select (excludes coach_gender, coach_mode which aren't in ProfileSchema) */
+export const PROFILE_FIELDS =
+  'id, user_id, username, full_name, avatar_url, bio, created_at, updated_at'
+
 /**
  * Fetch user profile by user_id with proper error handling
  */
@@ -86,7 +90,6 @@ export function useCurrentUser() {
   return useQueryWithErrorHandling({
     queryKey: ['currentUser'],
     queryFn: async (): Promise<User | null> => {
-      // Get current session
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -95,21 +98,22 @@ export function useCurrentUser() {
         return null
       }
 
-      const result = await safeSupabaseOperation(async () => {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .match({ user_id: session.user.id })
-          .single()
-        return { data, error }
-      }, 'useCurrentUser')
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(PROFILE_FIELDS)
+        .match({ user_id: session.user.id })
+        .single()
 
-      if (!result.success) {
-        throw new Error(result.message)
+      // Handle "no rows found" as valid null case, not error
+      if (error?.code === 'PGRST116') {
+        return null
       }
 
-      // Validate response with Zod
-      return validateApiResponse(ProfileSchema, result.data, 'useCurrentUser')
+      if (error) {
+        throw new Error(`Failed to fetch profile: ${error.message}`)
+      }
+
+      return validateApiResponse(ProfileSchema, data, 'useCurrentUser')
     },
     showErrorToast: true,
     errorMessage: 'Failed to load your profile',
