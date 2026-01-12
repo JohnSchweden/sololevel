@@ -3,36 +3,36 @@ graph TB
 
     subgraph Client["Client Applications"]
         Apps["📱 Expo (Native) + 🌐 Expo Router (Web)"]
-        Nav["🧭 Navigation\nStack: auth, (tabs), video-analysis, history-progress,\ncoaching-session, settings\nTabs: record | coach | insights\nCustom BottomNavigation (Tamagui)"]
+        Nav["🧭 Navigation\nStack: auth, (tabs), video-analysis, history-progress,\ncoaching-session, settings, onboarding/voice-selection\nTabs: record | coach | insights\nCustom BottomNavigation (Tamagui)"]
         Bundler["📦 Metro Bundler"]
         AuthGate["🔐 AuthGate (protected routes)"]
     end
 
     subgraph Packages["Shared Packages (@my/*)"]
-        UI["🎨 @my/ui (Tamagui)\nBottomNavigationContainer\nVideoAnalysis UI: VideoPlayerSection,\nFeedbackSection, VideoControls, FeedbackPanel"]
-        App["⚙️ @my/app (Logic + Screens)\nCameraRecording (Expo/Vision camera,\nuploads → /video-analysis)\nVideoAnalysisScreen (111 LOC direct hooks,\nleaf store subscriptions)\nHistoryProgress (TanStack Query + Zustand cache\n+ thumbnail persistence)\nCoach (chat + sessions)\nInsights"]
-        API["🔌 @my/api (Supabase client, queries,\nuploads, history)"]
-        Config["🧰 @my/config (types/theme)"]
+        UI["🎨 @my/ui (Tamagui)\nBottomNavigationContainer\nVideoAnalysis UI: VideoPlayerSection,\nFeedbackSection, VideoControls, FeedbackPanel,\nCoachAvatar, AudioPlayer"]
+        App["⚙️ @my/app (Logic + Screens)\nCameraRecording (Expo/Vision camera,\nuploads → /video-analysis)\nVideoAnalysisScreen (~825 LOC, leaf subscriptions)\nHistoryProgress (TanStack Query + Zustand cache\n+ thumbnail persistence)\nCoach (chat + sessions)\nInsights\nVoiceSelection (onboarding)"]
+        API["🔌 @my/api (Supabase client, queries,\nuploads, history, voice configs)"]
+        Config["🧰 @my/config (types/theme/MMKV)"]
+        Logging["📝 @my/logging (structured logger)"]
     end
 
     subgraph State["State Management"]
-        Zustand["🗃️ Zustand\nvideoPlayerStore\nfeedbackCoordinatorStore\nfeedbackAudioStore\npersistentProgressStore\nanalysisSubscription\nvideoHistoryStore"]
-        TSQ["📊 TanStack Query\nanalysisJobStatus\nhistory cache prefilled from Zustand"]
+        Zustand["🗃️ Zustand\nvideoPlayerStore (playback timeline)\nfeedbackCoordinatorStore (selection/bubbles)\nfeedbackAudioStore (audio URLs/paths, persisted)\npersistentProgressStore\nanalysisSubscription\nvideoHistoryStore (cache, persisted to MMKV)\nvoicePreferencesStore"]
+        TSQ["📊 TanStack Query\nanalysisJobStatus\nhistory cache prefilled from Zustand\nhistoricalAnalysis"]
     end
 
     subgraph Backend["Supabase Backend"]
         AuthSvc["🔑 Auth (JWT + Sessions)"]
-        DB[("🗄️ PostgreSQL\nvideo_recordings\nanalysis_jobs\nanalyses\nanalysis_feedback\nanalysis_audio_segments\nanalysis_ssml_segments\nanalysis_metrics\nupload_sessions\n🔒 RLS Enabled")]
+        DB[("🗄️ PostgreSQL\nvideo_recordings\nanalysis_jobs (+ voice snapshots)\nanalyses\nanalysis_feedback\nanalysis_audio_segments\nanalysis_ssml_segments\nanalysis_metrics\nupload_sessions\nprofiles (+ voice prefs)\ncoach_voice_configs\nuser_feedback\n🔒 RLS Enabled")]
         Storage["📁 Storage\nraw videos\nprocessed audio\nthumbnails"]
         RT["⚡ Realtime\nanalysis_jobs changes"]
-        Edge["🧩 Edge Function\nai-analyze-video"]
+        Edge["🧩 Edge Functions\nai-analyze-video (routes/)\nstorage-upload-finalize\nadmin-auth"]
     end
 
     subgraph AI["AI Pipeline"]
         ClientPose["🕺 Client Pose (MoveNet)"]
-        EdgeAI["🧠 Edge Processing\nGemini 2.5 Video + LLM feedback\nGemini TTS → audio"]
-        SSMLW["🔤 SSML Worker"]
-        AudioW["🔊 Audio Worker"]
+        EdgeAI["🧠 Edge Processing\nGemini 2.5 Video + LLM feedback\nGemini TTS → audio\nSSML generation"]
+        VoiceConfig["🎙️ Voice Config\ncoach_voice_configs table\ngender/mode → voice/prompt"]
     end
 
     User --> Apps
@@ -44,6 +44,7 @@ graph TB
     App --> API
     App --> Zustand
     App --> TSQ
+    App --> Logging
     UI --> Config
     API --> Config
     API --> AuthSvc
@@ -55,8 +56,8 @@ graph TB
     Edge --> EdgeAI
     EdgeAI --> Storage
     EdgeAI --> DB
-    EdgeAI --> SSMLW
-    EdgeAI --> AudioW
+    EdgeAI --> VoiceConfig
+    VoiceConfig --> DB
     DB --> RT
     RT --> TSQ
 
@@ -67,7 +68,7 @@ graph TB
     classDef ai fill:#fce4ec,stroke:#ad1457,stroke-width:2px
 
     class User,Apps,Nav,AuthGate client
-    class UI,App,API,Config shared
+    class UI,App,API,Config,Logging shared
     class Zustand,TSQ state
     class AuthSvc,DB,Storage,RT,Edge backend
-    class ClientPose,EdgeAI,SSMLW,AudioW ai
+    class ClientPose,EdgeAI,VoiceConfig ai

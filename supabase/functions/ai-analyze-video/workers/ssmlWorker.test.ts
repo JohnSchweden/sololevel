@@ -6,6 +6,7 @@ import { assertExists as _assertExists, assertEquals } from 'https://deno.land/s
 // Mock logger
 const mockLogger = {
   info: (msg: string, data?: any) => console.log(`INFO: ${msg}`, data),
+  warn: (msg: string, data?: any) => console.warn(`WARN: ${msg}`, data),
   error: (msg: string, data?: any) => console.error(`ERROR: ${msg}`, data),
 }
 

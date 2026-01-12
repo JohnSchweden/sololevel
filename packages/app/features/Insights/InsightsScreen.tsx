@@ -1,6 +1,8 @@
+import { useVoiceText } from '@app/hooks/useVoiceText'
 // import { useLazySectionVisibility } from '@app/hooks/useLazySectionVisibility'
 // import { useStaggeredAnimation } from '@app/hooks/useStaggeredAnimation'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import type { VoiceTextConfig } from '@my/config'
 import {
   AchievementCard,
   ActivityChart,
@@ -33,10 +35,12 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
   isVisible,
   data,
   dailyActivityData,
+  voiceText,
 }: {
   isVisible: boolean
   data: InsightsData
   dailyActivityData: InsightsData['weeklyStats']['dailyActivity']
+  voiceText: VoiceTextConfig
 }) {
   return (
     <YStack
@@ -45,7 +49,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="This Week (The numbers don't lie)"
+        title={voiceText.insights.weeklySectionHeader}
         icon={BarChart3}
         variant="minSpacing"
       />
@@ -57,8 +61,8 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             value={data.weeklyStats.totalSessions}
             label={
               data.weeklyStats.totalSessions > 10
-                ? 'Sessions\n(Not bad!)'
-                : 'Sessions\n(Barely trying)'
+                ? voiceText.insights.sessionLabels.many
+                : voiceText.insights.sessionLabels.few
             }
             variant="center"
           />
@@ -68,8 +72,8 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             value={`${data.weeklyStats.improvement}%`}
             label={
               data.weeklyStats.improvement > 20
-                ? 'Improvement\n(Actually trying)'
-                : 'Improvement\n(Could be worse)'
+                ? voiceText.insights.improvementLabels.high
+                : voiceText.insights.improvementLabels.low
             }
             trend="up"
             variant="center"
@@ -92,10 +96,10 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             color="$color11"
           >
             {data.weeklyStats.weeklyProgress >= 80
-              ? 'Weekly Progress (Almost there!)'
+              ? `Weekly Progress ${voiceText.insights.progressLabels.high}`
               : data.weeklyStats.weeklyProgress >= 50
-                ? 'Weekly Progress (Halfway to mediocrity)'
-                : 'Weekly Progress (Room for improvement)'}
+                ? `Weekly Progress ${voiceText.insights.progressLabels.medium}`
+                : `Weekly Progress ${voiceText.insights.progressLabels.low}`}
           </Text>
           <Text
             fontSize="$3"
@@ -115,14 +119,14 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
           paddingTop="$1"
         >
           {data.weeklyStats.weeklyProgress >= 90
-            ? "Almost perfect! Now don't mess it up next week."
+            ? voiceText.insights.progressComments.excellent
             : data.weeklyStats.weeklyProgress >= 80
-              ? "Solid effort. Could be better, but we'll take it."
+              ? voiceText.insights.progressComments.good
               : data.weeklyStats.weeklyProgress >= 50
-                ? "Halfway there... which means you're also halfway behind."
+                ? voiceText.insights.progressComments.average
                 : data.weeklyStats.weeklyProgress >= 25
-                  ? "A quarter of the way? That's... something, I guess."
-                  : 'Less than 25%? Ouch. Time to step it up.'}
+                  ? voiceText.insights.progressComments.poor
+                  : voiceText.insights.progressComments.veryPoor}
         </Text>
       </YStack>
 
@@ -139,7 +143,7 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
           fontSize="$3"
           color="$color11"
         >
-          Daily Activity (The truth hurts)
+          {voiceText.insights.dailyActivityHeader}
         </Text>
         <ActivityChart data={dailyActivityData} />
         <Text
@@ -155,18 +159,18 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
             const minSessions = Math.min(...dailyActivityData.map((d) => d.sessions))
 
             if (maxSessions === 0) {
-              return "Zero sessions? Really? That's not even trying."
+              return voiceText.insights.dailyActivityComments.none
             }
             if (maxSessions === minSessions && maxSessions === 1) {
-              return 'One session per day? Consistency is key, but so is effort.'
+              return voiceText.insights.dailyActivityComments.low
             }
             if (avgSessions >= 2.5) {
-              return "Now that's what I call commitment! Keep it up."
+              return voiceText.insights.dailyActivityComments.high
             }
             if (avgSessions >= 1.5) {
-              return 'Decent effort, but we both know you can do better.'
+              return voiceText.insights.dailyActivityComments.medium
             }
-            return 'Some days you tried, some days... not so much. Classic.'
+            return voiceText.insights.dailyActivityComments.medium
           })()}
         </Text>
       </YStack>
@@ -177,9 +181,11 @@ const WeeklyOverviewSection = memo(function WeeklyOverviewSection({
 const FocusAreasSection = memo(function FocusAreasSection({
   isVisible,
   focusAreasList,
+  voiceText,
 }: {
   isVisible: boolean
   focusAreasList: InsightsData['focusAreas']
+  voiceText: VoiceTextConfig
 }) {
   return (
     <YStack
@@ -188,20 +194,29 @@ const FocusAreasSection = memo(function FocusAreasSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Focus Areas (Where you're failing)"
+        title={voiceText.insights.focusAreasHeader}
         icon={Target}
         variant="minSpacing"
       />
 
       {focusAreasList.map((focus, index) => {
-        const roastTitle =
+        const progressLabel =
           focus.progress >= 80
-            ? `${focus.title} (Almost there!)`
+            ? voiceText.insights.progressLabels.high
             : focus.progress >= 50
-              ? `${focus.title} (Halfway to decent)`
+              ? voiceText.insights.progressLabels.medium
               : focus.progress >= 25
-                ? `${focus.title} (Baby steps...)`
-                : `${focus.title} (Yikes)`
+                ? voiceText.insights.progressLabels.low
+                : voiceText.insights.progressLabels.low
+
+        const progressComment =
+          focus.progress >= 80
+            ? voiceText.insights.progressComments.good
+            : focus.progress >= 50
+              ? voiceText.insights.progressComments.average
+              : focus.progress >= 25
+                ? voiceText.insights.progressComments.poor
+                : voiceText.insights.progressComments.veryPoor
 
         return (
           <YStack
@@ -209,7 +224,7 @@ const FocusAreasSection = memo(function FocusAreasSection({
             gap="$2"
           >
             <FocusCard
-              title={roastTitle}
+              title={`${focus.title} ${progressLabel}`}
               progress={focus.progress}
               priority={focus.priority}
             />
@@ -219,13 +234,7 @@ const FocusAreasSection = memo(function FocusAreasSection({
               fontStyle="italic"
               paddingHorizontal="$2"
             >
-              {focus.progress >= 80
-                ? 'Look at you, actually trying!'
-                : focus.progress >= 50
-                  ? "Not terrible, but we've seen better."
-                  : focus.progress >= 25
-                    ? "At least you're not at zero... yet."
-                    : 'This is embarrassing. Do better.'}
+              {progressComment}
             </Text>
           </YStack>
         )
@@ -237,9 +246,11 @@ const FocusAreasSection = memo(function FocusAreasSection({
 const AchievementsSection = memo(function AchievementsSection({
   isVisible,
   achievementsList,
+  voiceText,
 }: {
   isVisible: boolean
   achievementsList: InsightsData['achievements']
+  voiceText: VoiceTextConfig
 }) {
   return (
     <YStack
@@ -248,25 +259,32 @@ const AchievementsSection = memo(function AchievementsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Recent Achievements (You did something!)"
+        title={voiceText.insights.achievementsHeader}
         icon={Award}
         variant="minSpacing"
       />
 
       {achievementsList.map((achievement, index) => {
-        const roastTitle =
+        const titleLabel =
           achievement.type === 'streak'
-            ? `${achievement.title} (The streak lives!)`
+            ? ` (The streak lives!)`
             : achievement.type === 'technique'
-              ? `${achievement.title} (You learned something!)`
-              : `${achievement.title} (A new low... I mean high!)`
+              ? ` (You learned something!)`
+              : ` (A new low... I mean high!)`
 
-        const roastDate =
+        const dateLabel =
           achievement.date === 'Today'
             ? 'Today (Fresh off the press)'
             : achievement.date.includes('ago')
               ? `${achievement.date} (Ancient history)`
               : achievement.date
+
+        const comment =
+          achievement.type === 'streak'
+            ? voiceText.insights.achievementComments.streak
+            : achievement.type === 'technique'
+              ? voiceText.insights.achievementComments.technique
+              : voiceText.insights.achievementComments.record
 
         return (
           <YStack
@@ -274,8 +292,8 @@ const AchievementsSection = memo(function AchievementsSection({
             gap="$1"
           >
             <AchievementCard
-              title={roastTitle}
-              date={roastDate}
+              title={`${achievement.title}${titleLabel}`}
+              date={dateLabel}
               type={achievement.type}
               icon={achievement.icon}
             />
@@ -285,11 +303,7 @@ const AchievementsSection = memo(function AchievementsSection({
               fontStyle="italic"
               paddingHorizontal="$2"
             >
-              {achievement.type === 'streak'
-                ? 'Keep it going before you break it!'
-                : achievement.type === 'technique'
-                  ? 'Finally, some improvement. About time.'
-                  : 'A personal best! Now do it again.'}
+              {comment}
             </Text>
           </YStack>
         )
@@ -301,9 +315,11 @@ const AchievementsSection = memo(function AchievementsSection({
 const QuickStatsSection = memo(function QuickStatsSection({
   isVisible,
   data,
+  voiceText,
 }: {
   isVisible: boolean
   data: InsightsData
+  voiceText: VoiceTextConfig
 }) {
   return (
     <YStack
@@ -312,7 +328,7 @@ const QuickStatsSection = memo(function QuickStatsSection({
       animation="quick"
     >
       <SettingsSectionHeader
-        title="Quick Stats (The brutal truth)"
+        title={voiceText.insights.quickStatsHeader}
         icon={Calendar}
         variant="minSpacing"
       />
@@ -385,6 +401,7 @@ export function InsightsScreen({
     [insets.left, insets.right]
   )
   const { data, isError, refetch } = useInsightsData()
+  const voiceText = useVoiceText()
 
   // Lazy load sections to reduce initial render time
   // First section renders immediately, others render after delay
@@ -441,25 +458,29 @@ export function InsightsScreen({
             isVisible={true}
             data={data}
             dailyActivityData={dailyActivityData}
+            voiceText={voiceText}
           />
 
           <FocusAreasSection
             isVisible={true}
             focusAreasList={focusAreasList}
+            voiceText={voiceText}
           />
 
           <AchievementsSection
             isVisible={true}
             achievementsList={achievementsList}
+            voiceText={voiceText}
           />
 
           <QuickStatsSection
             isVisible={true}
             data={data}
+            voiceText={voiceText}
           />
         </>
       ),
-    [data, dailyActivityData, focusAreasList, achievementsList]
+    [data, dailyActivityData, focusAreasList, achievementsList, voiceText]
   )
 
   // if (isLoading) {

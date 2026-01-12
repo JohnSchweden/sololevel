@@ -94,6 +94,9 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
+# Test artifacts
+/artifacts/
+
 # Test assets (large video files)
 test-assets/videos/*.mp4
 test-assets/videos/*.mov

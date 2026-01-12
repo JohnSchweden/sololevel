@@ -43,3 +43,7 @@ export type { Database, Json } from './database.types'
 // Export storage adapters
 // Note: getMmkvInstance is a lazy getter to prevent crashes during early module loading
 export { mmkvStorage, mmkvStorageAsync, mmkvDirect, getMmkvInstance } from './storage'
+
+// Export voice text configuration
+export { VOICE_TEXT_CONFIG } from './voiceText'
+export type { VoiceTextConfig, CoachMode } from './voiceText'

@@ -29,11 +29,13 @@ if (sentryDsn) {
     // Prevent Hermes GC crashes during error stack generation + sample non-fatal events
     beforeSend(event) {
       // Sample non-fatal events to reduce noise while keeping errors
-      if (event.level === 'info' && Math.random() > 0.05) {
-        return null // Drop 95% of info events
+      // Keep 5% of info events (drop 95%)
+      if (event.level === 'info' && Math.random() >= 0.05) {
+        return null
       }
-      if (event.level === 'warning' && Math.random() > 0.2) {
-        return null // Drop 80% of warnings
+      // Keep 20% of warnings (drop 80%)
+      if (event.level === 'warning' && Math.random() >= 0.2) {
+        return null
       }
 
       // Strip stack traces from TurboModule exceptions to prevent GC allocation during error handling
@@ -225,6 +227,15 @@ function RootLayoutNav({ onRootViewReady }: { onRootViewReady?: () => void }) {
               options={{
                 headerShown: false,
                 animation: 'fade', // Fade transition from splash screen
+              }}
+            />
+
+            {/* Onboarding routes - public (not protected) */}
+            <Stack.Screen
+              name="onboarding"
+              options={{
+                headerShown: false,
+                animation: 'fade',
               }}
             />
 

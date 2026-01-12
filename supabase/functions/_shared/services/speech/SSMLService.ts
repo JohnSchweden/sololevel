@@ -16,6 +16,7 @@ export interface SSMLContext {
     voice?: string
     speed?: number
     pitch?: number
+    ssmlSystemInstruction?: string
   }
 }
 
@@ -67,7 +68,8 @@ export class GeminiSSMLService implements ISSMLService {
                           'Analysis completed successfully'
 
       const ssmlPrompt = getSSMLGenerationPrompt({
-        feedback_text: feedbackText
+        feedback_text: feedbackText,
+        system_instruction: context.customParams?.ssmlSystemInstruction
       })
 
       logger.info('Generated SSML prompt from prompts-local.ts')

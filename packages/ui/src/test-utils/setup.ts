@@ -751,40 +751,369 @@ jest.mock('@my/logging', () => ({
   getNetworkErrors: jest.fn(() => []),
 }))
 
-// Mock @my/config package
-jest.mock('@my/config', () => ({
-  shadows: {
-    small: {
-      shadowColor: 'rgba(0, 0, 0, 0.1)',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 1,
+// Mock @my/config package (second mock - must include VOICE_TEXT_CONFIG)
+jest.mock('@my/config', () => {
+  // Get the first mock's result (from line 540) and extend it
+  const firstMockResult = {
+    mmkvStorage: {
+      getItem: jest.fn((_key: string) => null),
+      setItem: jest.fn((_key: string, _value: string) => {}),
+      removeItem: jest.fn((_key: string) => {}),
     },
-    medium: {
-      shadowColor: 'rgba(0, 0, 0, 0.15)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 2,
+    mmkvStorageAsync: {
+      getItem: jest.fn(async (_key: string) => null),
+      setItem: jest.fn(async (_key: string, _value: string) => {}),
+      removeItem: jest.fn(async (_key: string) => {}),
     },
-    large: {
-      shadowColor: 'rgba(0, 0, 0, 0.2)',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 4,
+    mmkvDirect: {
+      getString: jest.fn((_key: string) => null),
+      setString: jest.fn((_key: string, _value: string) => {}),
+      delete: jest.fn((_key: string) => {}),
+      contains: jest.fn((_key: string) => false),
+      clearAll: jest.fn(() => {}),
     },
-    xlarge: {
-      shadowColor: 'rgba(0, 0, 0, 0.25)',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
-      elevation: 6,
+  }
+
+  // Mock VOICE_TEXT_CONFIG with minimal structure for tests
+  const mockVoiceTextConfig = {
+    roast: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: {
+            line1: "Cute curiosity, but you're hunting ghosts. No friends = no comments.",
+            line2:
+              'Share the video first, then check History & Progress once you actually have an audience. Logic helps! ;)',
+            line3: 'In Beta Version, it works without sharing.',
+          },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
     },
-  },
-  config: {},
-}))
+    zen: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: {
+            line1: "Cute curiosity, but you're hunting ghosts. No friends = no comments.",
+            line2:
+              'Share the video first, then check History & Progress once you actually have an audience. Logic helps! ;)',
+            line3: 'In Beta Version, it works without sharing.',
+          },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
+    },
+    lovebomb: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: {
+            line1: "Cute curiosity, but you're hunting ghosts. No friends = no comments.",
+            line2:
+              'Share the video first, then check History & Progress once you actually have an audience. Logic helps! ;)',
+            line3: 'In Beta Version, it works without sharing.',
+          },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
+    },
+  }
+
+  return {
+    ...firstMockResult,
+    VOICE_TEXT_CONFIG: mockVoiceTextConfig,
+    shadows: {
+      small: {
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+      },
+      medium: {
+        shadowColor: 'rgba(0, 0, 0, 0.15)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 2,
+      },
+      large: {
+        shadowColor: 'rgba(0, 0, 0, 0.2)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+      },
+      xlarge: {
+        shadowColor: 'rgba(0, 0, 0, 0.25)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    },
+    config: {},
+  }
+})
 
 // Mock Performance components and hooks
 jest.mock('@ui/components/Performance', () => ({

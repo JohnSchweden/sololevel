@@ -43,6 +43,7 @@ export function AppHeader({
   profileImageUri,
   topInset = 0,
   disableBlur = false,
+  voiceMode,
 }: AppHeaderProps) {
   // Notification sheet state
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false)
@@ -658,6 +659,7 @@ export function AppHeader({
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}
         notificationBadgeCount={notificationBadgeCount}
+        voiceMode={voiceMode}
       />
 
       <VideoSettingsSheet

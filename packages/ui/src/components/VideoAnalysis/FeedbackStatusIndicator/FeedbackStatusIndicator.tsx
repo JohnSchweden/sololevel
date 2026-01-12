@@ -1,8 +1,8 @@
-import { Clock, PlayCircle, XCircle } from '@tamagui/lucide-icons'
+import { Clock, PlayCircle, RotateCcw, XCircle } from '@tamagui/lucide-icons'
 
 import { Spinner, Text, XStack } from 'tamagui'
 
-export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
+export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying'
 
 export interface FeedbackStatusIndicatorProps {
   ssmlStatus: FeedbackProcessingStatus
@@ -30,7 +30,8 @@ export function FeedbackStatusIndicator({
 
   const isSSMLProcessing = ssmlStatus === 'processing'
   const isAudioProcessing = audioStatus === 'processing'
-  const isAnyProcessing = isSSMLProcessing || isAudioProcessing
+  const isAudioRetrying = audioStatus === 'retrying'
+  const isAnyProcessing = isSSMLProcessing || isAudioProcessing || isAudioRetrying
   const isSSMLFailed = ssmlStatus === 'failed'
   const isAudioFailed = audioStatus === 'failed'
   const isAnyFailed = isSSMLFailed || isAudioFailed
@@ -83,6 +84,33 @@ export function FeedbackStatusIndicator({
           color="$color11"
         >
           Ready
+        </Text>
+      </XStack>
+    )
+  }
+
+  if (isAudioRetrying) {
+    return (
+      <XStack
+        alignItems="center"
+        gap="$2"
+        testID={testID}
+      >
+        <RotateCcw
+          size={iconSize}
+          color="$orange10"
+        />
+        <Text
+          fontSize={textSize}
+          color="$orange10"
+        >
+          Retrying...
+        </Text>
+        <Text
+          fontSize="$1"
+          color="$orange10"
+        >
+          {`Attempt ${audioAttempts + 1}/3`}
         </Text>
       </XStack>
     )

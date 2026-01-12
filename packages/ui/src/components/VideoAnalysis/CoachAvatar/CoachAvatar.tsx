@@ -1,8 +1,10 @@
 import { OptimizedImage as Image } from '@my/ui'
+import { useMemo } from 'react'
 import { Platform } from 'react-native'
 import { BlurView } from '../../BlurView/BlurView'
 
 import { View, YStack } from 'tamagui'
+import { AVATAR_ASSETS, type AvatarAssetKey, DEFAULT_AVATAR_KEY } from '../../../assets/avatars'
 
 export interface CoachAvatarProps {
   size?: number
@@ -12,6 +14,7 @@ export interface CoachAvatarProps {
   bottom?: number
   right?: number
   zIndex?: number
+  avatarAssetKey?: AvatarAssetKey
 }
 
 /**
@@ -28,17 +31,24 @@ export function CoachAvatar({
   bottom = 70,
   right = 20,
   zIndex = 0,
+  avatarAssetKey,
 }: CoachAvatarProps) {
-  const avatarStyle = {
-    width: size,
-    height: size,
-    borderRadius: size / 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  }
+  // Memoize style object to prevent recreation on every render
+  const avatarStyle = useMemo(
+    () => ({
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      overflow: 'hidden' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    }),
+    [size]
+  )
+
+  const avatarSource = AVATAR_ASSETS[avatarAssetKey ?? DEFAULT_AVATAR_KEY]
 
   return (
     <View
@@ -64,7 +74,7 @@ export function CoachAvatar({
             data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
           >
             <Image
-              source={require('../../../../../../apps/expo/assets/coach_avatar_dark.webp')}
+              source={avatarSource}
               contentFit="cover"
               style={{
                 width: size * 1.15,
@@ -94,7 +104,7 @@ export function CoachAvatar({
             data-testid={isSpeaking ? 'coach-avatar-speaking' : 'coach-avatar-idle'}
           >
             <Image
-              source={require('../../../../../../apps/expo/assets/coach_avatar.png')}
+              source={avatarSource}
               contentFit="cover"
               style={{
                 width: size * 1.15,

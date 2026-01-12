@@ -6,6 +6,23 @@
 const { getDefaultConfig } = require('@expo/metro-config')
 const path = require('node:path')
 
+// // Load environment variables from .env files before Metro starts
+// // This makes them available to the bundler
+// // Note: Use override: true to override Expo CLI's env loading
+// const rootEnvLocal = path.resolve(__dirname, '../../.env.local')
+// const rootEnv = path.resolve(__dirname, '../../.env')
+
+// console.log('📦 Metro config: Loading environment variables...')
+// if (require('fs').existsSync(rootEnvLocal)) {
+//   require('dotenv').config({ path: rootEnvLocal, override: true })
+//   console.log(`✅ Loaded (override): ${rootEnvLocal}`)
+// }
+// if (require('fs').existsSync(rootEnv)) {
+//   require('dotenv').config({ path: rootEnv, override: false })
+//   console.log(`✅ Loaded: ${rootEnv}`)
+// }
+// console.log(`📍 EXPO_PUBLIC_SUPABASE_URL: ${process.env.EXPO_PUBLIC_SUPABASE_URL}`)
+
 const projectRoot = __dirname
 const workspaceRoot = path.resolve(projectRoot, '../..')
 

@@ -106,6 +106,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             isProcessing={video.isProcessing}
             videoAreaScale={computedVideoAreaScale}
             posterUri={video.posterUri}
+            avatarAssetKey={video.avatarAssetKey}
             onPlay={handlers.onPlay}
             onPause={handlers.onPause}
             onReplay={handlers.onPause}
@@ -137,6 +138,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             analysisTitle={feedback.analysisTitle}
             fullFeedbackText={feedback.fullFeedbackText}
             isHistoryMode={feedback.isHistoryMode}
+            voiceMode={props.voiceMode || 'roast'}
             // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
             currentVideoTime={playbackCurrentTime}
             videoDuration={0}

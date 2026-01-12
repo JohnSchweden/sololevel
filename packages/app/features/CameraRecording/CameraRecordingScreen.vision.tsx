@@ -10,11 +10,14 @@ import {
   RecordingControlsWithZoom,
 } from '@ui/components/CameraRecording'
 
+import { useVideoHistoryStore } from '@app/features/HistoryProgress/stores/videoHistory'
 import { useConfirmDialog } from '@app/hooks/useConfirmDialog'
 import { useStatusBar } from '@app/hooks/useStatusBar'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import { useAuthStore } from '@app/stores/auth'
+import { log } from '@my/logging'
 import { useIsFocused } from '@react-navigation/native'
+import { useQueryClient } from '@tanstack/react-query'
 // Import external components directly
 import { BottomNavigation } from '@ui/components/BottomNavigation'
 import { VisionCameraPreview } from '@ui/components/CameraRecording/CameraPreview/CameraPreview.native.vision'
@@ -271,6 +274,7 @@ export function CameraRecordingScreen({
   // Dev logout functionality - exact same pattern as settings route
   const router = useRouter()
   const signOut = useAuthStore((state) => state.signOut)
+  const queryClient = useQueryClient()
 
   // Stabilize router reference to prevent callback recreation
   const routerRef = useRef(router)
@@ -285,6 +289,19 @@ export function CameraRecordingScreen({
     routerRef.current.replace('/')
   }, [signOut]) // Remove router from deps, use ref instead
   const logoutDialog = useConfirmDialog(onLogoutConfirm)
+
+  // Clear cache handler - clears both TanStack Query and Zustand caches
+  const handleClearCache = useCallback(() => {
+    log.info('CameraRecordingScreen', 'Clearing history cache')
+
+    // Clear TanStack Query cache for history queries
+    queryClient.invalidateQueries({ queryKey: ['history', 'completed'] })
+
+    // Clear Zustand video history cache
+    useVideoHistoryStore.getState().clearCache()
+
+    log.debug('CameraRecordingScreen', 'History cache cleared')
+  }, [queryClient])
 
   // Extract stable show handler - logoutDialog.show is stable but accessing via
   // logoutDialog object causes re-renders when dialog state changes
@@ -474,6 +491,16 @@ export function CameraRecordingScreen({
               pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
             >
               🚪 DEV LOGOUT
+            </Button>
+            <Button
+              size="$4"
+              backgroundColor="transparent"
+              color="white"
+              onPress={handleClearCache}
+              testID="dev-clear-cache-button"
+              pressStyle={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              🗑️ CLEAR CACHE
             </Button>
           </YStack>
         )}

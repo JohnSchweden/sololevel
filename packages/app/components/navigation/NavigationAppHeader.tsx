@@ -1,4 +1,5 @@
 import { useStableTopInset } from '@app/provider/safe-area/use-safe-area'
+import { useVoicePreferencesStore } from '@app/stores/voicePreferences'
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack'
 import { AppHeader, type AppHeaderProps } from '@ui/components/AppHeader'
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -213,6 +214,9 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
   const navOptions = options as unknown as NavAppHeaderOptions
   const colorScheme = useColorScheme()
   const insets = useSafeAreaInsets()
+
+  // Get voice mode for notifications
+  const voiceMode = useVoicePreferencesStore((s) => s.mode)
 
   // Extract route params once
   const routeParams = route.params as Record<string, unknown> | undefined
@@ -463,7 +467,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
       <View style={wrapperStyle}>
         {isVideoAnalysisMode ? (
           <VideoAnalysisAnimatedHeader
-            appHeaderProps={{ ...appHeaderProps, topInset }}
+            appHeaderProps={{ ...appHeaderProps, topInset, voiceMode }}
             initialOpacity={initialOpacity}
             targetOpacity={targetOpacity}
             hasInitializedRef={hasInitializedRef}
@@ -474,6 +478,7 @@ function NavigationAppHeaderImpl(props: NativeStackHeaderProps) {
           <AppHeader
             {...appHeaderProps}
             topInset={topInset}
+            voiceMode={voiceMode}
           />
         )}
       </View>

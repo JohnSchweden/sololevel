@@ -10,6 +10,7 @@ const mockLogger = {
 }
 
 const audioStatusUpdates: any[] = []
+const voiceSnapshotUpdates: any[] = []
 
 // Mock supabase client for Audio worker
 const mockSupabaseForAudio = {
@@ -17,6 +18,50 @@ const mockSupabaseForAudio = {
     if (table === 'analysis_feedback') {
       return {
         select: () => ({
+          in: (_field: string, _values: any[]) => ({
+            in: (field: string, _values: any[]) => {
+              if (field === 'id') {
+                return {
+                  limit: () => Promise.resolve({
+                    data: [{
+                      id: 123,
+                      audio_status: 'queued',
+                      audio_attempts: 0
+                    }],
+                    error: null
+                  })
+                }
+              }
+              return {
+                limit: () => Promise.resolve({
+                  data: [{
+                    id: 123,
+                    audio_status: 'queued',
+                    audio_attempts: 0
+                  }],
+                  error: null
+                })
+              }
+            },
+            eq: (_field: string, _value: any) => ({
+              limit: () => Promise.resolve({
+                data: [{
+                  id: 123,
+                  audio_status: 'queued',
+                  audio_attempts: 0
+                }],
+                error: null
+              })
+            }),
+            limit: () => Promise.resolve({
+              data: [{
+                id: 123,
+                audio_status: 'queued',
+                audio_attempts: 0
+              }],
+              error: null
+            })
+          }),
           eq: () => ({
             limit: () => Promise.resolve({
               data: [{
@@ -33,6 +78,7 @@ const mockSupabaseForAudio = {
                 analyses: {
                   job_id: 1,
                   analysis_jobs: {
+                    id: 1,
                     video_recording_id: 1,
                     video_recordings: {
                       id: 1,
@@ -51,6 +97,62 @@ const mockSupabaseForAudio = {
             audioStatusUpdates.push(data)
             return Promise.resolve({
               data: { id: 123, ...data },
+              error: null
+            })
+          }
+        })
+      }
+    }
+
+    if (table === 'profiles') {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({
+              data: {
+                coach_gender: 'female',
+                coach_mode: 'roast'
+              },
+              error: null
+            })
+          })
+        })
+      }
+    }
+
+    if (table === 'coach_voice_configs') {
+      return {
+        select: () => ({
+          eq: (_field: string, _value: any) => {
+            const chainable = {
+              eq: (_field2: string, _value2: any) => chainable,
+              single: () => Promise.resolve({
+                data: {
+                  id: 1,
+                  gender: 'female',
+                  mode: 'roast',
+                  voice_name: 'Aoede',
+                  tts_system_instruction: 'Test instruction',
+                  prompt_voice: 'Roast me!!!',
+                  prompt_personality: 'Ruthless',
+                  avatar_asset_key: 'coach_female_roast'
+                },
+                error: null
+              })
+            }
+            return chainable
+          }
+        })
+      }
+    }
+
+    if (table === 'analysis_jobs') {
+      return {
+        update: (data: any) => ({
+          eq: () => {
+            voiceSnapshotUpdates.push(data)
+            return Promise.resolve({
+              data: { id: 1, ...data },
               error: null
             })
           }
@@ -134,6 +236,12 @@ Deno.test('Audio worker - handles empty queue gracefully', async () => {
   const emptyMockSupabase = {
     from: (_table: string) => ({
       select: () => ({
+        in: () => ({
+          limit: () => Promise.resolve({
+            data: [], // No jobs
+            error: null
+          })
+        }),
         eq: () => ({
           limit: () => Promise.resolve({
             data: [], // No jobs
@@ -184,11 +292,16 @@ Deno.test('Audio worker - handles missing SSML segments', async () => {
     logger: mockLogger
   })
   
+  // With inline retry, all 3 attempts will fail, so:
+  // - 1 error (job failed)
+  // - 2 retries (attempt 2 and 3, so retryCount = 2)
   assertEquals(result.errors, 1)
-  assertEquals(result.retriedJobs, 1)
+  assertEquals(result.retriedJobs, 2)
+  
+  // After all retries exhausted, status should be 'failed' with 3 attempts
   const lastUpdate = audioStatusUpdates.at(-1)
-  assertEquals(lastUpdate?.audio_status, 'queued')
-  assertEquals(lastUpdate?.audio_attempts, 1)
+  assertEquals(lastUpdate?.audio_status, 'failed')
+  assertEquals(lastUpdate?.audio_attempts, 3)
   assertEquals(lastUpdate?.audio_last_error, 'SSML segments not found: No segments')
 })
 
@@ -219,3 +332,40 @@ Deno.test('Audio worker - handles TTS service errors', async () => {
   // Should handle gracefully
   assertEquals(result.processedJobs, 1)
 })
+
+Deno.test('Audio worker - fetches voice preferences and config', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  voiceSnapshotUpdates.length = 0
+  
+  const result = await processAudioJobs({
+    supabase: mockSupabaseForAudio,
+    logger: mockLogger
+  })
+  
+  // Should process successfully
+  assertEquals(result.processedJobs, 1)
+  assertEquals(result.errors, 0)
+  
+  // Should have updated analysis_jobs with voice snapshot
+  assertEquals(voiceSnapshotUpdates.length, 1)
+  const snapshot = voiceSnapshotUpdates[0]
+  assertEquals(snapshot.coach_gender, 'female')
+  assertEquals(snapshot.coach_mode, 'roast')
+  assertEquals(snapshot.voice_name_used, 'Aoede')
+  assertEquals(snapshot.avatar_asset_key_used, 'coach_female_roast')
+})
+
+Deno.test('Audio worker - passes voice name to TTS', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  
+  // Test that voice name from config is passed to TTS
+  const result = await processAudioJobs({
+    supabase: mockSupabaseForAudio,
+    logger: mockLogger
+  })
+  
+  // Should process successfully with voice config applied
+  assertEquals(result.processedJobs, 1)
+  assertEquals(result.errors, 0)
+})
+

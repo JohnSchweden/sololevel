@@ -77,6 +77,15 @@ function clearAllUserData(): void {
     log.warn('auth.ts', 'Failed to reset feedback audio store', { error })
   }
 
+  try {
+    // Voice preferences store (user's coach gender/mode selections)
+    const { useVoicePreferencesStore } = require('./voicePreferences')
+    useVoicePreferencesStore.getState().reset()
+    log.debug('auth.ts', 'Voice preferences store reset')
+  } catch (error) {
+    log.warn('auth.ts', 'Failed to reset voice preferences store', { error })
+  }
+
   // Note: Keep theme and feature flags (not user-specific)
   log.info('auth.ts', 'User data cleanup completed')
 }

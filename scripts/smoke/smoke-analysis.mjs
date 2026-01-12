@@ -5,17 +5,34 @@
  * Tests calling ai-analyze-video edge function with storage path
  */
 
-import { createSmokeServiceClient, loadSmokeEnv } from './smoke-utils.mjs'
+import { getScriptConfig, scriptHelpers } from '../utils/env.mjs'
+import { createSmokeAnonClient, createSmokeServiceClient, loadSmokeEnv } from './smoke-utils.mjs'
 
 // Global variables for invokeAnalysis function
 let supabase = null
+let userToken = null
 
 async function initializeSmokeTest() {
   if (!supabase) {
     // Load environment variables
     loadSmokeEnv()
 
-    // Create Supabase client
+    // Create anonymous client for user authentication
+    const config = getScriptConfig()
+    const anonSupabase = await createSmokeAnonClient()
+    
+    // Authenticate as test user to get JWT token
+    console.log('🔐 Authenticating as test user...')
+    const { data: authData, error: authError } = await scriptHelpers.signInTestUser(anonSupabase, config)
+    
+    if (authError || !authData?.session?.access_token) {
+      throw new Error(`Authentication failed: ${authError?.message || 'No session token'}`)
+    }
+    
+    userToken = authData.session.access_token
+    console.log('✅ Authenticated successfully')
+    
+    // Create service client for admin operations
     supabase = await createSmokeServiceClient()
   }
   return supabase
@@ -28,7 +45,11 @@ async function invokeAnalysis(videoPath, userId) {
 
   try {
     const { data, error } = await supabase.functions.invoke('ai-analyze-video', {
+      headers: {
+        Authorization: `Bearer ${userToken}`
+      },
       body: {
+        action: 'start',
         videoPath,
         userId,
         videoSource: 'uploaded_video',

@@ -150,6 +150,7 @@ export async function handleWebhookStart({ req, supabase, logger }: HandlerConte
       supabase,
       logger,
       analysisId: analysisJobId,
+      userId: analysisJob.user_id, // Pass userId from analysis job for voice config lookup
       videoPath: recording.storage_path,
       videoSource: 'uploaded_video',
       timingParams: { duration: recording.duration_seconds },

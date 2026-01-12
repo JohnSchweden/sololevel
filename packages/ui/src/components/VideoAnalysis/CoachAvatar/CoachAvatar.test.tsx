@@ -4,8 +4,25 @@ import '@testing-library/jest-dom'
 import '../../../test-utils/setup'
 import { CoachAvatar } from './CoachAvatar'
 
-// Mock the require call for the coach avatar image
+// Mock the require call for the coach avatar images
 jest.mock('../../../../../../apps/expo/assets/coach_avatar.png', () => 'mocked-coach-avatar')
+jest.mock(
+  '../../../../../../apps/expo/assets/coach_female_roast.webp',
+  () => 'mocked-female-roast-avatar'
+)
+
+// Mock the avatar assets module
+jest.mock('../../../assets/avatars', () => ({
+  AVATAR_ASSETS: {
+    female_roast: 'mocked-female-roast-avatar',
+    male_roast: 'mocked-male-roast-avatar',
+    female_zen: 'mocked-female-zen-avatar',
+    male_zen: 'mocked-male-zen-avatar',
+    female_lovebomb: 'mocked-female-lovebomb-avatar',
+    male_lovebomb: 'mocked-male-lovebomb-avatar',
+  },
+  DEFAULT_AVATAR_KEY: 'female_roast',
+}))
 
 // Mock Tamagui components and React Native modules
 jest.mock('tamagui', () => {
@@ -137,6 +154,46 @@ describe('CoachAvatar', () => {
       render(<CoachAvatar />)
 
       expect(screen.getByTestId('coach-avatar-idle')).toBeInTheDocument()
+    })
+  })
+
+  describe('Avatar Asset Selection', () => {
+    it('should use default avatar when no avatarAssetKey provided', () => {
+      render(<CoachAvatar />)
+
+      const image = screen.getByTestId('coach-avatar-image')
+      expect(image).toBeInTheDocument()
+      // Default should be female_roast
+      expect(image).toHaveAttribute('src', 'mocked-female-roast-avatar')
+    })
+
+    it('should use specified avatarAssetKey', () => {
+      render(<CoachAvatar avatarAssetKey="male_zen" />)
+
+      const image = screen.getByTestId('coach-avatar-image')
+      expect(image).toBeInTheDocument()
+      expect(image).toHaveAttribute('src', 'mocked-male-zen-avatar')
+    })
+
+    it('should support female_roast avatar', () => {
+      render(<CoachAvatar avatarAssetKey="female_roast" />)
+
+      const image = screen.getByTestId('coach-avatar-image')
+      expect(image).toHaveAttribute('src', 'mocked-female-roast-avatar')
+    })
+
+    it('should support male_roast avatar', () => {
+      render(<CoachAvatar avatarAssetKey="male_roast" />)
+
+      const image = screen.getByTestId('coach-avatar-image')
+      expect(image).toHaveAttribute('src', 'mocked-male-roast-avatar')
+    })
+
+    it('should support lovebomb avatars', () => {
+      render(<CoachAvatar avatarAssetKey="female_lovebomb" />)
+
+      const image = screen.getByTestId('coach-avatar-image')
+      expect(image).toHaveAttribute('src', 'mocked-female-lovebomb-avatar')
     })
   })
 })

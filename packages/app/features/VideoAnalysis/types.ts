@@ -6,7 +6,7 @@ export interface FeedbackPanelItem {
   type: 'positive' | 'suggestion' | 'correction'
   category: 'voice' | 'posture' | 'grip' | 'movement'
   ssmlStatus?: 'queued' | 'processing' | 'completed' | 'failed'
-  audioStatus?: 'queued' | 'processing' | 'completed' | 'failed'
+  audioStatus?: 'queued' | 'processing' | 'completed' | 'failed' | 'retrying'
   ssmlAttempts?: number
   audioAttempts?: number
   ssmlLastError?: string | null

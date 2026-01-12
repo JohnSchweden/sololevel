@@ -1,8 +1,9 @@
+import { getMockCoachingSessions } from '@app/features/Coach/mocks/coachingSessions'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useVoicePreferencesStore } from '@app/stores/voicePreferences'
 import { log } from '@my/logging'
 import { ConfirmDialog, GlassBackground } from '@my/ui'
 import { CoachingSessionsSection, VideosSection } from '@my/ui/src/components/HistoryProgress'
-import type { SessionItem } from '@my/ui/src/components/HistoryProgress'
 import React from 'react'
 import { Platform } from 'react-native'
 import { YStack } from 'tamagui'
@@ -31,21 +32,6 @@ export interface HistoryProgressScreenProps {
    */
   testID?: string
 }
-
-// Mock coaching sessions data - defined outside component to prevent re-allocation
-// Frozen to prevent mutations and signal immutability
-const MOCK_COACHING_SESSIONS: readonly SessionItem[] = Object.freeze([
-  { id: 1, date: 'Today', title: 'Your Deadlift is a Question Mark' },
-  { id: 2, date: 'Monday, Jul 28', title: 'Supplements: Because Real Food is Too Mainstream' },
-  { id: 3, date: 'Sunday, Jul 27', title: "Why Does Your Back Hurt? (Spoiler: It's Your Posture)" },
-  {
-    id: 4,
-    date: 'Saturday, Jul 26',
-    title: 'The Comprehensive Guide to Not Destroying Your Knees While Lifting Heavy Things',
-  },
-  { id: 5, date: 'Friday, Jul 25', title: 'Eat or Faint: The Meal Timing Dilemma' },
-  { id: 6, date: 'Thursday, Jul 24', title: "Recovery Isn't Optional" },
-])
 
 /**
  * History & Progress Tracking Screen
@@ -251,9 +237,11 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     setShowComingSoonDialog(true)
   }, [])
 
-  // Mock coaching sessions data (P0)
-  // CRITICAL FIX: Define outside component to prevent allocation on every render
-  // Even with useMemo, inline array literal defeats memoization
+  // Get voice mode for coaching sessions
+  const voiceMode = useVoicePreferencesStore((s) => s.mode) || 'roast'
+
+  // Generate mock coaching sessions with voice mode-specific titles
+  const mockCoachingSessions = React.useMemo(() => getMockCoachingSessions(voiceMode), [voiceMode])
 
   const handleSessionPress = React.useCallback(
     (sessionId: number) => {
@@ -301,7 +289,7 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
 
           {/* Coaching Sessions Section - With ScrollView */}
           <CoachingSessionsSection
-            sessions={MOCK_COACHING_SESSIONS as SessionItem[]}
+            sessions={mockCoachingSessions}
             onSessionPress={handleSessionPress}
             testID={`${testID}-coaching-sessions-section`}
           />
@@ -311,8 +299,8 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
       {/* Coming soon dialog */}
       <ConfirmDialog
         visible={showComingSoonDialog}
-        title="Ain't time for that now"
-        message="Coming soon..."
+        title="Filter, Compare, and Analyze"
+        message="Filter, compare, and analyze your videos with deeper insights and metrics. See your progress between different sessions and how you improved. This feature is coming soon..."
         confirmLabel="OK"
         variant="success"
         onConfirm={() => setShowComingSoonDialog(false)}

@@ -13,7 +13,7 @@ import { immer } from 'zustand/middleware/immer'
 enableMapSet()
 
 // Types for feedback status tracking
-export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
+export type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying'
 
 export interface FeedbackStatusData {
   id: number
@@ -210,7 +210,7 @@ const removeAnalysisFeedback = (draft: Draft<FeedbackStatusStore>, analysisId: s
     if (existing.ssmlStatus === 'processing') {
       draft.processingSSMLCount = Math.max(0, draft.processingSSMLCount - 1)
     }
-    if (existing.audioStatus === 'processing') {
+    if (existing.audioStatus === 'processing' || existing.audioStatus === 'retrying') {
       draft.processingAudioCount = Math.max(0, draft.processingAudioCount - 1)
     }
     if (existing.ssmlStatus === 'completed' && existing.audioStatus === 'completed') {
@@ -328,7 +328,9 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             // Update counters
             draft.totalFeedbacks++
             if (feedback.ssml_status === 'processing') draft.processingSSMLCount++
-            if (feedback.audio_status === 'processing') draft.processingAudioCount++
+            if (feedback.audio_status === 'processing' || feedback.audio_status === 'retrying') {
+              draft.processingAudioCount++
+            }
             if (feedback.ssml_status === 'completed' && feedback.audio_status === 'completed') {
               draft.completedCount++
             }
@@ -442,7 +444,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             if (existing.ssmlStatus === 'processing') {
               draft.processingSSMLCount = Math.max(0, draft.processingSSMLCount - 1)
             }
-            if (existing.audioStatus === 'processing') {
+            if (existing.audioStatus === 'processing' || existing.audioStatus === 'retrying') {
               draft.processingAudioCount = Math.max(0, draft.processingAudioCount - 1)
             }
             if (existing.ssmlStatus === 'completed' && existing.audioStatus === 'completed') {
@@ -521,7 +523,9 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           const state = get()
           return Array.from(state.feedbacks.values()).filter(
             (feedback) =>
-              feedback.ssmlStatus === 'processing' || feedback.audioStatus === 'processing'
+              feedback.ssmlStatus === 'processing' ||
+              feedback.audioStatus === 'processing' ||
+              feedback.audioStatus === 'retrying'
           )
         },
 
@@ -816,7 +820,10 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                             if (feedbackState.ssmlStatus === 'processing') {
                               draft.processingSSMLCount += 1
                             }
-                            if (feedbackState.audioStatus === 'processing') {
+                            if (
+                              feedbackState.audioStatus === 'processing' ||
+                              feedbackState.audioStatus === 'retrying'
+                            ) {
                               draft.processingAudioCount += 1
                             }
                             if (
@@ -1260,6 +1267,7 @@ export const useFeedbackStatus = (feedbackId: number) => {
     isSSMLFailed: feedback?.ssmlStatus === 'failed',
     isAudioQueued: feedback?.audioStatus === 'queued',
     isAudioProcessing: feedback?.audioStatus === 'processing',
+    isAudioRetrying: feedback?.audioStatus === 'retrying',
     isAudioCompleted: feedback?.audioStatus === 'completed',
     isAudioFailed: feedback?.audioStatus === 'failed',
     isFullyCompleted: feedback?.ssmlStatus === 'completed' && feedback?.audioStatus === 'completed',

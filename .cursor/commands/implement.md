@@ -20,10 +20,10 @@ For each test case:
 
 **STEP 3: Quality Gates**
 After each phase:
-- [ ] Run test suite: `yarn test --verbose`
-- [ ] Check coverage: `yarn test:coverage`
-- [ ] Lint check: `yarn lint`
 - [ ] Type check: `yarn type-check`
+- [ ] Lint check: `yarn lint`
+- [ ] Run test suite: `yarn workspace <package> test <testfile.test.*> --verbose`
+- [ ] Check coverage: `yarn test:coverage`
 
 **PROGRESS REPORTING:**
 After each completed item, report:

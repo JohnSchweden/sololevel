@@ -342,11 +342,13 @@ export async function getUserAnalysisJobs(
     throw new Error('User not authenticated')
   }
 
+  // Use !inner join to exclude analysis_jobs where video_recordings.user_id doesn't match
+  // This prevents data integrity issues where jobs link to videos from different users
   let query = supabase
     .from('analysis_jobs')
     .select(`
       *,
-      video_recordings:video_recording_id (
+      video_recordings!inner (
         id,
         filename,
         storage_path,
@@ -354,7 +356,8 @@ export async function getUserAnalysisJobs(
         duration_seconds,
         created_at,
         thumbnail_url,
-        metadata
+        metadata,
+        user_id
       ),
       analyses:analyses!analyses_job_id_fkey (
         title,
@@ -362,6 +365,7 @@ export async function getUserAnalysisJobs(
       )
     `)
     .eq('user_id', user.data.user.id)
+    .eq('video_recordings.user_id', user.data.user.id)
 
   // Filter by status if provided (more efficient than filtering in JS)
   if (status) {

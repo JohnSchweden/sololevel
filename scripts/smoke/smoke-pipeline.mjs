@@ -16,7 +16,7 @@ import { uploadTestVideo } from './smoke-upload.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const projectRoot = join(__dirname, '..')
+const projectRoot = join(__dirname, '../..')
 
 async function runPipelineSmokeTest() {
   console.log('🚀 Pipeline Smoke Test Orchestrator\n')

@@ -53,27 +53,20 @@ export function parseDualOutput(responseText: string): {
   let jsonData: any = {}
   let title: string | undefined
 
+  // Extract title from standalone TITLE block (new format)
+  const titleMatch = responseText.match(
+    /===\s*TITLE START\s*===\s*([\s\S]*?)===\s*TITLE END\s*===/i
+  )
+  if (titleMatch && titleMatch[1]) {
+    title = titleMatch[1].trim()
+  }
+
   // Preferred format: === TEXT FEEDBACK START/END ===
   const reportMatchNew = responseText.match(
     /===\s*TEXT FEEDBACK START\s*===\s*([\s\S]*?)===\s*TEXT FEEDBACK END\s*===/i
   )
   if (reportMatchNew && reportMatchNew[1]) {
-    let rawTextReport = reportMatchNew[1].trim()
-    
-    // Extract title from within TEXT FEEDBACK START block
-    const titleMatch = rawTextReport.match(
-      /\*\*Title Start\*\*\s*([\s\S]*?)\s*\*\*Title End\*\*/i
-    )
-    if (titleMatch && titleMatch[1]) {
-      title = titleMatch[1].trim()
-      // Remove title block from textReport
-      rawTextReport = rawTextReport.replace(
-        /\*\*Title Start\*\*\s*[\s\S]*?\s*\*\*Title End\*\*\s*/i,
-        ''
-      ).trim()
-    }
-    
-    textReport = rawTextReport
+    textReport = reportMatchNew[1].trim()
   } else {
     // Legacy format: --- ANALYSIS REPORT: ... FEEDBACK JSON:
     const reportMatchLegacy = responseText.match(

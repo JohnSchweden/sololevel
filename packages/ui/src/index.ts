@@ -47,7 +47,11 @@ export type {
   SettingsSelectItemProps,
 } from './components/Settings/SettingsSelectItem'
 export { SettingsRadioGroup } from './components/Settings/SettingsRadioGroup'
-export type { SettingsRadioGroupProps, ThemeValue } from './components/Settings/SettingsRadioGroup'
+export type {
+  RadioOption,
+  SettingsRadioGroupProps,
+  ThemeValue,
+} from './components/Settings/SettingsRadioGroup'
 export { AuthenticationSection } from './components/Security/AuthenticationSection'
 export type { AuthenticationSectionProps } from './components/Security/AuthenticationSection'
 export { SessionManagementSection } from './components/Security/SessionManagementSection'
@@ -78,6 +82,15 @@ export type { FeedbackTypeButtonProps } from './components/Feedback'
 // Form Components
 export { TextArea } from './components/Form'
 export type { TextAreaProps } from './components/Form'
+
+// Voice Selection Components
+export { GenderSelector, ModeCard, ModeSelector } from './components/VoiceSelection'
+export type {
+  GenderSelectorProps,
+  ModeCardProps,
+  ModeSelectorProps,
+  ModeSelectorOption,
+} from './components/VoiceSelection'
 
 // Coach Components
 export { ChatInput, MessageBubble, SuggestionChip, TypingIndicator } from './components/Coach'

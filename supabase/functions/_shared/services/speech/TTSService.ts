@@ -41,6 +41,7 @@ export interface TTSContext {
     pitch?: number
     format?: AudioFormat // Audio format from central configuration
     provider?: 'gemini' | 'google' // TTS provider selection
+    ttsSystemInstruction?: string // Voice style/accent instruction from config table
   }
 }
 
@@ -69,7 +70,11 @@ export class GeminiTTSService implements ITTSService {
       hasSupabase: !!supabase,
       analysisId,
       storagePath,
-      customParams
+      voice: customParams?.voice,
+      format: customParams?.format,
+      ttsSystemInstruction: customParams?.ttsSystemInstruction 
+        ? customParams.ttsSystemInstruction.substring(0, 50) + '...'
+        : '(none - will use empty default)'
     })
 
     try {
@@ -85,7 +90,8 @@ export class GeminiTTSService implements ITTSService {
         voice: customParams?.voice || defaultVoice,
         speed: customParams?.speed || 'medium',
         pitch: customParams?.pitch || 0,
-        format: resolvedFormat
+        format: resolvedFormat,
+        ttsSystemInstruction: customParams?.ttsSystemInstruction
       })
 
       let audioUrl: string

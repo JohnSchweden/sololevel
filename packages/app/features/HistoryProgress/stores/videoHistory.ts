@@ -1,12 +1,16 @@
 import type { AnalysisResults, PoseData } from '@my/api'
 import { mmkvStorage } from '@my/config'
 import { log } from '@my/logging'
+import { enableMapSet } from 'immer'
 import React from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { recordEviction } from '../utils/cacheMetrics'
+
+// CRITICAL: Enable immer Map/Set support BEFORE store creation
+enableMapSet()
 
 // Constants
 const MAX_CACHE_ENTRIES = 50
@@ -35,6 +39,11 @@ export interface CachedAnalysis {
   storagePath?: string
   results: AnalysisResults
   poseData?: PoseData
+  /**
+   * Snapshot of avatar asset key used at analysis time.
+   * From analysis_jobs.avatar_asset_key_used (e.g., 'female_roast', 'male_zen').
+   */
+  avatarAssetKeyUsed?: string
   cachedAt: number
   lastAccessed: number
 }

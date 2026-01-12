@@ -1,8 +1,9 @@
+import { hasUserSetVoicePreferences } from '@my/api'
 import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
 import { GlassBackground, StateDisplay } from '@my/ui'
 import { usePathname, useRouter } from 'expo-router'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 export interface AuthGateProps {
@@ -17,7 +18,8 @@ export interface AuthGateProps {
  * Protects child routes by:
  * - Showing loading state while auth is initializing
  * - Redirecting unauthenticated users to sign-in
- * - Rendering children only when user is authenticated
+ * - Redirecting users without voice preferences to onboarding
+ * - Rendering children only when user is authenticated and onboarded
  * - Preserving intended destination for post-auth redirect
  *
  * Optimized with Zustand selectors to minimize rerenders
@@ -25,14 +27,20 @@ export interface AuthGateProps {
 export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: AuthGateProps) {
   // Use Zustand selectors with shallow equality to prevent unnecessary rerenders
   const isAuthenticated = useAuthStore((state) => !!(state.user && state.session))
+  const user = useAuthStore((state) => state.user)
   const loading = useAuthStore((state) => state.loading)
   const initialized = useAuthStore((state) => state.initialized)
 
   const router = useRouter()
   const pathname = usePathname()
 
-  // Check if current route is an auth route (should be accessible without authentication)
+  // Track voice preferences check state
+  const [checkingVoicePrefs, setCheckingVoicePrefs] = useState(false)
+  const voicePrefsCheckedRef = useRef(false)
+
+  // Check if current route is an auth or onboarding route (should be accessible without full onboarding)
   const isAuthRoute = pathname.startsWith('/auth')
+  const isOnboardingRoute = pathname.startsWith('/onboarding')
 
   // Log deduplication ref - must be called unconditionally at component level
   const lastLoggedKeyRef = useRef<string>('')
@@ -45,6 +53,7 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
     }
   }
 
+  // Effect 1: Check authentication
   useEffect(() => {
     // Only redirect after auth is initialized and user is not authenticated
     // Skip redirect if we're already on an auth route
@@ -57,6 +66,56 @@ export function AuthGate({ children, redirectTo = '/auth/sign-in', fallback }: A
       router.replace(redirectTo as any)
     }
   }, [initialized, loading, isAuthenticated, redirectTo, router, isAuthRoute])
+
+  // Effect 2: Check voice preferences for authenticated users
+  useEffect(() => {
+    const shouldCheck =
+      isAuthenticated &&
+      initialized &&
+      !loading &&
+      !checkingVoicePrefs &&
+      !voicePrefsCheckedRef.current &&
+      !isAuthRoute &&
+      !isOnboardingRoute &&
+      user?.id
+
+    if (!shouldCheck) return
+
+    const checkVoicePreferences = async () => {
+      setCheckingVoicePrefs(true)
+      voicePrefsCheckedRef.current = true
+
+      try {
+        const hasPreferences = await hasUserSetVoicePreferences(user.id)
+        if (!hasPreferences) {
+          log.info('AuthGate', 'User has no voice preferences, redirecting to voice selection', {
+            userId: user.id,
+          })
+          router.replace('/onboarding/voice-selection' as any)
+        } else {
+          log.debug('AuthGate', 'User has voice preferences, allowing access')
+        }
+      } catch (error) {
+        log.error('AuthGate', 'Failed to check voice preferences, allowing access as fallback', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          userId: user.id,
+        })
+      } finally {
+        setCheckingVoicePrefs(false)
+      }
+    }
+
+    checkVoicePreferences()
+  }, [
+    isAuthenticated,
+    initialized,
+    loading,
+    checkingVoicePrefs,
+    isAuthRoute,
+    isOnboardingRoute,
+    user?.id,
+    router,
+  ])
 
   // Allow auth routes to pass through without authentication check
   if (isAuthRoute) {

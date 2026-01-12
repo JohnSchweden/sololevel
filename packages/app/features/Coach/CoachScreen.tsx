@@ -1,4 +1,6 @@
+import { useVoiceText } from '@app/hooks/useVoiceText'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import type { VoiceTextConfig } from '@my/config'
 import { log } from '@my/logging'
 import {
   ChatInput,
@@ -107,25 +109,18 @@ export interface CoachScreenProps {
   hasBottomNavigation?: boolean
 }
 
-// Mock suggestions
-const SUGGESTIONS: Suggestion[] = [
-  { icon: Sparkles, text: 'Analyze my deadlift form', category: 'Form Analysis' },
-  { icon: Target, text: 'Create a 30-day program', category: 'Programming' },
-  { icon: Zap, text: 'Fix my squat technique', category: 'Technique' },
-]
-
-// Context-aware response generator with humorous roast tone
-const generateCoachResponse = (userMessage: string): string => {
+// Context-aware response generator using voice text templates
+const generateCoachResponse = (userMessage: string, voiceText: VoiceTextConfig): string => {
   const lowerMessage = userMessage.toLowerCase()
 
   // Deadlift form analysis
   if (lowerMessage.includes('deadlift') || lowerMessage.includes('dead lift')) {
-    return "Oh boy, your deadlift form? Let's just say I've seen better lifting technique from someone trying to move a couch up three flights of stairs. Your back is probably crying right now. Here's the brutal truth about what you're doing wrong..."
+    return voiceText.coach.responseTemplates.deadlift
   }
 
   // Squat technique
   if (lowerMessage.includes('squat')) {
-    return "Your squat technique is giving me anxiety. It's like watching a baby bird try to fly for the first time—adorable but painful. Your knees are probably having a board meeting about unionizing. Let me fix this disaster:"
+    return voiceText.coach.responseTemplates.squat
   }
 
   // Program creation
@@ -134,7 +129,7 @@ const generateCoachResponse = (userMessage: string): string => {
     lowerMessage.includes('30-day') ||
     lowerMessage.includes('plan')
   ) {
-    return "A 30-day program? Bold move, considering you probably can't stick to a 3-day program. But I respect the ambition! Let's create something that won't make you quit by day 4. Here's what we're building:"
+    return voiceText.coach.responseTemplates.program
   }
 
   // Form analysis (general)
@@ -143,12 +138,12 @@ const generateCoachResponse = (userMessage: string): string => {
     lowerMessage.includes('analyze') ||
     lowerMessage.includes('technique')
   ) {
-    return "Alright, let's be real here. Your form is about as stable as a Jenga tower in an earthquake. But hey, at least you're trying! Here's what's actually happening..."
+    return voiceText.coach.responseTemplates.form
   }
 
   // Bench press
   if (lowerMessage.includes('bench') || lowerMessage.includes('press')) {
-    return "Your bench press? More like bench mess. I've seen better pressing technique from someone trying to push a door that says 'pull'. Your shoulders are probably plotting revenge. Let's fix this:"
+    return voiceText.coach.responseTemplates.bench
   }
 
   // Cardio/endurance
@@ -157,7 +152,7 @@ const generateCoachResponse = (userMessage: string): string => {
     lowerMessage.includes('endurance') ||
     lowerMessage.includes('running')
   ) {
-    return "Cardio? You mean that thing you do for 5 minutes before giving up? I've seen better endurance from a sloth on a treadmill. But we're gonna change that. Here's how:"
+    return voiceText.coach.responseTemplates.cardio
   }
 
   // Nutrition/diet
@@ -166,19 +161,11 @@ const generateCoachResponse = (userMessage: string): string => {
     lowerMessage.includes('diet') ||
     lowerMessage.includes('eat')
   ) {
-    return "Your nutrition plan? Let me guess—it's 'eat whatever, whenever'? I've seen better meal planning from a college student living on ramen. But we're gonna fix this disaster together:"
+    return voiceText.coach.responseTemplates.nutrition
   }
 
   // Generic fallback responses
-  const genericResponses = [
-    "I've seen better technique from a newborn giraffe learning to walk. But I respect the hustle. Let me show you how to not embarrass yourself:",
-    "Oh honey, your body mechanics are giving me secondhand embarrassment. But we're gonna fix this mess together. Here's the brutal truth:",
-    "Your dedication is admirable, but your execution? Yikes. It's like watching someone try to parallel park for the first time. Let's fix this disaster:",
-    "I appreciate the enthusiasm, but your proprioception is about as accurate as a broken GPS. Here's what you're actually doing wrong:",
-    "Listen, I've seen toddlers with better coordination, but at least you're not giving up. Let me roast your technique and then show you the way:",
-    "Your form is so off, it's making my circuits hurt. But I'm here to help, not just judge. Here's what needs to happen:",
-  ]
-
+  const genericResponses = voiceText.coach.responseTemplates.generic
   return genericResponses[Math.floor(Math.random() * genericResponses.length)]
 }
 
@@ -194,6 +181,174 @@ const getTodayDate = (): string => {
     day: 'numeric',
   }
   return today.toLocaleDateString('en-US', options)
+}
+
+/**
+ * StickyHeader - Extracted header component to eliminate duplication
+ */
+interface StickyHeaderProps {
+  testID: string
+  blurViewStyle: Record<string, unknown>
+  sectionsVisible: boolean[]
+  sessionDate?: string
+  sessionTitle?: string
+  avatarSource: number | { uri: string }
+}
+
+function StickyHeader({
+  testID,
+  blurViewStyle,
+  sectionsVisible,
+  sessionDate,
+  sessionTitle,
+  avatarSource,
+}: StickyHeaderProps): React.ReactElement {
+  return (
+    <Pressable
+      onPress={Keyboard.dismiss}
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        zIndex: 10,
+      }}
+      testID={`${testID}-sticky-header`}
+    >
+      {Platform.OS === 'ios' ? (
+        <BlurView
+          intensity={10}
+          tint="regular"
+          style={blurViewStyle}
+        >
+          <XStack
+            alignItems="center"
+            padding="$4"
+            gap="$4"
+            paddingHorizontal="$6"
+            opacity={sectionsVisible[0] ? 1 : 0}
+            testID={`${testID}-avatar-section`}
+          >
+            {/* Avatar */}
+            <YStack
+              width={64}
+              height={64}
+              borderRadius={32}
+              backgroundColor="$color5"
+              borderWidth={1}
+              borderColor="rgba(255,255,255,0.3)"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
+              testID={`${testID}-avatar`}
+            >
+              <Image
+                source={avatarSource}
+                contentFit="cover"
+                style={{
+                  width: 66,
+                  height: 66,
+                  borderRadius: 32,
+                }}
+                cachePolicy="memory-disk"
+                transition={200}
+              />
+            </YStack>
+
+            {/* Session Info */}
+            <YStack
+              flex={1}
+              gap="$2"
+              testID={`${testID}-session-info`}
+            >
+              <Text
+                fontSize="$1"
+                fontWeight="500"
+                color="$color12"
+                testID={`${testID}-session-date`}
+              >
+                {sessionDate || getTodayDate()}
+              </Text>
+              <Text
+                fontSize="$4"
+                fontWeight="500"
+                color="$color12"
+                numberOfLines={2}
+                testID={`${testID}-session-title`}
+              >
+                {sessionTitle || 'New Coaching Session'}
+              </Text>
+            </YStack>
+          </XStack>
+        </BlurView>
+      ) : (
+        <YStack
+          backgroundColor="$color3"
+          opacity={0.85}
+          style={blurViewStyle}
+        >
+          <XStack
+            alignItems="center"
+            padding="$4"
+            gap="$4"
+            paddingHorizontal="$6"
+            opacity={sectionsVisible[0] ? 1 : 0}
+            testID={`${testID}-avatar-section`}
+          >
+            {/* Avatar */}
+            <YStack
+              width={64}
+              height={64}
+              borderRadius={32}
+              backgroundColor="$color5"
+              borderWidth={1}
+              borderColor="rgba(255,255,255,0.3)"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
+              testID={`${testID}-avatar`}
+            >
+              <Image
+                source={avatarSource}
+                contentFit="cover"
+                style={{
+                  width: 66,
+                  height: 66,
+                  borderRadius: 32,
+                }}
+                cachePolicy="memory-disk"
+                transition={200}
+              />
+            </YStack>
+
+            {/* Session Info */}
+            <YStack
+              flex={1}
+              gap="$2"
+              testID={`${testID}-session-info`}
+            >
+              <Text
+                fontSize="$1"
+                fontWeight="500"
+                color="$color12"
+                testID={`${testID}-session-date`}
+              >
+                {sessionDate || getTodayDate()}
+              </Text>
+              <Text
+                fontSize="$4"
+                fontWeight="500"
+                color="$color12"
+                numberOfLines={2}
+                testID={`${testID}-session-title`}
+              >
+                {sessionTitle || 'New Coaching Session'}
+              </Text>
+            </YStack>
+          </XStack>
+        </YStack>
+      )}
+    </Pressable>
+  )
 }
 
 /**
@@ -238,12 +393,10 @@ export function CoachScreen({
   initialMessages,
   hasBottomNavigation = true,
 }: CoachScreenProps = {}): React.ReactElement {
-  // PERF: Measure render duration to surface slow renders in development
-  // const renderStartTime = __DEV__ ? performance.now() : 0
-
   // Hooks
   // Use stable safe area hook to prevent layout jumps during navigation
   const insets = useStableSafeArea()
+  const voiceText = useVoiceText()
 
   // Reduce bottom inset to minimize spacing (subtract 12px, minimum 0)
   // Matches BottomNavigationContainer.native.tsx reduction
@@ -274,8 +427,7 @@ export function CoachScreen({
       {
         id: '1',
         type: 'coach',
-        content:
-          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        content: voiceText.coach.welcomeMessage,
         timestamp: new Date(),
       },
     ]
@@ -330,7 +482,7 @@ export function CoachScreen({
           const coachResponse: Message = {
             id: (Date.now() + 1).toString(),
             type: 'coach',
-            content: generateCoachResponse(messageToSend),
+            content: generateCoachResponse(messageToSend, voiceText),
             timestamp: new Date(),
           }
           setMessages((prev) => [...prev, coachResponse])
@@ -339,7 +491,7 @@ export function CoachScreen({
         1000 + Math.random() * 1000
       )
     },
-    [inputMessage, isTyping]
+    [inputMessage, isTyping, voiceText]
   )
 
   const handleSuggestionPress = useCallback(
@@ -472,16 +624,19 @@ export function CoachScreen({
   // Reverse messages for inverted FlatList (newest at bottom, oldest at top)
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages])
 
-  // useEffect(() => {
-  //   if (__DEV__) {
-  //     const renderDuration = performance.now() - renderStartTime
-  //     if (renderDuration > 16) {
-  //       log.warn('CoachScreen', `Slow render: ${renderDuration.toFixed(2)}ms`, {
-  //         stack: new Error('CoachScreen slow render').stack ?? undefined,
-  //       })
-  //     }
-  //   }
-  // })
+  // Calculate input area padding bottom based on keyboard and navigation state
+  const getInputPaddingBottom = useCallback((): number => {
+    if (isKeyboardVisible) {
+      return 0
+    }
+    if (hasBottomNavigation) {
+      return BOTTOM_TAB_BAR_HEIGHT
+    }
+    if (sessionId) {
+      return bottomInset + 8
+    }
+    return 0
+  }, [isKeyboardVisible, hasBottomNavigation, sessionId, bottomInset])
 
   // State handling
   if (isLoading) {
@@ -534,162 +689,19 @@ export function CoachScreen({
             testID={`${testID}-content`}
           >
             {/* Sticky Header Overlay */}
-            <Pressable
-              onPress={Keyboard.dismiss}
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                zIndex: 10,
-              }}
-              testID={`${testID}-sticky-header`}
-            >
-              {Platform.OS === 'ios' ? (
-                <BlurView
-                  intensity={10}
-                  tint="regular"
-                  style={blurViewStyle}
-                >
-                  <XStack
-                    alignItems="center"
-                    padding="$4"
-                    gap="$4"
-                    paddingHorizontal="$6"
-                    opacity={sectionsVisible[0] ? 1 : 0}
-                    // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-                    // Staggered animation already handles visibility timing
-                    testID={`${testID}-avatar-section`}
-                  >
-                    {/* Avatar */}
-                    <YStack
-                      width={64}
-                      height={64}
-                      borderRadius={32}
-                      backgroundColor="$color5"
-                      borderWidth={1}
-                      borderColor="rgba(255,255,255,0.3)"
-                      alignItems="center"
-                      justifyContent="center"
-                      overflow="hidden"
-                      testID={`${testID}-avatar`}
-                    >
-                      <Image
-                        source={require('../../../../apps/expo/assets/coach_avatar_bright.webp')}
-                        contentFit="cover"
-                        style={{
-                          width: 66,
-                          height: 66,
-                          borderRadius: 32,
-                        }}
-                        cachePolicy="memory-disk"
-                        transition={200}
-                      />
-                    </YStack>
-
-                    {/* Session Info */}
-                    <YStack
-                      flex={1}
-                      gap="$2"
-                      testID={`${testID}-session-info`}
-                    >
-                      <Text
-                        fontSize="$1"
-                        fontWeight="500"
-                        color="$color12"
-                        testID={`${testID}-session-date`}
-                      >
-                        {sessionDate || getTodayDate()}
-                      </Text>
-                      <Text
-                        fontSize="$4"
-                        fontWeight="500"
-                        color="$color12"
-                        numberOfLines={2}
-                        testID={`${testID}-session-title`}
-                      >
-                        {sessionTitle || 'New Coaching Session'}
-                      </Text>
-                    </YStack>
-                  </XStack>
-                </BlurView>
-              ) : (
-                <YStack
-                  backgroundColor="$color3"
-                  opacity={0.85}
-                  style={blurViewStyle}
-                >
-                  <XStack
-                    alignItems="center"
-                    padding="$4"
-                    gap="$4"
-                    paddingHorizontal="$6"
-                    opacity={sectionsVisible[0] ? 1 : 0}
-                    // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-                    // Staggered animation already handles visibility timing
-                    testID={`${testID}-avatar-section`}
-                  >
-                    {/* Avatar */}
-                    <YStack
-                      width={64}
-                      height={64}
-                      borderRadius={32}
-                      backgroundColor="$color5"
-                      borderWidth={1}
-                      borderColor="rgba(255,255,255,0.3)"
-                      alignItems="center"
-                      justifyContent="center"
-                      overflow="hidden"
-                      testID={`${testID}-avatar`}
-                    >
-                      <Image
-                        source={require('../../../../apps/expo/assets/coach_avatar.png')}
-                        contentFit="cover"
-                        style={{
-                          width: 66,
-                          height: 66,
-                          borderRadius: 32,
-                        }}
-                        cachePolicy="memory-disk"
-                        transition={200}
-                      />
-                    </YStack>
-
-                    {/* Session Info */}
-                    <YStack
-                      flex={1}
-                      gap="$2"
-                      testID={`${testID}-session-info`}
-                    >
-                      <Text
-                        fontSize="$1"
-                        fontWeight="500"
-                        color="$color12"
-                        testID={`${testID}-session-date`}
-                      >
-                        {sessionDate || getTodayDate()}
-                      </Text>
-                      <Text
-                        fontSize="$4"
-                        fontWeight="500"
-                        color="$color12"
-                        numberOfLines={2}
-                        testID={`${testID}-session-title`}
-                      >
-                        {sessionTitle || 'New Coaching Session'}
-                      </Text>
-                    </YStack>
-                  </XStack>
-                </YStack>
-              )}
-            </Pressable>
+            <StickyHeader
+              testID={testID}
+              blurViewStyle={blurViewStyle}
+              sectionsVisible={sectionsVisible}
+              sessionDate={sessionDate}
+              sessionTitle={sessionTitle}
+              avatarSource={require('../../../../apps/expo/assets/coach_avatar_bright.webp')}
+            />
 
             {/* Messages - Extended to top */}
             <YStack
               flex={1}
               opacity={sectionsVisible[1] ? 1 : 0}
-              // ROOT CAUSE FIX: Remove Tamagui animation to prevent animation frame re-renders
-              // Staggered animation already handles visibility timing
-              //paddingTop={insets.top + APP_HEADER_HEIGHT + 100} // Space for sticky header
             >
               <AnimatedFlatList
                 ref={flatListRef}
@@ -721,18 +733,9 @@ export function CoachScreen({
 
             {/* Input Area */}
             <YStack
-              //marginHorizontal="$0.5"
               paddingHorizontal="$4"
               gap="$0"
-              paddingBottom={
-                isKeyboardVisible
-                  ? 0
-                  : hasBottomNavigation
-                    ? BOTTOM_TAB_BAR_HEIGHT
-                    : sessionId
-                      ? bottomInset + 8
-                      : 0
-              }
+              paddingBottom={getInputPaddingBottom()}
               backgroundColor="$color3"
               borderTopLeftRadius="$9"
               borderTopRightRadius="$9"
@@ -790,16 +793,25 @@ export function CoachScreen({
                       gap="$0"
                       flexWrap="wrap"
                     >
-                      {SUGGESTIONS.map((suggestion, index) => (
-                        <SuggestionChip
-                          key={index}
-                          icon={suggestion.icon}
-                          text={suggestion.text}
-                          category={suggestion.category}
-                          onPress={() => handleSuggestionPress(suggestion.text)}
-                          disabled={isTyping}
-                        />
-                      ))}
+                      {voiceText.coach.suggestions.map((suggestion, index) => {
+                        // Map suggestion category to icon (matching original behavior)
+                        const iconMap: Record<string, typeof Sparkles> = {
+                          'Form Analysis': Sparkles,
+                          Programming: Target,
+                          Technique: Zap,
+                        }
+                        const icon = iconMap[suggestion.category] || Sparkles
+                        return (
+                          <SuggestionChip
+                            key={index}
+                            icon={icon}
+                            text={suggestion.text}
+                            category={suggestion.category}
+                            onPress={() => handleSuggestionPress(suggestion.text)}
+                            disabled={isTyping}
+                          />
+                        )
+                      })}
                     </XStack>
                   </YStack>
                 </Animated.View>
@@ -825,17 +837,6 @@ export function CoachScreen({
                   testID={`${testID}-input`}
                 />
               </YStack>
-
-              {/* Helper Text */}
-              {/* <XStack justifyContent="center">
-              <Text
-                fontSize="$2"
-                color="rgba(255,255,255,0.4)"
-                textAlign="center"
-              >
-                Press Enter to send • Shift+Enter for new line • Headphones for voice mode
-              </Text>
-            </XStack> */}
             </YStack>
           </YStack>
         </KeyboardAvoidingView>

@@ -115,6 +115,11 @@ const mockJob = {
   progress_percentage: 100,
   total_frames: 900,
   processed_frames: 900,
+  // Voice snapshot fields (nullable for legacy data)
+  coach_gender: null,
+  coach_mode: null,
+  voice_name_used: null,
+  avatar_asset_key_used: null,
   results: {
     pose_analysis: {
       keypoints: [],

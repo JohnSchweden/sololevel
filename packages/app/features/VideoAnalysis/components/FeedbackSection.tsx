@@ -1,11 +1,13 @@
 //import { log } from '@my/logging'
+import type { CoachMode } from '@my/config'
 import { memo, useEffect, useMemo, useRef } from 'react'
 
 import { YStack } from 'tamagui'
 
 import { FeedbackPanel } from '@ui/components/VideoAnalysis'
 
-import { mockComments } from '@app/mocks/comments'
+import { getMockComments } from '@app/mocks/comments'
+import { useVoicePreferencesStore } from '@app/stores/voicePreferences'
 
 import {
   getFeedbackPanelCommandState,
@@ -21,6 +23,7 @@ interface FeedbackSectionProps {
   analysisTitle?: string // AI-generated analysis title
   fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
   isHistoryMode?: boolean
+  voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
   // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
   currentVideoTime: number
   videoDuration: number
@@ -48,6 +51,7 @@ export const FeedbackSection = memo(function FeedbackSection({
   analysisTitle,
   fullFeedbackText,
   isHistoryMode = false,
+  voiceMode = 'roast',
   // selectedFeedbackId, - REMOVED: Subscribed directly from store
   currentVideoTime,
   videoDuration,
@@ -93,6 +97,13 @@ export const FeedbackSection = memo(function FeedbackSection({
   const audioUrls = useFeedbackAudioStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.audioUrls : {}
   )
+
+  // Get voice mode for comments (fallback to prop, then store, then 'roast')
+  const voiceModeFromStore = useVoicePreferencesStore((s) => s.mode)
+  const effectiveVoiceMode = voiceMode || voiceModeFromStore || 'roast'
+
+  // Generate mock comments based on voice mode
+  const mockCommentsData = useMemo(() => getMockComments(effectiveVoiceMode), [effectiveVoiceMode])
 
   const preparedItems = useMemo(
     () =>
@@ -143,7 +154,8 @@ export const FeedbackSection = memo(function FeedbackSection({
         analysisTitle={analysisTitle}
         fullFeedbackText={fullFeedbackText}
         isHistoryMode={isHistoryMode}
-        comments={mockComments}
+        voiceMode={effectiveVoiceMode}
+        comments={mockCommentsData}
         currentVideoTime={currentVideoTime}
         videoDuration={videoDuration}
         selectedFeedbackId={selectedFeedbackId}

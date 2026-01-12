@@ -1,4 +1,5 @@
 import { getCompleteAnalysisByJobId, storeAudioSegmentForFeedback, updateAnalysisResults } from '../../_shared/db/analysis.ts'
+import { getUserVoicePreferences, getVoiceConfig } from '../../_shared/db/voiceConfig.ts'
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
 import { AudioFormat, resolveAudioFormat } from '../../_shared/media/audio.ts'
@@ -32,6 +33,27 @@ export interface TTSResponse {
     duration?: number
     format: AudioFormat // Audio format from central configuration
   }>
+}
+
+/**
+ * Helper function to fetch user ID from analysis job ID
+ */
+async function fetchUserIdForAnalysis(supabase: any, analysisId: number, _logger: any): Promise<string> {
+  const { data, error } = await supabase
+    .from('analysis_jobs')
+    .select(`
+      video_recordings!inner(
+        user_id
+      )
+    `)
+    .eq('id', analysisId)
+    .single()
+
+  if (error || !data) {
+    throw new Error(`Failed to fetch user ID for analysis: ${error?.message || 'No data'}`)
+  }
+
+  return data.video_recordings.user_id
 }
 
 export async function handleTTS({ req, supabase, logger }: HandlerContext): Promise<Response> {
@@ -81,6 +103,21 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
 
       logger.info(`Processing ${analysisData.feedback.length} feedback items`)
 
+      // Fetch user voice preferences and resolve voice config
+      const userId = await fetchUserIdForAnalysis(supabase, analysisId, logger)
+      const prefs = await getUserVoicePreferences(supabase, userId)
+      logger.info('Fetched voice preferences', { userId, prefs })
+
+      const voiceConfig = await getVoiceConfig(supabase, prefs.coachGender, prefs.coachMode)
+      logger.info('Resolved voice config for per-feedback TTS', {
+        voiceName: voiceConfig.voiceName,
+        ttsSystemInstruction: voiceConfig.ttsSystemInstruction 
+          ? voiceConfig.ttsSystemInstruction.substring(0, 50) + '...'
+          : '(empty)',
+        gender: prefs.coachGender,
+        mode: prefs.coachMode,
+      })
+
       const segments: TTSResponse['segments'] = []
       let totalDuration = 0
 
@@ -119,7 +156,8 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
             customParams: {
               voice: 'neutral',
               speed: undefined,
-              pitch: undefined
+              pitch: undefined,
+              ssmlSystemInstruction: voiceConfig.ssmlSystemInstruction
             }
           })
 
@@ -134,7 +172,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
             supabase,
             analysisId,
             customParams: {
-              format: resolvedFormat
+              voice: voiceConfig.voiceName,
+              format: resolvedFormat,
+              ttsSystemInstruction: voiceConfig.ttsSystemInstruction
             }
           })
 
@@ -214,6 +254,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
     // Handle different input types
     let finalSSML: string
     let sourceType: 'analysis' | 'text' | 'ssml' = 'text'
+    let voiceName: string | undefined
+    let ttsSystemInstruction: string | undefined
+    let ssmlSystemInstruction: string | undefined
 
     if (analysisId && !perFeedbackItem) {
       // Load analysis data and generate SSML from feedback
@@ -229,6 +272,24 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
         })
       }
 
+      // Fetch user voice preferences and resolve voice config
+      const userId = await fetchUserIdForAnalysis(supabase, analysisId, logger)
+      const prefs = await getUserVoicePreferences(supabase, userId)
+      logger.info('Fetched voice preferences', { userId, prefs })
+
+      const voiceConfig = await getVoiceConfig(supabase, prefs.coachGender, prefs.coachMode)
+      logger.info('Resolved voice config', {
+        voiceName: voiceConfig.voiceName,
+        ttsSystemInstruction: voiceConfig.ttsSystemInstruction,
+        ssmlSystemInstruction: voiceConfig.ssmlSystemInstruction,
+        gender: prefs.coachGender,
+        mode: prefs.coachMode,
+      })
+
+      voiceName = voiceConfig.voiceName
+      ttsSystemInstruction = voiceConfig.ttsSystemInstruction
+      ssmlSystemInstruction = voiceConfig.ssmlSystemInstruction
+
       // Generate SSML from analysis feedback
       const aiAnalysisMode = Deno.env.get('AI_ANALYSIS_MODE')
       const useMockServices = aiAnalysisMode === 'mock'
@@ -238,7 +299,9 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
 
       const ssmlResult = await ssmlService.generate({
         analysisResult: analysisData as unknown as VideoAnalysisResult,
-        customParams: {}
+        customParams: {
+          ssmlSystemInstruction
+        }
       })
 
       finalSSML = ssmlResult.ssml
@@ -266,14 +329,16 @@ export async function handleTTS({ req, supabase, logger }: HandlerContext): Prom
     }
 
     // Generate TTS audio
-    logger.info('Generating TTS audio', { sourceType, ssmlLength: finalSSML.length })
+    logger.info('Generating TTS audio', { sourceType, ssmlLength: finalSSML.length, voiceName, hasTtsInstruction: !!ttsSystemInstruction })
     const ttsService = new GeminiTTSService()
     const ttsResult = await ttsService.synthesize({
       ssml: finalSSML,
       supabase,
       analysisId: analysisId && !perFeedbackItem ? analysisId : undefined,
       customParams: {
-        format: resolveAudioFormat(preferredFormats || (format ? [format] : undefined), 'gemini')
+        voice: voiceName,
+        format: resolveAudioFormat(preferredFormats || (format ? [format] : undefined), 'gemini'),
+        ttsSystemInstruction
       }
     })
 

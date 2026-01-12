@@ -444,6 +444,69 @@ jest.mock('@my/ui', () => {
         placeholder,
         maxLength,
       }),
+    // Mock Voice Selection components
+    GenderSelector: ({
+      value: _value,
+      onValueChange,
+      testID,
+    }: {
+      value: string
+      onValueChange: (value: string) => void
+      testID?: string
+    }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'gender-selector' },
+        React.createElement('div', {}, 'Select Coach Gender'),
+        React.createElement(
+          'button',
+          {
+            'data-testid': 'gender-female',
+            onClick: () => onValueChange('female'),
+          },
+          'Female'
+        ),
+        React.createElement(
+          'button',
+          {
+            'data-testid': 'gender-male',
+            onClick: () => onValueChange('male'),
+          },
+          'Male'
+        )
+      ),
+    ModeSelector: ({
+      value: _value,
+      options,
+      onValueChange,
+      testID,
+    }: {
+      value: string
+      options: readonly any[]
+      onValueChange: (value: string) => void
+      testID?: string
+    }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': testID || 'mode-selector' },
+        React.createElement('div', {}, 'Select Feedback Mode'),
+        ...(options || []).map((option: any) =>
+          React.createElement(
+            'button',
+            {
+              key: option.value,
+              'data-testid': `mode-card-${option.value}`,
+              onClick: () => onValueChange(option.value),
+            },
+            React.createElement('span', {}, option.label),
+            React.createElement('span', {}, option.description),
+            option.isHumoristic && React.createElement('span', { key: 'badge' }, 'HUMORISTIC')
+          )
+        )
+      ),
+    // Export Text explicitly to avoid conflicts
+    Text: ({ children, testID, ...props }: { children?: any; testID?: string }) =>
+      React.createElement('span', { 'data-testid': testID, ...props }, children),
   }
 })
 
@@ -490,24 +553,316 @@ jest.mock('@ui/components/VideoAnalysis', () => {
 })
 
 // Mock @my/config
-jest.mock('@my/config', () => ({
-  PoseData: [],
-  FeedbackMessage: {},
-  SocialStats: {},
-  FeedbackItem: {},
-  mmkvStorage: {
-    getItem: jest.fn((_key: string) => null),
-    setItem: jest.fn((_key: string, _value: string) => {}),
-    removeItem: jest.fn((_key: string) => {}),
-  },
-  mmkvDirect: {
-    getString: jest.fn().mockReturnValue(null),
-    setString: jest.fn(),
-    delete: jest.fn(),
-    contains: jest.fn().mockReturnValue(false),
-    clearAll: jest.fn(),
-  },
-}))
+jest.mock('@my/config', () => {
+  // Mock VOICE_TEXT_CONFIG with minimal structure for tests
+  const mockVoiceTextConfig = {
+    roast: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: { line1: 'Test', line2: 'Test', line3: 'Test' },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
+    },
+    zen: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: { line1: 'Test', line2: 'Test', line3: 'Test' },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
+    },
+    lovebomb: {
+      insights: {
+        weeklySectionHeader: 'Test Header',
+        focusAreasHeader: 'Test',
+        achievementsHeader: 'Test',
+        quickStatsHeader: 'Test',
+        dailyActivityHeader: 'Test',
+        progressLabels: { high: 'High', medium: 'Medium', low: 'Low' },
+        progressComments: {
+          excellent: 'Excellent',
+          good: 'Good',
+          average: 'Average',
+          poor: 'Poor',
+          veryPoor: 'Very Poor',
+        },
+        achievementComments: { streak: 'Streak', technique: 'Technique', record: 'Record' },
+        dailyActivityComments: { none: 'None', low: 'Low', medium: 'Medium', high: 'High' },
+        sessionLabels: { many: 'Many', few: 'Few' },
+        improvementLabels: { high: 'High', low: 'Low' },
+      },
+      coach: {
+        welcomeMessage:
+          "I'm your toxic coach, and I'm here to roast you into shape. Think of me as that brutally honest friend who actually wants you to succeed. I'll call out your mistakes, make you laugh (or cry), and help you crawl. What disaster are we fixing today?",
+        defaultSessionTitle: 'New Roast Session',
+        responseTemplates: {
+          deadlift: 'Test',
+          squat: 'Test',
+          program: 'Test',
+          form: 'Test',
+          bench: 'Test',
+          cardio: 'Test',
+          nutrition: 'Test',
+          generic: ['Test'],
+        },
+        suggestions: [
+          { icon: 'dumbbell', text: 'Analyze my deadlift form', category: 'Form Analysis' },
+          { icon: 'target', text: 'Create a 30-day program', category: 'Programming' },
+          { icon: 'target', text: 'Fix my squat technique', category: 'Technique' },
+        ],
+      },
+      feedbackPanel: {
+        insights: {
+          overviewHeader: 'Test',
+          quoteHeader: 'Test',
+          focusHeader: 'Test',
+          skillHeader: 'Test',
+          timelineHeader: 'Test',
+          highlightsHeader: 'Test',
+          actionsHeader: 'Test',
+          achievementsHeader: 'Test',
+          reelsHeader: 'Test',
+          overviewSummary: 'Test',
+          overviewImprovement: 'Test',
+          overviewLastScore: 'Test',
+          overviewSlightlyBetter: 'Test',
+          quoteAuthor: 'Test',
+          quoteTone: 'Test',
+          skillTrendLabels: { up: 'Up', down: 'Down', steady: 'Steady' },
+          highlightStatusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          emptyStates: {
+            noInsights: { title: 'Test', description: 'Test' },
+            skillMatrixLocked: { title: 'Test', description: 'Test' },
+            timelineLocked: { title: 'Test', description: 'Test' },
+            noHighlights: { title: 'Test', description: 'Test' },
+            actionPlanLocked: { title: 'Test', description: 'Test' },
+            noAchievements: { title: 'Test', description: 'Test' },
+            reelsComingSoon: { title: 'Test', description: 'Test' },
+          },
+          statusLabels: { good: 'Good', improve: 'Improve', critical: 'Critical' },
+          defaultOverview: { summary: 'Test', benchmarkSummary: 'Test' },
+        },
+        comments: {
+          placeholder: { line1: 'Test', line2: 'Test', line3: 'Test' },
+          inputHint: 'Test',
+          noCommentsMessage: 'Test',
+          demoComments: [],
+        },
+      },
+      processing: {
+        steps: [
+          { key: 'upload', label: 'Upload' },
+          { key: 'analyze', label: 'Analyze' },
+          { key: 'roast', label: 'Roast' },
+        ],
+        descriptions: { upload: 'Test', analyze: 'Test', roast: 'Test' },
+      },
+      sessions: { defaultTitles: ['Test Session 1', 'Test Session 2', 'Test Session 3'] },
+      notifications: {
+        analysisComplete: { title: 'Test', body: 'Test' },
+        weeklyReport: { title: 'Test', body: 'Test' },
+        streakReminder: { title: 'Test', body: 'Test' },
+        demoNotifications: [],
+      },
+      comments: { demoComments: [] },
+    },
+  }
+
+  return {
+    VOICE_TEXT_CONFIG: mockVoiceTextConfig,
+    PoseData: [],
+    FeedbackMessage: {},
+    SocialStats: {},
+    FeedbackItem: {},
+    mmkvStorage: {
+      getItem: jest.fn((_key: string) => null),
+      setItem: jest.fn((_key: string, _value: string) => {}),
+      removeItem: jest.fn((_key: string) => {}),
+    },
+    mmkvDirect: {
+      getString: jest.fn().mockReturnValue(null),
+      setString: jest.fn(),
+      delete: jest.fn(),
+      contains: jest.fn().mockReturnValue(false),
+      clearAll: jest.fn(),
+    },
+  }
+})
 
 // Mock @my/api
 jest.mock('@my/api', () => ({
@@ -763,6 +1118,23 @@ jest.mock('tamagui', () => {
       React.createElement('div', { testID, style: { borderRadius: '50%' }, ...props }, children),
     Text: ({ children, testID, ...props }: any) =>
       React.createElement('span', { testID, ...props }, children),
+    RadioGroup: Object.assign(
+      ({ children, value, onValueChange, testID, ...props }: any) =>
+        React.createElement('div', { testID, 'data-value': value, ...props }, children),
+      {
+        Item: ({ children, value, id, testID, ...props }: any) =>
+          React.createElement('input', {
+            type: 'radio',
+            id,
+            value,
+            testID,
+            ...props,
+          }),
+        Indicator: ({ testID, ...props }: any) => React.createElement('span', { testID, ...props }),
+      }
+    ),
+    Label: ({ children, htmlFor, testID, ...props }: any) =>
+      React.createElement('label', { htmlFor, testID, ...props }, children),
   }
 })
 

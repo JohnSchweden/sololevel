@@ -31,6 +31,20 @@ jest.mock('@my/logging', () => ({
   },
 }))
 
+// Mock expo-constants for testAuthBootstrap
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    executionEnvironment: 'Standalone',
+    appOwnership: 'standalone',
+  },
+  ExecutionEnvironment: {
+    Bare: 'bare',
+    Standalone: 'standalone',
+    StoreClient: 'storeClient',
+  },
+}))
+
 describe('Route Protection Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks()

@@ -6,20 +6,12 @@ import { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-nati
 import Animated from 'react-native-reanimated'
 import { Spinner, Text, XStack, YStack } from 'tamagui'
 
+import { useVoiceText } from '@app/hooks/useVoiceText'
+import type { VoiceTextConfig } from '@my/config'
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import { useAnalysisSubscriptionStore } from '../stores/analysisSubscription'
 
-// =============================================================================
-// 3-Step Progress Config
-// =============================================================================
-
-const STEPS = [
-  { key: 'upload', label: 'Waking up the AI bunnies 🐰' },
-  { key: 'analyze', label: 'Finding your mistakes 🔍' },
-  { key: 'roast', label: 'Giving it a voice 🎤' },
-] as const
-
-type StepKey = (typeof STEPS)[number]['key']
+type StepKey = 'upload' | 'analyze' | 'roast'
 
 // Module-level style constants to avoid object allocation on every render
 const STEP_2_TRANSFORM = { transform: [{ translateX: -8 }] } as const
@@ -65,15 +57,15 @@ function getOverallProgress(phase: AnalysisPhase): number {
 /**
  * Get title and description for current phase
  */
-function getPhaseText(phase: AnalysisPhase): { title: string; description: string } {
+function getPhaseText(
+  phase: AnalysisPhase,
+  voiceText: VoiceTextConfig
+): { title: string; description: string } {
   const { stepKey } = getStepFromPhase(phase)
-  const step = STEPS.find((s) => s.key === stepKey) ?? STEPS[0]
+  const steps = voiceText.processing.steps
+  const step = steps.find((s) => s.key === stepKey) ?? steps[0]
 
-  const descriptions: Record<StepKey, string> = {
-    upload: 'Just uploading your crawling attempt.',
-    analyze: "Don't worry, I've seen worse. Probably.",
-    roast: 'Bringing your individual roast to live, so you learn for once.',
-  }
+  const descriptions = voiceText.processing.descriptions
 
   return {
     title: step.label + ' ...',
@@ -89,7 +81,15 @@ interface SteppedProgressBarProps {
   phase: AnalysisPhase
 }
 
-const SteppedProgressBar = memo(function SteppedProgressBar({ phase }: SteppedProgressBarProps) {
+interface SteppedProgressBarProps {
+  phase: AnalysisPhase
+  voiceText: VoiceTextConfig
+}
+
+const SteppedProgressBar = memo(function SteppedProgressBar({
+  phase,
+  voiceText,
+}: SteppedProgressBarProps) {
   const { stepIndex } = getStepFromPhase(phase)
   const overallProgress = getOverallProgress(phase)
 
@@ -118,7 +118,7 @@ const SteppedProgressBar = memo(function SteppedProgressBar({ phase }: SteppedPr
         gap="$2"
         width="100%"
       >
-        {STEPS.map((step, idx) => (
+        {voiceText.processing.steps.map((step, idx) => (
           <XStack
             key={step.key}
             alignItems="center"
@@ -274,6 +274,7 @@ interface ProcessingIndicatorProps {
  * @param subscription - Subscription metadata for connection status
  */
 export function ProcessingIndicator({ phase, subscription }: ProcessingIndicatorProps) {
+  const voiceText = useVoiceText()
   const effectiveKey = useMemo(
     () => (subscription.shouldSubscribe ? subscription.key : null),
     [subscription.key, subscription.shouldSubscribe]
@@ -330,7 +331,7 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
     }
   })
 
-  const { title, description } = useMemo(() => getPhaseText(phase), [phase])
+  const { title, description } = useMemo(() => getPhaseText(phase, voiceText), [phase, voiceText])
 
   return (
     <YStack
@@ -439,7 +440,10 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
           alignItems="center"
           paddingBottom="$6"
         >
-          <SteppedProgressBar phase={phase} />
+          <SteppedProgressBar
+            phase={phase}
+            voiceText={voiceText}
+          />
         </YStack>
       </Animated.View>
 

@@ -405,8 +405,8 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       text: feedback.message,
       type: 'suggestion', // Default type, could be enhanced based on category
       category: normalizeFeedbackCategory(feedback.category),
-      ssmlStatus: feedback.ssmlStatus,
-      audioStatus: feedback.audioStatus,
+      ssmlStatus: feedback.ssmlStatus as FeedbackPanelItem['ssmlStatus'],
+      audioStatus: feedback.audioStatus as FeedbackPanelItem['audioStatus'],
       confidence: feedback.confidence,
     }))
 
@@ -447,11 +447,15 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     const fullyCompleted = feedbacks.filter(
       (f) => f.ssmlStatus === 'completed' && f.audioStatus === 'completed'
     ).length
-    const hasFailures = feedbacks.some(
-      (f) => f.ssmlStatus === 'failed' || f.audioStatus === 'failed'
-    )
+    // Split failures: SSML failures block analysis, audio failures are graceful degradation
+    const hasBlockingFailures = feedbacks.some((f) => f.ssmlStatus === 'failed')
+    const hasAudioFailures = feedbacks.some((f) => f.audioStatus === 'failed')
+    const hasFailures = hasBlockingFailures || hasAudioFailures // Keep for backward compatibility
     const isProcessing = feedbacks.some(
-      (f) => f.ssmlStatus === 'processing' || f.audioStatus === 'processing'
+      (f) =>
+        f.ssmlStatus === 'processing' ||
+        f.audioStatus === 'processing' ||
+        f.audioStatus === 'retrying'
     )
 
     return {
@@ -459,6 +463,8 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       ssmlCompleted,
       audioCompleted,
       fullyCompleted,
+      hasBlockingFailures,
+      hasAudioFailures,
       hasFailures,
       isProcessing,
       completionPercentage: total > 0 ? Math.round((fullyCompleted / total) * 100) : 0,
@@ -517,7 +523,9 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
 
       // Status checks
       isProcessing: stats.isProcessing,
-      hasFailures: stats.hasFailures,
+      hasFailures: stats.hasFailures, // Backward compatibility - includes all failures
+      hasBlockingFailures: stats.hasBlockingFailures, // SSML failures only
+      hasAudioFailures: stats.hasAudioFailures, // Audio failures only
       isFullyCompleted: stats.total > 0 && stats.fullyCompleted === stats.total,
 
       // Actions

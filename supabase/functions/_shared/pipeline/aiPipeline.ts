@@ -1,6 +1,8 @@
+import { buildPromptFromConfig } from '../../ai-analyze-video/prompts-local.ts'
 import { processAudioJobs as _processAudioJobs } from '../../ai-analyze-video/workers/audioWorker.ts'
 import { processSSMLJobs } from '../../ai-analyze-video/workers/ssmlWorker.ts'
 import { type AnalysisResults, updateAnalysisResults, updateAnalysisStatus } from '../db/analysis.ts'
+import { getUserVoicePreferences, getVoiceConfig, updateAnalysisJobVoiceSnapshot } from '../db/voiceConfig.ts'
 import { notifyAnalysisComplete } from '../notifications.ts'
 import {
   ISSMLService,
@@ -15,6 +17,7 @@ export interface PipelineContext {
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
   analysisId: number
+  userId: string // Required for voice config lookup
   videoPath: string
   videoSource: string
   frameData?: string[]
@@ -50,6 +53,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
     supabase,
     logger,
     analysisId,
+    userId,
     videoPath,
     videoSource,
     timingParams,
@@ -82,13 +86,53 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       logger.info(`Analysis job ${analysisId} already in status: ${currentJob?.status}, skipping status update`)
     }
 
-    // 1. Video Source Detection (No pose data needed for AI analysis)
+    // 1. Fetch user voice preferences and build custom prompt
+    let customPrompt: string | undefined
+    let voiceConfig: Awaited<ReturnType<typeof getVoiceConfig>> | undefined
+    
+    try {
+      logger.info('Fetching user voice preferences', { userId, analysisId })
+      const prefs = await getUserVoicePreferences(supabase, userId)
+      logger.info('User preferences fetched', { userId, prefs })
+      
+      voiceConfig = await getVoiceConfig(supabase, prefs.coachGender, prefs.coachMode)
+      logger.info('Voice config fetched', { 
+        userId, 
+        configId: voiceConfig.id,
+        gender: voiceConfig.gender,
+        mode: voiceConfig.mode 
+      })
+      
+      // Build prompt with injected voice/personality
+      customPrompt = buildPromptFromConfig(
+        {
+          promptVoice: voiceConfig.promptVoice,
+          promptPersonality: voiceConfig.promptPersonality,
+          ssmlSystemInstruction: voiceConfig.ssmlSystemInstruction,
+        },
+        timingParams?.duration || 6
+      )
+      logger.info('Custom prompt built', { 
+        userId,
+        promptLength: customPrompt.length,
+        voice: voiceConfig.promptVoice.substring(0, 50),
+        personality: voiceConfig.promptPersonality.substring(0, 50)
+      })
+    } catch (voiceConfigError) {
+      logger.error('Failed to fetch voice config, using default prompt', { 
+        error: voiceConfigError instanceof Error ? voiceConfigError.message : String(voiceConfigError),
+        userId 
+      })
+      // Continue with default prompt (customPrompt remains undefined)
+    }
+
+    // 2. Video Source Detection (No pose data needed for AI analysis)
     // Pose data is stored in database for UI purposes only
     // AI analysis uses video content directly
 
     let feedbackIds: number[] | undefined
 
-    // 2. Video Analysis - analyzes video content directly (conditional)
+    // 3. Video Analysis - analyzes video content directly (conditional)
     if (stages.runVideoAnalysis) {
       // Progress callback will handle: 20% download, 40% upload, 55% active, 70% inference
       logger.info(`Starting video analysis for ${videoPath}`, {
@@ -116,6 +160,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
           supabase,
           videoPath,
           analysisParams: timingParams,
+          customPrompt, // Pass custom prompt with injected voice config
           progressCallback: async (progress: number) => {
             logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
             await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
@@ -167,6 +212,31 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
           undefined, // _audioPrompt
           analysis.title // title
         )
+      }
+      
+      // Store voice config snapshot on analysis job for historical accuracy
+      // CRITICAL: This must run OUTSIDE runLLMFeedback conditional to capture voice config
+      // even when feedback is skipped (e.g., mock mode)
+      if (voiceConfig) {
+        try {
+          await updateAnalysisJobVoiceSnapshot(supabase, analysisId, {
+            coachGender: voiceConfig.gender,
+            coachMode: voiceConfig.mode,
+            voiceNameUsed: voiceConfig.voiceName,
+            avatarAssetKeyUsed: voiceConfig.avatarAssetKey,
+          })
+          logger.info('Voice config snapshot stored on analysis job', { 
+            analysisId,
+            gender: voiceConfig.gender,
+            mode: voiceConfig.mode 
+          })
+        } catch (snapshotError) {
+          logger.error('Failed to store voice config snapshot', { 
+            error: snapshotError instanceof Error ? snapshotError.message : String(snapshotError),
+            analysisId 
+          })
+          // Don't fail the pipeline for snapshot errors
+        }
       }
     }
 

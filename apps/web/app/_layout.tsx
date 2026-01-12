@@ -18,6 +18,14 @@ export default function RootLayout() {
               }}
             />
 
+            {/* Onboarding routes - public (not protected) */}
+            <Stack.Screen
+              name="onboarding"
+              options={{
+                headerShown: false,
+              }}
+            />
+
             {/* Tabs Layout - Main app navigation */}
             <Stack.Screen
               name="(tabs)"

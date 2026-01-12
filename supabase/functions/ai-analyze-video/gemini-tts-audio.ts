@@ -18,6 +18,7 @@ export interface TTSOptions {
   speed?: 'slow' | 'medium' | 'fast'
   pitch?: number // -10 to +10
   format?: AudioFormat // Audio format from central configuration
+  ttsSystemInstruction?: string // Voice style/accent instruction from config table
 }
 
 export interface TTSResult {
@@ -35,7 +36,13 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
   // Get validated configuration
   const config = createValidatedGeminiConfig()
 
-  logger.info(`Starting Gemini TTS generation for ${ssml.length} characters`)
+  logger.info(`Starting Gemini TTS generation for ${ssml.length} characters`, {
+    voice: options?.voice,
+    format: options?.format,
+    ttsSystemInstruction: options?.ttsSystemInstruction 
+      ? options.ttsSystemInstruction.substring(0, 50) + '...'
+      : '(none)'
+  })
 
   // Mock mode: Return prepared mock response
   if (config.analysisMode === 'mock') {
@@ -55,7 +62,8 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
     const result = await generateTTSAudio({
       ssml,
       voiceName: options?.voice,
-      format: options?.format || 'wav' // Default to WAV to trigger PCM→WAV conversion
+      format: options?.format || 'wav', // Default to WAV to trigger PCM→WAV conversion
+      ttsSystemInstruction: options?.ttsSystemInstruction
     }, config)
 
     logger.info(`Gemini TTS generation completed: ${result.bytes.length} bytes`)
