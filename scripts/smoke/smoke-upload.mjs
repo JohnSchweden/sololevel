@@ -42,6 +42,25 @@ async function uploadTestVideo(testUser, fileName) {
     const videoBuffer = readFileSync(videoPath)
     console.log(`📁 Found test video: ${videoPath} (${videoBuffer.length} bytes)`)
 
+    // If called from orchestrator without args, fetch test user
+    const wasCalledWithoutArgs = testUser === undefined
+    if (wasCalledWithoutArgs) {
+      const { data: users, error: userError } = await supabase.auth.admin.listUsers()
+      if (userError) {
+        console.error('❌ Error getting test user:', userError.message)
+        return null
+      }
+
+      const testUserEmail = config.testAuth?.email || 'smoke-test@example.com'
+      testUser = users.users.find(user => user.email === testUserEmail)
+      if (!testUser) {
+        console.error('❌ Test user not found')
+        return null
+      }
+
+      fileName = `smoke-upload-${Date.now()}.mp4`
+    }
+
     const storagePath = `${testUser.id}/${fileName}`
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('raw')
@@ -56,6 +75,13 @@ async function uploadTestVideo(testUser, fileName) {
     }
 
     console.log(`✅ Uploaded to: ${storagePath}`)
+    
+    // When called from orchestrator (no args), return just storage path string
+    // When called from main (with args), return full object
+    if (wasCalledWithoutArgs) {
+      return storagePath
+    }
+    
     return {
       fileName,
       storagePath,

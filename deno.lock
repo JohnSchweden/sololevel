@@ -45,7 +45,6 @@
         "npm:@biomejs/biome@^1.9.3",
         "npm:@gorhom/bottom-sheet@^5.2.6",
         "npm:@playwright/test@^1.55.0",
-        "npm:@react-native-async-storage/async-storage@^2.2.0",
         "npm:@react-native-community/datetimepicker@^8.4.4",
         "npm:@react-native-community/slider@^4.5.7",
         "npm:@storybook/addon-docs@^9.1.2",

@@ -14,7 +14,7 @@ module.exports = {
       type: 'ios.app',
       binaryPath: 'apps/expo/ios/build/Build/Products/Debug-iphonesimulator/sololevel.app',
       build:
-        'cd apps/expo/ios && xcodebuild -workspace SoloLevel.xcworkspace -scheme SoloLevel -configuration Debug -sdk iphonesimulator -derivedDataPath build -destination "platform=iOS Simulator,id=65F9EB49-CBA9-4960-8B13-D79B35699BE2" build CODE_SIGNING_ALLOWED=NO',
+        'cd apps/expo/ios && xcodebuild -workspace SoloLevel.xcworkspace -scheme SoloLevel -configuration Debug -sdk iphonesimulator -derivedDataPath build -destination "platform=iOS Simulator,name=iPhone 16 Pro" build CODE_SIGNING_ALLOWED=NO',
       launchArgs: {
         // Tell Expo to connect to Metro bundler
         EXDevMenuIsOnboardingFinished: true,
@@ -24,7 +24,7 @@ module.exports = {
       type: 'ios.app',
       binaryPath: 'apps/expo/ios/build/Build/Products/Release-iphonesimulator/sololevel.app',
       build:
-        'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn ios --configuration Release --device "iPhone 16"',
+        'cd apps/expo && EXPO_NO_TELEMETRY=1 yarn ios --configuration Release --device "iPhone 16 Pro"',
     },
     'android.debug': {
       type: 'android.apk',
@@ -41,7 +41,7 @@ module.exports = {
     simulator: {
       type: 'ios.simulator',
       device: {
-        type: 'iPhone 16',
+        type: 'iPhone 16 Pro',
       },
     },
     attached: {

@@ -4,6 +4,7 @@ import { CoachScreen } from './CoachScreen'
 
 // Mock image assets
 jest.mock('../../../../apps/expo/assets/coach_avatar.png', () => 'coach_avatar.png')
+jest.mock('../../../../apps/expo/assets/coach_avatar_bright.webp', () => 'coach_avatar_bright.webp')
 
 // Mock hooks
 jest.mock('@app/hooks/useStaggeredAnimation', () => ({

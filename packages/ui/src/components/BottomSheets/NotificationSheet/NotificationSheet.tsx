@@ -1,5 +1,6 @@
+import { type CoachMode, VOICE_TEXT_CONFIG } from '@my/config'
 import { Dumbbell, Flame, TrendingUp, Trophy } from '@tamagui/lucide-icons'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { Platform } from 'react-native'
 import { BlurView } from '../../BlurView/BlurView'
 
@@ -22,13 +23,52 @@ export interface NotificationSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   notificationBadgeCount?: number
+  voiceMode?: CoachMode
 }
 
 export const NotificationSheet = memo(function NotificationSheet({
   open,
   onOpenChange,
   notificationBadgeCount = 0,
+  voiceMode = 'roast',
 }: NotificationSheetProps): React.ReactElement {
+  // Get voice mode-specific notifications
+  const notifications = useMemo(
+    () => VOICE_TEXT_CONFIG[voiceMode].notifications.demoNotifications,
+    [voiceMode]
+  )
+
+  // Map notification types to icons and background colors
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'achievement':
+        return Trophy
+      case 'progress':
+        return TrendingUp
+      case 'reminder':
+        return Dumbbell
+      case 'streak':
+        return Flame
+      default:
+        return Trophy
+    }
+  }
+
+  const getNotificationBgColor = (type: string) => {
+    switch (type) {
+      case 'achievement':
+        return 'rgba(34, 197, 94, 0.2)'
+      case 'progress':
+        return 'rgba(59, 130, 246, 0.2)'
+      case 'reminder':
+        return 'rgba(168, 85, 247, 0.2)'
+      case 'streak':
+        return 'rgba(251, 191, 36, 0.2)'
+      default:
+        return 'rgba(34, 197, 94, 0.2)'
+    }
+  }
+
   return (
     <Sheet
       modal
@@ -89,168 +129,52 @@ export const NotificationSheet = memo(function NotificationSheet({
 
             {/* Notification Content */}
             <YStack gap="$1">
-              {/* Achievement: Milestone */}
-              <XStack
-                gap="$3"
-                padding="$3"
-                borderRadius="$4"
-              >
-                <YStack
-                  width={40}
-                  height={40}
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="rgba(34, 197, 94, 0.2)"
-                  borderRadius="$8"
-                >
-                  <Trophy
-                    size={20}
-                    color="$color12"
-                  />
-                </YStack>
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  <Text
-                    fontSize="$4"
-                    fontWeight="600"
-                    color="$color12"
-                  >
-                    Level Up Unlocked!
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    lineHeight={18}
-                    color="$color12"
-                  >
-                    You've analyzed 10 videos. Your posture is still trash, but at least you're
-                    consistent.
-                  </Text>
-                </YStack>
-              </XStack>
+              {notifications.map((notification, index) => {
+                const IconComponent = getNotificationIcon(notification.type)
+                const bgColor = getNotificationBgColor(notification.type)
 
-              {/* Progress: Improvement */}
-              <XStack
-                gap="$3"
-                padding="$3"
-                borderRadius="$4"
-              >
-                <YStack
-                  width={40}
-                  height={40}
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="rgba(59, 130, 246, 0.2)"
-                  borderRadius="$8"
-                >
-                  <TrendingUp
-                    size={20}
-                    color="$color12"
-                  />
-                </YStack>
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  <Text
-                    fontSize="$4"
-                    fontWeight="600"
-                    color="$color12"
+                return (
+                  <XStack
+                    key={index}
+                    gap="$3"
+                    padding="$3"
+                    borderRadius="$4"
                   >
-                    "Some" Progress Detected
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    lineHeight={18}
-                    color="$color12"
-                  >
-                    Your vocal variety improved 23% since last week. Only 77% more to go! Are you
-                    still reading? CONTINUE!
-                  </Text>
-                </YStack>
-              </XStack>
-
-              {/* Reminder: Practice */}
-              <XStack
-                gap="$3"
-                padding="$3"
-                borderRadius="$4"
-              >
-                <YStack
-                  width={40}
-                  height={40}
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="rgba(168, 85, 247, 0.2)"
-                  borderRadius="$8"
-                >
-                  <Dumbbell
-                    size={20}
-                    color="$color12"
-                  />
-                </YStack>
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  <Text
-                    fontSize="$4"
-                    fontWeight="600"
-                    color="$color12"
-                  >
-                    Daily Drill Reminder
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    lineHeight={18}
-                    color="$color12"
-                  >
-                    Time to practice that hand gesture exercise. Your last video looked like you
-                    were swatting flies.
-                  </Text>
-                </YStack>
-              </XStack>
-
-              {/* Achievement: Streak */}
-              <XStack
-                gap="$3"
-                padding="$3"
-                borderRadius="$4"
-              >
-                <YStack
-                  width={40}
-                  height={40}
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="rgba(251, 191, 36, 0.2)"
-                  borderRadius="$8"
-                >
-                  <Flame
-                    size={20}
-                    color="$color12"
-                  />
-                </YStack>
-                <YStack
-                  flex={1}
-                  gap="$1"
-                >
-                  <Text
-                    fontSize="$4"
-                    fontWeight="600"
-                    color="$color12"
-                  >
-                    7-Day Streak!
-                  </Text>
-                  <Text
-                    fontSize="$3"
-                    lineHeight={18}
-                    color="$color12"
-                  >
-                    You've recorded every day this week. The grind doesn't stop, neither should you.
-                  </Text>
-                </YStack>
-              </XStack>
+                    <YStack
+                      width={40}
+                      height={40}
+                      alignItems="center"
+                      justifyContent="center"
+                      backgroundColor={bgColor}
+                      borderRadius="$8"
+                    >
+                      <IconComponent
+                        size={20}
+                        color="$color12"
+                      />
+                    </YStack>
+                    <YStack
+                      flex={1}
+                      gap="$1"
+                    >
+                      <Text
+                        fontSize="$4"
+                        fontWeight="600"
+                        color="$color12"
+                      >
+                        {notification.title}
+                      </Text>
+                      <Text
+                        fontSize="$3"
+                        lineHeight={18}
+                        color="$color12"
+                      >
+                        {notification.body}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                )
+              })}
             </YStack>
           </YStack>
         </Sheet.ScrollView>

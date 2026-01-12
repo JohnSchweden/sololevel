@@ -1,3 +1,4 @@
+import { hasUserSetVoicePreferences } from '@my/api'
 import { initializeTestAuth } from '@my/app/auth/testAuthBootstrap'
 import { useAuth } from '@my/app/hooks/useAuth'
 import { useAuthStore } from '@my/app/stores/auth'
@@ -48,10 +49,34 @@ export default function SignInScreen() {
       const result = await signIn(email, password)
 
       if (result.success) {
+        // Get fresh user from store (not from stale closure)
+        const freshUser = useAuthStore.getState().user
+
+        // Check if user has set voice preferences (first-login detection)
+        if (freshUser?.id) {
+          try {
+            const hasPreferences = await hasUserSetVoicePreferences(freshUser.id)
+
+            if (!hasPreferences) {
+              log.info('SignInScreen', 'First login detected, redirecting to voice selection', {
+                userId: freshUser.id,
+              })
+              router.replace('/onboarding/voice-selection' as any)
+              return
+            }
+          } catch (error) {
+            log.error('SignInScreen', 'Failed to check voice preferences, continuing to redirect', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              userId: freshUser.id,
+            })
+            // On error, continue with normal redirect
+          }
+        }
+
         const destination = redirectTo || '/'
         log.info('SignInScreen', 'Sign in successful, redirecting', {
           destination,
-          userId: user?.id,
+          userId: freshUser?.id,
         })
         router.replace(destination as any)
       } else {

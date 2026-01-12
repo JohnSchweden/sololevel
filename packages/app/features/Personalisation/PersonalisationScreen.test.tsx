@@ -1,17 +1,68 @@
 import { render, screen } from '@testing-library/react'
 import { PersonalisationScreen } from './PersonalisationScreen'
 
+// Mock auth hook
+const mockAuth = {
+  userId: 'test-user-id',
+  user: { id: 'test-user-id' },
+  session: {},
+  loading: false,
+  initialized: true,
+  isAuthenticated: true,
+}
+
+jest.mock('@app/hooks/useAuth', () => ({
+  useAuth: () => mockAuth,
+}))
+
+// Mock MODE_OPTIONS constant
+jest.mock('@app/features/Onboarding/constants', () => ({
+  MODE_OPTIONS: [
+    { value: 'roast', label: 'Roast:Me ⭐', description: 'Brutal honesty with biting humor' },
+    { value: 'zen', label: 'Zen:Me 🧘', description: 'Calm, encouraging guidance' },
+    { value: 'lovebomb', label: 'Lovebomb:Me 💖', description: 'Lovable positivity' },
+  ],
+}))
+
+// Mock voice preferences store
+const mockVoicePreferencesStore = {
+  gender: 'female',
+  mode: 'roast',
+  isLoaded: true,
+  isSyncing: false,
+  setGender: jest.fn(),
+  setMode: jest.fn(),
+  loadFromDatabase: jest.fn(),
+  syncToDatabase: jest.fn(),
+}
+
+jest.mock('@app/stores/voicePreferences', () => ({
+  useVoicePreferencesStore: (selector?: (state: any) => any) => {
+    if (!selector) {
+      return mockVoicePreferencesStore
+    }
+    return selector(mockVoicePreferencesStore)
+  },
+}))
+
+// Mock safe area hook
+jest.mock('@app/provider/safe-area/use-safe-area', () => ({
+  useSafeArea: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useStableSafeArea: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
+  useStableTopInset: () => 44,
+}))
+
 // Mock @my/ui components
 jest.mock('@my/ui', () => ({
   GlassBackground: ({ children, testID }: any) => <div data-testid={testID}>{children}</div>,
   SettingsSectionHeader: ({ title, testID }: any) => (
     <div data-testid={testID || 'settings-section-header'}>{title}</div>
   ),
-  SettingsRadioGroup: ({ testID }: any) => (
+  SettingsRadioGroup: ({ testID, options }: any) => (
     <div data-testid={testID || 'settings-radio-group'}>
-      <span>Light</span>
-      <span>Dark</span>
-      <span>Auto</span>
+      {options
+        ? options.map((opt: any) => <span key={opt.value}>{opt.label}</span>)
+        : ['Light', 'Dark', 'Auto'].map((label) => <span key={label}>{label}</span>)}
     </div>
   ),
   SettingsSelectItem: ({ title, description, value, options, testID }: any) => {
@@ -33,6 +84,18 @@ jest.mock('@my/ui', () => ({
   ),
 }))
 
+// Mock react-native
+jest.mock('react-native', () => ({
+  View: ({ children, testID, ...props }: any) => (
+    <div
+      data-testid={testID}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
+}))
+
 // Mock tamagui components
 jest.mock('tamagui', () => ({
   YStack: ({ children, testID, ...props }: any) => (
@@ -43,7 +106,23 @@ jest.mock('tamagui', () => ({
       {children}
     </div>
   ),
+  XStack: ({ children, testID, ...props }: any) => (
+    <div
+      data-testid={testID}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
   ScrollView: ({ children, testID, ...props }: any) => (
+    <div
+      data-testid={testID}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
+  Text: ({ children, testID, ...props }: any) => (
     <div
       data-testid={testID}
       {...props}
@@ -60,6 +139,12 @@ jest.mock('@tamagui/lucide-icons', () => ({
   Type: () => 'Type',
   Zap: () => 'Zap',
   Volume2: () => 'Volume2',
+  Mic: () => 'Mic',
+  User: () => 'User',
+  Sparkles: () => 'Sparkles',
+  AArrowUp: () => 'AArrowUp',
+  Vibrate: () => 'Vibrate',
+  ChevronDown: () => 'ChevronDown',
 }))
 
 // Mock react-native-safe-area-context
@@ -89,10 +174,24 @@ describe('PersonalisationScreen', () => {
       render(<PersonalisationScreen />)
 
       // Assert - All sections should be visible
+      expect(screen.getByText('Coach Voice')).toBeInTheDocument()
       expect(screen.getByText('Appearance')).toBeInTheDocument()
       expect(screen.getByText('Language & Region')).toBeInTheDocument()
       expect(screen.getByText('Accessibility')).toBeInTheDocument()
       expect(screen.getByText('Interaction')).toBeInTheDocument()
+    })
+
+    it('should render Coach Voice section with gender and mode selectors', () => {
+      // Arrange & Act
+      render(<PersonalisationScreen />)
+
+      // Assert - Coach Voice section should be visible
+      expect(screen.getByText('Coach Voice')).toBeInTheDocument()
+      expect(screen.getByText('Female')).toBeInTheDocument()
+      expect(screen.getByText('Male')).toBeInTheDocument()
+      expect(screen.getByText('Roast:Me ⭐')).toBeInTheDocument()
+      expect(screen.getByText('Zen:Me 🧘')).toBeInTheDocument()
+      expect(screen.getByText('Lovebomb:Me 💖')).toBeInTheDocument()
     })
 
     it('should render theme selector with all options', () => {
@@ -212,6 +311,7 @@ describe('PersonalisationScreen', () => {
 
       // Assert - All section headers should be visible
       const sectionHeaders = [
+        screen.getByText('Coach Voice'),
         screen.getByText('Appearance'),
         screen.getByText('Language & Region'),
         screen.getByText('Accessibility'),
@@ -236,39 +336,54 @@ describe('PersonalisationScreen', () => {
     })
   })
 
-  describe('Default State', () => {
-    it('should initialize with default theme (auto)', () => {
-      // Arrange & Act
+  describe('Voice Preferences Integration', () => {
+    it('should load voice preferences on mount when user is authenticated and not loaded', () => {
+      // Arrange - Override mock to set isLoaded = false
+      const mockStoreNotLoaded = {
+        ...mockVoicePreferencesStore,
+        isLoaded: false,
+      }
+      const mockStore = require('@app/stores/voicePreferences')
+      jest.spyOn(mockStore, 'useVoicePreferencesStore').mockImplementation((selector: any) => {
+        if (!selector) {
+          return mockStoreNotLoaded
+        }
+        return selector(mockStoreNotLoaded)
+      })
+
+      // Act
       render(<PersonalisationScreen />)
 
-      // Assert - Auto should be present (default selected in SettingsRadioGroup)
-      expect(screen.getByText('Auto')).toBeInTheDocument()
+      // Assert - loadFromDatabase should be called with userId
+      expect(mockStoreNotLoaded.loadFromDatabase).toHaveBeenCalledWith('test-user-id')
     })
 
-    it('should initialize with default language (en-US)', () => {
+    it('should display current voice preferences from store', () => {
       // Arrange & Act
       render(<PersonalisationScreen />)
 
-      // Assert - Default language should be displayed
-      expect(screen.getByText('English (US)')).toBeInTheDocument()
+      // Assert - Current preferences should be visible
+      expect(screen.getByText('Female')).toBeInTheDocument()
+      expect(screen.getByText('Male')).toBeInTheDocument()
+      expect(screen.getByText('Roast:Me ⭐')).toBeInTheDocument()
     })
 
-    it('should initialize accessibility toggles to false', () => {
+    it('should render voice gender radio group', () => {
       // Arrange & Act
       render(<PersonalisationScreen />)
 
-      // Assert - Switches should be present
-      const switches = screen.getAllByTestId('Switch')
-      expect(switches.length).toBeGreaterThan(0)
+      // Assert - Gender radio should be present
+      const genderRadio = screen.getByTestId('voice-gender-radio')
+      expect(genderRadio).toBeInTheDocument()
     })
 
-    it('should initialize interaction toggles (sound effects and haptic feedback)', () => {
+    it('should render voice mode radio group', () => {
       // Arrange & Act
       render(<PersonalisationScreen />)
 
-      // Assert - Both interaction settings should be present
-      expect(screen.getByText('Sound Effects')).toBeInTheDocument()
-      expect(screen.getByText('Haptic Feedback')).toBeInTheDocument()
+      // Assert - Mode radio should be present
+      const modeRadio = screen.getByTestId('voice-mode-radio')
+      expect(modeRadio).toBeInTheDocument()
     })
   })
 })

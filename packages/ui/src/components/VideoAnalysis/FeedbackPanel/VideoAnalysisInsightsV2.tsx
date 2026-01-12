@@ -1,3 +1,4 @@
+import { type CoachMode, VOICE_TEXT_CONFIG, type VoiceTextConfig } from '@my/config'
 import {
   Award,
   BarChart3,
@@ -143,27 +144,32 @@ export interface VideoAnalysisInsightsV2Props {
   actions?: VideoAnalysisInsightsV2Action[]
   achievements?: VideoAnalysisInsightsV2Achievement[]
   reels?: VideoAnalysisInsightsV2Reel[]
+  voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
   onHighlightPress?: (highlightId: string) => void
   onActionPress?: (actionId: string) => void
   onReelPress?: (reelId: string) => void
   testID?: string
 }
 
-const DEFAULT_OVERVIEW: VideoAnalysisInsightsV2Overview = {
-  score: 78,
-  levelLabel: 'Proficient',
-  benchmarkSummary: "You're 15% clearer than the average mumbler. Congrats, I guess?",
-  lastScore: 72,
-  improvementDelta: 6,
-  summary:
-    "Your energy is there, but your pauses are like a broken record player. Let's fix that before your audience falls asleep.",
+// Default overview and quote will be created from voice text in component
+function getDefaultOverview(voiceText: VoiceTextConfig): VideoAnalysisInsightsV2Overview {
+  return {
+    score: 78,
+    levelLabel: 'Proficient',
+    benchmarkSummary: voiceText.feedbackPanel.insights.defaultOverview.benchmarkSummary,
+    lastScore: 72,
+    improvementDelta: 6,
+    summary: voiceText.feedbackPanel.insights.defaultOverview.summary,
+  }
 }
 
-const DEFAULT_QUOTE: VideoAnalysisInsightsV2Quote = {
-  id: 'quote-primary',
-  author: 'AI Coach Orbit',
-  text: "\"Look, you've got energy, I'll give you that. But your pacing? It's like watching a sloth try to deliver a TED Talk. Let's fix that disaster before your next presentation.\"",
-  tone: 'coach',
+function getDefaultQuote(voiceText: VoiceTextConfig): VideoAnalysisInsightsV2Quote {
+  return {
+    id: 'quote-primary',
+    author: 'AI Coach',
+    text: voiceText.feedbackPanel.insights.defaultQuote,
+    tone: 'coach',
+  }
 }
 
 const DEFAULT_FOCUS_AREAS: VideoAnalysisInsightsV2FocusArea[] = [
@@ -299,21 +305,40 @@ const DEFAULT_REELS: VideoAnalysisInsightsV2Reel[] = [
   },
 ]
 
-const statusTokenMap: Record<
+// Status token map will be created dynamically from voice text
+function getStatusTokenMap(
+  voiceText: VoiceTextConfig
+): Record<
   VideoAnalysisInsightsV2Highlight['status'],
   { label: string; backgroundColor: string; color: string }
-> = {
-  good: { label: 'Not Terrible', backgroundColor: '$green4', color: '$green11' },
-  improve: { label: 'Yikes, Fix This', backgroundColor: '$orange4', color: '$orange11' },
-  critical: { label: 'Absolute Disaster', backgroundColor: '$red4', color: '$red11' },
+> {
+  return {
+    good: {
+      label: voiceText.feedbackPanel.insights.statusLabels.good,
+      backgroundColor: '$green4',
+      color: '$green11',
+    },
+    improve: {
+      label: voiceText.feedbackPanel.insights.statusLabels.improve,
+      backgroundColor: '$orange4',
+      color: '$orange11',
+    },
+    critical: {
+      label: voiceText.feedbackPanel.insights.statusLabels.critical,
+      backgroundColor: '$red4',
+      color: '$red11',
+    },
+  }
 }
 
 const HighlightCard = memo(function HighlightCard({
   highlight,
   onPress,
+  statusTokenMap,
 }: {
   highlight: VideoAnalysisInsightsV2Highlight
   onPress?: (highlightId: string) => void
+  statusTokenMap: ReturnType<typeof getStatusTokenMap>
 }) {
   const statusTokens = statusTokenMap[highlight.status]
 
@@ -620,8 +645,10 @@ const AchievementCard = memo(function AchievementCard({
 
 const SkillRow = memo(function SkillRow({
   skill,
+  voiceText,
 }: {
   skill: VideoAnalysisInsightsV2SkillDimension
+  voiceText: VoiceTextConfig
 }) {
   const isTrendingUp = skill.trend === 'up'
   const isTrendingDown = skill.trend === 'down'
@@ -629,6 +656,13 @@ const SkillRow = memo(function SkillRow({
 
   const iconColor =
     skill.trend === 'up' ? '$green11' : skill.trend === 'down' ? '$orange11' : '$color11'
+
+  const trendLabel =
+    skill.trend === 'up'
+      ? voiceText.feedbackPanel.insights.trendLabels.up
+      : skill.trend === 'down'
+        ? voiceText.feedbackPanel.insights.trendLabels.down
+        : voiceText.feedbackPanel.insights.trendLabels.steady
 
   return (
     <XStack
@@ -671,11 +705,7 @@ const SkillRow = memo(function SkillRow({
             fontSize="$2"
             color="$color11"
           >
-            {skill.trend === 'up'
-              ? 'Actually improving'
-              : skill.trend === 'down'
-                ? 'Getting worse (oof)'
-                : 'Stuck in mediocrity'}
+            {trendLabel}
           </Text>
         </XStack>
       </YStack>
@@ -716,8 +746,8 @@ const SUMMARY_TRUNCATE_LENGTH = 100
 
 export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
   fullFeedbackText,
-  overview = DEFAULT_OVERVIEW,
-  quote = DEFAULT_QUOTE,
+  overview: overviewProp,
+  quote: quoteProp,
   focusAreas = DEFAULT_FOCUS_AREAS,
   skillMatrix = DEFAULT_SKILL_MATRIX,
   performanceTimeline = DEFAULT_TIMELINE,
@@ -725,11 +755,23 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
   actions = DEFAULT_ACTIONS,
   achievements = DEFAULT_ACHIEVEMENTS,
   reels = DEFAULT_REELS,
+  voiceMode = 'roast',
   onHighlightPress,
   onActionPress,
   onReelPress,
   testID = 'video-analysis-insights-v2',
 }: VideoAnalysisInsightsV2Props) {
+  // Get voice text config for current mode (default to roast)
+  const voiceText = useMemo(() => VOICE_TEXT_CONFIG[voiceMode || 'roast'], [voiceMode])
+  const statusTokenMap = useMemo(() => getStatusTokenMap(voiceText), [voiceText])
+
+  // Use provided overview/quote or generate from voice text
+  const overview = useMemo(
+    () => overviewProp ?? getDefaultOverview(voiceText),
+    [overviewProp, voiceText]
+  )
+  const quote = useMemo(() => quoteProp ?? getDefaultQuote(voiceText), [quoteProp, voiceText])
+
   // State for expand/collapse of detailed summary
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
 
@@ -796,8 +838,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
       >
         <StateDisplay
           type="empty"
-          title="No Insights Yet (You're Not Ready)"
-          description="Upload more videos so we can properly roast your performance. We need material to work with."
+          title={voiceText.feedbackPanel.insights.emptyStates.noInsights.title}
+          description={voiceText.feedbackPanel.insights.emptyStates.noInsights.description}
           icon="📊"
           testID={`${testID}-empty`}
         />
@@ -853,7 +895,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                 paddingRight={0}
                 minHeight={44}
                 accessibilityRole="button"
-                accessibilityLabel="Show full roast"
+                accessibilityLabel="Show more"
                 testID="insights-v2-detailed-summary-toggle"
               >
                 <Text
@@ -861,7 +903,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                   fontWeight="500"
                   color="$color11"
                 >
-                  ... show full roast
+                  ... show more
                 </Text>
               </Button>
             ) : null}
@@ -902,7 +944,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
           </YStack>
 
           <SettingsSectionHeader
-            title="How Bad Was It?"
+            title={voiceText.feedbackPanel.insights.overviewHeader}
             icon={BarChart3}
             testID="insights-v2-overview-header"
             borderBottomWidth={0}
@@ -1017,7 +1059,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
       {quote ? (
         <YStack gap="$3">
           <SettingsSectionHeader
-            title="Coach's Honest Take"
+            title={voiceText.feedbackPanel.insights.quoteHeader}
             icon={Sparkles}
             testID="insights-v2-quote-header"
             borderBottomWidth={0}
@@ -1069,7 +1111,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Achievements"
+          title={voiceText.feedbackPanel.insights.achievementsHeader}
           icon={Award}
           testID="insights-v2-achievements-header"
           borderBottomWidth={0}
@@ -1090,8 +1132,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         ) : (
           <StateDisplay
             type="empty"
-            title="No Achievements (Shocking, I Know)"
-            description="You haven't earned anything yet. Keep trying, maybe one day you'll get a participation trophy."
+            title={voiceText.feedbackPanel.insights.emptyStates.noAchievements.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noAchievements.description}
             icon="🏆"
             testID="insights-v2-achievements-empty"
           />
@@ -1100,7 +1142,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="What You're Terrible At"
+          title={voiceText.feedbackPanel.insights.focusHeader}
           icon={Target}
           testID="insights-v2-focus-header"
           borderBottomWidth={0}
@@ -1121,8 +1163,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         ) : (
           <StateDisplay
             type="empty"
-            title="Focus Areas Coming Soon"
-            description="We need more videos to identify all the ways you're failing. Don't worry, we'll find them."
+            title={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.description}
             icon="🎯"
             testID="insights-v2-focus-empty"
           />
@@ -1131,7 +1173,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Your Skill Breakdown (It's Not Pretty)"
+          title={voiceText.feedbackPanel.insights.skillHeader}
           icon={BarChart3}
           testID="insights-v2-skill-header"
           borderBottomWidth={0}
@@ -1151,14 +1193,15 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
               <SkillRow
                 key={skill.id}
                 skill={skill}
+                voiceText={voiceText}
               />
             ))}
           </YStack>
         ) : (
           <StateDisplay
             type="empty"
-            title="Skill Matrix Locked"
-            description="Record more videos so we can properly map out all your weaknesses. We're waiting."
+            title={voiceText.feedbackPanel.insights.emptyStates.noSkills.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noSkills.description}
             icon="📈"
             testID="insights-v2-skill-empty"
           />
@@ -1167,7 +1210,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="How You Crashed and Burned (Timeline)"
+          title={voiceText.feedbackPanel.insights.timelineHeader}
           icon={Sparkles}
           testID="insights-v2-timeline-header"
           borderBottomWidth={0}
@@ -1199,8 +1242,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         ) : (
           <StateDisplay
             type="empty"
-            title="Timeline Locked"
-            description="Add more videos so we can chart your journey from bad to... well, still bad, but documented."
+            title={voiceText.feedbackPanel.insights.emptyStates.noTimeline.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noTimeline.description}
             icon="⏱️"
             testID="insights-v2-timeline-empty"
           />
@@ -1209,7 +1252,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Highlights (and Lowlights)"
+          title={voiceText.feedbackPanel.insights.highlightsHeader}
           icon={Sparkles}
           testID="insights-v2-highlights-header"
           borderBottomWidth={0}
@@ -1222,14 +1265,15 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
                 key={highlight.id}
                 highlight={highlight}
                 onPress={onHighlightPress}
+                statusTokenMap={statusTokenMap}
               />
             ))}
           </YStack>
         ) : (
           <StateDisplay
             type="empty"
-            title="No Highlights Yet"
-            description="We're still collecting your worst moments. Once we have enough cringe, we'll compile it all here."
+            title={voiceText.feedbackPanel.insights.emptyStates.noHighlights.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noHighlights.description}
             icon="⭐️"
             testID="insights-v2-highlights-empty"
           />
@@ -1238,7 +1282,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="Your Intervention Plan"
+          title={voiceText.feedbackPanel.insights.actionsHeader}
           icon={Lightbulb}
           testID="insights-v2-actions-header"
           borderBottomWidth={0}
@@ -1257,8 +1301,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         ) : (
           <StateDisplay
             type="empty"
-            title="Action Plan Locked"
-            description="Complete more analyses so we can create a personalized plan to fix all your problems. It's going to be a long list."
+            title={voiceText.feedbackPanel.insights.emptyStates.noActions.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noActions.description}
             icon="💡"
             testID="insights-v2-actions-empty"
           />
@@ -1267,7 +1311,7 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
 
       <YStack gap="$3">
         <SettingsSectionHeader
-          title="AI Reels (Your Greatest Hits & Misses)"
+          title={voiceText.feedbackPanel.insights.reelsHeader}
           icon={Play}
           testID="insights-v2-reels-header"
           borderBottomWidth={0}
@@ -1286,8 +1330,8 @@ export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
         ) : (
           <StateDisplay
             type="empty"
-            title="Reels Coming Soon"
-            description="We're still editing together your best fails and rare wins. The compilation is going to be brutal."
+            title={voiceText.feedbackPanel.insights.emptyStates.noReels.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noReels.description}
             icon="🎬"
             testID="insights-v2-reels-empty"
           />

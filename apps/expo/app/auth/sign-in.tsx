@@ -1,3 +1,4 @@
+import { hasUserSetVoicePreferences } from '@my/api'
 import { SignInScreen } from '@my/app/features/Auth'
 import { useAuthStore } from '@my/app/stores/auth'
 import { log } from '@my/logging'
@@ -12,26 +13,38 @@ import { useRouter } from 'expo-router'
  */
 export default function SignInRoute() {
   const router = useRouter()
-  const user = useAuthStore((state) => state.user)
 
-  const handleSignInSuccess = () => {
-    log.info('SignInRoute', 'Sign in successful, redirecting to home', {
-      userId: user?.id,
-    })
-    router.replace('/')
-  }
+  const redirectAfterAuth = async () => {
+    const user = useAuthStore.getState().user
 
-  const handleAlreadyAuthenticated = () => {
-    log.debug('SignInRoute', 'User already authenticated, redirecting to home', {
-      userId: user?.id,
-    })
-    router.replace('/')
+    if (!user?.id) {
+      log.error('SignInRoute', 'No user ID available for voice preference check')
+      router.replace('/')
+      return
+    }
+
+    try {
+      const hasPreferences = await hasUserSetVoicePreferences(user.id)
+      const destination = hasPreferences ? '/' : '/onboarding/voice-selection'
+
+      log.info('SignInRoute', hasPreferences ? 'User has preferences' : 'First login detected', {
+        userId: user.id,
+        destination,
+      })
+      router.replace(destination as any)
+    } catch (error) {
+      log.error('SignInRoute', 'Failed to check voice preferences, redirecting to home', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: user.id,
+      })
+      router.replace('/')
+    }
   }
 
   return (
     <SignInScreen
-      onSignInSuccess={handleSignInSuccess}
-      onAlreadyAuthenticated={handleAlreadyAuthenticated}
+      onSignInSuccess={redirectAfterAuth}
+      onAlreadyAuthenticated={redirectAfterAuth}
     />
   )
 }

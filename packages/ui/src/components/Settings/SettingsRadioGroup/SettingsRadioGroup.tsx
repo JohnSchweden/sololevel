@@ -4,6 +4,27 @@ import { Label, RadioGroup, Text, XStack, YStack, type YStackProps } from 'tamag
 
 export type ThemeValue = 'light' | 'dark' | 'auto'
 
+/**
+ * Radio option with value and label
+ */
+export interface RadioOption {
+  value: string
+  label: string
+  /**
+   * Optional description text shown below label (when present, layout switches to vertical)
+   */
+  description?: string
+}
+
+/**
+ * Default theme options for backward compatibility
+ */
+const DEFAULT_THEME_OPTIONS: RadioOption[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'auto', label: 'Auto' },
+]
+
 export interface SettingsRadioGroupProps extends Omit<YStackProps, 'children'> {
   /**
    * Icon component from lucide-icons
@@ -38,14 +59,20 @@ export interface SettingsRadioGroupProps extends Omit<YStackProps, 'children'> {
   description: string
 
   /**
-   * Current theme value
+   * Radio options to display
+   * @default DEFAULT_THEME_OPTIONS (Light/Dark/Auto)
    */
-  value: ThemeValue
+  options?: RadioOption[]
 
   /**
-   * Callback when theme value changes
+   * Current value (must match one of the option values)
    */
-  onValueChange: (value: ThemeValue) => void
+  value: string
+
+  /**
+   * Callback when value changes
+   */
+  onValueChange: (value: string) => void
 
   /**
    * Test ID for testing
@@ -57,20 +84,33 @@ export interface SettingsRadioGroupProps extends Omit<YStackProps, 'children'> {
 /**
  * SettingsRadioGroup Component
  *
- * Radio group for theme selection with Light/Dark/Auto options.
+ * Generic radio group for settings with customizable options.
  * Follows mobile-first design with 44px touch targets and glass morphism styling.
  *
  * @example
  * ```tsx
+ * // Theme selection (uses default options)
  * <SettingsRadioGroup
  *   icon={Palette}
  *   iconColor="$blue10"
- *   iconBackground="$blue2"
- *   iconBorder="$blue4"
  *   title="Appearance"
  *   description="Choose your preferred theme"
  *   value="light"
  *   onValueChange={(value) => console.log(value)}
+ * />
+ *
+ * // Custom options
+ * <SettingsRadioGroup
+ *   icon={User}
+ *   iconColor="$blue10"
+ *   title="Voice Gender"
+ *   description="Male or female coach voice"
+ *   value="female"
+ *   onValueChange={(value) => console.log(value)}
+ *   options={[
+ *     { value: 'female', label: 'Female' },
+ *     { value: 'male', label: 'Male' },
+ *   ]}
  * />
  * ```
  */
@@ -81,54 +121,94 @@ export function SettingsRadioGroup({
   iconBorder: _iconBorder,
   title,
   description,
+  options = DEFAULT_THEME_OPTIONS,
   value,
   onValueChange,
   testID = 'settings-radio-group',
   ...props
 }: SettingsRadioGroupProps): React.ReactElement {
   const handleChange = (newValue: string) => {
-    if (newValue === 'light' || newValue === 'dark' || newValue === 'auto') {
-      onValueChange(newValue as ThemeValue)
+    // Only call onValueChange if the value is valid
+    const isValidOption = options.some((opt) => opt.value === newValue)
+    if (isValidOption) {
+      onValueChange(newValue)
     }
   }
 
-  const renderOption = (optionValue: ThemeValue, labelText: string, id: string) => {
-    const isSelected = value === optionValue
+  const renderOption = (option: RadioOption) => {
+    const isSelected = value === option.value
+    const id = `${testID}-${option.value}`
+    const hasDescription = Boolean(option.description)
 
     return (
-      <XStack
-        key={optionValue}
-        alignItems="center"
-        justifyContent="center"
-        minHeight={44}
-        flex={1}
-        paddingHorizontal="$4"
-        paddingVertical="$2"
-        backgroundColor={isSelected ? '$color8' : '$color2'}
-        borderWidth={1}
-        borderColor={isSelected ? '$color8' : '$color6'}
-        borderRadius="$4"
-        // pressStyle={{ scale: 0.98 }}
-        // hoverStyle={{ backgroundColor: '$color7' }}
-        gap="$2"
+      <Label
+        key={option.value}
+        htmlFor={id}
+        asChild
       >
-        <RadioGroup.Item
-          value={optionValue}
-          id={id}
-          size="$4"
+        <XStack
+          alignItems="center"
+          justifyContent={hasDescription ? 'flex-start' : 'center'}
+          minHeight={44}
+          flex={hasDescription ? undefined : 1}
+          width={hasDescription ? '100%' : undefined}
+          paddingHorizontal="$4"
+          paddingVertical={hasDescription ? '$3' : '$2'}
+          backgroundColor={isSelected ? '$color8' : '$color2'}
+          //borderWidth={1}
+          borderColor={isSelected ? '$color8' : '$color6'}
+          borderRadius="$4"
+          gap="$3"
+          cursor="pointer"
+          pressStyle={{ opacity: 0.8 }}
+          hoverStyle={{ opacity: 0.9 }}
+          testID={id}
         >
-          <RadioGroup.Indicator />
-        </RadioGroup.Item>
+          <RadioGroup.Item
+            value={option.value}
+            id={id}
+            size="$4"
+          >
+            <RadioGroup.Indicator />
+          </RadioGroup.Item>
 
-        <Label
-          htmlFor={id}
-          color={isSelected ? '$color12' : '$color11'}
-          fontSize="$4"
-          fontWeight={isSelected ? '600' : '400'}
-        >
-          {labelText}
-        </Label>
-      </XStack>
+          {hasDescription ? (
+            <YStack
+              flex={1}
+              //paddingTop="$2"
+              paddingBottom="$1.5"
+              gap="$0"
+              pointerEvents="none"
+            >
+              <Text
+                color={isSelected ? '$color12' : '$color11'}
+                fontSize="$5"
+                fontWeight={isSelected ? '600' : '400'}
+                lineHeight="$1"
+              >
+                {option.label}
+              </Text>
+              <Text
+                color={isSelected ? '$color11' : '$color10'}
+                fontSize="$3"
+                lineHeight="$1"
+                marginTop="$-0.5"
+              >
+                {option.description}
+              </Text>
+            </YStack>
+          ) : (
+            <Text
+              color={isSelected ? '$color12' : '$color11'}
+              fontSize="$4"
+              fontWeight={isSelected ? '600' : '400'}
+              pointerEvents="none"
+            >
+              {option.label}
+            </Text>
+          )}
+        </XStack>
+      </Label>
     )
   }
 
@@ -181,15 +261,22 @@ export function SettingsRadioGroup({
         onValueChange={handleChange}
         width="100%"
       >
-        <XStack
-          gap="$2"
-          flexWrap="wrap"
-          width="100%"
-        >
-          {renderOption('light', 'Light', 'theme-light')}
-          {renderOption('dark', 'Dark', 'theme-dark')}
-          {renderOption('auto', 'Auto', 'theme-auto')}
-        </XStack>
+        {options.some((opt) => opt.description) ? (
+          <YStack
+            gap="$0"
+            width="100%"
+          >
+            {options.map((option) => renderOption(option))}
+          </YStack>
+        ) : (
+          <XStack
+            gap="$2"
+            flexWrap="wrap"
+            width="100%"
+          >
+            {options.map((option) => renderOption(option))}
+          </XStack>
+        )}
       </RadioGroup>
     </YStack>
   )

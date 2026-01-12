@@ -1,6 +1,3 @@
-import { useAnimationCompletion } from '@ui/hooks/useAnimationCompletion'
-import { useRenderProfile } from '@ui/hooks/useRenderProfile'
-import { useSmoothnessTracking } from '@ui/hooks/useSmoothnessTracking'
 import { memo, useMemo } from 'react'
 import { Platform } from 'react-native'
 import Animated, {
@@ -16,6 +13,9 @@ import { BlurView } from '../../BlurView/BlurView'
 
 import { Text, YStack } from 'tamagui'
 import type { FeedbackMessage } from '../types'
+
+// Animation duration constant (replaces hardcoded 200ms values)
+const ANIMATION_DURATION = 200
 
 // Memoized BlurView style (static, reused across all bubbles)
 const BLUR_VIEW_STYLE = {
@@ -39,44 +39,6 @@ export interface FeedbackBubblesProps {
  * All animations now run on UI thread.
  */
 const SpeechBubble = memo(function SpeechBubble({ message }: { message: FeedbackMessage }) {
-  // Performance tracking: Track opacity and scale animations
-  // Tamagui animations are declarative, so we track state transitions
-  const targetOpacity = message.isActive ? 1 : 0.7
-  const targetScale = message.isHighlighted ? 1.05 : 1
-
-  // Track opacity animation completion (Tamagui "quick" animation = ~200ms)
-  const opacityCompletion = useAnimationCompletion({
-    currentValue: targetOpacity,
-    targetValue: targetOpacity,
-    estimatedDuration: 200,
-    componentName: 'FeedbackBubbles',
-    animationName: `bubble-opacity-${message.id}`,
-    direction: message.isActive ? 'fade-in' : 'fade-out',
-  })
-
-  // Track scale animation completion
-  const scaleCompletion = useAnimationCompletion({
-    currentValue: targetScale,
-    targetValue: targetScale,
-    estimatedDuration: 200,
-    componentName: 'FeedbackBubbles',
-    animationName: `bubble-scale-${message.id}`,
-    direction: message.isHighlighted ? 'scale-up' : 'scale-down',
-  })
-
-  // Track smoothness from duration measurements (intentionally unused return values)
-  void useSmoothnessTracking({
-    duration: opacityCompletion.actualDuration,
-    componentName: 'FeedbackBubbles',
-    animationName: `bubble-opacity-${message.id}`,
-  })
-
-  void useSmoothnessTracking({
-    duration: scaleCompletion.actualDuration,
-    componentName: 'FeedbackBubbles',
-    animationName: `bubble-scale-${message.id}`,
-  })
-
   // Reanimated style for opacity and scale (replaces Tamagui animation)
   const animatedStyle = useAnimatedStyle(() => {
     const targetOpacity = message.isActive ? 1 : 0.7
@@ -84,13 +46,13 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
 
     return {
       opacity: withTiming(targetOpacity, {
-        duration: 200,
+        duration: ANIMATION_DURATION,
         easing: Easing.inOut(Easing.ease),
       }),
       transform: [
         {
           scale: withTiming(targetScale, {
-            duration: 200,
+            duration: ANIMATION_DURATION,
             easing: Easing.inOut(Easing.ease),
           }),
         },
@@ -116,7 +78,7 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
       {/* Blur background layer */}
       {Platform.OS === 'ios' ? (
         <BlurView
-          intensity={15}
+          intensity={25}
           tint="light"
           style={BLUR_VIEW_STYLE}
         />
@@ -158,18 +120,6 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({
   messages,
   collapseProgress,
 }: FeedbackBubblesProps) {
-  // Performance tracking: Render profile
-  useRenderProfile({
-    componentName: 'FeedbackBubbles',
-    enabled: __DEV__,
-    logInterval: 20,
-    trackProps: {
-      messageCount: messages.length,
-      activeCount: messages.filter((m) => m.isActive).length,
-      highlightedCount: messages.filter((m) => m.isHighlighted).length,
-    },
-  })
-
   // Compute bottom value based on max mode (collapseProgress <= 0.1)
   const bottomValue = useDerivedValue(() => {
     if (!collapseProgress) {
@@ -207,8 +157,8 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(200)}
-      exiting={FadeOut.duration(200)}
+      entering={FadeIn.duration(ANIMATION_DURATION)}
+      exiting={FadeOut.duration(ANIMATION_DURATION)}
       style={[
         {
           position: 'absolute',
@@ -231,8 +181,8 @@ export const FeedbackBubbles = memo(function FeedbackBubbles({
         {visibleMessages.map((message) => (
           <Animated.View
             key={message.id}
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(200)}
+            entering={FadeIn.duration(ANIMATION_DURATION)}
+            exiting={FadeOut.duration(ANIMATION_DURATION)}
             style={{
               zIndex: message.isHighlighted ? 10 : 5,
             }}

@@ -6,11 +6,14 @@ import {
 } from '../../_shared/services/index.ts'
 import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
 
-type AnalysisMode = 'mock' | 'live'
-
-function getAnalysisMode(): AnalysisMode {
-  const mode = (globalThis as any).Deno?.env?.get('AI_ANALYSIS_MODE')?.toLowerCase()
-  return mode === 'mock' ? 'mock' : 'live'
+/**
+ * Check if mock services should be used (bypasses real pipeline entirely)
+ * Use AI_ANALYSIS_MOCK_SERVICES to control service selection
+ * Use AI_ANALYSIS_MODE to control mock responses inside real services
+ */
+function useMockServices(): boolean {
+  const mockServices = (globalThis as any).Deno?.env?.get('AI_ANALYSIS_MOCK_SERVICES')
+  return mockServices === 'true'
 }
 
 let cachedSSMLService: GeminiSSMLService | MockSSMLService | null = null
@@ -21,7 +24,7 @@ export function getSSMLServiceForRuntime(): GeminiSSMLService | MockSSMLService 
     return cachedSSMLService
   }
 
-  cachedSSMLService = getAnalysisMode() === 'mock'
+  cachedSSMLService = useMockServices()
     ? new MockSSMLService()
     : new GeminiSSMLService(geminiLLMFeedback)
 
@@ -33,7 +36,7 @@ export function getTTSServiceForRuntime(): GeminiTTSService | MockTTSService {
     return cachedTTSService
   }
 
-  cachedTTSService = getAnalysisMode() === 'mock'
+  cachedTTSService = useMockServices()
     ? new MockTTSService()
     : new GeminiTTSService()
 

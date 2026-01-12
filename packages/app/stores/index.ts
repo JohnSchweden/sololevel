@@ -14,10 +14,22 @@ export type {
   FeatureFlagsStore,
 } from './feature-flags'
 
+export {
+  useVoicePreferencesStore,
+  initializeVoicePreferencesAuthSync,
+  cleanupVoicePreferencesAuthSync,
+} from './voicePreferences'
+export type {
+  VoicePreferencesActions,
+  VoicePreferencesState,
+  VoicePreferencesStore,
+} from './voicePreferences'
+
 // Import stores for use in selectors
 import { useAuthStore } from './auth'
 import { type FeatureFlags, useFeatureFlagsStore } from './feature-flags'
 import { useThemeStore } from './theme'
+import { useVoicePreferencesStore } from './voicePreferences'
 
 // Re-export commonly used selectors
 export const useAuth = () =>
@@ -58,4 +70,21 @@ export const useFeatureFlagsActions = () =>
     toggleFlag: state.toggleFlag,
     resetFlags: state.resetFlags,
     loadFlags: state.loadFlags,
+  }))
+
+export const useVoicePreferences = () =>
+  useVoicePreferencesStore((state) => ({
+    gender: state.gender,
+    mode: state.mode,
+    isLoaded: state.isLoaded,
+    isSyncing: state.isSyncing,
+  }))
+
+export const useVoicePreferencesActions = () =>
+  useVoicePreferencesStore((state) => ({
+    setGender: state.setGender,
+    setMode: state.setMode,
+    loadFromDatabase: state.loadFromDatabase,
+    syncToDatabase: state.syncToDatabase,
+    reset: state.reset,
   }))

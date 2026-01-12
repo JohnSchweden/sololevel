@@ -202,6 +202,7 @@ function transformToCache(
     storagePath: storagePath ?? undefined,
     results: job.results as AnalysisResults,
     poseData: (job.pose_data as PoseData | null) || undefined,
+    avatarAssetKeyUsed: (job as any).avatar_asset_key_used ?? undefined,
   }
 }
 

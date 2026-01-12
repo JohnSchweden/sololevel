@@ -14,6 +14,7 @@ export interface VideoAnalysisContext {
   videoPath: string
   analysisParams?: VideoAnalysisParams
   progressCallback?: (progress: number) => Promise<void>
+  customPrompt?: string // Override default prompt with config-injected prompt
 }
 
 export interface VideoAnalysisResult {
@@ -52,7 +53,7 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
   }
 
   async analyze(context: VideoAnalysisContext): Promise<VideoAnalysisResult> {
-    const { supabase, videoPath, analysisParams, progressCallback } = context
+    const { supabase, videoPath, analysisParams, progressCallback, customPrompt } = context
 
     logger.info(`Starting video analysis for: ${videoPath}`)
 
@@ -61,7 +62,8 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
         supabase,
         videoPath,
         analysisParams,
-        progressCallback
+        progressCallback,
+        customPrompt // Pass custom prompt to Gemini analysis
       )
 
       const result: VideoAnalysisResult = {

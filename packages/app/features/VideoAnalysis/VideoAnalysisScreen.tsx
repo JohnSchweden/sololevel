@@ -5,6 +5,7 @@ import { log } from '@my/logging'
 import type { VideoControlsRef } from '@ui/components/VideoAnalysis'
 // PERFORMANCE FIX: useVideoPlayer moved to VideoPlayerSection to prevent screen re-renders
 // import { useVideoPlayer } from './hooks/useVideoPlayer'
+import { useVoicePreferencesStore } from '../../stores/voicePreferences'
 import { useVideoHistoryStore } from '../HistoryProgress/stores/videoHistory'
 import { VideoAnalysisLayout } from './components/VideoAnalysisLayout.native'
 import { useAnalysisState } from './hooks/useAnalysisState'
@@ -444,6 +445,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
   // useHistoricalAnalysis returns data: CachedAnalysis | null (not HistoricalAnalysisData)
   let analysisTitle = historical.data?.title ?? undefined
   let fullFeedbackText = historical.data?.fullFeedbackText ?? undefined
+  let avatarAssetKey = historical.data?.avatarAssetKeyUsed ?? undefined
 
   // For active analyses (not in history mode), try to get title and full feedback from cache
   // CRITICAL: Use selector hook (not getState()) to subscribe to cache updates
@@ -459,6 +461,28 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
   }
   if (cachedAnalysis?.fullFeedbackText) {
     fullFeedbackText = cachedAnalysis.fullFeedbackText
+  }
+  if (cachedAnalysis?.avatarAssetKeyUsed) {
+    avatarAssetKey = cachedAnalysis.avatarAssetKeyUsed
+  }
+
+  // CRITICAL: Subscribe to Zustand for avatar updates in HISTORY MODE
+  // The backfill in useHistoricalAnalysis updates Zustand after TanStack Query returns
+  // TanStack Query cache is stale, but Zustand has the fresh backfilled value
+  const historyModeAvatar = useVideoHistoryStore((state) =>
+    isHistoryMode && analysisJobId ? state.getCached(analysisJobId)?.avatarAssetKeyUsed : undefined
+  )
+  if (isHistoryMode && historyModeAvatar && !avatarAssetKey) {
+    avatarAssetKey = historyModeAvatar
+  }
+
+  // Fallback for FRESH analysis only: Use current voice preferences
+  // This handles cache entries created before server set avatar_asset_key_used
+  // For history mode: avatar comes from cache/DB, don't override with current preferences
+  const voiceGender = useVoicePreferencesStore((s) => s.gender)
+  const voiceMode = useVoicePreferencesStore((s) => s.mode)
+  if (!isHistoryMode && !avatarAssetKey && voiceGender && voiceMode) {
+    avatarAssetKey = `${voiceGender}_${voiceMode}`
   }
 
   // NOTE: fullFeedbackText is now fetched via the analysis subscription (subscribeToAnalysisTitle)
@@ -538,6 +562,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       isReady: !isProcessing,
       isProcessing,
       initialStatus: normalizedInitialStatus as 'processing' | 'ready' | 'playing' | 'paused',
+      avatarAssetKey,
     }),
     [
       historical.data?.videoUri,
@@ -545,6 +570,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       props.videoUri,
       isProcessing,
       normalizedInitialStatus,
+      avatarAssetKey,
     ]
   )
 
@@ -794,6 +820,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
         key: subscriptionKey,
         shouldSubscribe: !isHistoryMode,
       }}
+      voiceMode={voiceMode}
     />
   )
 }

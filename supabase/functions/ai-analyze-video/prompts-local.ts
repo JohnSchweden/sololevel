@@ -3,6 +3,8 @@
  * Contains full implementation of prompts-edge package for development
  */
 
+import type { VoiceConfigPromptParams } from '../_shared/types/voice-config.ts'
+
 // Types for Edge Functions
 export interface PromptItem {
   timestamp: number
@@ -51,14 +53,36 @@ function renderTemplate(template: string, params: Record<string, unknown>): stri
 
 
 
-// Gemini Analysis Prompt Template (migrated from Python)
-export const GEMINI_ANALYSIS_PROMPT_TEMPLATE: string = `
-**Role:** World-class Performance Coach (Ruthless/Sharp Insight).
-**Voice:** "Roast me!!!" Use playful insults and biting humour (Brutal, memorable, transformative).
-**Context:** Video Duration: **{duration}s**
+/**
+ * Base Prompt Template with Config Injection
+ * Structural elements (task, timing, format) in code
+ * Variable elements (voice, personality) from database config
+ */
+export const BASE_PROMPT_TEMPLATE: string = `
+**Role:** World-class Performance Coach ({PERSONALITY}).
+**Voice:** {VOICE}
+**Context:** Video Duration: **{DURATION}s**
+
+**STRICT CONSTRAINTS (CRITICAL)**
+1. **NO FASHION POLICE**: Do not mention clothing, accessories (e.g., flip-flops, glasses), hair, or background.
+2. **Focus on Biomechanics**: If they are unstable, blame their muscle engagement or stance width, not their shoes.
+3. **Focus on Psychology**: If they look weak, blame their intent or focus, not their outfit.
 
 **Task**
-Analyze the segment and provide **2 to 4** high-impact feedback points.
+- Analyze the segment and provide **2 to 4** high-impact feedback points based purely on performance skills and execution.
+
+**Categories to analyze**
+- **Posture**: Body positioning, confidence indicators
+- **Balance**: Weight distribution, stance width, center of gravity.
+- **Movement**: Gestures, positioning, engagement
+- **Speech**: Clarity, pace, tone
+- **Vocal Variety**: Tonal dynamics, projection power.
+- **Body Language**: Eye contact, sub-communication, confident stillness.
+- **Grammatical Accuracy**: Pronunciation, grammar, syntax, clarity.
+
+**Bonus tasks (If speech is present)**
+- Spot and count filler words and phrases (e.g. "um", "like", "you know", "you see", "you know what I mean", etc.).
+- Spot and count grammatical errors and spelling mistakes.
 
 **Timing Constraints**
 1. **Lead-in:** First timestamp must be **> 5.0s**.
@@ -67,13 +91,89 @@ Analyze the segment and provide **2 to 4** high-impact feedback points.
 4. **Priority:** If spacing prevents the next item, provide only one superior point.
 
 **Output Format**
-Return two blocks: **TEXT FEEDBACK** and **JSON DATA**.
+Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
+
+=== TITLE START ===
+[Title matching the voice/personality - max 60 chars]
+=== TITLE END ===
 
 === TEXT FEEDBACK START ===
-**Title Start**
-[Humorous Roast Title - max 60 chars]
-**Title End**
+**Big Picture**
+[Brief overarching summary in the configured voice]
 
+**Analysis**
+[Detailed analysis of skills and execution in the configured personality]
+
+**Filler Words and Phrases**
+[List of filler words and phrases found in the segment]
+
+**Grammatical Errors and Spelling Mistakes**
+[List of grammatical errors and spelling mistakes found in the segment]
+
+**Format: Table**
+* Timestamp: [s.t]
+* Category: [Movement, Posture, Speech, Vocal Variety]
+* Feedback: [Concise feedback in configured voice]
+* Confidence: [0.1-1.0]
+* Impact: [0.10-0.50]
+*(Repeat for next item if applicable)*
+
+**Bonus**
+[One specific 5-min drill for the #1 issue]
+=== TEXT FEEDBACK END ===
+
+=== JSON DATA START ===
+\`\`\`json
+{
+  "feedback": [
+    {
+      "timestamp": 0.0,
+      "category": "String",
+      "message": "String",
+      "confidence": 0.0,
+      "impact": 0.0
+    }
+  ]
+}
+\`\`\`
+=== JSON DATA END ===`
+
+/**
+ * Legacy Gemini Analysis Prompt Template (hardcoded Roast mode)
+ * @deprecated Use buildPromptFromConfig() with voice config instead
+ */
+export const GEMINI_ANALYSIS_PROMPT_TEMPLATE: string = `
+**Role:** World-class Performance Coach (Ruthless/Sharp Insight).
+**Voice:** "Roast me!!!" Use playful insults and biting humour (Brutal, memorable, transformative).
+**Context:** Video Duration: **{duration}s**
+
+**Task**
+Analyze the segment and provide **2 to 4** high-impact feedback points.
+
+**Categories to analyze**
+- **Posture**: Body positioning, confidence indicators
+- **Balance**: Weight distribution, stance width, center of gravity.
+- **Movement**: Gestures, positioning, engagement
+- **Speech**: Clarity, pace, tone
+- **Vocal Variety**: Tonal dynamics, projection power.
+- **Resonance**: Voice quality, clarity, depth, resonance.
+- **Body Language**: Eye contact, sub-communication, confident stillness.
+- **Grammatical Accuracy**: Pronunciation, grammar, syntax, clarity.
+
+**Timing Constraints**
+1. **Lead-in:** First timestamp must be **> 5.0s**.
+2. **Reactionary:** Place timestamps **0.5s–1.5s AFTER** the specific error occurs.
+3. **Spacing:** Maintain a **> 5.0s gap** between feedback points. 
+4. **Priority:** If spacing prevents the next item, provide only one superior point.
+
+**Output Format**
+Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
+
+=== TITLE START ===
+[Humorous Roast Title - max 60 chars]
+=== TITLE END ===
+
+=== TEXT FEEDBACK START ===
 **Big Picture**
 [Provide a brief, overarching summary of the core theme and issues]
 
@@ -107,6 +207,44 @@ Return two blocks: **TEXT FEEDBACK** and **JSON DATA**.
 }
 \`\`\`
 === JSON DATA END ===`
+
+/**
+ * Default Roast configuration for backward compatibility
+ * Matches seed data for female/roast from coach_voice_configs table
+ */
+const DEFAULT_ROAST_CONFIG: VoiceConfigPromptParams = {
+  promptVoice: '"Roast me!!!" Use playful insults and biting humour (Brutal, memorable, transformative).',
+  promptPersonality: 'Ruthless/Sharp Insight',
+  ssmlSystemInstruction: 'You are a sarcastic comedian with sharp wit. Format the text with comedic timing.',
+}
+
+/**
+ * Build prompt from voice config and duration
+ * Injects voice and personality from database config into base template
+ * 
+ * @param config - Voice configuration with promptVoice and promptPersonality
+ * @param duration - Video duration in seconds
+ * @returns Fully assembled prompt with injected values
+ * 
+ * @example
+ * ```typescript
+ * const config = {
+ *   promptVoice: 'Zen me. Calm, mindful coaching...',
+ *   promptPersonality: 'Peaceful/Supportive Guide'
+ * }
+ * const prompt = buildPromptFromConfig(config, 6.3)
+ * ```
+ */
+export function buildPromptFromConfig(
+  config: VoiceConfigPromptParams,
+  duration: number
+): string {
+  const formattedDuration = duration.toFixed(1).replace(/\.0$/, '')
+  return BASE_PROMPT_TEMPLATE
+    .replace('{PERSONALITY}', config.promptPersonality)
+    .replace('{VOICE}', config.promptVoice)
+    .replace('{DURATION}', formattedDuration)
+}
 
 
 
@@ -159,21 +297,25 @@ Analyze this video chunk from {start_time}s to {end_time}s (duration: {duration}
 
 
 // SSML System Instructions
-export const SSML_SYSTEM_INSTRUCTION = ``
-// `You use modern US slang and deliver punchlines with perfect
-// comedic timing. Your purpose is to roast the user in a playful but biting manner.
-// `
-
+/**
+ * @deprecated Use ssml_system_instruction from coach_voice_configs table instead
+ * Default roast-style instruction kept only for backward compatibility
+ */
 export const SSML_SYSTEM_INSTRUCTION_DEFAULT: string = `You are a professional, sarcastic comedian with a sharp wit and a laid-back,
-confident US accent. ${SSML_SYSTEM_INSTRUCTION}`
+confident US accent.`
 
 // SSML User Prompts
+/**
+ * @deprecated Use ssml_system_instruction from coach_voice_configs table instead
+ */
 export const SSML_USER_PROMPT_DEFAULT = ``
-// `Generate an SSML text with wider ranges for pitch and rate to emphasise key words
-// and phrases, use natural speech patterns, add appropriate pauses and breaks for
-// comedic timing, and more dynamic changes in volume.`
 
-// SSML Generation PromptTemplate
+// SSML Generation Prompt Template
+/**
+ * Template for SSML generation with dynamic system instruction injection
+ * {system_instruction} should come from coach_voice_configs.ssml_system_instruction
+ * Falls back to SSML_SYSTEM_INSTRUCTION_DEFAULT if not provided
+ */
 export const SSML_GENERATION_PROMPT_TEMPLATE = `
 {system_instruction}
 
@@ -184,21 +326,13 @@ Feedback text to convert to SSML:
 
 **CRITICAL:** Convert the provided feedback text to SSML. **DO NOT** rewrite, summarize, or change the words.
 
-Your task:
-1. Use the text exactly as provided.
-2. Add SSML markup that enhances the delivery with:
-   - Appropriate pauses (<break>) for comedic timing
-   - Emphasis (<emphasis>) on key roast words
-   - Prosody (<prosody>) adjustments for sarcasm and speed
-
-Return only the SSML content with Max 200 characters, starting with <speak> and ending with </speak>.`
+Return only the SSML content, starting with <speak> and ending with </speak>.`
 
 
 
 
 // TTS Generation Prompt Template
 export const TTS_GENERATION_PROMPT_TEMPLATE = `
-${SSML_SYSTEM_INSTRUCTION}
 Enhances this feedback with:
 - Appropriate pauses and breaks for comedic timing
 - Emphasis on key words and phrases
@@ -211,7 +345,10 @@ Enhances this feedback with:
 // Default values for analysis prompts
 const GEMINI_DEFAULTS = {
   duration: 6.3,
-  // Unused variables (commented out - new prompt template only uses duration):
+}
+
+const QWEN_DEFAULTS = {
+  duration: 6.3,
   // start_time: 0,
   // end_time: 6.3,
   // feedback_count: 1,
@@ -220,18 +357,10 @@ const GEMINI_DEFAULTS = {
   // first_timestamp: 5,
 }
 
-const QWEN_DEFAULTS = {
-  duration: 6.3,
-  start_time: 0,
-  end_time: 6.3,
-  feedback_count: 1,
-  target_timestamps: [5],
-  min_gap: 5,
-  first_timestamp: 5,
-}
-
 const SSML_DEFAULTS = {
-  system_instruction: SSML_SYSTEM_INSTRUCTION_DEFAULT,
+  // NOTE: system_instruction should come from coach_voice_configs.ssml_system_instruction
+  // Empty default ensures database value is used; fallback text only if truly missing
+  system_instruction: '',
   user_prompt: '',
 }
 
@@ -248,11 +377,15 @@ function applyDefaults<T extends Record<string, unknown>>(params: T, defaults: R
 
 /**
  * Generate Gemini analysis prompt with parameters
+ * @deprecated Use buildPromptFromConfig() with voice config for dynamic voice/mode support
+ * This function is kept for backward compatibility and uses default Roast configuration
  */
 export function getGeminiAnalysisPrompt(params: GeminiAnalysisParams = {}): string {
   const mergedParams = applyDefaults(params, GEMINI_DEFAULTS)
-  // Note: New prompt template only uses {duration}, so no special array processing needed
-  return renderTemplate(GEMINI_ANALYSIS_PROMPT_TEMPLATE, mergedParams)
+  const duration = mergedParams.duration as number
+  
+  // Delegate to buildPromptFromConfig with default Roast config
+  return buildPromptFromConfig(DEFAULT_ROAST_CONFIG, duration)
 }
 
 /**
@@ -261,8 +394,17 @@ export function getGeminiAnalysisPrompt(params: GeminiAnalysisParams = {}): stri
 export function getQwenAnalysisPrompt(params: QwenAnalysisParams = {}): string {
   const mergedParams = applyDefaults(params, QWEN_DEFAULTS)
   // Handle array parameters specially for template rendering
+  // Format timing values to 1 decimal place for consistency, trim trailing .0
+  const formatDuration = (value: unknown): string | unknown => {
+    return typeof value === 'number' ? value.toFixed(1).replace(/\.0$/, '') : value
+  }
   const processedParams = {
     ...mergedParams,
+    duration: formatDuration(mergedParams.duration),
+    start_time: formatDuration(mergedParams.start_time),
+    end_time: formatDuration(mergedParams.end_time),
+    first_timestamp: formatDuration(mergedParams.first_timestamp),
+    min_gap: formatDuration(mergedParams.min_gap),
     target_timestamps: mergedParams.target_timestamps?.join(', ') || '5, 15, 25'
   }
   return renderTemplate(QWEN_ANALYSIS_PROMPT_TEMPLATE, processedParams)
@@ -275,13 +417,6 @@ export function getQwenAnalysisPrompt(params: QwenAnalysisParams = {}): string {
 export function getSSMLGenerationPrompt(params: SSMLGenerationParams): string {
   const mergedParams = applyDefaults(params, SSML_DEFAULTS)
   return renderTemplate(SSML_GENERATION_PROMPT_TEMPLATE, mergedParams)
-}
-
-/**
- * Generate SSML template with full control over all parameters
- */
-export function getSSMLTemplate(params: SSMLGenerationParams): string {
-  return getSSMLGenerationPrompt(params)
 }
 
 

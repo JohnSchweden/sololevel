@@ -1,6 +1,6 @@
 ---
 description: Operational standards for daily development - command usage, Yarn 4 workspace management, dependency handling, testing, and CI requirements. 
-alwaysApply: false
+alwaysApply: true
 globs: 
   - "**/package.json"
   - "yarn.lock"

@@ -185,7 +185,8 @@ const determinePhase = (params: {
     }
   }
 
-  if (feedback.hasFailures) {
+  // Only SSML failures block video playback - audio failures are graceful degradation
+  if (feedback.hasBlockingFailures) {
     return {
       phase: 'error',
       error: {
@@ -570,6 +571,8 @@ export function useAnalysisState(
           ssmlCompleted: 0,
           audioCompleted: 0,
           fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
           hasFailures: false,
           isProcessing: false,
           completionPercentage: 0,
@@ -577,6 +580,8 @@ export function useAnalysisState(
         isSubscribed: false,
         isProcessing: false,
         hasFailures: false,
+        hasBlockingFailures: false,
+        hasAudioFailures: false,
         isFullyCompleted: false,
         getFeedbackById: () => null,
         retryFailedFeedback: () => {},
@@ -637,8 +642,11 @@ export function useAnalysisState(
       return false
     }
 
+    // Accept both terminal states: 'completed' (audio ready) or 'failed' (processing done, show retry)
     return feedbackStatus.feedbackItems.some(
-      (item) => item.id === earliest.id && item.audioStatus === 'completed'
+      (item) =>
+        item.id === earliest.id &&
+        (item.audioStatus === 'completed' || item.audioStatus === 'failed')
     )
   }, [feedbackStatus.feedbackItems])
 

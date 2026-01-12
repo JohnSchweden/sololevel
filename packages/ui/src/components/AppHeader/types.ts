@@ -1,3 +1,4 @@
+import type { CoachMode } from '@my/config'
 import type { ReactNode } from 'react'
 import type { ThemeName } from 'tamagui'
 
@@ -50,4 +51,6 @@ export interface AppHeaderProps {
   topInset?: number // Status bar height to extend blur to top edge
   // Blur props
   disableBlur?: boolean // Disable blur background (useful when parent already has blur)
+  // Voice mode for notifications
+  voiceMode?: CoachMode
 }

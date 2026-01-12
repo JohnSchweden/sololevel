@@ -240,7 +240,7 @@ export function SignInScreen({ onSignInSuccess, onAlreadyAuthenticated }: SignIn
                   textAlign="center"
                   letterSpacing={-0.85}
                 >
-                  Welcome Back
+                  Welcome to Solo:Level
                 </H2>
                 <Paragraph
                   fontSize="$4"

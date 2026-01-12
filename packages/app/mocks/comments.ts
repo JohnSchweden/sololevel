@@ -1,3 +1,5 @@
+import { type CoachMode, VOICE_TEXT_CONFIG } from '@my/config'
+
 /**
  * Mock comment items for VideoAnalysis feature
  * Used as fallback when no real comment data is available
@@ -54,93 +56,56 @@ const getAvatarUrl = (name: string): string => {
   )
 }
 
-export const mockComments: CommentItem[] = [
-  {
-    id: 'seed-comment-1',
-    authorName: 'Peter Parker',
-    avatarUrl: getAvatarUrl('Peter Parker'),
-    text: 'Your hand gestures are doing more work than your words. But the energy? Infectious. Keep it up.',
-    timeAgo: '1d',
-    likes: 1100,
-    repliesCount: 7,
+/**
+ * Generate mock comments based on voice mode
+ * Converts voice text demoComments to CommentItem format
+ */
+export function getMockComments(voiceMode: CoachMode = 'roast'): CommentItem[] {
+  const demoComments = VOICE_TEXT_CONFIG[voiceMode].comments.demoComments
+
+  // Helper to parse timeAgo string to milliseconds offset
+  const parseTimeAgo = (timeAgo: string): number => {
+    if (timeAgo.includes('d')) {
+      const days = Number.parseInt(timeAgo.replace('d', '').trim(), 10) || 1
+      return Date.now() - days * 24 * 60 * 60 * 1000
+    }
+    if (timeAgo.includes('h')) {
+      const hours = Number.parseInt(timeAgo.replace('h', '').trim(), 10) || 1
+      return Date.now() - hours * 60 * 60 * 1000
+    }
+    if (timeAgo.includes('m')) {
+      const minutes = Number.parseInt(timeAgo.replace('m', '').trim(), 10) || 1
+      return Date.now() - minutes * 60 * 1000
+    }
+    return Date.now() - 24 * 60 * 60 * 1000 // Default to 1 day ago
+  }
+
+  // Generate additional comments to reach 8 total (matching original structure)
+  // Cycle through demoComments and add some variations
+  const allComments: Array<{ authorName: string; text: string; timeAgo: string }> = [
+    ...demoComments,
+    ...demoComments.slice(0, Math.max(0, 8 - demoComments.length)).map((comment, index) => ({
+      ...comment,
+      timeAgo: `${index + 4}h`, // Vary timestamps
+    })),
+  ].slice(0, 8)
+
+  // Sample likes/replies for variety (mode-independent)
+  const likesDistribution = [1100, 234, 567, 89, 445, 312, 678, 123]
+  const repliesDistribution = [7, 3, 12, 4, 2, 0, 8, 1]
+
+  return allComments.map((comment, index) => ({
+    id: `seed-comment-${index + 1}`,
+    authorName: comment.authorName,
+    avatarUrl: getAvatarUrl(comment.authorName),
+    text: comment.text,
+    timeAgo: comment.timeAgo,
+    likes: likesDistribution[index % likesDistribution.length],
+    repliesCount: repliesDistribution[index % repliesDistribution.length],
     parentId: null,
-    createdAt: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
-  },
-  {
-    id: 'seed-comment-2',
-    authorName: 'Thor',
-    avatarUrl: getAvatarUrl('Thor'),
-    text: '47 "ums" in 3 minutes. But when you got going? Legendary. 🔥',
-    timeAgo: '2h',
-    likes: 234,
-    repliesCount: 3,
-    parentId: null,
-    createdAt: Date.now() - 2 * 60 * 60 * 1000, // 2 hours ago
-  },
-  {
-    id: 'seed-comment-3',
-    authorName: 'Tony Stark',
-    avatarUrl: getAvatarUrl('Tony Stark'),
-    text: 'Your pacing improved from start to finish. You found your rhythm and it shows.',
-    timeAgo: '5h',
-    likes: 567,
-    repliesCount: 12,
-    parentId: null,
-    createdAt: Date.now() - 5 * 60 * 60 * 1000, // 5 hours ago
-  },
-  {
-    id: 'seed-comment-4',
-    authorName: 'Natasha Romanoff',
-    avatarUrl: getAvatarUrl('Natasha Romanoff'),
-    text: "That recovery at 2:30 was smooth. Most people panic. You kept going. That's pro level.",
-    timeAgo: '8h',
-    likes: 89,
-    repliesCount: 4,
-    parentId: null,
-    createdAt: Date.now() - 8 * 60 * 60 * 1000, // 8 hours ago
-  },
-  {
-    id: 'seed-comment-5',
-    authorName: 'Steve Rogers',
-    avatarUrl: getAvatarUrl('Steve Rogers'),
-    text: 'Eye contact game is strong. Those pauses for emphasis? Perfect.',
-    timeAgo: '12h',
-    likes: 445,
-    repliesCount: 2,
-    parentId: null,
-    createdAt: Date.now() - 12 * 60 * 60 * 1000, // 12 hours ago
-  },
-  {
-    id: 'seed-comment-6',
-    authorName: 'Bruce Banner',
-    avatarUrl: getAvatarUrl('Bruce Banner'),
-    text: "You're reading your notes too much. But when you look up and connect? That's when it clicks. Trust yourself.",
-    timeAgo: '1d',
-    likes: 312,
-    repliesCount: 0,
-    parentId: null,
-    createdAt: Date.now() - 25 * 60 * 60 * 1000, // 1 day ago
-  },
-  {
-    id: 'seed-comment-7',
-    authorName: 'Wanda Maximoff',
-    avatarUrl: getAvatarUrl('Wanda Maximoff'),
-    text: "Love how authentic you are. You're not trying to be someone else. That vulnerability makes everything you say hit harder.",
-    timeAgo: '2d',
-    likes: 678,
-    repliesCount: 8,
-    parentId: null,
-    createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000, // 2 days ago
-  },
-  {
-    id: 'seed-comment-8',
-    authorName: 'Vision',
-    avatarUrl: getAvatarUrl('Vision'),
-    text: "Voice projection needs work. I had to turn up my volume. But your content structure? Impeccable. Match delivery to substance and you're unstoppable.",
-    timeAgo: '3d',
-    likes: 123,
-    repliesCount: 1,
-    parentId: null,
-    createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000, // 3 days ago
-  },
-]
+    createdAt: parseTimeAgo(comment.timeAgo),
+  }))
+}
+
+// Export default constant for backward compatibility (uses 'roast' mode)
+export const mockComments: CommentItem[] = getMockComments('roast')

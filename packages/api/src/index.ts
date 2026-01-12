@@ -96,6 +96,23 @@ export {
   type UserFeedback,
   type UserFeedbackInsert,
 } from './services/feedbackService'
+// Voice config service
+export {
+  getVoiceConfig,
+  type CoachGender,
+  type CoachMode,
+  type CoachVoiceConfig,
+} from './services/voiceConfigService'
+// Voice preferences service
+export {
+  hasUserSetVoicePreferences,
+  getUserVoicePreferences,
+  updateVoicePreferences,
+  updateAnalysisJobVoiceSnapshot,
+  type VoicePreferences,
+  type VoicePreferencesUpdate,
+  type AnalysisJobVoiceSnapshot,
+} from './services/voicePreferencesService'
 
 // AI Analysis Edge service types
 export type {

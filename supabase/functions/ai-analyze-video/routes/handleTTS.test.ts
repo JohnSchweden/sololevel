@@ -24,7 +24,81 @@ function assertGreaterThan(actual: number, expected: number, message?: string) {
 }
 
 // Test setup
-const mockSupabase = {}
+const mockSupabase = {
+  from: (table: string) => {
+    if (table === 'analysis_jobs') {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({
+              data: {
+                id: 1,
+                analysis_id: 1,
+                video_recordings: {
+                  user_id: 'test-user-123'
+                },
+                feedback: [
+                  {
+                    id: 1,
+                    timestamp_seconds: 2.5,
+                    category: 'Posture',
+                    message: 'Test feedback message',
+                    confidence: 0.9,
+                    impact: 0.7
+                  }
+                ]
+              },
+              error: null
+            })
+          })
+        })
+      }
+    }
+    if (table === 'profiles') {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({
+              data: {
+                coach_gender: 'female',
+                coach_mode: 'zen'
+              },
+              error: null
+            })
+          })
+        })
+      }
+    }
+    if (table === 'coach_voice_configs') {
+      return {
+        select: () => ({
+          eq: (_field: string, _value: any) => {
+            const chainable = {
+              eq: (_field2: string, _value2: any) => chainable,
+              single: () => Promise.resolve({
+                data: {
+                  id: 1,
+                  gender: 'female',
+                  mode: 'zen',
+                  voice_name: 'Gacrux',
+                  tts_system_instruction: 'Test instruction',
+                  prompt_voice: 'Zen voice',
+                  prompt_personality: 'Calm',
+                  avatar_asset_key: 'coach_female_zen'
+                },
+                error: null
+              })
+            }
+            return chainable
+          }
+        })
+      }
+    }
+    return {
+      select: () => ({ eq: () => Promise.resolve({ data: null, error: null }) })
+    }
+  }
+}
 const mockLogger = {
   info: () => {},
   error: () => {},
@@ -125,3 +199,4 @@ Deno.test('should generate TTS from SSML input', async () => {
     }
   }
 })
+

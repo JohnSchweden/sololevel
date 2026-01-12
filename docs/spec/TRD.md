@@ -6,18 +6,33 @@
 
 **Clients:** Expo (iOS/Android) + Expo Router (Web) | **Bundler:** Metro | **UI:** Tamagui | **Backend:** Supabase | **State:** Zustand + TanStack Query
 
+## Version Matrix
+
+| Area          | Current        | Minimum | Source |
+| ------------- | -------------- | ------- | ------ |
+| Node          | 20.x           | 20.x    | `package.json engines.node` |
+| Yarn          | 4.10.3         | 4.0.0   | `package.json packageManager` |
+| Expo SDK      | 53.0.23        | 53.x    | root `expo` version |
+| React Native  | 0.79.6         | 0.79.x  | root `react-native` |
+| React         | 19.0.0         | 19.x    | root `react` |
+| Expo Router   | 5.1.7          | 5.1.x   | `apps/*/package.json` |
+| Turbo         | 1.13.4         | 1.13.x  | root `turbo` |
+
 ## Navigation Pattern
 
 **Tabs Layout (Expo Router):**
 - File structure: `apps/expo/app/(tabs)/_layout.tsx` with custom `BottomNavigation`
 - Routes: `record.tsx` (Camera), `coach.tsx` (AI Chat), `insights.tsx` (Progress)
-- State: `useTabPersistence` hook with AsyncStorage (preserves active tab across sessions)
+- State: `useTabPersistence` + `useTabNavigation` hooks (preserves active tab across sessions)
 - Benefits: Instant switching (<16ms), state preservation, no back stack pollution
 - Pattern: Battle-tested approach matching Instagram/Spotify UX
 
 **Modal Routes (Outside Tabs):**
-- `video-analysis.tsx`, `settings/*.tsx`, `history-progress.tsx`
+- `video-analysis.tsx`, `settings/*.tsx`, `history-progress.tsx`, `coaching-session.tsx`
 - Present over tabs, return to last active tab on dismiss
+
+**Onboarding Routes:**
+- `onboarding/voice-selection.tsx` - Coach voice/mode preferences
 
 ## Platform Implementations
 
@@ -57,7 +72,10 @@ Notes:
 ```sql
 -- All tables have RLS enabled with auth.uid() = user_id
 
-profiles (user_id, username, created_at)
+profiles (
+  user_id, username, created_at,
+  coach_gender, coach_mode -- Voice preferences
+)
 
 video_recordings (
   id, user_id, storage_path, filename, 
@@ -69,12 +87,21 @@ analysis_jobs (
   status, progress_percentage,
   results jsonb, pose_data jsonb,
   full_feedback_text, summary_text,
+  -- Voice snapshot columns (frozen at analysis time)
+  coach_gender, coach_mode, voice_name_used, avatar_asset_key_used,
   created_at, updated_at
 )
 
 analysis_feedback (
-  id, analysis_job_id, timestamp_seconds,
+  id, analysis_id, timestamp_seconds,
   category, message, confidence, impact
+)
+
+coach_voice_configs (
+  id, gender, mode,
+  voice_name, tts_system_instruction,
+  prompt_voice, prompt_personality,
+  avatar_asset_key, is_active
 )
 ```
 
@@ -84,47 +111,47 @@ analysis_feedback (
 
 **Current (Phase 2 — leaf subscriptions):** `VideoAnalysisScreen` owns logic-only hooks and passes stable props to layout; all store subscriptions live in leaf sections. Video/audio controllers are created inside `VideoPlayerSection`; feedback/panel state is subscribed inside `FeedbackSection`. `useFeedbackAudioSource` writes audio URLs/errors into `useFeedbackAudioStore`; coordinators read store snapshots via `getState()` (no subscriptions).
 
-### VideoAnalysisScreen Architecture
+### VideoAnalysisScreen Architecture (~825 LOC)
 
 ```typescript
 function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
+  // Batch 1: Independent hooks
   useStatusBar(true, 'fade')
+  const historical = useHistoricalAnalysis(isHistoryMode ? analysisJobId : null)
 
-  const historical = useHistoricalAnalysis(props.analysisJobId ?? null)
-  const analysisState = useAnalysisState(
-    props.analysisJobId,
-    props.videoRecordingId,
-    normalizedInitialStatus,
-    Boolean(props.analysisJobId)
-  )
+  // Batch 2: Single-dependency hooks
+  const analysisState = useAnalysisState(...)
+  const feedbackAudioSource = useFeedbackAudioSource(feedbackItems)
 
-  const feedbackAudioSource = useFeedbackAudioSource(analysisState.feedback.feedbackItems)
-  const feedbackCoordinator = useFeedbackCoordinator(...)
+  // PERF FIX: Store setters via refs (no subscriptions)
+  const setIsPlaying = useVideoPlayerStore((state) => state.setIsPlaying)
+  const videoPlaybackForCoordinator = useMemo(() => ({
+    get pendingSeek() { return pendingSeekRef.current },
+    play: () => setIsPlaying(true),
+    // ... other stable methods
+  }), [setIsPlaying, ...])
+
+  // Batch 3: Complex coordinator
+  const feedbackCoordinator = useFeedbackCoordinator({
+    feedbackItems,
+    audioController: minimalAudioController,
+    videoPlayback: videoPlaybackForCoordinator,
+  })
+
+  // Batch 4: Native-only hooks
   const animation = useAnimationController()
-  const gesture = useGestureController(
-    animation.scrollY,
-    animation.feedbackContentOffsetY,
-    animation.scrollRef,
-    isProcessing
-  )
+  const gesture = useGestureController(...)
 
   return (
     <VideoAnalysisLayout
       video={videoState}
       feedback={feedback}
-      subscription={{ key: subscriptionKey, shouldSubscribe: !isHistoryMode }}
       handlers={handlers}
       gesture={gesture}
       animation={animation}
-      videoUri={videoState.uri}
-      audioOverlay={{
-        onClose: feedbackCoordinator.onAudioOverlayClose,
-        onInactivity: feedbackCoordinator.onAudioOverlayInactivity,
-        onInteraction: feedbackCoordinator.onAudioOverlayInteraction,
-      }}
-      controls={{ onControlsVisibilityChange: handleControlsVisibilityChange }}
-      videoControlsRef={videoControlsRef}
-      error={error}
+      audioOverlay={audioOverlay}
+      subscription={{ key: subscriptionKey, shouldSubscribe: !isHistoryMode }}
+      // ... controls, error, voiceMode
     />
   )
 }
@@ -135,10 +162,10 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 | Area | Responsibility | Notes |
 |------|----------------|-------|
 | `useStatusBar` | Status bar visibility | Logic-only |
-| `useHistoricalAnalysis` | Load cached analysis + title/uri | History mode support |
+| `useHistoricalAnalysis` | Load cached analysis + title/uri + backfill avatar | History mode support |
 | `useAnalysisState` | Analysis phase/progress/errors | Normalizes initial status |
 | `useFeedbackAudioSource` | Resolve audio URLs/errors + cache | Writes to `useFeedbackAudioStore` |
-| `useFeedbackCoordinator` | Feedback coordination (imperative) | Reads store snapshots only |
+| `useFeedbackCoordinator` | Feedback coordination (imperative) | Reads store snapshots only via `getState()` |
 | `useAnimationController` | Animated values for layout | Shared with gesture |
 | `useGestureController` | Pan/scroll controls + scroll refs | Disables when processing |
 | `VideoPlayerSection` | Owns `useVideoPlayer` + `useAudioControllerLazy`; subscribes to playback/audio/coach/persistent progress stores | Only this section re-renders on playback/audio changes |
@@ -148,11 +175,13 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 
 | Store | Purpose | Subscription Location |
 |-------|---------|-----------------------|
-| `useVideoPlayerStore` | Playback timeline, duration, pending seek, display time | `VideoPlayerSection` (read/write); screen uses setters via refs only |
-| `useFeedbackAudioStore` | `audioUrls`, `errors`, `activeAudio`, cached paths | Written by `useFeedbackAudioSource`; read by `VideoPlayerSection` + `FeedbackSection` |
-| `useFeedbackCoordinatorStore` | `highlightedFeedbackId`, `isCoachSpeaking`, `bubbleState`, `overlayVisible` | `VideoPlayerSection` + `FeedbackSection`; coordinator reads via `getState()` |
+| `useVideoPlayerStore` | Playback timeline, duration, pending seek, display time, manual controls visibility | `VideoPlayerSection` (read/write); screen uses setters via refs only |
+| `useFeedbackAudioStore` | `audioUrls`, `errors`, `activeAudio`, `audioPaths` (persisted), `controller` | Written by `useFeedbackAudioSource`; read by `VideoPlayerSection` + `FeedbackSection` |
+| `useFeedbackCoordinatorStore` | `highlightedFeedbackId`, `selectedFeedbackId`, `isCoachSpeaking`, `bubbleState`, `overlayVisible` | `VideoPlayerSection` + `FeedbackSection`; coordinator reads via `getState()` |
 | `usePersistentProgressStore` | Persistent progress bar props/visibility | `VideoPlayerSection` |
 | `useFeedbackPanelCommandStore` | Command bus for tab switching | `FeedbackSection` |
+| `useVideoHistoryStore` | Cached analyses, thumbnails, UUID mappings (persisted to MMKV) | `HistoryProgressScreen`, `VideoAnalysisScreen` |
+| `useVoicePreferencesStore` | User voice preferences (gender, mode) | `VideoAnalysisScreen`, onboarding |
 
 ### Benefits Over Orchestrator Pattern
 
@@ -160,17 +189,22 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 - Video/audio sync lives in `VideoPlayerSection`; screen stays dark during playback changes.
 - Feedback selection/tab changes stay in `FeedbackSection`; no screen-level subscriptions.
 - Coordinators read imperative store snapshots for overlays and progress without subscribing.
+- Refs bridge stable handlers to latest state (no dependency array churn).
 
 ### Memoization Strategy
 
 - Stable handler set split into stable vs reactive; refs bridge to latest state.
 - `feedback`/`videoState` exclude fast-changing values (current time, highlighted IDs).
 - Audio overlay memoized only by callback refs; real audio state lives in `VideoPlayerSection`.
+- Voice preferences read via granular selectors for avatar fallback.
 
-Also used in codebase:
-- upload_sessions (tracks signed upload progress)
-- analysis_audio_segments, analysis_ssml_segments, analysis_metrics
-- analyses
+**Also used in codebase:**
+- `upload_sessions` - tracks signed upload progress
+- `analysis_audio_segments` - per-feedback audio file references
+- `analysis_ssml_segments` - per-feedback SSML text storage
+- `analysis_metrics` - analysis timing/performance data
+- `analyses` - normalized analysis results (uuid PK, references job_id)
+- `user_feedback` - in-app user feedback submissions
 
 **Storage Buckets:**
 - `raw`: User videos (500MB max, authenticated uploads)
@@ -184,27 +218,38 @@ Also used in codebase:
 ## API Endpoints
 
 ```typescript
-// Edge Function: /functions/v1/ai-analyze-video
+// Edge Functions: /functions/v1/
 
+// ai-analyze-video - Main analysis pipeline
 POST /ai-analyze-video
   Body: { videoPath: string, videoSource?: 'live_recording' | 'uploaded_video' }
   Response: { analysisId: number, status: 'queued' }
   Security: userId extracted from JWT (server-side)
+  Handler: handleStartAnalysis
 
 GET /ai-analyze-video/status?id=<id>
   Response: { id, status, progress, error?, results? }
+  Handler: handleStatus
 
 POST /ai-analyze-video/tts
   Body: { ssml?: string, text?: string, format?: 'mp3'|'wav' }
   Response: { audioUrl: string, duration?: number, format: string }
+  Handler: handleTTS
 
-GET /ai-analyze-video/health
-  Response: { status: 'ok'|'warning', version, message }
- 
-// Internal/dev endpoints implemented
-GET /ai-analyze-video/test-env
 POST /ai-analyze-video/webhook
+  Triggered by DB webhook when video upload finalizes
+  Handler: handleWebhookStart
+
+// Dev/test endpoints
+GET /ai-analyze-video/test-env
 POST /ai-analyze-video/upload-test
+
+// storage-upload-finalize - Handles upload session finalization
+POST /storage-upload-finalize
+  Triggered by Storage webhooks
+
+// admin-auth - Admin authentication utilities
+POST /admin-auth
 ```
 
 ## Authentication
@@ -236,19 +281,28 @@ POST /ai-analyze-video/upload-test
 - Error mapping: `packages/api/src/auth/authErrorMapping.ts`
 
 **State:**
-- Upload: `packages/app/stores/uploadProgress.ts`
-- Analysis: `packages/app/stores/analysis.ts`
+- Upload: `packages/app/features/VideoAnalysis/stores/uploadProgress.ts`
+- Video Player: `packages/app/features/VideoAnalysis/stores/videoAnalysisPlaybackStore.ts`
+- Feedback Audio: `packages/app/features/VideoAnalysis/stores/feedbackAudio.ts`
+- Feedback Coordinator: `packages/app/features/VideoAnalysis/stores/feedbackCoordinatorStore.ts`
+- Video History: `packages/app/features/HistoryProgress/stores/videoHistory.ts`
+- Voice Preferences: `packages/app/stores/voicePreferences.ts`
 
 **Screens:**
 - Sign-in: `apps/expo/app/auth/sign-in.tsx`, `apps/web/app/auth/sign-in.tsx`
 - Tabs: `apps/expo/app/(tabs)/[record|coach|insights].tsx`
 - Video Analysis: `packages/app/features/VideoAnalysis/VideoAnalysisScreen.tsx`
+- History Progress: `packages/app/features/HistoryProgress/HistoryProgressScreen.tsx`
+- Voice Selection: `packages/app/features/Onboarding/VoiceSelectionScreen.tsx`
 
 **Edge Functions:**
 - Main: `supabase/functions/ai-analyze-video/index.ts`
+- Route handlers: `supabase/functions/ai-analyze-video/routes/`
 - TTS: `supabase/functions/_shared/gemini/tts.ts`
+- LLM Analysis: `supabase/functions/ai-analyze-video/gemini-llm-analysis.ts`
+- SSML Feedback: `supabase/functions/ai-analyze-video/gemini-ssml-feedback.ts`
 - Logger: `supabase/functions/_shared/logger.ts`
-- Audio config: `supabase/functions/_shared/media/audio.ts`
+- Voice config: `supabase/functions/_shared/db/voiceConfig.ts`
 
 ## Performance Targets
 

@@ -1,3 +1,4 @@
+import { type CoachMode, VOICE_TEXT_CONFIG } from '@my/config'
 import {
   AlertCircle,
   CheckCircle,
@@ -264,7 +265,7 @@ interface FeedbackItem {
   category: 'voice' | 'posture' | 'grip' | 'movement'
   // New status fields for SSML and audio processing
   ssmlStatus?: 'queued' | 'processing' | 'completed' | 'failed'
-  audioStatus?: 'queued' | 'processing' | 'completed' | 'failed'
+  audioStatus?: 'queued' | 'processing' | 'completed' | 'failed' | 'retrying'
   ssmlAttempts?: number
   audioAttempts?: number
   ssmlLastError?: string | null
@@ -296,6 +297,7 @@ export interface FeedbackPanelProps {
   analysisTitle?: string // AI-generated analysis title
   fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
   isHistoryMode?: boolean // History mode shows real comments; analysis mode shows placeholder
+  voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
   currentVideoTime?: number
   videoDuration?: number
   selectedFeedbackId?: string | null
@@ -331,6 +333,7 @@ export const FeedbackPanel = memo(
     analysisTitle,
     fullFeedbackText,
     isHistoryMode = false,
+    voiceMode = 'roast', // Default to roast if not provided
     // currentVideoTime = 0, // DEPRECATED: auto-highlighting now controlled by coordinator
     selectedFeedbackId,
     //videoDuration = 0,
@@ -982,6 +985,9 @@ export const FeedbackPanel = memo(
       [feedbackFilter, sortedFeedbackItems, renderFeedbackItemNode]
     )
 
+    // Get voice text config for current mode (default to roast)
+    const voiceText = useMemo(() => VOICE_TEXT_CONFIG[voiceMode || 'roast'], [voiceMode])
+
     // Render insights tab content with lazy loading
     // Only loads component code when tab is accessed
     const renderInsightsContent = useCallback(
@@ -990,11 +996,12 @@ export const FeedbackPanel = memo(
           <LazyVideoAnalysisInsightsV2
             key="insights-content"
             fullFeedbackText={fullFeedbackText}
+            voiceMode={voiceMode}
             testID="insights-content"
           />
         </Suspense>
       ),
-      [fullFeedbackText]
+      [fullFeedbackText, voiceMode]
     )
 
     // Render comments tab content
@@ -1021,15 +1028,14 @@ export const FeedbackPanel = memo(
                   color="$color11"
                   textAlign="center"
                 >
-                  Cute curiosity, but you're hunting ghosts. No friends = no comments.
+                  {voiceText.feedbackPanel.comments.placeholder.line1}
                 </Text>
                 <Text
                   fontSize="$4"
                   color="$color11"
                   textAlign="center"
                 >
-                  Share the video first, then check History & Progress once you actually have an
-                  audience. Logic helps! ;)
+                  {voiceText.feedbackPanel.comments.placeholder.line2}
                 </Text>
                 <Text
                   fontSize="$4"
@@ -1037,7 +1043,7 @@ export const FeedbackPanel = memo(
                   textAlign="center"
                   paddingTop="$4"
                 >
-                  In Beta Version, it works without sharing.
+                  {voiceText.feedbackPanel.comments.placeholder.line3}
                 </Text>
               </YStack>
             </CommentsListContainer>
@@ -1118,14 +1124,14 @@ export const FeedbackPanel = memo(
                   color="$color10"
                   textAlign="center"
                 >
-                  No comments yet. Be the first to comment!
+                  {voiceText.feedbackPanel.comments.noCommentsMessage}
                 </Text>
               </YStack>
             )}
           </CommentsListContainer>
         </YStack>
       )
-    }, [commentSort, isHistoryMode, sortedComments, renderCommentItem])
+    }, [commentSort, isHistoryMode, sortedComments, renderCommentItem, voiceText])
 
     const handleCommentInputFocus = useCallback((): void => {
       onMinimizeVideo?.()
@@ -1176,7 +1182,7 @@ export const FeedbackPanel = memo(
           >
             <Input
               flex={1}
-              placeholder="Share your thoughts"
+              placeholder={voiceText.feedbackPanel.comments.inputHint}
               value={commentInput}
               onChangeText={setCommentInput}
               onFocus={handleCommentInputFocus}

@@ -1,5 +1,7 @@
 // Types for video processing and analysis
 
+import type { VoiceConfigPromptParams } from './voice-config.ts'
+
 export interface VideoProcessingRequest {
   // Either videoPath (legacy) or videoRecordingId (new) must be provided
   videoPath?: string
@@ -33,6 +35,8 @@ export interface VideoAnalysisParams {
   targetTimestamps?: number[]
   minGap?: number
   firstTimestamp?: number
+  /** Optional voice configuration for dynamic prompt injection */
+  voiceConfig?: VoiceConfigPromptParams
 }
 
 export interface PoseDetectionResult {

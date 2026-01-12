@@ -1,6 +1,7 @@
 // SSML Worker - Processes SSML generation based on feedback statuses
 
 import { storeSSMLSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { getUserVoicePreferences, getVoiceConfig } from '../../_shared/db/voiceConfig.ts'
 import { processAudioJobs as _processAudioJobs } from './audioWorker.ts'
 import { getSSMLServiceForRuntime } from './workers.shared.ts'
 
@@ -12,6 +13,7 @@ interface SSMLTask {
   confidence: number
   ssml_status: string
   ssml_attempts: number
+  analysis_id: string // UUID referencing analyses.id
 }
 
 interface WorkerContext {
@@ -39,7 +41,7 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
   try {
     let query = supabase
       .from('analysis_feedback')
-      .select('id, message, category, timestamp_seconds, confidence, ssml_status, ssml_attempts')
+      .select('id, message, category, timestamp_seconds, confidence, ssml_status, ssml_attempts, analysis_id')
       .eq('ssml_status', 'queued')
 
     if (Array.isArray(feedbackIds) && feedbackIds.length > 0) {
@@ -89,9 +91,62 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
 }
 
 async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): Promise<void> {
-  logger.info('Processing SSML job', { feedbackId: job.id })
+  logger.info('Processing SSML job', { feedbackId: job.id, analysisId: job.analysis_id })
 
   await updateFeedbackSSMLStatus(job.id, 'processing', supabase)
+
+  // Fetch voice config from analysis_jobs via analyses table
+  // analysis_feedback.analysis_id → analyses.id (UUID) → analyses.job_id → analysis_jobs.id (bigint)
+  let ssmlSystemInstruction: string | undefined
+  try {
+    // First get the analyses row to find the job_id
+    const { data: analysis } = await supabase
+      .from('analyses')
+      .select('job_id')
+      .eq('id', job.analysis_id)
+      .single()
+
+    if (!analysis?.job_id) {
+      logger.warn('No analyses row found for analysis_id', { feedbackId: job.id, analysisId: job.analysis_id })
+    }
+
+    // Then get the analysis_jobs row using the job_id
+    const { data: analysisJob } = analysis?.job_id ? await supabase
+      .from('analysis_jobs')
+      .select('user_id, coach_gender, coach_mode')
+      .eq('id', analysis.job_id)
+      .single() : { data: null }
+
+    if (analysisJob) {
+      // If analysis has voice snapshot, use it directly
+      if (analysisJob.coach_gender && analysisJob.coach_mode) {
+        const voiceConfig = await getVoiceConfig(
+          supabase,
+          analysisJob.coach_gender,
+          analysisJob.coach_mode
+        )
+        ssmlSystemInstruction = voiceConfig.ssmlSystemInstruction
+        logger.info('Using voice config from analysis snapshot', { 
+          feedbackId: job.id,
+          gender: analysisJob.coach_gender,
+          mode: analysisJob.coach_mode
+        })
+      } else if (analysisJob.user_id) {
+        // Fallback: fetch from user preferences
+        const userPrefs = await getUserVoicePreferences(supabase, analysisJob.user_id)
+        const voiceConfig = await getVoiceConfig(supabase, userPrefs.coachGender, userPrefs.coachMode)
+        ssmlSystemInstruction = voiceConfig.ssmlSystemInstruction
+        logger.info('Using voice config from user preferences', { 
+          feedbackId: job.id,
+          gender: userPrefs.coachGender,
+          mode: userPrefs.coachMode
+        })
+      }
+    }
+  } catch (error) {
+    logger.warn('Failed to fetch voice config, using default', { feedbackId: job.id, error })
+    // Continue without custom instruction - will use default
+  }
 
   const ssmlService = getSSMLServiceForRuntime()
   const { ssml, promptUsed } = await ssmlService.generate({
@@ -109,6 +164,9 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
       metrics: {},
       confidence: typeof job.confidence === 'number' ? job.confidence : 0.75,
     },
+    customParams: {
+      ssmlSystemInstruction
+    }
   })
 
   const segmentId = await storeSSMLSegmentForFeedback(

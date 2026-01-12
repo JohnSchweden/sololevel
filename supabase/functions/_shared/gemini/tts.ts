@@ -28,6 +28,7 @@ export interface GenerateTTSRequest {
   ssml: string
   voiceName?: string
   format?: AudioFormat
+  ttsSystemInstruction?: string // Voice style/accent instruction from config table
   // Note: speakingRate and pitch removed per web research examples
   // Will be added back if needed after basic functionality works
 }
@@ -53,14 +54,13 @@ export async function generateTTSAudio(
   const ttsGenerateUrl = config.ttsGenerateUrl
 
   // Set defaults
+  // NOTE: ttsSystemInstruction should come from coach_voice_configs.tts_system_instruction
+  // Empty default ensures database value is used; only raw SSML is sent if no instruction provided
   const {
     voiceName = config.defaultVoiceName,
-    format = 'wav' as AudioFormat
+    format = 'wav' as AudioFormat,
+    ttsSystemInstruction = ''
   } = request
-
-  // Get TTS system instruction from environment variable with default
-  const ttsSystemInstruction = Deno.env.get('TTS_SYSTEM_INSTRUCTION') 
-    || 'Use a funny north european accent.'
 
   // Combine system instruction with SSML content
   // Gemini TTS doesn't support separate system role, so prepend instruction to user content
@@ -177,15 +177,20 @@ export async function generateTTSAudio(
     logger.info('Gemini TTS synthesis completed', {
       bytesLength: finalBytes.length,
       contentType,
-      processingTime
+      processingTime,
+      ttsSystemInstruction: ttsSystemInstruction ? ttsSystemInstruction.substring(0, 50) : '(none)'
     })
 
-    const prompt = `Gemini TTS synthesis: voice=${voiceName}, format=${contentType}, instruction="${ttsSystemInstruction}", ssml=${request.ssml.substring(0, 100)}...`
+    // Store full prompt context for traceability: instruction (from config table) + SSML snippet
+    // This matches what was actually sent to Gemini API as contentText
+    const promptForStorage = ttsSystemInstruction 
+      ? `${ttsSystemInstruction}\n\n${request.ssml.substring(0, 200)}${request.ssml.length > 200 ? '...' : ''}`
+      : request.ssml.substring(0, 300)
 
     return {
       bytes: finalBytes,
       contentType,
-      prompt,
+      prompt: promptForStorage,
       duration
     }
 

@@ -378,30 +378,49 @@ export async function fetchHistoricalAnalysisData(
     // This prevents blocking mount with FileSystem.getInfoAsync calls (~200-500ms)
     // Title is already fresh from prefetch (usePrefetchVideoAnalysis calls this same queryFn)
 
-    // CRITICAL: If cache doesn't have fullFeedbackText (old cache), fetch it in background
+    // CRITICAL: If cache doesn't have fullFeedbackText or avatarAssetKeyUsed (old cache), fetch in background
     // Don't await - return cached data immediately and update cache asynchronously
-    if (!cached.fullFeedbackText) {
-      // Background fetch to backfill missing field
+    if (!cached.fullFeedbackText || !cached.avatarAssetKeyUsed) {
+      // Background fetch to backfill missing fields
       void (async () => {
-        const { data: analysis, error: analysisError } = (await supabase
-          .from('analyses')
-          .select('full_feedback_text')
-          .eq('job_id', analysisId)
-          .single()) as { data: { full_feedback_text: string | null } | null; error: any }
+        // Fetch fullFeedbackText from analyses table
+        if (!cached.fullFeedbackText) {
+          const { data: analysis, error: analysisError } = (await supabase
+            .from('analyses')
+            .select('full_feedback_text')
+            .eq('job_id', analysisId)
+            .single()) as { data: { full_feedback_text: string | null } | null; error: any }
 
-        if (analysisError) {
-          log.warn('useHistoricalAnalysis', 'Failed to backfill fullFeedbackText', {
-            analysisId,
-            error: analysisError.message || analysisError,
-          })
-          return
+          if (analysisError) {
+            log.warn('useHistoricalAnalysis', 'Failed to backfill fullFeedbackText', {
+              analysisId,
+              error: analysisError.message || analysisError,
+            })
+          } else if (analysis?.full_feedback_text) {
+            useVideoHistoryStore.getState().updateCache(analysisId, {
+              fullFeedbackText: analysis.full_feedback_text,
+            })
+          }
         }
 
-        if (analysis?.full_feedback_text) {
-          // Update cache - this triggers re-render via TanStack Query
-          useVideoHistoryStore.getState().updateCache(analysisId, {
-            fullFeedbackText: analysis.full_feedback_text,
-          })
+        // Fetch avatarAssetKeyUsed from analysis_jobs table
+        if (!cached.avatarAssetKeyUsed) {
+          const { data: job, error: jobError } = await supabase
+            .from('analysis_jobs')
+            .select('avatar_asset_key_used')
+            .eq('id', analysisId)
+            .single()
+
+          if (jobError) {
+            log.warn('useHistoricalAnalysis', 'Failed to backfill avatarAssetKeyUsed', {
+              analysisId,
+              error: jobError.message || jobError,
+            })
+          } else if (job?.avatar_asset_key_used) {
+            useVideoHistoryStore.getState().updateCache(analysisId, {
+              avatarAssetKeyUsed: job.avatar_asset_key_used,
+            })
+          }
         }
       })()
     }
@@ -543,6 +562,7 @@ export async function fetchHistoricalAnalysisData(
     poseData: job.pose_data ? (job.pose_data as unknown as CachedAnalysis['poseData']) : undefined,
     videoUri: resolvedVideoUri,
     storagePath: videoRecording?.storage_path ?? undefined,
+    avatarAssetKeyUsed: (job as any).avatar_asset_key_used ?? undefined,
   }
 
   // Return data with cache updates to apply in useEffect

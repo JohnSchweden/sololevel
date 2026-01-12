@@ -1,3 +1,4 @@
+import type { CoachMode } from '@my/config'
 import { GlassBackground } from '@my/ui'
 import { useCallback, useMemo } from 'react'
 import type { RefObject } from 'react'
@@ -94,6 +95,7 @@ export interface VideoAnalysisLayoutProps {
     isReady: boolean
     isProcessing: boolean
     initialStatus?: 'processing' | 'ready' | 'playing' | 'paused' // For useVideoPlayer
+    avatarAssetKey?: string
   }
 
   // Feedback state
@@ -118,6 +120,7 @@ export interface VideoAnalysisLayoutProps {
     key: string | null
     shouldSubscribe: boolean
   }
+  voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
 
   // Audio URLs and errors - REMOVED: FeedbackSection now subscribes directly from store
   // feedbackAudioUrls: Record<string, string>
@@ -409,6 +412,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   videoAreaScale={computedVideoAreaScale}
                   posterUri={video.posterUri}
                   initialStatus={video.initialStatus}
+                  avatarAssetKey={video.avatarAssetKey}
                   onPlay={handlers.onPlay}
                   onPause={handlers.onPause}
                   onReplay={handlers.onReplay}
@@ -515,6 +519,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   analysisTitle={feedback.analysisTitle}
                   fullFeedbackText={feedback.fullFeedbackText}
                   isHistoryMode={feedback.isHistoryMode}
+                  voiceMode={props.voiceMode || 'roast'}
                   // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
                   currentVideoTime={playbackCurrentTime}
                   videoDuration={0}

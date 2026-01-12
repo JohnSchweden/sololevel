@@ -1,4 +1,5 @@
 import { Palette } from '@tamagui/lucide-icons'
+import { User } from '@tamagui/lucide-icons'
 import { screen } from '@testing-library/react'
 import { renderWithProvider } from '@ui/test-utils'
 import { SettingsRadioGroup } from './SettingsRadioGroup'
@@ -43,6 +44,61 @@ describe('SettingsRadioGroup', () => {
 
       // Assert
       expect(screen.getByTestId('custom-radio')).toBeInTheDocument()
+    })
+  })
+
+  describe('Custom Options', () => {
+    it('should render with custom options', () => {
+      // Arrange
+      const customOptions = [
+        { value: 'female', label: 'Female' },
+        { value: 'male', label: 'Male' },
+      ]
+
+      renderWithProvider(
+        <SettingsRadioGroup
+          icon={User}
+          iconColor="$blue10"
+          title="Voice Gender"
+          description="Male or female coach voice"
+          value="female"
+          onValueChange={() => {}}
+          options={customOptions}
+        />
+      )
+
+      // Assert
+      expect(screen.getByText('Female')).toBeInTheDocument()
+      expect(screen.getByText('Male')).toBeInTheDocument()
+      expect(screen.queryByText('Light')).not.toBeInTheDocument()
+      expect(screen.queryByText('Dark')).not.toBeInTheDocument()
+    })
+
+    it('should call onValueChange with custom option value', () => {
+      // Arrange
+      const handleChange = jest.fn()
+      const customOptions = [
+        { value: 'roast', label: 'Roast:Me' },
+        { value: 'zen', label: 'Zen:Me' },
+        { value: 'lovebomb', label: 'Lovebomb:Me' },
+      ]
+
+      renderWithProvider(
+        <SettingsRadioGroup
+          icon={User}
+          iconColor="$orange10"
+          title="Coaching Style"
+          description="How your coach delivers feedback"
+          value="roast"
+          onValueChange={handleChange}
+          options={customOptions}
+        />
+      )
+
+      // Assert - All custom options rendered
+      expect(screen.getByText('Roast:Me')).toBeInTheDocument()
+      expect(screen.getByText('Zen:Me')).toBeInTheDocument()
+      expect(screen.getByText('Lovebomb:Me')).toBeInTheDocument()
     })
   })
 

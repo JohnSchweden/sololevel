@@ -8,13 +8,16 @@
 import { createLogger } from '../_shared/logger.ts'
 
 // Import local edge-safe prompts (fallback until JSR package is published)
-import { getGeminiAnalysisPrompt as _getGeminiAnalysisPrompt } from './prompts-local.ts'
+import { 
+  getGeminiAnalysisPrompt as _getGeminiAnalysisPrompt, 
+  buildPromptFromConfig
+} from './prompts-local.ts'
 
 // Import extracted modules
 import { createValidatedGeminiConfig } from '../_shared/gemini/config.ts'
 import { pollFileActive, uploadToGemini } from '../_shared/gemini/filesClient.ts'
 import { generateContent } from '../_shared/gemini/generate.ts'
-import { PREPARED_GEMINI_MOCK_RESPONSE } from '../_shared/gemini/mocks.ts'
+import { type CoachMode, getMockResponseForMode } from '../_shared/gemini/mocks.ts'
 import { extractMetricsFromText, parseDualOutput } from '../_shared/gemini/parse.ts'
 import type { GeminiVideoAnalysisResult, VideoAnalysisParams } from '../_shared/gemini/types.ts'
 import { downloadVideo } from '../_shared/storage/download.ts'
@@ -39,7 +42,8 @@ export async function analyzeVideoWithGemini(
   supabaseClient: any,
   videoPath: string,
   analysisParams?: VideoAnalysisParams,
-  progressCallback?: (progress: number) => Promise<void>
+  progressCallback?: (progress: number) => Promise<void>,
+  customPrompt?: string // Custom prompt with injected voice config
 ): Promise<GeminiVideoAnalysisResult> {
   // Get validated configuration
   const config = createValidatedGeminiConfig()
@@ -63,7 +67,13 @@ export async function analyzeVideoWithGemini(
     // min_gap: analysisParams?.minGap,
     // first_timestamp: analysisParams?.firstTimestamp,
   }
-  const prompt = _getGeminiAnalysisPrompt(mappedParams as any)
+  
+  // Use customPrompt if provided, otherwise check voiceConfig, otherwise fall back to default (Roast)
+  const prompt = customPrompt 
+    || (analysisParams?.voiceConfig 
+      ? buildPromptFromConfig(analysisParams.voiceConfig, mappedParams.duration)
+      : _getGeminiAnalysisPrompt(mappedParams as any))
+    
   logger.info(`Generated analysis prompt: ${prompt.length} characters`)
 
   try {
@@ -91,13 +101,21 @@ export async function analyzeVideoWithGemini(
         await delay(1000)
       }
 
-      // Use mock response
-      //return getMockAnalysisResult()
+      // Detect mode from prompt content for mode-specific mock response
+      const mode: CoachMode = prompt.includes('Zen me') ? 'zen' 
+                            : prompt.includes('Lovebomb me') ? 'lovebomb' 
+                            : 'roast'
+      
+      logger.info(`Mock mode detected: ${mode}`, { 
+        promptSnippet: prompt.substring(0, 100) 
+      })
+      
+      const mockResponse = getMockResponseForMode(mode)
 
-      // Use mock response
+      // Use mode-specific mock response
       generationResult = {
-        text: PREPARED_GEMINI_MOCK_RESPONSE,
-        rawResponse: { source: 'mock', model: config.mmModel },
+        text: mockResponse,
+        rawResponse: { source: 'mock', model: config.mmModel, mode },
         prompt,
       }
     } else {

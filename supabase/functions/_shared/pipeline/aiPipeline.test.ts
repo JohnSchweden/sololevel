@@ -79,6 +79,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
+      userId: 'test-user-id',
       videoPath: 'test-video.mp4',
       videoSource: 'uploaded_video',
       timingParams: { duration: 10, feedbackCount: 2 },
@@ -153,6 +154,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
+      userId: 'test-user-id',
       videoPath: 'test-video.mp4',
       videoSource: 'uploaded_video',
       timingParams: { duration: 10, feedbackCount: 2 },
@@ -171,6 +173,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       analysisParams: { duration: 10, feedbackCount: 2 },
       progressCallback: expect.any(Function),
       supabase: mockSupabase,
+      customPrompt: expect.any(String), // customPrompt is now added by pipeline
     })
   })
 
@@ -209,6 +212,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
+      userId: 'test-user-id',
       videoPath: 'test-video.mp4',
       videoSource: 'uploaded_video',
       timingParams: { duration: 10, feedbackCount: 2 },
@@ -278,6 +282,7 @@ describe('AIPipeline Orchestrator - Basic Functionality', () => {
       supabase: mockSupabase as any,
       logger: { info: vi.fn(), error: vi.fn() },
       analysisId: 123,
+      userId: 'test-user-id',
       videoPath: 'test-video.mp4',
       videoSource: 'uploaded_video',
       timingParams: { duration: 10, feedbackCount: 2 },

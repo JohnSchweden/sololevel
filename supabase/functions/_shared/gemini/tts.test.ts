@@ -82,7 +82,7 @@ describe('generateTTSAudio', () => {
     expect(result).toEqual({
       bytes: expect.any(Uint8Array), // WAV header + PCM data (44 + 16 bytes)
       contentType: 'audio/wav',
-      prompt: expect.stringContaining('Gemini TTS synthesis'),
+      prompt: expect.stringContaining('<speak><prosody rate="medium">Test audio content</prosody></speak>'),
       duration: expect.any(Number)
     })
   })

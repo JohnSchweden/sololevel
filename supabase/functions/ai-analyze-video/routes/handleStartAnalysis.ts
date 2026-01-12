@@ -169,6 +169,7 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
     supabase,
     logger,
     analysisId: analysisJob.id,
+    userId, // Pass userId for voice config lookup
     videoPath: finalVideoPath,
     videoSource,
     frameData,

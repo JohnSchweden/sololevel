@@ -441,6 +441,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                     results,
                     poseData,
                     storagePath,
+                    avatarAssetKeyUsed: (job as any).avatar_asset_key_used ?? undefined,
                   })
                 })
                 .catch((error: unknown) => {
@@ -466,6 +467,7 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                     results,
                     poseData,
                     storagePath,
+                    avatarAssetKeyUsed: (job as any).avatar_asset_key_used ?? undefined,
                   })
                 })
 

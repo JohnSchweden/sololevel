@@ -1,16 +1,33 @@
+import { MODE_OPTIONS } from '@app/features/Onboarding/constants'
+import { useAuth } from '@app/hooks/useAuth'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useVoicePreferencesStore } from '@app/stores/voicePreferences'
+import type { CoachGender, CoachMode } from '@my/api'
 import {
   GlassBackground,
+  type RadioOption,
   SettingsRadioGroup,
   SettingsSectionHeader,
   SettingsSelectItem,
   type SettingsSelectItemOption,
   SettingsToggleItem,
 } from '@my/ui'
-import { AArrowUp, Globe, Palette, Type, Vibrate, Volume2, Zap } from '@tamagui/lucide-icons'
-import { useMemo, useState } from 'react'
+import {
+  AArrowUp,
+  ChevronDown,
+  Globe,
+  Mic,
+  Palette,
+  Sparkles,
+  Type,
+  User,
+  Vibrate,
+  Volume2,
+  Zap,
+} from '@tamagui/lucide-icons'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
-import { ScrollView, YStack } from 'tamagui'
+import { ScrollView, Text, XStack, YStack } from 'tamagui'
 
 export interface PersonalisationScreenProps {
   /**
@@ -22,7 +39,7 @@ export interface PersonalisationScreenProps {
 /**
  * PersonalisationScreen Component
  *
- * Personalisation settings screen with theme, language, accessibility, and interaction preferences.
+ * Personalisation settings screen with voice preferences, theme, language, accessibility, and interaction preferences.
  * Following SettingsScreen and SecurityScreen patterns with GlassBackground and AppHeader configuration.
  *
  * @example
@@ -32,7 +49,19 @@ export interface PersonalisationScreenProps {
  */
 export function PersonalisationScreen({
   testID = 'personalisation-screen',
-}: PersonalisationScreenProps = {}): React.ReactElement {
+}: PersonalisationScreenProps): React.ReactElement {
+  // Auth state for user ID
+  const { userId } = useAuth()
+
+  // Voice preferences store - use individual selectors to prevent unnecessary re-renders
+  const gender = useVoicePreferencesStore((state) => state.gender)
+  const mode = useVoicePreferencesStore((state) => state.mode)
+  const isLoaded = useVoicePreferencesStore((state) => state.isLoaded)
+  const setGender = useVoicePreferencesStore((state) => state.setGender)
+  const setMode = useVoicePreferencesStore((state) => state.setMode)
+  const loadFromDatabase = useVoicePreferencesStore((state) => state.loadFromDatabase)
+  const syncToDatabase = useVoicePreferencesStore((state) => state.syncToDatabase)
+
   // Use stable safe area hook that properly memoizes insets
   const insets = useStableSafeArea()
   const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
@@ -47,6 +76,33 @@ export function PersonalisationScreen({
   const [reduceAnimations, setReduceAnimations] = useState(false)
   const [soundEffects, setSoundEffects] = useState(true)
   const [hapticFeedback, setHapticFeedback] = useState(true)
+
+  // Load voice preferences on mount if not loaded
+  useEffect(() => {
+    if (userId && !isLoaded) {
+      loadFromDatabase(userId)
+    }
+  }, [userId, isLoaded, loadFromDatabase])
+
+  // Voice gender options (memoized - array is static, never changes)
+  const genderOptions: RadioOption[] = useMemo(
+    () => [
+      { value: 'female', label: 'Female' },
+      { value: 'male', label: 'Male' },
+    ],
+    []
+  )
+
+  // Voice mode options (memoized - use same content as ModeCards)
+  const modeOptions: RadioOption[] = useMemo(
+    () =>
+      MODE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+    []
+  )
 
   // Language options (memoized - array is static, never changes)
   const languageOptions: SettingsSelectItemOption[] = useMemo(
@@ -65,6 +121,33 @@ export function PersonalisationScreen({
     []
   )
 
+  // Handle gender change with optimistic update and database sync
+  const handleGenderChange = useCallback(
+    (value: string) => {
+      setGender(value as CoachGender)
+      if (userId) {
+        syncToDatabase(userId)
+      }
+    },
+    [userId, setGender, syncToDatabase]
+  )
+
+  // Handle mode change with optimistic update and database sync
+  const handleModeChange = useCallback(
+    (value: string) => {
+      setMode(value as CoachMode)
+      if (userId) {
+        syncToDatabase(userId)
+      }
+    },
+    [userId, setMode, syncToDatabase]
+  )
+
+  // Handle theme change
+  const handleThemeChange = useCallback((value: string) => {
+    setTheme(value as 'light' | 'dark' | 'auto')
+  }, [])
+
   return (
     <GlassBackground
       backgroundColor="$color3"
@@ -78,6 +161,65 @@ export function PersonalisationScreen({
             gap="$6"
             paddingBottom={insets.bottom + 24}
           >
+            {/* Coach Voice Section */}
+            <YStack marginBottom="$4">
+              <SettingsSectionHeader
+                title="Coach Voice"
+                icon={Mic}
+              />
+              <YStack gap="$4">
+                <SettingsRadioGroup
+                  icon={Sparkles}
+                  iconColor="$orange10"
+                  title="Learning Mode"
+                  description="How your coach delivers feedback"
+                  value={mode}
+                  onValueChange={handleModeChange}
+                  options={modeOptions}
+                  testID="voice-mode-radio"
+                />
+                <SettingsRadioGroup
+                  icon={User}
+                  iconColor="$blue10"
+                  title="Voice Gender"
+                  description="Male or female coach voice"
+                  value={gender}
+                  onValueChange={handleGenderChange}
+                  options={genderOptions}
+                  testID="voice-gender-radio"
+                />
+              </YStack>
+            </YStack>
+
+            {/* Separator with Demo Data label */}
+            <YStack
+              paddingHorizontal="$4"
+              marginTop={-20}
+            >
+              <XStack
+                justifyContent="center"
+                alignItems="center"
+                gap="$2"
+              >
+                <ChevronDown
+                  size={20}
+                  color="$color11"
+                />
+                <Text
+                  fontSize="$3"
+                  color="$color11"
+                  textAlign="center"
+                  testID="personalisation-demo-data-label"
+                >
+                  Demo Data
+                </Text>
+                <ChevronDown
+                  size={20}
+                  color="$color11"
+                />
+              </XStack>
+            </YStack>
+
             {/* Appearance Section */}
             <YStack marginBottom="$4">
               <SettingsSectionHeader
@@ -90,7 +232,7 @@ export function PersonalisationScreen({
                 title="Theme"
                 description="Choose your preferred theme"
                 value={theme}
-                onValueChange={setTheme}
+                onValueChange={handleThemeChange}
               />
             </YStack>
 

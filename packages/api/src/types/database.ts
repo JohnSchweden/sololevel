@@ -1,31 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       analyses: {
@@ -328,6 +303,48 @@ export type Database = {
           },
         ]
       }
+      coach_voice_configs: {
+        Row: {
+          id: number
+          gender: string
+          mode: string
+          voice_name: string
+          tts_system_instruction: string
+          prompt_voice: string
+          prompt_personality: string
+          avatar_asset_key: string
+          is_active: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: never
+          gender: string
+          mode: string
+          voice_name: string
+          tts_system_instruction: string
+          prompt_voice: string
+          prompt_personality: string
+          avatar_asset_key: string
+          is_active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: never
+          gender?: string
+          mode?: string
+          voice_name?: string
+          tts_system_instruction?: string
+          prompt_voice?: string
+          prompt_personality?: string
+          avatar_asset_key?: string
+          is_active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -497,14 +514,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      backfill_analyses_from_jobs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_upload_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      backfill_analyses_from_jobs: { Args: never; Returns: undefined }
+      cleanup_expired_upload_sessions: { Args: never; Returns: undefined }
       get_analysis_with_metrics: {
         Args: { analysis_job_id: number }
         Returns: {
@@ -584,10 +595,7 @@ export type Database = {
           upload_status: string
         }[]
       }
-      migrate_results_to_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      migrate_results_to_metrics: { Args: never; Returns: undefined }
       store_analysis_audio_segment: {
         Args: {
           p_analysis_id: string
@@ -753,9 +761,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

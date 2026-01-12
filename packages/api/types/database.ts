@@ -189,6 +189,9 @@ export type Database = {
       }
       analysis_jobs: {
         Row: {
+          avatar_asset_key_used: string | null
+          coach_gender: string | null
+          coach_mode: string | null
           created_at: string
           error_message: string | null
           id: number
@@ -203,8 +206,12 @@ export type Database = {
           user_id: string
           video_recording_id: number
           video_source_type: string | null
+          voice_name_used: string | null
         }
         Insert: {
+          avatar_asset_key_used?: string | null
+          coach_gender?: string | null
+          coach_mode?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -219,8 +226,12 @@ export type Database = {
           user_id: string
           video_recording_id: number
           video_source_type?: string | null
+          voice_name_used?: string | null
         }
         Update: {
+          avatar_asset_key_used?: string | null
+          coach_gender?: string | null
+          coach_mode?: string | null
           created_at?: string
           error_message?: string | null
           id?: never
@@ -235,6 +246,7 @@ export type Database = {
           user_id?: string
           video_recording_id?: number
           video_source_type?: string | null
+          voice_name_used?: string | null
         }
         Relationships: [
           {

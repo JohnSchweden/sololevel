@@ -820,6 +820,7 @@ function handleTitleUpdate(
             storagePath,
             videoUri,
             results: jobResults,
+            avatarAssetKeyUsed: (job as any).avatar_asset_key_used ?? undefined,
           })
 
           // CRITICAL FIX: Also update TanStack Query cache directly
@@ -910,6 +911,9 @@ function handleTitleUpdate(
                 processing_time: 0,
                 video_source: '',
               } as any, // Type assertion to match existing pattern in codebase
+              avatarAssetKeyUsed: jobFromQuery
+                ? ((jobFromQuery as any).avatar_asset_key_used ?? undefined)
+                : undefined,
             })
             log.info(
               'AnalysisSubscriptionStore',

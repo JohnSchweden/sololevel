@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ai.sololevel.app",
-      "buildNumber": "10",
+      "buildNumber": "16",
       "icon": "./assets/icon.png",
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",
@@ -47,7 +47,7 @@
         "backgroundColor": "#f3f3f3"
       },
       "package": "ai.sololevel.app",
-      "versionCode": 15,
+      "versionCode": 16,
       "splash": {
         "image": "./assets/splashscreen_logo.png",
         "resizeMode": "contain",

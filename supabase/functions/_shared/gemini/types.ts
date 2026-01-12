@@ -4,6 +4,7 @@
 
 // Import centralized logger for Edge Functions
 import { createLogger } from '../logger.ts'
+import type { VoiceConfigPromptParams } from '../types/voice-config.ts'
 
 const _logger = createLogger('gemini-types')
 
@@ -48,6 +49,8 @@ export interface VideoAnalysisParams {
   targetTimestamps?: number[]
   minGap?: number
   firstTimestamp?: number
+  /** Optional voice configuration for dynamic prompt injection */
+  voiceConfig?: VoiceConfigPromptParams
 }
 
 /**

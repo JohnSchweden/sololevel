@@ -7,7 +7,7 @@ import { log } from '@my/logging'
 import { useFeedbackAudioStore } from '../stores/feedbackAudio'
 import { checkCachedAudio, getCachedAudioPath, persistAudioFile } from '../utils/audioCache'
 
-type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed'
+type FeedbackProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying'
 
 export interface FeedbackAudioItem {
   id: string

@@ -89,12 +89,12 @@ Test report
     expect(result.jsonData.feedback).toHaveLength(2) // Full JSON includes invalid items
   })
 
-  it('should extract title from TEXT FEEDBACK START block', () => {
-    const responseWithTitle = `=== TEXT FEEDBACK START ===
-**Title Start**
+  it('should extract title from TITLE START block', () => {
+    const responseWithTitle = `=== TITLE START ===
 Confident Presenter Needs More Energy
-**Title End**
+=== TITLE END ===
 
+=== TEXT FEEDBACK START ===
 **Big Picture**: Your presentation was well-structured.
 === TEXT FEEDBACK END ===
 
@@ -106,8 +106,8 @@ Confident Presenter Needs More Energy
     const result = parseDualOutput(responseWithTitle)
 
     expect(result.title).toBe('Confident Presenter Needs More Energy')
-    expect(result.textReport).not.toContain('**Title Start**')
-    expect(result.textReport).not.toContain('**Title End**')
+    expect(result.textReport).not.toContain('=== TITLE START ===')
+    expect(result.textReport).not.toContain('=== TITLE END ===')
     expect(result.textReport).toContain('**Big Picture**')
   })
 
@@ -127,28 +127,28 @@ Confident Presenter Needs More Energy
     expect(result.textReport).toContain('**Big Picture**')
   })
 
-  it('should extract title and remove it from textReport', () => {
-    const responseWithTitle = `=== TEXT FEEDBACK START ===
-**Title Start**
+  it('should extract title and not include it in textReport', () => {
+    const responseWithTitle = `=== TITLE START ===
 Great Performance, Minor Tweaks Needed
-**Title End**
+=== TITLE END ===
 
+=== TEXT FEEDBACK START ===
 **Big Picture**: Analysis content here.
 === TEXT FEEDBACK END ===`
     const result = parseDualOutput(responseWithTitle)
 
     expect(result.title).toBe('Great Performance, Minor Tweaks Needed')
-    expect(result.textReport).not.toContain('Title Start')
-    expect(result.textReport).not.toContain('Title End')
+    expect(result.textReport).not.toContain('=== TITLE START ===')
+    expect(result.textReport).not.toContain('=== TITLE END ===')
     expect(result.textReport).toContain('**Big Picture**')
   })
 
   it('should handle title with special characters', () => {
-    const responseWithSpecialChars = `=== TEXT FEEDBACK START ===
-**Title Start**
+    const responseWithSpecialChars = `=== TITLE START ===
 You're Doing Great! Keep It Up!
-**Title End**
+=== TITLE END ===
 
+=== TEXT FEEDBACK START ===
 Content here.
 === TEXT FEEDBACK END ===`
     const result = parseDualOutput(responseWithSpecialChars)
@@ -157,11 +157,11 @@ Content here.
   })
 
   it('should trim whitespace from title', () => {
-    const responseWithWhitespace = `=== TEXT FEEDBACK START ===
-**Title Start**
+    const responseWithWhitespace = `=== TITLE START ===
   Trimmed Title  
-**Title End**
+=== TITLE END ===
 
+=== TEXT FEEDBACK START ===
 Content here.
 === TEXT FEEDBACK END ===`
     const result = parseDualOutput(responseWithWhitespace)

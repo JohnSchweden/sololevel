@@ -195,6 +195,11 @@ describe('useHistoricalAnalysis', () => {
         processing_completed_at: '2025-10-12T00:00:01Z',
         processing_time_ms: null,
         video_source_type: null,
+        // Voice snapshot fields (nullable for legacy data)
+        coach_gender: null,
+        coach_mode: null,
+        voice_name_used: null,
+        avatar_asset_key_used: null,
       }
 
       const metadataLocalUri = 'file:///local/video.mp4'
@@ -297,6 +302,11 @@ describe('useHistoricalAnalysis', () => {
         processing_completed_at: null,
         processing_time_ms: null,
         video_source_type: null,
+        // Voice snapshot fields (nullable for legacy data)
+        coach_gender: null,
+        coach_mode: null,
+        voice_name_used: null,
+        avatar_asset_key_used: null,
         video_recordings: {
           storage_path: 'user-abc/video.mp4',
         },
@@ -612,6 +622,11 @@ describe('useHistoricalAnalysis', () => {
         processing_completed_at: null,
         processing_time_ms: null,
         video_source_type: null,
+        // Voice snapshot fields (nullable for legacy data)
+        coach_gender: null,
+        coach_mode: null,
+        voice_name_used: null,
+        avatar_asset_key_used: null,
       }
 
       const mockSingle = jest.fn().mockResolvedValue({

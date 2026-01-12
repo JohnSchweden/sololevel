@@ -141,8 +141,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Route: GET /ai-analyze-video/health - Health check
-    if (req.method === 'GET' && path === '/ai-analyze-video/health') {
+    // Route: GET/POST /ai-analyze-video/health - Health check
+    // Accept both GET (manual calls) and POST (pg_net from cron)
+    if ((req.method === 'GET' || req.method === 'POST') && path === '/ai-analyze-video/health') {
       return new Response(
         JSON.stringify({
           status: supabase ? 'ok' : 'warning',

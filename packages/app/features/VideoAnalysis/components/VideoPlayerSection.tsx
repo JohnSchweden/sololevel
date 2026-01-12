@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { log } from '@my/logging'
 
+import type { AvatarAssetKey } from '@ui/assets/avatars'
 import type { VideoPlayerRef as NativeVideoPlayerRef } from '@ui/components/VideoAnalysis/types'
 import Animated, {
   Extrapolation,
@@ -57,6 +58,7 @@ interface VideoPlayerSectionProps {
   videoAreaScale: number
   posterUri?: string // Optional thumbnail poster
   initialStatus?: 'processing' | 'ready' | 'playing' | 'paused' // For useVideoPlayer
+  avatarAssetKey?: string // Avatar asset key from analysis_jobs.avatar_asset_key_used
   onPlay: () => void
   onPause: () => void
   onReplay: () => void
@@ -138,6 +140,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   isProcessing,
   posterUri,
   initialStatus = 'processing',
+  avatarAssetKey,
   onPlay,
   onPause,
   onReplay,
@@ -861,6 +864,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
             <CoachAvatar
               isSpeaking={isCoachSpeaking}
               size={80}
+              avatarAssetKey={avatarAssetKey as AvatarAssetKey | undefined}
               testID="video-analysis-coach-avatar"
             />
           </Animated.View>
