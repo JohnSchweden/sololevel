@@ -20,6 +20,10 @@
 - Use Tamagui for cross-platform styling
 - Prefer named exports over default exports
 
+### IMPLEMENTATION_GUIDELINES (see `commands/implement.md`)
+- Follow TDD methodology strictly (Red-Green-Refactor) and `@.cursor/rules/quality/testing-philosophy.mdc` 
+- Track progress against Definition of Done criteria
+
 ## Expo Router Notes
 - Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
 - **Static headers**: Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`

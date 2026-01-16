@@ -15,6 +15,7 @@ import { useFeedbackStatusStore } from '../stores/feedbackStatus'
 
 const SLOW_TTS_THRESHOLD_MS = 15000
 const SLOW_TTS_CHECK_INTERVAL_MS = 3000
+const SLOW_VIDEO_THRESHOLD_MS = 10000
 
 type StepKey = 'upload' | 'analyze' | 'roast'
 
@@ -310,24 +311,69 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
   // Slow TTS detection: check if feedback audio generation is taking too long
   const [isSlowTTS, setIsSlowTTS] = useState(false)
 
-  // Monitor slow TTS generation during 'analyzing' and 'generating-feedback' phases
-  // Audio generation starts in parallel with analysis, so we need to check both phases
+  // Slow video detection: check if video analysis is taking too long
+  const [analyzingStartTime, setAnalyzingStartTime] = useState<number | null>(null)
+  const [isSlowVideo, setIsSlowVideo] = useState(false)
+
+  // Helper: Check if any feedback audio is processing slowly
+  const checkSlowTTS = useCallback((): boolean => {
+    const now = Date.now()
+    const allFeedbacks = Array.from(useFeedbackStatusStore.getState().feedbacks.values())
+    return allFeedbacks.some((feedback) => {
+      if (feedback.audioStatus !== 'processing' || !feedback.audioUpdatedAt) {
+        return false
+      }
+      return now - new Date(feedback.audioUpdatedAt).getTime() > SLOW_TTS_THRESHOLD_MS
+    })
+  }, [])
+
+  // Helper: Check if video analysis is taking too long
+  const checkSlowVideo = useCallback(
+    (startTime: number | null): boolean => {
+      if (!startTime || phase !== 'analyzing') {
+        return false
+      }
+      return Date.now() - startTime > SLOW_VIDEO_THRESHOLD_MS
+    },
+    [phase]
+  )
+
+  // Monitor slow processing during analyzing and generating-feedback phases
   useEffect(() => {
     const isProcessingPhase = phase === 'analyzing' || phase === 'generating-feedback'
+
+    // Reset all slow states when not processing
     if (!isProcessingPhase) {
       setIsSlowTTS(false)
+      setIsSlowVideo(false)
+      setAnalyzingStartTime(null)
       return
     }
 
-    const checkSlowTTS = () => {
-      const allFeedbacks = Array.from(useFeedbackStatusStore.getState().feedbacks.values())
-      const now = Date.now()
+    // Clear slow video state when leaving analyzing phase
+    if (phase !== 'analyzing') {
+      setIsSlowVideo(false)
+      setAnalyzingStartTime(null)
+    }
 
-      const hasSlowAudio = allFeedbacks.some((feedback) => {
-        if (feedback.audioStatus !== 'processing' || !feedback.audioUpdatedAt) return false
-        return now - new Date(feedback.audioUpdatedAt).getTime() > SLOW_TTS_THRESHOLD_MS
+    // Track when analyzing phase starts
+    if (phase === 'analyzing' && analyzingStartTime === null) {
+      setAnalyzingStartTime(Date.now())
+    }
+
+    // Check for slow processing on mount and every interval
+    function checkAndUpdate(): void {
+      // Check slow video (only during analyzing phase)
+      const hasSlowVideo = checkSlowVideo(analyzingStartTime)
+      setIsSlowVideo((prev) => {
+        if (hasSlowVideo && !prev) {
+          log.info('ProcessingIndicator', 'Slow video analysis detected - notifying user')
+        }
+        return hasSlowVideo
       })
 
+      // Check slow TTS
+      const hasSlowAudio = checkSlowTTS()
       setIsSlowTTS((prev) => {
         if (hasSlowAudio && !prev) {
           log.info('ProcessingIndicator', 'Slow TTS detected - notifying user')
@@ -336,10 +382,10 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
       })
     }
 
-    checkSlowTTS()
-    const intervalId = setInterval(checkSlowTTS, SLOW_TTS_CHECK_INTERVAL_MS)
+    checkAndUpdate()
+    const intervalId = setInterval(checkAndUpdate, SLOW_TTS_CHECK_INTERVAL_MS)
     return () => clearInterval(intervalId)
-  }, [phase])
+  }, [phase, analyzingStartTime, checkSlowVideo, checkSlowTTS])
 
   const isProcessing = phase !== 'ready' && phase !== 'error'
   // FIX: expo-blur doesn't support animated props - use static intensity with animated opacity
@@ -372,9 +418,12 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
 
   const { title, description } = useMemo(() => getPhaseText(phase, voiceText), [phase, voiceText])
 
-  const displayDescription = isSlowTTS
-    ? "💆‍♂️ I'm still alive but AI is taking longer than usual... ⏳"
-    : description
+  const displayDescription = useMemo(() => {
+    if (isSlowTTS || isSlowVideo) {
+      return "💆‍♂️ I'm still alive but AI is taking longer than usual... ⏳"
+    }
+    return description
+  }, [isSlowTTS, isSlowVideo, description])
 
   return (
     <YStack
