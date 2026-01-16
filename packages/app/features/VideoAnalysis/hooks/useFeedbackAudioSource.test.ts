@@ -143,5 +143,48 @@ describe('useFeedbackAudioSource', () => {
         expect(state.audioUrls['1']).toBeUndefined()
       })
     })
+
+    it('should NOT clear audioUrls when audioStatus changes for same items', async () => {
+      // ARRANGE: Initial items with processing status
+      const initialItems: FeedbackAudioItem[] = [
+        { id: '1', timestamp: 0, audioStatus: 'processing' },
+        { id: '2', timestamp: 1000, audioStatus: 'queued' },
+      ]
+
+      // Set audioUrls in store (e.g., from previous completed feedback)
+      useFeedbackAudioStore.setState({
+        audioUrls: { '1': 'https://example.com/audio1.mp3' },
+      })
+
+      const { rerender } = renderHook(({ items }) => useFeedbackAudioSource(items), {
+        initialProps: { items: initialItems },
+      })
+
+      // Fast-forward to let initial processing complete
+      act(() => {
+        jest.advanceTimersByTime(150)
+      })
+
+      // ACT: Change audioStatus for item 1 (processing → completed)
+      const updatedItems: FeedbackAudioItem[] = [
+        { id: '1', timestamp: 0, audioStatus: 'completed' },
+        { id: '2', timestamp: 1000, audioStatus: 'queued' },
+      ]
+
+      act(() => {
+        rerender({ items: updatedItems })
+      })
+
+      // Fast-forward timers
+      act(() => {
+        jest.advanceTimersByTime(150)
+      })
+
+      // ASSERT: audioUrls should still contain the URL for item 1
+      await waitFor(() => {
+        const state = useFeedbackAudioStore.getState()
+        expect(state.audioUrls['1']).toBe('https://example.com/audio1.mp3')
+      })
+    })
   })
 })

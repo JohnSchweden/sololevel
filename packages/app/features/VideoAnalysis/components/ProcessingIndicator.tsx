@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform } from 'react-native'
 
 import { BlurView } from '@my/ui'
@@ -8,8 +8,13 @@ import { Spinner, Text, XStack, YStack } from 'tamagui'
 
 import { useVoiceText } from '@app/hooks/useVoiceText'
 import type { VoiceTextConfig } from '@my/config'
+import { log } from '@my/logging'
 import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import { useAnalysisSubscriptionStore } from '../stores/analysisSubscription'
+import { useFeedbackStatusStore } from '../stores/feedbackStatus'
+
+const SLOW_TTS_THRESHOLD_MS = 15000
+const SLOW_TTS_CHECK_INTERVAL_MS = 3000
 
 type StepKey = 'upload' | 'analyze' | 'roast'
 
@@ -302,6 +307,40 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
 
   const channelExhausted = useAnalysisSubscriptionStore(selectChannelExhausted)
 
+  // Slow TTS detection: check if feedback audio generation is taking too long
+  const [isSlowTTS, setIsSlowTTS] = useState(false)
+
+  // Monitor slow TTS generation during 'analyzing' and 'generating-feedback' phases
+  // Audio generation starts in parallel with analysis, so we need to check both phases
+  useEffect(() => {
+    const isProcessingPhase = phase === 'analyzing' || phase === 'generating-feedback'
+    if (!isProcessingPhase) {
+      setIsSlowTTS(false)
+      return
+    }
+
+    const checkSlowTTS = () => {
+      const allFeedbacks = Array.from(useFeedbackStatusStore.getState().feedbacks.values())
+      const now = Date.now()
+
+      const hasSlowAudio = allFeedbacks.some((feedback) => {
+        if (feedback.audioStatus !== 'processing' || !feedback.audioUpdatedAt) return false
+        return now - new Date(feedback.audioUpdatedAt).getTime() > SLOW_TTS_THRESHOLD_MS
+      })
+
+      setIsSlowTTS((prev) => {
+        if (hasSlowAudio && !prev) {
+          log.info('ProcessingIndicator', 'Slow TTS detected - notifying user')
+        }
+        return hasSlowAudio
+      })
+    }
+
+    checkSlowTTS()
+    const intervalId = setInterval(checkSlowTTS, SLOW_TTS_CHECK_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [phase])
+
   const isProcessing = phase !== 'ready' && phase !== 'error'
   // FIX: expo-blur doesn't support animated props - use static intensity with animated opacity
   const overlayOpacity = useSharedValue(isProcessing ? 1 : 0)
@@ -332,6 +371,10 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
   })
 
   const { title, description } = useMemo(() => getPhaseText(phase, voiceText), [phase, voiceText])
+
+  const displayDescription = isSlowTTS
+    ? "💆‍♂️ I'm still alive but AI is taking longer than usual... ⏳"
+    : description
 
   return (
     <YStack
@@ -427,7 +470,7 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
             color="$color11"
             textAlign="center"
           >
-            {description}
+            {displayDescription}
           </Text>
         </YStack>
 

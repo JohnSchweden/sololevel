@@ -27,6 +27,20 @@ const logger = createLogger('ai-analyze-video')
 // Enable lightweight network logging to capture external fetch failures
 enableNetworkLogging()
 
+// Global handler for unhandled promise rejections
+// Catches orphaned promises that would otherwise fail silently
+globalThis.addEventListener('unhandledrejection', (event) => {
+  const error = event.reason
+  logger.error('Unhandled promise rejection caught', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    type: 'unhandledrejection'
+  })
+  
+  // Prevent default behavior (which may terminate the process)
+  event.preventDefault()
+})
+
 // Initialize Supabase client from environment
 const supabase = createServiceClientFromEnv(logger)
 
@@ -94,30 +108,18 @@ Deno.serve(async (req) => {
         // Import and use the upload function
         const { uploadProcessedArtifact } = await import('../_shared/storage/upload.ts')
 
-        let uploadResult
-
-        // Use appropriate upload function based on bucket
-        if (bucket === 'processed') {
-          // Use the standard upload function for processed bucket (audio files)
-          uploadResult = await uploadProcessedArtifact(
-            supabase,
-            fileName,
-            fileBytes,
-            contentType,
-            bucket
-          )
-        } else if (bucket === 'raw') {
-          // For raw bucket (video files), use the same function but with raw bucket validation
-          uploadResult = await uploadProcessedArtifact(
-            supabase,
-            fileName,
-            fileBytes,
-            contentType,
-            bucket
-          )
-        } else {
+        // Validate bucket and upload
+        if (bucket !== 'processed' && bucket !== 'raw') {
           throw new Error(`Unsupported bucket: ${bucket}`)
         }
+
+        const uploadResult = await uploadProcessedArtifact(
+          supabase,
+          fileName,
+          fileBytes,
+          contentType,
+          bucket
+        )
 
         logger.info('Upload test successful', { fileName, size: fileBytes.length })
 

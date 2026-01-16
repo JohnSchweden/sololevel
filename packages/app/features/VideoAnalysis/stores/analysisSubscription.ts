@@ -26,6 +26,7 @@ export interface SubscriptionState {
   backfillTimeoutId: ReturnType<typeof setTimeout> | null
   lastError?: string | null
   lastStatus?: string | null
+  progress?: number | null // Track progress_percentage for deduplication
   health?: unknown
   subscription?: () => void
   titleSubscription?: () => void
@@ -1045,6 +1046,20 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
   const subscription = get().subscriptions.get(key)
   const previousStatus = subscription?.lastStatus
   const previousJobId = subscription?.jobId
+  const previousProgress = subscription?.progress
+
+  // Early exit if nothing changed (prevents duplicate event processing)
+  if (previousStatus === job.status && previousProgress === job.progress_percentage) {
+    if (__DEV__) {
+      log.debug('AnalysisSubscriptionStore', 'Skipping duplicate job update', {
+        key,
+        jobId: job.id,
+        status: job.status,
+        progress: job.progress_percentage,
+      })
+    }
+    return
+  }
 
   // Update TanStack Query cache (single source of truth for job data)
   const queryClient = get().queryClient
@@ -1077,6 +1092,7 @@ function handleJobUpdate(key: string, job: AnalysisJob, set: StoreSetter, get: S
     // Update subscription metadata only (not job data - that's in TanStack Query)
     subscription.jobId = job.id // Track job ID for metadata purposes
     subscription.lastStatus = job.status
+    subscription.progress = job.progress_percentage
 
     if (subscription.status !== 'active') {
       subscription.status = 'active'

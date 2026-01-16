@@ -21,6 +21,8 @@ const mockFeedbackStatusStoreState = {
   unsubscribeFromAnalysis: mockUnsubscribeFromAnalysis,
   subscriptions: new Set<string>(),
   subscriptionStatus: new Map<string, string>(),
+  getDiagnostics: jest.fn(() => null),
+  recordDiagnosticEvent: jest.fn(),
 }
 
 // Mock feedback status store

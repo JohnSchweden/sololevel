@@ -15,6 +15,7 @@ const ssmlErrorUpdates: any[] = []
 
 // Mock supabase client for SSML worker
 const mockSupabaseForSSML = {
+  rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
   from: (table: string) => {
     if (table === 'analysis_feedback') {
       return {
@@ -28,7 +29,8 @@ const mockSupabaseForSSML = {
                 timestamp_seconds: 10.5,
                 confidence: 0.9,
                 ssml_status: 'queued',
-                ssml_attempts: 0
+                ssml_attempts: 0,
+                analysis_id: 'test-analysis-id'
               }],
               error: null
             })
@@ -39,6 +41,19 @@ const mockSupabaseForSSML = {
             ssmlStatusUpdates.push(data)
             return Promise.resolve({ data: { id: 123, ...data }, error: null })
           }
+        })
+      }
+    }
+
+    if (table === 'analyses') {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({
+              data: { job_id: 456 },
+              error: null
+            })
+          })
         })
       }
     }
@@ -86,6 +101,7 @@ Deno.test('SSML worker - processes queued jobs', async () => {
 Deno.test('SSML worker - handles empty queue gracefully', async () => {
   // Mock supabase with no jobs
   const emptyMockSupabase = {
+    rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
     from: (_table: string) => ({
       select: () => ({
         eq: () => ({
@@ -111,6 +127,7 @@ Deno.test('SSML worker - handles job processing errors', async () => {
   ssmlStatusUpdates.length = 0
   ssmlErrorUpdates.length = 0
   const errorMockSupabase = {
+    rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
     from: (table: string) => {
       if (table === 'analysis_feedback') {
         return {
@@ -124,7 +141,8 @@ Deno.test('SSML worker - handles job processing errors', async () => {
                   timestamp_seconds: 10,
                   confidence: 0.5,
                   ssml_status: 'queued',
-                  ssml_attempts: 0
+                  ssml_attempts: 0,
+                  analysis_id: 'test-analysis-id'
                 }],
                 error: null
               })

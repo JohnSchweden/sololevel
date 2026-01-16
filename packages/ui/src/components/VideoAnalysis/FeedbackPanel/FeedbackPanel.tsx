@@ -834,13 +834,14 @@ export const FeedbackPanel = memo(
               >
                 {/* Header: time, category, and status */}
                 <XStack
+                  flexWrap="wrap"
                   justifyContent="space-between"
                   alignItems="center"
+                  gap="$2"
                 >
                   <XStack
                     gap="$2"
                     alignItems="center"
-                    flex={1}
                   >
                     <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
                       {formatTime(item.timestamp)}

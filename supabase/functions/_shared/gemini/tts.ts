@@ -39,16 +39,27 @@ export interface GenerateTTSRequest {
  */
 export async function generateTTSAudio(
   request: GenerateTTSRequest,
-  config: GeminiConfig
+  config: GeminiConfig,
+  dbLogger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void; child?: (module: string) => any }
 ): Promise<{ bytes: Uint8Array; contentType: string; prompt: string; duration: number }> {
   // Check API key first
   if (!config.apiKey) {
-    throw new Error('Gemini API key not configured')
+    const error = 'Gemini API key not configured'
+    const ttsLogger = dbLogger?.child ? dbLogger.child('gemini-tts') : dbLogger
+    ttsLogger?.error('TTS generation failed: API key not configured', {})
+    throw new Error(error)
   }
 
   const startTime = Date.now()
+  const ttsLogger = dbLogger?.child ? dbLogger.child('gemini-tts') : dbLogger
 
   logger.info(`Generating TTS audio with Gemini (${config.ttsModel}) for SSML: ${request.ssml.substring(0, 50)}...`)
+  ttsLogger?.info('Starting TTS audio generation', {
+    model: config.ttsModel,
+    ssmlLength: request.ssml.length,
+    voiceName: request.voiceName,
+    format: request.format
+  })
 
   // Use TTS-specific model URL from config
   const ttsGenerateUrl = config.ttsGenerateUrl
@@ -106,19 +117,13 @@ export async function generateTTSAudio(
           originalError: errorText
         })
 
-        // Create retry request body - use same structure as original (audioConfig already at top level)
-        const retryRequestBody = {
-          ...requestBody
-          // audioConfig is already at top level, no need to modify for retry
-        }
-
         response = await fetch(ttsGenerateUrl, {
           method: 'POST',
           headers: {
             'x-goog-api-key': config.apiKey!,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(retryRequestBody)
+          body: JSON.stringify(requestBody)
         })
       }
     }
@@ -130,10 +135,19 @@ export async function generateTTSAudio(
         statusText: response.statusText,
         error: errorText
       })
+      ttsLogger?.error('Gemini TTS API error', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText?.slice(0, 500)
+      })
       throw new Error(`Gemini TTS API error: ${response.status} ${response.statusText} - ${errorText}`)
     }
 
     const data = await response.json()
+    ttsLogger?.info('Gemini TTS API response received', {
+      status: response.status,
+      hasCandidates: !!data.candidates?.[0]
+    })
 
     // Extract audio from Gemini response
     const audioPart = data.candidates?.[0]?.content?.parts?.find((part: any) =>
@@ -141,7 +155,14 @@ export async function generateTTSAudio(
     )
 
     if (!audioPart?.inlineData?.data) {
-      throw new Error('No audio data found in Gemini TTS response')
+      const error = 'No audio data found in Gemini TTS response'
+      ttsLogger?.error('No audio data in TTS response', {
+        hasCandidates: !!data.candidates?.[0],
+        hasContent: !!data.candidates?.[0]?.content,
+        hasParts: !!data.candidates?.[0]?.content?.parts,
+        partTypes: data.candidates?.[0]?.content?.parts?.map((p: any) => Object.keys(p).join(','))
+      })
+      throw new Error(error)
     }
 
     // Decode base64 audio content - Gemini returns PCM by default
@@ -180,6 +201,12 @@ export async function generateTTSAudio(
       processingTime,
       ttsSystemInstruction: ttsSystemInstruction ? ttsSystemInstruction.substring(0, 50) : '(none)'
     })
+    ttsLogger?.info('Gemini TTS synthesis completed', {
+      bytesLength: finalBytes.length,
+      contentType,
+      duration,
+      processingTime
+    })
 
     // Store full prompt context for traceability: instruction (from config table) + SSML snippet
     // This matches what was actually sent to Gemini API as contentText
@@ -196,6 +223,11 @@ export async function generateTTSAudio(
 
   } catch (error) {
     logger.error('Gemini TTS synthesis failed', error)
+    ttsLogger?.error('Gemini TTS synthesis failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      ssmlLength: request.ssml.length
+    })
     throw error
   }
 }

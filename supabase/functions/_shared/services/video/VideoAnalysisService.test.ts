@@ -103,7 +103,8 @@ describe('VideoAnalysisService', () => {
         mockContext.videoPath,
         mockContext.analysisParams,
         mockContext.progressCallback,
-        undefined // customPrompt is undefined when not provided
+        undefined, // customPrompt is undefined when not provided
+        undefined // dbLogger is undefined when not provided
       )
 
       expect(result).toEqual({

@@ -55,6 +55,18 @@ export interface FeedbackStatusState {
   isSubscribed: boolean
 }
 
+// Diagnostic info for debugging Realtime issues
+export interface RealtimeDiagnostics {
+  subscriptionCreatedAt: number | null
+  subscriptionConfirmedAt: number | null
+  lastEventReceivedAt: number | null
+  eventsReceivedCount: number
+  lastEventType: string | null
+  lastEventFeedbackId: number | null
+  stalenessPolls: number
+  stalenessPollUpdates: number
+}
+
 export interface FeedbackStatusStore {
   // Feedback tracking
   feedbacks: Map<number, FeedbackStatusState>
@@ -79,6 +91,9 @@ export interface FeedbackStatusStore {
   initialFetchAbortControllers: Map<string, AbortController> // analysisId -> AbortController
   // Event queue for subscription events during backfill - prevents race conditions
   backfillEventQueues: Map<string, Array<{ payload: any; timestamp: number }>> // analysisId -> queued events
+
+  // Diagnostics for debugging Realtime issues (per-analysis)
+  diagnostics: Map<string, RealtimeDiagnostics>
 
   // Global state
   totalFeedbacks: number
@@ -122,6 +137,19 @@ export interface FeedbackStatusStore {
     maxAudioAttempts: number
   }
 
+  // Diagnostics for debugging Realtime issues
+  getDiagnostics: (analysisId: string) => RealtimeDiagnostics | null
+  recordDiagnosticEvent: (
+    analysisId: string,
+    event:
+      | 'subscription_created'
+      | 'subscription_confirmed'
+      | 'event_received'
+      | 'staleness_poll'
+      | 'staleness_update',
+    details?: { eventType?: string; feedbackId?: number }
+  ) => void
+
   // Cleanup
   reset: () => void
 }
@@ -136,9 +164,11 @@ const FEEDBACK_TTL_MS = 5 * 60 * 1000
  */
 function processFeedbackEvent(payload: any, get: () => FeedbackStatusStore): void {
   const feedbackId = payload.new?.id || payload.old?.id
+  const analysisId = payload.new?.analysis_id || payload.old?.analysis_id
   log.info('FeedbackStatusStore', 'Processing feedback event', {
     event: payload.eventType,
     feedbackId,
+    analysisId,
     newAudioStatus: payload.new?.audio_status,
     newSSMLStatus: payload.new?.ssml_status,
     oldAudioStatus: payload.old?.audio_status,
@@ -146,6 +176,14 @@ function processFeedbackEvent(payload: any, get: () => FeedbackStatusStore): voi
     hasNewData: !!payload.new,
     hasOldData: !!payload.old,
   })
+
+  // Record diagnostic event for debugging Realtime issues
+  if (analysisId) {
+    get().recordDiagnosticEvent(analysisId, 'event_received', {
+      eventType: payload.eventType,
+      feedbackId: typeof feedbackId === 'number' ? feedbackId : undefined,
+    })
+  }
 
   switch (payload.eventType) {
     case 'INSERT':
@@ -302,6 +340,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         backfillAbortControllers: new Map(),
         initialFetchAbortControllers: new Map(),
         backfillEventQueues: new Map(),
+        diagnostics: new Map(),
         totalFeedbacks: 0,
         processingSSMLCount: 0,
         processingAudioCount: 0,
@@ -356,6 +395,29 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               return
             }
 
+            // Skip if both status fields are unchanged (true duplicate event)
+            const newSSMLStatus = updates.ssml_status ?? existing.ssmlStatus
+            const newAudioStatus = updates.audio_status ?? existing.audioStatus
+            const newUpdatedAt = updates.updated_at ?? existing.updatedAt
+
+            if (
+              existing.ssmlStatus === newSSMLStatus &&
+              existing.audioStatus === newAudioStatus &&
+              existing.updatedAt === newUpdatedAt
+            ) {
+              if (__DEV__) {
+                log.debug(
+                  'FeedbackStatusStore',
+                  `Skipping duplicate feedback update ${feedbackId}`,
+                  {
+                    ssmlStatus: newSSMLStatus,
+                    audioStatus: newAudioStatus,
+                  }
+                )
+              }
+              return
+            }
+
             // Compile-time stripping: DEBUG logs removed in production builds
             if (__DEV__) {
               log.debug('FeedbackStatusStore', `Updating feedback ${feedbackId}`, {
@@ -371,8 +433,6 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             // Update counters based on status changes
             const oldSSMLStatus = existing.ssmlStatus
             const oldAudioStatus = existing.audioStatus
-            const newSSMLStatus = updates.ssml_status || oldSSMLStatus
-            const newAudioStatus = updates.audio_status || oldAudioStatus
 
             // Update processing counts
             if (oldSSMLStatus === 'processing' && newSSMLStatus !== 'processing') {
@@ -413,7 +473,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
               audioLastError: updates.audio_last_error ?? existing.audioLastError,
               ssmlUpdatedAt: updates.ssml_updated_at ?? existing.ssmlUpdatedAt,
               audioUpdatedAt: updates.audio_updated_at ?? existing.audioUpdatedAt,
-              updatedAt: updates.updated_at ?? existing.updatedAt,
+              updatedAt: newUpdatedAt,
               lastUpdated: Date.now(),
             })
 
@@ -566,6 +626,9 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             }
           })
 
+          // Record diagnostic: subscription created
+          get().recordDiagnosticEvent(analysisId, 'subscription_created')
+
           try {
             // Check if feedbacks already exist in store (from prefetch or previous subscription)
             const existingFeedbacksInStore = get().getFeedbacksByAnalysisId(analysisId)
@@ -716,6 +779,9 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                       retryState.attempts = 0
                     }
                   })
+
+                  // Record diagnostic: subscription confirmed
+                  get().recordDiagnosticEvent(analysisId, 'subscription_confirmed')
 
                   // Backfill check: Re-fetch after subscription confirms to catch missed inserts
                   // This handles the race condition where feedbacks are inserted between
@@ -1091,6 +1157,61 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
           }
         },
 
+        // Get diagnostics for debugging Realtime issues
+        getDiagnostics: (analysisId: string) => {
+          return get().diagnostics.get(analysisId) ?? null
+        },
+
+        // Record diagnostic event for debugging
+        recordDiagnosticEvent: (
+          analysisId: string,
+          event:
+            | 'subscription_created'
+            | 'subscription_confirmed'
+            | 'event_received'
+            | 'staleness_poll'
+            | 'staleness_update',
+          details?: { eventType?: string; feedbackId?: number }
+        ) =>
+          set((draft) => {
+            let diag = draft.diagnostics.get(analysisId)
+            if (!diag) {
+              diag = {
+                subscriptionCreatedAt: null,
+                subscriptionConfirmedAt: null,
+                lastEventReceivedAt: null,
+                eventsReceivedCount: 0,
+                lastEventType: null,
+                lastEventFeedbackId: null,
+                stalenessPolls: 0,
+                stalenessPollUpdates: 0,
+              }
+              draft.diagnostics.set(analysisId, diag)
+            }
+
+            const now = Date.now()
+            switch (event) {
+              case 'subscription_created':
+                diag.subscriptionCreatedAt = now
+                break
+              case 'subscription_confirmed':
+                diag.subscriptionConfirmedAt = now
+                break
+              case 'event_received':
+                diag.lastEventReceivedAt = now
+                diag.eventsReceivedCount++
+                diag.lastEventType = details?.eventType ?? null
+                diag.lastEventFeedbackId = details?.feedbackId ?? null
+                break
+              case 'staleness_poll':
+                diag.stalenessPolls++
+                break
+              case 'staleness_update':
+                diag.stalenessPollUpdates++
+                break
+            }
+          }),
+
         // Reset store
         reset: () =>
           set((draft) => {
@@ -1122,6 +1243,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             })
             draft.initialFetchAbortControllers.clear()
             draft.backfillEventQueues.clear() // Clear all event queues
+            draft.diagnostics.clear() // Clear diagnostics
 
             draft.totalFeedbacks = 0
             draft.processingSSMLCount = 0

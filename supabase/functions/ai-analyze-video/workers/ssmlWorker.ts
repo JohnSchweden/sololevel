@@ -1,6 +1,7 @@
 // SSML Worker - Processes SSML generation based on feedback statuses
 
 import { storeSSMLSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { createDatabaseLogger } from '../../_shared/db/logging.ts'
 import { getUserVoicePreferences, getVoiceConfig } from '../../_shared/db/voiceConfig.ts'
 import { processAudioJobs as _processAudioJobs } from './audioWorker.ts'
 import { getSSMLServiceForRuntime } from './workers.shared.ts'
@@ -69,7 +70,22 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
     // Process each job
     for (const job of jobs as SSMLTask[]) {
       try {
-        await processSingleSSMLJob(job, supabase, logger)
+        // Fetch job_id from analysis_id for complete log context
+        const { data: analysis } = await supabase
+          .from('analyses')
+          .select('job_id')
+          .eq('id', job.analysis_id)
+          .single()
+        
+        // Create database logger with feedback context for this specific job
+        // This ensures logs persist even if function times out
+        const jobLogger = createDatabaseLogger('ai-analyze-video', 'ssmlWorker', supabase, {
+          jobId: analysis?.job_id || undefined,
+          analysisId: job.analysis_id,
+          feedbackId: job.id,
+        })
+        
+        await processSingleSSMLJob(job, supabase, jobLogger)
         result.processedJobs++
       } catch (error) {
         logger.error('Failed to process SSML job', { feedbackId: job.id, error })
@@ -93,7 +109,7 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
 async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): Promise<void> {
   logger.info('Processing SSML job', { feedbackId: job.id, analysisId: job.analysis_id })
 
-  await updateFeedbackSSMLStatus(job.id, 'processing', supabase)
+  await updateFeedbackSSMLStatus(job.id, 'processing', supabase, logger)
 
   // Fetch voice config from analysis_jobs via analyses table
   // analysis_feedback.analysis_id → analyses.id (UUID) → analyses.job_id → analysis_jobs.id (bigint)
@@ -185,17 +201,19 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
     throw new Error('Failed to write SSML segment: insert failed')
   }
 
-  await updateFeedbackSSMLStatus(job.id, 'completed', supabase)
-  await advanceAudioStatus(job.id, supabase)
+  await updateFeedbackSSMLStatus(job.id, 'completed', supabase, logger)
+  await advanceAudioStatus(job.id, supabase, logger)
 
   logger.info('SSML job completed successfully', { feedbackId: job.id })
 }
 
-async function updateFeedbackSSMLStatus(feedbackId: number, status: string, supabase: any): Promise<void> {
+async function updateFeedbackSSMLStatus(feedbackId: number, status: string, supabase: any, logger?: any): Promise<void> {
   const fields: Record<string, any> = {
     ssml_status: status,
     ssml_updated_at: new Date().toISOString()
   }
+
+  logger?.info(`SSML status transition: ${status}`, { feedbackId, status })
 
   const { error } = await supabase
     .from('analysis_feedback')
@@ -203,11 +221,14 @@ async function updateFeedbackSSMLStatus(feedbackId: number, status: string, supa
     .eq('id', feedbackId)
 
   if (error) {
+    logger?.error('Failed to update feedback SSML status', { feedbackId, status, error: error.message })
     throw new Error(`Failed to update feedback SSML status: ${error.message}`)
   }
 }
 
-async function advanceAudioStatus(feedbackId: number, supabase: any): Promise<void> {
+async function advanceAudioStatus(feedbackId: number, supabase: any, logger?: any): Promise<void> {
+  logger?.info('Advancing audio status to queued', { feedbackId })
+  
   const { error } = await supabase
     .from('analysis_feedback')
     .update({
@@ -219,6 +240,7 @@ async function advanceAudioStatus(feedbackId: number, supabase: any): Promise<vo
     .eq('id', feedbackId)
 
   if (error) {
+    logger?.error('Failed to advance audio status', { feedbackId, error: error.message })
     throw new Error(`Failed to queue audio processing: ${error.message}`)
   }
 }

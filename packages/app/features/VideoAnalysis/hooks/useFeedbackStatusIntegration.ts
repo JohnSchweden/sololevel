@@ -471,6 +471,136 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     }
   }, [feedbacks])
 
+  // STALENESS POLLING: Fallback mechanism when Realtime silently fails
+  // If feedbacks are stuck in processing state, poll DB every 3s as a safety net
+  // This catches cases where WebSocket disconnects without triggering CHANNEL_ERROR
+  // SSML is typically ready within 1-2s, so 3s polling catches stuck state quickly
+  const STALENESS_POLL_INTERVAL_MS = 3000 // 3 seconds
+  const stalenessIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    // Only poll when:
+    // 1. We have an analysisId
+    // 2. We have feedbacks that are still processing
+    // 3. Not in history mode (completed analyses don't need polling)
+    const shouldPoll = analysisId && stats.isProcessing && !isHistoryMode && feedbacks.length > 0
+
+    if (shouldPoll) {
+      // Clear any existing interval before starting new one
+      if (stalenessIntervalRef.current) {
+        clearInterval(stalenessIntervalRef.current)
+      }
+
+      log.debug('useFeedbackStatusIntegration', 'Starting staleness polling', {
+        analysisId,
+        isProcessing: stats.isProcessing,
+        feedbackCount: feedbacks.length,
+      })
+
+      stalenessIntervalRef.current = setInterval(async () => {
+        try {
+          // Skip polling if realtime is healthy (received events recently)
+          const diagnostics = useFeedbackStatusStore.getState().getDiagnostics(analysisId)
+          const realtimeHealthy =
+            diagnostics?.lastEventReceivedAt && Date.now() - diagnostics.lastEventReceivedAt < 10000
+
+          if (realtimeHealthy) {
+            if (__DEV__) {
+              log.debug(
+                'useFeedbackStatusIntegration',
+                'Staleness poll: skipping - realtime healthy',
+                {
+                  analysisId,
+                  lastEventAgoMs: Date.now() - (diagnostics?.lastEventReceivedAt ?? 0),
+                }
+              )
+            }
+            return
+          }
+
+          log.debug('useFeedbackStatusIntegration', 'Staleness poll: fetching fresh data', {
+            analysisId,
+          })
+
+          // Record staleness poll for diagnostics
+          useFeedbackStatusStore.getState().recordDiagnosticEvent(analysisId, 'staleness_poll')
+
+          const { data, error } = await supabase
+            .from('analysis_feedback')
+            .select(
+              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+            )
+            .eq('analysis_id', analysisId)
+            .order('created_at', { ascending: true })
+
+          if (error) {
+            log.warn('useFeedbackStatusIntegration', 'Staleness poll fetch failed', {
+              analysisId,
+              error: error.message,
+            })
+            return
+          }
+
+          if (data && data.length > 0) {
+            const store = useFeedbackStatusStore.getState()
+            let updatedCount = 0
+
+            data.forEach((freshFeedback: any) => {
+              const existing = store.getFeedbackById(freshFeedback.id)
+              // Only update if status actually changed (avoid unnecessary re-renders)
+              if (
+                existing &&
+                (existing.ssmlStatus !== freshFeedback.ssml_status ||
+                  existing.audioStatus !== freshFeedback.audio_status)
+              ) {
+                store.updateFeedback(freshFeedback.id, freshFeedback)
+                updatedCount++
+              } else if (!existing) {
+                // Feedback not in store yet, add it
+                store.addFeedback(freshFeedback)
+                updatedCount++
+              }
+            })
+
+            if (updatedCount > 0) {
+              log.info('useFeedbackStatusIntegration', 'Staleness poll: updated stale feedbacks', {
+                analysisId,
+                updatedCount,
+                totalFetched: data.length,
+              })
+              // Record staleness update for diagnostics
+              useFeedbackStatusStore
+                .getState()
+                .recordDiagnosticEvent(analysisId, 'staleness_update')
+            }
+          }
+        } catch (err) {
+          log.warn('useFeedbackStatusIntegration', 'Staleness poll error', {
+            analysisId,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }, STALENESS_POLL_INTERVAL_MS)
+    } else {
+      // Clear interval when no longer processing
+      if (stalenessIntervalRef.current) {
+        log.debug('useFeedbackStatusIntegration', 'Stopping staleness polling', {
+          analysisId,
+          isProcessing: stats.isProcessing,
+        })
+        clearInterval(stalenessIntervalRef.current)
+        stalenessIntervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (stalenessIntervalRef.current) {
+        clearInterval(stalenessIntervalRef.current)
+        stalenessIntervalRef.current = null
+      }
+    }
+  }, [analysisId, stats.isProcessing, isHistoryMode, feedbacks.length])
+
   // Helper functions for specific feedback operations - memoized for stability
   const getFeedbackById = useCallback(
     (feedbackId: string) => {
@@ -511,6 +641,11 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     }
   }, [analysisId])
 
+  // Get diagnostics for debugging Realtime issues
+  const diagnostics = analysisId
+    ? useFeedbackStatusStore.getState().getDiagnostics(analysisId)
+    : null
+
   // Memoize return value to prevent cascading re-renders
   // Only recreate when actual data changes, not on every render
   return useMemo(
@@ -532,8 +667,20 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
       getFeedbackById,
       retryFailedFeedback,
       cleanup,
+
+      // Diagnostics for debugging Realtime issues (access via __DEV__ check in UI)
+      diagnostics,
     }),
-    [feedbackItems, feedbacks, stats, isSubscribed, getFeedbackById, retryFailedFeedback, cleanup]
+    [
+      feedbackItems,
+      feedbacks,
+      stats,
+      isSubscribed,
+      getFeedbackById,
+      retryFailedFeedback,
+      cleanup,
+      diagnostics,
+    ]
   )
 }
 

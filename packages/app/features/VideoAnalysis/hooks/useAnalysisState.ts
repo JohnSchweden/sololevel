@@ -586,6 +586,7 @@ export function useAnalysisState(
         getFeedbackById: () => null,
         retryFailedFeedback: () => {},
         cleanup: () => {},
+        diagnostics: null,
       }
       return feedbackWithFallbackRef.current || defaultFeedback
     }

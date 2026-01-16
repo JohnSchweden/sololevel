@@ -1,5 +1,5 @@
 #!/bin/bash
-# System Data cleanup script - frees ~20GB+ of space
+# System Data cleanup script - frees ~30GB+ of space
 # Run with: bash cleanup-system-data.sh
 
 set -e
@@ -53,6 +53,42 @@ echo "Cleaning browser Application Support caches..."
 rm -rf ~/Library/Application\ Support/Arc/Cache
 rm -rf ~/Library/Application\ Support/Google/Chrome/Default/Cache
 rm -rf ~/Library/Application\ Support/Google/Chrome/Default/Code\ Cache
+rm -rf ~/Library/Caches/Firefox
+rm -rf ~/Library/Application\ Support/Firefox/Profiles/*/cache2
+
+# 9. npm cache (530M)
+echo "Cleaning npm cache (530M)..."
+npm cache clean --force 2>/dev/null || echo "  ⚠️  npm cache clean failed"
+rm -rf ~/.npm/_npx 2>/dev/null || true
+
+# 10. Gradle cache (6.7GB) - LARGE
+echo "Cleaning Gradle cache (6.7GB)..."
+rm -rf ~/.gradle/caches
+
+# 11. Rust/Cargo caches
+echo "Cleaning Rust/Cargo caches..."
+rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+
+# 12. Xcode Documentation Cache (526MB)
+echo "Cleaning Xcode Documentation Cache (526MB)..."
+rm -rf ~/Library/Developer/Xcode/DocumentationCache
+
+# 13. Siri TTS cache (223M)
+echo "Cleaning Siri TTS cache (223M)..."
+rm -rf ~/Library/Caches/SiriTTS
+
+# 14. Homebrew cache (35MB)
+echo "Cleaning Homebrew cache (35MB)..."
+brew cleanup -s 2>/dev/null || echo "  ⚠️  Homebrew cleanup failed"
+
+# 15. Trash (70MB)
+echo "Emptying Trash (70MB)..."
+rm -rf ~/.Trash/*
+
+# 16. System temp files (87MB)
+echo "Cleaning system temp files (87MB)..."
+rm -rf /private/var/folders/*/*/C/com.apple.* 2>/dev/null || true
+rm -rf /private/var/folders/*/*/C/*.tmp 2>/dev/null || true
 
 # Track space after
 AFTER=$(df -h ~ | tail -1 | awk '{print $4}')

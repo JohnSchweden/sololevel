@@ -80,6 +80,12 @@ export const useFeedbackAudioStore = create<FeedbackAudioState>()(
         })
       },
       setActiveAudio: (activeAudio) => {
+        const current = get().activeAudio
+        // Early exit if unchanged (prevents redundant state updates)
+        if (current?.id === activeAudio?.id && current?.url === activeAudio?.url) {
+          return
+        }
+
         set((draft) => {
           const previousId = draft.activeAudio?.id ?? null
           draft.activeAudio = activeAudio
@@ -103,6 +109,11 @@ export const useFeedbackAudioStore = create<FeedbackAudioState>()(
         })
       },
       setIsPlaying: (isPlaying) => {
+        // Early exit if unchanged (prevents redundant controller calls)
+        if (get().isPlaying === isPlaying) {
+          return
+        }
+
         set((draft) => {
           const wasPlaying = draft.isPlaying
           draft.isPlaying = isPlaying

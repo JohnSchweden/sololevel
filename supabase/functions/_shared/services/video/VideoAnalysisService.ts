@@ -15,6 +15,7 @@ export interface VideoAnalysisContext {
   analysisParams?: VideoAnalysisParams
   progressCallback?: (progress: number) => Promise<void>
   customPrompt?: string // Override default prompt with config-injected prompt
+  dbLogger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void; child?: (module: string) => any } // Database logger for persistent logging
 }
 
 export interface VideoAnalysisResult {
@@ -53,9 +54,11 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
   }
 
   async analyze(context: VideoAnalysisContext): Promise<VideoAnalysisResult> {
-    const { supabase, videoPath, analysisParams, progressCallback, customPrompt } = context
+    const { supabase, videoPath, analysisParams, progressCallback, customPrompt, dbLogger } = context
 
     logger.info(`Starting video analysis for: ${videoPath}`)
+    const serviceLogger = (dbLogger?.child ? dbLogger.child('video-analysis-service') : dbLogger) || dbLogger
+    serviceLogger?.info('Video analysis service starting', { videoPath })
 
     try {
       const geminiResult: GeminiVideoAnalysisResult = await this.analyzeVideoWithGemini(
@@ -63,7 +66,8 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
         videoPath,
         analysisParams,
         progressCallback,
-        customPrompt // Pass custom prompt to Gemini analysis
+        customPrompt, // Pass custom prompt to Gemini analysis
+        serviceLogger // Pass child logger to Gemini analysis
       )
 
       const result: VideoAnalysisResult = {
@@ -79,10 +83,18 @@ export class GeminiVideoAnalysisService implements IVideoAnalysisService {
       }
 
       logger.info(`Video analysis completed: ${result.textReport.substring(0, 100)}...`)
+      serviceLogger?.info('Video analysis completed', {
+        textReportLength: result.textReport.length,
+        feedbackCount: result.feedback.length
+      })
       return result
 
     } catch (error) {
       logger.error('Video analysis failed', error)
+      serviceLogger?.error('Video analysis failed', {
+        error: error instanceof Error ? error.message : String(error),
+        videoPath
+      })
       throw error
     }
   }

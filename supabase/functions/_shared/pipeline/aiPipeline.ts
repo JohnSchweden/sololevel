@@ -62,8 +62,28 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
   } = context
   const startTime = Date.now()
 
+  // Create database-backed logger early for full pipeline visibility
+  // Get analysis UUID from job_id for proper context
+  const { data: analysis } = await supabase
+    .from('analyses')
+    .select('id')
+    .eq('job_id', analysisId)
+    .single()
+  
+  const { createDatabaseLogger } = await import('../../_shared/db/logging.ts')
+  const dbLogger = createDatabaseLogger('ai-analyze-video', 'pipeline', supabase, {
+    jobId: analysisId,  // analysisId is actually the job_id (number)
+    analysisId: analysis?.id || undefined,  // UUID from analyses table
+  })
+
   try {
     logger.info(`Starting AI pipeline for analysis ${analysisId}`, {
+      videoPath,
+      videoSource,
+      analysisId,
+      stages
+    })
+    dbLogger.info('AI pipeline started', {
       videoPath,
       videoSource,
       analysisId,
@@ -156,6 +176,11 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
 
       try {
         logger.info('Starting video analysis service call...')
+        const videoAnalysisLogger = dbLogger.child('video-analysis')
+        videoAnalysisLogger.info('Starting video analysis service call', {
+          videoPath,
+          analysisId
+        })
         analysis = await services.videoAnalysis.analyze({
           supabase,
           videoPath,
@@ -163,8 +188,10 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
           customPrompt, // Pass custom prompt with injected voice config
           progressCallback: async (progress: number) => {
             logger.info(`Progress update: ${progress}% for analysis ${analysisId}`)
+            videoAnalysisLogger.info(`Progress update: ${progress}%`, { analysisId, progress })
             await updateAnalysisStatus(supabase, analysisId, 'processing', null, progress, logger)
-          }
+          },
+          dbLogger: videoAnalysisLogger // Pass child logger to video analysis service
         } as VideoAnalysisContext)
         logger.info('Video analysis service call completed successfully')
 
@@ -251,11 +278,29 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       if (stages.runSSML) {
         // Fire and forget - SSML/audio processing continues in background
         // Errors are logged but don't fail the completed job (SSML/audio errors are per-feedback)
-        processSSMLJobs({ supabase, logger, feedbackIds })
-          .then((ssmlResult): void => {
+        const ssmlLogger = dbLogger.child('ssml-worker')
+        processSSMLJobs({ supabase, logger: ssmlLogger, feedbackIds, analysisId: analysis?.id })
+          .then(async (ssmlResult) => {
             if (ssmlResult.errors === 0 && stages.runTTS) {
-              // Fire and forget - don't wait for audio
-              void _processAudioJobs({ supabase, logger, feedbackIds })
+              // Properly handle audio processing errors - don't use void
+              // Pass startTime to track timeout from pipeline start
+              try {
+                const audioLogger = dbLogger.child('audio-worker')
+                await _processAudioJobs({ 
+                  supabase, 
+                  logger: audioLogger, 
+                  feedbackIds,
+                  analysisId: analysis?.id,
+                  startTime  // Use original pipeline start time for timeout tracking
+                })
+              } catch (audioError) {
+                logger.error('Audio processing failed', {
+                  error: audioError instanceof Error ? audioError.message : String(audioError),
+                  stack: audioError instanceof Error ? audioError.stack : undefined,
+                  feedbackIds
+                })
+                await markFeedbackAudioFailed(supabase, feedbackIds, audioError, logger)
+              }
             } else if (ssmlResult.errors > 0) {
               logger.info('Skipping audio generation due to SSML errors', {
                 feedbackIds,
@@ -274,7 +319,7 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
               feedbackIds,
-              analysisId
+              analysisId: analysis?.id
             })
             
             // CRITICAL FIX: Mark all feedback items as failed so clients show proper error state
@@ -330,6 +375,12 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       analysisId,
       videoPath
     })
+    dbLogger.error('AI Pipeline failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      analysisId,
+      videoPath
+    })
     await updateAnalysisStatus(
       supabase,
       analysisId,
@@ -338,5 +389,46 @@ export async function processAIPipeline(context: PipelineContext): Promise<void>
       undefined,
       logger
     )
+  }
+}
+
+/**
+ * Mark feedback items' audio status as failed
+ * Used when audio processing fails catastrophically (e.g., unhandled promise rejection)
+ */
+async function markFeedbackAudioFailed(
+  supabase: any,
+  feedbackIds: number[],
+  error: unknown,
+  logger: { error: (msg: string, data?: any) => void; info: (msg: string, data?: any) => void }
+): Promise<void> {
+  try {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const { error: updateError } = await supabase
+      .from('analysis_feedback')
+      .update({
+        audio_status: 'failed',
+        audio_last_error: errorMessage,
+        audio_updated_at: new Date().toISOString()
+      })
+      .in('id', feedbackIds)
+    
+    if (updateError) {
+      logger.error('Failed to mark feedback audio as failed', {
+        updateError: updateError.message,
+        feedbackIds
+      })
+    } else {
+      logger.info('Marked feedback audio as failed after error', {
+        feedbackIds,
+        count: feedbackIds.length,
+        error: errorMessage
+      })
+    }
+  } catch (updateErr) {
+    // Don't throw - this is a best-effort cleanup
+    logger.error('Error updating feedback audio failure status', {
+      updateErr: updateErr instanceof Error ? updateErr.message : String(updateErr)
+    })
   }
 }

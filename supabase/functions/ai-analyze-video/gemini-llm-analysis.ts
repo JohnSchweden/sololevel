@@ -27,13 +27,6 @@ const logger = createLogger('gemini-llm-analysis')
 // Re-export types for backward compatibility
 export type { GeminiVideoAnalysisResult }
 
-// Legacy function for backward compatibility - now removed
-// This function is no longer needed as we use the new modular approach
-export function setSupabaseClient(_client: any) {
-  // No-op: supabase client is now passed as parameter to functions
-  logger.warn('setSupabaseClient is deprecated - supabase client is now passed as parameter')
-}
-
 /**
  * Analyze video content using Gemini with Files API
  * This uses the proper Files API approach for video analysis
@@ -43,7 +36,8 @@ export async function analyzeVideoWithGemini(
   videoPath: string,
   analysisParams?: VideoAnalysisParams,
   progressCallback?: (progress: number) => Promise<void>,
-  customPrompt?: string // Custom prompt with injected voice config
+  customPrompt?: string, // Custom prompt with injected voice config
+  dbLogger?: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void; child?: (module: string) => any } // Database logger for persistent logging
 ): Promise<GeminiVideoAnalysisResult> {
   // Get validated configuration
   const config = createValidatedGeminiConfig()
@@ -57,15 +51,9 @@ export async function analyzeVideoWithGemini(
   }
 
   // 0) Generate analysis prompt (shared)
+  // Note: new prompt template only uses duration; other params are unused
   const mappedParams = {
     duration: analysisParams?.duration || 6,
-    // Unused variables (commented out - new prompt template only uses duration):
-    // start_time: analysisParams?.startTime || 0,
-    // end_time: analysisParams?.endTime || analysisParams?.duration || 6,
-    // feedback_count: analysisParams?.feedbackCount || 1,
-    // target_timestamps: analysisParams?.targetTimestamps,
-    // min_gap: analysisParams?.minGap,
-    // first_timestamp: analysisParams?.firstTimestamp,
   }
   
   // Use customPrompt if provided, otherwise check voiceConfig, otherwise fall back to default (Roast)
@@ -123,7 +111,15 @@ export async function analyzeVideoWithGemini(
       logger.info(`Starting Gemini analysis (${config.mmModel}) for video: ${videoPath}`)
 
       // Step 1: Download video (20% progress)
-      const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb)
+      const downloadLogger = dbLogger?.child ? dbLogger.child('storage-download') : dbLogger
+      downloadLogger?.info('Starting video download', { videoPath })
+      const downloadStartTime = Date.now()
+      const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb, downloadLogger)
+      downloadLogger?.info('Video download completed', {
+        videoPath,
+        sizeMB: (bytes.length / (1024 * 1024)).toFixed(2),
+        elapsedMs: Date.now() - downloadStartTime
+      })
 
       if (progressCallback) {
         await progressCallback(20)
@@ -131,20 +127,36 @@ export async function analyzeVideoWithGemini(
 
       // Step 2: Upload video to Gemini Files API (40% progress)
       const displayName = `analysis_${Date.now()}.mp4`
-      const fileRef = await uploadToGemini(bytes, mimeType, displayName, config)
+      const filesLogger = dbLogger?.child ? dbLogger.child('gemini-files-client') : dbLogger
+      filesLogger?.info('Starting video upload to Gemini', { displayName, sizeMB: (bytes.length / (1024 * 1024)).toFixed(2) })
+      const uploadStartTime = Date.now()
+      const fileRef = await uploadToGemini(bytes, mimeType, displayName, config, filesLogger)
+      filesLogger?.info('Video upload to Gemini completed', {
+        fileName: fileRef.name,
+        elapsedMs: Date.now() - uploadStartTime
+      })
 
       if (progressCallback) {
         await progressCallback(40)
       }
 
       // Step 3: Poll until file is ACTIVE (55% progress)
-      await pollFileActive(fileRef.name, config)
+      filesLogger?.info('Starting file polling until ACTIVE', { fileName: fileRef.name })
+      const pollStartTime = Date.now()
+      await pollFileActive(fileRef.name, config, undefined, filesLogger)
+      filesLogger?.info('File became ACTIVE', {
+        fileName: fileRef.name,
+        elapsedMs: Date.now() - pollStartTime
+      })
 
       if (progressCallback) {
         await progressCallback(55)
       }
 
       // Step 4: Generate content with Gemini (70% progress)
+      const generateLogger = dbLogger?.child ? dbLogger.child('gemini-generate') : dbLogger
+      generateLogger?.info('Starting content generation', { fileName: fileRef.name, promptLength: prompt.length })
+      const generateStartTime = Date.now()
       generationResult = await generateContent({
         fileRef,
         prompt,
@@ -152,7 +164,12 @@ export async function analyzeVideoWithGemini(
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 2048,
-      }, config)
+      }, config, generateLogger)
+      generateLogger?.info('Content generation completed', {
+        fileName: fileRef.name,
+        textLength: generationResult.text.length,
+        elapsedMs: Date.now() - generateStartTime
+      })
 
       if (progressCallback) {
         await progressCallback(70)
@@ -187,10 +204,21 @@ export async function analyzeVideoWithGemini(
     }
 
     logger.info(`${config.mmModel} analysis completed: ${result.textReport.substring(0, 100)}...`)
+    const analysisLogger = dbLogger?.child ? dbLogger.child('gemini-llm-analysis') : dbLogger
+    analysisLogger?.info('Gemini analysis completed successfully', {
+      textReportLength: result.textReport.length,
+      feedbackCount: result.feedback.length
+    })
 
     return result
   } catch (error) {
     logger.error(`${config.mmModel} analysis failed`, error)
+    const analysisLogger = dbLogger?.child ? dbLogger.child('gemini-llm-analysis') : dbLogger
+    analysisLogger?.error('Gemini analysis failed', {
+      error: error instanceof Error ? error.message : String(error),
+      videoPath,
+      stack: error instanceof Error ? error.stack : undefined
+    })
     throw error
   }
 }

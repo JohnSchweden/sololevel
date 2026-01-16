@@ -48,8 +48,8 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
   if (config.analysisMode === 'mock') {
     logger.info('AI_ANALYSIS_MODE=mock: Using prepared TTS mock response')
     
-    // Simulate 1s delay to mimic real TTS API latency
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Simulate 20s delay to test slow TTS notification (>15s threshold)
+    await new Promise(resolve => setTimeout(resolve, 20000))
     
     const format = options?.format || 'wav'
     logger.info(`Mock TTS: requested format=${format}`)

@@ -49,6 +49,7 @@ const createFeedbackStatus = (overrides: Partial<FeedbackStatus> = {}): Feedback
     getFeedbackById,
     retryFailedFeedback,
     cleanup,
+    diagnostics: null,
     ...overrides,
   }
 }

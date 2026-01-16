@@ -42,6 +42,7 @@ export function FeedbackStatusIndicator({
   if (isAnyFailed) {
     return (
       <XStack
+        flexWrap="wrap"
         alignItems="center"
         gap="$2"
         testID={testID}

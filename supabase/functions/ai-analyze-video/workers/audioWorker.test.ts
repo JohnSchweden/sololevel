@@ -14,6 +14,7 @@ const voiceSnapshotUpdates: any[] = []
 
 // Mock supabase client for Audio worker
 const mockSupabaseForAudio = {
+  rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
   from: (table: string) => {
     if (table === 'analysis_feedback') {
       return {
@@ -234,6 +235,7 @@ Deno.test('Audio worker - processes queued jobs', async () => {
 Deno.test('Audio worker - handles empty queue gracefully', async () => {
   // Mock supabase with no jobs
   const emptyMockSupabase = {
+    rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
     from: (_table: string) => ({
       select: () => ({
         in: () => ({
@@ -270,6 +272,7 @@ Deno.test('Audio worker - handles missing SSML segments', async () => {
   // Mock supabase that has jobs but no SSML segments
   audioStatusUpdates.length = 0
   const noSSMLMockSupabase = {
+    rpc: (_functionName: string, _params: any) => Promise.resolve({ data: null, error: null }),
     from: (table: string) => {
       if (table === 'analysis_ssml_segments') {
         return {

@@ -1,14 +1,15 @@
 #!/bin/bash
-# Master cleanup script - frees 30GB+ of development cache and system data
+# Master cleanup script - frees 40GB+ of development cache and system data
 # Run with: bash cleanup-all.sh
 #
 # This script cleans:
 # - Docker containers, images, volumes, build cache
 # - Android emulator AVDs and system images
-# - iOS simulator devices
+# - iOS simulator devices and Xcode caches
 # - Cursor caches and state
-# - Development tool caches (Yarn, TypeScript, Playwright, etc.)
-# - Browser caches
+# - Development tool caches (Yarn, npm, TypeScript, Gradle, Rust/Cargo, Playwright, etc.)
+# - Browser caches (Arc, Chrome, Firefox)
+# - System caches (Siri TTS, Homebrew, Trash, temp files)
 
 set -e
 
@@ -134,6 +135,18 @@ if command -v xcrun &> /dev/null; then
         echo "  ✅ DerivedData cleaned"
       fi
     fi
+    
+    # Clean Xcode Documentation Cache
+    DOC_CACHE="$HOME/Library/Developer/Xcode/DocumentationCache"
+    if [ -d "$DOC_CACHE" ]; then
+      DOC_SIZE=$(get_size "$DOC_CACHE")
+      echo "  Documentation Cache size: $DOC_SIZE"
+      
+      if confirm "Delete Xcode Documentation Cache?"; then
+        rm -rf "$DOC_CACHE" 2>/dev/null || true
+        echo "  ✅ Documentation Cache cleaned"
+      fi
+    fi
   else
     echo "  ℹ️  No shutdown simulators found"
   fi
@@ -197,6 +210,8 @@ echo "----------------------------"
 if confirm "Clean development tool caches (Yarn, TypeScript, Playwright, etc.)?"; then
   echo "  → Cleaning Yarn cache..."
   yarn cache clean --all 2>/dev/null || echo "    ⚠️  Yarn cache clean failed"
+  # Also clean Yarn Berry global cache
+  rm -rf ~/.yarn/berry/cache 2>/dev/null || true
   
   echo "  → Cleaning TypeScript cache..."
   rm -rf ~/Library/Caches/typescript 2>/dev/null || true
@@ -216,6 +231,16 @@ if confirm "Clean development tool caches (Yarn, TypeScript, Playwright, etc.)?"
   echo "  → Cleaning Selenium cache..."
   rm -rf ~/.cache/selenium 2>/dev/null || true
   
+  echo "  → Cleaning npm cache..."
+  npm cache clean --force 2>/dev/null || echo "    ⚠️  npm cache clean failed"
+  rm -rf ~/.npm/_npx 2>/dev/null || true
+  
+  echo "  → Cleaning Gradle cache..."
+  rm -rf ~/.gradle/caches 2>/dev/null || true
+  
+  echo "  → Cleaning Rust/Cargo caches..."
+  rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+  
   echo "  ✅ Development caches cleaned"
 fi
 echo ""
@@ -232,6 +257,10 @@ if confirm "Clean browser caches (Arc, Chrome, etc.)?"; then
   rm -rf ~/Library/Caches/Google 2>/dev/null || true
   rm -rf ~/Library/Application\ Support/Google/Chrome/Default/Cache 2>/dev/null || true
   rm -rf ~/Library/Application\ Support/Google/Chrome/Default/Code\ Cache 2>/dev/null || true
+  
+  echo "  → Cleaning Firefox cache..."
+  rm -rf ~/Library/Caches/Firefox 2>/dev/null || true
+  rm -rf ~/Library/Application\ Support/Firefox/Profiles/*/cache2 2>/dev/null || true
   
   echo "  ✅ Browser caches cleaned"
 fi
@@ -250,6 +279,27 @@ if [ -d "$SPOTIFY_CACHE" ]; then
     rm -rf "$HOME/Library/Application Support/Spotify/PersistentCache" 2>/dev/null || true
     echo "  ✅ Spotify cache cleaned"
   fi
+fi
+echo ""
+
+# 8. SYSTEM CACHES
+echo "🗑️  SYSTEM CACHES"
+echo "-----------------"
+if confirm "Clean system caches (Siri TTS, Homebrew, Trash, temp files)?"; then
+  echo "  → Cleaning Siri TTS cache..."
+  rm -rf ~/Library/Caches/SiriTTS 2>/dev/null || true
+  
+  echo "  → Cleaning Homebrew cache..."
+  brew cleanup -s 2>/dev/null || echo "    ⚠️  Homebrew cleanup failed"
+  
+  echo "  → Emptying Trash..."
+  rm -rf ~/.Trash/* 2>/dev/null || true
+  
+  echo "  → Cleaning system temp files..."
+  rm -rf /private/var/folders/*/*/C/com.apple.* 2>/dev/null || true
+  rm -rf /private/var/folders/*/*/C/*.tmp 2>/dev/null || true
+  
+  echo "  ✅ System caches cleaned"
 fi
 echo ""
 

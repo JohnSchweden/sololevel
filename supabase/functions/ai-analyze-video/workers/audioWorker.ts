@@ -1,6 +1,7 @@
 // Audio Worker - Processes audio generation using feedback status tracking
 
 import { storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
+import { createDatabaseLogger } from '../../_shared/db/logging.ts'
 import {
   type CoachGender,
   type CoachMode,
@@ -32,6 +33,8 @@ interface WorkerContext {
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
   feedbackIds?: number[]
   analysisId?: string
+  startTime?: number      // When processing started (for timeout tracking)
+  timeoutMs?: number      // Max allowed time in milliseconds (default 55000ms)
 }
 
 interface ProcessingResult {
@@ -44,7 +47,9 @@ export async function processAudioJobs({
   supabase, 
   logger, 
   feedbackIds, 
-  analysisId 
+  analysisId,
+  startTime = Date.now(),
+  timeoutMs = 55000  // 55s, leaving 5s buffer before 60s Edge Function timeout
 }: WorkerContext): Promise<ProcessingResult> {
   const result: ProcessingResult = {
     processedJobs: 0,
@@ -60,10 +65,38 @@ export async function processAudioJobs({
       return result
     }
 
-    logger.info(`Processing ${jobs.length} audio jobs`)
+    logger.info(`Processing ${jobs.length} audio jobs`, {
+      startTime,
+      timeoutMs
+    })
 
     for (const job of jobs) {
-      const jobResult = await processJobWithRetry(job, supabase, logger)
+      // Check timeout BEFORE processing each job
+      const elapsed = Date.now() - startTime
+      if (elapsed > timeoutMs) {
+        logger.error('Approaching timeout, requeueing remaining jobs', {
+          elapsed,
+          timeoutMs,
+          processedSoFar: result.processedJobs,
+          remainingJobs: jobs.length - result.processedJobs
+        })
+        
+        // Mark remaining jobs as 'queued' so they can be picked up later
+        const remainingIds = jobs.slice(result.processedJobs).map(j => j.id)
+        await requeueJobsForRetry(supabase, remainingIds, 'Timeout approaching', logger)
+        
+        result.errors += remainingIds.length
+        break
+      }
+      
+      // Create database logger with feedback context for this specific job
+      // This ensures logs persist even if function times out
+      const jobLogger = createDatabaseLogger('ai-analyze-video', 'audioWorker', supabase, {
+        analysisId: analysisId,
+        feedbackId: job.id,
+      })
+      
+      const jobResult = await processJobWithRetry(job, supabase, jobLogger)
       
       result.processedJobs += jobResult.success ? 1 : 0
       result.errors += jobResult.success ? 0 : 1
@@ -114,7 +147,7 @@ async function processSingleAudioJob(
 ): Promise<void> {
   logger.info('Processing audio job', { feedbackId: job.id })
 
-  await updateFeedbackAudioStatus(job.id, 'processing', supabase)
+  await updateFeedbackAudioStatus(job.id, 'processing', supabase, logger)
 
   const videoContext = await fetchVideoContext(job.id, supabase, logger)
   const voiceConfig = await fetchVoiceConfig(videoContext.userId, supabase, logger)
@@ -141,7 +174,7 @@ async function processSingleAudioJob(
     })
   }
 
-  await updateFeedbackAudioStatus(job.id, 'completed', supabase)
+  await updateFeedbackAudioStatus(job.id, 'completed', supabase, logger)
 
   logger.info('Audio job completed successfully', { feedbackId: job.id })
 }
@@ -333,8 +366,11 @@ async function processSSMLSegment(context: ProcessSegmentContext): Promise<void>
 async function updateFeedbackAudioStatus(
   feedbackId: number, 
   status: string, 
-  supabase: any
+  supabase: any,
+  logger?: any
 ): Promise<void> {
+  logger?.info(`Audio status transition: ${status}`, { feedbackId, status })
+
   const { error } = await supabase
     .from('analysis_feedback')
     .update({
@@ -344,6 +380,7 @@ async function updateFeedbackAudioStatus(
     .eq('id', feedbackId)
 
   if (error) {
+    logger?.error('Failed to update feedback audio status', { feedbackId, status, error: error.message })
     throw new Error(`Failed to update feedback audio status: ${error.message}`)
   }
 }
@@ -372,7 +409,7 @@ async function processJobWithRetry(
     
     try {
       if (attempt > 1) {
-        await updateRetryStatus(job.id, attempt, supabase)
+        await updateRetryStatus(job.id, attempt, supabase, logger)
       }
 
       await processSingleAudioJob(job, supabase, logger)
@@ -405,8 +442,11 @@ async function processJobWithRetry(
 async function updateRetryStatus(
   jobId: number, 
   attempt: number, 
-  supabase: any
+  supabase: any,
+  logger?: any
 ): Promise<void> {
+  logger?.info('Retrying audio job', { feedbackId: jobId, attempt })
+  
   await supabase
     .from('analysis_feedback')
     .update({
@@ -456,4 +496,30 @@ async function markJobAsFailed(
     attempts,
     error: error?.message
   })
+}
+
+/**
+ * Requeue jobs for retry when timeout is approaching
+ * Marks jobs as 'queued' (not 'failed') so they can be picked up by a future invocation
+ */
+async function requeueJobsForRetry(
+  supabase: any, 
+  feedbackIds: number[], 
+  reason: string,
+  logger: any
+): Promise<void> {
+  const { error } = await supabase
+    .from('analysis_feedback')
+    .update({
+      audio_status: 'queued',  // Requeue, not fail
+      audio_last_error: reason,
+      audio_updated_at: new Date().toISOString()
+    })
+    .in('id', feedbackIds)
+  
+  if (error) {
+    logger.error('Failed to requeue jobs', { error: error.message, feedbackIds })
+  } else {
+    logger.info('Requeued jobs for later retry', { feedbackIds, reason })
+  }
 }

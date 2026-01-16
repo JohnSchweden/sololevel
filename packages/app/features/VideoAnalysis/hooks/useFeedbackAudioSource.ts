@@ -29,6 +29,8 @@ export function useFeedbackAudioSource(
   const inFlightRef = useRef<Set<string>>(new Set())
   // PERF FIX #4: Use ref comparison to prevent unnecessary re-runs when array reference changes but content is same
   const previousItemsRef = useRef<string>('')
+  // BUG FIX: Track IDs separately to detect analysis changes vs status updates
+  const previousIdsRef = useRef<string>('')
 
   useEffect(() => {
     // BUG FIX: Clear audioUrls when navigating away or to empty analysis
@@ -38,22 +40,30 @@ export function useFeedbackAudioSource(
       return undefined
     }
 
-    // PERF FIX #4: Compare feedbackItems by content (IDs + status) to avoid re-runs on reference changes
+    // BUG FIX: Separate ID tracking from status tracking
+    // IDs change = different analysis (clear audioUrls)
+    // Status change = same analysis processing (keep audioUrls)
+    const idsKey = feedbackItems
+      .map((item) => item.id)
+      .sort()
+      .join(',')
     const itemsKey = feedbackItems
       .map((item) => `${item.id}:${item.audioStatus ?? 'undefined'}`)
       .sort()
       .join(',')
+
     if (previousItemsRef.current === itemsKey) {
       // Content unchanged, skip re-processing
       return undefined
     }
 
-    // BUG FIX: Clear audioUrls when analysis changes (detected by itemsKey change)
-    // This ensures new analysis starts with clean audio state
-    if (previousItemsRef.current && previousItemsRef.current !== itemsKey) {
+    // BUG FIX: Only clear audioUrls when feedback IDs change (new analysis)
+    // Don't clear on audioStatus updates for same items (processing → completed)
+    if (previousIdsRef.current && previousIdsRef.current !== idsKey) {
       useFeedbackAudioStore.getState().setAudioUrls({})
     }
 
+    previousIdsRef.current = idsKey
     previousItemsRef.current = itemsKey
 
     // FIX: Use AbortController to handle race conditions
