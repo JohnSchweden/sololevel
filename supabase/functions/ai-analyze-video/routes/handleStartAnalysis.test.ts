@@ -334,3 +334,88 @@ Deno.test('handleStartAnalysis - enforces user isolation for videoRecordingId', 
   const body = await response.json()
   assertEquals(body.error, 'Video recording not found or access denied')
 })
+
+Deno.test('handleStartAnalysis - rejects when videoRecord user_id does not match authenticated user', async () => {
+  // ARRANGE: Video that belongs to different user (passed RLS but fails explicit check)
+  const mockSupabaseWithOwnershipMismatch = {
+    ...mockSupabase,
+    from: (_table: string) => ({
+      select: (_fields?: string) => ({
+        eq: (field: string, value: any) => {
+          if (field === 'id' && value === 777) {
+            return {
+              eq: (field2: string, value2: any) => {
+                if (field2 === 'user_id' && value2 === 'test-user-id') {
+                  // RLS passed, but record has different user_id
+                  return {
+                    single: () => Promise.resolve({
+                      data: { 
+                        id: 777, 
+                        user_id: 'different-user-id', // Different user!
+                        storage_path: 'test/video.mp4', 
+                        duration_seconds: 30 
+                      },
+                      error: null
+                    })
+                  }
+                }
+              }
+            }
+          }
+          return mockSupabase.from(_table).select(_fields).eq(field, value)
+        }
+      }),
+      insert: mockSupabase.from(_table).insert,
+      update: mockSupabase.from(_table).update
+    })
+  }
+
+  // ACT
+  const req = new Request('http://localhost', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer valid-token',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      videoRecordingId: 777
+    })
+  })
+
+  const response = await handleStartAnalysis({
+    req,
+    supabase: mockSupabaseWithOwnershipMismatch,
+    logger: mockLogger
+  })
+
+  // ASSERT: Should return 403 (Forbidden) for ownership mismatch
+  assertEquals(response.status, 403)
+  const body = await response.json()
+  assertEquals(body.error, 'Access denied')
+})
+
+Deno.test('handleStartAnalysis - extracts videoDuration from videoRecordingId lookup', async () => {
+  // ARRANGE: Video recording with duration
+  const req = new Request('http://localhost', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer valid-token',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      videoRecordingId: 123
+    })
+  })
+
+  // ACT
+  const response = await handleStartAnalysis({
+    req,
+    supabase: mockSupabase,
+    logger: mockLogger
+  })
+
+  // ASSERT: Should succeed and videoDuration is extracted (logged)
+  assertEquals(response.status, 200)
+  const body = await response.json()
+  assertExists(body.analysisId)
+})

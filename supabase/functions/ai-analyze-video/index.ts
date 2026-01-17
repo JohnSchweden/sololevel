@@ -6,6 +6,8 @@ import { createErrorResponse } from '../_shared/http/responses.ts'
 import { createLogger, enableNetworkLogging } from '../_shared/logger.ts'
 import { createServiceClientFromEnv } from '../_shared/supabase/client.ts'
 
+import { handlePostAnalyze } from './routes/handlePostAnalyze.ts'
+import { handleRetryAudio } from './routes/handleRetryAudio.ts'
 import { handleStartAnalysis } from './routes/handleStartAnalysis.ts'
 import { handleStatus } from './routes/handleStatus.ts'
 import { handleTTS } from './routes/handleTTS.ts'
@@ -82,6 +84,16 @@ Deno.serve(async (req) => {
     // Route: POST /ai-analyze-video/webhook - DB webhook auto-pickup endpoint
     if (req.method === 'POST' && path === '/ai-analyze-video/webhook') {
       return handleWebhookStart({ req, supabase, logger })
+    }
+
+    // Route: POST /ai-analyze-video/post-analyze - SSML + Audio (triggered by UPDATE webhook)
+    if (req.method === 'POST' && path === '/ai-analyze-video/post-analyze') {
+      return handlePostAnalyze({ req, supabase, logger })
+    }
+
+    // Route: POST /ai-analyze-video/retry-audio - Retry audio generation for specific feedback IDs
+    if (req.method === 'POST' && path === '/ai-analyze-video/retry-audio') {
+      return handleRetryAudio({ req, supabase, logger })
     }
 
     // Route: POST /ai-analyze-video/upload-test - Test file upload endpoint

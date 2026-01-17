@@ -159,8 +159,8 @@ export class MockTTSService implements ITTSService {
   async synthesize(context: TTSContext): Promise<TTSResult> {
     logger.info('Mock TTS synthesis')
 
-    // Simulate 20s delay to test slow TTS notification (>15s threshold)
-    await new Promise(resolve => setTimeout(resolve, 20000))
+    // Simulate 1s delay for testing
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
     const format = resolveAudioFormat(context.customParams?.format ? [context.customParams.format] : undefined, 'gemini')
     const extension = AUDIO_FORMATS[format].extension

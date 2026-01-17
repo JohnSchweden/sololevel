@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ai.sololevel.app",
-      "buildNumber": "16",
+      "buildNumber": "17",
       "icon": "./assets/icon.png",
       "darkIcon": "./assets/icon-dark.png",
       "tintedIcon": "./assets/icon-tinted.png",

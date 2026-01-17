@@ -48,8 +48,8 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
   if (config.analysisMode === 'mock') {
     logger.info('AI_ANALYSIS_MODE=mock: Using prepared TTS mock response')
     
-    // Simulate 20s delay to test slow TTS notification (>15s threshold)
-    await new Promise(resolve => setTimeout(resolve, 20000))
+    // Simulate 1s delay for testing
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
     const format = options?.format || 'wav'
     logger.info(`Mock TTS: requested format=${format}`)
@@ -58,11 +58,12 @@ export async function generateTTSFromSSML(ssml: string, options?: TTSOptions): P
 
   // Real mode: Generate TTS using shared module
   try {
-    // Generate TTS audio using shared module (speakingRate/pitch removed per web research)
+    // Generate TTS audio using shared module
+    // Note: speed and pitch are not supported by GenerateTTSRequest interface
     const result = await generateTTSAudio({
       ssml,
       voiceName: options?.voice,
-      format: options?.format || 'wav', // Default to WAV to trigger PCM→WAV conversion
+      format: options?.format || 'wav',
       ttsSystemInstruction: options?.ttsSystemInstruction
     }, config)
 

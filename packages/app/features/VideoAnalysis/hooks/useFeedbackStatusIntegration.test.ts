@@ -40,7 +40,7 @@ jest.mock('@app/features/VideoAnalysis/stores/feedbackStatus', () => {
   }
 })
 
-// Mock logging
+// Mock logging (must be before imports)
 jest.mock('@my/logging', () => ({
   logOnChange: jest.fn(),
   log: {
@@ -50,6 +50,24 @@ jest.mock('@my/logging', () => ({
     error: jest.fn(),
   },
 }))
+
+// Import log after mock to get the mocked version
+import { log } from '@my/logging'
+
+// Mock supabase - must be defined before the mock
+const mockFunctionsInvoke = jest.fn<() => Promise<{ data: any; error: any }>>()
+
+jest.mock('@my/api', () => {
+  return {
+    get supabase() {
+      return {
+        functions: {
+          invoke: mockFunctionsInvoke,
+        },
+      }
+    },
+  }
+})
 
 describe('useFeedbackStatusIntegration', () => {
   beforeEach(() => {
@@ -61,6 +79,13 @@ describe('useFeedbackStatusIntegration', () => {
     mockGetFeedbacksByAnalysisId.mockReturnValue([])
     mockFeedbackStatusStoreState.subscriptions.clear()
     mockFeedbackStatusStoreState.subscriptionStatus.clear()
+    mockFunctionsInvoke.mockReset()
+    mockFunctionsInvoke.mockResolvedValue({ data: { status: 'completed' }, error: null })
+    // Clear log mocks
+    ;(log.debug as jest.Mock).mockClear()
+    ;(log.info as jest.Mock).mockClear()
+    ;(log.warn as jest.Mock).mockClear()
+    ;(log.error as jest.Mock).mockClear()
   })
 
   it('returns initial state when no analysisId is provided', () => {
@@ -126,6 +151,129 @@ describe('useFeedbackStatusIntegration', () => {
 
     // Should still call unsubscribe (store handles idempotency)
     expect(mockUnsubscribeFromAnalysis).toHaveBeenCalledWith('analysis-123')
+  })
+
+  it('retryFailedFeedback calls backend endpoint when audio is failed', async () => {
+    // ARRANGE: Mock feedback with failed audio status
+    const failedFeedback = {
+      id: 1,
+      analysisId: 'test-analysis-uuid',
+      message: 'Test feedback',
+      category: 'voice',
+      timestampSeconds: 1.0,
+      confidence: 0.9,
+      ssmlStatus: 'completed' as const,
+      audioStatus: 'failed' as const,
+      ssmlAttempts: 0,
+      audioAttempts: 1,
+      ssmlLastError: null,
+      audioLastError: 'Audio generation failed',
+      ssmlUpdatedAt: new Date().toISOString(),
+      audioUpdatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastUpdated: Date.now(),
+      isSubscribed: false,
+    }
+
+    mockFeedbackStatusStoreState.getFeedbackById.mockReturnValue(failedFeedback as any)
+
+    mockGetFeedbacksByAnalysisId.mockReturnValue([failedFeedback] as any)
+
+    const { result } = renderHook(() => useFeedbackStatusIntegration('test-analysis-uuid'))
+
+    // ACT: Call retryFailedFeedback
+    await act(async () => {
+      await result.current.retryFailedFeedback('1')
+    })
+
+    // ASSERT: Should set status to 'retrying' and call backend endpoint
+    expect(mockFeedbackStatusStoreState.setAudioStatus).toHaveBeenCalledWith(1, 'retrying')
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('ai-analyze-video/retry-audio', {
+      body: {
+        analysisId: 'test-analysis-uuid',
+        feedbackIds: [1],
+      },
+    })
+    // Verify retry was logged (may be called multiple times with different data)
+    const retryLogCalls = (log.info as jest.Mock).mock.calls.filter(
+      (call) =>
+        (typeof call[1] === 'string' && call[1].includes('Retrying audio')) ||
+        (typeof call[1] === 'string' && call[1].includes('Audio retry initiated'))
+    )
+    expect(retryLogCalls.length).toBeGreaterThan(0)
+  })
+
+  it('retryFailedFeedback reverts to failed status when backend call fails', async () => {
+    // ARRANGE: Mock feedback with failed audio status and backend error
+    const failedFeedback = {
+      id: 2,
+      analysisId: 'test-analysis-uuid',
+      message: 'Test feedback',
+      category: 'voice',
+      timestampSeconds: 1.0,
+      confidence: 0.9,
+      ssmlStatus: 'completed' as const,
+      audioStatus: 'failed' as const,
+      ssmlAttempts: 0,
+      audioAttempts: 1,
+      ssmlLastError: null,
+      audioLastError: 'Audio generation failed',
+      ssmlUpdatedAt: new Date().toISOString(),
+      audioUpdatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastUpdated: Date.now(),
+      isSubscribed: false,
+    }
+
+    mockFeedbackStatusStoreState.getFeedbackById.mockReturnValue(failedFeedback as any)
+    mockGetFeedbacksByAnalysisId.mockReturnValue([failedFeedback] as any)
+
+    // Mock backend call to fail
+    const backendError = { message: 'Network error' }
+    mockFunctionsInvoke.mockResolvedValueOnce({ data: null, error: backendError })
+
+    const { result } = renderHook(() => useFeedbackStatusIntegration('test-analysis-uuid'))
+
+    // ACT: Call retryFailedFeedback
+    await act(async () => {
+      await result.current.retryFailedFeedback('2')
+    })
+
+    // ASSERT: Should first set to 'retrying', then revert to 'failed' on error
+    expect(mockFeedbackStatusStoreState.setAudioStatus).toHaveBeenCalledWith(2, 'retrying')
+    expect(mockFeedbackStatusStoreState.setAudioStatus).toHaveBeenCalledWith(
+      2,
+      'failed',
+      'Network error'
+    )
+    expect(log.error).toHaveBeenCalledWith(
+      'useFeedbackStatusIntegration',
+      expect.stringContaining('Failed to invoke retry-audio'),
+      expect.any(Object)
+    )
+  })
+
+  it('retryFailedFeedback does nothing when feedback not found', async () => {
+    // ARRANGE: Mock getFeedbackById to return null
+    mockFeedbackStatusStoreState.getFeedbackById.mockReturnValue(null)
+    mockGetFeedbacksByAnalysisId.mockReturnValue([])
+
+    const { result } = renderHook(() => useFeedbackStatusIntegration('test-analysis-uuid'))
+
+    // ACT: Call retryFailedFeedback with non-existent ID
+    await act(async () => {
+      await result.current.retryFailedFeedback('999')
+    })
+
+    // ASSERT: Should not call backend or update status
+    expect(mockFeedbackStatusStoreState.setAudioStatus).not.toHaveBeenCalled()
+    expect(mockFunctionsInvoke).not.toHaveBeenCalled()
+    expect(log.warn).toHaveBeenCalledWith(
+      'useFeedbackStatusIntegration',
+      expect.stringContaining('not found for retry')
+    )
   })
 })
 

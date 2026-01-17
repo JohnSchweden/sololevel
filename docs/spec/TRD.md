@@ -49,23 +49,36 @@
 - **Workers:** Web Workers for pose processing
 
 ### AI Pipeline
-- **Video Analysis:** Gemini 2.5 Flash → Pro
+- **Video Analysis:** Gemini 2.5 Flash → Pro (with 120s timeout protection)
 - **Feedback Generation:** Gemini 2.5 LLM (text + SSML)
 - **TTS:** Gemini 2.5 → MP3/WAV
+- **Architecture:** Split pipeline (2 Edge Function invocations to prevent wall clock timeout)
 
 ## Data Flow
 
 ```
+Phase 1 - Video Analysis (Edge Function 1):
 Client → Upload raw video → Supabase Storage (raw bucket)
-      → Call ai-analyze-video Edge Function (receives job id)
-      → Edge: Gemini video analysis → LLM feedback → TTS audio → Storage (processed bucket)
-      → DB: analysis_jobs + analysis_feedback + audio segments
+      → Call ai-analyze-video Edge Function → Returns immediately (job queued)
+      → INSERT trigger → Webhook → /ai-analyze-video/webhook (fresh 150s timeout)
+      → Edge: Gemini video analysis → Feedback generation → DB
+      → Status: analysis_complete (80% progress)
+      
+Phase 2 - SSML/Audio Generation (Edge Function 2):
+      → UPDATE trigger fires → Webhook → /ai-analyze-video/post-analyze (fresh 150s timeout)
+      → Edge: SSML generation → TTS audio → Storage (processed bucket)
+      → DB: analysis_audio_segments + analysis_ssml_segments
+      → Status: completed (100% progress)
       → Realtime: Client subscribes to analysis_jobs UPDATE → UI updates
 ```
 
 Notes:
-- Uploads create `upload_sessions` rows; progress tracked server-side.
-- Finalization and job enqueue are handled by Storage/DB webhook logic.
+- Pipeline split prevents wall clock timeout (55% stuck issue resolved)
+- Each phase gets fresh 150s Edge Function invocation
+- Uploads create `upload_sessions` rows; progress tracked server-side
+- Finalization and job enqueue are handled by Storage/DB webhook logic
+- INSERT trigger: `auto-start-analysis-on-upload-completed` 
+- UPDATE trigger: `auto_start_post_analysis` (fires when status = 'analysis_complete')
 
 ## Database Schema (Simplified)
 
@@ -84,7 +97,8 @@ video_recordings (
 
 analysis_jobs (
   id, user_id, video_recording_id,
-  status, progress_percentage,
+  status, -- 'queued' | 'processing' | 'analysis_complete' | 'completed' | 'failed'
+  progress_percentage,
   results jsonb, pose_data jsonb,
   full_feedback_text, summary_text,
   -- Voice snapshot columns (frozen at analysis time)
@@ -220,25 +234,39 @@ function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
 ```typescript
 // Edge Functions: /functions/v1/
 
-// ai-analyze-video - Main analysis pipeline
+// ai-analyze-video - Split pipeline architecture (2 phases)
+
+// Phase 1: Create job (INSERT trigger starts video analysis)
 POST /ai-analyze-video
-  Body: { videoPath: string, videoSource?: 'live_recording' | 'uploaded_video' }
-  Response: { analysisId: number, status: 'queued' }
+  Body: { videoRecordingId: number, videoSource?: 'live_recording' | 'uploaded_video' }
+  Response: { analysisId: number, status: 'queued', message: 'Processing will start automatically' }
   Security: userId extracted from JWT (server-side)
-  Handler: handleStartAnalysis
+  Handler: handleStartAnalysis (creates job, returns immediately)
+  Note: INSERT trigger calls /webhook which runs video analysis
+
+// Phase 1 (Webhook): Video analysis only
+POST /ai-analyze-video/webhook
+  Triggered by INSERT trigger on analysis_jobs
+  Handler: handleWebhookStart (fresh 150s timeout)
+  Process: Gemini video analysis → feedback generation → status = 'analysis_complete'
+  Note: AbortController with 120s timeout on Gemini API call
+
+// Phase 2 (Webhook): SSML + Audio generation  
+POST /ai-analyze-video/post-analyze
+  Triggered by UPDATE trigger when status = 'analysis_complete'
+  Handler: handlePostAnalyze (fresh 150s timeout)
+  Process: SSML generation → TTS audio → status = 'completed'
+  Security: DB webhook secret validation
 
 GET /ai-analyze-video/status?id=<id>
   Response: { id, status, progress, error?, results? }
   Handler: handleStatus
+  Note: status includes 'analysis_complete' (video done, SSML/audio pending)
 
 POST /ai-analyze-video/tts
   Body: { ssml?: string, text?: string, format?: 'mp3'|'wav' }
   Response: { audioUrl: string, duration?: number, format: string }
   Handler: handleTTS
-
-POST /ai-analyze-video/webhook
-  Triggered by DB webhook when video upload finalizes
-  Handler: handleWebhookStart
 
 // Dev/test endpoints
 GET /ai-analyze-video/test-env
@@ -298,7 +326,15 @@ POST /admin-auth
 **Edge Functions:**
 - Main: `supabase/functions/ai-analyze-video/index.ts`
 - Route handlers: `supabase/functions/ai-analyze-video/routes/`
+  - `handleStartAnalysis.ts`: Creates job, returns immediately
+  - `handleWebhookStart.ts`: Phase 1 - Video analysis (triggered by INSERT)
+  - `handlePostAnalyze.ts`: Phase 2 - SSML + Audio (triggered by UPDATE)
+- Pipeline: `supabase/functions/_shared/pipeline/aiPipeline.ts` (video-only)
+- Workers: 
+  - `supabase/functions/ai-analyze-video/workers/ssmlWorker.ts`
+  - `supabase/functions/ai-analyze-video/workers/audioWorker.ts`
 - TTS: `supabase/functions/_shared/gemini/tts.ts`
+- Gemini: `supabase/functions/_shared/gemini/generate.ts` (with 120s timeout)
 - LLM Analysis: `supabase/functions/ai-analyze-video/gemini-llm-analysis.ts`
 - SSML Feedback: `supabase/functions/ai-analyze-video/gemini-ssml-feedback.ts`
 - Logger: `supabase/functions/_shared/logger.ts`

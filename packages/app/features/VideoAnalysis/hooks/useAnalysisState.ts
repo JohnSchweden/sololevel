@@ -209,6 +209,11 @@ const determinePhase = (params: {
     return { phase: 'ready', error: null }
   }
 
+  // NEW: analysis_complete = video analysis done, SSML/Audio processing via /post-analyze
+  if (analysisStatus.status === 'analysis_complete') {
+    return { phase: 'generating-feedback', error: null }
+  }
+
   if (analysisStatus.status === 'completed') {
     return { phase: 'generating-feedback', error: null }
   }
@@ -405,56 +410,28 @@ export function useAnalysisState(
   )
 
   const [analysisUuid, setAnalysisUuid] = useState<string | null>(() => {
-    // FIX: Use Zustand store only - single source of truth for UUID caching
-    // UUIDs don't change, so Zustand with persistence is the right choice
     const effectiveJobId = analysisJobId ?? null
-    if (effectiveJobId) {
-      // Check persisted store only (survives app restarts)
-      // Note: Store may not be hydrated yet, so getUuid() may return null
-      // This is fine - useEffect will re-check after hydration completes
-      const uuid = getUuid(effectiveJobId)
-      if (uuid) {
-        log.debug('useAnalysisState', 'Using cached UUID from Zustand', {
-          analysisJobId: effectiveJobId,
-          uuid,
-          source: 'persisted',
-        })
-        return uuid
-      }
-    }
-    return null
+    return effectiveJobId ? getUuid(effectiveJobId) : null
   })
 
-  // FIX: Sync cachedUuid from Zustand subscription to local state
-  // This triggers when the title subscription stores the UUID
+  // Sync UUID from Zustand subscription
   useEffect(() => {
     if (cachedUuid && cachedUuid !== analysisUuid) {
-      log.info('useAnalysisState', 'UUID received from title subscription', {
-        jobId: effectiveJobIdForUuid,
-        analysisUuid: cachedUuid,
-      })
       setAnalysisUuid(cachedUuid)
     }
-  }, [cachedUuid, analysisUuid, effectiveJobIdForUuid])
+  }, [cachedUuid, analysisUuid])
+
+  // Resolve UUID from API if not in cache
   useEffect(() => {
     const effectiveJobId = analysisJobId ?? analysisJob?.id ?? null
-
     if (!effectiveJobId) {
       setAnalysisUuid(null)
       return
     }
 
-    // FIX: Check Zustand store only - single source of truth
-    // Re-check persisted store (may have hydrated since last check)
     const cachedUuid = getUuid(effectiveJobId)
     if (cachedUuid) {
       if (analysisUuid !== cachedUuid) {
-        log.debug('useAnalysisState', 'Using cached UUID from effect', {
-          analysisJobId: effectiveJobId,
-          uuid: cachedUuid,
-          source: 'persisted',
-          wasHydrated: isHydrated,
-        })
         setAnalysisUuid(cachedUuid)
       }
       return
@@ -462,46 +439,30 @@ export function useAnalysisState(
 
     const abortController = new AbortController()
 
-    const resolveUuid = async () => {
-      try {
-        const uuid = await getAnalysisIdForJobId(effectiveJobId, {
-          signal: abortController.signal,
-        })
-
+    getAnalysisIdForJobId(effectiveJobId, { signal: abortController.signal })
+      .then((uuid) => {
         if (!abortController.signal.aborted && uuid) {
-          // FIX: Cache UUID in Zustand store only - single source of truth
           setUuid(effectiveJobId, uuid)
           setAnalysisUuid(uuid)
         } else if (!abortController.signal.aborted) {
           setAnalysisUuid(null)
         }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          // Aborted, ignore
-          return
-        }
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.name === 'AbortError') return
         if (__DEV__ && !abortController.signal.aborted) {
-          const message = error instanceof Error ? error.message : 'Unknown error'
           log.error('useAnalysisState', 'Failed to resolve analysis UUID', {
             jobId: effectiveJobId,
-            error: message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           })
         }
         if (!abortController.signal.aborted) {
           setAnalysisUuid(null)
         }
-      }
-    }
+      })
 
-    void resolveUuid()
-
-    return () => {
-      abortController.abort()
-    }
-    // Include isHydrated and getUuid in deps to re-check cache after hydration completes
-    // This prevents unnecessary API calls when UUID is already in persisted cache
-    // Note: getUuid is stable from Zustand, but included for completeness
-  }, [analysisJobId, analysisJob?.id, queryClient, isHydrated, getUuid])
+    return () => abortController.abort()
+  }, [analysisJobId, analysisJob?.id, queryClient, isHydrated, getUuid, setUuid])
 
   const feedbackStatus = useFeedbackStatusIntegration(analysisUuid ?? undefined, isHistoryMode)
 
@@ -511,119 +472,54 @@ export function useAnalysisState(
     (state) => state.flags.simulateAnalysisFailure
   )
 
-  /**
-   * Stabilize feedbackItems array reference to prevent mount/unmount thrashing.
-   *
-   * Even though useFeedbackStatusIntegration stabilizes the array, we need to stabilize
-   * it here as well because feedbackWithFallback spreads feedbackStatus which creates
-   * a new object. By comparing content (IDs and properties), we ensure the array
-   * reference only changes when actual data changes.
-   *
-   * Performance impact: Prevents FeedbackPanel from mounting/unmounting items
-   * when only object references change, not content.
-   */
-  const stableFeedbackItemsRef = useRef<typeof feedbackStatus.feedbackItems>([])
-  const prevFeedbackItemsSignatureRef = useRef<string>('')
-
-  // Create signature from feedback items content (IDs and key properties)
-  const feedbackItemsSignature = feedbackStatus.feedbackItems
-    .map(
-      (item) =>
-        `${item.id}:${item.timestamp}:${item.text?.substring(0, 20)}:${item.type}:${item.category}:${item.ssmlStatus}:${item.audioStatus}:${item.confidence}`
-    )
-    .join('|')
+  // Stabilize feedback items using content-based memoization
+  const feedbackSignature = useMemo(() => {
+    return feedbackStatus.feedbackItems
+      .map((item) => `${item.id}:${item.ssmlStatus}:${item.audioStatus}`)
+      .join(',')
+  }, [feedbackStatus.feedbackItems])
 
   const stableFeedbackItems = useMemo(() => {
-    const prevSignature = prevFeedbackItemsSignatureRef.current
-    const currentItems = feedbackStatus.feedbackItems
-
-    // Compare signatures - if unchanged, return previous array reference
-    if (
-      prevSignature === feedbackItemsSignature &&
-      stableFeedbackItemsRef.current.length === currentItems.length
-    ) {
-      return stableFeedbackItemsRef.current
-    }
-
-    // Content changed - update refs synchronously during render
-    prevFeedbackItemsSignatureRef.current = feedbackItemsSignature
-    stableFeedbackItemsRef.current = currentItems
-    return currentItems
-  }, [feedbackItemsSignature, feedbackStatus.feedbackItems])
+    return feedbackStatus.feedbackItems
+  }, [feedbackSignature])
 
   // Apply mock fallback strategy based on feature flag
-  // BUT: Skip mock data if we're in history mode and analysisJobId exists (might have prefetched data)
-  // CRITICAL: Use stableFeedbackItems instead of feedbackStatus.feedbackItems to maintain reference stability
-  // CRITICAL: Return a stable reference using useRef to prevent cascading re-renders
-  const feedbackWithFallbackRef = useRef(feedbackStatus)
-  const prevFeedbackFallbackSignatureRef = useRef<string>('')
-
   const feedbackWithFallback = useMemo(() => {
-    // Ensure feedbackStatus is always an object (defensive guard)
-    // This should never happen as useFeedbackStatusIntegration always returns an object,
-    // but we guard against it for safety
-    if (!feedbackStatus) {
-      const defaultFeedback: FeedbackState = {
-        feedbackItems: [],
-        feedbacks: [],
-        stats: {
-          total: 0,
-          ssmlCompleted: 0,
-          audioCompleted: 0,
-          fullyCompleted: 0,
-          hasBlockingFailures: false,
-          hasAudioFailures: false,
-          hasFailures: false,
-          isProcessing: false,
-          completionPercentage: 0,
-        },
-        isSubscribed: false,
-        isProcessing: false,
-        hasFailures: false,
-        hasBlockingFailures: false,
-        hasAudioFailures: false,
-        isFullyCompleted: false,
-        getFeedbackById: () => null,
-        retryFailedFeedback: () => {},
-        cleanup: () => {},
-        diagnostics: null,
-      }
-      return feedbackWithFallbackRef.current || defaultFeedback
-    }
+    const shouldSkipMock = isHistoryMode && analysisJobId && analysisUuid === null
+    const shouldUseMock = stableFeedbackItems.length === 0 && useMockData && !shouldSkipMock
 
-    let items = stableFeedbackItems
+    const items = shouldUseMock
+      ? (mockFeedbackItems as typeof feedbackStatus.feedbackItems)
+      : stableFeedbackItems
 
-    // In history mode with analysisJobId, skip mock data while UUID is being resolved
-    if (
-      stableFeedbackItems.length === 0 &&
-      isHistoryMode &&
-      analysisJobId &&
-      analysisUuid === null
-    ) {
-      items = []
-    } else if (stableFeedbackItems.length === 0 && useMockData) {
-      // Only use mock data if feature flag is enabled
-      items = mockFeedbackItems as typeof feedbackStatus.feedbackItems
-    }
-
-    // Create signature for content-based comparison
-    const currentSignature = `${items.length}:${items.map((f) => `${f.id}:${f.ssmlStatus}:${f.audioStatus}`).join(',')}`
-    const signature = `${currentSignature}:${feedbackStatus.hasFailures}:${feedbackStatus.isFullyCompleted}:${feedbackStatus.isProcessing}`
-
-    // Only create new object if content actually changed
-    if (signature === prevFeedbackFallbackSignatureRef.current && feedbackWithFallbackRef.current) {
-      return feedbackWithFallbackRef.current
-    }
-
-    const newFeedback = {
+    return {
       ...feedbackStatus,
       feedbackItems: items,
     }
-
-    prevFeedbackFallbackSignatureRef.current = signature
-    feedbackWithFallbackRef.current = newFeedback
-    return newFeedback
   }, [stableFeedbackItems, feedbackStatus, useMockData, isHistoryMode, analysisJobId, analysisUuid])
+
+  // Only terminal states make video playable initially
+  // 'retrying' is included for retry flow (video already playable, stays playable)
+  const PLAYABLE_AUDIO_STATUSES = new Set(['completed', 'failed', 'retrying'])
+
+  // Latch: once video becomes playable, it stays playable for this analysis session
+  // This prevents flicker when status transitions (e.g., retrying → queued → processing → completed)
+  const hasBeenPlayableRef = useRef(false)
+  const previousAnalysisUuidRef = useRef<string | null>(null)
+
+  // Reset latch when analysis changes (but not on initial resolution from null)
+  useEffect(() => {
+    // Only reset if analysisUuid actually changed between non-null values
+    // This prevents resetting when UUID resolves from null → actual UUID
+    if (
+      previousAnalysisUuidRef.current !== null &&
+      analysisUuid !== null &&
+      previousAnalysisUuidRef.current !== analysisUuid
+    ) {
+      hasBeenPlayableRef.current = false
+    }
+    previousAnalysisUuidRef.current = analysisUuid
+  }, [analysisUuid])
 
   const firstPlayableReady = useMemo(() => {
     // Use real feedback items (not fallback) for playability detection
@@ -631,24 +527,23 @@ export function useAnalysisState(
       return false
     }
 
-    const earliest = feedbackStatus.feedbackItems.reduce((previous, current) => {
-      if (!previous) {
-        return current
-      }
+    const earliest = feedbackStatus.feedbackItems.reduce(
+      (previous, current) => {
+        return !previous || current.timestamp < previous.timestamp ? current : previous
+      },
+      null as (typeof feedbackStatus.feedbackItems)[0] | null
+    )
 
-      return current.timestamp < previous.timestamp ? current : previous
-    })
+    // Check if current status is playable
+    const isCurrentlyPlayable =
+      earliest !== null && PLAYABLE_AUDIO_STATUSES.has(earliest.audioStatus ?? '')
 
-    if (!earliest) {
-      return false
+    // Latch: once playable, stay playable (prevents flicker during status transitions)
+    if (isCurrentlyPlayable) {
+      hasBeenPlayableRef.current = true
     }
 
-    // Accept both terminal states: 'completed' (audio ready) or 'failed' (processing done, show retry)
-    return feedbackStatus.feedbackItems.some(
-      (item) =>
-        item.id === earliest.id &&
-        (item.audioStatus === 'completed' || item.audioStatus === 'failed')
-    )
+    return hasBeenPlayableRef.current
   }, [feedbackStatus.feedbackItems])
 
   const analysisStatus = deriveAnalysisStatus(analysisJob, simulateAnalysisFailure)

@@ -272,6 +272,12 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     process.env.NODE_ENV !== 'test' ? state.isCoachSpeaking : false
   )
 
+  // PERFORMANCE FIX: Direct subscription to fallback timer state
+  // Controls play/pause button for feedback without audio
+  const isFallbackTimerActive = useFeedbackCoordinatorStore((state) =>
+    process.env.NODE_ENV !== 'test' ? state.isFallbackTimerActive : false
+  )
+
   // PERFORMANCE FIX: Direct subscription to audio overlay state
   // Eliminates VideoAnalysisLayout re-renders when audio overlay state changes
   const overlayVisible = useFeedbackCoordinatorStore((state) =>
@@ -294,19 +300,16 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
   const currentBubbleIndex = useFeedbackCoordinatorStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.bubbleState.currentBubbleIndex : null
   )
-  const bubbleItems = useMemo(
-    () => feedbackItems.filter((item: any) => item.type === 'suggestion'),
-    [feedbackItems]
-  )
 
   // Reconstruct bubbleState locally (same structure as before)
+  // PERFORMANCE FIX: Combine filter + object creation to avoid intermediate allocation
   const bubbleState = useMemo(
     () => ({
       visible: bubbleVisible,
       currentIndex: currentBubbleIndex,
-      items: bubbleItems,
+      items: feedbackItems.filter((item: any) => item.type === 'suggestion'),
     }),
-    [bubbleVisible, currentBubbleIndex, bubbleItems]
+    [bubbleVisible, currentBubbleIndex, feedbackItems]
   )
 
   // Reconstruct audioOverlay locally using subscribed state + passed functions
@@ -891,7 +894,7 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
           <VideoControls
             ref={videoControlsRef}
-            isPlaying={videoPlayer.isPlaying || audioIsPlaying}
+            isPlaying={videoPlayer.isPlaying || audioIsPlaying || isFallbackTimerActive}
             currentTime={storeCurrentTime}
             duration={storeDuration}
             showControls={showControls}

@@ -4,25 +4,25 @@ overview: Refactor the video analysis pipeline to use separate Edge Function inv
 todos:
   - id: migration
     content: "Create migration: add analysis_complete status and UPDATE trigger"
-    status: pending
+    status: completed
   - id: timeout
     content: Add AbortController timeout to generateContent fetch call
-    status: pending
+    status: completed
   - id: start-route
     content: Modify handleStartAnalysis to only create job, remove pipeline call
-    status: pending
+    status: completed
   - id: analyze-route
     content: Modify handleWebhookStart for video-only, set analysis_complete
-    status: pending
+    status: completed
   - id: post-analyze-route
     content: Create handlePostAnalyze for SSML/Audio processing
-    status: pending
+    status: completed
   - id: pipeline-split
     content: Remove SSML/Audio from aiPipeline, move to post-analyze
-    status: pending
+    status: completed
   - id: register-routes
     content: Update index.ts with new route registration
-    status: pending
+    status: completed
 ---
 
 # Split Pipeline Architecture

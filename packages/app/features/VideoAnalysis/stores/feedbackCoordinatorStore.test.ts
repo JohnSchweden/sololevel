@@ -172,6 +172,36 @@ describe('feedbackCoordinatorStore', () => {
       expect(renderCountRef.current).toBe(2)
     })
 
+    it('should allow selective subscription to isFallbackTimerActive only', () => {
+      // Arrange
+      const renderCountRef = { current: 0 }
+      const { result } = renderHook(() => {
+        renderCountRef.current++
+        return useFeedbackCoordinatorStore((state) => state.isFallbackTimerActive)
+      })
+
+      expect(renderCountRef.current).toBe(1)
+      expect(result.current).toBe(false)
+
+      // Act - Change isFallbackTimerActive
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+      })
+
+      // Assert - Component re-renders
+      expect(renderCountRef.current).toBe(2)
+      expect(result.current).toBe(true)
+
+      // Act - Change unrelated state (highlightedFeedbackId)
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setHighlightedFeedbackId('feedback-1')
+      })
+
+      // Assert - Component does NOT re-render (still 2)
+      expect(renderCountRef.current).toBe(2)
+      expect(result.current).toBe(true)
+    })
+
     it('should batch multiple state updates in single transaction', () => {
       // Arrange
       // Subscribe to highlightedFeedbackId only (single primitive, not object)
@@ -214,6 +244,7 @@ describe('feedbackCoordinatorStore', () => {
         currentBubbleIndex: null,
         bubbleVisible: false,
       })
+      expect(state.isFallbackTimerActive).toBe(false)
       expect(state.overlayVisible).toBe(false)
       expect(state.activeAudio).toBeNull()
     })
@@ -246,6 +277,20 @@ describe('feedbackCoordinatorStore', () => {
         currentBubbleIndex: 2,
         bubbleVisible: true,
       })
+    })
+
+    it('should update isFallbackTimerActive', () => {
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+      })
+
+      expect(useFeedbackCoordinatorStore.getState().isFallbackTimerActive).toBe(true)
+
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(false)
+      })
+
+      expect(useFeedbackCoordinatorStore.getState().isFallbackTimerActive).toBe(false)
     })
 
     it('should update overlay state', () => {
@@ -282,6 +327,7 @@ describe('feedbackCoordinatorStore', () => {
       expect(state.highlightedFeedbackId).toBeNull()
       expect(state.isCoachSpeaking).toBe(false)
       expect(state.overlayVisible).toBe(false)
+      expect(state.isFallbackTimerActive).toBe(false)
       expect(state.activeAudio).toBeNull()
     })
   })

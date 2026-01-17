@@ -23,15 +23,16 @@ graph TB
 
     subgraph Backend["Supabase Backend"]
         AuthSvc["🔑 Auth (JWT + Sessions)"]
-        DB[("🗄️ PostgreSQL\nvideo_recordings\nanalysis_jobs (+ voice snapshots)\nanalyses\nanalysis_feedback\nanalysis_audio_segments\nanalysis_ssml_segments\nanalysis_metrics\nupload_sessions\nprofiles (+ voice prefs)\ncoach_voice_configs\nuser_feedback\n🔒 RLS Enabled")]
+        DB[("🗄️ PostgreSQL\nvideo_recordings\nanalysis_jobs\n  (+ voice snapshots)\n  status: queued | processing |\n    analysis_complete | completed | failed\nanalyses\nanalysis_feedback\nanalysis_audio_segments\nanalysis_ssml_segments\nanalysis_metrics\nupload_sessions\nprofiles (+ voice prefs)\ncoach_voice_configs\nuser_feedback\n🔒 RLS Enabled\n🔔 Triggers:\n  INSERT → /webhook\n  UPDATE (analysis_complete) → /post-analyze")]
         Storage["📁 Storage\nraw videos\nprocessed audio\nthumbnails"]
         RT["⚡ Realtime\nanalysis_jobs changes"]
-        Edge["🧩 Edge Functions\nai-analyze-video (routes/)\nstorage-upload-finalize\nadmin-auth"]
+        Edge["🧩 Edge Functions\nai-analyze-video\n  /webhook (Phase 1)\n  /post-analyze (Phase 2)\nstorage-upload-finalize\nadmin-auth"]
     end
 
-    subgraph AI["AI Pipeline"]
+    subgraph AI["AI Pipeline (Split Architecture)"]
         ClientPose["🕺 Client Pose (MoveNet)"]
-        EdgeAI["🧠 Edge Processing\nGemini 2.5 Video + LLM feedback\nGemini TTS → audio\nSSML generation"]
+        Phase1["🧠 Phase 1: Video Analysis\n/webhook (INSERT trigger)\nGemini 2.5 Video + LLM feedback\n120s timeout protection\nStatus → analysis_complete"]
+        Phase2["🎵 Phase 2: SSML/Audio\n/post-analyze (UPDATE trigger)\nSSML generation → Gemini TTS\nStatus → completed"]
         VoiceConfig["🎙️ Voice Config\ncoach_voice_configs table\ngender/mode → voice/prompt"]
     end
 
@@ -52,11 +53,14 @@ graph TB
     API --> Storage
     API --> RT
     API --> Edge
-    ClientPose --> EdgeAI
-    Edge --> EdgeAI
-    EdgeAI --> Storage
-    EdgeAI --> DB
-    EdgeAI --> VoiceConfig
+    ClientPose --> Phase1
+    Edge --> Phase1
+    Phase1 --> Phase2
+    Phase2 --> Storage
+    Phase1 --> DB
+    Phase2 --> DB
+    Phase1 --> VoiceConfig
+    Phase2 --> VoiceConfig
     VoiceConfig --> DB
     DB --> RT
     RT --> TSQ
@@ -71,4 +75,4 @@ graph TB
     class UI,App,API,Config,Logging shared
     class Zustand,TSQ state
     class AuthSvc,DB,Storage,RT,Edge backend
-    class ClientPose,EdgeAI,VoiceConfig ai
+    class ClientPose,Phase1,Phase2,VoiceConfig ai

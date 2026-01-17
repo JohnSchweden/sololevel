@@ -2,6 +2,7 @@ import { log } from '@my/logging'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
+import { estimateFeedbackDuration } from '../utils/feedbackDuration'
 
 export type BubbleTimerReason = 'initial' | 'playback-start' | 'duration-update'
 export type BubbleHideReason =
@@ -57,6 +58,7 @@ export interface BubbleControllerOptions<TItem extends BubbleFeedbackItem> {
 export interface BubbleFeedbackItem {
   id: string
   timestamp: number
+  text?: string
 }
 
 const MIN_DISPLAY_DURATION_MS = 3000
@@ -90,9 +92,14 @@ const defaultTimerState: BubbleTimerState<BubbleFeedbackItem> = {
   expiryReason: null,
 }
 
-const calculateDisplayDuration = (hasAudioUrl: boolean, audioDurationSeconds: number) => {
+const calculateDisplayDuration = (
+  hasAudioUrl: boolean,
+  audioDurationSeconds: number,
+  feedbackText?: string
+) => {
   if (!hasAudioUrl) {
-    return MIN_DISPLAY_DURATION_MS
+    // Use text-based estimation when no audio is available
+    return estimateFeedbackDuration(feedbackText)
   }
 
   if (audioDurationSeconds > 0) {
@@ -115,6 +122,9 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
   const getBubbleState = useCallback(() => useFeedbackCoordinatorStore.getState().bubbleState, [])
   const setBubbleStateInStore = useFeedbackCoordinatorStore((state) => state.setBubbleState)
 
+  // Subscribe to fallback timer state for feedback without audio
+  const isFallbackTimerActive = useFeedbackCoordinatorStore((state) => state.isFallbackTimerActive)
+
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastBubbleShowTimeRef = useRef<number>(0)
   const lastCheckTimestampRef = useRef<number | null>(null)
@@ -122,6 +132,7 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
   const timerStateRef = useRef<BubbleTimerState<TItem>>({
     ...defaultTimerState,
   } as BubbleTimerState<TItem>)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
     feedbackItemsRef.current = feedbackItems
@@ -142,6 +153,7 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false
       clearBubbleTimer()
     }
   }, [clearBubbleTimer])
@@ -262,6 +274,9 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       }
 
       bubbleTimerRef.current = setTimeout(() => {
+        // Prevent state updates after unmount
+        if (!isMountedRef.current) return
+
         // log.info('useBubbleController', 'Bubble hide timer triggered', {
         //   itemId: item.id,
         //   totalDurationMs,
@@ -323,7 +338,7 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       lastBubbleShowTimeRef.current = Date.now()
 
       const hasAudioUrl = Boolean(audioUrls[item.id])
-      const displayDurationMs = calculateDisplayDuration(hasAudioUrl, audioDuration)
+      const displayDurationMs = calculateDisplayDuration(hasAudioUrl, audioDuration, item.text)
 
       timerStateRef.current = {
         item,
@@ -364,7 +379,12 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       return
     }
 
-    if (isPlaying) {
+    // For feedback WITH audio: follow video isPlaying
+    // For feedback WITHOUT audio: follow isFallbackTimerActive
+    const hasAudioUrl = Boolean(audioUrls[currentState.item.id])
+    const timerShouldRun = hasAudioUrl ? isPlaying : isFallbackTimerActive
+
+    if (timerShouldRun) {
       // Resume: if we were paused, record the pause duration and reschedule
       if (currentState.pausedAtMs !== null) {
         const pauseDuration = Date.now() - currentState.pausedAtMs
@@ -384,22 +404,11 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       } else if (currentState.waitingForPlayback && currentState.startedAtMs === null) {
         // Starting timer for the first time
         if (currentState.totalDurationMs > 0) {
-          // log.info('useBubbleController', 'Starting bubble timer on playback start', {
-          //   itemId: currentState.item.id,
-          // })
           scheduleBubbleHide({
             index: currentState.index,
             item: currentState.item,
             reason: 'playback-start',
           })
-        } else {
-          // log.debug(
-          //   'useBubbleController',
-          //   'Playback started but audio duration unknown; waiting for coordinator to hide',
-          //   {
-          //     itemId: currentState.item.id,
-          //   }
-          // )
         }
       }
       return
@@ -407,16 +416,22 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
 
     // Pause: clear timer but keep bubble visible, track pause start time
     if (currentState.startedAtMs !== null && currentState.pausedAtMs === null) {
-      // log.info('useBubbleController', 'Playback paused — pausing bubble timer', {
-      //   itemId: currentState.item.id,
-      // })
       clearBubbleTimer()
       timerStateRef.current = {
         ...currentState,
         pausedAtMs: Date.now(),
       }
     }
-  }, [getBubbleState, clearBubbleTimer, hideBubble, isPlaying, options, scheduleBubbleHide])
+  }, [
+    getBubbleState,
+    clearBubbleTimer,
+    hideBubble,
+    isPlaying,
+    isFallbackTimerActive,
+    audioUrls,
+    options,
+    scheduleBubbleHide,
+  ])
 
   useEffect(() => {
     const storeState = getBubbleState()
@@ -432,7 +447,7 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
       return
     }
 
-    const nextDurationMs = calculateDisplayDuration(true, audioDuration)
+    const nextDurationMs = calculateDisplayDuration(true, audioDuration, item.text)
 
     if (nextDurationMs <= 0) {
       return
@@ -460,7 +475,15 @@ export function useBubbleController<TItem extends BubbleFeedbackItem>(
         reason: 'duration-update',
       })
     }
-  }, [audioDuration, audioUrls, getBubbleState, isPlaying, options, scheduleBubbleHide])
+  }, [
+    audioDuration,
+    audioUrls,
+    getBubbleState,
+    isPlaying,
+    isFallbackTimerActive,
+    options,
+    scheduleBubbleHide,
+  ])
 
   // PURE: Find trigger candidate WITHOUT side effects
   // Returns index and item if a bubble should trigger, or null if no trigger

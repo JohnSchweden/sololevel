@@ -13,11 +13,13 @@ export type DatabaseAnalysisJob = Tables<'analysis_jobs'>
 
 /**
  * Type guard to ensure status is a valid AnalysisStatus
+ * Note: 'analysis_complete' is an intermediate state in the split pipeline
+ * (video analysis done, SSML/audio processing pending via /post-analyze)
  */
 function isValidAnalysisStatus(
   status: string
-): status is 'queued' | 'processing' | 'completed' | 'failed' {
-  return ['queued', 'processing', 'completed', 'failed'].includes(status)
+): status is 'queued' | 'processing' | 'analysis_complete' | 'completed' | 'failed' {
+  return ['queued', 'processing', 'analysis_complete', 'completed', 'failed'].includes(status)
 }
 
 export interface OptimisticUpdate<T = any> {
@@ -199,6 +201,7 @@ export function createOptimisticAnalysisJob(
     status: (isValidAnalysisStatus(data.status || '') ? data.status : 'queued') as
       | 'queued'
       | 'processing'
+      | 'analysis_complete'
       | 'completed'
       | 'failed',
     progress_percentage: data.progress_percentage || 0,

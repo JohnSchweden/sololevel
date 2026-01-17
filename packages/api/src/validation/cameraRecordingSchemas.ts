@@ -12,7 +12,13 @@ export const VideoFormatSchema = z.enum(['mp4', 'mov'])
 export const UploadStatusSchema = z.enum(['pending', 'uploading', 'completed', 'failed'])
 
 // Analysis status validation
-export const AnalysisStatusSchema = z.enum(['queued', 'processing', 'completed', 'failed'])
+export const AnalysisStatusSchema = z.enum([
+  'queued',
+  'processing',
+  'analysis_complete',
+  'completed',
+  'failed',
+])
 
 // Video recording validation
 export const VideoRecordingSchema = z.object({

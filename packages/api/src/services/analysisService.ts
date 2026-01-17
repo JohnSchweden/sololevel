@@ -139,7 +139,7 @@ export type AnalysisJobWithVideo = AnalysisJob & {
   } | null
 }
 
-export type AnalysisStatus = 'queued' | 'processing' | 'completed' | 'failed'
+export type AnalysisStatus = 'queued' | 'processing' | 'analysis_complete' | 'completed' | 'failed'
 
 export interface AnalysisResults {
   pose_analysis?: {
@@ -630,7 +630,7 @@ export async function getAnalysisIdForJobId(
       .select('id, analysis_jobs!inner(user_id, status)')
       .eq('job_id', jobId)
       .eq('analysis_jobs.user_id', user.id)
-      .in('analysis_jobs.status', ['processing', 'completed'])
+      .in('analysis_jobs.status', ['processing', 'analysis_complete', 'completed'])
       .maybeSingle()
 
     if (error) {

@@ -160,10 +160,14 @@ export async function analyzeVideoWithGemini(
       generationResult = await generateContent({
         fileRef,
         prompt,
-        temperature: 0.7,
+        temperature: 1.0,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 2048,
+        thinkingConfig: {
+          thinkingLevel: 'LOW',
+        },
+        mediaResolution: 'MEDIA_RESOLUTION_LOW',
       }, config, generateLogger)
       generateLogger?.info('Content generation completed', {
         fileName: fileRef.name,

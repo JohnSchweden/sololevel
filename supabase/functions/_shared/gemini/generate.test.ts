@@ -102,8 +102,14 @@ describe('generateContent', () => {
     const [, options] = mockFetch.mock.calls[0]
     const body = JSON.parse(options.body)
 
-    // generationConfig is currently commented out in the implementation
-    expect(body.generationConfig).toBeUndefined()
+    // generationConfig should be included when parameters are provided
+    expect(body.generationConfig).toBeDefined()
+    expect(body.generationConfig).toMatchObject({
+      temperature: 0.8,
+      topK: 50,
+      topP: 0.9,
+      maxOutputTokens: 1000
+    })
   })
 
   it('should use default generation parameters when not specified', async () => {

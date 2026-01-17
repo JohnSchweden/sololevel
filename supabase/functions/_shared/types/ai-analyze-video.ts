@@ -63,7 +63,7 @@ export interface AnalysisJob {
   id: number
   user_id: string
   video_recording_id: number
-  status: 'queued' | 'processing' | 'completed' | 'failed'
+  status: 'queued' | 'processing' | 'analysis_complete' | 'completed' | 'failed'
   progress_percentage: number
   processing_started_at?: string
   processing_completed_at?: string

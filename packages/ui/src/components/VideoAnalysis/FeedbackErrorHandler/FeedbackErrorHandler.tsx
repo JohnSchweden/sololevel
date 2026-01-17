@@ -15,11 +15,11 @@ export interface FeedbackErrorHandlerProps {
 
 export function FeedbackErrorHandler({
   feedbackId,
-  feedbackText,
+  feedbackText: _feedbackText,
   ssmlFailed,
   audioFailed,
   onRetry,
-  onDismiss,
+  onDismiss: _onDismiss,
   size = 'medium',
   testID = 'feedback-error-handler',
 }: FeedbackErrorHandlerProps) {
@@ -41,13 +41,6 @@ export function FeedbackErrorHandler({
     return 'Processing failed'
   }
 
-  const getErrorDetails = () => {
-    const details = []
-    if (ssmlFailed) details.push('SSML generation')
-    if (audioFailed) details.push('Audio generation')
-    return details.join(' and ') + ' failed'
-  }
-
   return (
     <YStack
       backgroundColor="$red2"
@@ -55,7 +48,8 @@ export function FeedbackErrorHandler({
       borderWidth={1}
       borderRadius="$4"
       padding={spacing}
-      gap="$2"
+      gap="$1"
+      marginTop="$2"
       testID={testID}
       accessibilityLabel={`Error processing feedback: ${getErrorMessage()}`}
       accessibilityRole="alert"
@@ -85,8 +79,9 @@ export function FeedbackErrorHandler({
         color="$red10"
         lineHeight="$3"
       >
-        {getErrorDetails()} for: "
-        {feedbackText.length > 50 ? feedbackText.substring(0, 50) + '...' : feedbackText}"
+        Please ignore or try again.
+        {/* {getErrorDetails()} for: "
+        {feedbackText.length > 50 ? feedbackText.substring(0, 50) + '...' : feedbackText}" */}
       </Text>
 
       {/* Action Buttons */}
@@ -95,7 +90,7 @@ export function FeedbackErrorHandler({
         justifyContent="flex-end"
         marginTop="$1"
       >
-        {onDismiss && (
+        {/* {onDismiss && (
           <Button
             size={buttonSize}
             variant="outlined"
@@ -108,7 +103,7 @@ export function FeedbackErrorHandler({
           >
             <Text fontSize={size === 'small' ? '$1' : '$2'}>Dismiss</Text>
           </Button>
-        )}
+        )} */}
 
         <Button
           size={buttonSize}

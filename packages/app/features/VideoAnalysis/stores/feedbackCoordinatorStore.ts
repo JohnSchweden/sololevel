@@ -36,6 +36,11 @@ export interface FeedbackCoordinatorState {
     bubbleVisible: boolean
   }
 
+  // Fallback timer state (for feedback without audio)
+  // When true, indicates the text-based timer is actively running
+  // Mirrors audioIsPlaying behavior for consistent play/pause button state
+  isFallbackTimerActive: boolean
+
   // Overlay state
   overlayVisible: boolean
   activeAudio: { id: string; url: string } | null
@@ -46,6 +51,7 @@ export interface FeedbackCoordinatorState {
   setHighlightSource: (source: 'user' | 'auto' | null) => void
   setIsCoachSpeaking: (speaking: boolean) => void
   setBubbleState: (state: { currentBubbleIndex: number | null; bubbleVisible: boolean }) => void
+  setFallbackTimerActive: (active: boolean) => void
   setOverlayVisible: (visible: boolean) => void
   setActiveAudio: (audio: { id: string; url: string } | null) => void
 
@@ -67,6 +73,7 @@ type FeedbackCoordinatorActions = Pick<
   | 'setHighlightSource'
   | 'setIsCoachSpeaking'
   | 'setBubbleState'
+  | 'setFallbackTimerActive'
   | 'setOverlayVisible'
   | 'setActiveAudio'
   | 'batchUpdate'
@@ -82,6 +89,7 @@ const initialState = {
     currentBubbleIndex: null,
     bubbleVisible: false,
   },
+  isFallbackTimerActive: false,
   overlayVisible: false,
   activeAudio: null,
 }
@@ -130,6 +138,13 @@ export const useFeedbackCoordinatorStore = create<FeedbackCoordinatorState>((set
         next: { currentIndex: bubbleState.currentBubbleIndex, visible: bubbleState.bubbleVisible },
       })
       set({ bubbleState })
+    }
+  },
+  setFallbackTimerActive: (active) => {
+    const prev = get().isFallbackTimerActive
+    if (prev !== active) {
+      log.debug('FeedbackCoordinatorStore', '🔄 setFallbackTimerActive', { prev, next: active })
+      set({ isFallbackTimerActive: active })
     }
   },
   setOverlayVisible: (visible) => {
@@ -202,6 +217,15 @@ export const useFeedbackCoordinatorStore = create<FeedbackCoordinatorState>((set
           prev: { currentIndex: prevBubble.currentBubbleIndex, visible: prevBubble.bubbleVisible },
           next: { currentIndex: nextBubble.currentBubbleIndex, visible: nextBubble.bubbleVisible },
         }
+      }
+    }
+    if (
+      updates.isFallbackTimerActive !== undefined &&
+      updates.isFallbackTimerActive !== prevState.isFallbackTimerActive
+    ) {
+      changes.isFallbackTimerActive = {
+        prev: prevState.isFallbackTimerActive,
+        next: updates.isFallbackTimerActive,
       }
     }
     if (

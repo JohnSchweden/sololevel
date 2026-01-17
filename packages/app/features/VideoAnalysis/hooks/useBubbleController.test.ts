@@ -170,7 +170,7 @@ describe('useBubbleController', () => {
     })
 
     act(() => {
-      jest.advanceTimersByTime(2500)
+      jest.advanceTimersByTime(1500)
     })
 
     const bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
@@ -333,6 +333,236 @@ describe('useBubbleController', () => {
         expect(candidate?.item.id).toBe('2')
         expect(candidate?.item.timestamp).toBe(4100)
       })
+    })
+  })
+
+  describe('text-based duration estimation', () => {
+    it('uses text-based duration when no audio is available', () => {
+      // Arrange: Feedback with medium length text (40 chars)
+      const feedbackItems = [
+        { id: '1', timestamp: 1000, text: 'Your grip technique needs improvement.' },
+      ]
+      const { result } = renderHook(() =>
+        useBubbleController(feedbackItems, 0, true, {}, 0, {
+          onBubbleShow: jest.fn(),
+        })
+      )
+
+      const onBubbleShow = jest.fn()
+      result.current = renderHook(() =>
+        useBubbleController(feedbackItems, 0, true, {}, 0, {
+          onBubbleShow,
+        })
+      ).result.current
+
+      // Act: Show bubble for feedback without audio
+      act(() => {
+        result.current.showBubble(0)
+      })
+
+      // Assert: onBubbleShow called with text-based duration
+      // 40 chars / 20 chars/sec = 2000ms + 500ms buffer = 2500ms (minimum 2000ms)
+      expect(onBubbleShow).toHaveBeenCalledWith({
+        index: 0,
+        item: feedbackItems[0],
+        displayDurationMs: expect.any(Number),
+      })
+      const displayDuration = (onBubbleShow.mock.calls[0][0] as { displayDurationMs: number })
+        .displayDurationMs
+      expect(displayDuration).toBeGreaterThanOrEqual(2000) // Minimum duration
+      expect(displayDuration).toBeLessThanOrEqual(3000) // ~2.5s for 40 chars
+    })
+
+    it('uses minimum duration for feedback without text', () => {
+      // Arrange: Feedback with no text field
+      const feedbackItems = [{ id: '1', timestamp: 1000 }]
+      const onBubbleShow = jest.fn()
+
+      const { result } = renderHook(() =>
+        useBubbleController(feedbackItems, 0, true, {}, 0, {
+          onBubbleShow,
+        })
+      )
+
+      // Act: Show bubble
+      act(() => {
+        result.current.showBubble(0)
+      })
+
+      // Assert: Uses minimum duration (2000ms)
+      expect(onBubbleShow).toHaveBeenCalledWith({
+        index: 0,
+        item: feedbackItems[0],
+        displayDurationMs: 2000,
+      })
+    })
+
+    it('scales duration with longer text', () => {
+      // Arrange: Feedback with long text (100 chars)
+      const longText =
+        'Your grip technique needs improvement. Try adjusting your hand position for better club control.'
+      const feedbackItems = [{ id: '1', timestamp: 1000, text: longText }]
+      const onBubbleShow = jest.fn()
+
+      const { result } = renderHook(() =>
+        useBubbleController(feedbackItems, 0, true, {}, 0, {
+          onBubbleShow,
+        })
+      )
+
+      // Act: Show bubble
+      act(() => {
+        result.current.showBubble(0)
+      })
+
+      // Assert: Duration scales with text length
+      // 100 chars / 20 chars/sec = 5000ms + 500ms buffer = 5500ms
+      const displayDuration = (onBubbleShow.mock.calls[0][0] as { displayDurationMs: number })
+        .displayDurationMs
+      expect(displayDuration).toBeGreaterThanOrEqual(5000)
+      expect(displayDuration).toBeLessThanOrEqual(6000)
+    })
+  })
+
+  describe('fallback timer pause/resume with isFallbackTimerActive', () => {
+    it('pauses timer when isFallbackTimerActive becomes false for feedback without audio', () => {
+      // Arrange: Feedback without audio, timer should run based on isFallbackTimerActive
+      const feedbackItems = [{ id: '1', timestamp: 1000, text: 'Test feedback' }]
+
+      // Start with timer active
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+        useFeedbackCoordinatorStore.getState().setBubbleState({
+          currentBubbleIndex: 0,
+          bubbleVisible: true,
+        })
+      })
+
+      const { result, rerender } = renderHook(() =>
+        useBubbleController(feedbackItems, 0, false, {}, 0, {})
+      )
+
+      // Trigger show bubble to start timer
+      act(() => {
+        result.current.showBubble(0)
+      })
+
+      // Act: Set isFallbackTimerActive to false (simulate user pause)
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(false)
+        // Re-render to trigger effect that checks isFallbackTimerActive
+        rerender()
+      })
+
+      // Advance time significantly - bubble should still be visible because timer was paused
+      act(() => {
+        jest.advanceTimersByTime(3000)
+      })
+
+      const bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(true)
+      expect(bubbleState.currentBubbleIndex).toBe(0)
+    })
+
+    it('resumes timer when isFallbackTimerActive becomes true for feedback without audio', () => {
+      // Arrange: Feedback without audio
+      const feedbackItems = [{ id: '1', timestamp: 1000, text: 'Test feedback' }]
+
+      const { result, rerender } = renderHook(() =>
+        useBubbleController(feedbackItems, 0, false, {}, 0, {})
+      )
+
+      // Start timer by setting isFallbackTimerActive to true and showing bubble
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+        result.current.showBubble(0)
+      })
+
+      // Pause timer by setting isFallbackTimerActive to false
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(false)
+        // Re-render to trigger effect that pauses timer
+        rerender()
+      })
+
+      // Advance time - bubble should still be visible (timer paused)
+      act(() => {
+        jest.advanceTimersByTime(1000)
+      })
+
+      let bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(true)
+
+      // Act: Resume timer by setting isFallbackTimerActive to true
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+        // Re-render to trigger effect that resumes timer
+        rerender()
+      })
+
+      // Advance remaining time - bubble should hide after duration
+      act(() => {
+        jest.advanceTimersByTime(2500) // ~2.5s for text-based duration
+      })
+
+      bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(false)
+    })
+
+    it('uses isPlaying for feedback with audio, ignores isFallbackTimerActive', () => {
+      // Arrange: Feedback WITH audio URL - should use isPlaying, not isFallbackTimerActive
+      const feedbackItems = [{ id: '1', timestamp: 1000 }]
+      const audioUrls = { '1': 'https://example.com/audio.mp3' }
+
+      const { result, rerender } = renderHook(
+        ({ isPlaying }) => useBubbleController(feedbackItems, 0, isPlaying, audioUrls, 5, {}),
+        {
+          initialProps: { isPlaying: true },
+        }
+      )
+
+      act(() => {
+        result.current.showBubble(0)
+      })
+
+      // Set isFallbackTimerActive to true - should NOT affect timer for feedback with audio
+      act(() => {
+        useFeedbackCoordinatorStore.getState().setFallbackTimerActive(true)
+      })
+
+      // Advance time - timer should continue based on isPlaying
+      act(() => {
+        jest.advanceTimersByTime(4999)
+      })
+
+      let bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(true)
+
+      // Act: Pause isPlaying (should pause timer)
+      act(() => {
+        rerender({ isPlaying: false })
+      })
+
+      // Advance more time - timer should be paused
+      act(() => {
+        jest.advanceTimersByTime(2000)
+      })
+
+      bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(true) // Still visible because paused
+
+      // Resume isPlaying
+      act(() => {
+        rerender({ isPlaying: true })
+      })
+
+      // Advance remaining time
+      act(() => {
+        jest.advanceTimersByTime(1)
+      })
+
+      bubbleState = useFeedbackCoordinatorStore.getState().bubbleState
+      expect(bubbleState.bubbleVisible).toBe(false)
     })
   })
 })

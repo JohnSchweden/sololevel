@@ -1,20 +1,7 @@
 import { createAnalysisJob, findOrCreateVideoRecording } from '../../_shared/db/analysis.ts'
 import { corsHeaders } from '../../_shared/http/cors.ts'
 import { createErrorResponse } from '../../_shared/http/responses.ts'
-import { processAIPipeline } from '../../_shared/pipeline/aiPipeline.ts'
-import {
-  GeminiSSMLService,
-  GeminiTTSService,
-  GeminiVideoAnalysisService,
-  MockSSMLService,
-  MockTTSService,
-  MockVideoAnalysisService
-} from '../../_shared/services/index.ts'
 import { type VideoProcessingRequest, parseVideoProcessingRequest } from '../../_shared/types/ai-analyze-video.ts'
-
-// Import Gemini functions for service instantiation
-import { analyzeVideoWithGemini } from '../gemini-llm-analysis.ts'
-import { generateSSMLFromFeedback as geminiLLMFeedback } from '../gemini-ssml-feedback.ts'
 
 interface HandlerContext {
   req: Request
@@ -49,18 +36,6 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
       videoPath,
       videoRecordingId,
       videoSource = 'uploaded_video',
-      frameData,
-      existingPoseData,
-      // Extract timing parameters
-      startTime,
-      endTime,
-      duration,
-      feedbackCount,
-      targetTimestamps,
-      minGap,
-      firstTimestamp,
-      // Extract pipeline stages
-      stages,
     } = requestData
 
     // Validate required fields (now handled by parseVideoProcessingRequest)
@@ -80,7 +55,6 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
     // Determine video path and recording ID based on input mode
     let finalVideoPath: string
     let finalVideoRecordingId: number
-    let videoDuration: number | undefined
 
     if (videoRecordingId) {
       // New mode: lookup video_recordings by ID
@@ -110,12 +84,11 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
 
       finalVideoPath = videoRecord.storage_path
       finalVideoRecordingId = videoRecord.id
-      videoDuration = videoRecord.duration_seconds
       
       logger.info('Found video recording', { 
         videoRecordingId: finalVideoRecordingId, 
         storagePath: finalVideoPath,
-        duration: videoDuration
+        duration: videoRecord.duration_seconds
       })
     } else if (videoPath) {
       // Legacy mode: use provided videoPath, find or create recording
@@ -130,73 +103,19 @@ export async function handleStartAnalysis({ req, supabase, logger }: HandlerCont
 
     const analysisJob = await createAnalysisJob(supabase, userId, finalVideoRecordingId, logger)
 
-  // Create service instances based on configuration
-  const aiAnalysisMode = Deno.env.get('AI_ANALYSIS_MODE')
-  const useMockServices = aiAnalysisMode === 'mock'
-
-  logger.info(`AI_ANALYSIS_MODE: ${aiAnalysisMode}, using mock services: ${useMockServices}`)
-
-  const services = {
-    videoAnalysis: useMockServices
-      ? new MockVideoAnalysisService()
-      : new GeminiVideoAnalysisService(analyzeVideoWithGemini),
-    ssml: useMockServices
-      ? new MockSSMLService()
-      : new GeminiSSMLService(geminiLLMFeedback),
-    tts: useMockServices
-      ? new MockTTSService()
-      : new GeminiTTSService(),
-  }
-
-  logger.info(`Service types: videoAnalysis=${useMockServices ? 'Mock' : 'Gemini'}, ssml=${useMockServices ? 'Mock' : 'Gemini'}, tts=${useMockServices ? 'Mock' : 'Gemini'}`)
-
-  // Resolve stages: use environment configuration or provided stages
-  const resolvedStages = stages || (() => {
-    try {
-      const pipelineStagesEnv = Deno.env.get('PIPELINE_STAGES')
-      if (pipelineStagesEnv) {
-        return JSON.parse(pipelineStagesEnv)
-      }
-    } catch (error) {
-      logger.error('Failed to parse PIPELINE_STAGES environment variable', { error })
-    }
-    // Default: run all stages if not configured
-    return undefined
-  })()
-
-  // Start AI pipeline processing in background
-  processAIPipeline({
-    supabase,
-    logger,
-    analysisId: analysisJob.id,
-    userId, // Pass userId for voice config lookup
-    videoPath: finalVideoPath,
-    videoSource,
-    frameData,
-    existingPoseData,
-    timingParams: {
-      startTime,
-      endTime,
-      duration: duration || videoDuration,
-      feedbackCount,
-      targetTimestamps,
-      minGap,
-      firstTimestamp,
-    },
-    stages: resolvedStages,
-    services
-  }).catch(
-      (error) => {
-        logger.error('AI Pipeline processing failed', error)
-        // Error handling is done inside processAIPipeline
-      }
-    )
+    // Pipeline is triggered automatically by INSERT webhook
+    // No direct processAIPipeline() call needed - the INSERT trigger will invoke /webhook
+    logger.info('Analysis job created, INSERT trigger will start pipeline', { 
+      analysisId: analysisJob.id,
+      userId,
+      videoSource
+    })
 
     return new Response(
       JSON.stringify({
         analysisId: analysisJob.id,
         status: 'queued',
-        message: 'Analysis job created successfully',
+        message: 'Analysis job created, processing will start automatically',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

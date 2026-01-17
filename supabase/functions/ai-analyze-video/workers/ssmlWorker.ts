@@ -3,7 +3,7 @@
 import { storeSSMLSegmentForFeedback } from '../../_shared/db/analysis.ts'
 import { createDatabaseLogger } from '../../_shared/db/logging.ts'
 import { getUserVoicePreferences, getVoiceConfig } from '../../_shared/db/voiceConfig.ts'
-import { processAudioJobs as _processAudioJobs } from './audioWorker.ts'
+import type { ISSMLService } from '../../_shared/services/index.ts'
 import { getSSMLServiceForRuntime } from './workers.shared.ts'
 
 interface SSMLTask {
@@ -22,6 +22,7 @@ interface WorkerContext {
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
   feedbackIds?: number[]
   analysisId?: string
+  ssmlService?: ISSMLService  // Optional: if not provided, uses runtime default
 }
 
 interface ProcessingResult {
@@ -31,13 +32,17 @@ interface ProcessingResult {
   retriedJobs: number
 }
 
-export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisId }: WorkerContext): Promise<ProcessingResult> {
+export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisId, ssmlService }: WorkerContext): Promise<ProcessingResult> {
   const result: ProcessingResult = {
     processedJobs: 0,
     enqueuedAudioJobs: 0,
     errors: 0,
     retriedJobs: 0
   }
+
+  // Use provided service or fall back to runtime default
+  const serviceToUse = ssmlService || getSSMLServiceForRuntime()
+  logger.info('SSML worker using service', { serviceName: serviceToUse.constructor.name })
 
   try {
     let query = supabase
@@ -67,25 +72,14 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
 
     logger.info(`Processing ${jobs.length} SSML jobs`)
 
-    // Process each job
     for (const job of jobs as SSMLTask[]) {
       try {
-        // Fetch job_id from analysis_id for complete log context
-        const { data: analysis } = await supabase
-          .from('analyses')
-          .select('job_id')
-          .eq('id', job.analysis_id)
-          .single()
-        
-        // Create database logger with feedback context for this specific job
-        // This ensures logs persist even if function times out
         const jobLogger = createDatabaseLogger('ai-analyze-video', 'ssmlWorker', supabase, {
-          jobId: analysis?.job_id || undefined,
           analysisId: job.analysis_id,
           feedbackId: job.id,
         })
         
-        await processSingleSSMLJob(job, supabase, jobLogger)
+        await processSingleSSMLJob(job, supabase, jobLogger, serviceToUse)
         result.processedJobs++
       } catch (error) {
         logger.error('Failed to process SSML job', { feedbackId: job.id, error })
@@ -106,7 +100,7 @@ export async function processSSMLJobs({ supabase, logger, feedbackIds, analysisI
   }
 }
 
-async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): Promise<void> {
+async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any, ssmlService: ISSMLService): Promise<void> {
   logger.info('Processing SSML job', { feedbackId: job.id, analysisId: job.analysis_id })
 
   await updateFeedbackSSMLStatus(job.id, 'processing', supabase, logger)
@@ -164,7 +158,6 @@ async function processSingleSSMLJob(job: SSMLTask, supabase: any, logger: any): 
     // Continue without custom instruction - will use default
   }
 
-  const ssmlService = getSSMLServiceForRuntime()
   const { ssml, promptUsed } = await ssmlService.generate({
     analysisResult: {
       textReport: job.message,

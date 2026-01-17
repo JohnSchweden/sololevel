@@ -177,3 +177,140 @@ return new Promise((resolve) => {
   nativeModule.onCancel(resolve)
 })
 ```
+
+### Mistake: Using supabase_functions.http_request with WHEN clause
+**Wrong**:
+```sql
+-- WHEN clause is IGNORED - fires on EVERY UPDATE
+CREATE TRIGGER my_trigger AFTER UPDATE ON my_table
+FOR EACH ROW WHEN (NEW.status = 'specific_status')
+EXECUTE FUNCTION supabase_functions.http_request(...);
+```
+**Lesson**: `supabase_functions.http_request` (Dashboard webhooks) ignores WHEN clauses, causing infinite loops when handlers update the same table.
+
+**Correct**:
+```sql
+-- Use custom function with guards in function body
+CREATE FUNCTION trigger_my_webhook() RETURNS trigger AS $$
+BEGIN
+  IF NEW.status = 'specific_status' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    PERFORM net.http_post(...);
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+CREATE TRIGGER my_trigger AFTER UPDATE ON my_table
+FOR EACH ROW EXECUTE FUNCTION trigger_my_webhook();
+```
+
+### Mistake: Object creation in useMemo dependency array
+**Wrong**:
+```typescript
+const stableValue = useMemo(() => {
+  return data
+}, [
+  data.length,
+  data.map(item => `${item.id}:${item.status}`).join(','), // New string every render!
+])
+```
+**Lesson**: `.map().join()` in dependency array creates a new string on EVERY render, defeating memoization and causing garbage collection pressure.
+
+**Correct**:
+```typescript
+// Create signature in separate useMemo
+const signature = useMemo(() => {
+  return data.map(item => `${item.id}:${item.status}`).join(',')
+}, [data])
+
+const stableValue = useMemo(() => {
+  return data
+}, [signature])
+```
+
+### Mistake: Missing mounted check in setTimeout callbacks
+**Wrong**:
+```typescript
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+useEffect(() => {
+  timerRef.current = setTimeout(() => {
+    // Component might be unmounted - updates unmounted state!
+    setState(newValue)
+  }, 1000)
+  
+  return () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }
+}, [])
+```
+**Lesson**: Clearing timeout in cleanup doesn't prevent the callback from executing if it's already in the event loop.
+
+**Correct**:
+```typescript
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+const isMountedRef = useRef(true)
+
+useEffect(() => {
+  timerRef.current = setTimeout(() => {
+    if (!isMountedRef.current) return // Guard against unmount
+    setState(newValue)
+  }, 1000)
+  
+  return () => {
+    isMountedRef.current = false
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }
+}, [])
+```
+
+### Mistake: Adding subscriptions to imperative-read hooks
+**Wrong**:
+```typescript
+// BREAKS: Hook was designed to NOT subscribe to prevent re-renders
+// Adding subscriptions defeats the entire optimization strategy!
+const storeValue = useMyStore(state => state.someValue) // NEW SUBSCRIPTION = NEW RE-RENDERS
+
+return useMemo(() => {
+  return { value: storeValue }
+}, [storeValue])
+```
+**Lesson**: When a hook explicitly documents "NO REACT STATE - reads imperatively via getState()", adding subscriptions breaks the performance architecture. Read the JSDoc comments before "fixing" perceived staleness issues.
+
+**Correct**:
+```typescript
+// Keep imperative reads for hooks that are designed this way
+// Consumers subscribe to stores directly, not via this hook's return value
+return useMemo(() => {
+  const storeValue = useMyStore.getState().someValue
+  return { value: storeValue } // Deprecated, backward compat only
+}, [otherDeps])
+// Consumers: useMyStore(state => state.someValue) directly
+```
+
+### Mistake: Stale closures in setTimeout
+**Wrong**:
+```typescript
+const handleAction = useCallback(() => {
+  const currentState = getState() // Captured at callback creation
+  
+  setTimeout(() => {
+    // Uses stale currentState from when handleAction was called!
+    if (currentState.isActive) {
+      doSomething()
+    }
+  }, 0)
+}, [])
+```
+**Lesson**: State captured before `setTimeout` can become stale by the time the timeout executes.
+
+**Correct**:
+```typescript
+const handleAction = useCallback(() => {
+  setTimeout(() => {
+    // Re-read fresh state inside timeout
+    const currentState = getState()
+    if (currentState.isActive) {
+      doSomething()
+    }
+  }, 0)
+}, [])
+```

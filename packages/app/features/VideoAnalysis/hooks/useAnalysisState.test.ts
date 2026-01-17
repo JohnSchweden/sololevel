@@ -23,7 +23,7 @@ type FeedbackStatus = ReturnType<
 
 const createFeedbackStatus = (overrides: Partial<FeedbackStatus> = {}): FeedbackStatus => {
   const getFeedbackById: FeedbackStatus['getFeedbackById'] = jest.fn(() => null)
-  const retryFailedFeedback: FeedbackStatus['retryFailedFeedback'] = jest.fn(() => {})
+  const retryFailedFeedback: FeedbackStatus['retryFailedFeedback'] = jest.fn(async () => {})
   const cleanup: FeedbackStatus['cleanup'] = jest.fn(() => {})
 
   return {
@@ -376,6 +376,321 @@ describe('useAnalysisState', () => {
     const { result } = renderHook(() => useAnalysisState(88, undefined, 'processing'))
 
     expect(result.current.phase).toBe('ready')
+    expect(result.current.isProcessing).toBe(false)
+  })
+
+  it('returns ready when audio is retrying (background retry - video stays playable)', () => {
+    mockAnalysisStoreState.subscriptions = new Map([
+      [
+        'job:89',
+        {
+          job: { id: 89, status: 'completed', progress_percentage: 100, video_recording_id: 124 },
+          status: 'active',
+        },
+      ],
+    ])
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Retrying audio',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'retrying',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    const { result } = renderHook(() => useAnalysisState(89, undefined, 'processing'))
+
+    // Phase should stay 'ready' during audio retry - video remains playable
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.isProcessing).toBe(false)
+  })
+
+  it('prevents flicker: video stays playable once ready, even when status transitions queued→processing→completed', () => {
+    // This test demonstrates the flicker bug fix:
+    // Initial: queued (should NOT be playable yet)
+    // Transition: processing (should NOT cause flicker if video was already playable)
+    // Final: completed (should be playable)
+    const analysisJob = {
+      id: 91,
+      status: 'completed' as const,
+      progress_percentage: 100,
+      video_recording_id: 126,
+    }
+    mockUseAnalysisJobBatched.mockReturnValue({ data: analysisJob })
+    mockGetAnalysisIdForJobId.mockResolvedValue('analysis-uuid-91') // Mock UUID resolution
+    mockAnalysisStoreState.subscriptions = new Map([
+      [
+        'job:91',
+        {
+          job: analysisJob,
+          status: 'active',
+        },
+      ],
+    ])
+
+    // Initial state: queued (video should NOT be playable yet)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Initial queued',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'queued',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    const { result, rerender } = renderHook(() => useAnalysisState(91, undefined, 'processing'))
+
+    // Initial: queued should NOT make video playable (waiting for completed/failed/retrying)
+    expect(result.current.phase).toBe('generating-feedback')
+    expect(result.current.firstPlayableReady).toBe(false)
+
+    // Transition to processing (should NOT cause flicker - video wasn't playable yet)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Processing audio',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'processing',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    rerender()
+
+    // Still not playable (processing is not a playable state)
+    expect(result.current.phase).toBe('generating-feedback')
+    expect(result.current.firstPlayableReady).toBe(false)
+
+    // Final: completed (NOW video becomes playable)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Completed audio',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'completed',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 1,
+          fullyCompleted: 1,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: false,
+          completionPercentage: 100,
+        },
+        isProcessing: false,
+        isFullyCompleted: true,
+      })
+    )
+
+    rerender()
+
+    // Now playable - and should stay playable (latch mechanism)
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.firstPlayableReady).toBe(true)
+
+    // Verify latch: even if status changes back to processing (shouldn't happen, but test robustness)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Back to processing',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'processing',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    rerender()
+
+    // Latch: should stay playable once it became playable
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.firstPlayableReady).toBe(true)
+  })
+
+  it('returns ready when audio is queued after retry (latch keeps video playable)', () => {
+    // Simulates retry flow: failed → retrying (playable) → queued (stays playable via latch)
+    const analysisJob = {
+      id: 90,
+      status: 'completed' as const,
+      progress_percentage: 100,
+      video_recording_id: 125,
+    }
+    mockUseAnalysisJobBatched.mockReturnValue({ data: analysisJob })
+    mockGetAnalysisIdForJobId.mockResolvedValue('analysis-uuid-90') // Mock UUID resolution
+    mockAnalysisStoreState.subscriptions = new Map([
+      [
+        'job:90',
+        {
+          job: analysisJob,
+          status: 'active',
+        },
+      ],
+    ])
+
+    // Step 1: retrying status (makes video playable)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Retrying audio',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'retrying',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    const { result, rerender } = renderHook(() => useAnalysisState(90, undefined, 'processing'))
+
+    // Video becomes playable with retrying status
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.firstPlayableReady).toBe(true)
+
+    // Step 2: Backend updates to queued (latch keeps video playable)
+    mockFeedbackStatusIntegration.mockReturnValue(
+      createFeedbackStatus({
+        feedbackItems: [
+          {
+            id: '1',
+            timestamp: 1000,
+            text: 'Queued audio',
+            type: 'suggestion',
+            category: 'voice',
+            ssmlStatus: 'completed',
+            audioStatus: 'queued',
+            confidence: 1,
+          },
+        ],
+        stats: {
+          total: 1,
+          ssmlCompleted: 1,
+          audioCompleted: 0,
+          fullyCompleted: 0,
+          hasBlockingFailures: false,
+          hasAudioFailures: false,
+          hasFailures: false,
+          isProcessing: true,
+          completionPercentage: 0,
+        },
+        isProcessing: true,
+        isFullyCompleted: false,
+      })
+    )
+
+    rerender()
+
+    // Latch: video stays playable even though queued is not a playable status
+    expect(result.current.phase).toBe('ready')
+    expect(result.current.firstPlayableReady).toBe(true)
     expect(result.current.isProcessing).toBe(false)
   })
 

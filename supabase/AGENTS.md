@@ -28,4 +28,5 @@ Pre-populated in Edge Functions:
 ## Testing
 - Shared utilities: `yarn workspace @my/supabase-functions test` (Vitest)
 - Edge Functions: `yarn workspace @my/supabase-functions test:deno` (Deno)
+- Use Deno's native test framework
 - Database/RLS: `yarn test:db` (pgTAP)

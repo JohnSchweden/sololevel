@@ -371,9 +371,6 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     }
   }, [analysisId, isHistoryMode])
 
-  // Debug dependency changes (subscription status values now read from refs, no re-renders)
-  useEffect(() => {}, [analysisId, isSubscribed])
-
   // Transform feedback data for UI components
   // Stabilize by comparing content signatures instead of array reference - prevents unnecessary recreations
   // Create signature from properties that affect the transformed items
@@ -611,7 +608,7 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
   )
 
   const retryFailedFeedback = useCallback(
-    (feedbackId: string) => {
+    async (feedbackId: string) => {
       const numericId = Number.parseInt(feedbackId, 10)
       const feedback = getFeedbackByIdFromStore(numericId)
 
@@ -620,15 +617,36 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
         return
       }
 
-      // Reset failed statuses to queued for retry
       if (feedback.ssmlStatus === 'failed') {
         setSSMLStatus(numericId, 'queued')
         log.info('useFeedbackStatusIntegration', `Retrying SSML for feedback ${feedbackId}`)
       }
 
-      if (feedback.audioStatus === 'failed') {
-        setAudioStatus(numericId, 'queued')
-        log.info('useFeedbackStatusIntegration', `Retrying audio for feedback ${feedbackId}`)
+      if (feedback.audioStatus !== 'failed') {
+        return
+      }
+
+      setAudioStatus(numericId, 'retrying')
+      log.info('useFeedbackStatusIntegration', `Retrying audio for feedback ${feedbackId}`)
+
+      const { error } = await supabase.functions
+        .invoke('ai-analyze-video/retry-audio', {
+          body: { analysisId: feedback.analysisId, feedbackIds: [numericId] },
+        })
+        .catch((err: unknown) => ({
+          error: { message: err instanceof Error ? err.message : 'Retry request failed' },
+        }))
+
+      if (error) {
+        log.error('useFeedbackStatusIntegration', `Failed to invoke retry-audio endpoint`, {
+          feedbackId,
+          error: error.message,
+        })
+        setAudioStatus(numericId, 'failed', error.message)
+      } else {
+        log.info('useFeedbackStatusIntegration', `Audio retry initiated successfully`, {
+          feedbackId,
+        })
       }
     },
     [getFeedbackByIdFromStore, setSSMLStatus, setAudioStatus]

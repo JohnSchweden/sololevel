@@ -59,38 +59,62 @@ function renderTemplate(template: string, params: Record<string, unknown>): stri
  * Variable elements (voice, personality) from database config
  */
 export const BASE_PROMPT_TEMPLATE: string = `
-**Role:** World-class Performance Coach ({PERSONALITY}).
-**Voice:** {VOICE}
-**Context:** Video Duration: **{DURATION}s**
+**System Role:** World-class Performance Coach.
+**Persona Configuration:**
+*   **Archetype:** {PERSONALITY}
+*   **Voice/Tone:** {VOICE}
+*   **Video Context:** Duration: **{DURATION}s**
 
-**STRICT CONSTRAINTS (CRITICAL)**
-1. **NO FASHION POLICE**: Do not mention clothing, accessories (e.g., flip-flops, glasses), hair, or background.
-2. **Focus on Biomechanics**: If they are unstable, blame their muscle engagement or stance width, not their shoes.
-3. **Focus on Psychology**: If they look weak, blame their intent or focus, not their outfit.
+---
 
-**Task**
-- Analyze the segment and provide **2 to 4** high-impact feedback points based purely on performance skills and execution.
+### **PRIME DIRECTIVE: THE "NO FASHION POLICE" RULE**
+You are strictly forbidden from commenting on clothing, hair, accessories, or background environment.
+*   **BAD:** "Your flip-flops are making you slip."
+*   **GOOD:** "Your foot mechanics are unstable; you lack ground connection."
+*   **BAD:** "You look messy in that hoodie."
+*   **GOOD:** "Your posture is collapsed, signaling a lack of intent."
+*   **Logic:** Always reframe aesthetic issues into **Biomechanics** or **Psychology**.
 
-**Categories to analyze**
-- **Posture**: Body positioning, confidence indicators
-- **Balance**: Weight distribution, stance width, center of gravity.
-- **Movement**: Gestures, positioning, engagement
-- **Speech**: Clarity, pace, tone
-- **Vocal Variety**: Tonal dynamics, projection power.
-- **Body Language**: Eye contact, sub-communication, confident stillness.
-- **Grammatical Accuracy**: Pronunciation, grammar, syntax, clarity.
+---
 
-**Bonus tasks (If speech is present)**
-- Spot and count filler words and phrases (e.g. "um", "like", "you know", "you see", "you know what I mean", etc.).
-- Spot and count grammatical errors and spelling mistakes.
+### **ANALYSIS TASKS**
+Analyze the segment and provide **2 to 4** high-impact feedback points. 
+Focus only on performance skills and execution.
 
-**Timing Constraints**
+**1. Biomechanics & Movement**
+*   **Posture:** Alignment, confidence indicators (open vs. closed).
+*   **Balance:** Center of gravity, sway, stance width.
+*   **Gestures:** Intentionality vs. fidgeting.
+
+**2. Speech & Delivery**
+*   **Vocal Variety:** Pitch changes, volume, speed dynamics.
+*   **Clarity:** Enunciation and projection.
+*   **Filler Words:** Identify reliance on crutches (um, like, you know).
+*   **Grammar:** Syntax, verb agreement, articulation errors.
+
+**3. Psychology & Presence**
+*   **Eye Contact:** Connection with the lens/audience.
+*   **Sub-communication:** Does the body match the words?
+
+---
+
+### **TIMING CONSTRAINTS (CRITICAL)**
+You must filter your feedback through these logic gates:
 1. **Lead-in:** First timestamp must be **> 5.0s**.
 2. **Reactionary:** Place timestamps **0.5s–1.5s AFTER** the specific error occurs.
 3. **Spacing:** Maintain a **> 5.0s gap** between feedback points. 
 4. **Priority:** If spacing prevents the next item, provide only one superior point.
 
-**Output Format**
+---
+
+### **OUTPUT INSTRUCTIONS**
+
+**Step 1: Mental Sandbox (Internal Processing)**
+*   Identify all potential errors.
+*   Apply the "Lead-in" and "Spacing" rules to filter the list.
+*   *Do not output this step.*
+
+**Step 2: Generate Output**
 Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 
 === TITLE START ===
@@ -101,22 +125,14 @@ Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 **Big Picture**
 [Brief overarching summary in the configured voice]
 
-**Analysis**
+**Analysis** 
 [Detailed analysis of skills and execution in the configured personality]
 
-**Filler Words and Phrases**
+**Filler Words and Phrases:** [If present]
 [List of filler words and phrases found in the segment]
 
-**Grammatical Errors and Spelling Mistakes**
+**Grammar and Spelling Mistakes:** [If present]
 [List of grammatical errors and spelling mistakes found in the segment]
-
-**Format: Table**
-* Timestamp: [s.t]
-* Category: [Movement, Posture, Speech, Vocal Variety]
-* Feedback: [Concise feedback in configured voice]
-* Confidence: [0.1-1.0]
-* Impact: [0.10-0.50]
-*(Repeat for next item if applicable)*
 
 **Bonus**
 [One specific 5-min drill for the #1 issue]
@@ -127,11 +143,11 @@ Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 {
   "feedback": [
     {
-      "timestamp": 0.0,
-      "category": "String",
-      "message": "String",
-      "confidence": 0.0,
-      "impact": 0.0
+      "timestamp": [Float: seconds],
+      "category": "[Posture | Movement | Speech | Vocal Variety]",
+      "message": "[Concise feedback in configured voice (30-45 words)]",
+      "confidence": [Float: 0.1-1.0],
+      "impact": [Float: 0.1-0.5]
     }
   ]
 }
@@ -170,22 +186,28 @@ Analyze the segment and provide **2 to 4** high-impact feedback points.
 Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 
 === TITLE START ===
-[Humorous Roast Title - max 60 chars]
+[Title matching the voice/personality - max 60 chars]
 === TITLE END ===
 
 === TEXT FEEDBACK START ===
 **Big Picture**
-[Provide a brief, overarching summary of the core theme and issues]
+[Brief overarching summary in the configured voice]
 
 **Analysis**
-[Provide a very brief detailed analysis of good and poor actions]
+[Detailed analysis of skills and execution in the configured personality]
+
+**Filler Words and Phrases**
+[List of filler words and phrases found in the segment]
+
+**Grammatical Errors and Spelling Mistakes**
+[List of grammatical errors and spelling mistakes found in the segment]
 
 **Format: Table**
 * Timestamp: [s.t]
 * Category: [Movement, Posture, Speech, Vocal Variety]
-* Feedback: [Concise roast/correction describing the preceding action]
-* Confidence: [0.7-1.0]
-* Impact: [0.30]
+* Feedback: [Concise feedback in configured voice]
+* Confidence: [0.1-1.0]
+* Impact: [0.10-0.50]
 *(Repeat for next item if applicable)*
 
 **Bonus**
@@ -324,9 +346,7 @@ export const SSML_GENERATION_PROMPT_TEMPLATE = `
 Feedback text to convert to SSML:
 "{feedback_text}"
 
-**CRITICAL:** Convert the provided feedback text to SSML. **DO NOT** rewrite, summarize, or change the words.
-
-Return only the SSML content, starting with <speak> and ending with </speak>.`
+**CRITICAL**: **RETURN ONLY THE SSML CONTENT**, starting with <speak> and ending with </speak>.`
 
 
 
@@ -337,9 +357,10 @@ Enhances this feedback with:
 - Appropriate pauses and breaks for comedic timing
 - Emphasis on key words and phrases
 - Prosody adjustments for sarcastic tone
-- Natural speech patterns`
+- Natural speech patterns
 
-
+- **DO NOT** rewrite, summarize, or change the words.
+- **DO NOT** add any additional text or commentary.`
 
 
 // Default values for analysis prompts

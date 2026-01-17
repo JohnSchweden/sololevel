@@ -2,14 +2,9 @@
 
 import { storeAudioSegmentForFeedback } from '../../_shared/db/analysis.ts'
 import { createDatabaseLogger } from '../../_shared/db/logging.ts'
-import {
-  type CoachGender,
-  type CoachMode,
-  getUserVoicePreferences,
-  getVoiceConfig,
-  updateAnalysisJobVoiceSnapshot,
-} from '../../_shared/db/voiceConfig.ts'
+import { getUserVoicePreferences, getVoiceConfig, updateAnalysisJobVoiceSnapshot } from '../../_shared/db/voiceConfig.ts'
 import { resolveAudioFormat } from '../../_shared/media/audio.ts'
+import type { ITTSService } from '../../_shared/services/index.ts'
 import { generateAudioStoragePath } from '../../_shared/storage/upload.ts'
 import { getTTSServiceForRuntime } from './workers.shared.ts'
 
@@ -35,6 +30,7 @@ interface WorkerContext {
   analysisId?: string
   startTime?: number      // When processing started (for timeout tracking)
   timeoutMs?: number      // Max allowed time in milliseconds (default 55000ms)
+  ttsService?: ITTSService  // Optional: if not provided, uses runtime default
 }
 
 interface ProcessingResult {
@@ -49,13 +45,18 @@ export async function processAudioJobs({
   feedbackIds, 
   analysisId,
   startTime = Date.now(),
-  timeoutMs = 55000  // 55s, leaving 5s buffer before 60s Edge Function timeout
+  timeoutMs = 55000,  // 55s, leaving 5s buffer before 60s Edge Function timeout
+  ttsService
 }: WorkerContext): Promise<ProcessingResult> {
   const result: ProcessingResult = {
     processedJobs: 0,
     errors: 0,
     retriedJobs: 0
   }
+
+  // Use provided service or fall back to runtime default
+  const serviceToUse = ttsService || getTTSServiceForRuntime()
+  logger.info('Audio worker using service', { serviceName: serviceToUse.constructor.name })
 
   try {
     const jobs = await fetchAudioJobs(supabase, feedbackIds, analysisId)
@@ -96,7 +97,7 @@ export async function processAudioJobs({
         feedbackId: job.id,
       })
       
-      const jobResult = await processJobWithRetry(job, supabase, jobLogger)
+      const jobResult = await processJobWithRetry(job, supabase, jobLogger, serviceToUse)
       
       result.processedJobs += jobResult.success ? 1 : 0
       result.errors += jobResult.success ? 0 : 1
@@ -143,7 +144,8 @@ async function fetchAudioJobs(
 async function processSingleAudioJob(
   job: AudioTask, 
   supabase: any, 
-  logger: any
+  logger: any,
+  ttsService: ITTSService
 ): Promise<void> {
   logger.info('Processing audio job', { feedbackId: job.id })
 
@@ -158,7 +160,6 @@ async function processSingleAudioJob(
   
   logger.info(`Found ${ssmlSegments.length} SSML segments for feedback ${job.id}`)
 
-  const ttsService = getTTSServiceForRuntime()
   const resolvedFormat = resolveAudioFormat(undefined, 'gemini')
 
   for (const segment of ssmlSegments) {
@@ -248,12 +249,7 @@ async function fetchVoiceConfig(userId: string, supabase: any, logger: any) {
 
 async function storeVoiceSnapshot(
   jobId: number,
-  voiceConfig: {
-    voiceName: string
-    avatarAssetKey: string
-    coachGender: CoachGender
-    coachMode: CoachMode
-  },
+  voiceConfig: Awaited<ReturnType<typeof fetchVoiceConfig>>,
   supabase: any,
   logger: any
 ): Promise<void> {
@@ -292,7 +288,7 @@ interface ProcessSegmentContext {
   ttsSystemInstruction: string
   supabase: any
   logger: { info: (msg: string, data?: any) => void; error: (msg: string, data?: any) => void }
-  ttsService: ReturnType<typeof getTTSServiceForRuntime>
+  ttsService: ITTSService
   resolvedFormat: ReturnType<typeof resolveAudioFormat>
 }
 
@@ -398,7 +394,8 @@ interface RetryResult {
 async function processJobWithRetry(
   job: AudioTask,
   supabase: any,
-  logger: any
+  logger: any,
+  ttsService: ITTSService
 ): Promise<RetryResult> {
   const MAX_ATTEMPTS = 3
   let attempt = job.audio_attempts || 0
@@ -412,7 +409,7 @@ async function processJobWithRetry(
         await updateRetryStatus(job.id, attempt, supabase, logger)
       }
 
-      await processSingleAudioJob(job, supabase, logger)
+      await processSingleAudioJob(job, supabase, logger, ttsService)
       
       logger.info('Audio job completed', { feedbackId: job.id, attempt })
       return { success: true, retryCount: attempt - 1 }

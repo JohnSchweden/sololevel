@@ -51,8 +51,8 @@ export function getGeminiConfig(): GeminiConfig {
   const apiBase = 'https://generativelanguage.googleapis.com'
   const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('SUPABASE_ENV_GEMINI_API_KEY')
 
-  const mmModel = Deno.env.get('GEMINI_MMM_MODEL') || 'gemini-2.5-flash'
-  const llmModel = Deno.env.get('GEMINI_LLM_MODEL') || 'gemini-2.5-flash-lite'
+  const mmModel = Deno.env.get('GEMINI_MMM_MODEL') || 'gemini-3-flash-preview'
+  const llmModel = Deno.env.get('GEMINI_LLM_MODEL') || 'gemini-3-flash-preview'
   const ttsModel = Deno.env.get('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts'
 
   const filesUploadUrl = `${apiBase}/upload/v1beta/files`

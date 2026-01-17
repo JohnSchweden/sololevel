@@ -9,6 +9,9 @@ import type { GeminiFileReference } from './filesClient.ts'
 
 const logger = createLogger('gemini-generate')
 
+// Timeout for Gemini API requests to prevent wall clock timeout issues
+const GEMINI_TIMEOUT_MS = 120_000 // 120 seconds
+
 /**
  * Generation request parameters
  */
@@ -19,6 +22,10 @@ export interface GenerateRequest {
   topK?: number
   topP?: number
   maxOutputTokens?: number
+  thinkingConfig?: {
+    thinkingLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'MINIMAL'
+  }
+  mediaResolution?: 'MEDIA_RESOLUTION_LOW' | 'MEDIA_RESOLUTION_MEDIUM' | 'MEDIA_RESOLUTION_HIGH' | 'MEDIA_RESOLUTION_ULTRA_HIGH'
 }
 
 /**
@@ -51,7 +58,7 @@ export async function generateContent(
     promptLength: request.prompt.length
   })
 
-  const requestBody = {
+  const requestBody: Record<string, unknown> = {
     contents: [
       {
         parts: [
@@ -63,13 +70,66 @@ export async function generateContent(
     ],
   }
 
-  const response = await fetch(`${config.mmGenerateUrl}?key=${config.apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  })
+  // Build generationConfig if any generation parameters are provided
+  const generationConfig: Record<string, unknown> = {}
+  
+  if (request.temperature !== undefined) {
+    generationConfig.temperature = request.temperature
+  }
+  if (request.topK !== undefined) {
+    generationConfig.topK = request.topK
+  }
+  if (request.topP !== undefined) {
+    generationConfig.topP = request.topP
+  }
+  if (request.maxOutputTokens !== undefined) {
+    generationConfig.maxOutputTokens = request.maxOutputTokens
+  }
+  if (request.thinkingConfig) {
+    generationConfig.thinkingConfig = {
+      thinkingLevel: request.thinkingConfig.thinkingLevel,
+    }
+  }
+  if (request.mediaResolution) {
+    generationConfig.mediaResolution = request.mediaResolution
+  }
+
+  // Add generationConfig to request body if it has any properties
+  if (Object.keys(generationConfig).length > 0) {
+    requestBody.generationConfig = generationConfig
+  }
+
+  // Set up AbortController with timeout to prevent wall clock timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+    generateLogger?.error('Gemini API timeout - aborting request', {
+      fileName: request.fileRef.name,
+      timeoutMs: GEMINI_TIMEOUT_MS
+    })
+  }, GEMINI_TIMEOUT_MS)
+
+  let response: Response
+  try {
+    response = await fetch(`${config.mmGenerateUrl}?key=${config.apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      const msg = `Gemini API timeout after ${GEMINI_TIMEOUT_MS / 1000}s`
+      logger.error(msg, { fileName: request.fileRef.name })
+      generateLogger?.error(msg, { fileName: request.fileRef.name })
+      throw new Error(msg)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   logger.info(`Gemini generate response status: ${response.status}`)
   generateLogger?.info('Gemini generate response received', {
