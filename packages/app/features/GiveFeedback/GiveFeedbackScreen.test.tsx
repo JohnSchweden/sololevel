@@ -3,6 +3,7 @@ import { GiveFeedbackScreen } from './GiveFeedbackScreen'
 
 // Mock useSubmitFeedback hook
 const mockMutate = jest.fn()
+const mockScrollToEnd = jest.fn()
 const mockUseSubmitFeedback = jest.fn(() => ({
   mutate: mockMutate,
   isPending: false,
@@ -37,11 +38,13 @@ jest.mock('@my/ui', () => ({
       <span>{label}</span>
     </button>
   ),
-  TextArea: ({ value, onChange, placeholder, maxLength }: any) => (
+  TextArea: ({ value, onChange, placeholder, maxLength, onFocus, onBlur }: any) => (
     <textarea
       data-testid="textarea"
       value={value || ''}
       onChange={(e) => onChange?.(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
       placeholder={placeholder}
       maxLength={maxLength}
     />
@@ -68,7 +71,14 @@ jest.mock('@my/ui', () => ({
 
 // Mock tamagui components
 jest.mock('tamagui', () => ({
-  ScrollView: ({ children }: any) => <div>{children}</div>,
+  ScrollView: require('react').forwardRef(({ children }: any, ref: any) => {
+    if (typeof ref === 'function') {
+      ref({ scrollToEnd: mockScrollToEnd })
+    } else if (ref) {
+      ref.current = { scrollToEnd: mockScrollToEnd }
+    }
+    return <div>{children}</div>
+  }),
   YStack: ({ children }: any) => <div>{children}</div>,
   XStack: ({ children }: any) => <div>{children}</div>,
   Text: ({ children }: any) => <div>{children}</div>,
@@ -115,7 +125,7 @@ jest.mock('react-native', () => ({
   KeyboardAvoidingView: ({ children }: any) => <div>{children}</div>,
   Keyboard: {
     dismiss: jest.fn(),
-    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    addListener: jest.fn((_event: string, _callback: () => void) => ({ remove: jest.fn() })),
   },
   Platform: {
     OS: 'web',
@@ -363,6 +373,59 @@ describe('GiveFeedbackScreen', () => {
       // Assert - All buttons should be accessible
       const buttons = screen.getAllByRole('button')
       expect(buttons.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Keyboard handling', () => {
+    it('should scroll to bottom when textarea is focused and keyboard is shown', () => {
+      // Arrange
+      jest.useFakeTimers()
+      render(<GiveFeedbackScreen />)
+      const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
+
+      // Act
+      fireEvent.focus(textarea)
+
+      const { Keyboard } = require('react-native')
+      const didShowCallback = Keyboard.addListener.mock.calls.find(
+        ([eventName]: [string, unknown]) => eventName === 'keyboardDidShow'
+      )?.[1] as undefined | (() => void)
+
+      didShowCallback?.()
+      jest.advanceTimersByTime(100)
+
+      // Assert
+      expect(mockScrollToEnd).toHaveBeenCalledTimes(1)
+
+      // Cleanup
+      jest.useRealTimers()
+    })
+
+    it('should not scroll after unmount when keyboard show schedules delayed scroll', () => {
+      // Arrange
+      jest.useFakeTimers()
+      const { unmount } = render(<GiveFeedbackScreen />)
+      const textarea = screen.getByPlaceholderText("Tell us what's on your mind...")
+
+      // Act: focus textarea and trigger keyboard show (schedules setTimeout)
+      fireEvent.focus(textarea)
+
+      const { Keyboard } = require('react-native')
+      const didShowCallback = Keyboard.addListener.mock.calls.find(
+        ([eventName]: [string, unknown]) => eventName === 'keyboardDidShow'
+      )?.[1] as undefined | (() => void)
+
+      didShowCallback?.()
+
+      // Unmount before the timer fires (cleanup should clear the timeout)
+      unmount()
+      jest.advanceTimersByTime(150)
+
+      // Assert: no post-unmount scroll call
+      expect(mockScrollToEnd).toHaveBeenCalledTimes(0)
+
+      // Cleanup
+      jest.useRealTimers()
     })
   })
 })

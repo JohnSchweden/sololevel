@@ -57,7 +57,13 @@ export function BottomNavigationContainer({
       style={maskedViewStyle}
       maskElement={
         <LinearGradient
-          colors={['transparent', '$color1']} // mask from visible → blurred
+          colors={[
+            'transparent',
+            'rgba(255, 255, 255, 0.2)',
+            'rgba(255, 255, 255, 0.5)',
+            'rgba(255, 255, 255, 0.8)',
+            'white',
+          ]} // mask: transparent at top → full blur at bottom
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 0.7 }}
           style={linearGradientStyle}

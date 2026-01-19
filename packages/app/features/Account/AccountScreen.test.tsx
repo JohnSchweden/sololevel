@@ -1,5 +1,33 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+
+type MockAuthUser = {
+  id: string
+  email?: string
+  user_metadata?: { full_name?: string; avatar_url?: string | null }
+  app_metadata?: Record<string, unknown>
+}
+
+type MockProfile = {
+  username?: string | null
+  full_name?: string | null
+  avatar_url?: string | null
+}
+
+let mockAuthState: { user: MockAuthUser | null; loading: boolean } = { user: null, loading: false }
+let mockCurrentUserResult: { data: MockProfile | null; isLoading: boolean } = {
+  data: null,
+  isLoading: false,
+}
+
+jest.mock('../../stores/auth', () => ({
+  useAuthStore: <T,>(selector: (state: typeof mockAuthState) => T) => selector(mockAuthState),
+}))
+
+jest.mock('@app/hooks/useUser', () => ({
+  useCurrentUser: () => mockCurrentUserResult,
+}))
+
 import { AccountScreen } from './AccountScreen'
 
 const renderWithProvider = (ui: React.ReactElement) => {
@@ -8,27 +36,28 @@ const renderWithProvider = (ui: React.ReactElement) => {
 }
 
 describe('AccountScreen', () => {
-  const mockUser = {
+  const defaultAuthUser: MockAuthUser = {
     id: '123',
-    name: 'Test User',
+    email: 'test@example.com',
+    user_metadata: { full_name: 'Test User', avatar_url: null },
+    app_metadata: {},
+  }
+
+  const defaultProfile: MockProfile = {
+    full_name: 'Test User',
     avatar_url: null,
   }
+
+  beforeEach(() => {
+    mockAuthState = { user: defaultAuthUser, loading: false }
+    mockCurrentUserResult = { data: defaultProfile, isLoading: false }
+  })
 
   // Arrange-Act-Assert pattern
   describe('Component Rendering', () => {
     it('renders profile section with user data', () => {
-      // Arrange: User with email
-      const email = 'test@example.com'
-
       // Act: Render screen
-      renderWithProvider(
-        <AccountScreen
-          user={mockUser}
-          email={email}
-          isLoading={false}
-          is2FAEnabled={false}
-        />
-      )
+      renderWithProvider(<AccountScreen is2FAEnabled={false} />)
 
       // Assert: Profile section visible with email
       expect(screen.getByText('I watch you, Test User')).toBeInTheDocument()
@@ -38,14 +67,7 @@ describe('AccountScreen', () => {
     it('renders all navigation sections', () => {
       // Arrange: Loaded state
       // Act: Render screen
-      renderWithProvider(
-        <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
-          is2FAEnabled={false}
-        />
-      )
+      renderWithProvider(<AccountScreen is2FAEnabled={false} />)
 
       // Assert: All sections visible
       expect(screen.getByText('Profile & Security')).toBeInTheDocument()
@@ -60,15 +82,11 @@ describe('AccountScreen', () => {
 
     it('shows skeleton during loading', () => {
       // Arrange: Loading state
+      mockAuthState = { user: null, loading: true }
+      mockCurrentUserResult = { data: null, isLoading: true }
+
       // Act: Render loading
-      renderWithProvider(
-        <AccountScreen
-          user={null}
-          email={undefined}
-          isLoading={true}
-          is2FAEnabled={false}
-        />
-      )
+      renderWithProvider(<AccountScreen is2FAEnabled={false} />)
 
       // Assert: Skeleton visible, content hidden
       expect(screen.getByTestId('profile-section-skeleton')).toBeInTheDocument()
@@ -84,9 +102,6 @@ describe('AccountScreen', () => {
       // Act: Render and click
       renderWithProvider(
         <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
           is2FAEnabled={false}
           onEditProfile={onEditProfile}
         />
@@ -104,9 +119,6 @@ describe('AccountScreen', () => {
       // Act: Render and click
       renderWithProvider(
         <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
           is2FAEnabled={false}
           onChangePassword={onChangePassword}
         />
@@ -124,9 +136,6 @@ describe('AccountScreen', () => {
       // Act: Render and toggle
       renderWithProvider(
         <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
           is2FAEnabled={false}
           onToggle2FA={onToggle2FA}
         />
@@ -146,9 +155,6 @@ describe('AccountScreen', () => {
       // Act: Render and click
       renderWithProvider(
         <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
           is2FAEnabled={false}
           onEmailPreferences={onEmailPreferences}
         />
@@ -166,9 +172,6 @@ describe('AccountScreen', () => {
       // Act: Render and click
       renderWithProvider(
         <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
           is2FAEnabled={false}
           onDeleteAccount={onDeleteAccount}
         />
@@ -184,14 +187,7 @@ describe('AccountScreen', () => {
     it('shows toggle as enabled when is2FAEnabled is true', () => {
       // Arrange: 2FA enabled
       // Act: Render with enabled state
-      renderWithProvider(
-        <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
-          is2FAEnabled={true}
-        />
-      )
+      renderWithProvider(<AccountScreen is2FAEnabled={true} />)
 
       // Assert: Toggle is checked
       const toggleSwitch = screen.getByRole('switch', { name: 'Two-Factor Authentication' })
@@ -201,14 +197,7 @@ describe('AccountScreen', () => {
     it('shows toggle as disabled when is2FAEnabled is false', () => {
       // Arrange: 2FA disabled
       // Act: Render with disabled state
-      renderWithProvider(
-        <AccountScreen
-          user={mockUser}
-          email="test@example.com"
-          isLoading={false}
-          is2FAEnabled={false}
-        />
-      )
+      renderWithProvider(<AccountScreen is2FAEnabled={false} />)
 
       // Assert: Toggle is not checked
       const toggleSwitch = screen.getByRole('switch', { name: 'Two-Factor Authentication' })

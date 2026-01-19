@@ -1,3 +1,4 @@
+import { useCurrentUser } from '@app/hooks/useUser'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
 import {
   GlassBackground,
@@ -9,26 +10,15 @@ import {
 import { Lock, Mail, Shield, Trash2, User as UserIcon } from '@tamagui/lucide-icons'
 import type { ReactElement } from 'react'
 import { useMemo } from 'react'
-import { View } from 'react-native'
+import { View, type ViewStyle } from 'react-native'
 import { ScrollView, YStack } from 'tamagui'
 import { useAuthStore } from '../../stores/auth'
 
+// Static styles - defined outside component to avoid recreation on each render
+const containerStyle: ViewStyle = { flex: 1 }
+const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
+
 export interface AccountScreenProps {
-  /**
-   * User data (optional - uses auth store if not provided)
-   */
-  user?: { id: string; name?: string; avatar_url?: string | null } | null
-
-  /**
-   * User email address (optional - uses auth store if not provided)
-   */
-  email?: string
-
-  /**
-   * Loading state (optional - uses auth store if not provided)
-   */
-  isLoading?: boolean
-
   /**
    * Two-factor authentication enabled state (optional - defaults to false)
    */
@@ -74,9 +64,6 @@ export interface AccountScreenProps {
  * @example
  * ```tsx
  * <AccountScreen
- *   user={{ id: '123', name: 'User Name', avatar_url: null }}
- *   email="user@example.com"
- *   isLoading={false}
  *   is2FAEnabled={false}
  *   onEditProfile={() => router.push('/profile/edit')}
  *   onToggle2FA={(enabled) => handleToggle2FA(enabled)}
@@ -84,9 +71,6 @@ export interface AccountScreenProps {
  * ```
  */
 export function AccountScreen({
-  user: userProp,
-  email: emailProp,
-  isLoading: isLoadingProp,
   is2FAEnabled: is2FAEnabledProp,
   onEditProfile,
   onChangePassword,
@@ -97,30 +81,35 @@ export function AccountScreen({
 }: AccountScreenProps): ReactElement {
   // Use stable safe area hook that properly memoizes insets
   const insets = useStableSafeArea()
-  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
 
-  // PERF FIX: Memoize container style to prevent recalculating layout on every render
-  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
+  // Use separate selectors to prevent infinite loops (object selectors create new references)
+  const authUser = useAuthStore((state) => state.user)
+  const isLoadingUser = useAuthStore((state) => state.loading)
+  const { data: profile, isLoading: isLoadingProfile } = useCurrentUser()
 
-  // Get auth state from store (fallback if props not provided)
-  const { user: authUser, loading: authLoading } = useAuthStore()
-
-  // Use props if provided, otherwise fall back to auth store
-  const isLoading = isLoadingProp ?? authLoading
-  const email = emailProp ?? authUser?.email
+  // Combined loading state: show skeleton until BOTH auth AND profile are ready
+  const isLoading = isLoadingUser || isLoadingProfile
+  const email = authUser?.email
   const is2FAEnabled =
     is2FAEnabledProp ?? (authUser?.app_metadata?.['2fa_enabled'] as boolean) ?? false
 
-  // Transform user data for ProfileSection (prefer prop, fallback to auth store)
-  const user =
-    userProp ??
-    (authUser
-      ? {
-          id: authUser.id,
-          name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
-          avatar_url: authUser.user_metadata?.avatar_url || null,
-        }
-      : null)
+  // Profile data with fallback chain: profile → user_metadata → email prefix → 'User'
+  const profileUser = useMemo(
+    () =>
+      authUser
+        ? {
+            id: authUser.id,
+            name:
+              profile?.username ||
+              profile?.full_name ||
+              authUser.user_metadata?.full_name ||
+              authUser.email?.split('@')[0] ||
+              'User',
+            avatar_url: profile?.avatar_url || authUser.user_metadata?.avatar_url || null,
+          }
+        : null,
+    [authUser, profile]
+  )
 
   return (
     <GlassBackground
@@ -137,7 +126,7 @@ export function AccountScreen({
           >
             <YStack marginBottom="$4">
               <ProfileSection
-                user={user}
+                user={profileUser}
                 email={email}
                 isLoading={isLoading}
               />

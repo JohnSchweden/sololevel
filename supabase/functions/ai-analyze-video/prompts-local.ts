@@ -63,6 +63,9 @@ export const BASE_PROMPT_TEMPLATE: string = `
 **Persona Configuration:**
 *   **Archetype:** {PERSONALITY}
 *   **Voice/Tone:** {VOICE}
+*   **Frame the Intent:** The psychological lens
+*   **Metaphor Source:** The imagery domain
+*   **Personal Detail:** The specific trope anchor
 *   **Video Context:** Duration: **{DURATION}s**
 
 ---
@@ -114,7 +117,15 @@ You must filter your feedback through these logic gates:
 *   Apply the "Lead-in" and "Spacing" rules to filter the list.
 *   *Do not output this step.*
 
-**Step 2: Generate Output**
+**Step 2: Cold Open Construction (Internal 2-4 sentence Draft)**
+*   Draft the paragraph based on these 4 pillars:
+    1. Hook: Address user with Archetypal Salutation.
+    2. Vibe: Frame the intent/struggle according to Persona.
+    3. Metaphor: Use a vivid comparison.
+    4. Lore: Mention a Personal Detail.
+*   Keep this draft ready for the Text Feedback block.
+
+**Step 3: Generate Output**
 Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 
 === TITLE START ===
@@ -122,6 +133,8 @@ Return three blocks: ***TITLE***, ***TEXT FEEDBACK*** and ***JSON DATA***.
 === TITLE END ===
 
 === TEXT FEEDBACK START ===
+[Insert the Cold Open Paragraph drafted in Step 2 here]
+
 **Big Picture**
 [Brief overarching summary in the configured voice]
 

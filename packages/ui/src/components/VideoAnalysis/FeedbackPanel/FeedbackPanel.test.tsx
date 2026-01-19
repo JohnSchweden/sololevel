@@ -88,6 +88,23 @@ describe('FeedbackPanel', () => {
     expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
   })
 
+  it('does not crash when comments prop is omitted and component rerenders', () => {
+    // 🧪 ARRANGE: Render without passing `comments` (optional prop)
+    const { rerender } = render(<FeedbackPanel {...mockProps} />)
+
+    // 🎬 ACT + ✅ ASSERT: Rerender should not crash (memo comparator must tolerate undefined)
+    expect(() => {
+      rerender(
+        <FeedbackPanel
+          {...mockProps}
+          isExpanded
+        />
+      )
+    }).not.toThrow()
+
+    expect(screen.getByTestId('feedback-panel')).toBeInTheDocument()
+  })
+
   it('renders collapsed state correctly', () => {
     // 🧪 ARRANGE: Set up component in collapsed state
     const collapsedProps = { ...mockProps, isExpanded: false }

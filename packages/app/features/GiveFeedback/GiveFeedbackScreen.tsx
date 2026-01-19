@@ -3,11 +3,14 @@ import { log } from '@my/logging'
 import { ConfirmDialog, FeedbackTypeButton, GlassBackground, GlassButton, TextArea } from '@my/ui'
 import { Gift, Send } from '@tamagui/lucide-icons'
 import type React from 'react'
-import { useMemo, useRef, useState } from 'react'
-import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Keyboard, KeyboardAvoidingView, Platform, View, type ViewStyle } from 'react-native'
 import { Avatar, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui'
 import { useSubmitFeedback } from './hooks/useSubmitFeedback'
 import { FEEDBACK_TYPES, type FeedbackType } from './types'
+
+// Static styles - defined outside component to avoid recreation on each render
+const flexStyle: ViewStyle = { flex: 1 }
 
 export interface GiveFeedbackScreenProps {
   onSuccess?: () => void
@@ -36,32 +39,58 @@ export const GiveFeedbackScreen = ({
   onSuccess,
   testID = 'give-feedback-screen',
 }: GiveFeedbackScreenProps): React.JSX.Element => {
-  // Use stable safe area hook that properly memoizes insets
   const insets = useStableSafeArea()
-  const APP_HEADER_HEIGHT = 44 // Fixed height from AppHeader component
-
-  // PERF FIX: Memoize container style to prevent recalculating layout on every render
-  const containerStyle = useMemo(() => ({ flex: 1 as const }), [])
-  const keyboardAvoidingStyle = useMemo(() => ({ flex: 1 as const }), [])
+  const APP_HEADER_HEIGHT = 44
 
   const [selectedType, setSelectedType] = useState<FeedbackType>('suggestion')
   const [message, setMessage] = useState('')
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
   const { mutate: submitFeedback, isPending } = useSubmitFeedback()
   const scrollViewRef = useRef<ScrollView>(null)
+  const textAreaFocusedRef = useRef(false)
+
+  useEffect(() => {
+    const isMountedRef = { current: true }
+    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null }
+
+    const handleKeyboardShow = (): void => {
+      setIsKeyboardVisible(true)
+      if (textAreaFocusedRef.current && scrollViewRef.current) {
+        timeoutRef.current = setTimeout(() => {
+          if (!isMountedRef.current) return // Guard against unmount
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }, 100)
+      }
+    }
+
+    const handleKeyboardHide = (): void => {
+      setIsKeyboardVisible(false)
+    }
+
+    const showListener = Keyboard.addListener('keyboardDidShow', handleKeyboardShow)
+    const hideListener = Keyboard.addListener('keyboardDidHide', handleKeyboardHide)
+
+    return () => {
+      isMountedRef.current = false
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      showListener.remove()
+      hideListener.remove()
+    }
+  }, [])
 
   const handleSubmit = (): void => {
-    if (!message.trim()) return
+    const trimmedMessage = message.trim()
+    if (!trimmedMessage) return
 
-    // Dismiss keyboard when submitting
     Keyboard.dismiss()
+    setIsKeyboardVisible(false)
 
     submitFeedback(
-      { type: selectedType, message: message.trim() },
+      { type: selectedType, message: trimmedMessage },
       {
         onSuccess: () => {
           setShowSuccessDialog(true)
-          // onSuccess is called when dialog is dismissed for navigation
         },
         onError: (error) => {
           log.error('GiveFeedbackScreen', 'Failed to submit feedback', {
@@ -74,24 +103,28 @@ export const GiveFeedbackScreen = ({
   }
 
   const handleTextAreaFocus = (): void => {
-    // Scroll to text area when focused to ensure it's visible above keyboard
-    // KeyboardAvoidingView handles main positioning; this ensures input is in view
-    if (scrollViewRef.current) {
-      // Small delay to allow keyboard animation to start
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true })
-      }, 0)
-    }
+    textAreaFocusedRef.current = true
   }
+
+  const handleTextAreaBlur = (): void => {
+    textAreaFocusedRef.current = false
+  }
+
+  const handleDialogClose = (): void => {
+    setShowSuccessDialog(false)
+    onSuccess?.()
+  }
+
+  const isSubmitDisabled = !message.trim() || isPending
 
   return (
     <GlassBackground
       backgroundColor="$color3"
       testID={testID}
     >
-      <View style={containerStyle}>
+      <View style={flexStyle}>
         <KeyboardAvoidingView
-          style={keyboardAvoidingStyle}
+          style={flexStyle}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
@@ -105,7 +138,7 @@ export const GiveFeedbackScreen = ({
               paddingTop={insets.top + APP_HEADER_HEIGHT}
               paddingHorizontal="$4"
               gap="$6"
-              paddingBottom={insets.bottom + 24}
+              paddingBottom={isKeyboardVisible ? 20 : insets.bottom + 24}
             >
               {/* Introduction */}
               <YStack
@@ -165,7 +198,6 @@ export const GiveFeedbackScreen = ({
                     {FEEDBACK_TYPES.map((type) => (
                       <YStack
                         key={type.id}
-                        //flex={1}
                         minWidth="47.5%"
                       >
                         <FeedbackTypeButton
@@ -201,6 +233,7 @@ export const GiveFeedbackScreen = ({
                     maxLength={1000}
                     backgroundColor="$color3"
                     onFocus={handleTextAreaFocus}
+                    onBlur={handleTextAreaBlur}
                   />
                   {message.trim() && (
                     <Text
@@ -225,11 +258,11 @@ export const GiveFeedbackScreen = ({
                 >
                   <YStack
                     position="relative"
-                    opacity={!message.trim() || isPending ? 0.5 : 1}
+                    opacity={isSubmitDisabled ? 0.5 : 1}
                   >
                     <GlassButton
                       onPress={handleSubmit}
-                      disabled={!message.trim() || isPending}
+                      disabled={isSubmitDisabled}
                       testID="send-feedback-button"
                       accessibilityLabel={isPending ? 'Sending feedback' : 'Send feedback'}
                       minHeight={44}
@@ -283,8 +316,7 @@ export const GiveFeedbackScreen = ({
                         </XStack>
                       )}
                     </GlassButton>
-                    {/* Disabled overlay */}
-                    {(!message.trim() || isPending) && (
+                    {isSubmitDisabled && (
                       <YStack
                         position="absolute"
                         top={0}
@@ -305,23 +337,14 @@ export const GiveFeedbackScreen = ({
         </KeyboardAvoidingView>
       </View>
 
-      {/* Success Dialog */}
       <ConfirmDialog
         visible={showSuccessDialog}
         title="We've received your gift!"
         message={"Thank you 🙏\nWe'll read it during a peaceful moment 😌"}
         variant="success"
         confirmLabel="OK"
-        onConfirm={() => {
-          setShowSuccessDialog(false)
-          // Navigate away after user dismisses the dialog
-          onSuccess?.()
-        }}
-        onCancel={() => {
-          setShowSuccessDialog(false)
-          // Navigate away after user dismisses the dialog
-          onSuccess?.()
-        }}
+        onConfirm={handleDialogClose}
+        onCancel={handleDialogClose}
         testID="feedback-success-dialog"
       />
     </GlassBackground>

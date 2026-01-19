@@ -42,9 +42,7 @@ export default function AccountSettingsRoute() {
   const navigation = useNavigation()
 
   // Get real auth data
-  const { user, loading } = useAuth()
-  const email = user?.email
-  const is2FAEnabled = user?.app_metadata?.['2fa_enabled'] ?? false
+  useAuth()
 
   // Configure AppHeader via navigation options
   useLayoutEffect(() => {
@@ -90,10 +88,6 @@ export default function AccountSettingsRoute() {
   return (
     <Suspense fallback={<AccountLoadingFallback />}>
       <LazyAccountScreen
-        user={user}
-        email={email}
-        isLoading={loading}
-        is2FAEnabled={is2FAEnabled}
         onEditProfile={handleEditProfile}
         onChangePassword={handleChangePassword}
         onEmailPreferences={handleEmailPreferences}

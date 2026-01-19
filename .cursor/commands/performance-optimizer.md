@@ -1,5 +1,5 @@
 ---
-name: optimizer
+name: performance-optimizer
 description: Analyzes and optimizes React Native/Expo/Tamagui code for performance and memory efficiency. Identifies render issues, memory leaks, and optimization opportunities.
 model: opus
 ---

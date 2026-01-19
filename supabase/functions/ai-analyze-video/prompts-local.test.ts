@@ -88,9 +88,9 @@ Deno.test('buildPromptFromConfig - Preserves structural elements', () => {
   const result = buildPromptFromConfig(ROAST_CONFIG, duration)
 
   // Assert - structural elements must be present
-  assertStringIncludes(result, '**Task**')
-  assertStringIncludes(result, '**Timing Constraints**')
-  assertStringIncludes(result, '**Output Format**')
+  assertStringIncludes(result, '### **ANALYSIS TASKS**')
+  assertStringIncludes(result, '### **TIMING CONSTRAINTS (CRITICAL)**')
+  assertStringIncludes(result, '### **OUTPUT INSTRUCTIONS**')
   assertStringIncludes(result, 'TEXT FEEDBACK START')
   assertStringIncludes(result, 'JSON DATA START')
   assertStringIncludes(result, '**Lead-in:** First timestamp must be **> 5.0s**')
@@ -106,11 +106,58 @@ Deno.test('buildPromptFromConfig - JSON schema integrity', () => {
 
   // Assert - JSON schema must be intact
   assertStringIncludes(result, '"feedback": [')
-  assertStringIncludes(result, '"timestamp": 0.0')
-  assertStringIncludes(result, '"category": "String"')
-  assertStringIncludes(result, '"message": "String"')
-  assertStringIncludes(result, '"confidence": 0.0')
-  assertStringIncludes(result, '"impact": 0.0')
+  assertStringIncludes(result, '"timestamp": [Float: seconds]')
+  assertStringIncludes(result, '"category": "[Posture | Movement | Speech | Vocal Variety]"')
+  assertStringIncludes(result, '"message": "[Concise feedback in configured voice (30-45 words)]"')
+  assertStringIncludes(result, '"confidence": [Float: 0.1-1.0]')
+  assertStringIncludes(result, '"impact": [Float: 0.1-0.5]')
+
+  // Guard: buildPromptFromConfig should not accidentally output the legacy "String/0.0" schema.
+  assertEquals(result.includes('"timestamp": 0.0'), false)
+  assertEquals(result.includes('"category": "String"'), false)
+})
+
+Deno.test('buildPromptFromConfig - Output blocks are ordered and fenced', () => {
+  // Arrange
+  const duration = 6.3
+
+  // Act
+  const result = buildPromptFromConfig(ROAST_CONFIG, duration)
+
+  // Assert - blocks should appear in correct order
+  const titleStart = result.indexOf('=== TITLE START ===')
+  const titleEnd = result.indexOf('=== TITLE END ===')
+  const textStart = result.indexOf('=== TEXT FEEDBACK START ===')
+  const textEnd = result.indexOf('=== TEXT FEEDBACK END ===')
+  const jsonStart = result.indexOf('=== JSON DATA START ===')
+  const jsonEnd = result.indexOf('=== JSON DATA END ===')
+
+  assertEquals(titleStart !== -1, true)
+  assertEquals(titleEnd !== -1, true)
+  assertEquals(textStart !== -1, true)
+  assertEquals(textEnd !== -1, true)
+  assertEquals(jsonStart !== -1, true)
+  assertEquals(jsonEnd !== -1, true)
+
+  assertEquals(titleStart < titleEnd, true)
+  assertEquals(titleEnd < textStart, true)
+  assertEquals(textStart < textEnd, true)
+  assertEquals(textEnd < jsonStart, true)
+  assertEquals(jsonStart < jsonEnd, true)
+
+  // Assert - JSON is fenced in a code block (helps downstream parsing)
+  assertStringIncludes(result, '```json')
+})
+
+Deno.test('buildPromptFromConfig - Duration is injected into Video Context line', () => {
+  // Arrange
+  const duration = 6.3
+
+  // Act
+  const result = buildPromptFromConfig(ROAST_CONFIG, duration)
+
+  // Assert
+  assertStringIncludes(result, '*   **Video Context:** Duration: **6.3s**')
 })
 
 Deno.test('buildPromptFromConfig - Different durations', () => {

@@ -1,6 +1,6 @@
 ---
 description: Mandatory evidence-based verification for all summaries
-alwaysApply: true
+alwaysApply: false
 ---
 
 ## Principle: No Claims Without Proof

@@ -314,3 +314,62 @@ const handleAction = useCallback(() => {
   }, 0)
 }, [])
 ```
+
+### Mistake: Props in callback dependencies causing cascade unmounts
+**Wrong**:
+```typescript
+const renderItem = useCallback(
+  (item) => {
+    const isHighlighted = selectedItemId === item.id
+    return <Item highlighted={isHighlighted} />
+  },
+  [selectedItemId] // Recreates callback on every selection change
+)
+
+// Used as: ListHeaderComponent={renderHeader}
+// Result: FlatList remounts entire header tree, resetting component state
+```
+**Lesson**: FlatList's `ListHeaderComponent` reference change triggers full header unmount/remount. Frequently changing props in callback dependencies cause state loss in header children.
+
+**Correct**:
+```typescript
+// Use ref to read current value without recreating callback
+const selectedItemIdRef = useRef(selectedItemId)
+
+useEffect(() => {
+  selectedItemIdRef.current = selectedItemId
+}, [selectedItemId])
+
+const renderItem = useCallback(
+  (item) => {
+    const isHighlighted = selectedItemIdRef.current === item.id
+    return <Item highlighted={isHighlighted} />
+  },
+  [] // Stable - never recreates
+)
+
+// Trigger re-renders via extraData prop
+<FlatList extraData={selectedItemId} ... />
+```
+
+### Mistake: Clearing debug logs with shell commands instead of delete tool
+**Wrong**:
+```bash
+rm -f /path/to/.cursor/debug.log
+```
+
+**Correct**:
+```text
+Use the delete-file tool for /path/to/.cursor/debug.log (don’t use rm/touch).
+```
+
+### Mistake: Claiming lint/typecheck status without running them
+**Wrong**:
+```text
+"TypeScript errors: 0" / "Lint errors: 0" stated after only running tests.
+```
+
+**Correct**:
+```text
+Only report lint/typecheck status after actually running `yarn type-check` and `yarn lint` (or explicitly mark as UNVERIFIED).
+```

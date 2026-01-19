@@ -30,7 +30,6 @@ import Animated, {
 import type { SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  AnimatePresence,
   Button,
   Circle,
   Image,
@@ -983,7 +982,7 @@ export const FeedbackPanel = memo(
           </FeedbackListContainer>
         </YStack>
       ),
-      [feedbackFilter, sortedFeedbackItems, renderFeedbackItemNode]
+      [feedbackFilter, renderFeedbackItemNode, sortedFeedbackItems]
     )
 
     // Get voice text config for current mode (default to roast)
@@ -1242,6 +1241,9 @@ export const FeedbackPanel = memo(
     ])
 
     // Render active tab content with conditional animation
+    // FIX: Always return consistent wrapper structure to prevent unmount/remount
+    // When tabActuallyChanged flips from true→false, returning different structures
+    // (AnimatePresence→raw content) causes React to unmount the entire subtree
     const renderTabContent = useCallback(() => {
       let content: React.ReactNode
       if (activeTab === 'feedback') {
@@ -1263,24 +1265,18 @@ export const FeedbackPanel = memo(
         return <YStack key={`tab-content-${activeTab}`}>{content}</YStack>
       }
 
-      // iOS: Apply animation only when tab actually changed (not on initial mount)
-      // This restores original behavior broken by Android performance fix
-      if (tabActuallyChanged) {
-        return (
-          <AnimatePresence>
-            <YStack
-              key={`tab-content-${activeTab}`}
-              animation="quick"
-              enterStyle={tabTransitionEnterStyle}
-              exitStyle={tabTransitionExitStyle}
-            >
-              {content}
-            </YStack>
-          </AnimatePresence>
-        )
-      }
-
-      return content
+      // iOS: Always wrap in YStack for consistent structure
+      // Only apply animation styles when tab actually changed
+      return (
+        <YStack
+          key={`tab-content-${activeTab}`}
+          animation={tabActuallyChanged ? 'quick' : undefined}
+          enterStyle={tabActuallyChanged ? tabTransitionEnterStyle : undefined}
+          exitStyle={tabActuallyChanged ? tabTransitionExitStyle : undefined}
+        >
+          {content}
+        </YStack>
+      )
     }, [
       activeTab,
       tabActuallyChanged,
@@ -1291,102 +1287,112 @@ export const FeedbackPanel = memo(
       tabTransitionExitStyle,
     ])
 
-    const renderListHeader = useCallback(() => {
-      return (
-        <YStack paddingHorizontal="$0">
-          <YStack
-            alignItems="flex-start"
-            backgroundColor="transparent"
-            paddingTop="$4"
-            paddingBottom="$4"
-            paddingHorizontal="$4"
-            testID="analysis-title"
-            accessibilityLabel="Video Analysis title"
+    // FIX: Use ref-based pattern to keep ListHeaderComponent stable
+    // When ListHeaderComponent receives a new function reference, FlatList remounts the header
+    // causing VideoAnalysisInsightsV2 to unmount and lose its isSummaryExpanded state.
+    // Solution: Store the actual render function in a ref, pass a stable wrapper to FlatList.
+    const renderListHeaderContentRef = useRef<() => React.ReactElement | null>(() => null)
+
+    // Update the ref on each render with current values (no useCallback - intentional)
+    renderListHeaderContentRef.current = () => (
+      <YStack paddingHorizontal="$0">
+        <YStack
+          alignItems="flex-start"
+          backgroundColor="transparent"
+          paddingTop="$4"
+          paddingBottom="$4"
+          paddingHorizontal="$4"
+          testID="analysis-title"
+          accessibilityLabel="Video Analysis title"
+        >
+          <Text
+            fontSize="$5"
+            fontWeight="600"
+            color="$color12"
+            textAlign="left"
           >
-            <Text
-              fontSize="$5"
-              fontWeight="600"
-              color="$color12"
-              textAlign="left"
-            >
-              {analysisTitle || 'Speech Analysis For Your Hand Flapping Seagull Performance'}
-            </Text>
-          </YStack>
-
-          <YStack
-            paddingHorizontal="$4"
-            paddingBottom="$1"
-            testID="sheet-header"
-            accessibilityLabel="Sheet header with navigation tabs"
-          >
-            <XStack
-              gap="$2"
-              width="100%"
-              borderBottomWidth={0}
-              borderBottomColor="$borderColor"
-              testID="tab-navigation"
-              accessibilityLabel="Tab navigation"
-              accessibilityRole="tablist"
-              backgroundColor="transparent"
-            >
-              {(['feedback', 'insights', 'comments'] as const).map((tab) => {
-                const isActive = activeTab === tab
-
-                return (
-                  <TabButtonWrapper
-                    key={tab}
-                    testID={isActive ? `tab-${tab}-wrapper-active` : undefined}
-                  >
-                    {isActive ? <TabButtonGlow testID={`tab-${tab}-glow`} /> : null}
-                    <Button
-                      chromeless
-                      flex={1}
-                      height={32}
-                      backgroundColor={isActive ? 'rgba(255, 255, 255, 0.08)' : 'transparent'}
-                      borderRadius="$6"
-                      marginVertical="$-1"
-                      paddingVertical="$1"
-                      paddingHorizontal="$1"
-                      animation="quick"
-                      hoverStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        opacity: 0.85,
-                      }}
-                      pressStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                        opacity: 0.75,
-                        scale: 0.97,
-                      }}
-                      onPress={() => {
-                        onTabChange(tab)
-                      }}
-                      testID={`tab-${tab}`}
-                      accessibilityLabel={`${tab} tab`}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: isActive }}
-                      accessibilityHint={`Switch to ${tab} view`}
-                      data-testid={`tab-${tab}`}
-                    >
-                      <Text
-                        fontSize="$4"
-                        fontWeight={isActive ? '600' : '400'}
-                        color={isActive ? '$color12' : '$color11'}
-                        textTransform="capitalize"
-                        animation="quick"
-                      >
-                        {tab}
-                      </Text>
-                    </Button>
-                  </TabButtonWrapper>
-                )
-              })}
-            </XStack>
-          </YStack>
-
-          {renderTabContent()}
+            {analysisTitle || 'Speech Analysis For Your Hand Flapping Seagull Performance'}
+          </Text>
         </YStack>
-      )
-    }, [activeTab, onTabChange, renderTabContent, analysisTitle])
+
+        <YStack
+          paddingHorizontal="$4"
+          paddingBottom="$1"
+          testID="sheet-header"
+          accessibilityLabel="Sheet header with navigation tabs"
+        >
+          <XStack
+            gap="$2"
+            width="100%"
+            borderBottomWidth={0}
+            borderBottomColor="$borderColor"
+            testID="tab-navigation"
+            accessibilityLabel="Tab navigation"
+            accessibilityRole="tablist"
+            backgroundColor="transparent"
+          >
+            {(['feedback', 'insights', 'comments'] as const).map((tab) => {
+              const isActive = activeTab === tab
+
+              return (
+                <TabButtonWrapper
+                  key={tab}
+                  testID={isActive ? `tab-${tab}-wrapper-active` : undefined}
+                >
+                  {isActive ? <TabButtonGlow testID={`tab-${tab}-glow`} /> : null}
+                  <Button
+                    chromeless
+                    flex={1}
+                    height={32}
+                    backgroundColor={isActive ? 'rgba(255, 255, 255, 0.08)' : 'transparent'}
+                    borderRadius="$6"
+                    marginVertical="$-1"
+                    paddingVertical="$1"
+                    paddingHorizontal="$1"
+                    animation="quick"
+                    hoverStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      opacity: 0.85,
+                    }}
+                    pressStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      opacity: 0.75,
+                      scale: 0.97,
+                    }}
+                    onPress={() => {
+                      onTabChange(tab)
+                    }}
+                    testID={`tab-${tab}`}
+                    accessibilityLabel={`${tab} tab`}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: isActive }}
+                    accessibilityHint={`Switch to ${tab} view`}
+                    data-testid={`tab-${tab}`}
+                  >
+                    <Text
+                      fontSize="$4"
+                      fontWeight={isActive ? '600' : '400'}
+                      color={isActive ? '$color12' : '$color11'}
+                      textTransform="capitalize"
+                      animation="quick"
+                    >
+                      {tab}
+                    </Text>
+                  </Button>
+                </TabButtonWrapper>
+              )
+            })}
+          </XStack>
+        </YStack>
+
+        {renderTabContent()}
+      </YStack>
+    )
+
+    // Stable function reference that FlatList receives - NEVER changes identity
+    const renderListHeader = useCallback(() => {
+      return renderListHeaderContentRef.current()
+    }, []) // Empty deps intentional - function reference must stay stable
 
     const renderFeedbackItem = useCallback(
       ({ item, index }: { item: FeedbackItem; index: number }) =>
@@ -1554,13 +1560,34 @@ export const FeedbackPanel = memo(
   },
   (prevProps, nextProps) => {
     // Don't re-render on frequently changing time props
+
+    // PERFORMANCE: Use reference equality for arrays instead of JSON.stringify
+    // If parent memoizes arrays, this is O(1) vs O(n) with JSON.stringify
+    const feedbackItemsEqual =
+      prevProps.feedbackItems === nextProps.feedbackItems ||
+      (prevProps.feedbackItems.length === nextProps.feedbackItems.length &&
+        prevProps.feedbackItems.length === 0) ||
+      (prevProps.feedbackItems.length === nextProps.feedbackItems.length &&
+        prevProps.feedbackItems[0]?.id === nextProps.feedbackItems[0]?.id &&
+        prevProps.feedbackItems[prevProps.feedbackItems.length - 1]?.id ===
+          nextProps.feedbackItems[nextProps.feedbackItems.length - 1]?.id)
+
+    const commentsEqual =
+      prevProps.comments === nextProps.comments ||
+      (prevProps.comments?.length === nextProps.comments?.length &&
+        (prevProps.comments?.length ?? 0) === 0) ||
+      ((prevProps.comments?.length ?? 0) === (nextProps.comments?.length ?? 0) &&
+        prevProps.comments?.[0]?.id === nextProps.comments?.[0]?.id &&
+        prevProps.comments?.[prevProps.comments.length - 1]?.id ===
+          nextProps.comments?.[nextProps.comments.length - 1]?.id)
+
     return (
       prevProps.flex === nextProps.flex &&
       prevProps.isExpanded === nextProps.isExpanded &&
       prevProps.activeTab === nextProps.activeTab &&
       prevProps.selectedFeedbackId === nextProps.selectedFeedbackId &&
-      JSON.stringify(prevProps.feedbackItems) === JSON.stringify(nextProps.feedbackItems) &&
-      JSON.stringify(prevProps.comments) === JSON.stringify(nextProps.comments) &&
+      feedbackItemsEqual &&
+      commentsEqual &&
       prevProps.analysisTitle === nextProps.analysisTitle &&
       prevProps.fullFeedbackText === nextProps.fullFeedbackText &&
       // Ignore currentVideoTime and videoDuration as they change frequently but don't affect visual state
