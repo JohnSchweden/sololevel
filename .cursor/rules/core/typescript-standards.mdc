@@ -15,6 +15,23 @@ alwaysApply: false
 - Use `type` for unions and intersections; use `interface` for object shapes.
 - Prefer `as const` assertions over enums, e.g., `const Status = ['pending', 'completed'] as const`.
 
+### Avoid papering over type inference
+- Don’t use `as any` to “fix” inference issues in callbacks. If inference breaks, fix the expression shape first (common culprit: extra parentheses like `((...))`).
+
+```typescript
+// ❌ Bad: extra parentheses confuse inference; `as any` just hides the bug
+const unsubscribe = someFunction(arg, ((p1, p2) => {
+  handleUpdate(p1, p2)
+}) as any)
+```
+
+```typescript
+// ✅ Better: remove the extra parentheses and let TS infer naturally
+const unsubscribe = someFunction(arg, (p1, p2) => {
+  handleUpdate(p1, p2)
+})
+```
+
 ## Cross-Platform Type Practices
 - Leverage conditional types to handle platform-specific APIs.
 - Place shared interfaces in `packages/app/types`.

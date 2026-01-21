@@ -1,14 +1,16 @@
 Implement with real-time progress tracking and quality gates following TDD.
 
 CONTEXT:
-- Follow TDD methodology strictly (Red-Green-Refactor) and @.cursor/rules/quality/testing-philosophy.mdc 
+- Follow TDD methodology strictly (Red-Green-Refactor)
 - Track progress against Definition of Done criteria
 
 EXECUTION WORKFLOW:
 
 **STEP 1: Pre-Execution Validation**
 - [ ] Confirm plan is still valid
+- [ ] Read `@.cursor/rules/quality/testing-philosophy.mdc `
 - [ ] Verify all dependencies are available
+- [ ] Check how other tests in the repo handle tests and mocks
 - [ ] Set up test environment
 
 **STEP 2: TDD Cycle Execution**

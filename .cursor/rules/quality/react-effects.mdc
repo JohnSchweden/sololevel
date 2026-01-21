@@ -1,0 +1,83 @@
+---
+description: React effects, timeouts, and async lifecycle safety
+globs: ["**/*.tsx", "**/hooks/**/*", "**/components/**/*", "**/screens/**/*"]
+alwaysApply: false
+---
+
+# React Effects & Async Lifecycle Rules
+
+## Async effects must not commit stale results
+
+```typescript
+// ❌ Bad: stale effect run can set state after deps changed
+useEffect(() => {
+  asyncFn().then((res) => {
+    setState(res)
+  })
+}, [deps])
+```
+
+```typescript
+// ✅ Good: cancel/ignore stale runs
+useEffect(() => {
+  const controller = new AbortController()
+
+  asyncFn({ signal: controller.signal }).then((res) => {
+    if (controller.signal.aborted) return
+    setState(res)
+  })
+
+  return () => controller.abort()
+}, [deps])
+```
+
+## Never update state from timeouts after unmount
+
+```typescript
+// ❌ Bad: timeout callback can fire after unmount
+useEffect(() => {
+  const id = setTimeout(() => {
+    setState(nextValue)
+  }, 1000)
+  return () => clearTimeout(id)
+}, [])
+```
+
+```typescript
+// ✅ Good: guard against unmount
+const isMountedRef = useRef(true)
+
+useEffect(() => {
+  const id = setTimeout(() => {
+    if (!isMountedRef.current) return
+    setState(nextValue)
+  }, 1000)
+
+  return () => {
+    isMountedRef.current = false
+    clearTimeout(id)
+  }
+}, [])
+```
+
+## Avoid stale closures inside `setTimeout`
+
+```typescript
+// ❌ Bad: captures state at call time; may be stale at execution time
+const handleAction = useCallback(() => {
+  const snapshot = getState()
+  setTimeout(() => {
+    if (snapshot.isActive) doSomething()
+  }, 0)
+}, [])
+```
+
+```typescript
+// ✅ Good: re-read fresh state inside the timeout
+const handleAction = useCallback(() => {
+  setTimeout(() => {
+    const current = getState()
+    if (current.isActive) doSomething()
+  }, 0)
+}, [])
+```

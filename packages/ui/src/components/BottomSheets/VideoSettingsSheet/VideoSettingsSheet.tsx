@@ -56,7 +56,7 @@ export const VideoSettingsSheet = memo(function VideoSettingsSheet({
           />
         ) : (
           <YStack
-            backgroundColor="rgba(20, 20, 20, 0.85)"
+            backgroundColor="rgba(20, 20, 20, 1.0)"
             style={BOTTOM_SHEET_BLUR_STYLE}
           />
         )}

@@ -14,6 +14,8 @@ export interface VoicePreferencesState {
   mode: CoachMode
   isLoaded: boolean
   isSyncing: boolean
+  /** Whether MMKV storage has been hydrated (prevents flash of default values) */
+  _isHydrated: boolean
 }
 
 /**
@@ -40,6 +42,7 @@ const DEFAULT_PREFERENCES: VoicePreferencesState = {
   mode: 'roast',
   isLoaded: false,
   isSyncing: false,
+  _isHydrated: false,
 }
 
 /**
@@ -140,11 +143,17 @@ export const useVoicePreferencesStore = create<VoicePreferencesStore>()(
       {
         name: 'voice-preferences',
         storage: createJSONStorage(() => mmkvStorage),
-        // Only persist gender and mode - transient state (isLoaded, isSyncing) should not persist
+        // Only persist gender and mode - transient state (isLoaded, isSyncing, _isHydrated) should not persist
         partialize: (state) => ({
           gender: state.gender,
           mode: state.mode,
         }),
+        onRehydrateStorage: () => (state) => {
+          // Mark store as hydrated when rehydration completes
+          if (state) {
+            state._isHydrated = true
+          }
+        },
       }
     )
   )

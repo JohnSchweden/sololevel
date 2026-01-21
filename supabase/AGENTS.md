@@ -18,6 +18,9 @@
 - Always include: `id bigint generated always as identity primary key`
 - Always qualify with schema: `public.users`
 
+### Triggers & webhooks (footguns)
+- **Dashboard webhooks**: `supabase_functions.http_request(...)` ignores `WHEN (...)` clauses on triggers, so it can fire on every update and create infinite loops if the webhook handler updates the same row. Prefer a custom `plpgsql` trigger function with guards in the function body (e.g. status transition checks) and call `net.http_post(...)` from there.
+
 ## Environment Variables
 Pre-populated in Edge Functions:
 - `SUPABASE_URL`

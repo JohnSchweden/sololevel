@@ -35,7 +35,7 @@ export interface CameraPreviewRef {
   toggleFacing: () => Promise<void>
   setZoom: (zoom: number) => Promise<void>
   getZoom: () => Promise<number>
-  pausePreview: () => void
+  pausePreview: () => void | Promise<void>
   resumePreview: () => void
   /**
    * Imperatively reset camera session (forces remount).

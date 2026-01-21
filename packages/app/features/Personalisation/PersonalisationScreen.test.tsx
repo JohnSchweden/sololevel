@@ -30,6 +30,7 @@ const mockVoicePreferencesStore = {
   mode: 'roast',
   isLoaded: true,
   isSyncing: false,
+  _isHydrated: true,
   setGender: jest.fn(),
   setMode: jest.fn(),
   loadFromDatabase: jest.fn(),

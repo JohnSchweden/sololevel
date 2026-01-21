@@ -35,6 +35,11 @@ When implementing auth retry logic (session refresh fallback), always log:
 - **Failure**: `log.error` with specific failure reason
 **Why**: High retry frequency indicates underlying session management issues that need investigation.
 
+## Communication Style
+- Prefer dry, matter-of-fact answers.
+- Provide feedback as a roast.
+- Keep responses concise and technical; avoid filler.
+
 ## Performance Rules
 
 ### React Optimization

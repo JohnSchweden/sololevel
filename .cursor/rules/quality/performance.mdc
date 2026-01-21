@@ -21,6 +21,36 @@ const ExpensiveList = memo(({ items }: { items: Item[] }) => (
 const SimpleButton = memo(({ title }: { title: string }) => <Button>{title}</Button>)
 ```
 
+### Memoization pitfalls (common footguns)
+
+```typescript
+// ❌ Bad: memoizing ref.current does not re-render when ref.current changes
+const ref = useRef(initialValue)
+const value = useMemo(() => ref.current, [dependency])
+```
+
+```typescript
+// ✅ Better: use state (or explicit subscription) for values that must drive renders
+const [value, setValue] = useState(initialValue)
+const updateValue = useCallback((next: Value) => {
+  if (shouldUpdate(next)) setValue(next)
+}, [])
+```
+
+```typescript
+// ❌ Bad: creating values inside dependency arrays defeats memoization
+const stableValue = useMemo(() => data, [
+  data.length,
+  data.map((item) => `${item.id}:${item.status}`).join(','), // new string every render
+])
+```
+
+```typescript
+// ✅ Better: memoize the signature first (or extract stable primitives)
+const signature = useMemo(() => data.map((item) => `${item.id}:${item.status}`).join(','), [data])
+const stableValue = useMemo(() => data, [signature])
+```
+
 ## TanStack Query Optimization
 - Use staleTime for stable data
 - Enable background refetch for user data

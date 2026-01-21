@@ -13,6 +13,11 @@
 - Package imports: `@my/ui`, `@my/app`, `@my/api`, `@my/config`, `@my/logging`
 - Keep UI components app-agnostic
 
+## Component Structure (directory-per-component)
+- Prefer `Component.tsx`, `Component.test.tsx`, `index.ts` per component folder; parent folders re-export.
+- Tests follow AAA with comments.
+- Components accept `testID` (capital ID) with sensible defaults and forward props with `{...props}`.
+
 
 ## Testing
 - **ui/**: Jest + jsdom → `yarn workspace @my/ui test`

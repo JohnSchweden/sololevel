@@ -73,7 +73,10 @@ export function CameraRecordingScreen({
     if (isFocused) {
       cameraRef.current.resumePreview()
     } else {
-      cameraRef.current.pausePreview()
+      // NOTE: pausePreview is async (captures frozen frame on iOS) but we intentionally
+      // don't await - the synchronous isPausedRef update inside handles immediate camera
+      // control, and snapshot completing late is acceptable (brief overlay flash at worst)
+      void cameraRef.current.pausePreview()
     }
   }, [isFocused])
 

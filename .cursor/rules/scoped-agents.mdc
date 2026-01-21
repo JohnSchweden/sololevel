@@ -1,0 +1,112 @@
+---
+description: Auto-attach scoped AGENTS.md + self-healing capability
+alwaysApply: true
+globs:
+  - "**/*"
+---
+# Scoped AGENTS.md with Self-Healing
+
+## DO THIS FIRST: Read Relevant AGENTS.md Files
+
+**Always read root `@AGENTS.md`**. Then, if working in a subtree, **also read the closest matching scoped `AGENTS.md`**:
+
+- `apps/**/*` → `@apps/AGENTS.md`
+- `packages/**/*` → `@packages/AGENTS.md`
+- `packages/app/**/*` → `@packages/app/AGENTS.md` (most specific wins)
+- `packages/api/**/*` → `@packages/api/AGENTS.md`
+- `packages/ui/**/*` → `@packages/ui/AGENTS.md`
+- `supabase/**/*` → `@supabase/AGENTS.md`
+- `stories/**/*` → `@stories/AGENTS.md`
+
+**Precedence when instructions conflict**: More specific wins.  
+Example: `packages/ui/AGENTS.md` > `packages/AGENTS.md` > root `AGENTS.md`
+
+---
+
+## Self-Healing Workflow: Learn from Mistakes and Pitfalls
+
+When you **make a mistake that you later correct**, or **discover a common pitfall to avoid**:
+
+1. **Correct** the mistake in the current work
+2. **Route** to the appropriate file using the table below
+3. **Update** that file by adding the pattern in the existing style
+4. **Stop** — do not create duplicate entries or over-document
+
+### Routing Table (where to save the lesson)
+
+| Mistake Scope | Target File | Section |
+|---|---|---|
+| Agent process/behavior (tool usage, verification) | `AGENTS.md` (root) | `## Agent Behavior` |
+| Repo-wide architecture (navigation, New Arch) | `AGENTS.md` (root) | `## Architecture Preferences` |
+| App-specific patterns (route wrappers, metro config) | `apps/AGENTS.md` | Relevant section |
+| Package-general patterns (component structure, testing) | `packages/AGENTS.md` | Relevant section |
+| UI-specific pitfalls (Tamagui tokens, platform diffs) | `packages/ui/AGENTS.md` | Appropriate section |
+| App logic pitfalls (state management, effects) | `packages/app/AGENTS.md` | `## State Management` or new section |
+| API/auth patterns (Supabase, auth retry) | `packages/api/AGENTS.md` | `## Authentication` or relevant |
+| Supabase backend (triggers, RLS, Edge Functions) | `supabase/AGENTS.md` | Relevant section |
+| General React patterns (memoization, effects) | `.cursor/rules/quality/performance.mdc` or `.cursor/rules/quality/react-effects.mdc` | Add as bullet + short example |
+| TypeScript patterns (`as any`, inference) | `.cursor/rules/core/typescript-standards.mdc` | Relevant section |
+
+---
+
+## Recording Format (match destination file's style)
+
+### For `AGENTS.md` files (terse bullets)
+
+  ```markdown
+  ## Relevant Section
+  - **Pattern name**: brief explanation (why it matters)
+  ```
+
+### For `.mdc` rule files (bullets + code example)
+
+  ```markdown
+  ## Relevant Section
+  - **Pattern name**: brief explanation
+
+    **Wrong**:
+    ```typescript
+    // problematic code
+    ```
+
+    **Correct**:
+    ```typescript
+    // fixed code
+    ```
+```
+
+---
+
+## Quality Gates (before updating)
+
+**Ask yourself:**
+- Is this pattern **reusable** (not file-specific)?
+- Does it already exist? If yes, **update** instead of duplicating.
+- Does the tone match the target file? (AGENTS.md = terse; .mdc = explanatory)
+
+**If NO to any of the above, skip the update.**
+
+---
+
+## Enforcement (Critical Errors)
+
+- **Failing to read relevant `AGENTS.md` files** = critical error
+- **Failing to update the appropriate `AGENTS.md` after a mistake** = critical error
+- **Always verify architectural compliance** by reading `docs/spec/architecture.mermaid` after code changes
+
+REMEMBER: Read `@AGENTS.md` first, update the correct scoped file when you learn something new.
+
+---
+
+## Storage Paths (AGENTS.md Hierarchy)
+
+- `AGENTS.md` — Root (agent behavior, repo-wide architecture)
+- `apps/AGENTS.md` — App-level patterns (both Expo + Web)
+- `packages/AGENTS.md` — Package-level patterns (shared across all packages)
+- `packages/app/AGENTS.md` — Business logic, state, screens
+- `packages/api/AGENTS.md` — Backend integration, auth, Supabase
+- `packages/ui/AGENTS.md` — Tamagui components, cross-platform UI
+- `supabase/AGENTS.md` — Database, triggers, Edge Functions
+- `stories/AGENTS.md` — Storybook stories
+- `.cursor/rules/quality/*.mdc` — General coding patterns (React, TS, performance)
+- `.cursor/rules/core/*.mdc` — Foundational standards (TypeScript, monorepo)

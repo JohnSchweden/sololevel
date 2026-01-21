@@ -744,601 +744,625 @@ const SkillRow = memo(function SkillRow({
 /** Number of characters to show before truncating with "Show more" */
 const SUMMARY_TRUNCATE_LENGTH = 100
 
-export const VideoAnalysisInsightsV2 = memo(function VideoAnalysisInsightsV2({
-  fullFeedbackText,
-  overview: overviewProp,
-  quote: quoteProp,
-  focusAreas = DEFAULT_FOCUS_AREAS,
-  skillMatrix = DEFAULT_SKILL_MATRIX,
-  performanceTimeline = DEFAULT_TIMELINE,
-  highlights = DEFAULT_HIGHLIGHTS,
-  actions = DEFAULT_ACTIONS,
-  achievements = DEFAULT_ACHIEVEMENTS,
-  reels = DEFAULT_REELS,
-  voiceMode = 'roast',
-  onHighlightPress,
-  onActionPress,
-  onReelPress,
-  testID = 'video-analysis-insights-v2',
-}: VideoAnalysisInsightsV2Props) {
-  // Get voice text config for current mode (default to roast)
-  const voiceText = useMemo(() => VOICE_TEXT_CONFIG[voiceMode || 'roast'], [voiceMode])
-  const statusTokenMap = useMemo(() => getStatusTokenMap(voiceText), [voiceText])
+export const VideoAnalysisInsightsV2 = memo(
+  function VideoAnalysisInsightsV2({
+    fullFeedbackText,
+    overview: overviewProp,
+    quote: quoteProp,
+    focusAreas = DEFAULT_FOCUS_AREAS,
+    skillMatrix = DEFAULT_SKILL_MATRIX,
+    performanceTimeline = DEFAULT_TIMELINE,
+    highlights = DEFAULT_HIGHLIGHTS,
+    actions = DEFAULT_ACTIONS,
+    achievements = DEFAULT_ACHIEVEMENTS,
+    reels = DEFAULT_REELS,
+    voiceMode = 'roast',
+    onHighlightPress,
+    onActionPress,
+    onReelPress,
+    testID = 'video-analysis-insights-v2',
+  }: VideoAnalysisInsightsV2Props) {
+    // Get voice text config for current mode (default to roast)
+    const voiceText = useMemo(() => VOICE_TEXT_CONFIG[voiceMode || 'roast'], [voiceMode])
+    const statusTokenMap = useMemo(() => getStatusTokenMap(voiceText), [voiceText])
 
-  // Use provided overview/quote or generate from voice text
-  const overview = useMemo(
-    () => overviewProp ?? getDefaultOverview(voiceText),
-    [overviewProp, voiceText]
-  )
-  const quote = useMemo(() => quoteProp ?? getDefaultQuote(voiceText), [quoteProp, voiceText])
+    // Use provided overview/quote or generate from voice text
+    const overview = useMemo(
+      () => overviewProp ?? getDefaultOverview(voiceText),
+      [overviewProp, voiceText]
+    )
+    const quote = useMemo(() => quoteProp ?? getDefaultQuote(voiceText), [quoteProp, voiceText])
 
-  // State for expand/collapse of detailed summary
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
+    // State for expand/collapse of detailed summary
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
 
-  const toggleSummaryExpanded = useCallback(() => {
-    setIsSummaryExpanded((prev) => !prev)
-  }, [])
+    const toggleSummaryExpanded = useCallback(() => {
+      setIsSummaryExpanded((prev) => !prev)
+    }, [])
 
-  // Determine if text needs truncation
-  const summaryNeedsTruncation = useMemo(() => {
-    return fullFeedbackText && fullFeedbackText.length > SUMMARY_TRUNCATE_LENGTH
-  }, [fullFeedbackText])
+    // Determine if text needs truncation
+    const summaryNeedsTruncation = useMemo(() => {
+      return fullFeedbackText && fullFeedbackText.length > SUMMARY_TRUNCATE_LENGTH
+    }, [fullFeedbackText])
 
-  // Truncated text for collapsed state
-  const truncatedSummary = useMemo(() => {
-    if (!fullFeedbackText) return ''
-    if (!summaryNeedsTruncation) return fullFeedbackText
-    return fullFeedbackText.slice(0, SUMMARY_TRUNCATE_LENGTH).trim() + '...'
-  }, [fullFeedbackText, summaryNeedsTruncation])
+    // Truncated text for collapsed state
+    const truncatedSummary = useMemo(() => {
+      if (!fullFeedbackText) return ''
+      if (!summaryNeedsTruncation) return fullFeedbackText
+      return fullFeedbackText.slice(0, SUMMARY_TRUNCATE_LENGTH).trim() + '...'
+    }, [fullFeedbackText, summaryNeedsTruncation])
 
-  // PERFORMANCE: Memoize parsed markdown to avoid re-parsing on every render
-  // Only re-parse when text content or expand state changes
-  const parsedFullText = useMemo(
-    () => (fullFeedbackText ? renderMarkdownText(fullFeedbackText) : []),
-    [fullFeedbackText]
-  )
+    // PERFORMANCE: Memoize parsed markdown to avoid re-parsing on every render
+    // Only re-parse when text content or expand state changes
+    const parsedFullText = useMemo(
+      () => (fullFeedbackText ? renderMarkdownText(fullFeedbackText) : []),
+      [fullFeedbackText]
+    )
 
-  const parsedTruncatedText = useMemo(
-    () => (truncatedSummary ? renderMarkdownText(truncatedSummary) : []),
-    [truncatedSummary]
-  )
+    const parsedTruncatedText = useMemo(
+      () => (truncatedSummary ? renderMarkdownText(truncatedSummary) : []),
+      [truncatedSummary]
+    )
 
-  const hasContent = useMemo(
-    () =>
-      Boolean(fullFeedbackText) ||
-      Boolean(overview) ||
-      Boolean(quote) ||
-      focusAreas.length > 0 ||
-      skillMatrix.length > 0 ||
-      performanceTimeline.length > 0 ||
-      highlights.length > 0 ||
-      actions.length > 0 ||
-      achievements.length > 0 ||
-      reels.length > 0,
-    [
-      fullFeedbackText,
-      overview,
-      quote,
-      focusAreas.length,
-      skillMatrix.length,
-      performanceTimeline.length,
-      highlights.length,
-      actions.length,
-      achievements.length,
-      reels.length,
-    ]
-  )
+    const hasContent = useMemo(
+      () =>
+        Boolean(fullFeedbackText) ||
+        Boolean(overview) ||
+        Boolean(quote) ||
+        focusAreas.length > 0 ||
+        skillMatrix.length > 0 ||
+        performanceTimeline.length > 0 ||
+        highlights.length > 0 ||
+        actions.length > 0 ||
+        achievements.length > 0 ||
+        reels.length > 0,
+      [
+        fullFeedbackText,
+        overview,
+        quote,
+        focusAreas.length,
+        skillMatrix.length,
+        performanceTimeline.length,
+        highlights.length,
+        actions.length,
+        achievements.length,
+        reels.length,
+      ]
+    )
 
-  if (!hasContent) {
+    if (!hasContent) {
+      return (
+        <YStack
+          testID={testID}
+          accessibilityLabel="Insights content area"
+          padding="$4"
+        >
+          <StateDisplay
+            type="empty"
+            title={voiceText.feedbackPanel.insights.emptyStates.noInsights.title}
+            description={voiceText.feedbackPanel.insights.emptyStates.noInsights.description}
+            icon="📊"
+            testID={`${testID}-empty`}
+          />
+        </YStack>
+      )
+    }
+
     return (
       <YStack
         testID={testID}
         accessibilityLabel="Insights content area"
-        padding="$4"
+        paddingTop="$4"
+        paddingBottom="$6"
+        paddingHorizontal="$4"
+        gap="$6"
       >
-        <StateDisplay
-          type="empty"
-          title={voiceText.feedbackPanel.insights.emptyStates.noInsights.title}
-          description={voiceText.feedbackPanel.insights.emptyStates.noInsights.description}
-          icon="📊"
-          testID={`${testID}-empty`}
-        />
-      </YStack>
-    )
-  }
+        {/* Detailed Summary Section - appears first when data available */}
+        {fullFeedbackText ? (
+          <YStack gap="$3">
+            <SettingsSectionHeader
+              title="The Brutal Truth"
+              icon={FileText}
+              testID="insights-v2-detailed-summary-header"
+              borderBottomWidth={0}
+              variant="minSpacing"
+            />
 
-  return (
-    <YStack
-      testID={testID}
-      accessibilityLabel="Insights content area"
-      paddingTop="$4"
-      paddingBottom="$6"
-      paddingHorizontal="$4"
-      gap="$6"
-    >
-      {/* Detailed Summary Section - appears first when data available */}
-      {fullFeedbackText ? (
-        <YStack gap="$3">
-          <SettingsSectionHeader
-            title="The Brutal Truth"
-            icon={FileText}
-            testID="insights-v2-detailed-summary-header"
-            borderBottomWidth={0}
-            variant="minSpacing"
-          />
-
-          <YStack
-            padding="$4"
-            backgroundColor="$backgroundHover"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            gap="$3"
-            testID="insights-v2-detailed-summary-card"
-          >
-            <Text
-              fontSize="$4"
-              color="$color12"
-              lineHeight="$4"
-              testID="insights-v2-detailed-summary-text"
-            >
-              {isSummaryExpanded ? parsedFullText : parsedTruncatedText}
-            </Text>
-
-            {summaryNeedsTruncation && !isSummaryExpanded ? (
-              <Button
-                chromeless
-                onPress={toggleSummaryExpanded}
-                alignSelf="flex-end"
-                paddingVertical="$2"
-                paddingHorizontal="$3"
-                paddingRight={0}
-                minHeight={44}
-                accessibilityRole="button"
-                accessibilityLabel="Show more"
-                testID="insights-v2-detailed-summary-toggle"
-              >
-                <Text
-                  fontSize="$3"
-                  fontWeight="500"
-                  color="$color11"
-                >
-                  ... show more
-                </Text>
-              </Button>
-            ) : null}
-          </YStack>
-        </YStack>
-      ) : null}
-
-      {overview ? (
-        <YStack gap="$3">
-          {/* Separator with Demo Data label */}
-          <YStack
-            gap="$2"
-            paddingHorizontal="$4"
-            paddingBottom="$4"
-          >
-            <XStack
-              justifyContent="center"
-              alignItems="center"
+            <YStack
+              padding="$4"
+              backgroundColor="$backgroundHover"
+              borderRadius="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
               gap="$3"
+              testID="insights-v2-detailed-summary-card"
             >
-              <ChevronDown
-                size={20}
-                color="$color11"
-              />
               <Text
-                fontSize="$3"
-                color="$color11"
-                textAlign="center"
-                testID="insights-v2-demo-data-label"
+                fontSize="$4"
+                color="$color12"
+                lineHeight="$4"
+                testID="insights-v2-detailed-summary-text"
               >
-                Demo Data
+                {isSummaryExpanded ? parsedFullText : parsedTruncatedText}
               </Text>
-              <ChevronDown
-                size={20}
-                color="$color11"
-              />
-            </XStack>
-          </YStack>
 
-          <SettingsSectionHeader
-            title={voiceText.feedbackPanel.insights.overviewHeader}
-            icon={BarChart3}
-            testID="insights-v2-overview-header"
-            borderBottomWidth={0}
-            variant="minSpacing"
-          />
-
-          <YStack
-            padding="$4"
-            backgroundColor="$backgroundHover"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            gap="$4"
-            testID="insights-v2-overview-card"
-          >
-            <XStack
-              justifyContent="space-between"
-              alignItems="flex-start"
-              gap="$3"
-            >
-              <YStack
-                gap="$1"
-                flexShrink={0}
-              >
-                <Text
-                  fontSize="$10"
-                  fontWeight="600"
-                  color="$green11"
-                  testID="insights-v2-score-value"
+              {summaryNeedsTruncation && !isSummaryExpanded ? (
+                <Button
+                  chromeless
+                  onPress={toggleSummaryExpanded}
+                  alignSelf="flex-end"
+                  paddingVertical="$2"
+                  paddingHorizontal="$3"
+                  paddingRight={0}
+                  minHeight={44}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show more"
+                  testID="insights-v2-detailed-summary-toggle"
                 >
-                  {overview.score}
-                </Text>
+                  <Text
+                    fontSize="$3"
+                    fontWeight="500"
+                    color="$color11"
+                  >
+                    ... show more
+                  </Text>
+                </Button>
+              ) : null}
+            </YStack>
+          </YStack>
+        ) : null}
+
+        {overview ? (
+          <YStack gap="$3">
+            {/* Separator with Demo Data label */}
+            <YStack
+              gap="$2"
+              paddingHorizontal="$4"
+              paddingBottom="$4"
+            >
+              <XStack
+                justifyContent="center"
+                alignItems="center"
+                gap="$3"
+              >
+                <ChevronDown
+                  size={20}
+                  color="$color11"
+                />
                 <Text
                   fontSize="$3"
                   color="$color11"
-                  testID="insights-v2-score-label"
+                  textAlign="center"
+                  testID="insights-v2-demo-data-label"
                 >
-                  {overview.levelLabel}
+                  Demo Data
                 </Text>
-              </YStack>
+                <ChevronDown
+                  size={20}
+                  color="$color11"
+                />
+              </XStack>
+            </YStack>
 
-              <YStack
-                flex={1}
-                alignItems="flex-end"
-                gap="$2"
-                paddingLeft="$3"
+            <SettingsSectionHeader
+              title={voiceText.feedbackPanel.insights.overviewHeader}
+              icon={BarChart3}
+              testID="insights-v2-overview-header"
+              borderBottomWidth={0}
+              variant="minSpacing"
+            />
+
+            <YStack
+              padding="$4"
+              backgroundColor="$backgroundHover"
+              borderRadius="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
+              gap="$4"
+              testID="insights-v2-overview-card"
+            >
+              <XStack
+                justifyContent="space-between"
+                alignItems="flex-start"
+                gap="$3"
               >
-                <XStack
-                  gap="$2"
-                  alignItems="center"
-                  justifyContent="flex-end"
-                  testID="insights-v2-improvement-label"
-                  flexShrink={1}
+                <YStack
+                  gap="$1"
+                  flexShrink={0}
                 >
-                  <Sparkles
-                    size={16}
+                  <Text
+                    fontSize="$10"
+                    fontWeight="600"
                     color="$green11"
-                  />
+                    testID="insights-v2-score-value"
+                  >
+                    {overview.score}
+                  </Text>
+                  <Text
+                    fontSize="$3"
+                    color="$color11"
+                    testID="insights-v2-score-label"
+                  >
+                    {overview.levelLabel}
+                  </Text>
+                </YStack>
+
+                <YStack
+                  flex={1}
+                  alignItems="flex-end"
+                  gap="$2"
+                  paddingLeft="$3"
+                >
+                  <XStack
+                    gap="$2"
+                    alignItems="center"
+                    justifyContent="flex-end"
+                    testID="insights-v2-improvement-label"
+                    flexShrink={1}
+                  >
+                    <Sparkles
+                      size={16}
+                      color="$green11"
+                    />
+                    <Text
+                      fontSize="$2"
+                      color="$green11"
+                      fontWeight="600"
+                    >
+                      +{overview.improvementDelta}% vs last disaster
+                    </Text>
+                  </XStack>
                   <Text
                     fontSize="$2"
-                    color="$green11"
-                    fontWeight="600"
+                    color="$color11"
+                    textAlign="right"
                   >
-                    +{overview.improvementDelta}% vs last disaster
+                    {overview.benchmarkSummary}
                   </Text>
-                </XStack>
+                </YStack>
+              </XStack>
+
+              <YStack gap="$2">
                 <Text
                   fontSize="$2"
                   color="$color11"
-                  textAlign="right"
                 >
-                  {overview.benchmarkSummary}
+                  The Hard Truth
+                </Text>
+                <Text
+                  fontSize="$3"
+                  color="$color12"
+                >
+                  {overview.summary}
                 </Text>
               </YStack>
-            </XStack>
 
-            <YStack gap="$2">
-              <Text
-                fontSize="$2"
-                color="$color11"
+              <XStack
+                gap="$3"
+                flexWrap="wrap"
               >
-                The Hard Truth
-              </Text>
-              <Text
-                fontSize="$3"
-                color="$color12"
-              >
-                {overview.summary}
-              </Text>
+                <StatCard
+                  value={overview.lastScore}
+                  label="Last disaster"
+                  variant="left"
+                />
+                <StatCard
+                  value={`${overview.improvementDelta}%`}
+                  label="Slightly better"
+                  variant="left"
+                  trend="up"
+                />
+              </XStack>
             </YStack>
-
-            <XStack
-              gap="$3"
-              flexWrap="wrap"
-            >
-              <StatCard
-                value={overview.lastScore}
-                label="Last disaster"
-                variant="left"
-              />
-              <StatCard
-                value={`${overview.improvementDelta}%`}
-                label="Slightly better"
-                variant="left"
-                trend="up"
-              />
-            </XStack>
           </YStack>
-        </YStack>
-      ) : null}
+        ) : null}
 
-      {quote ? (
+        {quote ? (
+          <YStack gap="$3">
+            <SettingsSectionHeader
+              title={voiceText.feedbackPanel.insights.quoteHeader}
+              icon={Sparkles}
+              testID="insights-v2-quote-header"
+              borderBottomWidth={0}
+              variant="minSpacing"
+            />
+            <YStack
+              padding="$4"
+              backgroundColor="$backgroundHover"
+              borderRadius="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
+              gap="$3"
+              testID="insights-v2-quote-card"
+            >
+              <Text
+                fontSize="$5"
+                fontWeight="500"
+                color="$color12"
+                lineHeight="$4"
+              >
+                {quote.text}
+              </Text>
+              <XStack
+                gap="$2"
+                alignItems="center"
+                testID="insights-v2-quote-tone"
+              >
+                {quote.tone === 'celebrate' ? (
+                  <Sparkles
+                    size={16}
+                    color="$color11"
+                  />
+                ) : (
+                  <Lightbulb
+                    size={16}
+                    color="$color11"
+                  />
+                )}
+                <Text
+                  fontSize="$2"
+                  color="$color11"
+                >
+                  {quote.tone === 'celebrate' ? 'Rare win moment' : 'Pace/Tempo (Your Weakness)'}
+                </Text>
+              </XStack>
+            </YStack>
+          </YStack>
+        ) : null}
+
         <YStack gap="$3">
           <SettingsSectionHeader
-            title={voiceText.feedbackPanel.insights.quoteHeader}
-            icon={Sparkles}
-            testID="insights-v2-quote-header"
+            title={voiceText.feedbackPanel.insights.achievementsHeader}
+            icon={Award}
+            testID="insights-v2-achievements-header"
             borderBottomWidth={0}
             variant="minSpacing"
           />
-          <YStack
-            padding="$4"
-            backgroundColor="$backgroundHover"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            gap="$3"
-            testID="insights-v2-quote-card"
-          >
-            <Text
-              fontSize="$5"
-              fontWeight="500"
-              color="$color12"
-              lineHeight="$4"
-            >
-              {quote.text}
-            </Text>
+          {achievements.length > 0 ? (
             <XStack
               gap="$2"
-              alignItems="center"
-              testID="insights-v2-quote-tone"
+              flexWrap="wrap"
             >
-              {quote.tone === 'celebrate' ? (
-                <Sparkles
-                  size={16}
-                  color="$color11"
+              {achievements.map((achievement) => (
+                <AchievementCard
+                  key={achievement.id}
+                  achievement={achievement}
                 />
-              ) : (
-                <Lightbulb
-                  size={16}
-                  color="$color11"
+              ))}
+            </XStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noAchievements.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noAchievements.description}
+              icon="🏆"
+              testID="insights-v2-achievements-empty"
+            />
+          )}
+        </YStack>
+
+        {/* PERFORMANCE: Conditional rendering reduces virtual DOM overhead when data is missing */}
+
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.focusHeader}
+            icon={Target}
+            testID="insights-v2-focus-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
+          />
+          {focusAreas.length > 0 ? (
+            <YStack gap="$3">
+              {focusAreas.map((focusArea) => (
+                <FocusCard
+                  key={focusArea.id}
+                  title={focusArea.title}
+                  progress={focusArea.progress}
+                  priority={focusArea.priority}
+                  testID={`insights-v2-focus-${focusArea.id}`}
                 />
-              )}
+              ))}
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.description}
+              icon="🎯"
+              testID="insights-v2-focus-empty"
+            />
+          )}
+        </YStack>
+
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.skillHeader}
+            icon={BarChart3}
+            testID="insights-v2-skill-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
+          />
+          {skillMatrix.length > 0 ? (
+            <YStack
+              padding="$4"
+              backgroundColor="$backgroundHover"
+              borderRadius="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
+              gap="$3"
+              testID="insights-v2-skill-card"
+            >
+              {skillMatrix.map((skill) => (
+                <SkillRow
+                  key={skill.id}
+                  skill={skill}
+                  voiceText={voiceText}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noSkills.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noSkills.description}
+              icon="📊"
+              testID="insights-v2-skill-empty"
+            />
+          )}
+        </YStack>
+
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.timelineHeader}
+            icon={Sparkles}
+            testID="insights-v2-timeline-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
+          />
+          {performanceTimeline.length > 0 ? (
+            <YStack
+              padding="$4"
+              paddingTop="$7"
+              backgroundColor="$backgroundHover"
+              borderRadius="$6"
+              borderWidth={1}
+              borderColor="$borderColor"
+              gap="$3"
+              testID="insights-v2-timeline-card"
+            >
+              <ActivityChart
+                data={performanceTimeline}
+                testID="insights-v2-timeline-chart"
+              />
               <Text
                 fontSize="$2"
                 color="$color11"
               >
-                {quote.tone === 'celebrate' ? 'Rare win moment' : 'Pace/Tempo (Your Weakness)'}
+                You completely fell apart at 01:10 when the filler words took over. You sort of
+                recovered after 02:30, but the damage was done.
               </Text>
-            </XStack>
-          </YStack>
-        </YStack>
-      ) : null}
-
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.achievementsHeader}
-          icon={Award}
-          testID="insights-v2-achievements-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {achievements.length > 0 ? (
-          <XStack
-            gap="$2"
-            flexWrap="wrap"
-          >
-            {achievements.map((achievement) => (
-              <AchievementCard
-                key={achievement.id}
-                achievement={achievement}
-              />
-            ))}
-          </XStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noAchievements.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noAchievements.description}
-            icon="🏆"
-            testID="insights-v2-achievements-empty"
-          />
-        )}
-      </YStack>
-
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.focusHeader}
-          icon={Target}
-          testID="insights-v2-focus-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {focusAreas.length > 0 ? (
-          <YStack gap="$3">
-            {focusAreas.map((focusArea) => (
-              <FocusCard
-                key={focusArea.id}
-                title={focusArea.title}
-                progress={focusArea.progress}
-                priority={focusArea.priority}
-                testID={`insights-v2-focus-${focusArea.id}`}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noFocusAreas.description}
-            icon="🎯"
-            testID="insights-v2-focus-empty"
-          />
-        )}
-      </YStack>
-
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.skillHeader}
-          icon={BarChart3}
-          testID="insights-v2-skill-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {skillMatrix.length > 0 ? (
-          <YStack
-            padding="$4"
-            backgroundColor="$backgroundHover"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            gap="$3"
-            testID="insights-v2-skill-card"
-          >
-            {skillMatrix.map((skill) => (
-              <SkillRow
-                key={skill.id}
-                skill={skill}
-                voiceText={voiceText}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noSkills.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noSkills.description}
-            icon="📈"
-            testID="insights-v2-skill-empty"
-          />
-        )}
-      </YStack>
-
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.timelineHeader}
-          icon={Sparkles}
-          testID="insights-v2-timeline-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {performanceTimeline.length > 0 ? (
-          <YStack
-            padding="$4"
-            paddingTop="$7"
-            backgroundColor="$backgroundHover"
-            borderRadius="$6"
-            borderWidth={1}
-            borderColor="$borderColor"
-            gap="$3"
-            testID="insights-v2-timeline-card"
-          >
-            <ActivityChart
-              data={performanceTimeline}
-              testID="insights-v2-timeline-chart"
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noTimeline.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noTimeline.description}
+              icon="📈"
+              testID="insights-v2-timeline-empty"
             />
-            <Text
-              fontSize="$2"
-              color="$color11"
-            >
-              You completely fell apart at 01:10 when the filler words took over. You sort of
-              recovered after 02:30, but the damage was done.
-            </Text>
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noTimeline.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noTimeline.description}
-            icon="⏱️"
-            testID="insights-v2-timeline-empty"
-          />
-        )}
-      </YStack>
+          )}
+        </YStack>
 
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.highlightsHeader}
-          icon={Sparkles}
-          testID="insights-v2-highlights-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {highlights.length > 0 ? (
-          <YStack gap="$3">
-            {highlights.map((highlight) => (
-              <HighlightCard
-                key={highlight.id}
-                highlight={highlight}
-                onPress={onHighlightPress}
-                statusTokenMap={statusTokenMap}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noHighlights.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noHighlights.description}
-            icon="⭐️"
-            testID="insights-v2-highlights-empty"
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.highlightsHeader}
+            icon={Sparkles}
+            testID="insights-v2-highlights-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
           />
-        )}
-      </YStack>
+          {highlights.length > 0 ? (
+            <YStack gap="$3">
+              {highlights.map((highlight) => (
+                <HighlightCard
+                  key={highlight.id}
+                  highlight={highlight}
+                  onPress={onHighlightPress}
+                  statusTokenMap={statusTokenMap}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noHighlights.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noHighlights.description}
+              icon="✨"
+              testID="insights-v2-highlights-empty"
+            />
+          )}
+        </YStack>
 
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.actionsHeader}
-          icon={Lightbulb}
-          testID="insights-v2-actions-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {actions.length > 0 ? (
-          <YStack gap="$3">
-            {actions.map((action) => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                onPress={onActionPress}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noActions.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noActions.description}
-            icon="💡"
-            testID="insights-v2-actions-empty"
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.actionsHeader}
+            icon={Lightbulb}
+            testID="insights-v2-actions-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
           />
-        )}
-      </YStack>
+          {actions.length > 0 ? (
+            <YStack gap="$3">
+              {actions.map((action) => (
+                <ActionCard
+                  key={action.id}
+                  action={action}
+                  onPress={onActionPress}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noActions.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noActions.description}
+              icon="💡"
+              testID="insights-v2-actions-empty"
+            />
+          )}
+        </YStack>
 
-      <YStack gap="$3">
-        <SettingsSectionHeader
-          title={voiceText.feedbackPanel.insights.reelsHeader}
-          icon={Play}
-          testID="insights-v2-reels-header"
-          borderBottomWidth={0}
-          variant="minSpacing"
-        />
-        {reels.length > 0 ? (
-          <YStack gap="$3">
-            {reels.map((reel) => (
-              <ReelCard
-                key={reel.id}
-                reel={reel}
-                onPress={onReelPress}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <StateDisplay
-            type="empty"
-            title={voiceText.feedbackPanel.insights.emptyStates.noReels.title}
-            description={voiceText.feedbackPanel.insights.emptyStates.noReels.description}
-            icon="🎬"
-            testID="insights-v2-reels-empty"
+        <YStack gap="$3">
+          <SettingsSectionHeader
+            title={voiceText.feedbackPanel.insights.reelsHeader}
+            icon={Play}
+            testID="insights-v2-reels-header"
+            borderBottomWidth={0}
+            variant="minSpacing"
           />
-        )}
+          {reels.length > 0 ? (
+            <YStack gap="$3">
+              {reels.map((reel) => (
+                <ReelCard
+                  key={reel.id}
+                  reel={reel}
+                  onPress={onReelPress}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <StateDisplay
+              type="empty"
+              title={voiceText.feedbackPanel.insights.emptyStates.noReels.title}
+              description={voiceText.feedbackPanel.insights.emptyStates.noReels.description}
+              icon="🎬"
+              testID="insights-v2-reels-empty"
+            />
+          )}
+        </YStack>
       </YStack>
-    </YStack>
-  )
-})
+    )
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison to prevent re-renders when props haven't meaningfully changed
+    return (
+      prevProps.fullFeedbackText === nextProps.fullFeedbackText &&
+      prevProps.overview === nextProps.overview &&
+      prevProps.quote === nextProps.quote &&
+      prevProps.focusAreas === nextProps.focusAreas &&
+      prevProps.skillMatrix === nextProps.skillMatrix &&
+      prevProps.performanceTimeline === nextProps.performanceTimeline &&
+      prevProps.highlights === nextProps.highlights &&
+      prevProps.actions === nextProps.actions &&
+      prevProps.achievements === nextProps.achievements &&
+      prevProps.reels === nextProps.reels &&
+      prevProps.voiceMode === nextProps.voiceMode &&
+      prevProps.onHighlightPress === nextProps.onHighlightPress &&
+      prevProps.onActionPress === nextProps.onActionPress &&
+      prevProps.onReelPress === nextProps.onReelPress &&
+      prevProps.testID === nextProps.testID
+    )
+  }
+)
 
 VideoAnalysisInsightsV2.displayName = 'VideoAnalysisInsightsV2'

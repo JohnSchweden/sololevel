@@ -1,6 +1,7 @@
 import { MODE_OPTIONS } from '@app/features/Onboarding/constants'
 import { useAuth } from '@app/hooks/useAuth'
 import { useStableSafeArea } from '@app/provider/safe-area/use-safe-area'
+import { useAuthStore } from '@app/stores/auth'
 import { useVoicePreferencesStore } from '@app/stores/voicePreferences'
 import type { CoachGender, CoachMode } from '@my/api'
 import {
@@ -57,6 +58,7 @@ export function PersonalisationScreen({
   const gender = useVoicePreferencesStore((state) => state.gender)
   const mode = useVoicePreferencesStore((state) => state.mode)
   const isLoaded = useVoicePreferencesStore((state) => state.isLoaded)
+  const _isHydrated = useVoicePreferencesStore((state) => state._isHydrated)
   const setGender = useVoicePreferencesStore((state) => state.setGender)
   const setMode = useVoicePreferencesStore((state) => state.setMode)
   const loadFromDatabase = useVoicePreferencesStore((state) => state.loadFromDatabase)
@@ -122,25 +124,31 @@ export function PersonalisationScreen({
   )
 
   // Handle gender change with optimistic update and database sync
+  // PERF: Read userId imperatively to avoid handler recreation on userId changes
+  // Zustand actions are stable, so handlers only recreate if actions change (they don't)
   const handleGenderChange = useCallback(
     (value: string) => {
       setGender(value as CoachGender)
-      if (userId) {
-        syncToDatabase(userId)
+      const currentUserId = useAuthStore.getState().user?.id
+      if (currentUserId) {
+        syncToDatabase(currentUserId)
       }
     },
-    [userId, setGender, syncToDatabase]
+    [setGender, syncToDatabase]
   )
 
   // Handle mode change with optimistic update and database sync
+  // PERF: Read userId imperatively to avoid handler recreation on userId changes
+  // Zustand actions are stable, so handlers only recreate if actions change (they don't)
   const handleModeChange = useCallback(
     (value: string) => {
       setMode(value as CoachMode)
-      if (userId) {
-        syncToDatabase(userId)
+      const currentUserId = useAuthStore.getState().user?.id
+      if (currentUserId) {
+        syncToDatabase(currentUserId)
       }
     },
-    [userId, setMode, syncToDatabase]
+    [setMode, syncToDatabase]
   )
 
   // Handle theme change
@@ -167,28 +175,30 @@ export function PersonalisationScreen({
                 title="Coach Voice"
                 icon={Mic}
               />
-              <YStack gap="$4">
-                <SettingsRadioGroup
-                  icon={Sparkles}
-                  iconColor="$orange10"
-                  title="Learning Mode"
-                  description="How your coach delivers feedback"
-                  value={mode}
-                  onValueChange={handleModeChange}
-                  options={modeOptions}
-                  testID="voice-mode-radio"
-                />
-                <SettingsRadioGroup
-                  icon={User}
-                  iconColor="$blue10"
-                  title="Voice Gender"
-                  description="Male or female coach voice"
-                  value={gender}
-                  onValueChange={handleGenderChange}
-                  options={genderOptions}
-                  testID="voice-gender-radio"
-                />
-              </YStack>
+              {_isHydrated && (
+                <YStack gap="$4">
+                  <SettingsRadioGroup
+                    icon={Sparkles}
+                    iconColor="$orange10"
+                    title="Learning Mode"
+                    description="How your coach delivers feedback"
+                    value={mode}
+                    onValueChange={handleModeChange}
+                    options={modeOptions}
+                    testID="voice-mode-radio"
+                  />
+                  <SettingsRadioGroup
+                    icon={User}
+                    iconColor="$blue10"
+                    title="Voice Gender"
+                    description="Male or female coach voice"
+                    value={gender}
+                    onValueChange={handleGenderChange}
+                    options={genderOptions}
+                    testID="voice-gender-radio"
+                  />
+                </YStack>
+              )}
             </YStack>
 
             {/* Separator with Demo Data label */}

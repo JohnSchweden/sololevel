@@ -2,7 +2,14 @@ import { VideoStorageService } from '@app/features/CameraRecording/services/vide
 import { log } from '@my/logging'
 import { BlurView } from '@my/ui'
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { AppState, type AppStateStatus, Platform } from 'react-native'
+import {
+  Animated,
+  AppState,
+  type AppStateStatus,
+  Image,
+  Platform,
+  type ViewStyle,
+} from 'react-native'
 import {
   Camera,
   useCameraDevice,
@@ -74,6 +81,14 @@ export const VisionCameraPreview = memo(
       const appStateRef = useRef<AppStateStatus>(AppState.currentState)
       // Track recording start time for duration mismatch detection
       const recordingStartTimeRef = useRef<number | null>(null)
+      // FIX: Track if preview is actually streaming frames (prevents dark flash on resume)
+      // This state is set to true when onPreviewStarted fires, reset to false on pause
+      const [isPreviewStreaming, setIsPreviewStreaming] = useState(false)
+      // FIX: Store frozen frame URI for Instagram-like pause behavior
+      // Captured via takeSnapshot() before pausing, displayed with BlurView overlay
+      const [frozenFrameUri, setFrozenFrameUri] = useState<string | null>(null)
+      // Animated value for smooth overlay fade transition
+      const overlayFadeAnim = useRef(new Animated.Value(1)).current
 
       // ANDROID FIX: Direct AppState listener for immediate camera unmount on background
       // This is more aggressive than just setting isActive=false, but guarantees camera release
@@ -150,16 +165,18 @@ export const VisionCameraPreview = memo(
       }, [format])
 
       // PERF: Memoize blur overlay state to prevent unnecessary re-renders
-      const shouldShowOverlay = isPaused && isInitialized && isCameraReady
-      const overlayOpacity = useMemo(() => (shouldShowOverlay ? 1 : 0), [shouldShowOverlay])
+      // FIX: Keep overlay visible until camera is ACTUALLY streaming (not just isActive=true)
+      // This prevents the 277ms dark flash between overlay hide and first camera frame
+      const shouldShowOverlay = (isPaused || !isPreviewStreaming) && isInitialized && isCameraReady
 
       // Sync isPausedRef with isPaused state
       useEffect(() => {
         isPausedRef.current = isPaused
       }, [isPaused])
 
-      // PERF: Memoize BlurView style to prevent object recreation on every render
-      const blurViewStyle = useMemo(
+      // PERF: Memoize styles to prevent object recreation on every render
+      // Base absolute fill style - reused by overlay, blur, and frozen frame
+      const absoluteFillStyle = useMemo(
         () => ({
           position: 'absolute' as const,
           top: 0,
@@ -168,6 +185,25 @@ export const VisionCameraPreview = memo(
           bottom: 0,
         }),
         []
+      )
+
+      const cameraStyle = useMemo<ViewStyle>(
+        () => ({
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#1a1a1a',
+        }),
+        []
+      )
+
+      // Overlay needs zIndex to appear above camera
+      const overlayStyle = useMemo(
+        () => ({
+          ...absoluteFillStyle,
+          zIndex: 5,
+        }),
+        [absoluteFillStyle]
       )
 
       // Track component mount state to prevent operations when unmounted
@@ -639,7 +675,28 @@ export const VisionCameraPreview = memo(
           // Sets isActive=false to stop camera session but keeps it mounted
           // Resume is instant when tab regains focus (no re-init needed)
           // ANDROID FIX: Use ref for immediate pause (bypasses React render cycle)
-          pausePreview: (): void => {
+          pausePreview: async (): Promise<void> => {
+            // FIX: Capture frozen frame before pausing (Instagram-like behavior)
+            // takeSnapshot() requires video={true} and camera to be active (iOS only)
+            if (Platform.OS === 'ios' && cameraRef.current && !isPausedRef.current) {
+              try {
+                const snapshot = await cameraRef.current.takeSnapshot({
+                  quality: 50, // Lower quality for faster capture
+                })
+                setFrozenFrameUri(`file://${snapshot.path}`)
+                // Reset animation to fully visible
+                overlayFadeAnim.setValue(1)
+              } catch (error) {
+                log.warn('VisionCamera', 'Failed to capture frozen frame', { error })
+                // Continue with pause even if snapshot fails
+              }
+            } else if (Platform.OS === 'android') {
+              // Android: Show dark overlay, reset animation to fully visible
+              overlayFadeAnim.setValue(1)
+            }
+
+            // FIX: Reset streaming state so overlay stays visible until next onPreviewStarted
+            setIsPreviewStreaming(false)
             isPausedRef.current = true
             // Force synchronous update using microtask
             Promise.resolve().then(() => {
@@ -667,6 +724,11 @@ export const VisionCameraPreview = memo(
               clearTimeout(resetTimeoutRef.current)
               resetTimeoutRef.current = null
             }
+            // FIX: Reset streaming state on camera reset
+            setIsPreviewStreaming(false)
+            // FIX: Clear frozen frame on reset
+            setFrozenFrameUri(null)
+            overlayFadeAnim.setValue(1)
             // Force camera remount by changing sessionId
             setSessionId(Date.now())
             setIsCameraReady(false)
@@ -853,13 +915,7 @@ export const VisionCameraPreview = memo(
           <Camera
             key={sessionId} // Force remount when session changes to reset camera state
             ref={cameraRef}
-            style={{
-              flex: 1,
-              width: '100%',
-              height: '100%',
-              // Dark background until camera is active to prevent white flash
-              backgroundColor: '#1a1a1a',
-            }}
+            style={cameraStyle}
             device={device}
             // Camera should be active for preview when initialized, ready, and not paused
             // Recording is a separate operation that doesn't require deactivating the preview
@@ -874,38 +930,61 @@ export const VisionCameraPreview = memo(
             // POST-MVP: frameProcessor disabled (pose detection feature removed)
             // frameProcessor={frameProcessor}
             onInitialized={handleCameraInitialized}
+            onPreviewStarted={() => {
+              // FIX: Smooth fade out the frozen frame overlay when camera starts streaming
+              if (isMounted.current) {
+                // Animate overlay fade out over 200ms for smooth transition
+                Animated.timing(overlayFadeAnim, {
+                  toValue: 0,
+                  duration: 250,
+                  useNativeDriver: true,
+                }).start(() => {
+                  // Clear frozen frame after animation completes
+                  if (isMounted.current) {
+                    setFrozenFrameUri(null)
+                    setIsPreviewStreaming(true)
+                  }
+                })
+              }
+            }}
             onError={handleCameraError}
           />
 
-          {/* Paused state overlay - cheap dark overlay always rendered, blur only when paused */}
-          {/* PERF: Dark overlay is cheap (just backgroundColor), BlurView only mounts when paused */}
-          <YStack
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            backgroundColor="rgba(0, 0, 0, 0.4)"
-            opacity={overlayOpacity}
-            animation="quick"
-            pointerEvents={shouldShowOverlay ? 'auto' : 'none'}
-            zIndex={5}
-          >
-            {/* PERF: Only render expensive BlurView when actually paused */}
-            {shouldShowOverlay &&
-              (Platform.OS === 'ios' ? (
+          {/* Paused state overlay - Instagram-like frozen frame with blur */}
+          {/* Shows frozen frame (snapshot) with blur overlay, fades out when camera streams */}
+          {shouldShowOverlay || frozenFrameUri ? (
+            <Animated.View
+              style={[overlayStyle, { opacity: overlayFadeAnim }]}
+              pointerEvents={shouldShowOverlay ? 'auto' : 'none'}
+            >
+              {/* Frozen frame image (captured before pause) or fallback solid background */}
+              {frozenFrameUri ? (
+                <Image
+                  source={{ uri: frozenFrameUri }}
+                  style={absoluteFillStyle}
+                  resizeMode="cover"
+                />
+              ) : (
+                <YStack
+                  backgroundColor="#1a1a1a"
+                  style={absoluteFillStyle}
+                />
+              )}
+              {/* Blur overlay on top */}
+              {Platform.OS === 'ios' ? (
                 <BlurView
                   intensity={35}
                   tint="dark"
-                  style={blurViewStyle}
+                  style={absoluteFillStyle}
                 />
               ) : (
                 <YStack
                   backgroundColor="rgba(0, 0, 0, 0.7)"
-                  style={blurViewStyle}
+                  style={absoluteFillStyle}
                 />
-              ))}
-          </YStack>
+              )}
+            </Animated.View>
+          ) : null}
 
           {/* Recording indicator overlay */}
           {/* {isRecording && (

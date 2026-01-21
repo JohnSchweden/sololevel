@@ -48,6 +48,14 @@
 - Use TanStack Query for all server data
 - Subscribe to realtime updates only when needed (cleanup on unmount)
 
+### Common pitfalls (avoid these)
+- **Store init that affects first paint**: if you must write to a store during mount and that value gates initial render, use `useLayoutEffect` (not `useEffect`) so the first frame doesn’t render “missing” UI.
+- **No timeouts on user-driven UI flows**: don’t auto-reject promises for pickers/trimmers/auth screens; let users finish or cancel via the native UI.
+- **React Native runtime ≠ browser**: don’t use browser-only APIs like `atob()` / `btoa()`; use a React Native-compatible base64 implementation.
+- **Imperative-read hooks**: if a hook is documented as “no subscriptions / reads via `getState()`”, don’t “fix” it by adding `useStore(selector)` inside (you’ll reintroduce rerenders); consumers should subscribe directly.
+- **FlatList header remounts**: keep `ListHeaderComponent` reference stable (avoid changing deps in a `useCallback` passed as header); use refs + `extraData` to trigger updates instead.
+- **Thumbnails: always persist cloud thumbnails**: `metadata.thumbnailUri` is often a temp path (e.g. `Library/Caches/`) and may disappear on restart. If a cloud thumbnail exists, persist it to a stable on-disk cache regardless of metadata presence, then point the UI/cache at the persisted path.
+
 ## TypeScript
 
 ### This Package

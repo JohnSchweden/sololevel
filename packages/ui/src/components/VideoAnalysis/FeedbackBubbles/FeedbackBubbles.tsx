@@ -66,7 +66,9 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
         {
           position: 'relative',
           borderRadius: 14,
-          borderColor: 'rgba(255, 255, 255, 0.3)',
+          // Android uses a non-blurred fallback background; reduce border contrast so it blends.
+          borderColor:
+            Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.3)',
           borderWidth: 1,
           maxWidth: 280,
           overflow: 'hidden',
@@ -84,7 +86,7 @@ const SpeechBubble = memo(function SpeechBubble({ message }: { message: Feedback
         />
       ) : (
         <YStack
-          backgroundColor="rgba(37, 37, 37, 0.82)"
+          backgroundColor="rgba(37, 37, 37, 0.9)"
           style={BLUR_VIEW_STYLE}
         />
       )}

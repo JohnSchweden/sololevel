@@ -24,6 +24,20 @@
 - Follow TDD methodology strictly (Red-Green-Refactor) and `@.cursor/rules/quality/testing-philosophy.mdc` 
 - Track progress against Definition of Done criteria
 
+## Agent Behavior (repo-wide, agent-only)
+- **Use the delete tool** for deleting files (don’t run `rm`, don’t `touch` “cleanup” files).
+- **Don’t claim checks passed unless you ran them**. If you didn’t run `yarn type-check` / `yarn lint`, explicitly mark status as **UNVERIFIED**.
+
+## Architecture Preferences (repo-wide)
+
+### React Native New Architecture
+- **Status**: Enabled (Expo SDK 53)
+- **Config**: `"newArchEnabled": true` in `apps/expo/app.json`
+
+### Navigation Pattern (separation of concerns)
+- **Screens** (`packages/app/features/**`): accept callbacks only (`onBack`, `onNavigate`, `onHeaderStateChange`, `onBackPress`) — **no navigation hooks**
+- **Routes** (`apps/{expo,web}/app/**`): own navigation using Expo Router APIs, and wrap protected routes with `<AuthGate>`
+
 ## Expo Router Notes
 - Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
 - **Static headers**: Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`

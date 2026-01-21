@@ -56,7 +56,7 @@ export interface VideoThumbnailCardProps {
  * />
  * ```
  */
-export function VideoThumbnailCard({
+export const VideoThumbnailCard = React.memo(function VideoThumbnailCard({
   thumbnailUri,
   onPress,
   width = 100,
@@ -204,4 +204,6 @@ export function VideoThumbnailCard({
       </YStack>
     </YStack>
   )
-}
+})
+
+VideoThumbnailCard.displayName = 'VideoThumbnailCard'

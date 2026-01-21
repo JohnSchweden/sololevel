@@ -1,6 +1,6 @@
 ---
 description: Ensure Cursor avoids repeating known mistakes by persistently logging corrections and learning.
-alwaysApply: true
+alwaysApply: false
 ---
 # Must consult existing memory
 

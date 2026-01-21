@@ -34,6 +34,12 @@ Run after any database schema changes.
 - Handle auth state changes
 - Provide auth context to apps
 
+### Auth retry logging (session refresh fallback)
+- **Before retry**: `log.warn` with what triggered the retry
+- **Success**: `log.info` with `userId` and session expiry
+- **Failure**: `log.error` with specific failure reason
+  - Rationale: high retry frequency is a signal of broken session management that needs investigation.
+
 **Patterns:** See `.cursor/rules/features/authentication.mdc`
 - Supabase auth integration (lines 9-12)
 - Auth state listener (lines 107-115)
