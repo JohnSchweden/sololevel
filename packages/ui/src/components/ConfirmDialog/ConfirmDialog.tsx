@@ -1,7 +1,47 @@
-import type React from 'react'
-import { Platform, useWindowDimensions } from 'react-native'
+import React from 'react'
+import { Platform, type StyleProp, type ViewStyle, useWindowDimensions } from 'react-native'
 import { Button, Dialog, Spinner, Text, XStack, YStack } from 'tamagui'
 import { BlurView } from '../BlurView/BlurView'
+
+// Stable style constants - prevent re-renders from inline objects
+const OVERLAY_ENTER_STYLE = { opacity: 0 } as const
+const OVERLAY_EXIT_STYLE = { opacity: 0 } as const
+const CONTENT_ENTER_STYLE = { x: 0, y: -20, opacity: 0, scale: 0.9 } as const
+const CONTENT_EXIT_STYLE = { x: 0, y: 10, opacity: 0, scale: 0.95 } as const
+const CONTENT_ANIMATION: [
+  'quick',
+  {
+    opacity: {
+      overshootClamping: true
+    }
+  },
+] = [
+  'quick',
+  {
+    opacity: {
+      overshootClamping: true,
+    },
+  },
+]
+const BLUR_STYLE: StyleProp<ViewStyle> = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  borderRadius: 24,
+}
+const ANDROID_FALLBACK_STYLE: StyleProp<ViewStyle> = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  borderRadius: 16,
+}
+const CANCEL_PRESS_STYLE = { backgroundColor: '$color4', scale: 0.98 } as const
+const CONFIRM_PRESS_STYLE_DESTRUCTIVE = { backgroundColor: '$red9', scale: 0.98 } as const
+const CONFIRM_PRESS_STYLE_SUCCESS = { backgroundColor: '$blue10', scale: 0.98 } as const
 
 export interface ConfirmDialogProps {
   /**
@@ -89,7 +129,7 @@ export interface ConfirmDialogProps {
  * />
  * ```
  */
-export function ConfirmDialog({
+export const ConfirmDialog = React.memo(function ConfirmDialog({
   visible,
   title,
   message,
@@ -127,20 +167,30 @@ export function ConfirmDialog({
       : undefined
 
   const confirmButtonColor = variant === 'success' ? '$blue9' : '$red8'
-  const confirmButtonPressColor = variant === 'success' ? '$blue10' : '$red9'
+  const confirmPressStyle =
+    variant === 'success' ? CONFIRM_PRESS_STYLE_SUCCESS : CONFIRM_PRESS_STYLE_DESTRUCTIVE
+
+  // Stable callback for dialog open change
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (!open) onCancel()
+    },
+    [onCancel]
+  )
+
   return (
     <Dialog
       modal
       open={visible}
-      onOpenChange={(open) => !open && onCancel()}
+      onOpenChange={handleOpenChange}
     >
       <Dialog.Portal>
         <Dialog.Overlay
           key="overlay"
           animation="quick"
           opacity={0.5}
-          enterStyle={{ opacity: 0 }}
-          exitStyle={{ opacity: 0 }}
+          enterStyle={OVERLAY_ENTER_STYLE}
+          exitStyle={OVERLAY_EXIT_STYLE}
           backgroundColor="$color1"
         />
         <Dialog.Content
@@ -148,16 +198,9 @@ export function ConfirmDialog({
           elevate
           key="content"
           animateOnly={['transform', 'opacity']}
-          animation={[
-            'quick',
-            {
-              opacity: {
-                overshootClamping: true,
-              },
-            },
-          ]}
-          enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
-          exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+          animation={CONTENT_ANIMATION}
+          enterStyle={CONTENT_ENTER_STYLE}
+          exitStyle={CONTENT_EXIT_STYLE}
           {...(dialogWidth !== undefined ? { width: dialogWidth } : {})}
           {...(dialogMaxWidth !== undefined ? { maxWidth: dialogMaxWidth } : {})}
           testID={testID}
@@ -172,26 +215,12 @@ export function ConfirmDialog({
             <BlurView
               intensity={20}
               tint="light"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: 24,
-              }}
+              style={BLUR_STYLE}
             />
           ) : (
             <YStack
               backgroundColor="rgba(0, 0, 0, 0.7)"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: 16,
-              }}
+              style={ANDROID_FALLBACK_STYLE}
             />
           )}
           <YStack
@@ -239,7 +268,7 @@ export function ConfirmDialog({
                   borderRadius="$4"
                   backgroundColor="$color3"
                   animation="quick"
-                  pressStyle={{ backgroundColor: '$color4', scale: 0.98 }}
+                  pressStyle={CANCEL_PRESS_STYLE}
                   testID={`${testID}-cancel-button`}
                   alignItems="center"
                   justifyContent="center"
@@ -266,7 +295,7 @@ export function ConfirmDialog({
                 borderRadius="$4"
                 backgroundColor={confirmButtonColor}
                 animation="quick"
-                pressStyle={{ backgroundColor: confirmButtonPressColor, scale: 0.98 }}
+                pressStyle={confirmPressStyle}
                 testID={`${testID}-confirm-button`}
                 alignItems="center"
                 justifyContent="center"
@@ -319,4 +348,9 @@ export function ConfirmDialog({
       </Dialog.Portal>
     </Dialog>
   )
+})
+
+// Enable why-did-you-render tracking for performance debugging
+if (__DEV__) {
+  ;(ConfirmDialog as unknown as { whyDidYouRender: boolean }).whyDidYouRender = true
 }

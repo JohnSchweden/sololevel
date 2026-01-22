@@ -3,7 +3,7 @@ import { log } from '@my/logging'
 import { ConfirmDialog, FeedbackTypeButton, GlassBackground, GlassButton, TextArea } from '@my/ui'
 import { Gift, Send } from '@tamagui/lucide-icons'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, View, type ViewStyle } from 'react-native'
 import { Avatar, ScrollView, Spinner, Text, XStack, YStack } from 'tamagui'
 import { useSubmitFeedback } from './hooks/useSubmitFeedback'
@@ -110,10 +110,11 @@ export const GiveFeedbackScreen = ({
     textAreaFocusedRef.current = false
   }
 
-  const handleDialogClose = (): void => {
+  // Stable callback for closing success dialog - prevents ConfirmDialog re-renders
+  const handleDialogClose = useCallback((): void => {
     setShowSuccessDialog(false)
     onSuccess?.()
-  }
+  }, [onSuccess])
 
   const isSubmitDisabled = !message.trim() || isPending
 

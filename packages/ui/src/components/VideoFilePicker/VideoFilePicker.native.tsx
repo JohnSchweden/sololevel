@@ -586,6 +586,13 @@ export function VideoFilePicker({
     handleVideoSelection,
   ])
 
+  // Stable callback for closing duration error dialog - prevents ConfirmDialog re-renders
+  const handleDurationErrorClose = useCallback(() => {
+    setShowDurationErrorDialog(false)
+    // Notify parent to reset isPickerOpen so picker can be reopened
+    onCancel()
+  }, [onCancel])
+
   // This component doesn't render anything visible except the error dialog
   return (
     <ConfirmDialog
@@ -596,46 +603,23 @@ export function VideoFilePicker({
       }
       confirmLabel="OK"
       variant="success"
-      onConfirm={() => {
-        setShowDurationErrorDialog(false)
-        // Notify parent to reset isPickerOpen so picker can be reopened
-        onCancel()
-      }}
-      onCancel={() => {
-        setShowDurationErrorDialog(false)
-        // Notify parent to reset isPickerOpen so picker can be reopened
-        onCancel()
-      }}
+      onConfirm={handleDurationErrorClose}
+      onCancel={handleDurationErrorClose}
     />
   )
 }
 
 /**
- * Get platform-specific action sheet options
- * iOS and Android have different conventions for button ordering
+ * Action sheet options: Gallery 1st, Files 2nd, Camera 3rd, Cancel last.
+ * Same order on both iOS and Android.
  */
 function getActionSheetOptions(
-  platform: string
+  _platform: string
 ): Array<{ label: string; source: 'gallery' | 'camera' | 'files' }> {
-  const baseOptions = [
-    { label: 'Choose from Gallery', source: 'gallery' as const },
-    { label: 'Record New Video', source: 'camera' as const },
-    { label: 'Browse Files', source: 'files' as const },
-  ]
-
-  if (platform === 'ios') {
-    // iOS: Most commonly used options at the top
-    return [
-      ...baseOptions,
-      { label: 'Cancel', source: 'files' as const }, // Cancel will be handled separately
-    ]
-  }
-
-  // Android: Alphabetical or logical ordering
   return [
-    baseOptions[1], // Gallery first (most common)
-    baseOptions[0], // Camera second
-    baseOptions[2], // Files last
-    { label: 'Cancel', source: 'files' as const }, // Cancel will be handled separately
+    { label: 'Choose from Gallery', source: 'gallery' as const },
+    { label: 'Browse Files', source: 'files' as const },
+    { label: 'Record New Video', source: 'camera' as const },
+    { label: 'Cancel', source: 'files' as const }, // Cancel handled via cancelButtonIndex
   ]
 }

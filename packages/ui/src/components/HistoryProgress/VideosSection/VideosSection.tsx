@@ -5,7 +5,12 @@ import { Button, Spinner, Text, View, XStack, YStack } from 'tamagui'
 import { VideoThumbnailCard } from '../VideoThumbnailCard'
 
 // Stable style objects to prevent unnecessary re-renders
-const BUTTON_PRESS_STYLE = { opacity: 0.7 } as const
+const SEE_ALL_BUTTON_PRESS_STYLE = {
+  opacity: 0.9,
+  scale: 0.93,
+  backgroundColor: '$color4',
+  borderColor: 'transparent',
+} as const
 const RETRY_BUTTON_PRESS_STYLE = { opacity: 0.7, scale: 0.95 } as const
 
 export interface VideosSectionProps {
@@ -195,7 +200,8 @@ export function VideosSection({
           size="$3"
           onPress={onSeeAllPress}
           animation="quick"
-          pressStyle={BUTTON_PRESS_STYLE}
+          borderRadius="$4"
+          pressStyle={SEE_ALL_BUTTON_PRESS_STYLE}
           accessibilityRole="button"
           accessibilityLabel="See all videos"
           testID={`${testID}-see-all-button`}

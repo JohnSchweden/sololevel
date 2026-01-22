@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import type { ComponentProps, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => ({
   get: () => null,
@@ -35,17 +35,15 @@ jest.mock('react-native-reanimated', () => {
     ...AnimatedComponents,
     createAnimatedComponent: (component: React.ComponentType<any>) => component,
     useAnimatedStyle: () => ({}),
-    useAnimatedReaction: (prepare: () => unknown, react: (result: unknown) => void) => {
-      try {
-        const result = prepare?.()
-        react?.(result)
-      } catch {
-        // no-op in tests
-      }
+    useAnimatedReaction: () => {
+      // No-op in tests to prevent infinite re-renders from side effects
     },
     useSharedValue: (initial: unknown) => ({ value: initial }),
     makeMutable: (initial: unknown) => ({ value: initial }),
-    useDerivedValue: (callback: () => unknown) => ({ value: callback?.() }),
+    useDerivedValue: (callback: () => unknown) => {
+      const result = callback?.()
+      return { value: result }
+    },
     useAnimatedRef: () => React.createRef(),
     useAnimatedGestureHandler: (handler: any) => handler,
     useAnimatedScrollHandler: (handler: any) => handler,
@@ -79,16 +77,7 @@ jest.mock('react-native-reanimated', () => {
 jest.mock('react-native', () => {
   const React = require('react') as typeof import('react')
 
-  type MockPressableProps = Omit<ComponentProps<'button'>, 'onClick'> & {
-    onPress?: () => void
-  }
-  type DivProps = ComponentProps<'div'>
-  type SpanProps = ComponentProps<'span'>
-  type ImageBackgroundProps = ComponentProps<'div'> & {
-    source?: string
-  }
-
-  const MockPressable = React.forwardRef<HTMLButtonElement, MockPressableProps>(
+  const MockPressable = React.forwardRef<HTMLButtonElement, any>(
     ({ onPress, disabled, ...rest }, ref) =>
       React.createElement('button', {
         ref,
@@ -99,18 +88,18 @@ jest.mock('react-native', () => {
   )
   MockPressable.displayName = 'MockPressable'
 
-  const MockView = (props: DivProps) => React.createElement('div', props, props.children)
-  const MockText = (props: SpanProps) => React.createElement('span', props, props.children)
-  const MockScrollView = ({ style, children, ...rest }: DivProps) => {
-    const scrollStyle: DivProps['style'] = {
+  const MockView = (props: any) => React.createElement('div', props, props.children)
+  const MockText = (props: any) => React.createElement('span', props, props.children)
+  const MockScrollView = ({ style, children, ...rest }: any) => {
+    const scrollStyle: any = {
       overflow: 'auto',
       ...(style ?? {}),
     }
     return React.createElement('div', { ...rest, style: scrollStyle }, children)
   }
-  const MockSafeAreaView = (props: DivProps) => React.createElement('div', props, props.children)
-  const MockImageBackground = ({ source, style, children, ...rest }: ImageBackgroundProps) => {
-    const backgroundStyle: ImageBackgroundProps['style'] = {
+  const MockSafeAreaView = (props: any) => React.createElement('div', props, props.children)
+  const MockImageBackground = ({ source, style, children, ...rest }: any) => {
+    const backgroundStyle: any = {
       ...(style ?? {}),
       ...(source ? { backgroundImage: `url(${source})` } : {}),
     }
@@ -209,6 +198,26 @@ jest.mock('expo-blur', () => {
   }
 })
 
+// Expo modules core mock
+jest.mock('expo-modules-core', () => ({
+  NativeModulesProxy: {
+    NativeUnimoduleProxy: {},
+  },
+  Platform: {
+    OS: 'ios',
+  },
+}))
+
+// Expo Image mock
+jest.mock('expo-image', () => {
+  const React = require('react') as typeof import('react')
+  return {
+    Image: React.forwardRef((props: any, ref: any) =>
+      React.createElement('img', { ...props, ref, src: props.source?.uri || props.source })
+    ),
+  }
+})
+
 // Targeted logging mock (avoid global pollution)
 jest.mock('@my/logging', () => ({
   log: {
@@ -240,3 +249,8 @@ const testGlobal = globalThis as TestGlobal
 
 testGlobal.__DEV__ = true
 testGlobal.__reanimatedWorkletInit = jest.fn()
+
+// Expo environment setup
+if (typeof process !== 'undefined' && process.env) {
+  process.env.EXPO_OS = 'ios'
+}

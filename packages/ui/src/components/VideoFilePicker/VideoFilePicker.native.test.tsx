@@ -10,13 +10,15 @@ import * as ImagePicker from 'expo-image-picker'
 import { TestProvider } from '../../test-utils'
 import { VideoFilePicker } from './VideoFilePicker.native'
 
-// Mock action sheet - capture callback for test control
+// Mock action sheet - capture callback and options for test control
 let mockActionSheetCallback: ((buttonIndex?: number) => void) | undefined
+let lastActionSheetOptions: string[] = []
 
 jest.mock('@expo/react-native-action-sheet', () => ({
   useActionSheet: () => ({
-    showActionSheetWithOptions: jest.fn((options, callback) => {
+    showActionSheetWithOptions: jest.fn((config, callback) => {
       mockActionSheetCallback = callback
+      lastActionSheetOptions = config?.options ?? []
     }),
   }),
 }))
@@ -28,6 +30,7 @@ describe('VideoFilePicker.native', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockActionSheetCallback = undefined
+    lastActionSheetOptions = []
   })
 
   it('should show action sheet when opened', async () => {
@@ -58,6 +61,37 @@ describe('VideoFilePicker.native', () => {
     await waitFor(() => {
       expect(mockActionSheetCallback).toBeDefined()
     })
+  })
+
+  it('should show options in order: Gallery, Files, Camera, Cancel', async () => {
+    const { rerender } = render(
+      <TestProvider>
+        <VideoFilePicker
+          isOpen={false}
+          onVideoSelected={mockOnVideoSelected}
+          onCancel={mockOnCancel}
+          maxDurationSeconds={MAX_RECORDING_DURATION_SECONDS}
+        />
+      </TestProvider>
+    )
+
+    rerender(
+      <TestProvider>
+        <VideoFilePicker
+          isOpen={true}
+          onVideoSelected={mockOnVideoSelected}
+          onCancel={mockOnCancel}
+          maxDurationSeconds={MAX_RECORDING_DURATION_SECONDS}
+        />
+      </TestProvider>
+    )
+
+    await waitFor(() => {
+      expect(lastActionSheetOptions.length).toBeGreaterThan(0)
+    })
+
+    const expectedOrder = ['Choose from Gallery', 'Browse Files', 'Record New Video', 'Cancel']
+    expect(lastActionSheetOptions).toEqual(expectedOrder)
   })
 
   it('should call onCancel when user cancels action sheet', async () => {

@@ -237,6 +237,11 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
     setShowComingSoonDialog(true)
   }, [])
 
+  // Stable callback for closing coming soon dialog - prevents ConfirmDialog re-renders
+  const handleCloseComingSoonDialog = React.useCallback(() => {
+    setShowComingSoonDialog(false)
+  }, [])
+
   // Get voice mode for coaching sessions
   const voiceMode = useVoicePreferencesStore((s) => s.mode) || 'roast'
 
@@ -303,8 +308,8 @@ export const HistoryProgressScreen = React.memo(function HistoryProgressScreen({
         message="Filter, compare, and analyze your videos with deeper insights and metrics. See your progress between different sessions and how you improved. This feature is coming soon..."
         confirmLabel="OK"
         variant="success"
-        onConfirm={() => setShowComingSoonDialog(false)}
-        onCancel={() => setShowComingSoonDialog(false)}
+        onConfirm={handleCloseComingSoonDialog}
+        onCancel={handleCloseComingSoonDialog}
         testID={`${testID}-coming-soon-dialog`}
       />
     </GlassBackground>

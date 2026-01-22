@@ -1,11 +1,9 @@
-import { useCallback, useState } from 'react'
 import type { ViewStyle } from 'react-native'
 import {
   type AnimatedStyle,
   Extrapolation,
   type SharedValue,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -20,12 +18,12 @@ import {
 export type ProgressBarDisplayMode = 'normal' | 'persistent' | 'transition'
 
 export interface UseProgressBarVisibilityReturn {
-  /** Snapshot of whether the normal (max-mode) controls should be rendered on the React tree */
+  /** Always true - both controls always rendered (v3: absolute positioning) */
   shouldRenderNormal: boolean
-  /** Snapshot of whether the persistent (collapsed) controls should be rendered on the React tree */
+  /** Always true - both controls always rendered (v3: absolute positioning) */
   shouldRenderPersistent: boolean
-  /** Derived display mode snapshot for consumers that need to branch logic */
-  mode: ProgressBarDisplayMode
+  /** Shared display mode value updated on UI thread - access via modeShared.value in worklets or React code */
+  modeShared: SharedValue<ProgressBarDisplayMode>
   /** Shared visibility (0-1) for the normal progress bar, driven entirely on the UI thread */
   normalVisibility: SharedValue<number>
   /** Shared visibility (0-1) for the persistent progress bar, driven entirely on the UI thread */
@@ -38,21 +36,12 @@ export interface UseProgressBarVisibilityReturn {
   __applyProgressForTests?: (progress: number, overscroll?: number) => void
 }
 
-// NOTE: Thresholds still used for discrete mode resolution (shouldRenderNormal/shouldRenderPersistent flags)
-// Visual opacity uses interpolation directly, but these thresholds determine render flags and pointer events
-/** Collapse progress ≤ this threshold is considered max mode (normal bar visible). */
+/** Collapse progress ≤ this threshold = max mode (normal bar visible). */
 const NORMAL_MODE_THRESHOLD = 0.1
-/** Collapse progress ≥ this threshold is considered min mode (persistent bar visible). */
+/** Collapse progress ≥ this threshold = min mode (persistent bar visible). */
 const PERSISTENT_MODE_THRESHOLD = 0.4
-// Overscroll threshold (in px) before we consider the user to be actively pulling beyond the top edge.
-// Negative values correspond to the sheet being dragged past the top edge.
+/** Overscroll threshold (px) - negative = pulling past top edge. */
 const OVERSCROLL_TRANSITION_THRESHOLD = -4
-// NOTE: Timing constants only affect pointer events timing, not visual opacity (which uses interpolation)
-// Commented out but kept for potential future use if we need timed animations for pointer events
-// /** Timing configuration for normal bar fade transitions. */
-// const NORMAL_FADE = { duration: 120 }
-// /** Timing configuration for persistent bar fade transitions. */
-// const PERSISTENT_FADE = { duration: 580 }
 
 const sanitizeProgress = (value: number): number => {
   'worklet'
@@ -98,26 +87,15 @@ const visibilityForMode = (mode: ProgressBarDisplayMode) => {
   }
 }
 
-/** Payload emitted when the mode or visibility changes. */
-interface ModeChangePayload {
-  source: 'worklet' | 'test'
-  progress: number
-  overscroll: number
-  previousMode: ProgressBarDisplayMode
-  nextMode: ProgressBarDisplayMode
-  normalVisible: boolean
-  persistentVisible: boolean
-}
-
 /**
- * Derives progress bar visibility for the video controls overlay using collapse progress and optional
- * overscroll distance. Collapse progress drives the standard max ⇄ normal ⇄ min transitions. When an
- * overscroll shared value is provided, any pull beyond the top threshold (negative distance) forces
- * a transition state so both progress bars fade out immediately during pull-to-expand gestures.
+ * Derives progress bar visibility using collapse progress and optional overscroll.
  *
- * @param collapseProgressShared - Shared value for collapse progress (0 = max, 1 = min)
- * @param overscrollShared - Optional shared value for overscroll distance (negative when pulling past top)
- * @param overlayOpacity - Shared value for controls overlay opacity (0-1) to combine with collapse visibility. Only affects normal bar, not persistent bar.
+ * Both bars are always rendered with absolute positioning. Visibility is controlled
+ * entirely on the UI thread via animated opacity - no React state updates during transitions.
+ *
+ * @param collapseProgressShared - Collapse progress (0 = max, 1 = min)
+ * @param overscrollShared - Optional overscroll distance (negative = pulling past top)
+ * @param overlayOpacity - Controls overlay opacity (only affects normal bar)
  */
 export function useProgressBarVisibility(
   collapseProgressShared: SharedValue<number>,
@@ -132,164 +110,59 @@ export function useProgressBarVisibility(
   const persistentVisibility = useSharedValue(initialVisibility.persistent)
   const modeShared = useSharedValue<ProgressBarDisplayMode>(initialMode)
 
-  const [modeSnapshot, setModeSnapshot] = useState<ProgressBarDisplayMode>(initialMode)
-
-  const emitModeChange = useCallback(
-    ({
-      source: _source,
-      progress: _progress,
-      overscroll: _overscroll,
-      previousMode: _previousMode,
-      nextMode,
-      normalVisible: _normalVisible,
-      persistentVisible: _persistentVisible,
-    }: ModeChangePayload) => {
-      // log.debug('VideoControls', 'ProgressBar mode updated', {
-      //   source,
-      //   progress,
-      //   overscroll,
-      //   previousMode,
-      //   nextMode,
-      //   normalVisible,
-      //   persistentVisible,
-      // })
-
-      setModeSnapshot((prev) => (prev === nextMode ? prev : nextMode))
-    },
-    []
-  )
-
-  const updateSnapshotFromJS = useCallback(
-    (progress: number, source: ModeChangePayload['source'], overscroll = 0) => {
-      const nextMode = resolveDisplayMode(progress, overscroll)
-      const { normal, persistent } = visibilityForMode(nextMode)
-      const previousMode = modeShared.value
-      const hasModeChanged = previousMode !== nextMode
-      const normalChanged = normalVisibility.value !== normal
-      const persistentChanged = persistentVisibility.value !== persistent
-
-      if (hasModeChanged) {
-        modeShared.value = nextMode
-      }
-
-      if (normalChanged) {
-        // Update immediately (no timing) - only used for pointer events, not visual opacity
-        // Visual opacity uses interpolation directly from collapseProgress
-        normalVisibility.value = normal
-        // normalVisibility.value = withTiming(normal, NORMAL_FADE) // Commented - see NORMAL_FADE above
-      }
-
-      if (persistentChanged) {
-        // Update immediately (no timing) - only used for pointer events, not visual opacity
-        // Visual opacity uses interpolation directly from collapseProgress
-        persistentVisibility.value = persistent
-        // persistentVisibility.value = withTiming(persistent, PERSISTENT_FADE) // Commented - see PERSISTENT_FADE above
-      }
-
-      if (hasModeChanged || normalChanged || persistentChanged) {
-        emitModeChange({
-          source,
-          progress,
-          overscroll,
-          previousMode,
-          nextMode,
-          normalVisible: normal === 1,
-          persistentVisible: persistent === 1,
-        })
-      }
-    },
-    [emitModeChange, modeShared, normalVisibility, persistentVisibility]
-  )
-
+  // UI-thread only mode tracking for pointer events (visual opacity uses interpolation)
   useDerivedValue(() => {
     'worklet'
-    const progress = collapseProgressShared.value
-    const overscroll = overscrollShared?.value ?? 0
-    const nextMode = resolveDisplayMode(progress, overscroll)
+    const nextMode = resolveDisplayMode(collapseProgressShared.value, overscrollShared?.value ?? 0)
     const { normal, persistent } = visibilityForMode(nextMode)
-    const previousMode = modeShared.value
-    const hasModeChanged = previousMode !== nextMode
-    const normalChanged = normalVisibility.value !== normal
-    const persistentChanged = persistentVisibility.value !== persistent
 
-    if (hasModeChanged) {
+    if (modeShared.value !== nextMode) {
       modeShared.value = nextMode
     }
-
-    if (normalChanged) {
-      // Update immediately (no timing) - only used for pointer events, not visual opacity
-      // Visual opacity uses interpolation directly from collapseProgress
+    if (normalVisibility.value !== normal) {
       normalVisibility.value = normal
-      // normalVisibility.value = withTiming(normal, NORMAL_FADE) // Commented - see NORMAL_FADE above
     }
-
-    if (persistentChanged) {
-      // Update immediately (no timing) - only used for pointer events, not visual opacity
-      // Visual opacity uses interpolation directly from collapseProgress
+    if (persistentVisibility.value !== persistent) {
       persistentVisibility.value = persistent
-      // persistentVisibility.value = withTiming(persistent, PERSISTENT_FADE) // Commented - see PERSISTENT_FADE above
     }
+  }, [collapseProgressShared, modeShared, normalVisibility, overscrollShared, persistentVisibility])
 
-    if (hasModeChanged || normalChanged || persistentChanged) {
-      runOnJS(emitModeChange)({
-        source: 'worklet',
-        progress,
-        overscroll,
-        previousMode,
-        nextMode,
-        normalVisible: normal === 1,
-        persistentVisible: persistent === 1,
-      })
-    }
-  }, [
-    collapseProgressShared,
-    emitModeChange,
-    modeShared,
-    normalVisibility,
-    overscrollShared,
-    persistentVisibility,
-  ])
-
-  // Animated styles that match the original interpolation pattern from VideoControls
-  // Normal bar: fade in when in max mode (collapseProgress 0-0.1), fade out when transitioning away
-  // Matches original: interpolate(collapseProgress, [0, 0.1], [1, 0])
+  // Normal bar: visible in max mode, fades out as collapse progresses
   const normalVisibilityAnimatedStyle = useAnimatedStyle(() => {
-    const progress = collapseProgressShared.value
-    // Smooth interpolation: fade from 1 to 0 as collapseProgress goes from 0 to 0.1
-    const collapseOpacity = interpolate(progress, [0, 0.1], [1, 0], Extrapolation.CLAMP)
-    // Combine collapse opacity with controls visibility opacity
-    const overlay = overlayOpacity?.value ?? 1
-    return {
-      opacity: collapseOpacity * overlay,
-    }
+    const collapseOpacity = interpolate(
+      collapseProgressShared.value,
+      [0, 0.1],
+      [1, 0],
+      Extrapolation.CLAMP
+    )
+    return { opacity: collapseOpacity * (overlayOpacity?.value ?? 1) }
   }, [collapseProgressShared, overlayOpacity])
 
-  // Persistent bar: fade in from 0.4 to 0.5, then stay visible
-  // Matches original: interpolate(collapseProgress, [0.4, 0.5], [0, 1])
-  // NOTE: Persistent bar is NOT affected by overlayOpacity - it should remain visible even when controls are hidden
+  // Persistent bar: fades in during collapse, independent of overlay opacity
   const persistentVisibilityAnimatedStyle = useAnimatedStyle(() => {
-    const progress = collapseProgressShared.value
-    // Smooth interpolation: fade from 0 to 1 as collapseProgress goes from 0.4 to 0.5
-    const collapseOpacity = interpolate(progress, [0.4, 0.5], [0, 1], Extrapolation.CLAMP)
-    // Persistent bar visibility is independent of controls visibility (overlayOpacity)
-    return {
-      opacity: collapseOpacity,
-    }
+    const collapseOpacity = interpolate(
+      collapseProgressShared.value,
+      [0.4, 0.5],
+      [0, 1],
+      Extrapolation.CLAMP
+    )
+    return { opacity: collapseOpacity }
   }, [collapseProgressShared])
 
-  const result: UseProgressBarVisibilityReturn = {
-    shouldRenderNormal: modeSnapshot === 'normal',
-    shouldRenderPersistent: modeSnapshot === 'persistent',
-    mode: modeSnapshot,
+  return {
+    shouldRenderNormal: true,
+    shouldRenderPersistent: true,
+    modeShared,
     normalVisibility,
     persistentVisibility,
     normalVisibilityAnimatedStyle,
     persistentVisibilityAnimatedStyle,
+    __applyProgressForTests: (progress: number, overscroll = 0) => {
+      const nextMode = resolveDisplayMode(progress, overscroll)
+      const { normal, persistent } = visibilityForMode(nextMode)
+      modeShared.value = nextMode
+      normalVisibility.value = normal
+      persistentVisibility.value = persistent
+    },
   }
-
-  result.__applyProgressForTests = (progress: number, overscroll = 0) => {
-    updateSnapshotFromJS(progress, 'test', overscroll)
-  }
-
-  return result
 }

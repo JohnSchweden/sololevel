@@ -559,10 +559,6 @@ export function useGestureController(
   const batchScrollStateUpdate = useCallback(
     (updates: { scrollEnabled: boolean; blockCompletely: boolean }) => {
       setFeedbackScrollEnabled(updates.scrollEnabled)
-      const previous = feedbackScrollStateRef.current.blockCompletely
-      if (previous !== updates.blockCompletely) {
-        // Block state changed
-      }
       setBlockFeedbackScrollCompletely(updates.blockCompletely)
     },
     [setFeedbackScrollEnabled, setBlockFeedbackScrollCompletely]
@@ -1132,10 +1128,17 @@ export function useGestureController(
           //   snapDuration: SNAP_DURATION_MS,
           // })
 
-          scrollY.value = withTiming(targetScrollPos, {
-            duration: SNAP_DURATION_MS,
-            easing: SNAP_EASING,
-          })
+          scrollY.value = withTiming(
+            targetScrollPos,
+            {
+              duration: SNAP_DURATION_MS,
+              easing: SNAP_EASING,
+            },
+            (finished) => {
+              'worklet'
+              if (!finished) return
+            }
+          )
           scrollTo(scrollRef, 0, targetScrollPos, true)
 
           // MEMORY LEAK FIX: Commented out runOnJS(log.warn) to prevent closure accumulation

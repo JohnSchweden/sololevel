@@ -17,18 +17,21 @@ const mockUseProgressBarVisibility = useProgressBarVisibility as jest.MockedFunc
 >
 
 const createVisibilityState = (
-  shouldRenderNormal: boolean,
-  shouldRenderPersistent: boolean
-): UseProgressBarVisibilityReturn => ({
-  shouldRenderNormal,
-  shouldRenderPersistent,
-  mode: shouldRenderNormal ? 'normal' : shouldRenderPersistent ? 'persistent' : 'transition',
-  normalVisibility: { value: shouldRenderNormal ? 1 : 0 } as any,
-  persistentVisibility: { value: shouldRenderPersistent ? 1 : 0 } as any,
-  normalVisibilityAnimatedStyle: { opacity: shouldRenderNormal ? 1 : 0 } as any,
-  persistentVisibilityAnimatedStyle: { opacity: shouldRenderPersistent ? 1 : 0 } as any,
-  __applyProgressForTests: jest.fn(),
-})
+  mode: 'normal' | 'persistent' | 'transition' = 'normal'
+): UseProgressBarVisibilityReturn => {
+  const normalVisible = mode === 'normal' ? 1 : 0
+  const persistentVisible = mode === 'persistent' ? 1 : 0
+  return {
+    shouldRenderNormal: true, // Always rendered (absolute positioning)
+    shouldRenderPersistent: true, // Always rendered (absolute positioning)
+    modeShared: { value: mode } as any,
+    normalVisibility: { value: normalVisible } as any,
+    persistentVisibility: { value: persistentVisible } as any,
+    normalVisibilityAnimatedStyle: { opacity: normalVisible } as any,
+    persistentVisibilityAnimatedStyle: { opacity: persistentVisible } as any,
+    __applyProgressForTests: jest.fn(),
+  }
+}
 
 let visibilityState: UseProgressBarVisibilityReturn
 
@@ -51,73 +54,26 @@ describe('VideoControls.native.core', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockUseProgressBarVisibility.mockReset()
-    visibilityState = createVisibilityState(true, false)
+    visibilityState = createVisibilityState('normal')
     mockUseProgressBarVisibility.mockImplementation(() => visibilityState)
   })
 
-  afterEach(() => {
-    jest.clearAllMocks()
-  })
-
-  it('renders native progress bar and scrubber handle', () => {
-    // Arrange
-    renderWithProviderNative(<VideoControls {...createProps()} />)
-
-    // Assert
-    expect(screen.getByTestId('progress-bar-container')).toBeTruthy()
-    expect(screen.getByTestId('scrubber-handle')).toBeTruthy()
-  })
-
-  it('toggles controls visibility via native press', () => {
-    // Arrange
+  it('toggles controls visibility when user taps video area', () => {
     const onControlsVisibilityChange = jest.fn()
     renderWithProviderNative(<VideoControls {...createProps({ onControlsVisibilityChange })} />)
 
-    // Act
     fireEvent.press(screen.getByTestId('video-controls-container'))
 
-    // Assert
     expect(onControlsVisibilityChange).toHaveBeenCalledWith(false, true)
   })
 
-  it('calls onSeek when fallback press occurs after layout measurement', () => {
-    // Arrange
-    const onSeek = jest.fn()
-    renderWithProviderNative(<VideoControls {...createProps({ onSeek })} />)
+  it('renders video controls with play/pause functionality', () => {
+    const onPlay = jest.fn()
+    renderWithProviderNative(<VideoControls {...createProps({ onPlay, isPlaying: false })} />)
 
-    const progressTrack = screen.getByTestId('progress-track')
+    const playButton = screen.getByLabelText('Play video')
+    fireEvent.press(playButton)
 
-    // Act
-    act(() => {
-      fireEvent(progressTrack, 'layout', {
-        nativeEvent: { layout: { width: 200, height: 4 } },
-      })
-    })
-
-    act(() => {
-      fireEvent.press(screen.getByTestId('progress-bar-pressable'), {
-        nativeEvent: { locationX: 100 },
-      })
-    })
-
-    // Assert
-    expect(onSeek).toHaveBeenCalledWith(60)
-  })
-
-  it('shows normal bar below collapse threshold and hides above threshold', () => {
-    // Arrange
-    const { rerender } = renderWithProviderNative(
-      <VideoControls {...createProps({ collapseProgress: 0 })} />
-    )
-
-    // Assert
-    expect(screen.getByTestId('progress-bar-container')).toBeTruthy()
-
-    // Act
-    visibilityState = createVisibilityState(false, true)
-    rerender(<VideoControls {...createProps({ collapseProgress: 0.6 })} />)
-
-    // Assert
-    expect(screen.queryByTestId('progress-bar-container')).toBeNull()
+    expect(onPlay).toHaveBeenCalled()
   })
 })

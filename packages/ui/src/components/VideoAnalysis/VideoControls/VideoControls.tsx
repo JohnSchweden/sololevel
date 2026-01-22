@@ -260,11 +260,7 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
 
     // Stable callback for animation completion (called from UI thread)
     const handleAnimationComplete = useCallback(() => {
-      // log.debug('VideoControls', '📊 [PERFORMANCE] Animation completed', {
-      //   animationName: `controls-overlay-${interactionType}`,
-      //   targetValue,
-      //   configuredDuration,
-      // })
+      // Animation complete - no logging in production
     }, [])
 
     // Update overlay opacity animation when visibility changes
@@ -437,19 +433,20 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // When collapseProgress is a number, it's synced to collapseProgressShared via useEffect
 
     const {
-      shouldRenderNormal,
       shouldRenderPersistent,
       normalVisibility,
       persistentVisibility,
       normalVisibilityAnimatedStyle,
       persistentVisibilityAnimatedStyle,
     } = useProgressBarVisibility(collapseProgressSharedValue, overscroll, overlayOpacity)
-
+    // Initialize pointer events based on actual visibility values (0 or 1 depending on mode)
+    // Both bars are always rendered (v3: absolute positioning), so pointer events must be
+    // disabled when a bar is not visible (visibility <= 0.01) to prevent touch interference
     const [normalBarPointerEvents, setNormalBarPointerEvents] = useState<'auto' | 'none'>(
-      shouldRenderNormal ? 'auto' : 'none'
+      normalVisibility.value > 0.01 ? 'auto' : 'none'
     )
     const [persistentBarPointerEvents, setPersistentBarPointerEvents] = useState<'auto' | 'none'>(
-      shouldRenderPersistent ? 'auto' : 'none'
+      persistentVisibility.value > 0.01 ? 'auto' : 'none'
     )
 
     const updateNormalPointerEvents = useCallback((visible: boolean) => {
@@ -481,11 +478,6 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
       },
       [persistentVisibility, updatePersistentPointerEvents]
     )
-
-    // Visibility animated styles are now computed in useProgressBarVisibility hook
-    // They combine collapse visibility (with timing animations) with overlay opacity
-
-    const showNormalControls = shouldRenderNormal
 
     // Expose handleMenuPress to parent component via ref
     useImperativeHandle(
@@ -681,40 +673,39 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
               }}
             />
 
-            {/* Bottom Controls - Normal Bar */}
-            {showNormalControls && (
-              <Animated.View
-                pointerEvents={normalBarPointerEvents}
-                style={normalVisibilityAnimatedStyle}
-              >
-                {/* <YStack accessibilityLabel="Video timeline and controls"> */}
-                <XStack
-                  justifyContent="space-between"
-                  alignItems="center"
-                  bottom={-24}
-                  paddingBottom="$2"
-                  accessibilityLabel="Video time and controls"
-                >
-                  <TimeDisplay
-                    currentTime={safeCurrentTime}
-                    duration={safeDuration}
-                    testID="time-display"
-                  />
-                </XStack>
-                {/* </YStack> */}
-              </Animated.View>
-            )}
-
-            {/* Bottom Controls - Persistent Bar */}
+            {/* TimeDisplay - Max mode (higher position) */}
             <Animated.View
-              pointerEvents={persistentBarPointerEvents}
-              style={persistentVisibilityAnimatedStyle}
+              pointerEvents={normalBarPointerEvents}
+              style={[
+                { position: 'absolute', left: 0, right: 0, bottom: 42 },
+                normalVisibilityAnimatedStyle,
+              ]}
             >
-              {/* <YStack accessibilityLabel="Video timeline and controls"> */}
               <XStack
                 justifyContent="space-between"
                 alignItems="center"
-                bottom={0}
+                paddingBottom="$2"
+                accessibilityLabel="Video time and controls"
+              >
+                <TimeDisplay
+                  currentTime={safeCurrentTime}
+                  duration={safeDuration}
+                  testID="time-display"
+                />
+              </XStack>
+            </Animated.View>
+
+            {/* TimeDisplay - Normal/Min mode (lower position) */}
+            <Animated.View
+              pointerEvents={persistentBarPointerEvents}
+              style={[
+                { position: 'absolute', left: 0, right: 0, bottom: 0 },
+                persistentVisibilityAnimatedStyle,
+              ]}
+            >
+              <XStack
+                justifyContent="space-between"
+                alignItems="center"
                 paddingBottom="$1.5"
                 accessibilityLabel="Video time and controls"
               >
@@ -724,49 +715,46 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
                   testID="time-display-persistent"
                 />
               </XStack>
-              {/* </YStack> */}
             </Animated.View>
 
-            {/* Progress Bar - Normal variant (conditionally rendered) */}
-            {showNormalControls && (
-              <ProgressBar
-                variant="normal"
-                progress={progress}
-                isScrubbing={normalProgressBar.isScrubbing}
-                controlsVisible={controlsVisible}
-                animatedStyle={normalVisibilityAnimatedStyle}
-                pointerEvents={normalBarPointerEvents}
-                progressShared={normalProgressBar.progressShared}
-                progressBarWidthShared={progressBarWidthShared}
-                combinedGesture={progressBarCombinedGesture}
-                mainGesture={mainProgressGesture}
-                onLayout={(event) => {
-                  const { width } = event.nativeEvent.layout
-                  setProgressBarWidth(width)
-                }}
-                onFallbackPress={(locationX) => {
-                  if (progressBarWidth > 0 && duration > 0) {
-                    // Normal bar has no left inset (0px)
-                    const relativeX = Math.max(0, locationX - 0)
-                    const correctedSeekPercentage = Math.max(
-                      0,
-                      Math.min(100, (relativeX / progressBarWidth) * 100)
-                    )
-                    const seekTime = (correctedSeekPercentage / 100) * duration
-                    log.debug('VideoControls', 'Normal fallback press handler - RAW CALCULATION', {
-                      locationX,
-                      progressBarWidth,
-                      seekPercentage: correctedSeekPercentage,
-                      expectedSeekTime: seekTime,
-                      duration,
-                    })
-                    onSeek(seekTime)
-                    // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
-                    // Fallback should only seek, not show controls (gesture handles that)
-                  }
-                }}
-              />
-            )}
+            {/* Progress Bar - Normal variant */}
+            <ProgressBar
+              variant="normal"
+              progress={progress}
+              isScrubbing={normalProgressBar.isScrubbing}
+              controlsVisible={controlsVisible}
+              animatedStyle={normalVisibilityAnimatedStyle}
+              pointerEvents={normalBarPointerEvents}
+              progressShared={normalProgressBar.progressShared}
+              progressBarWidthShared={progressBarWidthShared}
+              combinedGesture={progressBarCombinedGesture}
+              mainGesture={mainProgressGesture}
+              onLayout={(event) => {
+                const { width } = event.nativeEvent.layout
+                setProgressBarWidth(width)
+              }}
+              onFallbackPress={(locationX) => {
+                if (progressBarWidth > 0 && duration > 0) {
+                  // Normal bar has no left inset (0px)
+                  const relativeX = Math.max(0, locationX - 0)
+                  const correctedSeekPercentage = Math.max(
+                    0,
+                    Math.min(100, (relativeX / progressBarWidth) * 100)
+                  )
+                  const seekTime = (correctedSeekPercentage / 100) * duration
+                  log.debug('VideoControls', 'Normal fallback press handler - RAW CALCULATION', {
+                    locationX,
+                    progressBarWidth,
+                    seekPercentage: correctedSeekPercentage,
+                    expectedSeekTime: seekTime,
+                    duration,
+                  })
+                  onSeek(seekTime)
+                  // Note: showControlsAndResetTimer() is handled by gesture handler's onStart
+                  // Fallback should only seek, not show controls (gesture handles that)
+                }
+              }}
+            />
           </YStack>
         </Animated.View>
       </Pressable>

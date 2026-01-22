@@ -30,15 +30,12 @@ describe('Native Media Picker Integration', () => {
     jest.clearAllMocks()
   })
 
-  it('should show action sheet with video source options', () => {
-    // This test will validate that the action sheet shows the correct options
-    const expectedOptions = ['Choose from Gallery', 'Record New Video', 'Browse Files', 'Cancel']
-
-    // The action sheet should present these options
-    expect(expectedOptions).toContain('Choose from Gallery')
-    expect(expectedOptions).toContain('Record New Video')
-    expect(expectedOptions).toContain('Browse Files')
-    expect(expectedOptions).toContain('Cancel')
+  it('should show action sheet with video source options (Gallery 1st, Files 2nd)', () => {
+    const expectedOrder = ['Choose from Gallery', 'Browse Files', 'Record New Video', 'Cancel']
+    expect(expectedOrder[0]).toBe('Choose from Gallery')
+    expect(expectedOrder[1]).toBe('Browse Files')
+    expect(expectedOrder).toContain('Record New Video')
+    expect(expectedOrder).toContain('Cancel')
   })
 
   it('should handle gallery video selection', async () => {

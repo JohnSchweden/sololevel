@@ -11,6 +11,7 @@ import {
   Target,
 } from '@tamagui/lucide-icons'
 import React, { memo, useCallback, useMemo, useState } from 'react'
+import type { ComponentProps } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
 import type { ActivityData } from '../../Insights/ActivityChart'
@@ -148,6 +149,10 @@ export interface VideoAnalysisInsightsV2Props {
   onHighlightPress?: (highlightId: string) => void
   onActionPress?: (actionId: string) => void
   onReelPress?: (reelId: string) => void
+  /** Controls whether the summary section is expanded (persists across sub-tab switches) */
+  isSummaryExpanded?: boolean
+  /** Callback to toggle the summary expanded state */
+  onSummaryToggle?: () => void
   testID?: string
 }
 
@@ -650,19 +655,29 @@ const SkillRow = memo(function SkillRow({
   skill: VideoAnalysisInsightsV2SkillDimension
   voiceText: VoiceTextConfig
 }) {
-  const isTrendingUp = skill.trend === 'up'
-  const isTrendingDown = skill.trend === 'down'
-  const scoreColor = isTrendingUp ? '$green11' : isTrendingDown ? '$orange11' : '$color11'
+  // Derive colors and labels based on trend direction
+  type TextColorProp = ComponentProps<typeof Text>['color']
+  type IconColorProp = ComponentProps<typeof ChevronUp>['color']
+  let scoreColor: TextColorProp
+  let iconColor: IconColorProp
+  let trendLabel: string
 
-  const iconColor =
-    skill.trend === 'up' ? '$green11' : skill.trend === 'down' ? '$orange11' : '$color11'
-
-  const trendLabel =
-    skill.trend === 'up'
-      ? voiceText.feedbackPanel.insights.trendLabels.up
-      : skill.trend === 'down'
-        ? voiceText.feedbackPanel.insights.trendLabels.down
-        : voiceText.feedbackPanel.insights.trendLabels.steady
+  switch (skill.trend) {
+    case 'up':
+      scoreColor = '$green11' as TextColorProp
+      iconColor = '$green11' as IconColorProp
+      trendLabel = voiceText.feedbackPanel.insights.trendLabels.up
+      break
+    case 'down':
+      scoreColor = '$orange11' as TextColorProp
+      iconColor = '$orange11' as IconColorProp
+      trendLabel = voiceText.feedbackPanel.insights.trendLabels.down
+      break
+    default:
+      scoreColor = '$color11' as TextColorProp
+      iconColor = '$color11' as IconColorProp
+      trendLabel = voiceText.feedbackPanel.insights.trendLabels.steady
+  }
 
   return (
     <XStack
@@ -744,6 +759,9 @@ const SkillRow = memo(function SkillRow({
 /** Number of characters to show before truncating with "Show more" */
 const SUMMARY_TRUNCATE_LENGTH = 100
 
+/** Transparent style for button hover/press states (extracted for performance) */
+const TRANSPARENT_STYLE = { backgroundColor: 'transparent' } as const
+
 export const VideoAnalysisInsightsV2 = memo(
   function VideoAnalysisInsightsV2({
     fullFeedbackText,
@@ -760,6 +778,8 @@ export const VideoAnalysisInsightsV2 = memo(
     onHighlightPress,
     onActionPress,
     onReelPress,
+    isSummaryExpanded: isSummaryExpandedProp,
+    onSummaryToggle,
     testID = 'video-analysis-insights-v2',
   }: VideoAnalysisInsightsV2Props) {
     // Get voice text config for current mode (default to roast)
@@ -774,11 +794,24 @@ export const VideoAnalysisInsightsV2 = memo(
     const quote = useMemo(() => quoteProp ?? getDefaultQuote(voiceText), [quoteProp, voiceText])
 
     // State for expand/collapse of detailed summary
-    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
+    // Use controlled props if provided (from FeedbackPanel), otherwise fall back to local state for backwards compatibility
+    const [localExpanded, setLocalExpanded] = useState(false)
+    const isSummaryExpanded = isSummaryExpandedProp ?? localExpanded
+    const [isHoveredOrPressed, setIsHoveredOrPressed] = useState(false)
 
     const toggleSummaryExpanded = useCallback(() => {
-      setIsSummaryExpanded((prev) => !prev)
-    }, [])
+      if (onSummaryToggle) {
+        onSummaryToggle()
+      } else {
+        setLocalExpanded((prev) => !prev)
+      }
+    }, [onSummaryToggle])
+
+    // PERFORMANCE: Extract hover/press handlers to stable callbacks to prevent unnecessary re-renders
+    const handlePressIn = useCallback(() => setIsHoveredOrPressed(true), [])
+    const handlePressOut = useCallback(() => setIsHoveredOrPressed(false), [])
+    const handleMouseEnter = useCallback(() => setIsHoveredOrPressed(true), [])
+    const handleMouseLeave = useCallback(() => setIsHoveredOrPressed(false), [])
 
     // Determine if text needs truncation
     const summaryNeedsTruncation = useMemo(() => {
@@ -888,13 +921,20 @@ export const VideoAnalysisInsightsV2 = memo(
 
               {summaryNeedsTruncation && !isSummaryExpanded ? (
                 <Button
-                  chromeless
+                  unstyled
                   onPress={toggleSummaryExpanded}
+                  onPressIn={handlePressIn}
+                  onPressOut={handlePressOut}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
                   alignSelf="flex-end"
                   paddingVertical="$2"
                   paddingHorizontal="$3"
                   paddingRight={0}
-                  minHeight={44}
+                  height="auto"
+                  backgroundColor="transparent"
+                  hoverStyle={TRANSPARENT_STYLE}
+                  pressStyle={TRANSPARENT_STYLE}
                   accessibilityRole="button"
                   accessibilityLabel="Show more"
                   testID="insights-v2-detailed-summary-toggle"
@@ -902,9 +942,9 @@ export const VideoAnalysisInsightsV2 = memo(
                   <Text
                     fontSize="$3"
                     fontWeight="500"
-                    color="$color11"
+                    color={isHoveredOrPressed ? '$color12' : '$color11'}
                   >
-                    ... show more
+                    ...show more
                   </Text>
                 </Button>
               ) : null}
@@ -1360,6 +1400,8 @@ export const VideoAnalysisInsightsV2 = memo(
       prevProps.onHighlightPress === nextProps.onHighlightPress &&
       prevProps.onActionPress === nextProps.onActionPress &&
       prevProps.onReelPress === nextProps.onReelPress &&
+      prevProps.isSummaryExpanded === nextProps.isSummaryExpanded &&
+      prevProps.onSummaryToggle === nextProps.onSummaryToggle &&
       prevProps.testID === nextProps.testID
     )
   }

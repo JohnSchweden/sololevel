@@ -357,6 +357,14 @@ export const FeedbackPanel = memo(
     // Comment sorting state
     const [commentSort, setCommentSort] = useState<'top' | 'new'>('top')
 
+    // Insights summary expand state (persists across sub-tab switches)
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
+
+    // Stable callback for toggling summary (uses functional updater, no deps needed)
+    const handleSummaryToggle = useCallback(() => {
+      setIsSummaryExpanded((prev) => !prev)
+    }, [])
+
     // Comment input state
     const [commentInput, setCommentInput] = useState('')
 
@@ -568,15 +576,6 @@ export const FeedbackPanel = memo(
         // }
       }
     }, [flex, flexChanged])
-
-    // Log selected feedback changes (moved from render-time logging)
-    useEffect(() => {
-      // if (__DEV__ && selectedFeedbackId) {
-      //   log.debug('FeedbackPanel', 'Selected feedback changed', {
-      //     selectedFeedbackId,
-      //   })
-      // }
-    }, [selectedFeedbackId])
 
     const formatTime = useCallback((milliseconds: number) => {
       // Convert milliseconds to seconds for duration formatting
@@ -997,11 +996,13 @@ export const FeedbackPanel = memo(
             key="insights-content"
             fullFeedbackText={fullFeedbackText}
             voiceMode={voiceMode}
+            isSummaryExpanded={isSummaryExpanded}
+            onSummaryToggle={handleSummaryToggle}
             testID="insights-content"
           />
         </Suspense>
       ),
-      [fullFeedbackText, voiceMode]
+      [fullFeedbackText, voiceMode, isSummaryExpanded, handleSummaryToggle]
     )
 
     // Render comments tab content
@@ -1399,15 +1400,6 @@ export const FeedbackPanel = memo(
         renderFeedbackItemNode(item, index),
       [renderFeedbackItemNode]
     )
-
-    // Debug: log selectedFeedbackId changes
-    useEffect(() => {
-      // if (__DEV__) {
-      //   log.debug('FeedbackPanel', 'selectedFeedbackId prop changed', {
-      //     selectedFeedbackId,
-      //   })
-      // }
-    }, [selectedFeedbackId])
 
     // TEMP_DISABLED: Sheet toggle functionality for static layout
     // const handleSheetToggle = () => {
