@@ -356,10 +356,24 @@ export const SSML_GENERATION_PROMPT_TEMPLATE = `
 
 {user_prompt}
 
-Feedback text to convert to SSML:
-"{feedback_text}"
+INPUT FORMAT:
+The text to convert will be provided between these markers:
+---INPUT START---
+{feedback_text}
+---INPUT END---
 
-**CRITICAL**: **RETURN ONLY THE SSML CONTENT**, starting with <speak> and ending with </speak>.`
+OUTPUT REQUIREMENTS:
+1. Return raw XML text only (no Markdown code blocks, no backticks, no conversational filler)
+2. Start immediately with <speak> and end immediately with </speak>
+3. Preserve the input text word-for-word (no additions, deletions, or changes)
+
+VALIDATION:
+- If the output contains backticks or Markdown formatting, remove them
+- If the output includes explanatory text before/after the SSML, strip it
+- If any words from the input are missing or changed, correct immediately
+
+**CRITICAL**: Return raw XML starting with <speak> and ending with </speak>. Preserve every word from the input exactly as provided.
+`
 
 
 

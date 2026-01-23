@@ -56,10 +56,10 @@ export async function generateSSMLFromStructuredFeedback(
 
     const request: GenerateTextOnlyRequest = {
       prompt,
-      temperature: 0.3, // Lower temperature for more consistent SSML structure
+      temperature: 1.0, // Lower temperature for more consistent SSML structure
       topK: 40,
       topP: 0.95,
-      maxOutputTokens: 60, // Note: 1024 is the default maxOutputTokens for Gemini LLM
+      maxOutputTokens: 360, // Note: 1024 is the default maxOutputTokens for Gemini LLM
     }
 
     const generationResult = await generateTextOnlyContent(request, config)

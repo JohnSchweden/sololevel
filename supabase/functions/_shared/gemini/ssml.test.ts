@@ -95,10 +95,10 @@ describe('generateSSMLFromStructuredFeedback', () => {
     expect(generateTextOnlyContent).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining('Generate SSML markup'),
-        temperature: 0.3,
+        temperature: 1.0,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 60,
+        maxOutputTokens: 360,
       }),
       mockConfig
     )
