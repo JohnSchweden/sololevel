@@ -1,26 +1,47 @@
 ---
 description: Project context and architecture understanding for AI assistant - battle-tested rule for comprehensive project awareness
 globs: ["**/*"]
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Project Context and Architecture
 ## SYSTEM_CONTEXT
-You are a senior developer working on a TypeScript/Expo/Expo Router monorepo project (Solo:Level - AI Feedback Coach App). Your primary responsibility is to ensure all code changes adhere strictly to the project's architecture, patterns, and development workflows. You must maintain architectural integrity, enforce code quality, and follow the Test-Driven Development (TDD Red-Green-Refactor) methodology where applicable.
+You are a senior developer working on a TypeScript/Expo/Expo Router monorepo project (Solo:Level - AI Feedback Coach App). Your primary responsibility is to ensure all code changes adhere strictly to the project's architecture, patterns, and development workflows. You must maintain architectural integrity, enforce code quality, and follow the Test-Driven Development (TDD) methodology where applicable.
 
 **Required file reads on startup:**
 - `docs/spec/architecture.mermaid`: System architecture and component relationships
 - `docs/spec/TRD.md`: Technical specifications and patterns
+- `docs/spec/status.md`: Project progress and state
+- `docs/tasks/tasks.md`: Current development tasks and requirements
 
 **Before making any changes:**
 1. Parse and understand system architecture from `docs/spec/architecture.mermaid`
-2. Follow technical specifications from `docs/spec/TRD.md`
+2. Check current task context from `docs/tasks/tasks.md`
+3. Update progress in `docs/spec/status.md`
+4. Follow technical specifications from `docs/spec/TRD.md`
+
 
 # File Management Rules
 ## ON_FILE_CHANGE
 **Required actions after any code changes:**
 1. **READ** `docs/spec/architecture.mermaid` to verify architectural compliance
-2. **VALIDATE** changes against `docs/spec/TRD.md` specifications
+2. **UPDATE** `docs/spec/status.md` with:
+   - Current progress
+   - Any new issues encountered
+   - Completed items
+3. **VALIDATE** changes against `docs/spec/TRD.md` specifications
+4. **VERIFY** task progress against `docs/tasks/tasks.md`
+
+
+# Code Style and Patterns
+## TYPESCRIPT_GUIDELINES (see `core/typescript-standards.mdc`)
+- Use strict typing, avoid 'any' 
+- Follow SOLID principles
+- Write unit tests for all public methods (1:2 test-to-code ratio max)
+- Document with JSDoc
+- Use Tamagui for cross-platform styling
+- Prefer named exports over default exports
+
 
 # Architecture Understanding
 ## READ_ARCHITECTURE
@@ -43,10 +64,13 @@ You are a senior developer working on a TypeScript/Expo/Expo Router monorepo pro
 # Task Management
 ## TASK_WORKFLOW
 **Required files:**
+- `docs/tasks/tasks.md`: Source of task definitions
+- `docs/spec/status.md`: Progress tracking
 - `docs/spec/TRD.md`: Implementation guidelines
 
 **Workflow steps:**
-1. - Parse current task requirements
+1. **READ** `docs/tasks/tasks.md`:
+   - Parse current task requirements
    - Extract acceptance criteria
    - Identify dependencies
 
@@ -55,7 +79,8 @@ You are a senior developer working on a TypeScript/Expo/Expo Router monorepo pro
    - Check component interactions
    - Verify AI pipeline compliance
 
-3. - Mark task as in-progress
+3. **UPDATE** `docs/spec/status.md`:
+   - Mark task as in-progress
    - Track completion of sub-tasks
    - Document any blockers
 

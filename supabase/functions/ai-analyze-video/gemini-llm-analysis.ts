@@ -21,11 +21,63 @@ import { type CoachMode, getMockResponseForMode } from '../_shared/gemini/mocks.
 import { extractMetricsFromText, parseDualOutput } from '../_shared/gemini/parse.ts'
 import type { GeminiVideoAnalysisResult, VideoAnalysisParams } from '../_shared/gemini/types.ts'
 import { downloadVideo } from '../_shared/storage/download.ts'
+import { createSignedVideoUrl } from '../_shared/storage/signedUrl.ts'
 
 const logger = createLogger('gemini-llm-analysis')
 
 // Re-export types for backward compatibility
 export type { GeminiVideoAnalysisResult }
+
+/**
+ * Create a direct file reference for Gemini from video path
+ * Supports both HTTP(S) URLs and storage paths (converted to signed URLs)
+ */
+async function createDirectFileRef(
+  supabaseClient: any,
+  videoPath: string
+): Promise<{ name: string; uri: string; mimeType: string }> {
+  let uri: string
+  
+  if (/^https?:\/\//i.test(videoPath)) {
+    uri = videoPath
+    logger.info('Using HTTP(S) URL directly for Gemini', { videoPath: videoPath.slice(0, 80) })
+  } else {
+    uri = await createSignedVideoUrl(supabaseClient, videoPath, 300)
+    logger.info('Using signed URL for Gemini (no download/upload)', { videoPath: videoPath.slice(0, 80) })
+  }
+  
+  // Gemini requires HTTPS and a URL reachable by Google (e.g. public Supabase). Local/dev
+  // signed URLs (http://kong:8000, http://127.0.0.1) are rejected with INVALID_ARGUMENT.
+  if (!uri.startsWith('https://')) {
+    throw new Error(
+      `Direct URL must be HTTPS for Gemini (e.g. production SUPABASE_URL); got ${uri.split('?')[0].slice(0, 80)}`
+    )
+  }
+  
+  return { name: 'direct-url', uri, mimeType: 'video/mp4' }
+}
+
+/**
+ * Generate content with Gemini using a file reference
+ * Centralizes the generateContent call to avoid duplication
+ */
+async function generateWithFileRef(
+  fileRef: { name: string; uri: string; mimeType: string },
+  prompt: string,
+  config: any,
+  logger?: any
+): Promise<{ text: string; rawResponse: any; prompt: string }> {
+  return await generateContent({
+    fileRef,
+    prompt,
+    temperature: 1.0,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 2048,
+    thinkingConfig: { thinkingLevel: 'LOW' },
+    mediaResolution: 'MEDIA_RESOLUTION_LOW',
+  }, config, logger)
+}
 
 /**
  * Analyze video content using Gemini with Files API
@@ -56,11 +108,15 @@ export async function analyzeVideoWithGemini(
     duration: analysisParams?.duration || 6,
   }
   
-  // Use customPrompt if provided, otherwise check voiceConfig, otherwise fall back to default (Roast)
-  const prompt = customPrompt 
-    || (analysisParams?.voiceConfig 
-      ? buildPromptFromConfig(analysisParams.voiceConfig, mappedParams.duration)
-      : _getGeminiAnalysisPrompt(mappedParams as any))
+  // Determine prompt: custom > voiceConfig > default (Roast)
+  let prompt: string
+  if (customPrompt) {
+    prompt = customPrompt
+  } else if (analysisParams?.voiceConfig) {
+    prompt = buildPromptFromConfig(analysisParams.voiceConfig, mappedParams.duration)
+  } else {
+    prompt = _getGeminiAnalysisPrompt(mappedParams as any)
+  }
     
   logger.info(`Generated analysis prompt: ${prompt.length} characters`)
 
@@ -95,9 +151,12 @@ export async function analyzeVideoWithGemini(
       }
 
       // Detect mode from prompt content for mode-specific mock response
-      const mode: CoachMode = prompt.includes('Zen me') ? 'zen' 
-                            : prompt.includes('Lovebomb me') ? 'lovebomb' 
-                            : 'roast'
+      let mode: CoachMode = 'roast'
+      if (prompt.includes('Zen me')) {
+        mode = 'zen'
+      } else if (prompt.includes('Lovebomb me')) {
+        mode = 'lovebomb'
+      }
       
       logger.info(`Mock mode detected: ${mode}`, { 
         promptSnippet: prompt.substring(0, 100) 
@@ -112,76 +171,70 @@ export async function analyzeVideoWithGemini(
         prompt,
       }
     } else {
-      // REAL mode: Use Gemini API
+      // REAL mode: try direct URL first (signed or http), fallback to download+Files API
       logger.info(`Starting Gemini analysis (${config.mmModel}) for video: ${videoPath}`)
 
-      // Step 1: Download video (20% progress)
-      const downloadLogger = dbLogger?.child ? dbLogger.child('storage-download') : dbLogger
-      downloadLogger?.info('Starting video download', { videoPath })
-      const downloadStartTime = Date.now()
-      const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb, downloadLogger)
-      downloadLogger?.info('Video download completed', {
-        videoPath,
-        sizeMB: (bytes.length / (1024 * 1024)).toFixed(2),
-        elapsedMs: Date.now() - downloadStartTime
-      })
+      const runFallback = async (): Promise<{ text: string; rawResponse: any; prompt: string }> => {
+        const downloadLogger = dbLogger?.child ? dbLogger.child('storage-download') : dbLogger
+        downloadLogger?.info('Starting video download (fallback)', { videoPath })
+        
+        const { bytes, mimeType } = await downloadVideo(supabaseClient, videoPath, config.filesMaxMb, downloadLogger)
+        if (progressCallback) await progressCallback(20)
 
-      if (progressCallback) {
-        await progressCallback(20)
+        const displayName = `analysis_${Date.now()}.mp4`
+        const filesLogger = dbLogger?.child ? dbLogger.child('gemini-files-client') : dbLogger
+        const fileRef = await uploadToGemini(bytes, mimeType, displayName, config, filesLogger)
+        if (progressCallback) await progressCallback(40)
+
+        await pollFileActive(fileRef.name, config, undefined, filesLogger)
+        if (progressCallback) await progressCallback(55)
+
+        const generateLogger = dbLogger?.child ? dbLogger.child('gemini-generate') : dbLogger
+        const result = await generateWithFileRef(fileRef, prompt, config, generateLogger)
+        if (progressCallback) await progressCallback(70)
+        
+        return result
       }
 
-      // Step 2: Upload video to Gemini Files API (40% progress)
-      const displayName = `analysis_${Date.now()}.mp4`
-      const filesLogger = dbLogger?.child ? dbLogger.child('gemini-files-client') : dbLogger
-      filesLogger?.info('Starting video upload to Gemini', { displayName, sizeMB: (bytes.length / (1024 * 1024)).toFixed(2) })
-      const uploadStartTime = Date.now()
-      const fileRef = await uploadToGemini(bytes, mimeType, displayName, config, filesLogger)
-      filesLogger?.info('Video upload to Gemini completed', {
-        fileName: fileRef.name,
-        elapsedMs: Date.now() - uploadStartTime
-      })
-
-      if (progressCallback) {
-        await progressCallback(40)
-      }
-
-      // Step 3: Poll until file is ACTIVE (55% progress)
-      filesLogger?.info('Starting file polling until ACTIVE', { fileName: fileRef.name })
-      const pollStartTime = Date.now()
-      await pollFileActive(fileRef.name, config, undefined, filesLogger)
-      filesLogger?.info('File became ACTIVE', {
-        fileName: fileRef.name,
-        elapsedMs: Date.now() - pollStartTime
-      })
-
-      if (progressCallback) {
-        await progressCallback(55)
-      }
-
-      // Step 4: Generate content with Gemini (70% progress)
-      const generateLogger = dbLogger?.child ? dbLogger.child('gemini-generate') : dbLogger
-      generateLogger?.info('Starting content generation', { fileName: fileRef.name, promptLength: prompt.length })
-      const generateStartTime = Date.now()
-      generationResult = await generateContent({
-        fileRef,
-        prompt,
-        temperature: 1.0,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 2048,
-        thinkingConfig: {
-          thinkingLevel: 'LOW',
-        },
-        mediaResolution: 'MEDIA_RESOLUTION_LOW',
-      }, config, generateLogger)
-      generateLogger?.info('Content generation completed', {
-        fileName: fileRef.name,
-        textLength: generationResult.text.length,
-        elapsedMs: Date.now() - generateStartTime
-      })
-
-      if (progressCallback) {
-        await progressCallback(70)
+      try {
+        const fileRef = await createDirectFileRef(supabaseClient, videoPath)
+        
+        if (progressCallback) {
+          await progressCallback(20)
+          await progressCallback(40)
+          await progressCallback(55)
+        }
+        
+        const generateLogger = dbLogger?.child ? dbLogger.child('gemini-generate') : dbLogger
+        generateLogger?.info('Starting content generation (direct URL)', { 
+          videoPath: videoPath.slice(0, 80), 
+          promptLength: prompt.length 
+        })
+        
+        generationResult = await generateWithFileRef(fileRef, prompt, config, generateLogger)
+        
+        if (progressCallback) await progressCallback(70)
+      } catch (directError) {
+        const directUrlOnly = (globalThis as any).Deno?.env?.get('GEMINI_DIRECT_URL_ONLY') === 'true'
+        if (directUrlOnly) {
+          logger.info('GEMINI_DIRECT_URL_ONLY=true: skipping fallback, rethrowing')
+          dbLogger?.error('GEMINI_DIRECT_URL_ONLY: direct URL path failed, fallback disabled', {
+            error: directError instanceof Error ? directError.message : String(directError),
+            videoPath: videoPath.slice(0, 80),
+          })
+          throw directError
+        }
+        
+        logger.info('Direct URL path failed, falling back to download+Files API', {
+          error: directError instanceof Error ? directError.message : String(directError),
+          videoPath: videoPath.slice(0, 80),
+        })
+        dbLogger?.error('Direct URL path failed, falling back to download+Files API', {
+          error: directError instanceof Error ? directError.message : String(directError),
+          videoPath: videoPath.slice(0, 80),
+        })
+        
+        generationResult = await runFallback()
       }
     }
 
