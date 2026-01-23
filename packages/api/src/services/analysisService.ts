@@ -1436,6 +1436,69 @@ export async function startGeminiVideoAnalysis(
   return data as AIAnalysisResponse
 }
 
+/**
+ * Rate individual feedback item
+ * Updates user_rating and user_rating_at columns for a specific feedback item
+ *
+ * @param feedbackId - ID of the feedback item to rate
+ * @param rating - 'up' for helpful, 'down' for not helpful, null to clear rating
+ * @throws Error if update fails
+ */
+export async function rateFeedbackItem(
+  feedbackId: number,
+  rating: 'up' | 'down' | null
+): Promise<void> {
+  const updateData =
+    rating === null
+      ? { user_rating: null, user_rating_at: null }
+      : { user_rating: rating, user_rating_at: new Date().toISOString() }
+
+  const { error, count } = await supabase
+    .from('analysis_feedback')
+    .update(updateData)
+    .eq('id', feedbackId)
+
+  if (error) {
+    throw new Error(
+      `Failed to update feedback rating (id=${feedbackId}): ${error.message} (code: ${error.code})`
+    )
+  }
+
+  if (count === 0) {
+    throw new Error(`Feedback item with id=${feedbackId} not found`)
+  }
+}
+
+/**
+ * Rate overall analysis feedback (Brutal Truth section)
+ * Updates user_rating and user_rating_at columns for the full feedback text
+ *
+ * @param analysisId - UUID of the analysis to rate
+ * @param rating - 'up' for helpful, 'down' for not helpful, null to clear rating
+ * @throws Error if update fails
+ */
+export async function rateAnalysisFeedback(
+  analysisId: string,
+  rating: 'up' | 'down' | null
+): Promise<void> {
+  const updateData =
+    rating === null
+      ? { user_rating: null, user_rating_at: null }
+      : { user_rating: rating, user_rating_at: new Date().toISOString() }
+
+  const { error, count } = await supabase.from('analyses').update(updateData).eq('id', analysisId)
+
+  if (error) {
+    throw new Error(
+      `Failed to update analysis rating (id=${analysisId}): ${error.message} (code: ${error.code})`
+    )
+  }
+
+  if (count === 0) {
+    throw new Error(`Analysis with id=${analysisId} not found`)
+  }
+}
+
 // Mock exports for testing (defined in __mocks__ directory)
 export const __mockCreateAnalysisJob = (() => {}) as any
 export const __mockUpdateAnalysisJob = (() => {}) as any

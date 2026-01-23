@@ -459,7 +459,17 @@ async function applyExponentialBackoff(
   attempt: number,
   logger: any
 ): Promise<void> {
-  const backoffMs = Math.pow(2, attempt - 1) * 1000
+  const baseBackoffMs = parseInt(
+    (globalThis as any).Deno?.env?.get?.('AI_AUDIO_RETRY_BACKOFF_MS') ?? '1000',
+    10
+  )
+
+  if (baseBackoffMs <= 0) {
+    logger.info('Skipping audio retry backoff (disabled)', { feedbackId: jobId, attempt })
+    return
+  }
+
+  const backoffMs = Math.pow(2, attempt - 1) * baseBackoffMs
   
   logger.info('Retrying audio job after backoff', {
     feedbackId: jobId,

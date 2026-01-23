@@ -14,6 +14,7 @@ export interface FeedbackPanelItem {
   audioUrl?: string
   audioError?: string
   confidence: number
+  userRating?: 'up' | 'down' | null
 }
 
 // Props for VideoAnalysisScreen component (moved from orchestrator)

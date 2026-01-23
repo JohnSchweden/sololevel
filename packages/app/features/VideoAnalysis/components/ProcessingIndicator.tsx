@@ -420,7 +420,7 @@ export function ProcessingIndicator({ phase, subscription }: ProcessingIndicator
 
   const displayDescription = useMemo(() => {
     if (isSlowTTS || isSlowVideo) {
-      return "💆‍♂️ I'm still alive but AI is taking longer than usual... ⏳"
+      return "💆‍♂️ I'm still alive but my circuits are taking longer than usual... ⏳"
     }
     return description
   }, [isSlowTTS, isSlowVideo, description])

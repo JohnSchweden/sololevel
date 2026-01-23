@@ -3,6 +3,7 @@
  * Tests the text-to-speech service interface and implementations
  */
 
+import process from 'node:process'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   GeminiTTSService,
@@ -21,6 +22,7 @@ describe('TTSService', () => {
   let mockContext: TTSContext
 
   beforeEach(() => {
+    process.env['AI_ANALYSIS_MOCK_DELAY_MS'] = '0'
     mockContext = {
       ssml: '<speak><p>Test SSML content for TTS</p></speak>',
       customParams: {
@@ -31,6 +33,10 @@ describe('TTSService', () => {
     }
 
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    delete process.env['AI_ANALYSIS_MOCK_DELAY_MS']
   })
 
   describe('MockTTSService', () => {

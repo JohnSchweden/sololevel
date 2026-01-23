@@ -84,6 +84,9 @@ export {
   // Query helpers
   getLatestAnalysisJobForRecordingId,
   getAnalysisIdForJobId,
+  // Rating functions
+  rateFeedbackItem,
+  rateAnalysisFeedback,
   // Mock exports for testing (defined in __mocks__ directory)
   __mockCreateAnalysisJob,
   __mockUpdateAnalysisJob,

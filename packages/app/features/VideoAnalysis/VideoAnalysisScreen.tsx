@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useStatusBar } from '@app/hooks/useStatusBar'
+import { rateAnalysisFeedback, rateFeedbackItem } from '@my/api'
 import { log } from '@my/logging'
 import type { VideoControlsRef } from '@ui/components/VideoAnalysis'
 // PERFORMANCE FIX: useVideoPlayer moved to VideoPlayerSection to prevent screen re-renders
@@ -17,6 +18,7 @@ import { useHistoricalAnalysis } from './hooks/useHistoricalAnalysis'
 import { useVideoPlayerStore } from './stores'
 import { useFeedbackAudioStore } from './stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from './stores/feedbackCoordinatorStore'
+import { useFeedbackStatusStore } from './stores/feedbackStatus'
 // Removed unused store imports - moved subscriptions to child components
 // import { usePersistentProgressStore, useVideoPlayerStore } from './stores'
 import type { FeedbackPanelItem, VideoAnalysisScreenProps } from './types'
@@ -445,22 +447,29 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
   // useHistoricalAnalysis returns data: CachedAnalysis | null (not HistoricalAnalysisData)
   let analysisTitle = historical.data?.title ?? undefined
   let fullFeedbackText = historical.data?.fullFeedbackText ?? undefined
+  let fullFeedbackRating = historical.data?.fullFeedbackRating ?? undefined
   let avatarAssetKey = historical.data?.avatarAssetKeyUsed ?? undefined
 
-  // For active analyses (not in history mode), try to get title and full feedback from cache
+  // FIX: Allow cache access in history mode too - fullFeedbackRating updates need to be visible
   // CRITICAL: Use selector hook (not getState()) to subscribe to cache updates
   // When background fetch in useHistoricalAnalysis calls updateCache() to populate fullFeedbackText,
   // this component will re-render with the new data
-  const cachedAnalysis = useVideoHistoryStore((state) =>
-    !isHistoryMode && analysisState.analysisJobId
-      ? state.getCached(analysisState.analysisJobId)
-      : null
-  )
+  const cachedAnalysis = useVideoHistoryStore((state) => {
+    if (!analysisState.analysisJobId) {
+      return null
+    }
+    const result = state.getCached(analysisState.analysisJobId)
+    return result
+  })
   if (cachedAnalysis?.title) {
     analysisTitle = cachedAnalysis.title
   }
   if (cachedAnalysis?.fullFeedbackText) {
     fullFeedbackText = cachedAnalysis.fullFeedbackText
+  }
+  if (cachedAnalysis?.fullFeedbackRating !== undefined) {
+    fullFeedbackRating = cachedAnalysis.fullFeedbackRating ?? undefined
+  } else {
   }
   if (cachedAnalysis?.avatarAssetKeyUsed) {
     avatarAssetKey = cachedAnalysis.avatarAssetKeyUsed
@@ -500,6 +509,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       progress: analysisState.progress,
       analysisTitle, // AI-generated analysis title
       fullFeedbackText, // Full AI-generated feedback text from analyses table
+      fullFeedbackRating, // User rating for the full feedback text
       isHistoryMode,
     }),
     [
@@ -510,6 +520,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       // videoPlayer.currentTime REMOVED - was causing render cascades
       analysisTitle,
       fullFeedbackText,
+      fullFeedbackRating,
       analysisState.phase,
       analysisState.progress,
       isHistoryMode,
@@ -754,6 +765,75 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       onRetryFeedback: (feedbackId: string) =>
         analysisStateRef.current.feedback.retryFailedFeedback(feedbackId),
       onDismissError: (id: string) => feedbackAudioSourceRef.current.clearError(id),
+      onFeedbackRatingChange: async (feedbackId: string, rating: 'up' | 'down' | null) => {
+        try {
+          const numericId = Number.parseInt(feedbackId, 10)
+          if (Number.isNaN(numericId)) {
+            log.error('VideoAnalysisScreen.onFeedbackRatingChange', 'Invalid feedbackId', {
+              feedbackId,
+              numericId,
+            })
+            return
+          }
+          // Optimistic update could be added here if needed
+          await rateFeedbackItem(numericId, rating)
+
+          // Update store directly instead of waiting for realtime (realtime may not fire for rating updates)
+          useFeedbackStatusStore.getState().updateFeedback(numericId, {
+            user_rating: rating,
+            user_rating_at: rating ? new Date().toISOString() : null,
+          })
+
+          log.info('VideoAnalysisScreen.onFeedbackRatingChange', 'Rating updated', {
+            feedbackId,
+            numericId,
+            rating,
+          })
+        } catch (error) {
+          log.error('VideoAnalysisScreen.onFeedbackRatingChange', 'Failed to update rating', {
+            feedbackId,
+            rating,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorDetails: error,
+          })
+        }
+      },
+      onFullFeedbackRatingChange: async (rating: 'up' | 'down' | null) => {
+        try {
+          const analysisUuid = analysisState.analysisUuid
+          if (!analysisUuid) {
+            log.warn('VideoAnalysisScreen.onFullFeedbackRatingChange', 'No analysis UUID available')
+            return
+          }
+          // Optimistic update could be added here if needed
+          await rateAnalysisFeedback(analysisUuid, rating)
+
+          // Update cache directly so it persists and shows on next load
+          if (analysisState.analysisJobId) {
+            useVideoHistoryStore.getState().updateCache(analysisState.analysisJobId, {
+              fullFeedbackRating: rating,
+            })
+          }
+
+          log.info(
+            'VideoAnalysisScreen.onFullFeedbackRatingChange',
+            'Full feedback rating updated',
+            {
+              analysisUuid,
+              rating,
+            }
+          )
+        } catch (error) {
+          log.error(
+            'VideoAnalysisScreen.onFullFeedbackRatingChange',
+            'Failed to update full feedback rating',
+            {
+              rating,
+              error,
+            }
+          )
+        }
+      },
     }),
     [
       // Only truly stable dependencies - props that rarely change
@@ -765,6 +845,7 @@ export function VideoAnalysisScreen(props: VideoAnalysisScreenProps) {
       setVideoEnded,
       setDisplayTime,
       setDuration,
+      analysisState.analysisUuid, // For rating full feedback
     ]
   )
 

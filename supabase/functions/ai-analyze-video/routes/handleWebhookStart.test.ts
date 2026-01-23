@@ -186,8 +186,9 @@ Deno.test('handleWebhookStart - updates status to processing BEFORE pipeline sta
     })
   })
 
-  // Set environment variable for secret
+  // Set environment variables for secret
   Deno.env.set('DB_WEBHOOK_SECRET', 'test-secret')
+  Deno.env.set('PIPELINE_STAGES', JSON.stringify({ runVideoAnalysis: false, runLLMFeedback: false, runSSML: false, runAudio: false }))  // Disable all pipeline stages for test
 
   try {
     // Act
@@ -204,5 +205,6 @@ Deno.test('handleWebhookStart - updates status to processing BEFORE pipeline sta
     assertEquals(statusUpdateValue, 'processing', 'Status should be set to processing')
   } finally {
     Deno.env.delete('DB_WEBHOOK_SECRET')
+    Deno.env.delete('PIPELINE_STAGES')
   }
 })

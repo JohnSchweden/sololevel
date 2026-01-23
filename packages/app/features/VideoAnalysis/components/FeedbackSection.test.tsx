@@ -47,6 +47,8 @@ const createProps = () => ({
   onRetryFeedback: jest.fn(),
   onDismissError: jest.fn(),
   onSelectAudio: jest.fn(),
+  onFeedbackRatingChange: jest.fn(),
+  onFullFeedbackRatingChange: jest.fn(),
 })
 
 // Mock components before importing FeedbackSection

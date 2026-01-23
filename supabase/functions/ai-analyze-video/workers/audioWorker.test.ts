@@ -3,6 +3,9 @@
 
 import { assertExists as _assertExists, assertEquals } from 'https://deno.land/std@0.192.0/testing/asserts.ts'
 
+// Disable retry backoff in tests
+Deno.env.set('AI_AUDIO_RETRY_BACKOFF_MS', '0')
+
 // Mock logger
 const mockLogger = {
   info: (msg: string, data?: any) => console.log(`INFO: ${msg}`, data),
@@ -218,7 +221,7 @@ import { processAudioJobs } from './audioWorker.ts'
 
 Deno.test('Audio worker - processes queued jobs', async () => {
   Deno.env.set('AI_ANALYSIS_MODE', 'mock')
-  // Test that the Audio worker processes jobs correctly
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   audioStatusUpdates.length = 0
   const result = await processAudioJobs({
     supabase: mockSupabaseForAudio,
@@ -309,35 +312,31 @@ Deno.test('Audio worker - handles missing SSML segments', async () => {
 })
 
 Deno.test('Audio worker - generates audio from SSML', async () => {
-  // Test audio generation functionality
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   const result = await processAudioJobs({
     supabase: mockSupabaseForAudio,
     logger: mockLogger
   })
   
-  // The worker should successfully process the job and generate audio
   assertEquals(result.processedJobs, 1)
   assertEquals(result.errors, 0)
 })
 
 Deno.test('Audio worker - handles TTS service errors', async () => {
   Deno.env.set('AI_ANALYSIS_MODE', 'mock')
-  // Mock that fails on audio generation
-  // This test will verify error handling when TTS fails
-  
-  // For now, we'll test with a successful case since we're using mock TTS
-  // In production, this would test actual TTS service failures
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   const result = await processAudioJobs({
     supabase: mockSupabaseForAudio,
     logger: mockLogger
   })
   
-  // Should handle gracefully
   assertEquals(result.processedJobs, 1)
 })
 
 Deno.test('Audio worker - fetches voice preferences and config', async () => {
   Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   voiceSnapshotUpdates.length = 0
   
   const result = await processAudioJobs({
@@ -345,11 +344,9 @@ Deno.test('Audio worker - fetches voice preferences and config', async () => {
     logger: mockLogger
   })
   
-  // Should process successfully
   assertEquals(result.processedJobs, 1)
   assertEquals(result.errors, 0)
   
-  // Should have updated analysis_jobs with voice snapshot
   assertEquals(voiceSnapshotUpdates.length, 1)
   const snapshot = voiceSnapshotUpdates[0]
   assertEquals(snapshot.coach_gender, 'female')
@@ -360,14 +357,13 @@ Deno.test('Audio worker - fetches voice preferences and config', async () => {
 
 Deno.test('Audio worker - passes voice name to TTS', async () => {
   Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   
-  // Test that voice name from config is passed to TTS
   const result = await processAudioJobs({
     supabase: mockSupabaseForAudio,
     logger: mockLogger
   })
   
-  // Should process successfully with voice config applied
   assertEquals(result.processedJobs, 1)
   assertEquals(result.errors, 0)
 })

@@ -58,6 +58,9 @@ const createFeedbackSignature = (items: FeedbackState): string =>
         item.audioUpdatedAt,
         item.updatedAt,
         item.isSubscribed ? '1' : '0',
+        // FIX: Include userRating and userRatingAt in signature so rating changes trigger state updates
+        item.userRating ?? 'null',
+        item.userRatingAt ?? 'null',
       ].join(':')
     )
     .join('|')
@@ -227,7 +230,7 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
         const { data, error } = await (supabase as any)
           .from('analysis_feedback')
           .select(
-            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
           )
           .eq('analysis_id', analysisId)
           .order('timestamp_seconds', { ascending: true })
@@ -374,10 +377,11 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
   // Transform feedback data for UI components
   // Stabilize by comparing content signatures instead of array reference - prevents unnecessary recreations
   // Create signature from properties that affect the transformed items
+  // FIX: Include userRating and userRatingAt in signature so rating changes trigger recalculation
   const feedbacksSignature = feedbacks
     .map(
       (f) =>
-        `${f.id}:${f.ssmlStatus}:${f.audioStatus}:${f.timestampSeconds}:${f.message?.substring(0, 20)}:${f.confidence}:${f.category}`
+        `${f.id}:${f.ssmlStatus}:${f.audioStatus}:${f.timestampSeconds}:${f.message?.substring(0, 20)}:${f.confidence}:${f.category}:${f.userRating ?? 'null'}:${f.userRatingAt ?? 'null'}`
     )
     .join('|')
   const prevFeedbackItemsRef = useRef<FeedbackPanelItem[]>([])
@@ -396,16 +400,19 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
     }
 
     // Content changed, create new array
-    const items = feedbacks.map<FeedbackPanelItem>((feedback) => ({
-      id: feedback.id.toString(),
-      timestamp: feedback.timestampSeconds * 1000, // Convert to milliseconds for UI
-      text: feedback.message,
-      type: 'suggestion', // Default type, could be enhanced based on category
-      category: normalizeFeedbackCategory(feedback.category),
-      ssmlStatus: feedback.ssmlStatus as FeedbackPanelItem['ssmlStatus'],
-      audioStatus: feedback.audioStatus as FeedbackPanelItem['audioStatus'],
-      confidence: feedback.confidence,
-    }))
+    const items = feedbacks.map<FeedbackPanelItem>((feedback) => {
+      return {
+        id: feedback.id.toString(),
+        timestamp: feedback.timestampSeconds * 1000, // Convert to milliseconds for UI
+        text: feedback.message,
+        type: 'suggestion', // Default type, could be enhanced based on category
+        category: normalizeFeedbackCategory(feedback.category),
+        ssmlStatus: feedback.ssmlStatus as FeedbackPanelItem['ssmlStatus'],
+        audioStatus: feedback.audioStatus as FeedbackPanelItem['audioStatus'],
+        confidence: feedback.confidence,
+        userRating: feedback.userRating,
+      }
+    })
 
     if (__DEV__) {
       // const breakdown = items.reduce(
@@ -525,7 +532,7 @@ export function useFeedbackStatusIntegration(analysisId?: string, isHistoryMode 
           const { data, error } = await supabase
             .from('analysis_feedback')
             .select(
-              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
             )
             .eq('analysis_id', analysisId)
             .order('created_at', { ascending: true })

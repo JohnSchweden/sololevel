@@ -113,6 +113,7 @@ export interface VideoAnalysisLayoutProps {
     }
     analysisTitle?: string // AI-generated analysis title
     fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
+    fullFeedbackRating?: 'up' | 'down' | null // User rating for the full feedback text
     isHistoryMode: boolean
   }
 
@@ -147,6 +148,8 @@ export interface VideoAnalysisLayoutProps {
     // onExpand removed - FeedbackSection handles expand directly
     onRetryFeedback: (feedbackId: string) => void
     onDismissError: (feedbackId: string) => void
+    onFeedbackRatingChange: (feedbackId: string, rating: 'up' | 'down' | null) => void
+    onFullFeedbackRatingChange: (rating: 'up' | 'down' | null) => void
   }
 
   // Component refs
@@ -518,6 +521,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   feedbackItems={feedback.items}
                   analysisTitle={feedback.analysisTitle}
                   fullFeedbackText={feedback.fullFeedbackText}
+                  fullFeedbackRating={feedback.fullFeedbackRating}
                   isHistoryMode={feedback.isHistoryMode}
                   voiceMode={props.voiceMode || 'roast'}
                   // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
@@ -531,6 +535,8 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   onRetryFeedback={handlers.onRetryFeedback}
                   onDismissError={handlers.onDismissError}
                   onSelectAudio={handlers.onSelectAudio}
+                  onFeedbackRatingChange={handlers.onFeedbackRatingChange}
+                  onFullFeedbackRatingChange={handlers.onFullFeedbackRatingChange}
                   onScrollYChange={handlers.onFeedbackScrollY}
                   onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
                   scrollYShared={animation.feedbackContentOffsetY}

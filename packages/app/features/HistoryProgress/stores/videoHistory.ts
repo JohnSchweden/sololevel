@@ -27,6 +27,7 @@ export interface CachedAnalysis {
   userId: string
   title: string
   fullFeedbackText?: string // Complete AI-generated feedback text from analyses table
+  fullFeedbackRating?: 'up' | 'down' | null // User rating for the full feedback text
   createdAt: string
   thumbnail?: string
   /**
@@ -199,13 +200,22 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
           // Add to cache
           addToCache: (analysis) => {
             const now = Date.now()
-            const entry: CachedAnalysis = {
-              ...analysis,
-              cachedAt: now,
-              lastAccessed: now,
-            }
 
             set((draft) => {
+              // FIX: Preserve existing fullFeedbackRating if entry already exists (user updates should not be overwritten by stale DB data)
+              const existing = draft.cache.get(analysis.id)
+              const preservedFullFeedbackRating =
+                existing?.fullFeedbackRating !== undefined
+                  ? existing.fullFeedbackRating
+                  : analysis.fullFeedbackRating
+
+              const entry: CachedAnalysis = {
+                ...analysis,
+                fullFeedbackRating: preservedFullFeedbackRating,
+                cachedAt: existing?.cachedAt ?? now,
+                lastAccessed: now,
+              }
+
               draft.cache.set(analysis.id, entry)
               // Only index persisted paths (recordings/), not temporary cache paths
               if (
@@ -231,7 +241,21 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             set((draft) => {
               // Add all cache entries in a single transaction
               analyses.forEach((entry) => {
-                draft.cache.set(entry.id, entry)
+                // FIX: Preserve existing fullFeedbackRating if entry already exists (user updates should not be overwritten by stale DB data)
+                const existing = draft.cache.get(entry.id)
+                const preservedFullFeedbackRating =
+                  existing?.fullFeedbackRating !== undefined
+                    ? existing.fullFeedbackRating
+                    : entry.fullFeedbackRating
+
+                const entryToSet: CachedAnalysis = {
+                  ...entry,
+                  fullFeedbackRating: preservedFullFeedbackRating,
+                  cachedAt: existing?.cachedAt ?? entry.cachedAt,
+                  lastAccessed: entry.lastAccessed,
+                }
+
+                draft.cache.set(entry.id, entryToSet)
                 // Only index persisted paths (recordings/), not temporary cache paths
                 if (
                   entry.storagePath &&
@@ -261,8 +285,27 @@ export const useVideoHistoryStore = create<VideoHistoryStore>()(
             set((draft) => {
               const entry = draft.cache.get(id)
               if (entry) {
-                Object.assign(entry, updates)
+                // FIX: Direct property assignment (Immer best practice) instead of Object.assign
+                // Apply all updates directly to the draft entry
+                if (updates.title !== undefined) entry.title = updates.title
+                if (updates.fullFeedbackText !== undefined)
+                  entry.fullFeedbackText = updates.fullFeedbackText
+                if (updates.thumbnail !== undefined) entry.thumbnail = updates.thumbnail
+                if (updates.cloudThumbnailUrl !== undefined)
+                  entry.cloudThumbnailUrl = updates.cloudThumbnailUrl
+                if (updates.videoUri !== undefined) entry.videoUri = updates.videoUri
+                if (updates.storagePath !== undefined) entry.storagePath = updates.storagePath
+                if (updates.results !== undefined) entry.results = updates.results
+                if (updates.poseData !== undefined) entry.poseData = updates.poseData
+                if (updates.avatarAssetKeyUsed !== undefined)
+                  entry.avatarAssetKeyUsed = updates.avatarAssetKeyUsed
+
+                // CRITICAL: Use 'in' operator to allow null assignment (clearing rating)
+                if ('fullFeedbackRating' in updates)
+                  entry.fullFeedbackRating = updates.fullFeedbackRating
+
                 entry.lastAccessed = Date.now()
+
                 // Only index persisted paths (recordings/), not temporary cache paths
                 const videoUri = updates.videoUri
                 const storagePath = updates.storagePath || entry.storagePath

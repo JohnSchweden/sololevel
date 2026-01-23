@@ -437,6 +437,47 @@ describe('FeedbackPanel', () => {
         expect(screen.queryByText('Bend your knees a little bit')).toBeFalsy()
       })
 
+      it('renders feedback items via FlatList data prop (virtualization)', () => {
+        // 🧪 ARRANGE: Render with feedback items
+        const { container } = render(
+          <FeedbackPanel
+            {...mockProps}
+            isExpanded={true}
+            activeTab="feedback"
+          />
+        )
+
+        // ✅ ASSERT: FlatList receives data prop with items (not empty array)
+        // In test environment, MockFlatList renders items from data prop
+        // Check that feedback items are rendered via FlatList, not manual map
+        const flatList = container.querySelector('[data-testid="feedback-panel-scroll"]')
+        expect(flatList).toBeTruthy()
+
+        // Verify items are rendered (they should be children of FlatList in test mock)
+        expect(screen.getByLabelText('00:01, Great posture!, feedback item')).toBeTruthy()
+        expect(
+          screen.getByLabelText('00:02, Bend your knees a little bit, feedback item')
+        ).toBeTruthy()
+      })
+
+      it('shows empty state when FlatList data is empty', () => {
+        // 🧪 ARRANGE: Render with empty feedback items
+        render(
+          <FeedbackPanel
+            {...mockProps}
+            isExpanded={true}
+            activeTab="feedback"
+            feedbackItems={[]}
+          />
+        )
+
+        // ✅ ASSERT: Empty state message is shown
+        expect(screen.getByLabelText('No feedback available')).toBeTruthy()
+        expect(
+          screen.getByText('Feedback will appear here once the analysis completes.')
+        ).toBeTruthy()
+      })
+
       it('calls onFeedbackItemPress when a feedback item is pressed', () => {
         const mockOnFeedbackItemPress = jest.fn()
         render(

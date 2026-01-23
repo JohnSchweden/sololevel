@@ -1,7 +1,26 @@
-import { Bookmark, BookmarkCheck, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
+import type { IconProps } from '@tamagui/helpers-icon'
+import { Bookmark, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, YStack } from 'tamagui'
+
+// Filled heart icon component for active state
+const HeartFilled = (props: IconProps) => (
+  <Heart
+    {...props}
+    fill="currentColor"
+    strokeWidth={0}
+  />
+)
+
+// Filled bookmark icon component for active state
+const BookmarkFilled = (props: IconProps) => (
+  <Bookmark
+    {...props}
+    fill="currentColor"
+    strokeWidth={0}
+  />
+)
 
 // Shadow styles - static, platform-evaluated once at module load
 const ICON_SHADOW_STYLE =
@@ -165,8 +184,8 @@ export function SocialIcons({
             size={BUTTON_SIZE}
             minWidth={BUTTON_MIN_WIDTH}
             minHeight={BUTTON_MIN_HEIGHT}
-            icon={Heart}
-            color={isLiked ? '#ff3b30' : iconColor}
+            icon={isLiked ? HeartFilled : Heart}
+            color={iconColor}
             marginBottom={marginBottom}
             onPress={handleLike}
             testID="social-like-button"
@@ -243,7 +262,7 @@ export function SocialIcons({
             size={BUTTON_SIZE}
             minWidth={BUTTON_MIN_WIDTH}
             minHeight={BUTTON_MIN_HEIGHT}
-            icon={isBookmarked ? BookmarkCheck : Bookmark}
+            icon={isBookmarked ? BookmarkFilled : Bookmark}
             color={iconColor}
             marginBottom={marginBottom}
             onPress={handleBookmark}

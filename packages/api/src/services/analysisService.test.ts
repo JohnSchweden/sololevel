@@ -14,14 +14,18 @@ import {
   getAnalysisJob,
   getAnalysisJobByVideoId,
   getAnalysisWithMetrics,
+  rateAnalysisFeedback,
+  rateFeedbackItem,
   storeAnalysisResults,
   updateAnalysisJobWithPoseData,
 } from './analysisService'
 
 // Mock Supabase with proper chaining support
-const createChainableMock = () => {
+type EqReturns = { error: { message?: string; code?: string } | null; count?: number }
+
+const createChainableMock = (opts?: { eqReturns?: EqReturns }) => {
   const mock = {
-    eq: vi.fn(() => mock),
+    eq: vi.fn(),
     select: vi.fn(() => mock),
     single: vi.fn(),
     maybeSingle: vi.fn(),
@@ -29,6 +33,11 @@ const createChainableMock = () => {
     limit: vi.fn(() => mock),
     insert: vi.fn(),
     update: vi.fn(() => mock),
+  }
+  if (opts?.eqReturns !== undefined) {
+    mock.eq.mockResolvedValue(opts.eqReturns)
+  } else {
+    mock.eq.mockImplementation(() => mock)
   }
   return mock
 }
@@ -585,6 +594,93 @@ describe('Analysis Service - Video Processing Extensions', () => {
 
         expect(result.data).toBe(false)
         expect(result.error).toBe('Connection timeout')
+      })
+    })
+
+    // TDD Phase 3: User Feedback Ratings
+    describe('rateFeedbackItem', () => {
+      it('should update feedback item with rating', async () => {
+        // Arrange: Create mock chain and successful response (eq is terminal, returns { error, count })
+        const mockChain = createChainableMock({ eqReturns: { error: null, count: 1 } })
+        mockSupabase.from.mockReturnValue(mockChain)
+
+        // Act: Rate feedback item with thumbs up
+        await rateFeedbackItem(123, 'up')
+
+        // Assert: Verify correct table and update params
+        expect(mockSupabase.from).toHaveBeenCalledWith('analysis_feedback')
+        expect(mockChain.update).toHaveBeenCalledWith({
+          user_rating: 'up',
+          user_rating_at: expect.any(String),
+        })
+        expect(mockChain.eq).toHaveBeenCalledWith('id', 123)
+      })
+
+      it('should clear rating when null passed', async () => {
+        // Arrange: Mock successful update (eq is terminal)
+        const mockChain = createChainableMock({ eqReturns: { error: null, count: 1 } })
+        mockSupabase.from.mockReturnValue(mockChain)
+
+        // Act: Clear rating
+        await rateFeedbackItem(123, null)
+
+        // Assert: Verify rating cleared
+        expect(mockChain.update).toHaveBeenCalledWith({
+          user_rating: null,
+          user_rating_at: null,
+        })
+      })
+
+      it('should throw error when update fails', async () => {
+        // Arrange: Mock database error (eq is terminal)
+        const mockChain = createChainableMock({
+          eqReturns: {
+            error: { message: 'Update failed', code: 'UPDATE_ERROR' },
+            count: 0,
+          },
+        })
+        mockSupabase.from.mockReturnValue(mockChain)
+
+        // Act & Assert: Verify error thrown (error message includes id and code)
+        await expect(rateFeedbackItem(123, 'down')).rejects.toThrow(
+          'Failed to update feedback rating'
+        )
+      })
+    })
+
+    describe('rateAnalysisFeedback', () => {
+      it('should update analysis with rating', async () => {
+        // Arrange: Mock successful update
+        const mockChain = createChainableMock()
+        mockChain.single.mockResolvedValue({ data: null, error: null })
+        mockSupabase.from.mockReturnValue(mockChain)
+
+        // Act: Rate analysis feedback
+        await rateAnalysisFeedback('uuid-123', 'up')
+
+        // Assert: Verify correct params
+        expect(mockSupabase.from).toHaveBeenCalledWith('analyses')
+        expect(mockChain.update).toHaveBeenCalledWith({
+          user_rating: 'up',
+          user_rating_at: expect.any(String),
+        })
+        expect(mockChain.eq).toHaveBeenCalledWith('id', 'uuid-123')
+      })
+
+      it('should clear analysis rating when null passed', async () => {
+        // Arrange: Mock successful clear
+        const mockChain = createChainableMock()
+        mockChain.single.mockResolvedValue({ data: null, error: null })
+        mockSupabase.from.mockReturnValue(mockChain)
+
+        // Act: Clear rating
+        await rateAnalysisFeedback('uuid-123', null)
+
+        // Assert: Verify cleared
+        expect(mockChain.update).toHaveBeenCalledWith({
+          user_rating: null,
+          user_rating_at: null,
+        })
       })
     })
   })

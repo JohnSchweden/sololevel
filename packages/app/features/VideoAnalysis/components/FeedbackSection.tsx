@@ -1,6 +1,7 @@
 //import { log } from '@my/logging'
 import type { CoachMode } from '@my/config'
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactElement } from 'react'
 
 import { YStack } from 'tamagui'
 
@@ -22,6 +23,7 @@ interface FeedbackSectionProps {
   feedbackItems: FeedbackPanelItem[]
   analysisTitle?: string // AI-generated analysis title
   fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
+  fullFeedbackRating?: 'up' | 'down' | null // User rating for the full feedback text
   isHistoryMode?: boolean
   voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
   // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
@@ -37,6 +39,8 @@ interface FeedbackSectionProps {
   onRetryFeedback: (feedbackId: string) => void
   onDismissError: (feedbackId: string) => void
   onSelectAudio: (feedbackId: string) => void
+  onFeedbackRatingChange: (feedbackId: string, rating: 'up' | 'down' | null) => void
+  onFullFeedbackRatingChange: (rating: 'up' | 'down' | null) => void
   onScrollYChange?: (scrollY: number) => void
   onScrollEndDrag?: () => void
   scrollYShared?: any // SharedValue<number> for UI-thread scroll position updates
@@ -50,6 +54,7 @@ export const FeedbackSection = memo(function FeedbackSection({
   feedbackItems,
   analysisTitle,
   fullFeedbackText,
+  fullFeedbackRating: initialFullFeedbackRating,
   isHistoryMode = false,
   voiceMode = 'roast',
   // selectedFeedbackId, - REMOVED: Subscribed directly from store
@@ -66,6 +71,8 @@ export const FeedbackSection = memo(function FeedbackSection({
   onRetryFeedback,
   onDismissError,
   onSelectAudio,
+  onFeedbackRatingChange,
+  onFullFeedbackRatingChange,
   onScrollYChange,
   onScrollEndDrag,
   scrollYShared,
@@ -73,12 +80,29 @@ export const FeedbackSection = memo(function FeedbackSection({
   scrollEnabledShared,
   scrollGestureRef,
   onMinimizeVideo,
-}: FeedbackSectionProps) {
+}: FeedbackSectionProps): ReactElement {
   // PERFORMANCE FIX: Direct subscription to highlighted feedback state
   // Eliminates VideoAnalysisScreen re-renders when feedback selection changes
   const selectedFeedbackId = useFeedbackCoordinatorStore((state) =>
     process.env.NODE_ENV !== 'test' ? state.highlightedFeedbackId : null
   )
+
+  // Optimistic state for full feedback rating
+  const [optimisticFullFeedbackRating, setOptimisticFullFeedbackRating] = useState<
+    'up' | 'down' | null
+  >(initialFullFeedbackRating ?? null)
+
+  // Sync optimistic state when initial rating changes (e.g., after loading from DB)
+  useEffect(() => {
+    if (initialFullFeedbackRating !== undefined) {
+      setOptimisticFullFeedbackRating(initialFullFeedbackRating)
+    }
+  }, [initialFullFeedbackRating])
+
+  // Optimistic state for individual feedback ratings (keyed by feedbackId)
+  const [optimisticFeedbackRatings, setOptimisticFeedbackRatings] = useState<
+    Record<string, 'up' | 'down' | null>
+  >({})
 
   // PERFORMANCE FIX: Direct subscription to feedback panel state
   // Eliminates VideoAnalysisScreen re-renders when panel state changes
@@ -132,13 +156,44 @@ export const FeedbackSection = memo(function FeedbackSection({
     getFeedbackPanelCommandState().clear()
   }, [command, setActiveTab])
 
-  useEffect(() => {
-    // log.debug('FeedbackSection', 'selectedFeedbackId prop changed', {
-    //   selectedFeedbackId,
-    //   panelFraction: feedbackPanel.panelFraction,
-    //   isExpanded: feedbackPanel.panelFraction > 0.1,
-    // })
-  }, [selectedFeedbackId, feedbackPanel.panelFraction])
+  // Wrap rating handlers with optimistic updates
+  const handleFeedbackRatingChange = useCallback(
+    (feedbackId: string, rating: 'up' | 'down' | null) => {
+      // Optimistic update
+      setOptimisticFeedbackRatings((prev) => ({
+        ...prev,
+        [feedbackId]: rating,
+      }))
+      // Call actual handler
+      onFeedbackRatingChange(feedbackId, rating)
+    },
+    [onFeedbackRatingChange]
+  )
+
+  const handleFullFeedbackRatingChange = useCallback(
+    (rating: 'up' | 'down' | null) => {
+      // Optimistic update
+      setOptimisticFullFeedbackRating(rating)
+      // Call actual handler
+      onFullFeedbackRatingChange(rating)
+    },
+    [onFullFeedbackRatingChange]
+  )
+
+  // Merge optimistic ratings into feedback items
+  const feedbackItemsWithRatings = useMemo(
+    () =>
+      preparedItems.map((item) => ({
+        ...item,
+        // FIX: Use 'in' operator to check if key exists, not ?? which treats null as falsy
+        // This allows null (clearing rating) to override the DB value
+        userRating:
+          item.id in optimisticFeedbackRatings
+            ? optimisticFeedbackRatings[item.id]
+            : (item.userRating ?? null),
+      })),
+    [preparedItems, optimisticFeedbackRatings]
+  )
 
   return (
     <YStack
@@ -150,9 +205,10 @@ export const FeedbackSection = memo(function FeedbackSection({
         flex={1}
         isExpanded={true}
         activeTab={feedbackPanel.activeTab}
-        feedbackItems={preparedItems}
+        feedbackItems={feedbackItemsWithRatings}
         analysisTitle={analysisTitle}
         fullFeedbackText={fullFeedbackText}
+        fullFeedbackRating={optimisticFullFeedbackRating}
         isHistoryMode={isHistoryMode}
         voiceMode={effectiveVoiceMode}
         comments={mockCommentsData}
@@ -168,6 +224,8 @@ export const FeedbackSection = memo(function FeedbackSection({
         onRetryFeedback={onRetryFeedback}
         onDismissError={onDismissError}
         onSelectAudio={onSelectAudio}
+        onFeedbackRatingChange={handleFeedbackRatingChange}
+        onFullFeedbackRatingChange={handleFullFeedbackRatingChange}
         onCommentSubmit={(text) => {
           // TODO: Handle comment submission
           console.log('Comment submitted:', text)

@@ -14,6 +14,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react'
 import type { ComponentProps } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
+import { FeedbackRatingButtons } from '../../FeedbackRating/FeedbackRatingButtons'
 import type { ActivityData } from '../../Insights/ActivityChart'
 import { ActivityChart } from '../../Insights/ActivityChart'
 import { Badge } from '../../Insights/Badge'
@@ -153,6 +154,10 @@ export interface VideoAnalysisInsightsV2Props {
   isSummaryExpanded?: boolean
   /** Callback to toggle the summary expanded state */
   onSummaryToggle?: () => void
+  /** Current rating for full feedback text */
+  fullFeedbackRating?: 'up' | 'down' | null
+  /** Callback when full feedback rating changes */
+  onFullFeedbackRatingChange?: (rating: 'up' | 'down' | null) => void
   testID?: string
 }
 
@@ -780,6 +785,8 @@ export const VideoAnalysisInsightsV2 = memo(
     onReelPress,
     isSummaryExpanded: isSummaryExpandedProp,
     onSummaryToggle,
+    fullFeedbackRating,
+    onFullFeedbackRatingChange,
     testID = 'video-analysis-insights-v2',
   }: VideoAnalysisInsightsV2Props) {
     // Get voice text config for current mode (default to roast)
@@ -920,33 +927,59 @@ export const VideoAnalysisInsightsV2 = memo(
               </Text>
 
               {summaryNeedsTruncation && !isSummaryExpanded ? (
-                <Button
-                  unstyled
-                  onPress={toggleSummaryExpanded}
-                  onPressIn={handlePressIn}
-                  onPressOut={handlePressOut}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  alignSelf="flex-end"
-                  paddingVertical="$2"
-                  paddingHorizontal="$3"
-                  paddingRight={0}
-                  height="auto"
-                  backgroundColor="transparent"
-                  hoverStyle={TRANSPARENT_STYLE}
-                  pressStyle={TRANSPARENT_STYLE}
-                  accessibilityRole="button"
-                  accessibilityLabel="Show more"
-                  testID="insights-v2-detailed-summary-toggle"
+                <XStack
+                  justifyContent={onFullFeedbackRatingChange ? 'space-between' : 'flex-end'}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  gap="$2"
                 >
-                  <Text
-                    fontSize="$3"
-                    fontWeight="500"
-                    color={isHoveredOrPressed ? '$color12' : '$color11'}
+                  {onFullFeedbackRatingChange ? (
+                    <FeedbackRatingButtons
+                      currentRating={fullFeedbackRating ?? null}
+                      onRatingChange={onFullFeedbackRatingChange}
+                      size="small"
+                      testID="insights-v2-detailed-summary-rating"
+                    />
+                  ) : null}
+                  <Button
+                    unstyled
+                    onPress={toggleSummaryExpanded}
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    paddingVertical="$2"
+                    paddingHorizontal="$3"
+                    paddingRight={0}
+                    height="auto"
+                    backgroundColor="transparent"
+                    hoverStyle={TRANSPARENT_STYLE}
+                    pressStyle={TRANSPARENT_STYLE}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show more"
+                    testID="insights-v2-detailed-summary-toggle"
                   >
-                    ...show more
-                  </Text>
-                </Button>
+                    <Text
+                      fontSize="$3"
+                      fontWeight="500"
+                      color={isHoveredOrPressed ? '$color12' : '$color11'}
+                    >
+                      ...show more
+                    </Text>
+                  </Button>
+                </XStack>
+              ) : onFullFeedbackRatingChange ? (
+                <XStack
+                  justifyContent="flex-start"
+                  paddingTop="$2"
+                >
+                  <FeedbackRatingButtons
+                    currentRating={fullFeedbackRating ?? null}
+                    onRatingChange={onFullFeedbackRatingChange}
+                    size="small"
+                    testID="insights-v2-detailed-summary-rating"
+                  />
+                </XStack>
               ) : null}
             </YStack>
           </YStack>
@@ -1402,6 +1435,8 @@ export const VideoAnalysisInsightsV2 = memo(
       prevProps.onReelPress === nextProps.onReelPress &&
       prevProps.isSummaryExpanded === nextProps.isSummaryExpanded &&
       prevProps.onSummaryToggle === nextProps.onSummaryToggle &&
+      prevProps.fullFeedbackRating === nextProps.fullFeedbackRating &&
+      prevProps.onFullFeedbackRatingChange === nextProps.onFullFeedbackRatingChange &&
       prevProps.testID === nextProps.testID
     )
   }

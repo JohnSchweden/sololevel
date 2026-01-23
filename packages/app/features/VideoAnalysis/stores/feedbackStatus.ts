@@ -32,6 +32,8 @@ export interface FeedbackStatusData {
   audio_updated_at: string
   created_at: string
   updated_at: string
+  user_rating?: 'up' | 'down' | null
+  user_rating_at?: string | null
 }
 
 export interface FeedbackStatusState {
@@ -52,6 +54,8 @@ export interface FeedbackStatusState {
   createdAt: string
   updatedAt: string
   lastUpdated: number
+  userRating?: 'up' | 'down' | null
+  userRatingAt?: string | null
   isSubscribed: boolean
 }
 
@@ -204,29 +208,61 @@ function processFeedbackEvent(payload: any, get: () => FeedbackStatusStore): voi
   }
 }
 
-const createFeedbackState = (feedback: FeedbackStatusData): FeedbackStatusState => ({
-  id: feedback.id,
-  analysisId: feedback.analysis_id,
-  message: feedback.message,
-  category: feedback.category,
-  timestampSeconds: feedback.timestamp_seconds,
-  confidence: feedback.confidence,
-  ssmlStatus: feedback.ssml_status,
-  audioStatus: feedback.audio_status,
-  ssmlAttempts: feedback.ssml_attempts,
-  audioAttempts: feedback.audio_attempts,
-  ssmlLastError: feedback.ssml_last_error,
-  audioLastError: feedback.audio_last_error,
-  ssmlUpdatedAt: feedback.ssml_updated_at,
-  audioUpdatedAt: feedback.audio_updated_at,
-  createdAt: feedback.created_at,
-  updatedAt: feedback.updated_at,
-  lastUpdated: Date.now(),
-  isSubscribed: false,
-})
+const createFeedbackState = (feedback: FeedbackStatusData): FeedbackStatusState => {
+  return {
+    id: feedback.id,
+    analysisId: feedback.analysis_id,
+    message: feedback.message,
+    category: feedback.category,
+    timestampSeconds: feedback.timestamp_seconds,
+    confidence: feedback.confidence,
+    ssmlStatus: feedback.ssml_status,
+    audioStatus: feedback.audio_status,
+    ssmlAttempts: feedback.ssml_attempts,
+    audioAttempts: feedback.audio_attempts,
+    ssmlLastError: feedback.ssml_last_error,
+    audioLastError: feedback.audio_last_error,
+    ssmlUpdatedAt: feedback.ssml_updated_at,
+    audioUpdatedAt: feedback.audio_updated_at,
+    createdAt: feedback.created_at,
+    updatedAt: feedback.updated_at,
+    lastUpdated: Date.now(),
+    isSubscribed: false,
+    userRating: feedback.user_rating,
+    userRatingAt: feedback.user_rating_at,
+  }
+}
 
 const markAnalysisTouched = (draft: Draft<FeedbackStatusStore>, analysisId: string): void => {
   draft.analysisLastUpdated.set(analysisId, Date.now())
+}
+
+const updateStatusField = (
+  get: () => FeedbackStatusStore,
+  feedbackId: number,
+  statusType: 'ssml' | 'audio',
+  status: FeedbackProcessingStatus,
+  error?: string
+): void => {
+  const fieldPrefix = statusType === 'ssml' ? 'ssml_' : 'audio_'
+  get().updateFeedback(feedbackId, {
+    [fieldPrefix + 'status']: status,
+    [fieldPrefix + 'attempts']: status === 'failed' ? undefined : 0,
+    [fieldPrefix + 'last_error']: error || null,
+    [fieldPrefix + 'updated_at']: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as Partial<FeedbackStatusData>)
+
+  if (error) {
+    log.error(
+      'FeedbackStatusStore',
+      `${statusType.toUpperCase()} status error for feedback ${feedbackId}`,
+      {
+        status,
+        error,
+      }
+    )
+  }
 }
 
 const removeAnalysisFeedback = (draft: Draft<FeedbackStatusStore>, analysisId: string): void => {
@@ -384,7 +420,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         },
 
         // Update feedback
-        updateFeedback: (feedbackId, updates) =>
+        updateFeedback: (feedbackId, updates) => {
           set((draft) => {
             const existing = draft.feedbacks.get(feedbackId)
             if (!existing) {
@@ -396,14 +432,18 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             }
 
             // Skip if both status fields are unchanged (true duplicate event)
+            // FIX: Also check userRating to prevent skipping when only rating changes
             const newSSMLStatus = updates.ssml_status ?? existing.ssmlStatus
             const newAudioStatus = updates.audio_status ?? existing.audioStatus
             const newUpdatedAt = updates.updated_at ?? existing.updatedAt
+            const newUserRating =
+              'user_rating' in updates ? updates.user_rating : existing.userRating
 
             if (
               existing.ssmlStatus === newSSMLStatus &&
               existing.audioStatus === newAudioStatus &&
-              existing.updatedAt === newUpdatedAt
+              existing.updatedAt === newUpdatedAt &&
+              existing.userRating === newUserRating
             ) {
               if (__DEV__) {
                 log.debug(
@@ -460,27 +500,40 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
             if (!wasFailed && isFailed) draft.failedCount++
 
             // Apply updates
-            Object.assign(existing, {
-              message: updates.message ?? existing.message,
-              category: updates.category ?? existing.category,
-              timestampSeconds: updates.timestamp_seconds ?? existing.timestampSeconds,
-              confidence: updates.confidence ?? existing.confidence,
-              ssmlStatus: newSSMLStatus,
-              audioStatus: newAudioStatus,
-              ssmlAttempts: updates.ssml_attempts ?? existing.ssmlAttempts,
-              audioAttempts: updates.audio_attempts ?? existing.audioAttempts,
-              ssmlLastError: updates.ssml_last_error ?? existing.ssmlLastError,
-              audioLastError: updates.audio_last_error ?? existing.audioLastError,
-              ssmlUpdatedAt: updates.ssml_updated_at ?? existing.ssmlUpdatedAt,
-              audioUpdatedAt: updates.audio_updated_at ?? existing.audioUpdatedAt,
-              updatedAt: newUpdatedAt,
-              lastUpdated: Date.now(),
-            })
+
+            // FIX: Direct property assignment (Immer best practice) instead of Object.assign
+            // FIX: Handle user_rating and user_rating_at updates correctly
+            // Use 'in' operator to check if property exists in updates, not ?? which prevents null assignment
+            if (updates.message !== undefined) existing.message = updates.message
+            if (updates.category !== undefined) existing.category = updates.category
+            if (updates.timestamp_seconds !== undefined)
+              existing.timestampSeconds = updates.timestamp_seconds
+            if (updates.confidence !== undefined) existing.confidence = updates.confidence
+            existing.ssmlStatus = newSSMLStatus
+            existing.audioStatus = newAudioStatus
+            if (updates.ssml_attempts !== undefined) existing.ssmlAttempts = updates.ssml_attempts
+            if (updates.audio_attempts !== undefined)
+              existing.audioAttempts = updates.audio_attempts
+            if (updates.ssml_last_error !== undefined)
+              existing.ssmlLastError = updates.ssml_last_error
+            if (updates.audio_last_error !== undefined)
+              existing.audioLastError = updates.audio_last_error
+            if (updates.ssml_updated_at !== undefined)
+              existing.ssmlUpdatedAt = updates.ssml_updated_at
+            if (updates.audio_updated_at !== undefined)
+              existing.audioUpdatedAt = updates.audio_updated_at
+            existing.updatedAt = newUpdatedAt
+            existing.lastUpdated = Date.now()
+
+            // CRITICAL: Use 'in' operator to allow null assignment (clearing rating)
+            if ('user_rating' in updates) existing.userRating = updates.user_rating
+            if ('user_rating_at' in updates) existing.userRatingAt = updates.user_rating_at
 
             markAnalysisTouched(draft, existing.analysisId)
             pruneAnalyses(draft)
             draft.lastGlobalUpdate = Date.now()
-          }),
+          })
+        },
 
         // Remove feedback
         removeFeedback: (feedbackId) =>
@@ -527,44 +580,20 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
 
         // Set SSML status
         setSSMLStatus: (feedbackId, status, error) => {
-          get().updateFeedback(feedbackId, {
-            ssml_status: status,
-            ssml_attempts: status === 'failed' ? undefined : 0,
-            ssml_last_error: error || null,
-            ssml_updated_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-
-          if (error) {
-            log.error('FeedbackStatusStore', `SSML status error for feedback ${feedbackId}`, {
-              status,
-              error,
-            })
-          }
+          updateStatusField(get, feedbackId, 'ssml', status, error)
         },
 
         // Set audio status
         setAudioStatus: (feedbackId, status, error) => {
-          get().updateFeedback(feedbackId, {
-            audio_status: status,
-            audio_attempts: status === 'failed' ? undefined : 0,
-            audio_last_error: error || null,
-            audio_updated_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-
-          if (error) {
-            log.error('FeedbackStatusStore', `Audio status error for feedback ${feedbackId}`, {
-              status,
-              error,
-            })
-          }
+          updateStatusField(get, feedbackId, 'audio', status, error)
         },
 
         // Get feedbacks by analysis ID
         getFeedbacksByAnalysisId: (analysisId) => {
           const state = get()
           const feedbackIds = state.feedbacksByAnalysisId.get(analysisId) || []
+          // PERF: Build result array only once, cache in a private Map to return same reference
+          // Consumers can use this hook directly or via useFeedbacksByAnalysisId which handles subscription
           const result = feedbackIds
             .map((id) => state.feedbacks.get(id))
             .filter((feedback): feedback is FeedbackStatusState => feedback !== undefined)
@@ -655,6 +684,8 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                 audio_updated_at: fb.audioUpdatedAt,
                 created_at: fb.createdAt,
                 updated_at: fb.updatedAt,
+                user_rating: fb.userRating,
+                user_rating_at: fb.userRatingAt,
               })) as any[]
             } else {
               // Fetch existing feedbacks from database
@@ -679,7 +710,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                 const { data: fetchedFeedbacks, error: fetchError } = await (supabase as any)
                   .from('analysis_feedback')
                   .select(
-                    'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                    'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
                   )
                   .eq('analysis_id', analysisId)
                   .order('created_at', { ascending: true })
@@ -816,7 +847,11 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                     const existingFeedbacks = get().getFeedbacksByAnalysisId(analysisId)
                     const mostRecentTimestamp =
                       existingFeedbacks.length > 0
-                        ? Math.max(...existingFeedbacks.map((f) => new Date(f.createdAt).getTime()))
+                        ? Math.max(
+                            ...existingFeedbacks.map((f: FeedbackStatusState) =>
+                              new Date(f.createdAt).getTime()
+                            )
+                          )
                         : 0
                     const initialFetchTimestamp = Date.now() - 1000 // 1s buffer from now
                     const cutoffTimestamp = Math.max(mostRecentTimestamp, initialFetchTimestamp)
@@ -825,7 +860,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                     const { data: missedFeedbacks, error: backfillError } = await (supabase as any)
                       .from('analysis_feedback')
                       .select(
-                        'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                        'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
                       )
                       .eq('analysis_id', analysisId)
                       .gt('created_at', new Date(cutoffTimestamp).toISOString())
@@ -999,7 +1034,7 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
                           const { data: finalFeedbacks, error } = await (supabase as any)
                             .from('analysis_feedback')
                             .select(
-                              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+                              'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
                             )
                             .eq('analysis_id', analysisId)
                             .order('created_at', { ascending: true })
@@ -1140,20 +1175,44 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         // Get statistics
         getStats: () => {
           const state = get()
-          const feedbacks = Array.from(state.feedbacks.values())
+          // PERF: Single-pass accumulator instead of 8 filter iterations
+          const counts = {
+            ssmlQueued: 0,
+            ssmlProcessing: 0,
+            ssmlCompleted: 0,
+            ssmlFailed: 0,
+            audioQueued: 0,
+            audioProcessing: 0,
+            audioCompleted: 0,
+            audioFailed: 0,
+            maxSSMLAttempts: 0,
+            maxAudioAttempts: 0,
+          }
+
+          for (const f of Array.from(state.feedbacks.values()) as FeedbackStatusState[]) {
+            if (f.ssmlStatus === 'queued') counts.ssmlQueued++
+            else if (f.ssmlStatus === 'processing') counts.ssmlProcessing++
+            else if (f.ssmlStatus === 'completed') counts.ssmlCompleted++
+            else if (f.ssmlStatus === 'failed') counts.ssmlFailed++
+
+            if (f.audioStatus === 'queued') counts.audioQueued++
+            else if (f.audioStatus === 'processing') counts.audioProcessing++
+            else if (f.audioStatus === 'completed') counts.audioCompleted++
+            else if (f.audioStatus === 'failed') counts.audioFailed++
+
+            const ssmlAttempts = f.ssmlAttempts ?? 0
+            const audioAttempts = f.audioAttempts ?? 0
+            if (ssmlAttempts > counts.maxSSMLAttempts) {
+              counts.maxSSMLAttempts = ssmlAttempts
+            }
+            if (audioAttempts > counts.maxAudioAttempts) {
+              counts.maxAudioAttempts = audioAttempts
+            }
+          }
 
           return {
             total: state.totalFeedbacks,
-            ssmlQueued: feedbacks.filter((f) => f.ssmlStatus === 'queued').length,
-            ssmlProcessing: feedbacks.filter((f) => f.ssmlStatus === 'processing').length,
-            ssmlCompleted: feedbacks.filter((f) => f.ssmlStatus === 'completed').length,
-            ssmlFailed: feedbacks.filter((f) => f.ssmlStatus === 'failed').length,
-            audioQueued: feedbacks.filter((f) => f.audioStatus === 'queued').length,
-            audioProcessing: feedbacks.filter((f) => f.audioStatus === 'processing').length,
-            audioCompleted: feedbacks.filter((f) => f.audioStatus === 'completed').length,
-            audioFailed: feedbacks.filter((f) => f.audioStatus === 'failed').length,
-            maxSSMLAttempts: Math.max(0, ...feedbacks.map((f) => f.ssmlAttempts ?? 0)),
-            maxAudioAttempts: Math.max(0, ...feedbacks.map((f) => f.audioAttempts ?? 0)),
+            ...counts,
           }
         },
 
@@ -1257,17 +1316,19 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
         name: 'feedback-status-store',
         storage: createJSONStorage(() => mmkvStorage),
         // Serialize Maps to arrays for persistence, reconstruct on rehydration
-        partialize: (state) => ({
-          feedbacks: Array.from(state.feedbacks.entries()),
-          feedbacksByAnalysisId: Array.from(state.feedbacksByAnalysisId.entries()),
-          analysisLastUpdated: Array.from(state.analysisLastUpdated.entries()),
-          totalFeedbacks: state.totalFeedbacks,
-          processingSSMLCount: state.processingSSMLCount,
-          processingAudioCount: state.processingAudioCount,
-          completedCount: state.completedCount,
-          failedCount: state.failedCount,
-          lastGlobalUpdate: state.lastGlobalUpdate,
-        }),
+        partialize: (state) => {
+          return {
+            feedbacks: Array.from(state.feedbacks.entries()),
+            feedbacksByAnalysisId: Array.from(state.feedbacksByAnalysisId.entries()),
+            analysisLastUpdated: Array.from(state.analysisLastUpdated.entries()),
+            totalFeedbacks: state.totalFeedbacks,
+            processingSSMLCount: state.processingSSMLCount,
+            processingAudioCount: state.processingAudioCount,
+            completedCount: state.completedCount,
+            failedCount: state.failedCount,
+            lastGlobalUpdate: state.lastGlobalUpdate,
+          }
+        },
         // Reconstruct Maps from arrays on rehydration
         merge: (persistedState, currentState) => {
           const persisted = persistedState as {
@@ -1314,8 +1375,29 @@ export const useFeedbackStatusStore = create<FeedbackStatusStore>()(
 )
 
 // Selectors for common state combinations
+// PERF: Memoize stats computation to prevent unnecessary re-renders
 export const useFeedbackStatusSelectors = () => {
   const store = useFeedbackStatusStore()
+  // Track actual dependencies: getStats() reads from feedbacks Map and computes counts
+  // Use selectors to get stable primitive values instead of the entire store object
+  const totalFeedbacks = useFeedbackStatusStore((state) => state.totalFeedbacks)
+  const feedbacksSize = useFeedbackStatusStore((state) => state.feedbacks.size)
+  const processingSSMLCount = useFeedbackStatusStore((state) => state.processingSSMLCount)
+  const processingAudioCount = useFeedbackStatusStore((state) => state.processingAudioCount)
+  const completedCount = useFeedbackStatusStore((state) => state.completedCount)
+  const failedCount = useFeedbackStatusStore((state) => state.failedCount)
+  // Call getStats() imperatively using getState() to avoid store reference dependency
+  const stats = React.useMemo(
+    () => useFeedbackStatusStore.getState().getStats(),
+    [
+      totalFeedbacks,
+      feedbacksSize,
+      processingSSMLCount,
+      processingAudioCount,
+      completedCount,
+      failedCount,
+    ]
+  )
 
   return {
     // Processing state
@@ -1333,7 +1415,7 @@ export const useFeedbackStatusSelectors = () => {
     failedCount: store.failedCount,
 
     // Statistics
-    stats: store.getStats(),
+    stats,
 
     // Active subscriptions
     activeSubscriptions: store.subscriptions.size,

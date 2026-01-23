@@ -39,6 +39,8 @@ export type Database = {
           raw_generated_text: string | null
           summary_text: string | null
           updated_at: string
+          user_rating: 'up' | 'down' | null
+          user_rating_at: string | null
         }
         Insert: {
           created_at?: string
@@ -50,6 +52,8 @@ export type Database = {
           raw_generated_text?: string | null
           summary_text?: string | null
           updated_at?: string
+          user_rating?: 'up' | 'down' | null
+          user_rating_at?: string | null
         }
         Update: {
           created_at?: string
@@ -61,6 +65,8 @@ export type Database = {
           raw_generated_text?: string | null
           summary_text?: string | null
           updated_at?: string
+          user_rating?: 'up' | 'down' | null
+          user_rating_at?: string | null
         }
         Relationships: [
           {
@@ -140,6 +146,8 @@ export type Database = {
           ssml_status: string | null
           ssml_updated_at: string
           timestamp_seconds: number
+          user_rating: 'up' | 'down' | null
+          user_rating_at: string | null
         }
         Insert: {
           analysis_id: string
@@ -158,6 +166,8 @@ export type Database = {
           ssml_status?: string | null
           ssml_updated_at?: string
           timestamp_seconds: number
+          user_rating?: 'up' | 'down' | null
+          user_rating_at?: string | null
         }
         Update: {
           analysis_id?: string
@@ -176,6 +186,8 @@ export type Database = {
           ssml_status?: string | null
           ssml_updated_at?: string
           timestamp_seconds?: number
+          user_rating?: 'up' | 'down' | null
+          user_rating_at?: string | null
         }
         Relationships: [
           {

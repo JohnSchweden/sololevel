@@ -71,22 +71,27 @@ export async function analyzeVideoWithGemini(
     if (config.analysisMode === 'mock') {
       logger.info(`AI_ANALYSIS_MODE=mock: Using prepared response for MVP testing with video: ${videoPath}`)
 
+      // Get mock delay from env (0 for tests, 1000 for production)
+      const mockDelayMs = parseInt((globalThis as any).Deno?.env?.get('AI_ANALYSIS_MOCK_DELAY_MS') ?? '1000', 10)
+      
       // Helper for delay simulation
-      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms * (mockDelayMs / 1000)))
 
-      // Simulate progress callbacks with delays to mimic real API latency (1s total)
-      if (progressCallback) {
-        await progressCallback(20) // Download simulation
-        await delay(250)
-        await progressCallback(40) // Upload simulation
-        await delay(250)
-        await progressCallback(55) // Processing simulation
-        await delay(250)
-        await progressCallback(70) // Analysis simulation
-        await delay(250)
-      } else {
-        // No progress callback, still simulate 1s delay
-        await delay(1000)
+      // Simulate progress callbacks with delays to mimic real API latency (1s total or 0 if disabled)
+      if (mockDelayMs > 0) {
+        if (progressCallback) {
+          await progressCallback(20) // Download simulation
+          await delay(250)
+          await progressCallback(40) // Upload simulation
+          await delay(250)
+          await progressCallback(55) // Processing simulation
+          await delay(250)
+          await progressCallback(70) // Analysis simulation
+          await delay(250)
+        } else {
+          // No progress callback, still simulate delay
+          await delay(1000)
+        }
       }
 
       // Detect mode from prompt content for mode-specific mock response

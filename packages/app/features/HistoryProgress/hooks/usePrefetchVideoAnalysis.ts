@@ -271,13 +271,15 @@ export function usePrefetchVideoAnalysis(
           | 'ssml_updated_at'
           | 'audio_updated_at'
           | 'created_at'
+          | 'user_rating'
+          | 'user_rating_at'
         >
 
         // Single batch query with IN clause
         const { data: feedbacksData, error: fetchError } = await supabase
           .from('analysis_feedback')
           .select(
-            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at'
+            'id, analysis_id, message, category, timestamp_seconds, confidence, ssml_status, audio_status, ssml_attempts, audio_attempts, ssml_last_error, audio_last_error, ssml_updated_at, audio_updated_at, created_at, user_rating, user_rating_at'
           )
           .in('analysis_id', uncachedUuids)
           .order('created_at', { ascending: true })
@@ -332,6 +334,8 @@ export function usePrefetchVideoAnalysis(
                 'queued') as FeedbackStatusData['audio_status'],
               ssml_attempts: feedback.ssml_attempts,
               audio_attempts: feedback.audio_attempts,
+              user_rating: feedback.user_rating,
+              user_rating_at: feedback.user_rating_at,
               ssml_last_error: feedback.ssml_last_error,
               audio_last_error: feedback.audio_last_error,
               ssml_updated_at: feedback.ssml_updated_at,
@@ -375,7 +379,7 @@ export function usePrefetchVideoAnalysis(
           // PERF: Build log data inline without intermediate arrays
           const fetchedCounts: Record<string, number> = {}
           for (const [uuid, fb] of Array.from(feedbacksByUuid.entries())) {
-            fetchedCounts[uuid] = fb.length
+            fetchedCounts[uuid] = (fb as FeedbackSelectResult[]).length
           }
           log.debug('usePrefetchVideoAnalysis', 'Batch feedback prefetch summary', {
             total: analysisJobIds.length,
@@ -449,14 +453,12 @@ export function usePrefetchVideoAnalysis(
       // Resolve audio paths in parallel (PERF: parallel > sequential)
       const resolutions = await Promise.all(
         unresolvedIds.map(async (feedbackId) => {
-          if (signal?.aborted) {
-            return null
-          }
+          if (signal?.aborted) return null
 
           const idStr = String(feedbackId)
 
           try {
-            // Tier 1: Check local cache first (fastest) - returns path directly, no re-checking
+            // Tier 1: Check local cache first (fastest)
             const cachedPath = await findCachedAudioPath(idStr)
             if (cachedPath) {
               return { feedbackId: idStr, url: cachedPath, source: 'cache' as const }
@@ -464,20 +466,15 @@ export function usePrefetchVideoAnalysis(
 
             // Tier 2: Fetch signed URL from cloud
             const result = await getFirstAudioUrlForFeedback(feedbackId)
-            if (!result.ok) {
-              return null
-            }
+            if (!result.ok) return null
 
             // Tier 3: Download and cache in background (non-blocking)
             if (result.url.startsWith('http')) {
               persistAudioFile(idStr, result.url)
                 .then((persistentPath) => {
-                  // Update store with persistent path
                   useFeedbackAudioStore.getState().setAudioPath(idStr, persistentPath)
                 })
-                .catch(() => {
-                  // Ignore background persist errors
-                })
+                .catch(() => {}) // Ignore background errors
             }
 
             return { feedbackId: idStr, url: result.url, source: 'cloud' as const }
@@ -656,31 +653,20 @@ export function usePrefetchVideoAnalysis(
     // Actual device testing shows 4 thumbnails visible on most screens
     // Prefetch 4 immediately (actual viewport), defer rest based on network
     const getPrefetchConfig = () => {
+      const baseConfig = { immediateCount: 4, staggerMs: 100 }
       switch (networkQuality) {
         case 'fast':
-          return {
-            immediateCount: 4,
-            deferredCount: analysisIds.length - 4,
-            staggerMs: 10,
-          }
+          return { ...baseConfig, deferredCount: analysisIds.length - 4, staggerMs: 10 }
         case 'medium':
           return {
-            immediateCount: 4,
-            deferredCount: Math.min(2, analysisIds.length - 4), // Top 6 total
+            ...baseConfig,
+            deferredCount: Math.min(2, analysisIds.length - 4),
             staggerMs: 50,
           }
         case 'slow':
-          return {
-            immediateCount: 4,
-            deferredCount: 0, // Only top 4
-            staggerMs: 200,
-          }
+          return { ...baseConfig, deferredCount: 0, staggerMs: 200 }
         default:
-          return {
-            immediateCount: 4,
-            deferredCount: Math.min(2, analysisIds.length - 4),
-            staggerMs: 100,
-          }
+          return { ...baseConfig, deferredCount: Math.min(2, analysisIds.length - 4) }
       }
     }
 

@@ -41,6 +41,7 @@ import {
   YStack,
   styled,
 } from 'tamagui'
+import { FeedbackRatingButtons } from '../../FeedbackRating/FeedbackRatingButtons'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
 
@@ -272,6 +273,8 @@ interface FeedbackItem {
   audioUrl?: string
   audioError?: string
   confidence: number
+  // User rating
+  userRating?: 'up' | 'down' | null
 }
 
 // Comment item type matching wireframe design
@@ -310,6 +313,10 @@ export interface FeedbackPanelProps {
   onRetryFeedback?: (feedbackId: string) => void
   onDismissError?: (feedbackId: string) => void
   onSelectAudio?: (feedbackId: string) => void
+  // Rating callback
+  onFeedbackRatingChange?: (feedbackId: string, rating: 'up' | 'down' | null) => void
+  fullFeedbackRating?: 'up' | 'down' | null
+  onFullFeedbackRatingChange?: (rating: 'up' | 'down' | null) => void
   // Comment callbacks
   onCommentSubmit?: (text: string) => void
   // Nested scroll support
@@ -345,6 +352,9 @@ export const FeedbackPanel = memo(
     onRetryFeedback,
     onDismissError,
     onSelectAudio,
+    onFeedbackRatingChange,
+    fullFeedbackRating,
+    onFullFeedbackRatingChange,
     onCommentSubmit,
     onScrollYChange,
     onScrollEndDrag,
@@ -592,14 +602,11 @@ export const FeedbackPanel = memo(
 
     // Sort and filter feedback items
     const sortedFeedbackItems = useMemo(() => {
-      let filtered = feedbackItems
+      const filtered =
+        feedbackFilter === 'all'
+          ? feedbackItems
+          : feedbackItems.filter((item) => item.category === feedbackFilter)
 
-      // Filter by category if not 'all'
-      if (feedbackFilter !== 'all') {
-        filtered = filtered.filter((item) => item.category === feedbackFilter)
-      }
-
-      // Sort chronologically
       return [...filtered].sort((a, b) => a.timestamp - b.timestamp)
     }, [feedbackItems, feedbackFilter])
 
@@ -779,6 +786,8 @@ export const FeedbackPanel = memo(
       [formatCount]
     )
 
+    const shouldAnimateFeedbackItems = tabActuallyChanged && activeTab === 'feedback'
+
     // Render feedback item node (must be defined before renderFeedbackContent)
     const renderFeedbackItemNode = useCallback(
       (item: FeedbackItem, index: number) => {
@@ -788,111 +797,128 @@ export const FeedbackPanel = memo(
         const CategoryIcon = getFeedbackCategoryIcon(item.category)
 
         return (
-          <FeedbackContainer
-            key={item.id}
-            onPress={() => onFeedbackItemPress(item)}
-            {...(item.audioUrl && onSelectAudio
-              ? {
-                  onLongPress: () => onSelectAudio(item.id),
-                }
-              : {})}
-            testID={`feedback-item-${index + 1}`}
-            accessibilityLabel={accessibilityLabel}
-            data-testid={`feedback-item-${index + 1}`}
-          >
-            <XStack
-              gap="$3"
-              alignItems="flex-start"
+          <YStack paddingHorizontal="$4">
+            <FeedbackContainer
+              key={item.id}
+              onPress={() => onFeedbackItemPress(item)}
+              {...(item.audioUrl && onSelectAudio
+                ? {
+                    onLongPress: () => onSelectAudio(item.id),
+                  }
+                : {})}
+              animation={shouldAnimateFeedbackItems ? 'quick' : undefined}
+              enterStyle={shouldAnimateFeedbackItems ? tabTransitionEnterStyle : undefined}
+              exitStyle={shouldAnimateFeedbackItems ? tabTransitionExitStyle : undefined}
+              testID={`feedback-item-${index + 1}`}
+              accessibilityLabel={accessibilityLabel}
+              data-testid={`feedback-item-${index + 1}`}
             >
-              {/* Type icon */}
-              <Circle
-                size={32}
-                alignItems="center"
-                justifyContent="center"
-                testID={`feedback-item-${index + 1}-icon`}
-                accessibilityLabel={`${item.type} feedback`}
+              <XStack
+                gap="$3"
+                alignItems="flex-start"
               >
-                {CategoryIcon !== null ? (
-                  <CategoryIcon
-                    size={22}
-                    color={isHighlighted ? '$yellow11' : '$color11'}
-                  />
-                ) : (
-                  <TypeIcon
-                    size={18}
-                    color={isHighlighted ? '$yellow11' : '$color11'}
-                  />
-                )}
-              </Circle>
-
-              {/* Feedback content */}
-              <YStack
-                flex={1}
-                gap="$1"
-              >
-                {/* Header: time, category, and status */}
-                <XStack
-                  flexWrap="wrap"
-                  justifyContent="space-between"
+                {/* Type icon */}
+                <Circle
+                  size={32}
                   alignItems="center"
-                  gap="$2"
+                  justifyContent="center"
+                  testID={`feedback-item-${index + 1}-icon`}
+                  accessibilityLabel={`${item.type} feedback`}
                 >
+                  {CategoryIcon !== null ? (
+                    <CategoryIcon
+                      size={22}
+                      color={isHighlighted ? '$yellow11' : '$color11'}
+                    />
+                  ) : (
+                    <TypeIcon
+                      size={18}
+                      color={isHighlighted ? '$yellow11' : '$color11'}
+                    />
+                  )}
+                </Circle>
+
+                {/* Feedback content */}
+                <YStack
+                  flex={1}
+                  gap="$1"
+                >
+                  {/* Header: time, category, and status */}
                   <XStack
-                    gap="$2"
+                    flexWrap="wrap"
+                    justifyContent="space-between"
                     alignItems="center"
+                    gap="$2"
                   >
-                    <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
-                      {formatTime(item.timestamp)}
-                    </TimeLabel>
-                    <Text
-                      fontSize="$2"
-                      fontWeight="500"
-                      color="$color11"
-                      textTransform="capitalize"
+                    <XStack
+                      gap="$2"
+                      alignItems="center"
                     >
-                      {item.category}
-                    </Text>
+                      <TimeLabel data-testid={`feedback-item-${index + 1}-time`}>
+                        {formatTime(item.timestamp)}
+                      </TimeLabel>
+                      <Text
+                        fontSize="$2"
+                        fontWeight="500"
+                        color="$color11"
+                        textTransform="capitalize"
+                      >
+                        {item.category}
+                      </Text>
+                    </XStack>
+
+                    {(item.ssmlStatus || item.audioStatus) && (
+                      <FeedbackStatusIndicator
+                        ssmlStatus={item.ssmlStatus || 'queued'}
+                        audioStatus={item.audioStatus || 'queued'}
+                        ssmlAttempts={item.ssmlAttempts || 0}
+                        audioAttempts={item.audioAttempts || 0}
+                        ssmlLastError={item.ssmlLastError || null}
+                        audioLastError={item.audioLastError || null}
+                        size="small"
+                        testID={`feedback-status-${index + 1}`}
+                      />
+                    )}
                   </XStack>
 
-                  {(item.ssmlStatus || item.audioStatus) && (
-                    <FeedbackStatusIndicator
-                      ssmlStatus={item.ssmlStatus || 'queued'}
-                      audioStatus={item.audioStatus || 'queued'}
-                      ssmlAttempts={item.ssmlAttempts || 0}
-                      audioAttempts={item.audioAttempts || 0}
-                      ssmlLastError={item.ssmlLastError || null}
-                      audioLastError={item.audioLastError || null}
-                      size="small"
-                      testID={`feedback-status-${index + 1}`}
-                    />
-                  )}
-                </XStack>
+                  {/* Feedback text */}
+                  <FeedbackText
+                    data-testid={`feedback-item-${index + 1}-text`}
+                    color={isHighlighted ? '$yellow11' : undefined}
+                  >
+                    {item.text}
+                  </FeedbackText>
 
-                {/* Feedback text */}
-                <FeedbackText
-                  data-testid={`feedback-item-${index + 1}-text`}
-                  color={isHighlighted ? '$yellow11' : undefined}
-                >
-                  {item.text}
-                </FeedbackText>
+                  {/* Error handler */}
+                  {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
+                    onRetryFeedback && (
+                      <FeedbackErrorHandler
+                        feedbackId={item.id}
+                        feedbackText={item.text}
+                        ssmlFailed={item.ssmlStatus === 'failed'}
+                        audioFailed={item.audioStatus === 'failed'}
+                        onRetry={onRetryFeedback}
+                        onDismiss={onDismissError}
+                        size="small"
+                        testID={`feedback-error-${index + 1}`}
+                      />
+                    )}
 
-                {/* Error handler */}
-                {(item.ssmlStatus === 'failed' || item.audioStatus === 'failed') &&
-                  onRetryFeedback && (
-                    <FeedbackErrorHandler
-                      feedbackId={item.id}
-                      feedbackText={item.text}
-                      ssmlFailed={item.ssmlStatus === 'failed'}
-                      audioFailed={item.audioStatus === 'failed'}
-                      onRetry={onRetryFeedback}
-                      onDismiss={onDismissError}
-                      size="small"
-                      testID={`feedback-error-${index + 1}`}
-                    />
+                  {/* Rating buttons */}
+                  {onFeedbackRatingChange && (
+                    <>
+                      <FeedbackRatingButtons
+                        currentRating={item.userRating ?? null}
+                        onRatingChange={(rating) => onFeedbackRatingChange(item.id, rating)}
+                        size="small"
+                        testID={`feedback-rating-${index + 1}`}
+                      />
+                    </>
                   )}
-              </YStack>
-            </XStack>
-          </FeedbackContainer>
+                </YStack>
+              </XStack>
+            </FeedbackContainer>
+          </YStack>
         )
       },
       [
@@ -901,18 +927,31 @@ export const FeedbackPanel = memo(
         getFeedbackCategoryIcon,
         onDismissError,
         onFeedbackItemPress,
+        onFeedbackRatingChange,
         onRetryFeedback,
         onSelectAudio,
         selectedFeedbackId,
+        shouldAnimateFeedbackItems,
+        tabTransitionEnterStyle,
+        tabTransitionExitStyle,
       ]
     )
 
+    // Helper: Get empty state message text
+    const getEmptyStateMessage = useCallback((): string => {
+      return feedbackFilter === 'all'
+        ? 'Feedback will appear here once the analysis completes.'
+        : `No ${feedbackFilter} feedback available.`
+    }, [feedbackFilter])
+
     // Render feedback tab content
+    // On web: Render filter buttons + items (ScrollView doesn't virtualize)
+    // On native: Render filter buttons only (items rendered via FlatList data prop)
     const renderFeedbackContent = useCallback(
       () => (
         <YStack
           key="feedback-content"
-          paddingTop="$2"
+          paddingVertical="$2"
           testID="feedback-content"
           accessibilityLabel="Feedback content area"
         >
@@ -954,35 +993,66 @@ export const FeedbackPanel = memo(
             </SortButtonContainer>
           </ScrollView>
 
-          {/* Feedback list */}
-          <FeedbackListContainer>
-            {sortedFeedbackItems.length > 0 ? (
-              sortedFeedbackItems.map((item, index) => renderFeedbackItemNode(item, index))
-            ) : (
-              <YStack
-                padding="$4"
-                alignItems="center"
-                justifyContent="center"
-                gap="$2"
-                testID="no-feedback"
-                accessibilityLabel="No feedback available"
-              >
-                <Text
-                  fontSize="$4"
-                  color="$color10"
-                  textAlign="center"
+          {/* Web only: Render items here (ScrollView doesn't virtualize) */}
+          {/* Native: Items rendered via FlatList data prop for virtualization */}
+          {isWeb && (
+            <FeedbackListContainer>
+              {sortedFeedbackItems.length > 0 ? (
+                sortedFeedbackItems.map((item, index) => renderFeedbackItemNode(item, index))
+              ) : (
+                <YStack
+                  padding="$4"
+                  alignItems="center"
+                  justifyContent="center"
+                  gap="$2"
+                  testID="no-feedback"
+                  accessibilityLabel="No feedback available"
                 >
-                  {feedbackFilter === 'all'
-                    ? 'Feedback will appear here once the analysis completes.'
-                    : `No ${feedbackFilter} feedback available.`}
-                </Text>
-              </YStack>
-            )}
-          </FeedbackListContainer>
+                  <Text
+                    fontSize="$4"
+                    color="$color10"
+                    textAlign="center"
+                  >
+                    {getEmptyStateMessage()}
+                  </Text>
+                </YStack>
+              )}
+            </FeedbackListContainer>
+          )}
         </YStack>
       ),
-      [feedbackFilter, renderFeedbackItemNode, sortedFeedbackItems]
+      [feedbackFilter, isWeb, sortedFeedbackItems, renderFeedbackItemNode, getEmptyStateMessage]
     )
+
+    // Empty state component for FlatList (rendered when data is empty)
+    const renderEmptyComponent = useCallback(
+      () => (
+        <FeedbackListContainer>
+          <YStack
+            padding="$4"
+            alignItems="center"
+            justifyContent="center"
+            gap="$2"
+            testID="no-feedback"
+            accessibilityLabel="No feedback available"
+          >
+            <Text
+              fontSize="$4"
+              color="$color10"
+              textAlign="center"
+            >
+              {getEmptyStateMessage()}
+            </Text>
+          </YStack>
+        </FeedbackListContainer>
+      ),
+      [getEmptyStateMessage]
+    )
+
+    // Compute FlatList props once (only for feedback tab on native)
+    const isFeedbackTab = activeTab === 'feedback'
+    const flatListData = isFeedbackTab ? sortedFeedbackItems : []
+    const flatListEmptyComponent = isFeedbackTab ? renderEmptyComponent : undefined
 
     // Get voice text config for current mode (default to roast)
     const voiceText = useMemo(() => VOICE_TEXT_CONFIG[voiceMode || 'roast'], [voiceMode])
@@ -998,11 +1068,20 @@ export const FeedbackPanel = memo(
             voiceMode={voiceMode}
             isSummaryExpanded={isSummaryExpanded}
             onSummaryToggle={handleSummaryToggle}
+            fullFeedbackRating={fullFeedbackRating}
+            onFullFeedbackRatingChange={onFullFeedbackRatingChange}
             testID="insights-content"
           />
         </Suspense>
       ),
-      [fullFeedbackText, voiceMode, isSummaryExpanded, handleSummaryToggle]
+      [
+        fullFeedbackText,
+        voiceMode,
+        isSummaryExpanded,
+        handleSummaryToggle,
+        fullFeedbackRating,
+        onFullFeedbackRatingChange,
+      ]
     )
 
     // Render comments tab content
@@ -1077,7 +1156,7 @@ export const FeedbackPanel = memo(
             >
               <Text
                 fontSize="$3"
-                fontWeight={commentSort === 'top' ? '600' : '600'}
+                fontWeight={commentSort === 'top' ? '600' : '400'}
                 color={commentSort === 'top' ? '$color1' : '$color11'}
               >
                 Top
@@ -1134,12 +1213,26 @@ export const FeedbackPanel = memo(
       )
     }, [commentSort, isHistoryMode, sortedComments, renderCommentItem, voiceText])
 
+    const commentFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+      return () => {
+        if (commentFocusTimeoutRef.current) {
+          clearTimeout(commentFocusTimeoutRef.current)
+          commentFocusTimeoutRef.current = null
+        }
+      }
+    }, [])
+
     const handleCommentInputFocus = useCallback((): void => {
       onMinimizeVideo?.()
       // Scroll to end when input is focused to ensure it's visible above keyboard
       // KeyboardAvoidingView handles main positioning; this ensures composer is in view
       if (scrollViewRef.current) {
-        setTimeout(() => {
+        if (commentFocusTimeoutRef.current) {
+          clearTimeout(commentFocusTimeoutRef.current)
+        }
+        commentFocusTimeoutRef.current = setTimeout(() => {
           const ref = scrollViewRef.current
           // Try scrollToEnd first (works for both ScrollView and FlatList)
           if (ref.scrollToEnd) {
@@ -1462,13 +1555,13 @@ export const FeedbackPanel = memo(
                 >
                   <Animated.FlatList<FeedbackItem>
                     ref={scrollViewRef}
-                    data={[]}
+                    data={flatListData}
                     extraData={selectedFeedbackId}
                     keyExtractor={keyExtractor}
                     renderItem={renderFeedbackItem}
                     ListHeaderComponent={renderListHeader}
                     ItemSeparatorComponent={undefined}
-                    ListEmptyComponent={undefined}
+                    ListEmptyComponent={flatListEmptyComponent}
                     contentContainerStyle={{
                       paddingHorizontal: 0,
                       paddingBottom: scrollBottomPadding,
@@ -1509,13 +1602,13 @@ export const FeedbackPanel = memo(
                   >
                     <Animated.FlatList<FeedbackItem>
                       ref={scrollViewRef}
-                      data={[]}
+                      data={flatListData}
                       extraData={selectedFeedbackId}
                       keyExtractor={keyExtractor}
                       renderItem={renderFeedbackItem}
                       ListHeaderComponent={renderListHeader}
                       ItemSeparatorComponent={undefined}
-                      ListEmptyComponent={undefined}
+                      ListEmptyComponent={flatListEmptyComponent}
                       contentContainerStyle={{
                         paddingHorizontal: 0,
                         paddingBottom: scrollBottomPadding,
@@ -1555,14 +1648,32 @@ export const FeedbackPanel = memo(
 
     // PERFORMANCE: Use reference equality for arrays instead of JSON.stringify
     // If parent memoizes arrays, this is O(1) vs O(n) with JSON.stringify
+    // FIX: Include all properties that affect rendering, especially status fields
+    // Status updates (ssmlStatus, audioStatus) must trigger re-renders for UI responsiveness
     const feedbackItemsEqual =
       prevProps.feedbackItems === nextProps.feedbackItems ||
       (prevProps.feedbackItems.length === nextProps.feedbackItems.length &&
         prevProps.feedbackItems.length === 0) ||
       (prevProps.feedbackItems.length === nextProps.feedbackItems.length &&
-        prevProps.feedbackItems[0]?.id === nextProps.feedbackItems[0]?.id &&
-        prevProps.feedbackItems[prevProps.feedbackItems.length - 1]?.id ===
-          nextProps.feedbackItems[nextProps.feedbackItems.length - 1]?.id)
+        prevProps.feedbackItems.every((item, idx) => {
+          const nextItem = nextProps.feedbackItems[idx]
+          if (!nextItem) return false
+          return (
+            item.id === nextItem.id &&
+            item.userRating === nextItem.userRating &&
+            item.ssmlStatus === nextItem.ssmlStatus &&
+            item.audioStatus === nextItem.audioStatus &&
+            item.ssmlAttempts === nextItem.ssmlAttempts &&
+            item.audioAttempts === nextItem.audioAttempts &&
+            item.ssmlLastError === nextItem.ssmlLastError &&
+            item.audioLastError === nextItem.audioLastError &&
+            item.audioUrl === nextItem.audioUrl &&
+            item.text === nextItem.text &&
+            item.timestamp === nextItem.timestamp &&
+            item.type === nextItem.type &&
+            item.category === nextItem.category
+          )
+        }))
 
     const commentsEqual =
       prevProps.comments === nextProps.comments ||
@@ -1593,6 +1704,9 @@ export const FeedbackPanel = memo(
       prevProps.onRetryFeedback === nextProps.onRetryFeedback &&
       prevProps.onDismissError === nextProps.onDismissError &&
       prevProps.onSelectAudio === nextProps.onSelectAudio &&
+      prevProps.onFeedbackRatingChange === nextProps.onFeedbackRatingChange &&
+      prevProps.fullFeedbackRating === nextProps.fullFeedbackRating &&
+      prevProps.onFullFeedbackRatingChange === nextProps.onFullFeedbackRatingChange &&
       prevProps.onScrollYChange === nextProps.onScrollYChange &&
       prevProps.onScrollEndDrag === nextProps.onScrollEndDrag &&
       prevProps.scrollYShared === nextProps.scrollYShared &&

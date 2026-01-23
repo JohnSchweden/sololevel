@@ -40,7 +40,7 @@ const validOptions: TTSOptions = {
 }
 
 Deno.test('generateTTSFromSSML - mock mode returns mock data', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '0' }, async () => {
     const result = await generateTTSFromSSML(validSSML, validOptions)
 
     // Should return mock data structure
@@ -51,7 +51,7 @@ Deno.test('generateTTSFromSSML - mock mode returns mock data', async () => {
 })
 
 Deno.test('generateTTSFromSSML - handles missing options gracefully', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '0' }, async () => {
     const result = await generateTTSFromSSML(validSSML)
 
     // Should return result even with no options
@@ -62,7 +62,7 @@ Deno.test('generateTTSFromSSML - handles missing options gracefully', async () =
 })
 
 Deno.test('generateTTSFromSSML - validates required SSML parameter', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '0' }, async () => {
     try {
       await generateTTSFromSSML('')
       throw new Error('Should have thrown for empty SSML')
@@ -74,7 +74,7 @@ Deno.test('generateTTSFromSSML - validates required SSML parameter', async () =>
 })
 
 Deno.test('generateTTSFromSSML - handles different speed options in mock mode', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '0' }, async () => {
     const result = await generateTTSFromSSML(validSSML, { ...validOptions, speed: 'fast' })
     if (!result) {
       throw new Error('Should handle fast speed option')
@@ -83,7 +83,7 @@ Deno.test('generateTTSFromSSML - handles different speed options in mock mode', 
 })
 
 Deno.test('generateTTSFromSSML - handles different format options in mock mode', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '0' }, async () => {
     const result = await generateTTSFromSSML(validSSML, { ...validOptions, format: 'mp3' })
     if (!result) {
       throw new Error('Should handle mp3 format option')
@@ -106,16 +106,16 @@ Deno.test('generateTTSFromSSML - handles invalid config in real mode', async () 
   })
 })
 
-Deno.test('generateTTSFromSSML - mock mode includes 1s delay for realistic simulation', async () => {
-  await withEnv({ AI_ANALYSIS_MODE: 'mock' }, async () => {
+Deno.test('generateTTSFromSSML - mock mode includes delay for realistic simulation', async () => {
+  await withEnv({ AI_ANALYSIS_MODE: 'mock', AI_ANALYSIS_MOCK_DELAY_MS: '50' }, async () => {
     const startTime = Date.now()
     await generateTTSFromSSML(validSSML, validOptions)
     const elapsedTime = Date.now() - startTime
     
-    // Should take at least 1 second (1000ms) due to delay simulation
-    // Allow some tolerance for test execution overhead (±100ms)
-    if (elapsedTime < 900) {
-      throw new Error(`Expected at least 900ms delay, got ${elapsedTime}ms`)
+    // Should take at least 50ms due to delay simulation
+    // Allow some tolerance for test execution overhead (±10ms)
+    if (elapsedTime < 40) {
+      throw new Error(`Expected at least 40ms delay, got ${elapsedTime}ms`)
     }
   })
 })

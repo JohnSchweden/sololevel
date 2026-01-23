@@ -5,22 +5,6 @@
 
 import { analyzeVideoWithGemini } from './gemini-llm-analysis.ts'
 
-// Set mock mode for testing
-const originalEnv = { ...globalThis.Deno?.env }
-const mockEnv = {
-  get: (key: string) => {
-    const envMap: Record<string, string> = {
-      'AI_ANALYSIS_MODE': 'mock'
-    }
-    return envMap[key] || originalEnv?.get?.(key)
-  }
-}
-
-// Override Deno env for testing
-if (globalThis.Deno) {
-  ;(globalThis as any).Deno.env = mockEnv
-}
-
 // Mock Supabase client for testing
 const mockSupabase = {
   storage: {
@@ -47,6 +31,8 @@ const geminiAnalysisAssertExists = (value: unknown) => {
 }
 
 Deno.test('Gemini LLM Analysis - Valid Video Path', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   const videoPath = '/raw/test-exercise.mp4'
 
   // Use mock mode to avoid actual API calls
@@ -78,6 +64,8 @@ Deno.test('Gemini LLM Analysis - Missing Supabase Client', async () => {
 })
 
 Deno.test('Gemini LLM Analysis - Analysis Result Structure', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '0')
   const videoPath = '/raw/test.mp4'
   const result = await analyzeVideoWithGemini(mockSupabase as any, videoPath)
 
@@ -117,43 +105,46 @@ Deno.test('AI_ANALYSIS_MODE - Mock response contains realistic content', () => {
   geminiAnalysisAssertEquals(true, true) // Placeholder - mock tests handle this
 })
 
-Deno.test('AI_ANALYSIS_MODE - Mock mode includes 1s delay for realistic simulation', async () => {
+Deno.test('AI_ANALYSIS_MODE - Mock mode includes delay for realistic simulation', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '50')
   const videoPath = '/raw/test-exercise.mp4'
   const startTime = Date.now()
-  
+
   await analyzeVideoWithGemini(mockSupabase as any, videoPath)
-  
+
   const elapsedTime = Date.now() - startTime
-  
-  // Should take at least 1 second (1000ms) due to delay simulation
-  // Allow some tolerance for test execution overhead (±100ms)
-  if (elapsedTime < 900) {
-    throw new Error(`Expected at least 900ms delay, got ${elapsedTime}ms`)
+
+  // Should take at least 50ms due to delay simulation
+  // Allow some tolerance for test execution overhead (±10ms)
+  if (elapsedTime < 40) {
+    throw new Error(`Expected at least 40ms delay, got ${elapsedTime}ms`)
   }
 })
 
 Deno.test('AI_ANALYSIS_MODE - Mock mode with progress callback includes delays', async () => {
+  Deno.env.set('AI_ANALYSIS_MODE', 'mock')
+  Deno.env.set('AI_ANALYSIS_MOCK_DELAY_MS', '50')
   const videoPath = '/raw/test-exercise.mp4'
   const progressCalls: number[] = []
   const progressCallback = (progress: number): Promise<void> => {
     progressCalls.push(progress)
     return Promise.resolve()
   }
-  
+
   const startTime = Date.now()
   await analyzeVideoWithGemini(mockSupabase as any, videoPath, undefined, progressCallback)
   const elapsedTime = Date.now() - startTime
-  
+
   // Verify progress callbacks were called
   geminiAnalysisAssertEquals(progressCalls.length, 4)
   geminiAnalysisAssertEquals(progressCalls[0], 20)
   geminiAnalysisAssertEquals(progressCalls[1], 40)
   geminiAnalysisAssertEquals(progressCalls[2], 55)
   geminiAnalysisAssertEquals(progressCalls[3], 70)
-  
-  // Should take at least 1 second due to delays between callbacks
-  if (elapsedTime < 900) {
-    throw new Error(`Expected at least 900ms delay with progress callbacks, got ${elapsedTime}ms`)
+
+  // Should take at least 50ms due to delays between callbacks
+  if (elapsedTime < 40) {
+    throw new Error(`Expected at least 40ms delay with progress callbacks, got ${elapsedTime}ms`)
   }
 })
-

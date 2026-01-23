@@ -137,6 +137,7 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             feedbackItems={feedback.items}
             analysisTitle={feedback.analysisTitle}
             fullFeedbackText={feedback.fullFeedbackText}
+            fullFeedbackRating={feedback.fullFeedbackRating}
             isHistoryMode={feedback.isHistoryMode}
             voiceMode={props.voiceMode || 'roast'}
             // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
@@ -150,6 +151,8 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             onRetryFeedback={handlers.onRetryFeedback}
             onDismissError={handlers.onDismissError}
             onSelectAudio={handlers.onSelectAudio}
+            onFeedbackRatingChange={handlers.onFeedbackRatingChange}
+            onFullFeedbackRatingChange={handlers.onFullFeedbackRatingChange}
             onScrollYChange={handlers.onFeedbackScrollY}
             onScrollEndDrag={handlers.onFeedbackMomentumScrollEnd}
             scrollEnabled={isFeedbackScrollEnabled && !isFeedbackScrollCompletelyBlocked}

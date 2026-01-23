@@ -357,10 +357,14 @@ export const useAnalysisStatusStore = create<AnalysisStatusStore>()(
                   try {
                     const result = (await supabase
                       .from('analyses')
-                      .select('full_feedback_text')
+                      .select('full_feedback_text, user_rating, user_rating_at')
                       .eq('job_id', jobId)
                       .single()) as {
-                      data: { full_feedback_text: string | null } | null
+                      data: {
+                        full_feedback_text: string | null
+                        user_rating: 'up' | 'down' | null
+                        user_rating_at: string | null
+                      } | null
                       error: any
                     }
 

@@ -387,9 +387,16 @@ export async function fetchHistoricalAnalysisData(
         if (!cached.fullFeedbackText) {
           const { data: analysis, error: analysisError } = (await supabase
             .from('analyses')
-            .select('full_feedback_text')
+            .select('full_feedback_text, user_rating, user_rating_at')
             .eq('job_id', analysisId)
-            .single()) as { data: { full_feedback_text: string | null } | null; error: any }
+            .single()) as {
+            data: {
+              full_feedback_text: string | null
+              user_rating: 'up' | 'down' | null
+              user_rating_at: string | null
+            } | null
+            error: any
+          }
 
           if (analysisError) {
             log.warn('useHistoricalAnalysis', 'Failed to backfill fullFeedbackText', {
@@ -399,6 +406,7 @@ export async function fetchHistoricalAnalysisData(
           } else if (analysis?.full_feedback_text) {
             useVideoHistoryStore.getState().updateCache(analysisId, {
               fullFeedbackText: analysis.full_feedback_text,
+              fullFeedbackRating: analysis.user_rating ?? undefined,
             })
           }
         }
@@ -487,10 +495,15 @@ export async function fetchHistoricalAnalysisData(
   // Type assertion needed until Supabase types are regenerated
   const { data: analysis, error: analysisError } = (await supabase
     .from('analyses')
-    .select('title, full_feedback_text')
+    .select('title, full_feedback_text, user_rating, user_rating_at')
     .eq('job_id', analysisId)
     .single()) as {
-    data: { title: string | null; full_feedback_text: string | null } | null
+    data: {
+      title: string | null
+      full_feedback_text: string | null
+      user_rating: 'up' | 'down' | null
+      user_rating_at: string | null
+    } | null
     error: any
   }
 
@@ -551,12 +564,15 @@ export async function fetchHistoricalAnalysisData(
   const dbTitle = analysis?.title
   const dbFullFeedbackText = analysis?.full_feedback_text
 
+  const dbFullFeedbackRating = analysis?.user_rating ?? undefined
+
   const cachedAnalysis: Omit<CachedAnalysis, 'cachedAt' | 'lastAccessed'> = {
     id: job.id,
     videoId: job.video_recording_id,
     userId: job.user_id,
     title: dbTitle ?? '', // Use empty string as placeholder - subscription will update it
     fullFeedbackText: dbFullFeedbackText ?? undefined,
+    fullFeedbackRating: dbFullFeedbackRating,
     createdAt: job.created_at,
     results: job.results as CachedAnalysis['results'],
     poseData: job.pose_data ? (job.pose_data as unknown as CachedAnalysis['poseData']) : undefined,
