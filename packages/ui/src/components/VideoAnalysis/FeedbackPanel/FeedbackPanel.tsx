@@ -44,6 +44,7 @@ import {
 import { FeedbackRatingButtons } from '../../FeedbackRating/FeedbackRatingButtons'
 import { FeedbackErrorHandler } from '../FeedbackErrorHandler/FeedbackErrorHandler'
 import { FeedbackStatusIndicator } from '../FeedbackStatusIndicator/FeedbackStatusIndicator'
+import { prefetchInsights } from './utils/prefetchInsights'
 
 // Lazy load VideoAnalysisInsightsV2 to reduce initial bundle size
 // Loads only when insights tab is accessed
@@ -54,10 +55,10 @@ const LazyVideoAnalysisInsightsV2 = React.lazy(() =>
 )
 
 /**
- * Loading fallback for lazy-loaded insights content
- * Minimal spinner to avoid layout shift during code loading
+ * Loading fallback for lazy-loaded insights content.
+ * Minimal spinner to avoid layout shift during code loading.
  */
-function InsightsLoadingFallback(): React.ReactElement {
+const InsightsLoadingFallback = memo(() => {
   return (
     <YStack
       flex={1}
@@ -73,7 +74,7 @@ function InsightsLoadingFallback(): React.ReactElement {
       />
     </YStack>
   )
-}
+})
 
 // Use Animated.FlatList directly for virtualization
 
@@ -300,8 +301,6 @@ export interface FeedbackPanelProps {
   fullFeedbackText?: string | null // Full AI feedback text for insights "Detailed Summary" section
   isHistoryMode?: boolean // History mode shows real comments; analysis mode shows placeholder
   voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
-  currentVideoTime?: number
-  videoDuration?: number
   selectedFeedbackId?: string | null
   onTabChange: (tab: 'feedback' | 'insights' | 'comments') => void
   // TEMP_DISABLED: Sheet expand/collapse for static layout
@@ -364,6 +363,11 @@ export const FeedbackPanel = memo(
     scrollGestureRef,
     onMinimizeVideo,
   }: FeedbackPanelProps) {
+    // PERF FIX: Prefetch Insights immediately on mount (no idle/interaction gating)
+    // This reduces cold-start fallback when user switches to Insights tab
+    useEffect(() => {
+      void prefetchInsights()
+    }, [])
     // Comment sorting state
     const [commentSort, setCommentSort] = useState<'top' | 'new'>('top')
 
@@ -400,13 +404,23 @@ export const FeedbackPanel = memo(
       'all' | 'voice' | 'posture' | 'grip' | 'movement'
     >('all')
 
-    // Track previous activeTab to detect actual tab switches
+    // Track tab switching state
     const previousActiveTabRef = useRef(activeTab)
     const tabActuallyChanged = previousActiveTabRef.current !== activeTab
 
-    // Update ref after checking if tab changed (for next render comparison)
+    // Track first activation of feedback tab for animation trigger
+    const isFeedbackTabFirstActivationRef = useRef(activeTab === 'feedback')
+    const isFeedbackTabFirstActivation =
+      activeTab === 'feedback' && !isFeedbackTabFirstActivationRef.current
+
+    // Update tab tracking on change
     useEffect(() => {
       previousActiveTabRef.current = activeTab
+
+      // Mark first activation of feedback tab
+      if (activeTab === 'feedback' && !isFeedbackTabFirstActivationRef.current) {
+        isFeedbackTabFirstActivationRef.current = true
+      }
     }, [activeTab])
 
     // Listen to keyboard events to adjust comment composer position
@@ -786,7 +800,13 @@ export const FeedbackPanel = memo(
       [formatCount]
     )
 
-    const shouldAnimateFeedbackItems = tabActuallyChanged && activeTab === 'feedback'
+    // Animate feedback items when:
+    // 1. Switching into feedback tab (tabActuallyChanged)
+    // 2. OR when feedback tab is first activated with items present
+    // This ensures items animate on initial page load AND when returning from other tabs
+    const shouldAnimateFeedbackItems =
+      activeTab === 'feedback' &&
+      (tabActuallyChanged || (isFeedbackTabFirstActivation && feedbackItems.length > 0))
 
     // Render feedback item node (must be defined before renderFeedbackContent)
     const renderFeedbackItemNode = useCallback(
@@ -806,9 +826,7 @@ export const FeedbackPanel = memo(
                     onLongPress: () => onSelectAudio(item.id),
                   }
                 : {})}
-              animation={shouldAnimateFeedbackItems ? 'quick' : undefined}
               enterStyle={shouldAnimateFeedbackItems ? tabTransitionEnterStyle : undefined}
-              exitStyle={shouldAnimateFeedbackItems ? tabTransitionExitStyle : undefined}
               testID={`feedback-item-${index + 1}`}
               accessibilityLabel={accessibilityLabel}
               data-testid={`feedback-item-${index + 1}`}
@@ -1059,8 +1077,8 @@ export const FeedbackPanel = memo(
 
     // Render insights tab content with lazy loading
     // Only loads component code when tab is accessed
-    const renderInsightsContent = useCallback(
-      () => (
+    const renderInsightsContent = useCallback(() => {
+      return (
         <Suspense fallback={<InsightsLoadingFallback />}>
           <LazyVideoAnalysisInsightsV2
             key="insights-content"
@@ -1073,16 +1091,17 @@ export const FeedbackPanel = memo(
             testID="insights-content"
           />
         </Suspense>
-      ),
-      [
-        fullFeedbackText,
-        voiceMode,
-        isSummaryExpanded,
-        handleSummaryToggle,
-        fullFeedbackRating,
-        onFullFeedbackRatingChange,
-      ]
-    )
+      )
+    }, [
+      fullFeedbackText,
+      voiceMode,
+      isSummaryExpanded,
+      handleSummaryToggle,
+      fullFeedbackRating,
+      onFullFeedbackRatingChange,
+      tabActuallyChanged,
+      activeTab,
+    ])
 
     // Render comments tab content
     const renderCommentsContent = useCallback(() => {
@@ -1454,6 +1473,11 @@ export const FeedbackPanel = memo(
                       scale: 0.97,
                     }}
                     onPress={() => {
+                      // PERF FIX: Prefetch Insights when tab is pressed (before switching)
+                      // This ensures module is loaded before render, reducing fallback visibility
+                      if (tab === 'insights') {
+                        void prefetchInsights()
+                      }
                       onTabChange(tab)
                     }}
                     testID={`tab-${tab}`}

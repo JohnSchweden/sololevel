@@ -54,11 +54,6 @@ import { VideoPlayerSection } from './VideoPlayerSection'
 const createProps = () => ({
   videoUri: 'test-video.mp4',
   videoControlsRef: { current: null },
-  pendingSeek: null,
-  userIsPlaying: false,
-  videoShouldPlay: false,
-  videoEnded: false,
-  showControls: true,
   isProcessing: false,
   videoAreaScale: 1,
   onPlay: jest.fn(),
@@ -70,14 +65,7 @@ const createProps = () => ({
   onLoad: jest.fn(),
   onEnd: jest.fn(),
   onTap: jest.fn(),
-  onMenuPress: jest.fn(),
   onControlsVisibilityChange: jest.fn(),
-  headerBackHandler: jest.fn(),
-  bubbleState: {
-    visible: false,
-    currentIndex: null,
-    items: [],
-  },
   feedbackItems: [
     {
       id: 'test-feedback-1',
@@ -95,7 +83,6 @@ const createProps = () => ({
     onInteraction: jest.fn(),
     audioDuration: 0,
   },
-  panelFraction: 0.05,
 })
 
 jest.mock('@my/ui', () => ({
@@ -109,45 +96,33 @@ jest.mock('@ui/components/BottomSheets', () => ({
 
 jest.mock('../stores/feedbackCoordinatorStore', () => ({
   useFeedbackCoordinatorStore: jest.fn((selector) => {
-    if (selector) {
-      return selector({
-        isCoachSpeaking: false,
-        bubbleState: {
-          bubbleVisible: false,
-          currentBubbleIndex: null,
-        },
-      })
-    }
-    return {
+    const state = {
       isCoachSpeaking: false,
-      bubbleState: {
-        bubbleVisible: false,
-        currentBubbleIndex: null,
-      },
+      isFallbackTimerActive: false,
+      overlayVisible: false,
+      bubbleState: { bubbleVisible: false, currentBubbleIndex: null },
     }
+    if (selector) return selector(state)
+    return state
   }),
 }))
 
 jest.mock('../stores/feedbackAudio', () => {
+  const setController = jest.fn()
   const mockStore = jest.fn((selector) => {
     const state = {
       activeAudio: null,
       isPlaying: false,
-      setController: jest.fn(),
+      setController,
     }
     return selector ? selector(state) : state
   })
-
-  // Add getState method to the mock store
   ;(mockStore as any).getState = jest.fn(() => ({
     activeAudio: null,
     isPlaying: false,
-    setController: jest.fn(),
+    setController,
   }))
-
-  return {
-    useFeedbackAudioStore: mockStore,
-  }
+  return { useFeedbackAudioStore: mockStore }
 })
 
 jest.mock('../hooks/useFeedbackPanel', () => ({
@@ -236,6 +211,7 @@ jest.mock('@ui/components/VideoAnalysis', () => {
   }
 })
 
+// Skipped: full render triggers useVideoPlayer + stores and can OOM in isolation. Props/mocks match current interface.
 describe.skip('VideoPlayerSection', () => {
   beforeEach(() => {
     const { usePersistentProgressStore, useVideoPlayerStore } =

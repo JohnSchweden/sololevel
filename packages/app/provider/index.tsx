@@ -21,6 +21,10 @@ import { initializeTestAuth } from '../auth/testAuthBootstrap'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useAuthStore } from '../stores/auth'
 import { useFeatureFlagsStore } from '../stores/feature-flags'
+import {
+  cleanupVoicePreferencesAuthSync,
+  initializeVoicePreferencesAuthSync,
+} from '../stores/voicePreferences'
 import { I18nProvider } from './I18nProvider'
 import { QueryProvider } from './QueryProvider'
 import { ToastViewport } from './ToastViewport'
@@ -148,6 +152,9 @@ export function Provider({
         .then(() => {
           const durationMs = Date.now() - startTime
           log.info('Provider', 'Auth initialized', { durationMs })
+
+          // Initialize voice preferences sync on login
+          initializeVoicePreferencesAuthSync()
         })
         .catch((error) => {
           log.error('Provider', 'Auth store initialization failed', { error })
@@ -159,18 +166,17 @@ export function Provider({
       // Initialize test auth after auth store is ready (if enabled)
       initializeTestAuth()
 
-      // Eager hydration: trigger immediately (no nested timer)
-      // Previous nested timer was being cleared by component remount
-      log.debug('Provider', 'Triggering eager VideoHistory hydration')
+      // VideoHistory hydration: async import then trigger hydration
+      // Note: Store may already exist due to static imports, but skipHydration defers MMKV read
       import('../features/HistoryProgress/stores/videoHistory')
         .then((module) => {
           // Setup auth-based cache cleanup
           const unsubscribe = module.setupVideoHistoryCacheCleanup(useAuthStore)
           cleanupRef.current = unsubscribe
 
-          // Trigger eager hydration
+          // Trigger hydration (reads from MMKV)
           module.useVideoHistoryStore.getState().ensureHydrated()
-          log.info('Provider', 'VideoHistoryStore eager hydration triggered')
+          log.debug('Provider', 'VideoHistoryStore hydration complete')
         })
         .catch((error) => {
           log.warn('Provider', 'Failed to setup video history', { error })
@@ -179,6 +185,7 @@ export function Provider({
 
     return () => {
       clearTimeout(initTimer)
+      cleanupVoicePreferencesAuthSync()
       // Call cleanup if it was set
       if (cleanupRef.current) {
         cleanupRef.current()

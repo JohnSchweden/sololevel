@@ -1,6 +1,6 @@
 import type { IconProps } from '@tamagui/helpers-icon'
 import { Bookmark, Heart, MessageCircle, Share } from '@tamagui/lucide-icons'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Platform } from 'react-native'
 import { Button, Text, YStack } from 'tamagui'
 
@@ -73,7 +73,7 @@ export interface SocialIconsProps {
   offsetBottom?: number
 }
 
-export function SocialIcons({
+function SocialIconsComponent({
   likes,
   comments,
   bookmarks,
@@ -149,6 +149,56 @@ export function SocialIcons({
       ? { right: '$2' as const, y: '$5' as const, bottom: offsetBottom ?? ('$10' as const) }
       : { right: '$2' as const, top: '$2' as const, y: '$-10' as const }
 
+  /** Renders a social icon button with label and count */
+  function renderSocialButton(
+    icon: React.ReactNode | React.ComponentType<any>,
+    testID: string,
+    label: string,
+    hint: string,
+    count: number,
+    onPress: () => void
+  ) {
+    return (
+      <YStack
+        key={testID}
+        alignItems="center"
+        backgroundColor={backgroundColor}
+        animation="quick"
+      >
+        <Button
+          chromeless
+          size={BUTTON_SIZE}
+          minWidth={BUTTON_MIN_WIDTH}
+          minHeight={BUTTON_MIN_HEIGHT}
+          icon={icon as any}
+          color={iconColor}
+          marginBottom={marginBottom}
+          onPress={onPress}
+          testID={testID}
+          accessibilityLabel={label}
+          accessibilityRole="button"
+          accessibilityHint={hint}
+          animation={BUTTON_ANIMATION}
+          borderRadius={BUTTON_BORDER_RADIUS}
+          borderWidth={BUTTON_BORDER_WIDTH}
+          borderColor={BUTTON_BORDER_COLOR}
+          pressStyle={BUTTON_PRESS_STYLE}
+          hoverStyle={BUTTON_HOVER_STYLE}
+          style={ICON_SHADOW_STYLE}
+        />
+        <Text
+          fontSize="$2"
+          color={fontColor}
+          testID={`${testID}-count`}
+          accessibilityLabel={`${label} count`}
+          style={TEXT_SHADOW_STYLE}
+        >
+          {formatCount(count)}
+        </Text>
+      </YStack>
+    )
+  }
+
   return (
     <>
       <YStack
@@ -172,165 +222,45 @@ export function SocialIcons({
         zIndex={10}
         {...positionalProps}
       >
-        <YStack
-          alignItems="center"
-          //gap="$1"
-          backgroundColor={backgroundColor}
-          //padding="$2"
-          animation="quick"
-        >
-          <Button
-            chromeless
-            size={BUTTON_SIZE}
-            minWidth={BUTTON_MIN_WIDTH}
-            minHeight={BUTTON_MIN_HEIGHT}
-            icon={isLiked ? HeartFilled : Heart}
-            color={iconColor}
-            marginBottom={marginBottom}
-            onPress={handleLike}
-            testID="social-like-button"
-            accessibilityLabel="Like this video"
-            accessibilityRole="button"
-            accessibilityHint="Tap to like this video"
-            animation={BUTTON_ANIMATION}
-            borderRadius={BUTTON_BORDER_RADIUS}
-            borderWidth={BUTTON_BORDER_WIDTH}
-            borderColor={BUTTON_BORDER_COLOR}
-            pressStyle={BUTTON_PRESS_STYLE}
-            hoverStyle={BUTTON_HOVER_STYLE}
-            style={ICON_SHADOW_STYLE}
-          />
-          <Text
-            fontSize="$2"
-            color={fontColor}
-            testID="social-likes-count"
-            accessibilityLabel="Number of likes"
-            style={TEXT_SHADOW_STYLE}
-          >
-            {formatCount(likes)}
-          </Text>
-        </YStack>
-
-        <YStack
-          alignItems="center"
-          //gap="$1"
-          backgroundColor={backgroundColor}
-          //padding="$2"
-          animation="quick"
-        >
-          <Button
-            chromeless
-            size={BUTTON_SIZE}
-            minWidth={BUTTON_MIN_WIDTH}
-            minHeight={BUTTON_MIN_HEIGHT}
-            icon={MessageCircle}
-            color={iconColor}
-            marginBottom={marginBottom}
-            onPress={onComment}
-            testID="social-comment-button"
-            accessibilityLabel="Add comment"
-            accessibilityRole="button"
-            accessibilityHint="Tap to add a comment"
-            animation={BUTTON_ANIMATION}
-            borderRadius={BUTTON_BORDER_RADIUS}
-            borderWidth={BUTTON_BORDER_WIDTH}
-            borderColor={BUTTON_BORDER_COLOR}
-            pressStyle={BUTTON_PRESS_STYLE}
-            hoverStyle={BUTTON_HOVER_STYLE}
-            style={ICON_SHADOW_STYLE}
-          />
-          <Text
-            fontSize="$2"
-            color={fontColor}
-            testID="social-comments-count"
-            accessibilityLabel="Number of comments"
-            style={TEXT_SHADOW_STYLE}
-          >
-            {formatCount(comments)}
-          </Text>
-        </YStack>
-
-        <YStack
-          alignItems="center"
-          //gap="$1"
-          backgroundColor={backgroundColor}
-          //padding="$1"
-          animation="quick"
-        >
-          <Button
-            chromeless
-            size={BUTTON_SIZE}
-            minWidth={BUTTON_MIN_WIDTH}
-            minHeight={BUTTON_MIN_HEIGHT}
-            icon={isBookmarked ? BookmarkFilled : Bookmark}
-            color={iconColor}
-            marginBottom={marginBottom}
-            onPress={handleBookmark}
-            testID="social-bookmark-button"
-            accessibilityLabel="Bookmark this video"
-            accessibilityRole="button"
-            accessibilityHint="Tap to bookmark this video"
-            animation={BUTTON_ANIMATION}
-            borderRadius={BUTTON_BORDER_RADIUS}
-            borderWidth={BUTTON_BORDER_WIDTH}
-            borderColor={BUTTON_BORDER_COLOR}
-            pressStyle={BUTTON_PRESS_STYLE}
-            hoverStyle={BUTTON_HOVER_STYLE}
-            style={ICON_SHADOW_STYLE}
-          />
-          <Text
-            fontSize="$2"
-            color={fontColor}
-            testID="social-bookmarks-count"
-            accessibilityLabel="Number of bookmarks"
-            style={TEXT_SHADOW_STYLE}
-          >
-            {formatCount(displayBookmarkCount)}
-          </Text>
-        </YStack>
-
-        <YStack
-          alignItems="center"
-          //gap="$1"
-          backgroundColor={backgroundColor}
-          //padding="$2"
-          animation="quick"
-        >
-          <Button
-            chromeless
-            size={BUTTON_SIZE}
-            minWidth={BUTTON_MIN_WIDTH}
-            minHeight={BUTTON_MIN_HEIGHT}
-            icon={Share}
-            color={iconColor}
-            marginBottom={marginBottom}
-            onPress={handleShare}
-            testID="social-share-button"
-            accessibilityLabel="Share this video"
-            accessibilityRole="button"
-            accessibilityHint="Tap to share this video"
-            animation={BUTTON_ANIMATION}
-            borderRadius={BUTTON_BORDER_RADIUS}
-            borderWidth={BUTTON_BORDER_WIDTH}
-            borderColor={BUTTON_BORDER_COLOR}
-            pressStyle={BUTTON_PRESS_STYLE}
-            hoverStyle={BUTTON_HOVER_STYLE}
-            style={ICON_SHADOW_STYLE}
-          />
-          <Text
-            fontSize="$2"
-            color={fontColor}
-            testID="social-shares-count"
-            accessibilityLabel="Number of shares"
-            style={TEXT_SHADOW_STYLE}
-          >
-            {formatCount(shares)}
-          </Text>
-        </YStack>
+        {renderSocialButton(
+          isLiked ? HeartFilled : Heart,
+          'social-like-button',
+          'Like this video',
+          'Tap to like this video',
+          likes,
+          handleLike
+        )}
+        {renderSocialButton(
+          MessageCircle,
+          'social-comment-button',
+          'Add comment',
+          'Tap to add a comment',
+          comments,
+          onComment
+        )}
+        {renderSocialButton(
+          isBookmarked ? BookmarkFilled : Bookmark,
+          'social-bookmark-button',
+          'Bookmark this video',
+          'Tap to bookmark this video',
+          displayBookmarkCount,
+          handleBookmark
+        )}
+        {renderSocialButton(
+          Share,
+          'social-share-button',
+          'Share this video',
+          'Tap to share this video',
+          shares,
+          handleShare
+        )}
       </YStack>
     </>
   )
 }
+
+// Memoize to prevent re-renders when parent updates (e.g., currentTime changes)
+export const SocialIcons = memo(SocialIconsComponent)
 
 // Enable why-did-you-render tracking for performance debugging
 if (__DEV__) {

@@ -78,8 +78,11 @@ describe('voicePreferencesService', () => {
       expect(chain.single).toHaveBeenCalledTimes(1)
 
       expect(result).toEqual({
-        coachGender: 'female',
-        coachMode: 'roast',
+        preferences: {
+          coachGender: 'female',
+          coachMode: 'roast',
+        },
+        hasSetPreferences: true,
       })
     })
 
@@ -108,8 +111,11 @@ describe('voicePreferencesService', () => {
 
       // Assert
       expect(result).toEqual({
-        coachGender: 'female',
-        coachMode: 'roast',
+        preferences: {
+          coachGender: 'female',
+          coachMode: 'roast',
+        },
+        hasSetPreferences: false, // coach_mode was null, so defaults applied
       })
     })
 

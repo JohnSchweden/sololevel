@@ -2,7 +2,6 @@
 import type { CoachMode } from '@my/config'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-
 import { YStack } from 'tamagui'
 
 import { FeedbackPanel } from '@ui/components/VideoAnalysis'
@@ -19,6 +18,8 @@ import { useFeedbackAudioStore } from '../stores/feedbackAudio'
 import { useFeedbackCoordinatorStore } from '../stores/feedbackCoordinatorStore'
 import type { FeedbackPanelItem } from '../types'
 
+const EMPTY_AUDIO_RECORD: Record<string, string> = {}
+
 interface FeedbackSectionProps {
   feedbackItems: FeedbackPanelItem[]
   analysisTitle?: string // AI-generated analysis title
@@ -27,8 +28,6 @@ interface FeedbackSectionProps {
   isHistoryMode?: boolean
   voiceMode?: CoachMode // Voice mode for UI text (roast/zen/lovebomb)
   // selectedFeedbackId: string | null - REMOVED: Subscribed directly from store
-  currentVideoTime: number
-  videoDuration: number
   // errors: Record<string, string> - REMOVED: Subscribed directly from store
   // audioUrls: Record<string, string> - REMOVED: Subscribed directly from store
   // onTabChange removed - handled internally by feedbackPanel.setActiveTab
@@ -58,8 +57,6 @@ export const FeedbackSection = memo(function FeedbackSection({
   isHistoryMode = false,
   voiceMode = 'roast',
   // selectedFeedbackId, - REMOVED: Subscribed directly from store
-  currentVideoTime,
-  videoDuration,
   // errors, - REMOVED: Subscribed directly from store
   // audioUrls, - REMOVED: Subscribed directly from store
   // onTabChange, - REMOVED: handled internally by feedbackPanel.setActiveTab
@@ -81,11 +78,21 @@ export const FeedbackSection = memo(function FeedbackSection({
   scrollGestureRef,
   onMinimizeVideo,
 }: FeedbackSectionProps): ReactElement {
+  // PERFORMANCE FIX: Direct subscription to feedback panel state
+  // Eliminates VideoAnalysisScreen re-renders when panel state changes
+  const feedbackPanel = useFeedbackPanel()
+  const setActiveTab = feedbackPanel.setActiveTab
+  const isFeedbackTabActive = feedbackPanel.activeTab === 'feedback'
+
   // PERFORMANCE FIX: Direct subscription to highlighted feedback state
   // Eliminates VideoAnalysisScreen re-renders when feedback selection changes
-  const selectedFeedbackId = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.highlightedFeedbackId : null
-  )
+  // PERF FIX: Gate selector to return stable value when not on feedback tab to prevent re-renders
+  const selectedFeedbackId = useFeedbackCoordinatorStore((state) => {
+    const rawId = process.env.NODE_ENV !== 'test' ? state.highlightedFeedbackId : null
+    // Gate: return null (stable) when not on feedback tab to prevent re-renders
+    const id = isFeedbackTabActive ? rawId : null
+    return id
+  })
 
   // Optimistic state for full feedback rating
   const [optimisticFullFeedbackRating, setOptimisticFullFeedbackRating] = useState<
@@ -99,28 +106,57 @@ export const FeedbackSection = memo(function FeedbackSection({
     }
   }, [initialFullFeedbackRating])
 
+  const prevActiveTabRef = useRef<typeof feedbackPanel.activeTab>(feedbackPanel.activeTab)
+  useEffect(() => {
+    const prev = prevActiveTabRef.current
+    const next = feedbackPanel.activeTab
+    if (prev !== next) {
+      prevActiveTabRef.current = next
+    }
+  }, [feedbackPanel.activeTab])
+
   // Optimistic state for individual feedback ratings (keyed by feedbackId)
   const [optimisticFeedbackRatings, setOptimisticFeedbackRatings] = useState<
     Record<string, 'up' | 'down' | null>
   >({})
 
-  // PERFORMANCE FIX: Direct subscription to feedback panel state
-  // Eliminates VideoAnalysisScreen re-renders when panel state changes
-  const feedbackPanel = useFeedbackPanel()
-  const setActiveTab = feedbackPanel.setActiveTab
   // Subscribe only to command value (not the object with clear function)
   // This prevents infinite loops from object reference changes
-  const command = useFeedbackPanelCommandStore((state) => state.command)
+  // PERF FIX: Gate selector - command bus only matters when on feedback tab
+  const command = useFeedbackPanelCommandStore((state) => {
+    const c = state.command
+    // Gate: return null (stable) when not on feedback tab to prevent re-renders
+    // Command bus is only used for tab switching, so we can ignore it when not on feedback tab
+    const gatedCommand = isFeedbackTabActive ? c : null
+    return gatedCommand
+  })
   const processedTokenRef = useRef<number | null>(null)
+  const handleTabChange = useCallback(
+    (tab: typeof feedbackPanel.activeTab) => {
+      setActiveTab(tab)
+    },
+    [feedbackPanel.activeTab, setActiveTab]
+  )
 
   // PERFORMANCE FIX: Direct subscription to feedback audio state
   // Eliminates VideoAnalysisScreen re-renders when audio URLs/errors change
-  const errors = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.errors : {}
-  )
-  const audioUrls = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.audioUrls : {}
-  )
+  // PERF FIX: Use separate selectors to avoid unstable combined snapshots
+  // PERF FIX: Gate selectors to return stable empty objects when not on feedback tab
+  const errors = useFeedbackAudioStore((state) => {
+    if (!isFeedbackTabActive) {
+      return EMPTY_AUDIO_RECORD
+    }
+    const e = process.env.NODE_ENV !== 'test' ? state.errors : {}
+    return e
+  })
+
+  const audioUrls = useFeedbackAudioStore((state) => {
+    if (!isFeedbackTabActive) {
+      return EMPTY_AUDIO_RECORD
+    }
+    const u = process.env.NODE_ENV !== 'test' ? state.audioUrls : {}
+    return u
+  })
 
   // Get voice mode for comments (fallback to prop, then store, then 'roast')
   const voiceModeFromStore = useVoicePreferencesStore((s) => s.mode)
@@ -129,32 +165,40 @@ export const FeedbackSection = memo(function FeedbackSection({
   // Generate mock comments based on voice mode
   const mockCommentsData = useMemo(() => getMockComments(effectiveVoiceMode), [effectiveVoiceMode])
 
-  const preparedItems = useMemo(
-    () =>
-      feedbackItems.map((item) => ({
-        ...item,
-        audioUrl: audioUrls[item.id],
-        audioError: errors[item.id],
-      })),
-    [audioUrls, errors, feedbackItems]
-  )
+  // PERF FIX: Gate preparedItems - return stable empty array when not on feedback tab
+  // This prevents re-renders when audioUrls/errors update but feedback tab isn't visible
+  const preparedItems = useMemo(() => {
+    if (!isFeedbackTabActive) {
+      // Return stable empty array when not on feedback tab
+      return []
+    }
+    return feedbackItems.map((item) => ({
+      ...item,
+      audioUrl: audioUrls[item.id],
+      audioError: errors[item.id],
+    }))
+  }, [audioUrls, errors, feedbackItems, isFeedbackTabActive])
 
   // Process command bus requests - use token to avoid reprocessing same command
+  // PERF FIX: Only process commands when on feedback tab (command bus is for tab switching)
   useEffect(() => {
     if (!command) {
-      // Reset processed token when command is cleared to allow reprocessing
       processedTokenRef.current = null
       return
     }
-    // Skip if we've already processed this command token
+
+    if (!isFeedbackTabActive) {
+      return
+    }
+
     if (processedTokenRef.current === command.token) {
       return
     }
+
     processedTokenRef.current = command.token
     setActiveTab(command.tab)
-    // Clear command after processing
     getFeedbackPanelCommandState().clear()
-  }, [command, setActiveTab])
+  }, [command, setActiveTab, isFeedbackTabActive])
 
   // Wrap rating handlers with optimistic updates
   const handleFeedbackRatingChange = useCallback(
@@ -181,19 +225,22 @@ export const FeedbackSection = memo(function FeedbackSection({
   )
 
   // Merge optimistic ratings into feedback items
-  const feedbackItemsWithRatings = useMemo(
-    () =>
-      preparedItems.map((item) => ({
-        ...item,
-        // FIX: Use 'in' operator to check if key exists, not ?? which treats null as falsy
-        // This allows null (clearing rating) to override the DB value
-        userRating:
-          item.id in optimisticFeedbackRatings
-            ? optimisticFeedbackRatings[item.id]
-            : (item.userRating ?? null),
-      })),
-    [preparedItems, optimisticFeedbackRatings]
-  )
+  // PERF FIX: Gate - return stable empty array when not on feedback tab
+  const feedbackItemsWithRatings = useMemo(() => {
+    if (!isFeedbackTabActive) {
+      // Return stable empty array when not on feedback tab
+      return []
+    }
+    return preparedItems.map((item) => ({
+      ...item,
+      // FIX: Use 'in' operator to check if key exists, not ?? which treats null as falsy
+      // This allows null (clearing rating) to override the DB value
+      userRating:
+        item.id in optimisticFeedbackRatings
+          ? optimisticFeedbackRatings[item.id]
+          : (item.userRating ?? null),
+    }))
+  }, [preparedItems, optimisticFeedbackRatings, isFeedbackTabActive])
 
   return (
     <YStack
@@ -212,10 +259,8 @@ export const FeedbackSection = memo(function FeedbackSection({
         isHistoryMode={isHistoryMode}
         voiceMode={effectiveVoiceMode}
         comments={mockCommentsData}
-        currentVideoTime={currentVideoTime}
-        videoDuration={videoDuration}
         selectedFeedbackId={selectedFeedbackId}
-        onTabChange={feedbackPanel.setActiveTab}
+        onTabChange={handleTabChange}
         // TEMP_DISABLED: Sheet expand/collapse for static layout
         // onSheetExpand={onExpand}
         // onSheetCollapse={onCollapse}

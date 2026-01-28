@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Dimensions, Platform, StatusBar } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
 import Animated, {
-  Easing,
   runOnJS,
+  ReduceMotion,
   scrollTo,
   useAnimatedReaction,
   useSharedValue,
@@ -13,44 +12,21 @@ import Animated, {
   type AnimatedRef,
   type SharedValue,
 } from 'react-native-reanimated'
+import {
+  DIRECTION_DETECT_THRESHOLD,
+  FAST_SWIPE_THRESHOLD,
+  LONG_SWIPE_THRESHOLD,
+  MODE_SCROLL_POSITIONS,
+  PULL_EXPAND,
+  PULL_THRESHOLD,
+  SNAP_DURATION_MS,
+  SNAP_EASING,
+} from '../utils/videoAnimationConstants'
+import { calculateVideoHeight } from '../utils/videoHeightCalculation'
 // MEMORY LEAK FIX: Commented out gesture conflict detector (dormant AI analysis feature)
 // import { useGestureConflictDetector } from './useGestureConflictDetector'
 
-// Animation constants - Mode-based system
-const { height: SCREEN_H_BASE } = Dimensions.get('window')
-
-// Platform-specific screen height calculation:
-// Android: Subtract status bar height since window dimensions include it but layout starts below
-//          Bottom safe area (gesture nav) is handled in FeedbackPanel scroll padding
-// iOS: Use full window height (layout automatically accounts for status bar)
-const SCREEN_H =
-  Platform.OS === 'android' && StatusBar.currentHeight
-    ? SCREEN_H_BASE - StatusBar.currentHeight
-    : SCREEN_H_BASE
-
 type VideoMode = 'min' | 'normal' | 'max'
-
-// Discrete video heights per mode
-const VIDEO_HEIGHTS = {
-  max: SCREEN_H, // 100% - full screen
-  normal: Math.round(SCREEN_H * 0.6), // 60% - default viewing
-  min: Math.round(SCREEN_H * 0.33), // 33% - collapsed dock
-} as const
-
-// Pull-to-reveal gesture thresholds
-const PULL_EXPAND = 200 // Maximum pull distance for reveal effect
-const PULL_THRESHOLD = 170 // Minimum pull to trigger reveal
-
-// Mode transition scroll positions (for backward compatibility with scroll-based gestures)
-const MODE_SCROLL_POSITIONS = {
-  max: 0,
-  normal: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.normal, // 40% of screen
-  min: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.min, // 67% of screen
-} as const
-
-// Snap animation timing
-const SNAP_DURATION_MS = 600
-const SNAP_EASING = Easing.bezier(0.15, 0.0, 0.15, 1)
 
 /**
  * Clamps a value between min and max boundaries (worklet-compatible)
@@ -87,52 +63,24 @@ const scrollToMode = (scrollValue: number): VideoMode => {
   'worklet'
   // Pull-to-reveal gesture - snap back to normal
   if (scrollValue < -PULL_THRESHOLD) {
-    // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
-    // runOnJS(log.debug)(
-    //   'useGestureController.scrollToMode',
-    //   'Pull-to-reveal detected - snapping to normal',
-    //   {
-    //     scrollValue: Math.round(scrollValue * 100) / 100,
-    //     threshold: -PULL_THRESHOLD,
-    //   }
-    // )
     return 'normal'
   }
 
-  // Find closest mode based on scroll position - unrolled loop to avoid array allocation per frame
-  let nearestMode: VideoMode = 'max'
-  let minDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.max)
+  // Find closest mode based on scroll position using distance minimization
+  const modes = ['max', 'normal', 'min'] as const
+  let nearest: VideoMode = 'max'
+  let minDist = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.max)
 
-  const normalDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.normal)
-  if (normalDistance < minDistance) {
-    minDistance = normalDistance
-    nearestMode = 'normal'
+  for (let i = 1; i < modes.length; i++) {
+    const mode = modes[i]
+    const dist = Math.abs(scrollValue - MODE_SCROLL_POSITIONS[mode])
+    if (dist < minDist) {
+      minDist = dist
+      nearest = mode
+    }
   }
 
-  const minModeDistance = Math.abs(scrollValue - MODE_SCROLL_POSITIONS.min)
-  if (minModeDistance < minDistance) {
-    minDistance = minModeDistance
-    nearestMode = 'min'
-  }
-
-  // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
-  // runOnJS(log.debug)('useGestureController.scrollToMode', 'Nearest mode calculated', {
-  //   scrollValue: Math.round(scrollValue * 100) / 100,
-  //   distances: {
-  //     max: Math.round(distances.max * 100) / 100,
-  //     normal: Math.round(distances.normal * 100) / 100,
-  //     min: Math.round(distances.min * 100) / 100,
-  //   },
-  //   nearestMode,
-  //   minDistance: Math.round(minDistance * 100) / 100,
-  //   modePositions: {
-  //     max: MODE_SCROLL_POSITIONS.max,
-  //     normal: MODE_SCROLL_POSITIONS.normal,
-  //     min: MODE_SCROLL_POSITIONS.min,
-  //   },
-  // })
-
-  return nearestMode
+  return nearest
 }
 
 /**
@@ -146,53 +94,6 @@ const scrollToMode = (scrollValue: number): VideoMode => {
 const modeToScroll = (mode: VideoMode): number => {
   'worklet'
   return MODE_SCROLL_POSITIONS[mode]
-}
-
-/**
- * Calculates the current video height from scroll position
- * Handles three phases:
- *
- * 1. **Pull-to-reveal** (scrollY < 0):
- *    Video expands beyond max height with easing (1.4x multiplier)
- *    Used for visual feedback when user overscrolls upward
- *
- * 2. **Phase 1: max → normal** (0 ≤ scrollY ≤ ~237px):
- *    Linearly interpolates from VIDEO_HEIGHTS.max → VIDEO_HEIGHTS.normal
- *    Progress: scrollY / MODE_SCROLL_POSITIONS.normal
- *
- * 3. **Phase 2: normal → min** (scrollY > ~237px):
- *    Linearly interpolates from VIDEO_HEIGHTS.normal → VIDEO_HEIGHTS.min
- *    Progress: (scrollY - normal) / (min - normal)
- *
- * @param scrollValue - Current scroll position
- * @returns Interpolated video height in pixels
- *
- * Examples:
- * - scrollValue = 0    → ~640px (max, full screen)
- * - scrollValue = 237  → ~385px (normal, 60%)
- * - scrollValue = 401  → ~211px (min, 33%)
- * - scrollValue = -170 → ~896px+ (pull-to-reveal, beyond max)
- *
- * @worklet
- */
-const calculateVideoHeight = (scrollValue: number): number => {
-  'worklet'
-  if (scrollValue < 0) {
-    // Pull-to-reveal: expand beyond max
-    const pullDistance = Math.abs(scrollValue)
-    const easedPull = pullDistance > PULL_EXPAND ? PULL_EXPAND * 1.4 : pullDistance * 1.4
-    return VIDEO_HEIGHTS.max + easedPull
-  }
-  if (scrollValue <= MODE_SCROLL_POSITIONS.normal) {
-    // Phase 1: Max → Normal
-    const progress = scrollValue / MODE_SCROLL_POSITIONS.normal
-    return VIDEO_HEIGHTS.max - (VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.normal) * progress
-  }
-  // Phase 2: Normal → Min
-  const progress =
-    (scrollValue - MODE_SCROLL_POSITIONS.normal) /
-    (MODE_SCROLL_POSITIONS.min - MODE_SCROLL_POSITIONS.normal)
-  return VIDEO_HEIGHTS.normal - (VIDEO_HEIGHTS.normal - VIDEO_HEIGHTS.min) * progress
 }
 
 /**
@@ -676,6 +577,17 @@ export function useGestureController(
     []
   )
 
+  /**
+   * Configuration for root pan gesture
+   * Defines activation thresholds and processing state
+   */
+  const panGestureConfig = useMemo(
+    () => ({
+      isProcessing,
+    }),
+    [isProcessing]
+  )
+
   // Pan gesture with YouTube-style delegation
   // CONDITIONAL activeOffsetY: Adjust sensitivity based on feedback scroll position
   // CRITICAL: Only activate on vertical movement to avoid claiming back navigation gestures
@@ -687,7 +599,7 @@ export function useGestureController(
     () =>
       Gesture.Pan()
         .withRef(rootPanRef)
-        .enabled(!isProcessing) // Disable all gestures when video is processing
+        .enabled(!panGestureConfig.isProcessing) // Disable all gestures when video is processing
         .minDistance(5)
         // Only activate on vertical movement (up/down) - NOT horizontal
         // This prevents claiming rightward swipes used for back navigation
@@ -834,7 +746,10 @@ export function useGestureController(
           totalTranslationY.value = Math.abs(e.translationY)
 
           // Detect gesture direction and velocity on first significant movement
-          if (gestureDirection.value === 'unknown' && Math.abs(e.changeY) > 8) {
+          if (
+            gestureDirection.value === 'unknown' &&
+            Math.abs(e.changeY) > DIRECTION_DETECT_THRESHOLD
+          ) {
             gestureDirection.value = e.changeY > 0 ? 'down' : 'up'
 
             // Calculate velocity (pixels per millisecond)
@@ -851,8 +766,6 @@ export function useGestureController(
               scrollValue <= MODE_SCROLL_POSITIONS.normal
 
             // Modern swipe detection: Fast swipe OR long swipe triggers mode change
-            const FAST_SWIPE_THRESHOLD = 0.3 // pixels per millisecond (300 px/s)
-            const LONG_SWIPE_THRESHOLD = 80 // pixels - total translation distance
             const isFastSwipe = gestureVelocity.value > FAST_SWIPE_THRESHOLD
             const isLongSwipe = totalTranslationY.value > LONG_SWIPE_THRESHOLD
             const shouldTriggerModeChange = isFastSwipe || isLongSwipe
@@ -983,7 +896,6 @@ export function useGestureController(
             const isNormalMode =
               scrollValue >= MODE_SCROLL_POSITIONS.max &&
               scrollValue <= MODE_SCROLL_POSITIONS.normal
-            const LONG_SWIPE_THRESHOLD = 80 // pixels
             const isLongSwipe = totalTranslationY.value > LONG_SWIPE_THRESHOLD
 
             if (isNormalMode && isLongSwipe) {
@@ -1064,16 +976,6 @@ export function useGestureController(
           // })
 
           if (!gestureIsActive.value) {
-            // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
-            // runOnJS(log.debug)(
-            //   'useGestureController.rootPan',
-            //   'Gesture end - SKIPPED (gesture not active, no snap)',
-            //   {
-            //     scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-            //     committedToVideoControl: committedToVideoControl.value,
-            //     currentScrollY: Math.round(currentScrollY * 100) / 100,
-            //   }
-            // )
             return
           }
 
@@ -1107,38 +1009,12 @@ export function useGestureController(
           const targetMode = scrollToMode(currentScrollY)
           const targetScrollPos = modeToScroll(targetMode)
 
-          // MEMORY LEAK FIX: Commented out runOnJS(log.debug) to prevent closure accumulation
-          // runOnJS(log.debug)('useGestureController.rootPan', 'Gesture end - SNAPPING to mode', {
-          //   targetMode,
-          //   targetScrollPos,
-          //   fromScrollY: Math.round(currentScrollY * 100) / 100,
-          //   snapDistance: Math.round((targetScrollPos - currentScrollY) * 100) / 100,
-          //   committedToVideoControl: committedToVideoControl.value,
-          //   isFastSwipeVideoModeChange: isFastSwipeVideoModeChange.value,
-          //   isPullingToReveal: isPullingToReveal.value,
-          //   scrollYDelta: Math.round(scrollYDelta * 100) / 100,
-          //   feedbackOffset: Math.round(feedbackContentOffsetY.value * 100) / 100,
-          //   reason: committedToVideoControl.value
-          //     ? 'committed to video control'
-          //     : isFastSwipeVideoModeChange.value
-          //       ? 'fast swipe mode change'
-          //       : isPullingToReveal.value
-          //         ? 'pull-to-reveal'
-          //         : 'gesture active but not committed (possible bug)',
-          //   snapDuration: SNAP_DURATION_MS,
-          // })
-
-          scrollY.value = withTiming(
-            targetScrollPos,
-            {
-              duration: SNAP_DURATION_MS,
-              easing: SNAP_EASING,
-            },
-            (finished) => {
-              'worklet'
-              if (!finished) return
-            }
-          )
+          scrollY.value = withTiming(targetScrollPos, {
+            duration: SNAP_DURATION_MS,
+            easing: SNAP_EASING,
+            reduceMotion: ReduceMotion.Never,
+          })
+          // Sync scroll ref with smooth animation to match scrollY.value animation
           scrollTo(scrollRef, 0, targetScrollPos, true)
 
           // MEMORY LEAK FIX: Commented out runOnJS(log.warn) to prevent closure accumulation
@@ -1181,14 +1057,7 @@ export function useGestureController(
           isLeftEdgeSwipe.value = false
           totalTranslationY.value = 0
         }),
-    [
-      isProcessing, // Recreate gesture when processing state changes
-      rootPanRef,
-      feedbackScrollGestureRef,
-      // Note: isFeedbackAtTop is a SharedValue - its .value changes don't trigger re-renders
-      // Scroll blocking is handled dynamically in gesture handlers via isFeedbackAtTop.value checks
-      // Callbacks (setFeedbackScrollEnabledTransition, batchScrollStateUpdate) are stable via useCallback
-    ]
+    [panGestureConfig]
   )
 
   // Memoize return value with PRIMITIVE deps (not rootPan which changes every render)

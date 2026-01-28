@@ -1,112 +1,260 @@
 ---
-description: Auto-attach scoped AGENTS.md + self-healing capability
+description: Auto-load scoped AGENTS.md + self-healing with decision trees
 alwaysApply: true
-globs:
-  - "**/*"
+globs: ["**/*"]
 ---
+
 # Scoped AGENTS.md with Self-Healing
 
-## DO THIS FIRST: Read Relevant AGENTS.md Files
+## 🎯 Context Auto-Loading (Happens Automatically)
 
-**Always read root `@AGENTS.md`**. Then, if working in a subtree, **also read the closest matching scoped `AGENTS.md`**:
+**Root AGENTS.md** is always loaded. Then, the most specific scoped `AGENTS.md` for your working directory:
 
 - `apps/**/*` → `@apps/AGENTS.md`
 - `packages/**/*` → `@packages/AGENTS.md`
-- `packages/app/**/*` → `@packages/app/AGENTS.md` (most specific wins)
+- `packages/app/**/*` → `@packages/app/AGENTS.md` ⭐ (most specific wins)
 - `packages/api/**/*` → `@packages/api/AGENTS.md`
 - `packages/ui/**/*` → `@packages/ui/AGENTS.md`
 - `supabase/**/*` → `@supabase/AGENTS.md`
-- `stories/**/*` → `@stories/AGENTS.md`
 
-**Precedence when instructions conflict**: More specific wins.  
+**Precedence:** More specific > Less specific > Root
 Example: `packages/ui/AGENTS.md` > `packages/AGENTS.md` > root `AGENTS.md`
 
 ---
 
-## Self-Healing Workflow: Learn from Mistakes and Pitfalls
+## 🔀 Quick Decision Trees
 
-When you **make a mistake that you later correct**, or **discover a common pitfall to avoid**:
+### 1. Which validation command?
+```
+Single file change?
+   ↓
+   yarn biome check <file>
 
-1. **Correct** the mistake in the current work
-2. **Route** to the appropriate file using the table below
-3. **Update** that file by adding the pattern in the existing style
-4. **Stop** — do not create duplicate entries or over-document
+Workspace changes?
+   ↓
+   yarn type-check:<workspace> + yarn lint:<workspace>
 
-### Routing Table (where to save the lesson)
+Pre-commit/CI?
+   ↓
+   yarn type-check:all + yarn lint:all
+```
 
-| Mistake Scope | Target File | Section |
-|---|---|---|
-| Agent process/behavior (tool usage, verification) | `AGENTS.md` (root) | `## Agent Behavior` |
-| Repo-wide architecture (navigation, New Arch) | `AGENTS.md` (root) | `## Architecture Preferences` |
-| App-specific patterns (route wrappers, metro config) | `apps/AGENTS.md` | Relevant section |
-| Package-general patterns (component structure, testing) | `packages/AGENTS.md` | Relevant section |
-| UI-specific pitfalls (Tamagui tokens, platform diffs) | `packages/ui/AGENTS.md` | Appropriate section |
-| App logic pitfalls (state management, effects) | `packages/app/AGENTS.md` | `## State Management` or new section |
-| API/auth patterns (Supabase, auth retry) | `packages/api/AGENTS.md` | `## Authentication` or relevant |
-| Supabase backend (triggers, RLS, Edge Functions) | `supabase/AGENTS.md` | Relevant section |
-| General React patterns (memoization, effects) | `.cursor/rules/quality/performance.mdc` or `.cursor/rules/quality/react-effects.mdc` | Add as bullet + short example |
-| TypeScript patterns (`as any`, inference) | `.cursor/rules/core/typescript-standards.mdc` | Relevant section |
-
----
-
-## Recording Format (match destination file's style)
-
-### For `AGENTS.md` files (terse bullets)
-
-  ```markdown
-  ## Relevant Section
-  - **Pattern name**: brief explanation (why it matters)
-  ```
-
-### For `.mdc` rule files (bullets + code example)
-
-  ```markdown
-  ## Relevant Section
-  - **Pattern name**: brief explanation
-
-    **Wrong**:
-    ```typescript
-    // problematic code
-    ```
-
-    **Correct**:
-    ```typescript
-    // fixed code
-    ```
+### 2. Where to save this learning?
+```
+┌─────────────────────┐
+│ I fixed a mistake!  │
+└──────────┬──────────┘
+           │
+           ├─→ Agent process? (validation, tools)
+           │   └─→ Root AGENTS.md § Agent Behavior
+           │
+           ├─→ Repo architecture? (navigation, New Arch)
+           │   └─→ Root AGENTS.md § Architecture
+           │
+           ├─→ Workspace-specific? (UI tokens, app state)
+           │   └─→ packages/<workspace>/AGENTS.md
+           │
+           ├─→ General pattern? (React, TypeScript)
+           │   └─→ .cursor/rules/quality/*.mdc or core/*.mdc
+           │
+           └─→ File-specific / one-time issue?
+               └─→ Don't document (not reusable)
 ```
 
 ---
 
-## Quality Gates (before updating)
+## 🔧 Self-Healing Workflow
+
+### When to Self-Heal
+Trigger self-healing when you:
+- Make a mistake and later correct it
+- Discover a reusable pattern to avoid future issues
+- Learn something that would help the next time
+
+### 4-Step Process
+1. **Correct** the mistake in current work
+2. **Route** to appropriate file using decision tree above
+3. **Update** that file (match existing style)
+4. **Stop** — don't duplicate or over-document
+
+### Pattern Examples
+
+#### Example 1: Wrong import pattern
+```typescript
+// ❌ You initially wrote:
+import { Button } from '../../../ui/components/Button'
+
+// ✅ Corrected to:
+import { Button } from '@ui/components/Button'
+```
+
+**Self-healing action:**
+```markdown
+Add to packages/AGENTS.md:
+
+## Import Patterns
+- **Cross-package imports:** Always use path aliases (`@ui/`, `@app/`). Never use relative imports (`../../../`)
+```
+
+#### Example 2: Wrong validation scope
+```bash
+# ❌ You ran:
+yarn type-check  # Full codebase (slow, unrelated errors)
+
+# ✅ Should have run:
+yarn type-check:ui  # Workspace only
+```
+
+**Self-healing action:**
+```markdown
+Add to root AGENTS.md § Validation Strategy:
+
+- **packages/ui/** changes: Use `yarn type-check:ui` (not full `yarn type-check`)
+```
+
+#### Example 3: Claimed success without verification
+```markdown
+# ❌ You wrote:
+"Types look good ✓"
+
+# ✅ Should have written:
+"Running type check..."
+[Shows: yarn type-check:ui output]
+"Type check passed: 0 errors"
+```
+
+**Self-healing action:**
+```markdown
+Strengthen root AGENTS.md § Verification Transparency:
+
+- **Show commands:** Always display exact command executed
+- **Show output:** Include complete terminal output
+- **Never simulate:** Actually run checks, don't describe them
+```
+
+---
+
+## 📝 Recording Format (Match Destination Style)
+
+### For AGENTS.md files (terse bullets)
+```markdown
+## Relevant Section
+- **Pattern name**: Brief explanation (why it matters)
+```
+
+### For .mdc rule files (bullets + examples)
+```markdown
+## Relevant Section
+- **Pattern name**: Explanation
+
+  **Wrong:**
+  ```typescript
+  // problematic code
+  ```
+
+  **Correct:**
+  ```typescript
+  // fixed code
+  ```
+```
+
+---
+
+## ✅ Quality Gates (Before Updating)
 
 **Ask yourself:**
-- Is this pattern **reusable** (not file-specific)?
-- Does it already exist? If yes, **update** instead of duplicating.
-- Does the tone match the target file? (AGENTS.md = terse; .mdc = explanatory)
+- [ ] Is this pattern **reusable**? (not file-specific)
+- [ ] Does it already exist? (update, don't duplicate)
+- [ ] Does tone match target file? (AGENTS.md = terse; .mdc = explanatory)
+- [ ] Will this help prevent similar mistakes?
 
-**If NO to any of the above, skip the update.**
-
----
-
-## Enforcement (Critical Errors)
-
-- **Failing to read relevant `AGENTS.md` files** = critical error
-- **Failing to update the appropriate `AGENTS.md` after a mistake** = critical error
-- **Always verify architectural compliance** by reading `docs/spec/architecture.mermaid` after code changes
-
-REMEMBER: Read `@AGENTS.md` first, update the correct scoped file when you learn something new.
+**If ANY checkbox is NO → Skip the update**
 
 ---
 
-## Storage Paths (AGENTS.md Hierarchy)
+## 🎯 Common Agent Mistakes & Auto-Corrections
 
-- `AGENTS.md` — Root (agent behavior, repo-wide architecture)
-- `apps/AGENTS.md` — App-level patterns (both Expo + Web)
-- `packages/AGENTS.md` — Package-level patterns (shared across all packages)
+### Mistake: "I'll check that"
+**Problem:** Claiming intent without execution
+
+**Auto-correction:**
+```markdown
+Before: "I'll verify the types are correct"
+
+After: [Executes yarn type-check:ui]
+       $ yarn type-check:ui
+       [Shows complete output]
+       "Found 2 type errors in Button.tsx..."
+```
+
+### Mistake: Over-formatting
+**Problem:** Bullet points for simple answers
+
+**Auto-correction:**
+- If user asks simple/conversational question → Use prose
+- Use bullets ONLY for:
+  - Explicit user request for list
+  - Multi-step instructions (3+ steps)
+  - Comparison of 3+ items
+
+### Mistake: No evidence
+**Problem:** "Validation passed" without showing output
+
+**Auto-correction:**
+```markdown
+NEVER write: "Tests passed ✓"
+
+ALWAYS write:
+$ yarn workspace @my/ui test Button.test.tsx
+PASS packages/ui/components/Button.test.tsx
+  ✓ renders button text (23ms)
+  ✓ calls onClick handler (18ms)
+
+Tests: 2 passed, 2 total
+Time: 1.234s
+```
+
+---
+
+## 🗂️ Routing Table (Detailed)
+
+| Mistake Scope | Target File | Section |
+|---------------|-------------|---------|
+| Agent process (tool usage, verification) | Root `AGENTS.md` | § Agent Behavior |
+| Repo architecture (navigation, New Arch) | Root `AGENTS.md` | § Architecture |
+| App patterns (route wrappers, configs) | `apps/AGENTS.md` | Relevant section |
+| Package-general (testing, structure) | `packages/AGENTS.md` | Relevant section |
+| UI-specific (Tamagui, platform diffs) | `packages/ui/AGENTS.md` | Appropriate section |
+| App logic (state, effects) | `packages/app/AGENTS.md` | § State or new |
+| API/auth patterns | `packages/api/AGENTS.md` | § Authentication |
+| Supabase backend (RLS, Edge Fns) | `supabase/AGENTS.md` | Relevant section |
+| General React patterns | `.cursor/rules/quality/performance.mdc` | Add bullet + example |
+| TypeScript patterns | `.cursor/rules/core/typescript-standards.mdc` | Relevant section |
+
+---
+
+## 🚨 Enforcement (Critical Errors)
+
+- **Not reading relevant AGENTS.md** = Critical error
+- **Not self-healing after reusable mistake** = Critical error
+- **Not verifying architecture** after code changes = Critical error
+
+**Required architecture check:** Read `docs/spec/architecture.mermaid` after changes to:
+- Database schema
+- API endpoints
+- Component boundaries
+- Data flow patterns
+
+---
+
+## 📂 Storage Hierarchy Reference
+
+- `AGENTS.md` — Root (agent behavior, repo architecture)
+- `apps/AGENTS.md` — App-level (Expo + Web apps)
+- `packages/AGENTS.md` — Package-general (shared patterns)
 - `packages/app/AGENTS.md` — Business logic, state, screens
-- `packages/api/AGENTS.md` — Backend integration, auth, Supabase
-- `packages/ui/AGENTS.md` — Tamagui components, cross-platform UI
+- `packages/api/AGENTS.md` — Backend, auth, Supabase
+- `packages/ui/AGENTS.md` — Tamagui, cross-platform UI
 - `supabase/AGENTS.md` — Database, triggers, Edge Functions
-- `stories/AGENTS.md` — Storybook stories
-- `.cursor/rules/quality/*.mdc` — General coding patterns (React, TS, performance)
-- `.cursor/rules/core/*.mdc` — Foundational standards (TypeScript, monorepo)
+- `.cursor/rules/quality/*.mdc` — General coding patterns
+- `.cursor/rules/core/*.mdc` — Foundational standards

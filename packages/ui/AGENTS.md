@@ -4,13 +4,13 @@
 Cross-platform UI components built with Tamagui for web and native platforms.
 
 ## Core Principles
-- **Mobile-first design**: Start at 320px minimum width, enhance for larger screens
-- **Token-based styling**: NEVER hardcode colors, spacing, or typography values
-- **Touch targets**: Minimum 44px × 44px for all interactive elements
-- **Platform-aware**: Handle web vs native differences properly
-- **App-agnostic**: No business logic, keep components reusable
-- **Named exports only**: No default exports
-- **Pure Tamagui preferred**: Avoid React Native primitives (Pressable, StyleSheet, View) unless platform-specific files are needed
+- **Mobile-first design**: Always start at 320px minimum width, then enhance for larger screens
+- **Token-based styling**: Always use design tokens for colors, spacing, and typography; never hardcode values
+- **Touch targets**: Always ensure minimum 44px × 44px for all interactive elements
+- **Platform-aware**: Always handle web vs native differences properly
+- **App-agnostic**: Always keep components reusable with no business logic
+- **Named exports only**: Always use named exports (default exports only for Expo Router route files)
+- **Pure Tamagui preferred**: Always prefer pure Tamagui components; use React Native primitives (Pressable, StyleSheet, View) only when platform-specific files are needed
 
 ### Implementation Checklist
 
@@ -18,7 +18,7 @@ Cross-platform UI components built with Tamagui for web and native platforms.
 - [ ] Can this be pure Tamagui? (preferred)
 - [ ] Does it need platform-specific files (.web/.native)?
 - [ ] What Tamagui components handle my use case?
-- [ ] Avoid React Native primitives unless absolutely necessary
+- [ ] Use React Native primitives only when absolutely necessary
 
 ## Component Structure
 
@@ -62,9 +62,9 @@ Always use tokens for consistency across platforms:
 ## Platform-Specific Guidelines
 
 **Critical Shadow Rules:**
-- NEVER use React Native shadow props on web
-- NEVER pass `boxShadow` as DOM prop (causes React warnings)
-- Use Tamagui's elevation system or platform-specific styling
+- Always use Tamagui's elevation system or platform-specific styling for shadows
+- Always use `$web={{}}` and `$native={{}}` for shadow differences; never use React Native shadow props on web
+- Always use Tamagui's shadow tokens; never pass `boxShadow` as a DOM prop (causes React warnings)
 
 **Platform Detection:**
 - Use `$web={{}}` and `$native={{}}` for platform-specific styles
@@ -104,13 +104,13 @@ Always use tokens for consistency across platforms:
 ## Best Practices
 
 - ✓ Always use tokens, never hardcode values
-- ✓ Mobile-first responsive design (320px base)
-- ✓ Platform-aware shadow implementation
-- ✓ Touch-friendly targets (44px minimum)
-- ✓ Named exports only (no default exports)
-- ✓ Components must be app-agnostic
-- ✓ Extract prop types with `GetProps<typeof Component>`
-- ✓ Support light/dark mode via theme tokens
+- ✓ Always use mobile-first responsive design (320px base)
+- ✓ Always implement platform-aware shadows using Tamagui's system
+- ✓ Always ensure touch-friendly targets (44px minimum)
+- ✓ Always use named exports (default exports only for Expo Router route files)
+- ✓ Always keep components app-agnostic with no business logic
+- ✓ Always extract prop types with `GetProps<typeof Component>`
+- ✓ Always support light/dark mode via theme tokens
 
 ## Testing
 

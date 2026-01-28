@@ -18,6 +18,52 @@ jest.mock('../stores/feedbackCoordinatorStore', () => ({
   })),
 }))
 
+let mockSetActiveTab: jest.Mock
+jest.mock('../hooks/useFeedbackPanel', () => {
+  mockSetActiveTab = jest.fn()
+  const clearCmd = jest.fn()
+  return {
+    useFeedbackPanel: jest.fn(() => ({
+      panelFraction: 0.4,
+      isExpanded: true,
+      activeTab: 'feedback',
+      selectedFeedbackId: null,
+      expand: jest.fn(),
+      collapse: jest.fn(),
+      toggle: jest.fn(),
+      setActiveTab: mockSetActiveTab,
+      selectFeedback: jest.fn(),
+      clearSelection: jest.fn(),
+    })),
+    useFeedbackPanelCommandStore: jest.fn((selector: (s: any) => unknown) => {
+      const state = {
+        command: null,
+        clear: clearCmd,
+        sequence: 0,
+        requestTab: jest.fn(),
+        reset: jest.fn(),
+      }
+      return typeof selector === 'function' ? selector(state) : state
+    }),
+    getFeedbackPanelCommandState: jest.fn(() => ({ clear: clearCmd })),
+    requestFeedbackPanelTab: jest.fn(),
+    resetFeedbackPanelCommandBus: jest.fn(),
+  }
+})
+
+jest.mock('../stores', () => ({
+  useVideoPlayerStore: jest.fn((selector?: (state: any) => unknown) =>
+    selector
+      ? selector({
+          isPlaying: false,
+          pendingSeek: null,
+          displayTime: 0,
+          controlsVisible: true,
+        })
+      : undefined
+  ),
+}))
+
 const createItem = (overrides?: Partial<any>) => ({
   id: '1',
   timestamp: 2000,
@@ -31,16 +77,7 @@ const createItem = (overrides?: Partial<any>) => ({
 })
 
 const createProps = () => ({
-  panelFraction: 0.2,
-  activeTab: 'feedback' as const,
   feedbackItems: [createItem()],
-  selectedFeedbackId: null,
-  currentVideoTime: 0,
-  videoDuration: 60,
-  errors: {},
-  audioUrls: {},
-  onTabChange: jest.fn(),
-  onExpand: jest.fn(),
   onCollapse: jest.fn(),
   onItemPress: jest.fn(),
   onSeek: jest.fn(),
@@ -60,12 +97,14 @@ jest.mock('@ui/components/VideoAnalysis', () => ({
 // Context removed - not used in FeedbackSection
 
 describe('FeedbackSection', () => {
-  const mockSocialIcons = SocialIcons as jest.Mock
+  // SocialIcons is now memoized, so cast through unknown first
+  const mockSocialIcons = SocialIcons as unknown as jest.Mock
   const mockFeedbackPanel = FeedbackPanel as jest.MockedFunction<typeof FeedbackPanel>
 
   beforeEach(() => {
     mockSocialIcons.mockClear()
     mockFeedbackPanel.mockClear()
+    mockSetActiveTab?.mockClear()
   })
 
   it('does not render social actions (moved to VideoPlayerSection)', () => {
@@ -102,5 +141,18 @@ describe('FeedbackSection', () => {
     panelProps.onFeedbackItemPress(createItem({ id: '1', timestamp: 2000, text: 'test' }))
 
     expect(props.onItemPress).toHaveBeenCalled()
+  })
+
+  it('calls setActiveTab when user switches tab via panel onTabChange', () => {
+    // ARRANGE: Section renders with mocked useFeedbackPanel
+    const props = createProps()
+    render(<FeedbackSection {...props} />)
+    const panelProps = mockFeedbackPanel.mock.calls[0][0]
+
+    // ACT: User switches to insights tab via panel
+    panelProps.onTabChange('insights')
+
+    // ASSERT: setActiveTab from useFeedbackPanel was called with new tab
+    expect(mockSetActiveTab).toHaveBeenCalledWith('insights')
   })
 })

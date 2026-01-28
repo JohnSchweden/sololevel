@@ -113,6 +113,7 @@ export {
   updateVoicePreferences,
   updateAnalysisJobVoiceSnapshot,
   type VoicePreferences,
+  type VoicePreferencesResult,
   type VoicePreferencesUpdate,
   type AnalysisJobVoiceSnapshot,
 } from './services/voicePreferencesService'

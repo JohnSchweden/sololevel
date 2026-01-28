@@ -7,6 +7,14 @@ import { log } from '@my/logging'
 import { supabase } from '../supabase'
 import type { CoachGender, CoachMode } from './voiceConfigService'
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
+
+function buildUnexpectedError(prefix: string, error: unknown): Error {
+  return new Error(`${prefix}: ${getErrorMessage(error)}`)
+}
+
 /**
  * User voice preferences
  */
@@ -84,23 +92,33 @@ export async function hasUserSetVoicePreferences(userId: string): Promise<boolea
     }
 
     // Log and wrap unexpected errors
+    const errorMessage = getErrorMessage(error)
     log.error('Voice Preferences Service', 'Unexpected error checking voice preferences', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       userId,
     })
-    throw new Error(
-      `Unexpected error checking voice preferences: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+    throw buildUnexpectedError('Unexpected error checking voice preferences', error)
   }
+}
+
+/**
+ * Result of fetching voice preferences, includes whether user has explicitly set them
+ */
+export interface VoicePreferencesResult {
+  preferences: VoicePreferences
+  /** True if user has explicitly set preferences (coach_mode is not null) */
+  hasSetPreferences: boolean
 }
 
 /**
  * Get voice preferences for a user
  * @param userId - The user's UUID
- * @returns The user's voice preferences or null if user not found
+ * @returns The user's voice preferences with hasSetPreferences flag, or null if user not found
  * @throws Error if database query fails
  */
-export async function getUserVoicePreferences(userId: string): Promise<VoicePreferences | null> {
+export async function getUserVoicePreferences(
+  userId: string
+): Promise<VoicePreferencesResult | null> {
   try {
     log.info('Voice Preferences Service', 'Fetching voice preferences', { userId })
 
@@ -131,12 +149,16 @@ export async function getUserVoicePreferences(userId: string): Promise<VoicePref
     }
 
     // Map snake_case DB columns to camelCase interface
-    // Apply defaults if columns are null (legacy data)
     const dbData = data as {
       coach_gender: string | null
       coach_mode: string | null
     }
 
+    // Track whether user has explicitly set preferences (coach_mode not null)
+    // This eliminates the need for separate hasUserSetVoicePreferences() call
+    const hasSetPreferences = dbData.coach_mode !== null
+
+    // Apply defaults if columns are null (legacy data or new user)
     const preferences: VoicePreferences = {
       coachGender: (dbData.coach_gender as CoachGender) || 'female',
       coachMode: (dbData.coach_mode as CoachMode) || 'roast',
@@ -144,10 +166,11 @@ export async function getUserVoicePreferences(userId: string): Promise<VoicePref
 
     log.info('Voice Preferences Service', 'Voice preferences fetched successfully', {
       userId,
+      hasSetPreferences,
       preferences,
     })
 
-    return preferences
+    return { preferences, hasSetPreferences }
   } catch (error) {
     // Re-throw if already an Error with our message
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
@@ -155,13 +178,12 @@ export async function getUserVoicePreferences(userId: string): Promise<VoicePref
     }
 
     // Log and wrap unexpected errors
+    const errorMessage = getErrorMessage(error)
     log.error('Voice Preferences Service', 'Unexpected error fetching voice preferences', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       userId,
     })
-    throw new Error(
-      `Unexpected error fetching voice preferences: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+    throw buildUnexpectedError('Unexpected error fetching voice preferences', error)
   }
 }
 
@@ -236,14 +258,13 @@ export async function updateVoicePreferences(
     }
 
     // Log and wrap unexpected errors
+    const errorMessage = getErrorMessage(error)
     log.error('Voice Preferences Service', 'Unexpected error updating voice preferences', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       userId,
       preferences,
     })
-    throw new Error(
-      `Unexpected error updating voice preferences: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+    throw buildUnexpectedError('Unexpected error updating voice preferences', error)
   }
 }
 
@@ -295,17 +316,16 @@ export async function updateAnalysisJobVoiceSnapshot(
     }
 
     // Log and wrap unexpected errors
+    const errorMessage = getErrorMessage(error)
     log.error(
       'Voice Preferences Service',
       'Unexpected error updating analysis job voice snapshot',
       {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         jobId,
         snapshot,
       }
     )
-    throw new Error(
-      `Unexpected error updating analysis job voice snapshot: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+    throw buildUnexpectedError('Unexpected error updating analysis job voice snapshot', error)
   }
 }

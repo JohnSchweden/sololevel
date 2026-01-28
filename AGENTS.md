@@ -1,162 +1,179 @@
+---
+last_updated: 2025-01-27
+token_budget: 1800
+review_frequency: monthly
+---
+
 # Solo:Level - AI Feedback Coach App
 
-## Tech Stack Overview
+> **🎯 Start here:** Command center for agents. Full details in `.cursor/rules/core/*.mdc`
+> **New to codebase?** Read: `docs/spec/architecture.mermaid` + `docs/spec/TRD.md`
+
+## 📋 Quick Reference
+
+### Tech Stack
 - **Frontend**: React Native (Expo) + Expo Router Web
 - **UI**: Tamagui (cross-platform)
 - **Backend**: Supabase (PostgreSQL, Realtime, Storage, Edge Functions)
 - **State**: Zustand + TanStack Query
 - **Language**: TypeScript exclusively, functional components only
 - **Package Manager**: Yarn 4 workspaces + Turbo
-- **Web Bundler**: Metro (via Expo Router)
 
-## Code Style and Patterns
-### TYPESCRIPT_GUIDELINES (see `core/typescript-standards.mdc`)
-- Use strict typing, avoid `any` 
-- Follow SOLID principles
-- Document with JSDoc + ASCII Flow Diagrams where necessary
-- All exported functions need explicit return types
-- Use `type` for unions/intersections; `interface` for object shapes
-- Prefer `as const` over enums
-- Use Tamagui for cross-platform styling
-- Prefer named exports over default exports
+### Common Commands
+| Task | Command | Use When |
+|------|---------|----------|
+| Install | `yarn install --immutable` | First time setup |
+| Start dev | `yarn dev` | Launch all services |
+| Native | `yarn native` | Mobile development |
+| Web | `yarn web` | Web development |
+| Type check | `yarn type-check:ui` | After `packages/ui/**` changes |
+| Lint file | `yarn biome check <file>` | Single file validation |
+| Test | `yarn workspace @my/ui test <file>` | Run specific tests |
 
-### IMPLEMENTATION_GUIDELINES (see `commands/implement.md`)
-- Follow TDD methodology strictly (Red-Green-Refactor) and `@.cursor/rules/quality/testing-philosophy.mdc` 
-- Track progress against Definition of Done criteria
+### File Locations
+| Content Type | Location | Example |
+|--------------|----------|---------|
+| Screens | `packages/app/features/**` | `ProfileScreen.tsx` |
+| Routes | `apps/{expo,web}/app/**` | `(auth)/profile.tsx` |
+| UI Components | `packages/ui/components/**` | `Button.tsx` |
+| API Clients | `packages/api/**` | `supabase.ts` |
+| Tests | `**/*.test.ts(x)` | `Button.test.tsx` |
 
-## Agent Behavior (repo-wide, agent-only)
-- **Use the delete tool** for deleting files (don’t run `rm`, don’t `touch` “cleanup” files).
-- **Don’t claim checks passed unless you ran them**. If you didn’t run `yarn type-check` / `yarn lint`, explicitly mark status as **UNVERIFIED**.
+### Path Aliases
+- `@ui/*` → `packages/ui/`
+- `@app/*` → `packages/app/`
+- `@api/*` → `packages/api/`
+- `@config/*` → `packages/config/`
+- `@logging/*` → `packages/logging/`
 
-## Architecture Preferences (repo-wide)
+**Package imports:** Use `@my/ui`, `@my/app`, etc. for package-level exports  
+**Full details:** See `.cursor/rules/core/monorepo-foundation.mdc`
+
+## 🎯 Agent Cheat Sheet
+
+### Implementing a New Feature
+1. Load context: `view docs/spec/architecture.mermaid`
+2. Write test first: Follow `.cursor/rules/quality/testing-unified.mdc`
+3. Implement feature
+4. Validate: `yarn type-check:<workspace>`
+5. Test: `yarn workspace @my/<package> test <file>`
+6. Self-heal: Update AGENTS.md if you learned something (see `.cursor/rules/core/scoped-agents.mdc`)
+
+### Fixing a Bug
+1. Identify workspace from file path: `packages/ui/` → workspace is `ui`
+2. Make fix
+3. Validate types: `yarn type-check:ui`
+4. Check lint: `yarn lint:ui`
+5. Run tests: `yarn workspace @my/ui test <pattern>`
+
+### Adding Dependencies
+1. Determine workspace: `packages/app/` → `@my/app`
+2. Add: `yarn workspace @my/app add <package>`
+3. Check peers: `yarn explain peer-requirements <hash>` (if warnings)
+4. Verify: Check `package.json` uses `workspace:*` for internal deps
+
+### Working with Supabase
+````bash
+yarn supabase start           # Local dev stack
+yarn supabase functions serve # Edge functions
+yarn supabase db push         # Deploy migrations
+# NEVER run bare `supabase` — always prefix with `yarn`
+````
+
+## 🚨 Critical: Agent Behavior
+
+### Validation Strategy
+
+**🎯 Golden Rule:** Validate only what you changed
+
+| Scope | Command | When |
+|-------|---------|------|
+| 📄 File | `yarn biome check <file>` | Quick iteration |
+| 📦 Workspace | `yarn type-check:ui` | Active development |
+| 🏗️ Full | `yarn type-check:all` | Pre-commit/CI only |
+
+**Why:**
+- ✅ Scoped = Fast feedback, relevant errors only
+- ❌ Full = Slow, includes unrelated issues
+
+#### After Making Changes
+1. Identify workspace from file path
+2. Run: `yarn type-check:<workspace>`
+3. Run: `yarn biome check <directory>` or `yarn lint:<workspace>`
+4. Show exact commands + full output
+
+**❌ NEVER claim "checks passed" without running and showing output**
+
+### File Operations
+- **Delete:** Use delete tool (not create cleanup scripts)
+- **Edit:** Use edit tools (not create + delete workflow)
+
+### Verification Transparency
+- **Run checks:** Execute commands, don't simulate
+- **Show output:** Display complete terminal output
+- **Mark unverified:** If skipped, explicitly state `**UNVERIFIED**`
+
+## 🏗️ Architecture (Repo-Wide)
 
 ### React Native New Architecture
-- **Status**: Enabled (Expo SDK 53)
-- **Config**: `"newArchEnabled": true` in `apps/expo/app.json`
+- **Status:** Enabled (Expo SDK 53)
+- **Config:** `"newArchEnabled": true` in `apps/expo/app.json`
 
-### Navigation Pattern (separation of concerns)
-- **Screens** (`packages/app/features/**`): accept callbacks only (`onBack`, `onNavigate`, `onHeaderStateChange`, `onBackPress`) — **no navigation hooks**
-- **Routes** (`apps/{expo,web}/app/**`): own navigation using Expo Router APIs, and wrap protected routes with `<AuthGate>`
+### Navigation Pattern (Separation of Concerns)
+- **Screens** (`packages/app/features/**`): Accept callbacks only (`onBack`, `onNavigate`). Never import navigation hooks.
+- **Routes** (`apps/{expo,web}/app/**`): Own navigation using Expo Router APIs. Wrap protected routes with `<AuthGate>`.
 
-## Expo Router Notes
-- Route components in `apps/*/app/**` are default exports. This is an expected exception to the "named exports only" rule for route files.
-- **Static headers**: Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen name="..." options={...} />`
-- **Dynamic headers**: Use `useNavigation().setOptions()` in route files, triggered by screen callbacks
+### Expo Router Notes
+- **Default exports:** Only for route files in `apps/*/app/**` (exception to named exports rule)
+- **Static headers:** Configure in `apps/*/app/_layout.tsx` via `<Stack.Screen options={...} />`
+- **Dynamic headers:** Use `useNavigation().setOptions()` in route files
 
-## Version Matrix
-| Area          | Current        | Minimum | Source |
-| ------------- | -------------- | ------- | ------ |
-| Node          | 20.x           | 20.x    | `package.json engines.node` |
-| Yarn          | 4.10.3         | 4.0.0   | `package.json packageManager` |
-| Expo SDK      | 53.x           | 53.x    | root/workspace `expo` versions |
-| React Native  | 0.79.x         | 0.79.x  | root `react-native` |
-| React         | 19.x           | 19.x    | root `react` |
-| Expo Router   | 5.1.x          | 5.1.x   | `apps/web/package.json` |
-| Turbo         | 1.13.x         | 1.13.x  | root `turbo` |
+## 📚 Detailed Documentation
 
-CI enforces version alignment via Corepack. See `.cursor/rules/core/development-operations.mdc` for detailed version management.
+For comprehensive patterns:
+- **Structure:** `.cursor/rules/core/monorepo-foundation.mdc`
+- **Operations:** `.cursor/rules/core/development-operations.mdc`
+- **TypeScript:** `.cursor/rules/core/typescript-standards.mdc`
+- **Testing:** `.cursor/rules/quality/testing-unified.mdc`
+- **Errors:** `.cursor/rules/quality/error-handling.mdc`
+- **Performance:** `.cursor/rules/quality/performance.mdc`
+- **Security:** `.cursor/rules/quality/security-best-practices.mdc`
 
-## Core Principles
+## 🎓 Code Style Summary
+
+### TypeScript (Full details in `core/typescript-standards.mdc`)
+- Strict typing with explicit types
+- SOLID principles
+- JSDoc + ASCII diagrams for complex logic
+- Explicit return types for exported functions
+- `type` for unions; `interface` for objects
+- `as const` over enums
+- Named exports (except Expo Router routes)
+
+### Testing (Full details in `quality/testing-unified.mdc`)
+- Max 1:2 test-to-code ratio
+- AAA pattern (Arrange-Act-Assert)
+- Test user behavior, not implementation
+- Jest for `@my/ui`, `@my/app`, `@my/logging`
+- Vitest for `@my/api`
+- `fireEvent.click()` for web; `fireEvent.press()` for native
+
+### Implementation
+- TDD methodology (Red-Green-Refactor)
+- Track progress against Definition of Done
+- See `commands/implement.md` for workflow
+
+## 🔐 Core Principles
 - Mobile-first, cross-platform development
-- Named exports only (no default exports)
-- Row Level Security (RLS) enabled for all database access
-- Path aliases: `@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`
+- Named exports (except Expo Router routes)
+- Row Level Security (RLS) for all DB access
+- Path aliases over relative imports
 
-## Import Strategy
-
-### Package-Level Imports (Scoped)
-Use `@my/` scoped package names for package-level exports and cross-package imports:
-
-```typescript
-// ✅ Correct - package-level imports
-import { Button } from '@my/ui'
-import { useAuth } from '@my/app' 
-import { supabase } from '@my/api'
-import { logger } from '@my/logging'
-```
-
-### Path-Level Imports (Aliases)
-Use path aliases for specific file imports within packages:
-
-```typescript
-// ✅ Correct - path-level imports  
-import { Button } from '@ui/components/Button'
-import { useAuth } from '@app/hooks/useAuth'
-import { supabase } from '@api/supabase'
-import { logger } from '@logging/logger'
-```
-
-### Import Rules
-1. Package exports: Always use `@my/` scoped names
-2. File imports: Use path aliases (`@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`)
-3. Never mix: Don't use `@api` without `/*` - use `@api/services/...`
-4. Export strategy: Export from package index files for `@my/` imports
-
-See `.cursor/rules/core/monorepo-foundation.mdc` for architectural details.
-
-## Quick Start Commands
-- Install: `yarn install --immutable`
-- Start: `yarn dev`
-- Native: `yarn native` | Web: `yarn web`
-
-## Workspace Scripts Reference
-- `yarn native` → `expo-app` (React Native development)
-- `yarn web` → `next-app` (Web development)
-- `yarn build:web` → `--filter=next-app`
-- `yarn build:native` → `--filter=expo-app`
-- `yarn test` → `--exclude expo-app` (excludes native from unit tests)
-- Supabase:
-  - `yarn workspace @my/supabase-functions test` (Vitest for _shared)
-  - `yarn workspace @my/supabase-functions test:deno` (Deno for Edge)
-  - `yarn test:db` (pgTAP database tests)
-
-## Quality Scripts Reference
-
-Key scripts to maintain code quality and consistency across workspaces:
-
-- **Type Checks**
-  - `yarn type-check` — Run strict TypeScript validation across all workspaces
-  - `yarn type-check:<workspace>` — Type check a specific workspace (`ui`, `app`, `api`, `config`, `logging`)
-- **Linting**
-  - `yarn lint` — Lint all packages for code style and errors
-  - `yarn lint:fix` — Auto-fix lint issues project-wide
-  - `yarn lint:<workspace>` — Lint a specific workspace
-  - `yarn lint:<workspace>:fix` — Auto-fix for a specific workspace
-- **Formatting**
-  - `yarn format` — Format code using project standards
-  - `yarn format:fix` — Auto-fix all formatting issues
-
-Full table of workspace commands is in `.cursor/rules/core/development-operations.mdc`.
-
-## Error Prevention
-### VALIDATION_RULES
-1. Verify type consistency (TypeScript strict mode)
-2. Check for potential null/undefined
-3. Validate against business rules
-4. Ensure error handling with discriminated unions
-5. Check RLS policies for database access
-6. Validate cross-platform compatibility
-
-## Testing
-- **Test Runner by Package**: `@my/ui`, `@my/app` & `@my/logging` use Jest; `@my/api` uses Vitest
-- **Commands**: `yarn workspace <package> test` (never mix runners across workspaces)
-- **Ratio**: Maximum 1:2 test-to-code ratio
-- **Pattern**: AAA (Arrange-Act-Assert) mandatory with comments
-- **Focus**: Test user behavior, not implementation details
-- **Event usage**: Web uses `fireEvent.click()`; Native uses `fireEvent.press()`
-
-## Detailed Documentation
-
-For comprehensive patterns and enforcement policies, see:
-- **Architecture & Structure**: `.cursor/rules/core/monorepo-foundation.mdc`
-- **Development Operations**: `.cursor/rules/core/development-operations.mdc`
-- **TypeScript Standards**: `.cursor/rules/core/typescript-standards.mdc`
-- **Testing Patterns**: `.cursor/rules/quality/testing-unified.mdc`
-- **Error Handling**: `.cursor/rules/quality/error-handling.mdc`
-- **Performance**: `.cursor/rules/quality/performance.mdc`
-- **Security**: `.cursor/rules/quality/security-best-practices.mdc`
-
-## Project Context
-Read before starting:
-- Architecture: `docs/spec/architecture.mermaid`
-- Technical specs: `docs/spec/TRD.md`
+## 🔢 Version Matrix (See `core/development-operations.mdc` for details)
+| Area | Version | Source |
+|------|---------|--------|
+| Node | 20.x | `engines.node` |
+| Yarn | 4.10.3 | `packageManager` |
+| Expo SDK | 53.x | workspace `expo` |
+| React Native | 0.79.x | root `react-native` |
+| React | 19.x | root `react` |

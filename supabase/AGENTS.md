@@ -1,16 +1,16 @@
 # Supabase Backend
 
 ## Commands
-- Always use `yarn supabase <command>` (never direct `supabase`)
-- Start: `yarn supabase start`
-- Functions: `yarn supabase functions serve`
-- DB logs: `yarn supabase db logs`
+- Always use `yarn supabase <command>` for all Supabase CLI operations
+- Start local stack: `yarn supabase start`
+- Serve Edge Functions: `yarn supabase functions serve`
+- View DB logs: `yarn supabase db logs`
 
 ## Guidelines
-- Enable RLS on all tables
-- Use Edge Functions for privileged logic
-- Never expose secrets in client code
-- Store secrets in environment variables only
+- Always enable RLS on all tables
+- Always use Edge Functions for privileged logic that requires elevated permissions
+- Always keep secrets in environment variables and Edge Functions; never include them in client code
+- Always store secrets in environment variables only
 
 ## SQL Conventions
 - Tables: plural snake_case (e.g., `users`, `posts`)

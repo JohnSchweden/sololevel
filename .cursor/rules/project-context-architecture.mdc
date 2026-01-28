@@ -1,8 +1,9 @@
 ---
+alwaysApply: false
+---
+
 description: Project context and architecture understanding for AI assistant - battle-tested rule for comprehensive project awareness
 globs: ["**/*"]
-alwaysApply: true
----
 
 # Project Context and Architecture
 ## SYSTEM_CONTEXT

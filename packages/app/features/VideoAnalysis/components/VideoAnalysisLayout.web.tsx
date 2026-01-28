@@ -43,16 +43,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
     animation,
   } = props
 
-  // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
-  // Eliminates prop drilling and prevents VideoAnalysisLayout re-renders on playback state changes
-  // GATE: Only read displayTime after meaningful playback has started to avoid 0 → 6.133 flip
-  const playbackCurrentTime =
-    process.env.NODE_ENV !== 'test'
-      ? useVideoPlayerStore((state) => {
-          const isPlaying = state.isPlaying
-          return isPlaying || state.pendingSeek !== null ? state.displayTime : 0
-        })
-      : 0
   const controlsVisible =
     process.env.NODE_ENV !== 'test' ? useVideoPlayerStore((state) => state.controlsVisible) : true
 
@@ -141,8 +131,6 @@ export function VideoAnalysisLayout(props: VideoAnalysisLayoutProps) {
             isHistoryMode={feedback.isHistoryMode}
             voiceMode={props.voiceMode || 'roast'}
             // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
-            currentVideoTime={playbackCurrentTime}
-            videoDuration={0}
             // errors={feedbackErrors} - REMOVED: FeedbackSection subscribes directly
             // audioUrls={feedbackAudioUrls} - REMOVED: FeedbackSection subscribes directly
             onCollapse={handlers.onCollapsePanel}

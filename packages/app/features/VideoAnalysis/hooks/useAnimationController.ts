@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Dimensions, Platform, StatusBar } from 'react-native'
-import type { ViewStyle } from 'react-native'
+import { type ViewStyle } from 'react-native'
 import Animated, {
   cancelAnimation,
   Extrapolation,
@@ -14,39 +13,14 @@ import Animated, {
   type AnimatedStyle,
   type SharedValue,
 } from 'react-native-reanimated'
-
-// Animation constants - Mode-based system
-const { height: SCREEN_H_BASE } = Dimensions.get('window')
-
-// Platform-specific screen height calculation:
-// Android: Subtract status bar height since window dimensions include it but layout starts below
-//          Bottom safe area (gesture nav) is handled in FeedbackPanel scroll padding
-// iOS: Use full window height (layout automatically accounts for status bar)
-const SCREEN_H =
-  Platform.OS === 'android' && StatusBar.currentHeight
-    ? SCREEN_H_BASE - StatusBar.currentHeight
-    : SCREEN_H_BASE
-
-// Discrete video heights per mode
-const VIDEO_HEIGHTS = {
-  max: SCREEN_H, // 100% - full screen
-  normal: Math.round(SCREEN_H * 0.6), // 60% - default viewing
-  min: Math.round(SCREEN_H * 0.33), // 33% - collapsed dock
-} as const
-
-// Pull-to-reveal gesture thresholds
-const PULL_EXPAND = 200 // Maximum pull distance for reveal effect
-const PULL_THRESHOLD = 170 // Minimum pull to trigger reveal
-
-// Mode transition scroll positions (for backward compatibility with scroll-based gestures)
-const MODE_SCROLL_POSITIONS = {
-  max: 0,
-  normal: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.normal, // 40% of screen
-  min: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.min, // 67% of screen
-} as const
-
-// Initial state - opens at normal size (60%)
-const INITIAL_SCROLL_Y = MODE_SCROLL_POSITIONS.normal
+import {
+  INITIAL_SCROLL_Y,
+  MODE_SCROLL_POSITIONS,
+  PULL_EXPAND,
+  PULL_THRESHOLD,
+  SCREEN_H,
+  VIDEO_HEIGHTS,
+} from '../utils/videoAnimationConstants'
 
 /**
  * Animation controller for VideoAnalysisScreen

@@ -23,6 +23,28 @@ export interface FeedbackAudioSourceState {
 
 const CONTEXT = 'useFeedbackAudioSource'
 
+/**
+ * Generates a stable key representing feedback item IDs for comparison.
+ * Used to detect when analysis changes (new set of feedback IDs).
+ */
+function generateItemIdsKey(items: FeedbackAudioItem[]): string {
+  return items
+    .map((item) => item.id)
+    .sort()
+    .join(',')
+}
+
+/**
+ * Generates a stable key representing feedback items with their audio status.
+ * Used to detect when items need re-processing (status or content changes).
+ */
+function generateItemsKey(items: FeedbackAudioItem[]): string {
+  return items
+    .map((item) => `${item.id}:${item.audioStatus ?? 'undefined'}`)
+    .sort()
+    .join(',')
+}
+
 export function useFeedbackAudioSource(
   feedbackItems: FeedbackAudioItem[]
 ): FeedbackAudioSourceState {
@@ -43,14 +65,8 @@ export function useFeedbackAudioSource(
     // BUG FIX: Separate ID tracking from status tracking
     // IDs change = different analysis (clear audioUrls)
     // Status change = same analysis processing (keep audioUrls)
-    const idsKey = feedbackItems
-      .map((item) => item.id)
-      .sort()
-      .join(',')
-    const itemsKey = feedbackItems
-      .map((item) => `${item.id}:${item.audioStatus ?? 'undefined'}`)
-      .sort()
-      .join(',')
+    const idsKey = generateItemIdsKey(feedbackItems)
+    const itemsKey = generateItemsKey(feedbackItems)
 
     if (previousItemsRef.current === itemsKey) {
       // Content unchanged, skip re-processing

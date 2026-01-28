@@ -8,10 +8,10 @@
 - `logging/` - Cross-platform structured logger with dev/prod gating
 
 ## Rules
-- Use named exports only
-- Import via path aliases: `@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`
-- Package imports: `@my/ui`, `@my/app`, `@my/api`, `@my/config`, `@my/logging`
-- Keep UI components app-agnostic
+- Always use named exports (default exports only for Expo Router route files)
+- Always import via path aliases: `@ui/`, `@app/`, `@api/`, `@config/`, `@logging/`
+- Always use package imports: `@my/ui`, `@my/app`, `@my/api`, `@my/config`, `@my/logging`
+- Always keep UI components app-agnostic with no business logic
 
 ## Component Structure (directory-per-component)
 - Prefer `Component.tsx`, `Component.test.tsx`, `index.ts` per component folder; parent folders re-export.
@@ -20,9 +20,9 @@
 
 
 ## Testing
-- **ui/**: Jest + jsdom → `yarn workspace @my/ui test`
-- **app/**: Jest + jsdom → `yarn workspace @my/app test`
-- **api/**: Vitest + node → `yarn workspace @my/api test`
-- **logging/**: Jest + jsdom → `yarn workspace @my/logging test`
-- Mock external dependencies only (APIs, native modules)
-- See package-specific AGENTS.md for detailed patterns
+- **ui/**: Always use Jest + jsdom → `yarn workspace @my/ui test`
+- **app/**: Always use Jest + jsdom → `yarn workspace @my/app test`
+- **api/**: Always use Vitest + node → `yarn workspace @my/api test`
+- **logging/**: Always use Jest + jsdom → `yarn workspace @my/logging test`
+- Always mock external dependencies only (APIs, native modules)
+- Always see package-specific AGENTS.md for detailed patterns

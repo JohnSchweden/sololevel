@@ -2,19 +2,10 @@ import type { CoachMode } from '@my/config'
 import { GlassBackground } from '@my/ui'
 import { useCallback, useMemo } from 'react'
 import type { RefObject } from 'react'
-import { Dimensions, Platform, StatusBar } from 'react-native'
-import type { ViewStyle } from 'react-native'
+import { type ViewStyle } from 'react-native'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import type { GestureType } from 'react-native-gesture-handler'
-import Animated, {
-  Easing,
-  Extrapolation,
-  interpolate,
-  runOnUI,
-  scrollTo,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated'
+import Animated, { ReduceMotion, runOnUI, scrollTo, withTiming } from 'react-native-reanimated'
 import type { AnimatedRef, AnimatedStyle, SharedValue } from 'react-native-reanimated'
 import { YStack } from 'tamagui'
 
@@ -24,42 +15,19 @@ import type { AnalysisPhase } from '../hooks/useAnalysisState'
 import type { FeedbackScrollControl, PullToRevealControl } from '../hooks/useGestureController'
 import { useVideoPlayerStore } from '../stores'
 import type { FeedbackPanelItem } from '../types'
+import {
+  MODE_SCROLL_POSITIONS,
+  SNAP_DURATION_MS,
+  SNAP_EASING,
+  VIDEO_HEIGHTS,
+} from '../utils/videoAnimationConstants'
+import { getHeaderHeightAnimatedStyle } from '../utils/videoHeightCalculation'
 import { FeedbackSection } from './FeedbackSection'
 import { PersistentProgressBar } from './PersistentProgressBar'
 import { ProcessingIndicator } from './ProcessingIndicator'
 import { UploadErrorState } from './UploadErrorState'
 import { VideoPlayerSection } from './VideoPlayerSection'
 import { toggleControlsVisibilityOnTap } from './toggleControlsVisibility'
-
-// Animation constants - Mode-based system
-const { height: SCREEN_H_BASE } = Dimensions.get('window')
-
-// Platform-specific screen height calculation:
-// Android: Subtract status bar height since window dimensions include it but layout starts below
-//          Bottom safe area (gesture nav) is handled in FeedbackPanel scroll padding
-// iOS: Use full window height (layout automatically accounts for status bar)
-const SCREEN_H =
-  Platform.OS === 'android' && StatusBar.currentHeight
-    ? SCREEN_H_BASE - StatusBar.currentHeight
-    : SCREEN_H_BASE
-
-// Discrete video heights per mode (for contentContainerStyle)
-const VIDEO_HEIGHTS = {
-  max: SCREEN_H, // 100% - full screen
-  normal: Math.round(SCREEN_H * 0.6), // 60% - default viewing
-  min: Math.round(SCREEN_H * 0.33), // 33% - collapsed dock
-} as const
-
-// Mode transition scroll positions (for persistent progress bar positioning)
-const MODE_SCROLL_POSITIONS = {
-  max: 0,
-  normal: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.normal, // 40% of screen
-  min: VIDEO_HEIGHTS.max - VIDEO_HEIGHTS.min, // 67% of screen
-} as const
-
-// Snap animation timing (mirrors useGestureController)
-const SNAP_DURATION_MS = 600
-const SNAP_EASING = Easing.bezier(0.15, 0.0, 0.15, 1)
 
 /**
  * Props for VideoAnalysisLayout (Native)
@@ -244,16 +212,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
   // PERF FIX: Memoize GestureHandlerRootView style to prevent inline object re-creation
   const gestureRootStyle = useMemo(() => ({ flex: 1 as const }), [])
 
-  // PERFORMANCE FIX: Granular store subscriptions - only re-render when specific values change
-  // Eliminates prop drilling and prevents VideoAnalysisLayout re-renders on playback state changes
-  // GATE: Only read displayTime after meaningful playback has started to avoid 0 → 6.133 flip
-  const playbackCurrentTime =
-    process.env.NODE_ENV !== 'test'
-      ? useVideoPlayerStore((state) => {
-          const isPlaying = state.isPlaying
-          return isPlaying || state.pendingSeek !== null ? state.displayTime : 0
-        })
-      : 0
   const controlsVisible =
     process.env.NODE_ENV !== 'test' ? useVideoPlayerStore((state) => state.controlsVisible) : true
 
@@ -291,13 +249,10 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
    *
    * @see usePersistentProgressStore - store with reference stability
    */
-  // PERF FIX: Derive shouldRenderPersistent from collapseProgress directly
-  // Don't wait for VideoControls to set store props - that causes 500ms delay
-  // VideoControls is a deeply nested child that hasn't mounted when Layout first renders
-  // Use same threshold as useProgressBarVisibility: collapseProgress >= 0.4 = persistent mode
-  const PERSISTENT_MODE_THRESHOLD = 0.4
-  const initialCollapseProgress = animation.collapseProgress.value
-  const shouldRenderPersistent = initialCollapseProgress >= PERSISTENT_MODE_THRESHOLD
+  // FIX: Always render persistent progress bar container
+  // Visibility is controlled by useProgressBarVisibility hook in VideoControls
+  // This prevents unmounting during mode transitions
+  const shouldRenderPersistent = true
 
   // PERF: Log render duration to identify bottlenecks
   // useEffect(() => {
@@ -326,7 +281,9 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
       animation.scrollY.value = withTiming(targetScrollPos, {
         duration: SNAP_DURATION_MS,
         easing: SNAP_EASING,
+        reduceMotion: ReduceMotion.Never,
       })
+      // Sync scroll ref with smooth animation to match scrollY.value animation
       scrollTo(animation.scrollRef, 0, targetScrollPos, true)
     })()
   }, [animation.scrollRef, animation.scrollY])
@@ -336,38 +293,7 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
 
   // Animated style for persistent progress bar positioning
   // Positions it at the bottom of the video header (top = headerHeight)
-  const persistentProgressBarPositionStyle = useAnimatedStyle(() => {
-    const scrollValue = animation.scrollY.value
-
-    // Calculate headerHeight from scrollY (same logic as useAnimationController)
-    let headerHeight: number
-    if (scrollValue < 0) {
-      // Pull-to-reveal: expand beyond max
-      const pullDistance = Math.abs(scrollValue)
-      const easedPull = interpolate(pullDistance, [0, 200], [0, 200 * 1.4], Extrapolation.CLAMP)
-      headerHeight = VIDEO_HEIGHTS.max + easedPull
-    } else if (scrollValue <= MODE_SCROLL_POSITIONS.normal) {
-      // Phase 1: Max → Normal
-      headerHeight = interpolate(
-        scrollValue,
-        [MODE_SCROLL_POSITIONS.max, MODE_SCROLL_POSITIONS.normal],
-        [VIDEO_HEIGHTS.max, VIDEO_HEIGHTS.normal],
-        Extrapolation.CLAMP
-      )
-    } else {
-      // Phase 2: Normal → Min
-      headerHeight = interpolate(
-        scrollValue,
-        [MODE_SCROLL_POSITIONS.normal, MODE_SCROLL_POSITIONS.min],
-        [VIDEO_HEIGHTS.normal, VIDEO_HEIGHTS.min],
-        Extrapolation.CLAMP
-      )
-    }
-
-    return {
-      top: headerHeight,
-    }
-  }, [animation.scrollY])
+  const persistentProgressBarPositionStyle = getHeaderHeightAnimatedStyle(animation.scrollY)
 
   // Performance tracking: Track header collapse animations
   // Reanimated animations are harder to track directly, so we track:
@@ -525,8 +451,6 @@ function VideoAnalysisLayoutComponent(props: VideoAnalysisLayoutProps) {
                   isHistoryMode={feedback.isHistoryMode}
                   voiceMode={props.voiceMode || 'roast'}
                   // selectedFeedbackId={feedback.selectedFeedbackId} - REMOVED: FeedbackSection subscribes directly
-                  currentVideoTime={playbackCurrentTime}
-                  videoDuration={0}
                   // errors={feedbackErrors} - REMOVED: FeedbackSection subscribes directly
                   // audioUrls={feedbackAudioUrls} - REMOVED: FeedbackSection subscribes directly
                   onCollapse={handlers.onCollapsePanel}

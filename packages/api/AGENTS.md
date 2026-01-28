@@ -75,10 +75,10 @@ Run after any database schema changes.
 - Path: `import { VideoService } from '@api/services/video'`
 
 ## Rules
-- ALL backend calls through this package
-- Never expose secrets in client code
-- Use Edge Functions for privileged operations
-- RLS enabled for all tables
+- Always route all backend calls through this package
+- Always keep secrets in environment variables and Edge Functions; never include them in client code
+- Always use Edge Functions for privileged operations that require elevated permissions
+- Always ensure RLS is enabled for all database tables
 
 ## Testing
 - **Runner**: Vitest with `node` environment

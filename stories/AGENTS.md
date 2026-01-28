@@ -4,10 +4,10 @@
 Component documentation and visual testing with Storybook.
 
 ## Rules
-- Create stories for all UI components in `packages/ui`
-- Use CSF3 (Component Story Format 3)
-- Include multiple variants and states
-- Document prop types and usage examples
+- Always create stories for all UI components in `packages/ui`
+- Always use CSF3 (Component Story Format 3)
+- Always include multiple variants and states
+- Always document prop types and usage examples
 
 ## Story Structure
 ```tsx

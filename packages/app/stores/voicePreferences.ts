@@ -14,6 +14,8 @@ export interface VoicePreferencesState {
   mode: CoachMode
   isLoaded: boolean
   isSyncing: boolean
+  /** Whether user has explicitly set preferences (coach_mode is not null in DB) */
+  hasSetPreferences: boolean
   /** Whether MMKV storage has been hydrated (prevents flash of default values) */
   _isHydrated: boolean
 }
@@ -42,6 +44,7 @@ const DEFAULT_PREFERENCES: VoicePreferencesState = {
   mode: 'roast',
   isLoaded: false,
   isSyncing: false,
+  hasSetPreferences: false,
   _isHydrated: false,
 }
 
@@ -71,32 +74,32 @@ export const useVoicePreferencesStore = create<VoicePreferencesStore>()(
           try {
             log.info('VoicePreferencesStore', 'Loading preferences from database', { userId })
 
-            const preferences = await getUserVoicePreferences(userId)
+            const result = await getUserVoicePreferences(userId)
 
-            if (preferences) {
-              set({
-                gender: preferences.coachGender,
-                mode: preferences.coachMode,
-                isLoaded: true,
-              })
-              log.info('VoicePreferencesStore', 'Preferences loaded successfully', {
-                preferences,
-              })
-            } else {
-              // No preferences found - user hasn't set them yet
-              // Keep defaults
-              set({ isLoaded: true })
+            if (!result) {
+              set({ isLoaded: true, hasSetPreferences: false })
               log.info('VoicePreferencesStore', 'No preferences found, using defaults', {
                 userId,
               })
+              return
             }
+
+            set({
+              gender: result.preferences.coachGender,
+              mode: result.preferences.coachMode,
+              hasSetPreferences: result.hasSetPreferences,
+              isLoaded: true,
+            })
+            log.info('VoicePreferencesStore', 'Preferences loaded successfully', {
+              hasSetPreferences: result.hasSetPreferences,
+              preferences: result.preferences,
+            })
           } catch (error) {
             log.error('VoicePreferencesStore', 'Failed to load preferences', {
               error: error instanceof Error ? error.message : 'Unknown error',
               userId,
             })
-            // Keep current state on error, mark as loaded to prevent retry loops
-            set({ isLoaded: true })
+            set({ isLoaded: true, hasSetPreferences: false })
           }
         },
 
@@ -143,10 +146,11 @@ export const useVoicePreferencesStore = create<VoicePreferencesStore>()(
       {
         name: 'voice-preferences',
         storage: createJSONStorage(() => mmkvStorage),
-        // Only persist gender and mode - transient state (isLoaded, isSyncing, _isHydrated) should not persist
+        // Persist gender, mode, and hasSetPreferences - transient state (isLoaded, isSyncing, _isHydrated) should not persist
         partialize: (state) => ({
           gender: state.gender,
           mode: state.mode,
+          hasSetPreferences: state.hasSetPreferences,
         }),
         onRehydrateStorage: () => (state) => {
           // Mark store as hydrated when rehydration completes
@@ -193,6 +197,20 @@ export function initializeVoicePreferencesAuthSync(): void {
       // User signed out - reset handled by clearAllUserData() in auth.ts
     }
   )
+
+  // Immediately load preferences if user already authenticated (handles auth initialized before subscription)
+  const currentUser = useAuthStore.getState().user
+  const currentState = useVoicePreferencesStore.getState()
+  if (currentUser && !currentState.isLoaded) {
+    log.info(
+      'VoicePreferencesStore',
+      'User already authenticated, loading preferences immediately',
+      {
+        userId: currentUser.id,
+      }
+    )
+    useVoicePreferencesStore.getState().loadFromDatabase(currentUser.id)
+  }
 
   log.info('VoicePreferencesStore', 'Auth subscription initialized')
 }

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { log } from '@my/logging'
 
@@ -166,8 +167,14 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 }: VideoPlayerSectionProps) {
   const playbackProgressShared = useSharedValue(0)
 
-  const audioIsPlaying = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.isPlaying : false
+  // PERF FIX: Combine multiple useFeedbackAudioStore subscriptions into one using useShallow
+  // Reduces selector runs from 3 to 1 per store update
+  const { audioIsPlaying, activeAudioId, activeAudioUrl } = useFeedbackAudioStore(
+    useShallow((state) => ({
+      audioIsPlaying: process.env.NODE_ENV !== 'test' ? state.isPlaying : false,
+      activeAudioId: process.env.NODE_ENV !== 'test' ? (state.activeAudio?.id ?? null) : null,
+      activeAudioUrl: process.env.NODE_ENV !== 'test' ? (state.activeAudio?.url ?? null) : null,
+    }))
   )
 
   // PERFORMANCE FIX: Call useVideoPlayer here instead of in VideoAnalysisScreen
@@ -189,15 +196,6 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
    */
   const [fastSeek, setFastSeek] = useState<((time: number) => void) | null>(null)
   const handleSeekCompleteRef = useRef<(time?: number) => void>(() => {})
-
-  // PERF FIX: Subscribe to primitive values instead of full activeAudio object
-  // Prevents useMemo thrash when activeAudio object reference changes but values are stable
-  const activeAudioId = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.id ?? null) : null
-  )
-  const activeAudioUrl = useFeedbackAudioStore((state) =>
-    process.env.NODE_ENV !== 'test' ? (state.activeAudio?.url ?? null) : null
-  )
 
   // PERFORMANCE FIX: Move useAudioControllerLazy subscription here (moved from VideoAnalysisScreen)
   // VideoPlayerSection now owns the store subscription, preventing VideoAnalysisScreen re-renders
@@ -266,22 +264,23 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
     process.env.NODE_ENV !== 'test' ? state.videoEnded : false
   )
 
-  // PERFORMANCE FIX: Direct subscription to coach speaking state
-  // Eliminates VideoAnalysisLayout re-renders when coach speaking state changes
-  const isCoachSpeaking = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.isCoachSpeaking : false
-  )
-
-  // PERFORMANCE FIX: Direct subscription to fallback timer state
-  // Controls play/pause button for feedback without audio
-  const isFallbackTimerActive = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.isFallbackTimerActive : false
-  )
-
-  // PERFORMANCE FIX: Direct subscription to audio overlay state
-  // Eliminates VideoAnalysisLayout re-renders when audio overlay state changes
-  const overlayVisible = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.overlayVisible : false
+  // PERF FIX: Combine multiple useFeedbackCoordinatorStore subscriptions into one using useShallow
+  // Reduces selector runs from 5 to 1 per store update
+  const {
+    isCoachSpeaking,
+    isFallbackTimerActive,
+    overlayVisible,
+    bubbleVisible,
+    currentBubbleIndex,
+  } = useFeedbackCoordinatorStore(
+    useShallow((state) => ({
+      isCoachSpeaking: process.env.NODE_ENV !== 'test' ? state.isCoachSpeaking : false,
+      isFallbackTimerActive: process.env.NODE_ENV !== 'test' ? state.isFallbackTimerActive : false,
+      overlayVisible: process.env.NODE_ENV !== 'test' ? state.overlayVisible : false,
+      bubbleVisible: process.env.NODE_ENV !== 'test' ? state.bubbleState.bubbleVisible : false,
+      currentBubbleIndex:
+        process.env.NODE_ENV !== 'test' ? state.bubbleState.currentBubbleIndex : null,
+    }))
   )
 
   // PERFORMANCE FIX: Direct subscription to persistent progress setter
@@ -292,25 +291,17 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
 
   // playbackIsPlaying removed - using videoPlayer.isPlaying from hook
 
-  // PERFORMANCE FIX: Subscribe directly to bubble state stores instead of receiving as props
-  // Eliminates VideoAnalysisScreen re-renders when bubble state changes
-  const bubbleVisible = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.bubbleState.bubbleVisible : false
-  )
-  const currentBubbleIndex = useFeedbackCoordinatorStore((state) =>
-    process.env.NODE_ENV !== 'test' ? state.bubbleState.currentBubbleIndex : null
-  )
-
   // Reconstruct bubbleState locally (same structure as before)
   // PERFORMANCE FIX: Combine filter + object creation to avoid intermediate allocation
-  const bubbleState = useMemo(
-    () => ({
+  const bubbleState = useMemo(() => {
+    const items = feedbackItems.filter((item: any) => item.type === 'suggestion')
+    const state = {
       visible: bubbleVisible,
       currentIndex: currentBubbleIndex,
-      items: feedbackItems.filter((item: any) => item.type === 'suggestion'),
-    }),
-    [bubbleVisible, currentBubbleIndex, feedbackItems]
-  )
+      items,
+    }
+    return state
+  }, [bubbleVisible, currentBubbleIndex, feedbackItems])
 
   // Reconstruct audioOverlay locally using subscribed state + passed functions
   // PERFORMANCE FIX: Eliminates VideoAnalysisLayout re-renders when audio overlay state changes
@@ -765,13 +756,19 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
       ],
     }
   }, [analysisTitle])
-  const activeBubbleMessages = useMemo(() => {
+
+  /**
+   * Builds active bubble messages from current bubble state.
+   * Returns empty array if bubble is not visible or no active index.
+   * Otherwise returns single message for the active bubble item.
+   */
+  function buildActiveBubbleMessages() {
     if (!bubbleState.visible || bubbleState.currentIndex === null) {
       return []
     }
 
     const item = bubbleState.items[bubbleState.currentIndex]
-    return [
+    const messages = [
       {
         id: item.id,
         timestamp: item.timestamp,
@@ -783,7 +780,13 @@ export const VideoPlayerSection = memo(function VideoPlayerSection({
         isActive: true,
       },
     ]
-  }, [bubbleState.currentIndex, bubbleState.items, bubbleState.visible])
+    return messages
+  }
+
+  const activeBubbleMessages = useMemo(
+    () => buildActiveBubbleMessages(),
+    [bubbleState.currentIndex, bubbleState.items, bubbleState.visible]
+  )
 
   return (
     <VideoContainer

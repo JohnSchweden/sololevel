@@ -5,11 +5,11 @@
 - `web/` - Expo Router web app (Metro bundler)
 
 ## Rules
-- Consume shared packages via `@my/*` imports
-- Don't duplicate business logic (use `@my/app`)
-- Don't create custom UI components (use `@my/ui`)
-- Keep app-specific code in respective app directories
-- Both apps use Metro bundler → use `EXPO_PUBLIC_*` environment variables
+- Always consume shared packages via `@my/*` imports
+- Always use `@my/app` for business logic instead of duplicating it
+- Always use `@my/ui` for UI components instead of creating custom ones
+- Always keep app-specific code in respective app directories
+- Always use `EXPO_PUBLIC_*` environment variables (both apps use Metro bundler)
 
 ## Navigation
 - Route files implement navigation callbacks for screens

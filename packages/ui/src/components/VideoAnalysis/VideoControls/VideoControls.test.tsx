@@ -959,6 +959,77 @@ describe('VideoControls', () => {
     })
   })
 
+  describe('collapseProgress (sanitizeCollapseProgress / isSharedValue)', () => {
+    it('renders with collapseProgress as SharedValue-like object without crashing', async () => {
+      mockUseProgressBarVisibility.mockReturnValue(createVisibilityMock('normal'))
+      const sharedValueLike = { value: 0.5 }
+
+      expect(() => {
+        renderWithProviders(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={sharedValueLike as any}
+            showControls={true}
+          />
+        )
+      }).not.toThrow()
+
+      await waitFor(() => {
+        expect(mockUseProgressBarVisibility).toHaveBeenCalled()
+      })
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+
+    it('renders with numeric collapseProgress including sanitized edge cases', () => {
+      mockUseProgressBarVisibility.mockReturnValue(createVisibilityMock('normal'))
+      const edgeCases = [0, 0.5, 1, -0.1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]
+
+      edgeCases.forEach((value) => {
+        const { unmount } = renderWithProviders(
+          <VideoControls
+            {...mockProps}
+            collapseProgress={value}
+            showControls={true}
+          />
+        )
+        expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+        unmount()
+      })
+    })
+
+    it('handles switching between number and SharedValue-like collapseProgress', async () => {
+      mockUseProgressBarVisibility.mockReturnValue(createVisibilityMock('normal'))
+      const sharedValueLike = { value: 0.3 }
+
+      const { rerender } = renderWithProviders(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.2}
+          showControls={true}
+        />
+      )
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+
+      rerender(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={sharedValueLike as any}
+          showControls={true}
+        />
+      )
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+
+      rerender(
+        <VideoControls
+          {...mockProps}
+          collapseProgress={0.8}
+          showControls={true}
+        />
+      )
+      expect(screen.getByTestId('video-controls-container')).toBeInTheDocument()
+    })
+  })
+
   describe('Persistent Progress Bar', () => {
     // NOTE: These tests are commented out because the persistent progress bar
     // is now rendered at layout level via onPersistentProgressBarPropsChange callback

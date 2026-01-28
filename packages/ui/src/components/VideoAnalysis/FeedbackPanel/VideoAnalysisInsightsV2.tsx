@@ -10,7 +10,7 @@ import {
   Sparkles,
   Target,
 } from '@tamagui/lucide-icons'
-import React, { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import type { ComponentProps } from 'react'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
@@ -23,54 +23,18 @@ import { Progress } from '../../Insights/Progress'
 import { StatCard } from '../../Insights/StatCard'
 import { SettingsSectionHeader } from '../../Settings/SettingsSectionHeader'
 import { StateDisplay } from '../../StateDisplay'
-
-/**
- * Parse markdown bold (**text**) and render as nested Text components with bold styling
- * PERFORMANCE: Should be wrapped in useMemo by caller to avoid re-parsing on every render
- * Returns an array of React nodes that can be used as children of a Text component
- */
-function renderMarkdownText(text: string): React.ReactNode[] {
-  if (!text) return []
-
-  const parts: React.ReactNode[] = []
-  // Create regex inside function to avoid global state issues in concurrent renders
-  const boldRegex = /\*\*(.+?)\*\*/g
-  let lastIndex = 0
-  let match
-  let boldCounter = 0
-
-  while ((match = boldRegex.exec(text)) !== null) {
-    // Add text before the bold section
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index))
-    }
-    // Add bold text as nested Text component
-    // Key is based on content hash (first 20 chars) + counter for uniqueness
-    // This ensures same content gets same key regardless of position in string
-    const contentKey = match[1].substring(0, 20).replace(/\s+/g, '-')
-    parts.push(
-      <Text
-        key={`bold-${contentKey}-${boldCounter++}`}
-        fontWeight="700"
-      >
-        {match[1]}
-      </Text>
-    )
-    lastIndex = match.index + match[0].length
-  }
-
-  // Add remaining text after last match
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex))
-  }
-
-  // If no matches, return original text as string
-  if (parts.length === 0) {
-    return [text]
-  }
-
-  return parts
-}
+import {
+  DEFAULT_ACHIEVEMENTS,
+  DEFAULT_ACTIONS,
+  DEFAULT_FOCUS_AREAS,
+  DEFAULT_HIGHLIGHTS,
+  DEFAULT_REELS,
+  DEFAULT_SKILL_MATRIX,
+  DEFAULT_TIMELINE,
+  getDefaultOverview,
+  getDefaultQuote,
+} from './utils/defaults'
+import { renderMarkdownText } from './utils/renderMarkdownText'
 
 export interface VideoAnalysisInsightsV2Overview {
   score: number
@@ -160,160 +124,6 @@ export interface VideoAnalysisInsightsV2Props {
   onFullFeedbackRatingChange?: (rating: 'up' | 'down' | null) => void
   testID?: string
 }
-
-// Default overview and quote will be created from voice text in component
-function getDefaultOverview(voiceText: VoiceTextConfig): VideoAnalysisInsightsV2Overview {
-  return {
-    score: 78,
-    levelLabel: 'Proficient',
-    benchmarkSummary: voiceText.feedbackPanel.insights.defaultOverview.benchmarkSummary,
-    lastScore: 72,
-    improvementDelta: 6,
-    summary: voiceText.feedbackPanel.insights.defaultOverview.summary,
-  }
-}
-
-function getDefaultQuote(voiceText: VoiceTextConfig): VideoAnalysisInsightsV2Quote {
-  return {
-    id: 'quote-primary',
-    author: 'AI Coach',
-    text: voiceText.feedbackPanel.insights.defaultQuote,
-    tone: 'coach',
-  }
-}
-
-const DEFAULT_FOCUS_AREAS: VideoAnalysisInsightsV2FocusArea[] = [
-  {
-    id: 'focus-story',
-    title: 'Story Arc Confidence',
-    progress: 82,
-    priority: 'high',
-  },
-  {
-    id: 'focus-pauses',
-    title: 'Strategic Pauses (Stop Rushing)',
-    progress: 58,
-    priority: 'medium',
-  },
-  {
-    id: 'focus-filler',
-    title: 'Kill Those Filler Words',
-    progress: 32,
-    priority: 'high',
-  },
-]
-
-const DEFAULT_SKILL_MATRIX: VideoAnalysisInsightsV2SkillDimension[] = [
-  { id: 'skill-confidence', label: 'Confidence', score: 84, trend: 'up' },
-  { id: 'skill-voice', label: 'Voice', score: 71, trend: 'up' },
-  { id: 'skill-posture', label: 'Posture', score: 64, trend: 'steady' },
-  { id: 'skill-clarity', label: 'Clarity', score: 77, trend: 'up' },
-  { id: 'skill-engagement', label: 'Engagement', score: 69, trend: 'down' },
-]
-
-const DEFAULT_TIMELINE: ActivityData[] = [
-  { day: '00:00', sessions: 2 },
-  { day: '00:45', sessions: 3 },
-  { day: '01:30', sessions: 4 },
-  { day: '02:15', sessions: 2 },
-  { day: '03:00', sessions: 5 },
-  { day: '03:45', sessions: 4 },
-]
-
-const DEFAULT_HIGHLIGHTS: VideoAnalysisInsightsV2Highlight[] = [
-  {
-    id: 'highlight-storytelling',
-    title: 'Storytelling Peak (You Nailed This)',
-    tags: ['00:15 → 00:45'],
-    duration: '00:15 → 00:45',
-    score: 86,
-    status: 'good',
-  },
-  {
-    id: 'highlight-pauses',
-    title: 'Pause Disaster Zone',
-    tags: ['00:45 → 01:05'],
-    duration: '00:45 → 01:05',
-    score: 48,
-    status: 'improve',
-  },
-  {
-    id: 'highlight-filler',
-    title: 'Filler Word Apocalypse',
-    tags: ['01:05 → 01:20'],
-    duration: '01:05 → 01:20',
-    score: 32,
-    status: 'critical',
-  },
-]
-
-const DEFAULT_ACTIONS: VideoAnalysisInsightsV2Action[] = [
-  {
-    id: 'action-drill-filler',
-    title: 'Stop Saying "Um" Every 3 Seconds',
-    description:
-      'A 60-second drill that will shame you into silence every time you say "um", "uh", or "like". Prepare to be roasted.',
-    domains: ['Voice', 'Delivery'],
-    ctaLabel: 'Start 60s roast session',
-  },
-  {
-    id: 'action-pauses',
-    title: 'Learn What a Pause Actually Is',
-    description:
-      "Practice not rushing through sentences like you're being chased. Metronome included because apparently you can't count.",
-    domains: ['Pacing'],
-    ctaLabel: '2-min pause intervention',
-  },
-  {
-    id: 'action-posture',
-    title: 'Stop Fidgeting Like a Nervous Squirrel',
-    description:
-      "Mirror practice to see yourself fidgeting in real-time. It's going to be awkward, but necessary.",
-    domains: ['Body language'],
-    ctaLabel: 'Face the mirror of truth',
-  },
-]
-
-const DEFAULT_ACHIEVEMENTS: VideoAnalysisInsightsV2Achievement[] = [
-  {
-    id: 'achievement-evergreen',
-    title: 'Champion of "Um"',
-    date: '23 "ehms" in one video',
-    type: 'technique',
-    icon: '🐄',
-  },
-  {
-    id: 'achievement-excellent-story',
-    title: 'Actually Told a Story (Shocking!)',
-    date: 'New badge',
-    type: 'technique',
-    icon: '🎤',
-  },
-  {
-    id: 'achievement-streak',
-    title: '3 Sessions Without Quitting',
-    date: "23 wins (we're counting)",
-    type: 'streak',
-    icon: '⚡️',
-  },
-]
-
-const DEFAULT_REELS: VideoAnalysisInsightsV2Reel[] = [
-  {
-    id: 'reel-spikies',
-    title: 'Your Cringe-Worthy Moments',
-    description:
-      'All your fails, awkward pauses, and moments that made us question your life choices. Enjoy the roast!',
-    ctaLabel: 'Watch the disaster',
-  },
-  {
-    id: 'reel-boss',
-    title: "When You Actually Didn't Suck",
-    description:
-      "Rare footage of you being competent. Frame this, because it doesn't happen often.",
-    ctaLabel: 'Witness the miracle',
-  },
-]
 
 // Status token map will be created dynamically from voice text
 function getStatusTokenMap(

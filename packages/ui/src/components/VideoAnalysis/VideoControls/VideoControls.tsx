@@ -37,6 +37,7 @@ import {
 import { useControlsVisibility } from './hooks/useControlsVisibility'
 import { useProgressBarGesture } from './hooks/useProgressBarGesture'
 import { useProgressBarVisibility } from './hooks/useProgressBarVisibility'
+import { isSharedValue, sanitizeCollapseProgress } from './utils/collapseProgress'
 
 export interface VideoControlsRef {
   triggerMenu: () => void
@@ -134,38 +135,18 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     // If SharedValue is passed, use it directly (no re-renders during gestures)
     // If number is passed (legacy/fallback), create a SharedValue and sync it
 
-    // Check if collapseProgress is a SharedValue without reading .value (avoids Reanimated warning)
-    // Use refs to track value and type to prevent React dependency comparison from accessing .value
+    // Track collapseProgress via refs to avoid React dependency comparison accessing .value
     const collapseProgressRef = useRef(collapseProgress)
-    const isSharedValuePropRef = useRef(
-      typeof collapseProgress === 'object' &&
-        collapseProgress !== null &&
-        'value' in collapseProgress &&
-        !Array.isArray(collapseProgress)
-    )
+    const isSharedValuePropRef = useRef(isSharedValue(collapseProgress))
 
-    // Track primitive value separately for number props (to trigger effect when number changes)
-    // This avoids including SharedValue in dependency arrays
-    // Use state to track number changes so React can properly detect updates
-    // Sanitize NaN/Infinity values to prevent render loops
-    const sanitizeCollapseProgress = (value: number): number => {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return Math.max(0, Math.min(1, value)) // Clamp to 0-1 range
-      }
-      return 0
-    }
+    // State for tracking primitive number changes (for syncing to internal SharedValue)
     const [collapseProgressNumber, setCollapseProgressNumber] = useState<number | null>(
       typeof collapseProgress === 'number' ? sanitizeCollapseProgress(collapseProgress) : null
     )
 
-    // Update refs when collapseProgress changes (identity comparison only, no .value access)
-    // Check identity first to avoid unnecessary updates
+    // Update refs and state when collapseProgress prop changes
     const prevIsSharedValue = isSharedValuePropRef.current
-    const isSharedValueNow =
-      typeof collapseProgress === 'object' &&
-      collapseProgress !== null &&
-      'value' in collapseProgress &&
-      !Array.isArray(collapseProgress)
+    const isSharedValueNow = isSharedValue(collapseProgress)
 
     if (
       collapseProgressRef.current !== collapseProgress ||
@@ -173,8 +154,8 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
     ) {
       collapseProgressRef.current = collapseProgress
       isSharedValuePropRef.current = isSharedValueNow
-      // Track primitive number separately for effect dependency (only update if changed)
-      // Sanitize NaN/Infinity values to prevent render loops
+
+      // Sync number values to state for effect dependency
       if (typeof collapseProgress === 'number') {
         const sanitized = sanitizeCollapseProgress(collapseProgress)
         if (collapseProgressNumber !== sanitized) {
@@ -503,18 +484,34 @@ export const VideoControls = forwardRef<VideoControlsRef, VideoControlsProps>(
      *
      * Note: currentInteractionTypeRef is already defined earlier in component
      */
-    const persistentProgressBarCombinedGestureRef = useRef(persistentProgressBarCombinedGesture)
-    persistentProgressBarCombinedGestureRef.current = persistentProgressBarCombinedGesture
-    const persistentProgressGestureRef = useRef(persistentProgressGesture)
-    persistentProgressGestureRef.current = persistentProgressGesture
+    const persistentProgressBarRefs = useMemo(
+      () => ({
+        combinedGesture: persistentProgressBarCombinedGesture,
+        mainGesture: persistentProgressGesture,
+        progressBarWidth: persistentProgressBarWidth,
+        duration,
+      }),
+      [
+        persistentProgressBarCombinedGesture,
+        persistentProgressGesture,
+        persistentProgressBarWidth,
+        duration,
+      ]
+    )
 
-    const persistentProgressBarWidthRef = useRef(persistentProgressBarWidth)
-    const persistentDurationRef = useRef(duration)
+    const persistentProgressBarCombinedGestureRef = useRef(
+      persistentProgressBarRefs.combinedGesture
+    )
+    const persistentProgressGestureRef = useRef(persistentProgressBarRefs.mainGesture)
+    const persistentProgressBarWidthRef = useRef(persistentProgressBarRefs.progressBarWidth)
+    const persistentDurationRef = useRef(persistentProgressBarRefs.duration)
 
     useEffect(() => {
-      persistentProgressBarWidthRef.current = persistentProgressBarWidth
-      persistentDurationRef.current = duration
-    }, [persistentProgressBarWidth, duration])
+      persistentProgressBarCombinedGestureRef.current = persistentProgressBarRefs.combinedGesture
+      persistentProgressGestureRef.current = persistentProgressBarRefs.mainGesture
+      persistentProgressBarWidthRef.current = persistentProgressBarRefs.progressBarWidth
+      persistentDurationRef.current = persistentProgressBarRefs.duration
+    }, [persistentProgressBarRefs])
 
     const stableOnLayout = useCallback(
       (event: any) => {

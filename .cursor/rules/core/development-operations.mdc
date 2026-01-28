@@ -55,7 +55,7 @@ Operational standards for daily development: command usage, Yarn 4 workspace man
 - Troubleshooting: `yarn cache clean`, `yarn dlx @yarnpkg/doctor`, `yarn explain peer-requirements`
 
 ### Yarn Enforcement
-- **packageManager field**: Enforces Yarn 4.9.3 via `package.json`
+- **packageManager field**: Enforces Yarn 4.10.3 via `package.json`
 - **Pre-commit hooks**: Prevent commits with `package-lock.json` or npm `node_modules`
 - **CI validation**: All workflows use `yarn install --immutable`
 - **Local development**: Use `corepack enable` to ensure correct Yarn version
@@ -124,6 +124,14 @@ Fix peer dependency conflicts using `resolutions` and `packageExtensions` in roo
 - **Linting/Formatting:** Lint and Format (Biome)
 - **Type Checking:** TypeScript strict mode
 - **Security:** `yarn npm audit`
+
+## Development Workflow
+
+**See root `AGENTS.md` § Validation Strategy** for file-scoped validation during active development.
+
+**Summary:**
+- Active development: Use workspace-scoped commands (`yarn type-check:ui`)
+- Pre-commit/CI: Use full validation (`yarn type-check:all`)
 
 ## Workspace Commands Reference
 

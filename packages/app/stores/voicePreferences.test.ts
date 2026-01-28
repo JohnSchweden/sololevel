@@ -41,6 +41,7 @@ describe('VoicePreferencesStore', () => {
       mode: 'roast',
       isLoaded: false,
       isSyncing: false,
+      hasSetPreferences: false,
     })
 
     jest.clearAllMocks()
@@ -93,8 +94,11 @@ describe('VoicePreferencesStore', () => {
     it('fetches and hydrates state from API', async () => {
       // ARRANGE: Mock API response
       mockGetUserVoicePreferences.mockResolvedValue({
-        coachGender: 'male',
-        coachMode: 'zen',
+        preferences: {
+          coachGender: 'male',
+          coachMode: 'zen',
+        },
+        hasSetPreferences: true,
       })
 
       // ACT: Load from database
@@ -104,6 +108,7 @@ describe('VoicePreferencesStore', () => {
       const state = useVoicePreferencesStore.getState()
       expect(state.gender).toBe('male')
       expect(state.mode).toBe('zen')
+      expect(state.hasSetPreferences).toBe(true)
       expect(state.isLoaded).toBe(true)
       expect(mockGetUserVoicePreferences).toHaveBeenCalledWith('user-123')
     })

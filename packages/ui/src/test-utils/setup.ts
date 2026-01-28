@@ -1191,6 +1191,20 @@ jest.mock('@app/provider/safe-area/use-safe-area', () => ({
   }),
 }))
 
+// Mock global fetch for debug logging calls (agent logs)
+// These are fire-and-forget debug calls that shouldn't break tests
+if (typeof global.fetch === 'undefined') {
+  const mockFetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
+    })
+  )
+  global.fetch = mockFetch as unknown as typeof fetch
+}
+
 // Global test configuration
 beforeEach(() => {
   // Clear all mocks before each test
